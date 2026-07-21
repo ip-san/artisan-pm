@@ -6,6 +6,21 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 
+test('is_admin cannot be set through plain mass assignment', function () {
+    $user = User::create([
+        'name' => 'Mass Assignment Attempt',
+        'email' => 'mass-assign@example.com',
+        'password' => 'irrelevant-password',
+        'is_admin' => true,
+    ]);
+
+    // is_admin is excluded from Fillable, so fill() silently discards it —
+    // the in-memory model never actually had it set, so the DB's own
+    // column default (false) is what the persisted row holds. Read that
+    // back explicitly rather than trusting the unrefreshed in-memory value.
+    expect($user->fresh()->is_admin)->toBeFalse();
+});
+
 test('an admin can create a local user with a password', function () {
     $admin = User::factory()->admin()->create();
 

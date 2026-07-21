@@ -73,6 +73,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data = $this->validate($rules);
 
+        // is_admin is intentionally not in User's Fillable list (it's a
+        // privilege-granting column — see the model's docblock), so it's
+        // never part of $data and is set below via direct property
+        // assignment instead of mass assignment.
+        $isAdmin = $data['is_admin'] ?? false;
+        unset($data['is_admin']);
+
         if ($isLdapLinked) {
             // Never settable through this form for an LDAP-linked account —
             // reauthenticate() always defers to the directory, so an
@@ -96,6 +103,9 @@ new #[Layout('components.layouts.app')] class extends Component
         } else {
             $this->user = User::create($data);
         }
+
+        $this->user->is_admin = $isAdmin;
+        $this->user->save();
 
         $this->redirect(route('users.index'), navigate: true);
     }

@@ -18,7 +18,17 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'language', 'auth_source_id', 'login', 'status', 'is_admin'])]
+/**
+ * is_admin is deliberately excluded from Fillable — every current
+ * User::create()/update() call site already passes an explicit attribute
+ * array rather than raw request input, so mass-assigning it here wouldn't
+ * be exploitable today, but keeping a privilege-granting column out of
+ * the mass-assignable set entirely means a future call site that isn't as
+ * careful can't turn into a privilege-escalation path. The admin user
+ * form (resources/views/livewire/users/form.blade.php) sets it via a
+ * direct property assignment instead.
+ */
+#[Fillable(['name', 'email', 'password', 'language', 'auth_source_id', 'login', 'status'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 final class User extends Authenticatable implements OAuthenticatable
 {
