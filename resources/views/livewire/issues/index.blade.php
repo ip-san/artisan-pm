@@ -554,6 +554,29 @@ new #[Layout('components.layouts.app')] class extends Component
 
         session()->flash('status', "{$count}件の課題を「{$targetProject->name}」へ移動しました。");
     }
+
+    public function applyBulkDelete(): void
+    {
+        $issues = $this->selectedIssues;
+
+        abort_if($issues->isEmpty(), 404);
+
+        foreach ($issues as $issue) {
+            $this->authorize('delete', $issue);
+        }
+
+        $count = $issues->count();
+
+        foreach ($issues as $issue) {
+            $issue->delete();
+        }
+
+        $this->reset('selected');
+        $this->resetPage();
+        unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
+
+        session()->flash('status', "{$count}件の課題を削除しました。");
+    }
 }; ?>
 
 <div>
@@ -800,6 +823,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 </button>
             @endif
         </form>
+    @endif
+
+    @if (count($selected) > 0 && auth()->user()?->can('delete', $this->selectedIssues->first()))
+        <div class="mb-4">
+            <button type="button" wire:click="applyBulkDelete"
+                wire:confirm="選択した{{ count($selected) }}件の課題を削除します。この操作は取り消せません。よろしいですか?"
+                class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
+                選択した{{ count($selected) }}件を削除
+            </button>
+        </div>
     @endif
 
     @foreach ($this->groupedIssues as $groupLabel => $groupIssues)
