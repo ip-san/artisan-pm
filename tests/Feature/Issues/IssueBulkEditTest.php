@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\EnumerationType;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -135,4 +136,57 @@ test('bulk edit does not touch issues outside the current project', function () 
 
     expect($ownIssue->fresh()->priority_id)->toBe($priority->id)
         ->and($foreignIssue->fresh()->priority_id)->not->toBe($priority->id);
+});
+
+test('bulk edit rejects a fixed_version_id belonging to another project', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $user = bulkEditMember($project, ['view_issues', 'edit_issues']);
+
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $foreignVersion = Version::factory()->for($otherProject)->create();
+
+    Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('selected', [$issue->id])
+        ->set('bulkFixedVersionId', $foreignVersion->id)
+        ->call('applyBulkEdit')
+        ->assertHasErrors(['bulkFixedVersionId']);
+
+    expect($issue->fresh()->fixed_version_id)->toBeNull();
+});
+
+test('bulk edit rejects an assignee who is not a member of the project', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $user = bulkEditMember($project, ['view_issues', 'edit_issues']);
+    $outsider = User::factory()->create();
+
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+
+    Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('selected', [$issue->id])
+        ->set('bulkAssignedToId', $outsider->id)
+        ->call('applyBulkEdit')
+        ->assertHasErrors(['bulkAssignedToId']);
+
+    expect($issue->fresh()->assigned_to_id)->toBeNull();
+});
+
+test('bulk edit rejects an enumeration id that is not actually an issue priority', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $user = bulkEditMember($project, ['view_issues', 'edit_issues']);
+
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $activity = Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value]);
+
+    Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('selected', [$issue->id])
+        ->set('bulkPriorityId', $activity->id)
+        ->call('applyBulkEdit')
+        ->assertHasErrors(['bulkPriorityId']);
 });

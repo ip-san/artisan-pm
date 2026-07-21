@@ -10,6 +10,7 @@ use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -130,10 +131,14 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->authorize('update', $issue);
         }
 
+        // Scoped to this project so a crafted request can't pull in another
+        // project's version, a non-member assignee, or a same-table
+        // enumeration row that isn't actually a priority (mirrors the same
+        // fix in issues/form.blade.php's single-issue save()).
         $data = $this->validate([
-            'bulkPriorityId' => ['nullable', 'exists:enumerations,id'],
-            'bulkAssignedToId' => ['nullable', 'exists:users,id'],
-            'bulkFixedVersionId' => ['nullable', 'exists:versions,id'],
+            'bulkPriorityId' => ['nullable', Rule::exists('enumerations', 'id')->where('type', EnumerationType::IssuePriority->value)],
+            'bulkAssignedToId' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
+            'bulkFixedVersionId' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $this->project->id)],
             'bulkStatusId' => ['nullable', 'exists:issue_statuses,id'],
             'bulkDoneRatio' => ['nullable', 'integer', 'min:0', 'max:100'],
             'bulkComment' => ['nullable', 'string'],

@@ -164,3 +164,30 @@ test('the import status page shows progress and errors once finished', function 
         ->assertSee('完了しました')
         ->assertSee('1');
 });
+
+test('an assigned_to email matching a user outside the project leaves the issue unassigned', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    IssueStatus::factory()->create();
+    Enumeration::factory()->create(['is_default' => true]);
+    $user = importMember($project);
+
+    $outsider = User::factory()->create(['email' => 'outsider@example.com']);
+
+    $csv = "subject,assigned_to\nRow one,outsider@example.com\n";
+
+    Livewire::actingAs($user)
+        ->test('issues.import', ['project' => $project])
+        ->set('csvFile', csvFile('issues.csv', $csv))
+        ->set('mapping.subject', 'subject')
+        ->set('mapping.assigned_to', 'assigned_to')
+        ->call('startImport');
+
+    $issue = Issue::where('subject', 'Row one')->firstOrFail();
+
+    expect($issue->assigned_to_id)->toBeNull()
+        ->and($issue->assigned_to_id)->not->toBe($outsider->id);
+});

@@ -124,8 +124,16 @@ final class ImportIssuesJob implements ShouldQueue
             throw new RuntimeException('トラッカー・ステータス・優先度のいずれかを特定できません。');
         }
 
+        // Scoped to project members — an email matching some other user in
+        // the system (unrelated to this project) should not be able to
+        // receive an assignment via a crafted CSV row.
         $assigneeEmail = $this->mapped($record, $mapping, 'assigned_to');
-        $assignee = $assigneeEmail !== null ? User::query()->where('email', $assigneeEmail)->first() : null;
+        $assignee = $assigneeEmail !== null
+            ? User::query()
+                ->whereHas('memberships', fn ($query) => $query->where('project_id', $this->import->project_id))
+                ->where('email', $assigneeEmail)
+                ->first()
+            : null;
 
         return [
             'project_id' => $this->import->project_id,

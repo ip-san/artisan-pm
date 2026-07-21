@@ -65,6 +65,7 @@ test('a required custom field blocks submission when left blank', function () {
 test('editing an issue preloads and updates its existing custom field value', function () {
     $project = Project::factory()->create();
     $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
 
     $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::Int->value]);
     $field->trackers()->attach($tracker);

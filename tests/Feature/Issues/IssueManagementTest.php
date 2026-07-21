@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use App\Models\WorkflowTransition;
 use Livewire\Livewire;
 
@@ -55,6 +56,7 @@ test('a user without add_issues cannot open the issue creation form', function (
 test('only workflow-allowed statuses are offered when editing an issue', function () {
     $project = Project::factory()->create();
     $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
     $new = IssueStatus::factory()->create(['name' => 'New']);
     $inProgress = IssueStatus::factory()->create(['name' => 'In Progress']);
     $closed = IssueStatus::factory()->closed()->create(['name' => 'Closed']);
@@ -84,8 +86,10 @@ test('only workflow-allowed statuses are offered when editing an issue', functio
 
 test('updating an issue records a journal entry visible on the show page', function () {
     $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
     $user = projectMemberWithPermissions($project, ['view_issues', 'edit_issues']);
-    $issue = Issue::factory()->for($project)->create(['subject' => 'Old subject']);
+    $issue = Issue::factory()->for($project)->create(['subject' => 'Old subject', 'tracker_id' => $tracker->id]);
 
     Livewire::actingAs($user)
         ->test('issues.form', ['project' => $project, 'issue' => $issue])
@@ -98,6 +102,62 @@ test('updating an issue records a journal entry visible on the show page', funct
 
     expect($journal->notes)->toBe('Renamed for clarity')
         ->and($journal->details()->where('prop_key', 'subject')->exists())->toBeTrue();
+});
+
+test('creating an issue rejects a tracker not attached to the project', function () {
+    $project = Project::factory()->create();
+    $foreignTracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $priority = Enumeration::factory()->create(['is_default' => true]);
+
+    $user = projectMemberWithPermissions($project, ['view_issues', 'add_issues']);
+
+    Livewire::actingAs($user)
+        ->test('issues.form', ['project' => $project])
+        ->set('tracker_id', $foreignTracker->id)
+        ->set('priority_id', $priority->id)
+        ->set('subject', 'Should not be created')
+        ->call('save')
+        ->assertHasErrors(['tracker_id']);
+
+    expect(Issue::where('subject', 'Should not be created')->exists())->toBeFalse();
+});
+
+test('editing an issue rejects a fixed_version_id belonging to another project', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+
+    $user = projectMemberWithPermissions($project, ['view_issues', 'edit_issues']);
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $foreignVersion = Version::factory()->for($otherProject)->create();
+
+    Livewire::actingAs($user)
+        ->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->set('fixed_version_id', $foreignVersion->id)
+        ->call('save')
+        ->assertHasErrors(['fixed_version_id']);
+
+    expect($issue->fresh()->fixed_version_id)->toBeNull();
+});
+
+test('editing an issue rejects an assignee who is not a member of the project', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+
+    $user = projectMemberWithPermissions($project, ['view_issues', 'edit_issues']);
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $outsider = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->set('assigned_to_id', $outsider->id)
+        ->call('save')
+        ->assertHasErrors(['assigned_to_id']);
+
+    expect($issue->fresh()->assigned_to_id)->toBeNull();
 });
 
 test('a user can watch and unwatch an issue', function () {

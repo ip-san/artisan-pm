@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -151,12 +152,16 @@ new #[Layout('components.layouts.app')] class extends Component
     public function save(): void
     {
         $rules = [
-            'tracker_id' => ['required', 'exists:trackers,id'],
-            'priority_id' => ['required', 'exists:enumerations,id'],
+            // Scoped to this project (rather than a bare exists:table,id) so a
+            // crafted request can't attach an issue to another project's
+            // tracker/version, assign it to a non-member, or set a priority_id
+            // that's actually a different enumeration type's row.
+            'tracker_id' => ['required', Rule::exists('project_tracker', 'tracker_id')->where('project_id', $this->project->id)],
+            'priority_id' => ['required', Rule::exists('enumerations', 'id')->where('type', EnumerationType::IssuePriority->value)],
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'assigned_to_id' => ['nullable', 'exists:users,id'],
-            'fixed_version_id' => ['nullable', 'exists:versions,id'],
+            'assigned_to_id' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
+            'fixed_version_id' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $this->project->id)],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
             'done_ratio' => ['integer', 'min:0', 'max:100'],
