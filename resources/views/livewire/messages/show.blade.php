@@ -150,7 +150,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function deleteAttachment(int $messageId, int $mediaId): void
     {
-        $message = Message::query()->where('board_id', $this->board->id)->findOrFail($messageId);
+        $message = $this->messageInBoard($messageId);
 
         $this->authorize('update', $message);
 
@@ -170,7 +170,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function updateAttachmentDescription(int $messageId, int $mediaId): void
     {
-        $message = Message::query()->where('board_id', $this->board->id)->findOrFail($messageId);
+        $message = $this->messageInBoard($messageId);
 
         $this->authorize('update', $message);
 
@@ -184,7 +184,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function deleteMessage(int $messageId): void
     {
-        $message = Message::query()->where('board_id', $this->board->id)->findOrFail($messageId);
+        $message = $this->messageInBoard($messageId);
 
         $this->authorize('delete', $message);
 
@@ -198,6 +198,15 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         unset($this->replies);
+    }
+
+    /**
+     * Looks up a topic or reply, scoped to this board so a message id from
+     * another board can't be targeted.
+     */
+    private function messageInBoard(int $messageId): Message
+    {
+        return Message::query()->where('board_id', $this->board->id)->findOrFail($messageId);
     }
 }; ?>
 

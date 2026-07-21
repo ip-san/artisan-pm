@@ -624,10 +624,8 @@ new #[Layout('components.layouts.app')] class extends Component
                             <button wire:click="updateAttachmentDescription({{ $media->id }})"
                                 class="shrink-0 text-xs text-indigo-600 hover:underline">保存</button>
                         </div>
-                    @else
-                        @if ($media->getCustomProperty('description'))
-                            <p class="mt-1 text-xs text-gray-500">{{ $media->getCustomProperty('description') }}</p>
-                        @endif
+                    @elseif ($media->getCustomProperty('description'))
+                        <p class="mt-1 text-xs text-gray-500">{{ $media->getCustomProperty('description') }}</p>
                     @endcan
                 </li>
             @endforeach

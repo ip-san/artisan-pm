@@ -73,11 +73,16 @@ new #[Layout('components.layouts.app')] class extends Component
     </p>
     <h1 class="text-xl font-semibold text-gray-900 mb-6">履歴</h1>
 
+    @php
+        $versionCount = $this->versions->count();
+        $maxVersion = $this->versions->max('version');
+    @endphp
+
     <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
         @foreach ($this->versions as $version)
             <li wire:key="wiki-version-{{ $version->id }}" class="flex items-center justify-between px-4 py-2 text-sm">
                 <div class="flex items-center gap-3">
-                    @if ($this->versions->count() > 1)
+                    @if ($versionCount > 1)
                         <span class="flex items-center gap-1 text-xs text-gray-400">
                             <label class="flex items-center gap-0.5">
                                 旧
@@ -100,7 +105,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                 </div>
                 @can('update', $wikiPage)
-                    @if ($version->version !== $this->versions->max('version') && $this->versions->count() > 1)
+                    @if ($version->version !== $maxVersion && $versionCount > 1)
                         <button wire:click="deleteVersion({{ $version->id }})" wire:confirm="このバージョンを削除しますか?"
                             class="shrink-0 text-xs font-medium text-red-600 hover:underline">
                             削除
@@ -111,7 +116,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endforeach
     </ul>
 
-    @if ($this->versions->count() > 1)
+    @if ($versionCount > 1)
         <div class="mt-4">
             @if ($diffFrom !== null && $diffTo !== null && $diffFrom !== $diffTo)
                 <a href="{{ route('wiki.diff', [$project, $wikiPage, 'from' => $diffFrom, 'to' => $diffTo]) }}"

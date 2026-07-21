@@ -87,14 +87,12 @@ final class WikiPageService
         // point at itself, in which case it's just removed.
         $page->project->wikiRedirects()
             ->where('redirects_to', $oldTitle)
-            ->get()
-            ->each(function (WikiRedirect $redirect) use ($newTitle) {
-                if ($redirect->title === $newTitle) {
-                    $redirect->delete();
-                } else {
-                    $redirect->update(['redirects_to' => $newTitle]);
-                }
-            });
+            ->where('title', $newTitle)
+            ->delete();
+
+        $page->project->wikiRedirects()
+            ->where('redirects_to', $oldTitle)
+            ->update(['redirects_to' => $newTitle]);
 
         // The new title is now a live page, not a redirect source.
         $page->project->wikiRedirects()->where('title', $newTitle)->delete();

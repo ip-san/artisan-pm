@@ -23,11 +23,11 @@ trait HasThumbnails
 {
     public function registerMediaConversions(?Media $media = null): void
     {
-        $conversion = $this->addMediaConversion('thumb')
+        $this->addMediaConversion('thumb')
             ->nonQueued()
-            ->performOnCollections(...$this->thumbnailCollections());
-
-        $conversion->width(100)->height(100);
+            ->performOnCollections(...$this->thumbnailCollections())
+            ->width(100)
+            ->height(100);
     }
 
     /**
