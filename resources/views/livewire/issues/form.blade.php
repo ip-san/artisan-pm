@@ -8,6 +8,7 @@ use App\Models\Issue;
 use App\Models\IssueCategory;
 use App\Models\IssueStatus;
 use App\Models\Project;
+use App\Models\Tracker;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Attachments\AttachmentValidationRules;
@@ -103,7 +104,6 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->authorize('create', [Issue::class, $project]);
 
             $this->tracker_id = $project->trackers->first()?->id;
-            $this->status_id = IssueStatus::query()->orderBy('position')->first()?->id;
             $this->priority_id = Enumeration::query()
                 ->ofType(EnumerationType::IssuePriority)
                 ->where('is_default', true)
@@ -111,6 +111,36 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->start_date = now()->toDateString();
 
             $this->prefillFromCopySource($project);
+
+            // Resolved after the copy-from prefill (which may itself change
+            // tracker_id) so the default status matches whichever tracker
+            // actually ends up selected, not the project's first one.
+            $this->status_id = $this->defaultStatusIdForTracker($this->tracker_id);
+        }
+    }
+
+    /**
+     * Falls back to the global first status when the tracker has no
+     * default_status_id of its own set, or no tracker is selected yet.
+     */
+    private function defaultStatusIdForTracker(?int $trackerId): ?int
+    {
+        $trackerDefault = $trackerId !== null
+            ? Tracker::query()->whereKey($trackerId)->value('default_status_id')
+            : null;
+
+        return $trackerDefault ?? IssueStatus::query()->orderBy('position')->first()?->id;
+    }
+
+    /**
+     * Only re-derives the default status while creating a new issue —
+     * changing the tracker mid-edit shouldn't silently change an
+     * already-set status out from under the user.
+     */
+    public function updatedTrackerId(): void
+    {
+        if ($this->issue === null) {
+            $this->status_id = $this->defaultStatusIdForTracker($this->tracker_id);
         }
     }
 

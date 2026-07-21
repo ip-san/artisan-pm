@@ -8,12 +8,13 @@ use Database\Factories\TrackerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
-#[Fillable(['name', 'description', 'position'])]
+#[Fillable(['name', 'description', 'position', 'default_status_id'])]
 final class Tracker extends Model implements Sortable
 {
     /** @use HasFactory<TrackerFactory> */
@@ -39,5 +40,13 @@ final class Tracker extends Model implements Sortable
     public function issues(): HasMany
     {
         return $this->hasMany(Issue::class);
+    }
+
+    /**
+     * @return BelongsTo<IssueStatus, $this>
+     */
+    public function defaultStatus(): BelongsTo
+    {
+        return $this->belongsTo(IssueStatus::class, 'default_status_id');
     }
 }
