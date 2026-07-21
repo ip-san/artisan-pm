@@ -38,6 +38,16 @@ final class ProjectPolicy
         return $this->authorization->can($user, 'close_project', $project);
     }
 
+    /**
+     * Archiving is administrator-only in Redmine (unlike close/reopen,
+     * which project managers can do) — always false here, same as
+     * create(), relying on Gate::before's admin bypass.
+     */
+    public function archive(User $user, Project $project): bool
+    {
+        return false;
+    }
+
     public function delete(User $user, Project $project): bool
     {
         return $this->authorization->can($user, 'delete_project', $project);

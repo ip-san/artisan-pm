@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProjectStatus;
 use App\Models\Project;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -14,12 +15,58 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->project = $project;
     }
+
+    public function closeProject(): void
+    {
+        $this->authorize('close', $this->project);
+
+        $this->setStatus(ProjectStatus::Closed);
+    }
+
+    public function reopenProject(): void
+    {
+        $this->authorize('close', $this->project);
+
+        $this->setStatus(ProjectStatus::Active);
+    }
+
+    public function archiveProject(): void
+    {
+        $this->authorize('archive', $this->project);
+
+        $this->setStatus(ProjectStatus::Archived);
+    }
+
+    public function unarchiveProject(): void
+    {
+        $this->authorize('archive', $this->project);
+
+        $this->setStatus(ProjectStatus::Active);
+    }
+
+    /**
+     * status is deliberately excluded from Project's #[Fillable] — it's
+     * only ever meant to change through these explicit, permission-gated
+     * actions, not through the general edit form's mass assignment.
+     */
+    private function setStatus(ProjectStatus $status): void
+    {
+        $this->project->status = $status;
+        $this->project->save();
+    }
 }; ?>
 
 <div>
     <div class="flex items-start justify-between mb-6">
         <div>
-            <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }}</h1>
+            <h1 class="text-xl font-semibold text-gray-900">
+                {{ $project->name }}
+                @unless ($project->isOpen())
+                    <span class="ml-1 rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 align-middle">
+                        {{ $project->status === \App\Enums\ProjectStatus::Archived ? 'アーカイブ済み' : 'クローズ' }}
+                    </span>
+                @endunless
+            </h1>
             <p class="text-sm text-gray-500">{{ $project->identifier }}</p>
         </div>
         <div class="flex gap-2">
@@ -108,6 +155,32 @@ new #[Layout('components.layouts.app')] class extends Component
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     編集
                 </a>
+            @endcan
+            @can('close', $project)
+                @if ($project->status === \App\Enums\ProjectStatus::Active)
+                    <button wire:click="closeProject" wire:confirm="このプロジェクトをクローズしますか?"
+                        class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        クローズ
+                    </button>
+                @elseif ($project->status === \App\Enums\ProjectStatus::Closed)
+                    <button wire:click="reopenProject"
+                        class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        再オープン
+                    </button>
+                @endif
+            @endcan
+            @can('archive', $project)
+                @if ($project->status === \App\Enums\ProjectStatus::Archived)
+                    <button wire:click="unarchiveProject"
+                        class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        アーカイブ解除
+                    </button>
+                @else
+                    <button wire:click="archiveProject" wire:confirm="このプロジェクトをアーカイブしますか?アーカイブ中は編集できなくなります。"
+                        class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        アーカイブ
+                    </button>
+                @endif
             @endcan
         </div>
     </div>
