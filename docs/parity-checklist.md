@@ -43,7 +43,7 @@
 | 機能 | 状態 | 備考 |
 |---|---|---|
 | 課題の作成/編集/閲覧 | done | `IssueService::create/update`, `issues/{form,show}.blade.php` |
-| 課題本文・コメントのMarkdownレンダリング | done(2026-07-22) | 前回の調査で発見した欠落を解消。`issues/show.blade.php`の説明文・各Journalコメント(`notes`)を`WikiMarkdownRenderer`に通すよう変更(`renderedDescription`/`renderedNotes()`)、`#123`課題リンク・`[[Page]]`Wikiリンク・インライン画像参照(添付ファイル)がすべて課題側でも有効に。課題フォームの入力プレビューは対象外(Wiki同様、保存後の表示のみ) |
+| 課題本文・コメントのMarkdownレンダリング | done(2026-07-22) | 前回の調査で発見した欠落を解消。`issues/show.blade.php`の説明文・各Journalコメント(`notes`)を`WikiMarkdownRenderer`に通すよう変更(`renderedDescription`/`renderedNotes()`)、`#123`課題リンク・`[[Page]]`Wikiリンク・インライン画像参照(添付ファイル)がすべて課題側でも有効に。課題フォームの入力プレビューは対象外(Wikiには2026-07-22にプレビュー機能を追加済みだが、課題フォームは引き続き保存後の表示のみ) |
 | 更新時の属性差分 Journal 記録 | done(2026-07-22訂正) | **訂正**: 従来「category_id・カスタムフィールドは記録されない」と誤記されていたが、実際には`JOURNALED_ATTRIBUTES`に`category_id`含め15項目が既に含まれ、カスタムフィールドも`diffCustomFieldSnapshots()`で別途記録済み(詳細は下の「属性変更の監査証跡」行を参照、内容が重複していたため本行はそちらに合わせて訂正) |
 | 課題削除 | done(2026-07-21) | 詳細画面に削除ボタンを配線(`delete_issues`権限+確認ダイアログ)。工数は`nullOnDelete`で保持(切り離されるのみ)、子課題も`nullOnDelete`でトップレベル化。Redmineの`params[:todo]`(工数の再割当/削除選択)は意図的に対象外、常に保持のみ |
 | 課題のコピー | done(2026-07-21) | 詳細画面の「コピー」リンクが`?copy_from=<id>`付きで新規課題フォームを開き、トラッカー/優先度/カテゴリ/担当者/対象バージョン/題名/説明/日付/カスタムフィールドをプリフィル。ステータス/進捗率/作成者は通常の新規課題と同じ初期値。ジャーナル/添付/関連/親子は意図的にコピー対象外(軽量な「似た課題から始める」機能として設計) |
@@ -290,7 +290,7 @@
 | 開始ページ設定 | missing | — |
 | **マクロエンジン全体** | **missing** | `#123` 課題メンションと `[[ページ]]` リンクのみ。`{{toc}}`, `{{child_pages}}`, `{{include}}`, `{{collapse}}` 等すべて未実装 |
 | セクション単位編集 | missing | 全文テキストエリアのみ |
-| プレビュー | missing | 保存後閲覧のみ |
+| プレビュー | done(2026-07-22) | 編集フォームに「プレビュー」トグルボタンを追加、`WikiMarkdownRenderer`で本文テキストエリアの現在値を保存せずにレンダリング(Wiki表示画面と同じレンダラーを再利用)。既存ページ編集時はインライン画像参照もそのページの既存添付ファイルに対して解決(このフォーム送信で選択中だが未アップロードのファイルはまだMediaレコードが無いため対象外) |
 | PDF/HTML/TXT/ZIPエクスポート | missing | — |
 | 日付インデックス表示 | missing | — |
 | ページのWatch | done(2026-07-21) | `WikiPage`に`watchers()`(ポリモーフィック`Watcher`)を追加、`view_wiki_pages`権限で自己Watch/Unwatch可能。他ユーザーの追加/削除UIはまだなし(Issueの`manageWatchers`相当は未実装) |

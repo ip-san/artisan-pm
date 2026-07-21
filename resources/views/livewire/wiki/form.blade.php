@@ -5,6 +5,7 @@ use App\Models\WikiPage;
 use App\Services\WikiPageService;
 use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -31,6 +32,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $comments = '';
 
     public bool $redirectExistingLinks = true;
+
+    public bool $showPreview = false;
 
     /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
     public array $newAttachments = [];
@@ -104,6 +107,23 @@ new #[Layout('components.layouts.app')] class extends Component
     public function canProtect(): bool
     {
         return app(AuthorizationService::class)->can(auth()->user(), 'protect_wiki_pages', $this->project);
+    }
+
+    public function togglePreview(): void
+    {
+        $this->showPreview = ! $this->showPreview;
+    }
+
+    /**
+     * Matches Redmine's wiki edit form "Preview" button — renders the
+     * textarea's current content without saving. Inline image references
+     * resolve against the page's already-uploaded attachments only; files
+     * selected in this same submission aren't Media records yet.
+     */
+    #[Computed]
+    public function previewHtml(): string
+    {
+        return app(WikiMarkdownRenderer::class)->render($this->text, $this->project, $this->wikiPage?->attachments());
     }
 
     public function save(): void
@@ -194,6 +214,20 @@ new #[Layout('components.layouts.app')] class extends Component
             <p class="mt-1 text-xs text-gray-500">
                 「#123」で課題にリンク、「[[ページ名]]」または「[[ページ名|表示名]]」で他のWikiページにリンクできます。
             </p>
+            <button type="button" wire:click="togglePreview"
+                class="mt-2 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                {{ $showPreview ? 'プレビューを閉じる' : 'プレビュー' }}
+            </button>
+
+            @if ($showPreview)
+                <div class="prose prose-sm mt-2 max-w-none rounded-md border border-gray-200 bg-gray-50 p-4">
+                    @if (trim($text) === '')
+                        <p class="text-sm text-gray-400">(本文が空です)</p>
+                    @else
+                        {!! $this->previewHtml !!}
+                    @endif
+                </div>
+            @endif
         </div>
 
         @if ($wikiPage)
