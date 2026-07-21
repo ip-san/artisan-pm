@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\HasCustomFields;
+use App\Enums\CustomizableType;
 use App\Enums\VersionStatus;
+use App\Support\Authorization\AuthorizationService;
 use Database\Factories\VersionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
@@ -20,7 +24,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 final class Version extends Model implements HasMedia
 {
     /** @use HasFactory<VersionFactory> */
-    use HasFactory, InteractsWithMedia;
+    use HasCustomFields, HasFactory, InteractsWithMedia;
 
     /**
      * Eloquent doesn't read back server-side column defaults on a freshly
@@ -57,6 +61,37 @@ final class Version extends Model implements HasMedia
     public function issues(): HasMany
     {
         return $this->hasMany(Issue::class, 'fixed_version_id');
+    }
+
+    public static function customizableType(): CustomizableType
+    {
+        return CustomizableType::Version;
+    }
+
+    /**
+     * Versions have no roles/members of their own, so visibility is
+     * resolved through the owning project's roles, same as Project's own
+     * relevantCustomFields() delegates to AuthorizationService::rolesFor().
+     *
+     * @return Collection<int, CustomField>
+     */
+    public function relevantCustomFields(): Collection
+    {
+        $fields = CustomField::query()
+            ->where('customized_type', CustomizableType::Version)
+            ->with('roles')
+            ->orderBy('position')
+            ->get();
+
+        $user = auth()->user();
+
+        if ($user?->is_admin) {
+            return $fields->values();
+        }
+
+        $userRoles = $user ? app(AuthorizationService::class)->rolesFor($user, $this->project) : collect();
+
+        return $fields->filter(fn (CustomField $field) => $field->visibleToRoles($userRoles))->values();
     }
 
     /**

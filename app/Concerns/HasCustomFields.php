@@ -13,9 +13,8 @@ use Illuminate\Support\Collection;
 /**
  * Gives a model dynamic, admin-configurable custom fields backed by the
  * generic (typed) EAV table custom_field_values, keyed by this model's
- * CustomizableType discriminator. Only Issue uses this so far — Project/
- * User custom fields are future-phase scope — but the mechanism itself
- * is deliberately generic so adding a second consumer is a small diff.
+ * CustomizableType discriminator. Used by Issue, Project, and Version —
+ * User/Group/TimeEntryActivity custom fields remain future-phase scope.
  */
 trait HasCustomFields
 {

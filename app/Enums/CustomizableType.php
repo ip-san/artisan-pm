@@ -15,4 +15,5 @@ enum CustomizableType: string
 {
     case Issue = 'issue';
     case Project = 'project';
+    case Version = 'version';
 }

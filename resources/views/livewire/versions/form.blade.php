@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\VersionStatus;
+use App\Models\CustomField;
 use App\Models\Project;
 use App\Models\Version;
 use Illuminate\Support\Collection;
@@ -25,6 +26,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $wiki_page_title = '';
 
+    /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
+    public array $customFieldValues = [];
+
     public function mount(Project $project, ?Version $version = null): void
     {
         $this->project = $project;
@@ -40,6 +44,12 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->status = $version->status->value;
             $this->due_date = $version->due_date?->toDateString();
             $this->wiki_page_title = (string) $version->wiki_page_title;
+
+            foreach ($version->relevantCustomFields() as $field) {
+                $this->customFieldValues[$field->id] = $field->multiple
+                    ? $version->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
+                    : $version->customValue($field);
+            }
         } else {
             $this->authorize('create', [Version::class, $project]);
         }
@@ -51,9 +61,19 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->project->wikiPages()->orderBy('title')->get();
     }
 
+    /**
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function customFields(): Collection
+    {
+        return ($this->version ?? (new Version)->setRelation('project', $this->project))
+            ->relevantCustomFields();
+    }
+
     public function save(): void
     {
-        $data = $this->validate([
+        $rules = [
             'name' => [
                 'required', 'string', 'max:255',
                 Rule::unique('versions', 'name')->where('project_id', $this->project->id)->ignore($this->version?->id),
@@ -62,7 +82,23 @@ new #[Layout('components.layouts.app')] class extends Component
             'status' => ['required', Rule::in(array_map(fn (VersionStatus $s) => $s->value, VersionStatus::cases()))],
             'due_date' => ['nullable', 'date'],
             'wiki_page_title' => ['nullable', 'string', Rule::in([...$this->wikiPages->pluck('title')->all(), ''])],
-        ]);
+        ];
+
+        foreach ($this->customFields as $field) {
+            $key = "customFieldValues.{$field->id}";
+            $presence = $field->is_required ? 'required' : 'nullable';
+
+            if ($field->multiple) {
+                $rules[$key] = [$presence, 'array'];
+                $rules["{$key}.*"] = $field->format()->validationRules($field);
+            } else {
+                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
+            }
+        }
+
+        $data = $this->validate($rules);
+        $customFieldData = $data['customFieldValues'] ?? [];
+        unset($data['customFieldValues']);
 
         $data['wiki_page_title'] = $data['wiki_page_title'] !== '' ? $data['wiki_page_title'] : null;
         $data['project_id'] = $this->project->id;
@@ -70,8 +106,10 @@ new #[Layout('components.layouts.app')] class extends Component
         if ($this->version) {
             $this->version->update($data);
         } else {
-            Version::create($data);
+            $this->version = Version::create($data);
         }
+
+        $this->version->setCustomFieldValues($customFieldData);
 
         $this->redirect(route('versions.index', $this->project), navigate: true);
     }
@@ -120,6 +158,14 @@ new #[Layout('components.layouts.app')] class extends Component
             </select>
             @error('wiki_page_title') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
+
+        @if ($this->customFields->isNotEmpty())
+            <div class="space-y-4 border-t border-gray-200 pt-4">
+                @foreach ($this->customFields as $field)
+                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" />
+                @endforeach
+            </div>
+        @endif
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
