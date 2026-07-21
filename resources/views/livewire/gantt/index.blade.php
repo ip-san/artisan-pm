@@ -82,12 +82,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function barLeftPercent(GanttRow $row): float
     {
-        return $this->percentFromStart($row->startDate);
+        return $this->percentFromStart($row->startDate ?? throw new LogicException('Gantt row is missing a start date.'));
     }
 
     public function barWidthPercent(GanttRow $row): float
     {
-        return $this->percentWidth($row->startDate, $row->dueDate);
+        return $this->percentWidth(
+            $row->startDate ?? throw new LogicException('Gantt row is missing a start date.'),
+            $row->dueDate ?? throw new LogicException('Gantt row is missing a due date.'),
+        );
     }
 
     private function percentFromStart(Carbon $date): float

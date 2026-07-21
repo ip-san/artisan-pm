@@ -96,6 +96,19 @@ test('the chart shows an empty-state message when no issues have a date range', 
         ->assertSee('開始日・期日が設定された課題がありません');
 });
 
+test('bar percentage helpers reject a row without a date range', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+    Issue::factory()->for($project)->create([...$defaults, 'start_date' => null, 'due_date' => null]);
+
+    $component = Livewire::actingAs($user)->test('gantt.index', ['project' => $project]);
+    $row = $component->get('rows')->first();
+
+    expect(fn () => $component->instance()->barLeftPercent($row))->toThrow(LogicException::class)
+        ->and(fn () => $component->instance()->barWidthPercent($row))->toThrow(LogicException::class);
+});
+
 test('bar position percentages are computed correctly against the overall date range', function () {
     $project = Project::factory()->create();
     $user = ganttMember($project);
