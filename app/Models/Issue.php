@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Concerns\HasCustomFields;
 use App\Enums\CustomizableType;
+use App\Enums\IssueRelationType;
 use App\Support\Authorization\AuthorizationService;
 use Database\Factories\IssueFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -205,6 +206,34 @@ final class Issue extends Model implements HasMedia
     public function isClosed(): bool
     {
         return $this->status->is_closed;
+    }
+
+    /**
+     * True when another still-open issue blocks this one (a relation
+     * where this issue is the `to` side with type 'blocks') — matches
+     * Redmine's Issue#blocked?.
+     */
+    public function isBlocked(): bool
+    {
+        return $this->relationsTo()
+            ->where('relation_type', IssueRelationType::Blocks->value)
+            ->whereHas('from.status', fn ($query) => $query->where('is_closed', false))
+            ->exists();
+    }
+
+    public function hasOpenChildren(): bool
+    {
+        return $this->children()->whereHas('status', fn ($query) => $query->where('is_closed', false))->exists();
+    }
+
+    /**
+     * Whether this issue can transition to a closed status — false when
+     * blocked by an open issue or has open subtasks, matching Redmine's
+     * Issue#closable?.
+     */
+    public function isClosable(): bool
+    {
+        return ! $this->isBlocked() && ! $this->hasOpenChildren();
     }
 
     public static function customizableType(): CustomizableType

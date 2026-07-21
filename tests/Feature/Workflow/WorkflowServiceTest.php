@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Issue;
+use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
@@ -114,4 +115,68 @@ test('a user with no role in the project has no allowed transitions or field rul
 
     expect(workflowService()->allowedTransitions($issue, $user))->toBeEmpty()
         ->and(workflowService()->fieldRules($issue, $user))->toBe([]);
+});
+
+test('an issue blocked by an open issue cannot transition to a closed status, even for admins', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $open = IssueStatus::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create(['status_id' => $open->id]);
+    $blocker = Issue::factory()->for($project)->create(['status_id' => $open->id]);
+    IssueRelation::create([
+        'issue_from_id' => $blocker->id,
+        'issue_to_id' => $issue->id,
+        'relation_type' => 'blocks',
+    ]);
+
+    $allowed = workflowService()->allowedTransitions($issue, $admin);
+
+    expect($allowed->pluck('id'))->not->toContain($closed->id)
+        ->and($issue->isBlocked())->toBeTrue()
+        ->and($issue->isClosable())->toBeFalse();
+});
+
+test('once the blocking issue is closed, the blocked issue can transition to a closed status again', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $open = IssueStatus::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create(['status_id' => $open->id]);
+    $blocker = Issue::factory()->for($project)->create(['status_id' => $closed->id]);
+    IssueRelation::create([
+        'issue_from_id' => $blocker->id,
+        'issue_to_id' => $issue->id,
+        'relation_type' => 'blocks',
+    ]);
+
+    expect($issue->isBlocked())->toBeFalse()
+        ->and(workflowService()->allowedTransitions($issue, $admin)->pluck('id'))->toContain($closed->id);
+});
+
+test('an issue with an open subtask cannot transition to a closed status', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $open = IssueStatus::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $parent = Issue::factory()->for($project)->create(['status_id' => $open->id]);
+    Issue::factory()->for($project)->create(['status_id' => $open->id, 'parent_id' => $parent->id]);
+
+    expect($parent->hasOpenChildren())->toBeTrue()
+        ->and(workflowService()->allowedTransitions($parent, $admin)->pluck('id'))->not->toContain($closed->id);
+});
+
+test('the current status always stays selectable even when the issue is blocked', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create(['status_id' => $closed->id]);
+    $blocker = Issue::factory()->for($project)->create(['status_id' => IssueStatus::factory()->create()->id]);
+    IssueRelation::create([
+        'issue_from_id' => $blocker->id,
+        'issue_to_id' => $issue->id,
+        'relation_type' => 'blocks',
+    ]);
+
+    expect(workflowService()->allowedTransitions($issue, $admin)->pluck('id'))->toContain($closed->id);
 });

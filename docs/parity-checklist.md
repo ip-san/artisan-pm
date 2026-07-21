@@ -95,7 +95,7 @@
 | 関連タイプ | partial | relates/blocks/duplicates/precedes/follows のみ。逆方向・コピー系タイプ(blocked, duplicated, copied_to/from)の**新規Enum値**は追加していないが、blocks/duplicatesは表示側でfrom/to方向に応じたラベル反転(「ブロックする」⇔「ブロックされている」)を実装。precedes/followsは元々ユーザーが方向を選んで別々に保存する設計のため反転不要 |
 | precedes/follows の遅延日数(delay) | missing | マイグレーションに該当カラムなし |
 | 関連日付からの自動リスケジュール・循環/プロジェクト間検証 | missing | DBのユニーク制約のみ |
-| 重複課題のクローズ連動・ブロック中クローズ禁止 | missing | — |
+| 重複課題のクローズ連動・ブロック中クローズ禁止 | partial(2026-07-21) | `Issue::isBlocked()`/`isClosable()`(`blocks`関係で自分をブロックする未クローズ課題があるか判定)。詳細は§クローズ可否のフィルタ参照。重複課題のクローズ連動(`duplicates`関係で片方をクローズしたらもう片方も自動クローズ)は未実装 |
 
 ### Issue Categories
 
@@ -140,7 +140,7 @@
 | ワークフロー遷移・フィールドルールの管理画面 | done(2026-07-21) | `workflows/edit.blade.php`。トラッカー×ロール×適用対象(通常/作成者/担当者)ごとに遷移グリッドとフィールドルールグリッド(コアフィールド+そのトラッカーのカスタムフィールド)を編集・保存 |
 | ワークフローのコピー(トラッカー間/ロール間/一括複製) | missing | — |
 | 「使用中ステータスのみ表示」フィルタ | missing | — |
-| クローズ可否のフィルタ(未完了サブタスク/ブロック関連の考慮) | missing | — |
+| クローズ可否のフィルタ(未完了サブタスク/ブロック関連の考慮) | done(2026-07-21) | `WorkflowService::allowedTransitions()`が`Issue::isClosable()`(未クローズの子課題、または自分をブロックする未クローズ課題があるか)で管理者含め全ユーザーのクローズ系ステータス遷移をフィルタ(Redmineの`Issue#closable?`/`new_statuses_allowed_to`と同じ規則)。現在のステータス自体は常に選択可能なまま維持。サブタスクが閉じた親を再オープンできない(`reopenable?`)側は未実装 |
 
 ### カスタムフィールド(課題)
 

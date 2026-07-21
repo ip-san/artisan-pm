@@ -33,7 +33,7 @@ final class WorkflowService
     public function allowedTransitions(Issue $issue, User $user): Collection
     {
         if ($user->is_admin) {
-            return IssueStatus::query()->orderBy('position')->get();
+            return $this->excludeUnclosableStatuses(IssueStatus::query()->orderBy('position')->get(), $issue);
         }
 
         $roleIds = $this->roleIdsFor($issue, $user);
@@ -50,7 +50,30 @@ final class WorkflowService
             ->pluck('new_status_id')
             ->unique();
 
-        return IssueStatus::query()->whereIn('id', $newStatusIds)->orderBy('position')->get();
+        $statuses = IssueStatus::query()->whereIn('id', $newStatusIds)->orderBy('position')->get();
+
+        return $this->excludeUnclosableStatuses($statuses, $issue);
+    }
+
+    /**
+     * Drops closed statuses other than the issue's current one when it
+     * can't actually be closed (blocked by an open issue, or has open
+     * subtasks) — matches Redmine's Issue#closable? gate on
+     * new_statuses_allowed_to. The current status stays selectable
+     * either way, so "leave it as-is" is never removed as an option.
+     *
+     * @param  Collection<int, IssueStatus>  $statuses
+     * @return Collection<int, IssueStatus>
+     */
+    private function excludeUnclosableStatuses(Collection $statuses, Issue $issue): Collection
+    {
+        if ($issue->isClosable()) {
+            return $statuses;
+        }
+
+        return $statuses
+            ->reject(fn (IssueStatus $status) => $status->is_closed && $status->id !== $issue->status_id)
+            ->values();
     }
 
     /**
