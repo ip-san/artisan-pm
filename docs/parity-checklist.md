@@ -108,7 +108,7 @@
 | 機能 | 状態 | 備考 |
 |---|---|---|
 | Version CRUD・対象バージョン割当 | partial(2026-07-22訂正) | **訂正**: 従来「done」と報告されていたが、実際には`VersionPolicy`のコメントに明記の通り「Files機能でのバージョン参照のみ対応、CRUD自体のUIは皆無」だった(Tracker/IssueStatusで過去に起きたのと同種の誤報告)。今回`versions/{index,form}.blade.php`を新規追加し、`manage_versions`権限でのCRUDを実装。対象バージョン割当(課題側の`fixed_version_id`選択)自体は元々課題フォームで動作済み |
-| open/locked/closed ステータス | partial | Enum/カラムはあるが強制なし(ロック中でも選択可能)。`close_completed_versions` 相当なし |
+| open/locked/closed ステータス | partial(2026-07-22) | Redmineの`Issue#assignable_versions`相当を実装: 課題フォームの対象バージョン欄はオープンなバージョンのみ新規選択可能とし(ロック中/クローズ済みは除外)、既にそのバージョンが設定済みの課題は変更後も選択肢を維持(ロック後に選択肢から消えて意図せず外れることを防止)。バリデーションも同じ許可リストで照合。`close_completed_versions`(ステータス完了時の自動クローズ)相当は未実装 |
 | バージョン共有範囲(none/descendants/hierarchy/tree/system) | missing | プロジェクトローカル限定 |
 | ロードマップ・完了率・遅延表示 | missing | — |
 | 予定/実績/残工数の集計 | done(2026-07-22) | `Version::estimatedHours()`/`spentHours()`/`estimatedRemainingHours()`をRedmineの同名メソッド相当で実装(予定/残工数は子課題を持つ課題を除いた末端課題のみ合算し二重計上を防止、実績工数はTimeEntry経由で階層に関わらず合算)。`versions/index.blade.php`の一覧に表示 |

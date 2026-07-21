@@ -2,6 +2,7 @@
 
 use App\Enums\CustomFieldFormat;
 use App\Enums\EnumerationType;
+use App\Enums\VersionStatus;
 use App\Exceptions\StaleIssueUpdateException;
 use App\Models\CustomField;
 use App\Models\Enumeration;
@@ -12,6 +13,7 @@ use App\Models\Project;
 use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
+use App\Models\Version;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Attachments\AttachmentValidationRules;
@@ -243,10 +245,26 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->assigned_to_id = IssueCategory::query()->whereKey($this->category_id)->value('assigned_to_id');
     }
 
+    /**
+     * Matches Redmine's Issue#assignable_versions: only open versions are
+     * offered for new assignment, but an already-assigned version stays
+     * selectable even once locked or closed, so editing an issue doesn't
+     * silently drop it from the dropdown (and thus from the issue) just
+     * because someone locked the version in the meantime. Compared against
+     * the issue's persisted fixed_version_id (not the live property) —
+     * otherwise this would trivially allow any submitted value, since the
+     * live property always equals whatever was just set.
+     *
+     * @return Collection<int, Version>
+     */
     #[Computed]
     public function projectVersions(): Collection
     {
-        return $this->project->versions;
+        $currentVersionId = $this->issue?->fixed_version_id;
+
+        return $this->project->versions
+            ->filter(fn (Version $version) => $version->status === VersionStatus::Open || $version->id === $currentVersionId)
+            ->values();
     }
 
     /**
@@ -305,7 +323,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'assigned_to_id' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
-            'fixed_version_id' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $this->project->id)],
+            'fixed_version_id' => ['nullable', Rule::in($this->projectVersions->pluck('id')->all())],
             'parent_id' => [
                 'nullable',
                 Rule::exists('issues', 'id')->where('project_id', $this->project->id),
