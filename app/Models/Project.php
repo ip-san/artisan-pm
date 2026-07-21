@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\ProjectModuleKey;
+use App\Enums\ProjectStatus;
+use Database\Factories\ProjectFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kalnoy\Nestedset\NodeTrait;
+
+#[Fillable(['name', 'identifier', 'description', 'is_public', 'parent_id'])]
+class Project extends Model
+{
+    /** @use HasFactory<ProjectFactory> */
+    use HasFactory, NodeTrait;
+
+    protected function casts(): array
+    {
+        return [
+            'is_public' => 'boolean',
+            'status' => ProjectStatus::class,
+        ];
+    }
+
+    /**
+     * @return HasMany<Member, $this>
+     */
+    public function members(): HasMany
+    {
+        return $this->hasMany(Member::class);
+    }
+
+    /**
+     * @return BelongsToMany<User, $this>
+     */
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'members')
+            ->withTimestamps();
+    }
+
+    /**
+     * @return HasMany<ProjectModuleAssignment, $this>
+     */
+    public function moduleAssignments(): HasMany
+    {
+        return $this->hasMany(ProjectModuleAssignment::class);
+    }
+
+    /**
+     * @return BelongsToMany<Tracker, $this>
+     */
+    public function trackers(): BelongsToMany
+    {
+        return $this->belongsToMany(Tracker::class, 'project_tracker');
+    }
+
+    public function hasModule(ProjectModuleKey $module): bool
+    {
+        return $this->moduleAssignments->contains(
+            fn (ProjectModuleAssignment $assignment) => $assignment->module === $module
+        );
+    }
+
+    /**
+     * @param  array<ProjectModuleKey>  $modules
+     */
+    public function syncModules(array $modules): void
+    {
+        $this->moduleAssignments()->delete();
+
+        foreach ($modules as $module) {
+            $this->moduleAssignments()->create(['module' => $module]);
+        }
+
+        $this->unsetRelation('moduleAssignments');
+    }
+
+    public function isOpen(): bool
+    {
+        return $this->status === ProjectStatus::Active;
+    }
+}

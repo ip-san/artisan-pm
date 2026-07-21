@@ -1,0 +1,15 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+
+    level: 6
+
+    excludePaths:
+        - app/Providers/*Reverb*
+
+    checkOctaneCompatibility: true
+    checkModelProperties: true
+    parseModelCastsMethod: true
