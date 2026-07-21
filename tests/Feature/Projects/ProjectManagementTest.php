@@ -1,6 +1,9 @@
 <?php
 
 use App\Enums\ProjectModuleKey;
+use App\Models\Enumeration;
+use App\Models\Issue;
+use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
@@ -85,4 +88,42 @@ test('a non-member cannot manage members of a project', function () {
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)->test('projects.members', ['project' => $project])->assertForbidden();
+});
+
+test('a tracker in use by an issue in the project cannot be unchecked', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $otherTracker = Tracker::factory()->create();
+    $project->trackers()->attach([$tracker->id, $otherTracker->id]);
+    Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id,
+        'status_id' => IssueStatus::factory()->create()->id,
+        'priority_id' => Enumeration::factory()->create()->id,
+        'author_id' => $admin->id,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('projects.form', ['project' => $project])
+        ->set('trackerIds', [$otherTracker->id])
+        ->call('save')
+        ->assertHasErrors(['trackerIds']);
+
+    expect($project->trackers()->pluck('trackers.id'))->toContain($tracker->id);
+});
+
+test('an unused tracker can still be removed from a project', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $keptTracker = Tracker::factory()->create();
+    $project->trackers()->attach([$tracker->id, $keptTracker->id]);
+
+    Livewire::actingAs($admin)
+        ->test('projects.form', ['project' => $project])
+        ->set('trackerIds', [$keptTracker->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($project->trackers()->pluck('trackers.id'))->not->toContain($tracker->id);
 });

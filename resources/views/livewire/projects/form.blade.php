@@ -111,6 +111,21 @@ new #[Layout('components.layouts.app')] class extends Component
         unset($data['customFieldValues'], $data['trackerIds']);
 
         if ($this->project) {
+            $removedTrackerIds = $this->project->trackers->pluck('id')->diff($trackerIds);
+
+            if ($removedTrackerIds->isNotEmpty()) {
+                $blockedTrackerNames = Tracker::query()
+                    ->whereIn('id', $removedTrackerIds)
+                    ->whereHas('issues', fn ($query) => $query->where('project_id', $this->project->id))
+                    ->pluck('name');
+
+                if ($blockedTrackerNames->isNotEmpty()) {
+                    $this->addError('trackerIds', 'このプロジェクトの課題で使用中のため外せません: '.$blockedTrackerNames->join(', '));
+
+                    return;
+                }
+            }
+
             $this->project->update($data);
         } else {
             $this->project = Project::create($data);
