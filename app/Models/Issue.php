@@ -149,6 +149,14 @@ final class Issue extends Model implements HasMedia
     }
 
     /**
+     * @return HasMany<TimeEntry, $this>
+     */
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
+
+    /**
      * @return MorphMany<Watcher, $this>
      */
     public function watchers(): MorphMany

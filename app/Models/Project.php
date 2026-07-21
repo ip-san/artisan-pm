@@ -77,6 +77,14 @@ final class Project extends Model
         return $this->hasMany(Version::class);
     }
 
+    /**
+     * @return HasMany<TimeEntry, $this>
+     */
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
+
     public function hasModule(ProjectModuleKey $module): bool
     {
         return $this->moduleAssignments->contains('module', $module);

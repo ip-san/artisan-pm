@@ -1,0 +1,479 @@
+<?php
+
+use App\Enums\QueryType;
+use App\Models\Project;
+use App\Models\Query as SavedQuery;
+use App\Models\TimeEntry;
+use App\Support\Authorization\AuthorizationService;
+use App\Support\Query\QueryFilterEngine;
+use App\Support\Query\TimeEntryFilterFieldRegistry;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
+use Livewire\Volt\Component;
+
+new #[Layout('components.layouts.app')] class extends Component
+{
+    public Project $project;
+
+    /** @var array<int, string> */
+    #[Url]
+    public array $activeFilterKeys = [];
+
+    /** @var array<string, string> */
+    public array $filterOperators = [];
+
+    /** @var array<string, array<int, mixed>> */
+    public array $filterValues = [];
+
+    #[Url]
+    public ?string $sortKey = 'spent_on';
+
+    #[Url]
+    public string $sortDirection = 'desc';
+
+    #[Url]
+    public ?string $groupBy = null;
+
+    public string $newQueryName = '';
+
+    public bool $newQueryIsPublic = false;
+
+    public bool $showSaveForm = false;
+
+    public function mount(Project $project): void
+    {
+        $this->authorize('viewAny', [TimeEntry::class, $project]);
+
+        $this->project = $project;
+    }
+
+    #[Computed]
+    public function engine(): QueryFilterEngine
+    {
+        return new QueryFilterEngine(TimeEntryFilterFieldRegistry::forProject($this->project));
+    }
+
+    /**
+     * @return Builder<TimeEntry>
+     */
+    private function filteredTimeEntriesQuery(): Builder
+    {
+        $query = TimeEntry::query()
+            ->where('project_id', $this->project->id)
+            ->with(['user', 'activity', 'issue']);
+
+        $query = $this->engine->applyFilters($query, $this->builtFilters());
+
+        if ($this->sortKey !== null) {
+            $query = $this->engine->applySort($query, [[$this->sortKey, $this->sortDirection]]);
+        } else {
+            $query->orderByDesc('spent_on');
+        }
+
+        return $query;
+    }
+
+    #[Computed]
+    public function timeEntries(): EloquentCollection
+    {
+        return $this->filteredTimeEntriesQuery()->get();
+    }
+
+    /**
+     * @return Collection<string, EloquentCollection<int, TimeEntry>>
+     */
+    #[Computed]
+    public function groupedTimeEntries(): Collection
+    {
+        if ($this->groupBy === null) {
+            return collect(['' => $this->timeEntries]);
+        }
+
+        return $this->timeEntries->groupBy(fn (TimeEntry $entry) => $this->columnValue($entry, $this->groupBy));
+    }
+
+    /**
+     * @return array<string, array{operator: string, values: array<int, mixed>}>
+     */
+    private function builtFilters(): array
+    {
+        $filters = [];
+
+        foreach ($this->activeFilterKeys as $key) {
+            $operator = $this->filterOperators[$key] ?? null;
+
+            if ($operator === null) {
+                continue;
+            }
+
+            $filters[$key] = [
+                'operator' => $operator,
+                'values' => array_values(array_filter($this->filterValues[$key] ?? [], fn ($v) => $v !== null && $v !== '')),
+            ];
+        }
+
+        return $filters;
+    }
+
+    public function addFilter(string $key): void
+    {
+        if (! in_array($key, $this->activeFilterKeys, true) && $this->engine->field($key) !== null) {
+            $this->activeFilterKeys[] = $key;
+            $this->filterOperators[$key] = $this->engine->field($key)->operators()[0]->value;
+        }
+    }
+
+    public function removeFilter(string $key): void
+    {
+        $this->activeFilterKeys = array_values(array_diff($this->activeFilterKeys, [$key]));
+        unset($this->filterOperators[$key], $this->filterValues[$key]);
+    }
+
+    public function applyFilters(): void
+    {
+        unset($this->timeEntries, $this->groupedTimeEntries);
+    }
+
+    public function sortBy(string $key): void
+    {
+        if ($this->sortKey === $key) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortKey = $key;
+            $this->sortDirection = 'asc';
+        }
+    }
+
+    public function saveQuery(): void
+    {
+        $data = $this->validate([
+            'newQueryName' => ['required', 'string', 'max:255'],
+            'newQueryIsPublic' => ['boolean'],
+        ]);
+
+        SavedQuery::create([
+            'name' => $data['newQueryName'],
+            'type' => QueryType::TimeEntry->value,
+            'user_id' => auth()->id(),
+            'project_id' => $this->project->id,
+            'is_public' => $data['newQueryIsPublic'],
+            'filters' => $this->builtFilters(),
+            'column_names' => [],
+            'sort_criteria' => $this->sortKey ? [[$this->sortKey, $this->sortDirection]] : [],
+            'group_by' => $this->groupBy,
+        ]);
+
+        $this->reset(['newQueryName', 'newQueryIsPublic', 'showSaveForm']);
+        unset($this->savedQueries);
+        session()->flash('status', 'クエリを保存しました。');
+    }
+
+    public function loadQuery(int $queryId): void
+    {
+        $query = SavedQuery::query()->where('project_id', $this->project->id)->findOrFail($queryId);
+
+        abort_unless($query->visibleTo(auth()->user()), 403);
+
+        $this->activeFilterKeys = array_keys($query->filters);
+        $this->filterOperators = [];
+        $this->filterValues = [];
+
+        foreach ($query->filters as $key => $filter) {
+            $this->filterOperators[$key] = $filter['operator'];
+            $this->filterValues[$key] = $filter['values'] ?? [];
+        }
+
+        $this->groupBy = $query->group_by;
+
+        if ($query->sort_criteria !== [] && $query->sort_criteria !== null) {
+            [$this->sortKey, $this->sortDirection] = $query->sort_criteria[0];
+        }
+
+        unset($this->timeEntries, $this->groupedTimeEntries);
+    }
+
+    #[Computed]
+    public function savedQueries(): Collection
+    {
+        return SavedQuery::query()
+            ->where('project_id', $this->project->id)
+            ->where('type', QueryType::TimeEntry->value)
+            ->where(fn ($q) => $q->where('user_id', auth()->id())->orWhere('is_public', true))
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function columnValue(TimeEntry $entry, string $key): string
+    {
+        return match ($key) {
+            'user_id' => $entry->user->name,
+            'activity_id' => $entry->activity->name,
+            'spent_on' => $entry->spent_on->toDateString(),
+            'hours' => (string) $entry->hours,
+            default => '',
+        };
+    }
+
+    #[Computed]
+    public function totalHours(): string
+    {
+        return number_format((float) $this->timeEntries->sum('hours'), 2);
+    }
+
+    public function groupTotalHours(EloquentCollection $entries): string
+    {
+        return number_format((float) $entries->sum('hours'), 2);
+    }
+
+    #[Computed]
+    public function canManage(): bool
+    {
+        return app(AuthorizationService::class)->can(auth()->user(), 'edit_time_entries', $this->project);
+    }
+
+    public function deleteEntry(int $timeEntryId): void
+    {
+        $entry = TimeEntry::query()->where('project_id', $this->project->id)->findOrFail($timeEntryId);
+
+        $this->authorize('delete', $entry);
+
+        $entry->delete();
+
+        unset($this->timeEntries, $this->groupedTimeEntries);
+    }
+
+    public function exportCsv(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $this->authorize('viewAny', [TimeEntry::class, $this->project]);
+
+        $query = $this->filteredTimeEntriesQuery();
+
+        return response()->streamDownload(function () use ($query) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['担当者', '作業分類', '日付', '時間', '課題', 'コメント']);
+
+            $query->chunk(200, function ($chunk) use ($handle) {
+                foreach ($chunk as $entry) {
+                    fputcsv($handle, [
+                        $entry->user->name,
+                        $entry->activity->name,
+                        $entry->spent_on->toDateString(),
+                        (string) $entry->hours,
+                        $entry->issue ? "#{$entry->issue->id} {$entry->issue->subject}" : '',
+                        (string) $entry->comments,
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, "{$this->project->identifier}-time_entries.csv");
+    }
+}; ?>
+
+<div>
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — 工数</h1>
+            <p class="mt-1 text-sm text-gray-500">合計: {{ $this->totalHours }} 時間</p>
+        </div>
+        <div class="flex gap-2">
+            <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                CSVエクスポート
+            </button>
+            @can('create', [\App\Models\TimeEntry::class, $project])
+                <a href="{{ route('time-entries.create', $project) }}"
+                    class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                    工数を記録
+                </a>
+            @endcan
+        </div>
+    </div>
+
+    {{-- Saved queries --}}
+    <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <span class="text-gray-500">保存済みクエリ:</span>
+        @forelse ($this->savedQueries as $savedQuery)
+            <button wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50">
+                {{ $savedQuery->name }}
+            </button>
+        @empty
+            <span class="text-gray-400">なし</span>
+        @endforelse
+    </div>
+
+    {{-- Filter builder --}}
+    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+        <div class="mb-3 flex flex-wrap items-center gap-2 text-sm">
+            <span class="font-medium text-gray-700">フィルタを追加:</span>
+            @foreach ($this->engine->fields() as $field)
+                @unless (in_array($field->key(), $activeFilterKeys, true))
+                    <button wire:click="addFilter('{{ $field->key() }}')" class="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                        + {{ $field->label() }}
+                    </button>
+                @endunless
+            @endforeach
+        </div>
+
+        @if ($activeFilterKeys !== [])
+            <div class="space-y-2">
+                @foreach ($activeFilterKeys as $key)
+                    @php $field = $this->engine->field($key); @endphp
+                    @continue(! $field)
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="w-28 text-sm text-gray-700">{{ $field->label() }}</span>
+                        <select wire:model="filterOperators.{{ $key }}" class="rounded-md border-gray-300 text-sm">
+                            @foreach ($field->operators() as $operator)
+                                <option value="{{ $operator->value }}">{{ $operator->label() }}</option>
+                            @endforeach
+                        </select>
+
+                        @if (($filterOperators[$key] ?? null) !== \App\Enums\FilterOperator::IsEmpty->value && ($filterOperators[$key] ?? null) !== \App\Enums\FilterOperator::IsNotEmpty->value)
+                            @if ($field->type() === \App\Enums\FilterFieldType::Select && $field->options() !== [])
+                                @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::In->value || ($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::NotIn->value)
+                                    <select wire:model="filterValues.{{ $key }}" multiple class="min-w-[10rem] rounded-md border-gray-300 text-sm">
+                                        @foreach ($field->options() as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <select wire:model="filterValues.{{ $key }}.0" class="rounded-md border-gray-300 text-sm">
+                                        <option value="">選択してください</option>
+                                        @foreach ($field->options() as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                @endif
+                            @elseif ($field->type() === \App\Enums\FilterFieldType::Date)
+                                <input type="date" wire:model="filterValues.{{ $key }}.0" class="rounded-md border-gray-300 text-sm">
+                                @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)
+                                    <span class="text-gray-400">〜</span>
+                                    <input type="date" wire:model="filterValues.{{ $key }}.1" class="rounded-md border-gray-300 text-sm">
+                                @endif
+                            @elseif ($field->type() === \App\Enums\FilterFieldType::Integer)
+                                <input type="number" wire:model="filterValues.{{ $key }}.0" class="w-24 rounded-md border-gray-300 text-sm">
+                                @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)
+                                    <span class="text-gray-400">〜</span>
+                                    <input type="number" wire:model="filterValues.{{ $key }}.1" class="w-24 rounded-md border-gray-300 text-sm">
+                                @endif
+                            @else
+                                <input type="text" wire:model="filterValues.{{ $key }}.0" class="rounded-md border-gray-300 text-sm">
+                            @endif
+                        @endif
+
+                        <button wire:click="removeFilter('{{ $key }}')" class="text-xs text-red-600 hover:underline">削除</button>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
+        <div class="mt-3 flex flex-wrap items-center gap-3">
+            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                絞り込み適用
+            </button>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                グループ化:
+                <select wire:model.live="groupBy" class="rounded-md border-gray-300 text-sm">
+                    <option value="">なし</option>
+                    <option value="user_id">担当者</option>
+                    <option value="activity_id">作業分類</option>
+                    <option value="spent_on">日付</option>
+                </select>
+            </label>
+
+            <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
+        </div>
+
+        @if ($showSaveForm)
+            <form wire:submit="saveQuery" class="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
+                <input type="text" wire:model="newQueryName" placeholder="クエリ名" class="rounded-md border-gray-300 text-sm">
+                <label class="flex items-center gap-1 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="newQueryIsPublic" class="rounded border-gray-300">
+                    公開する
+                </label>
+                <button type="submit" class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500">保存</button>
+                @error('newQueryName') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+            </form>
+        @endif
+    </div>
+
+    @foreach ($this->groupedTimeEntries as $groupLabel => $groupEntries)
+        @if ($groupBy !== null)
+            <h2 class="mb-2 mt-4 text-sm font-semibold text-gray-900">
+                {{ $groupLabel ?: '(未設定)' }} ({{ $groupEntries->count() }}件 / {{ $this->groupTotalHours($groupEntries) }} 時間)
+            </h2>
+        @endif
+
+        <div class="overflow-x-auto rounded-md border border-gray-200 bg-white mb-4">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                    <tr>
+                        <th class="px-4 py-2">
+                            <button wire:click="sortBy('spent_on')" class="flex items-center gap-1 hover:text-gray-900">
+                                日付
+                                @if ($sortKey === 'spent_on')<span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>@endif
+                            </button>
+                        </th>
+                        <th class="px-4 py-2">
+                            <button wire:click="sortBy('user_id')" class="flex items-center gap-1 hover:text-gray-900">
+                                担当者
+                                @if ($sortKey === 'user_id')<span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>@endif
+                            </button>
+                        </th>
+                        <th class="px-4 py-2">
+                            <button wire:click="sortBy('activity_id')" class="flex items-center gap-1 hover:text-gray-900">
+                                作業分類
+                                @if ($sortKey === 'activity_id')<span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>@endif
+                            </button>
+                        </th>
+                        <th class="px-4 py-2">課題</th>
+                        <th class="px-4 py-2">コメント</th>
+                        <th class="px-4 py-2">
+                            <button wire:click="sortBy('hours')" class="flex items-center gap-1 hover:text-gray-900">
+                                時間
+                                @if ($sortKey === 'hours')<span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>@endif
+                            </button>
+                        </th>
+                        @if ($this->canManage)
+                            <th class="px-4 py-2"></th>
+                        @endif
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse ($groupEntries as $entry)
+                        <tr>
+                            <td class="px-4 py-2">{{ $entry->spent_on->toDateString() }}</td>
+                            <td class="px-4 py-2">{{ $entry->user->name }}</td>
+                            <td class="px-4 py-2">{{ $entry->activity->name }}</td>
+                            <td class="px-4 py-2">
+                                @if ($entry->issue)
+                                    <a href="{{ route('issues.show', [$project, $entry->issue]) }}" class="text-indigo-600 hover:underline">
+                                        #{{ $entry->issue->id }} {{ $entry->issue->subject }}
+                                    </a>
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td class="px-4 py-2 text-gray-600">{{ $entry->comments }}</td>
+                            <td class="px-4 py-2">{{ $entry->hours }}</td>
+                            @if ($this->canManage)
+                                <td class="px-4 py-2 whitespace-nowrap">
+                                    <a href="{{ route('time-entries.edit', [$project, $entry]) }}" class="text-indigo-600 hover:underline">編集</a>
+                                    <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="この工数記録を削除しますか?" class="ml-2 text-red-600 hover:underline">削除</button>
+                                </td>
+                            @endif
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="px-4 py-6 text-center text-gray-500">工数記録がありません。</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    @endforeach
+</div>

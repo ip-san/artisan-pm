@@ -22,7 +22,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $issue);
 
         $this->project = $project;
-        $this->issue = $issue->load(['tracker', 'status', 'priority', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'customFieldValues']);
+        $this->issue = $issue->load(['tracker', 'status', 'priority', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity']);
     }
 
     /**
@@ -88,6 +88,12 @@ new #[Layout('components.layouts.app')] class extends Component
             <button wire:click="toggleWatch" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 {{ $issue->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
             </button>
+            @can('create', [\App\Models\TimeEntry::class, $project])
+                <a href="{{ route('time-entries.create', $project) }}?issue_id={{ $issue->id }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    工数を記録
+                </a>
+            @endcan
             @can('update', $issue)
                 <a href="{{ route('issues.edit', [$project, $issue]) }}"
                     class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
@@ -137,6 +143,20 @@ new #[Layout('components.layouts.app')] class extends Component
                         <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
                             class="text-red-600 hover:underline">削除</button>
                     @endcan
+                </li>
+            @endforeach
+        </ul>
+    @endif
+
+    @if ($issue->timeEntries->isNotEmpty())
+        <h2 class="text-sm font-semibold text-gray-900 mb-2">
+            工数 ({{ number_format((float) $issue->timeEntries->sum('hours'), 2) }} 時間)
+        </h2>
+        <ul class="mb-6 space-y-1">
+            @foreach ($issue->timeEntries as $entry)
+                <li class="flex items-center justify-between text-sm">
+                    <span>{{ $entry->spent_on->toDateString() }} — {{ $entry->user->name }} — {{ $entry->activity->name }}</span>
+                    <span class="text-gray-500">{{ $entry->hours }} 時間</span>
                 </li>
             @endforeach
         </ul>
