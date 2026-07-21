@@ -48,7 +48,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $issue);
 
         $this->project = $project;
-        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project']);
+        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status']);
     }
 
     /**
@@ -175,6 +175,14 @@ new #[Layout('components.layouts.app')] class extends Component
 <div class="max-w-3xl">
     <div class="flex items-start justify-between mb-4">
         <div>
+            @if ($issue->parent)
+                <p class="text-xs text-gray-500 mb-1">
+                    <span class="text-gray-400">親課題:</span>
+                    <a href="{{ route('issues.show', [$project, $issue->parent]) }}" class="text-indigo-600 hover:underline">
+                        {{ $issue->parent->tracker->name }} #{{ $issue->parent->id }} — {{ $issue->parent->subject }}
+                    </a>
+                </p>
+            @endif
             <p class="text-sm text-gray-500">{{ $issue->tracker->name }} #{{ $issue->id }}</p>
             <h1 class="text-xl font-semibold text-gray-900">{{ $issue->subject }}</h1>
         </div>
@@ -222,6 +230,20 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
             @endforeach
         </div>
+    @endif
+
+    @if ($issue->children->isNotEmpty())
+        <h2 class="text-sm font-semibold text-gray-900 mb-2">サブタスク</h2>
+        <ul class="mb-6 space-y-1">
+            @foreach ($issue->children as $child)
+                <li class="flex items-center justify-between text-sm rounded-md border border-gray-200 bg-white px-3 py-2">
+                    <a href="{{ route('issues.show', [$project, $child]) }}" class="text-indigo-600 hover:underline">
+                        {{ $child->tracker->name }} #{{ $child->id }} — {{ $child->subject }}
+                    </a>
+                    <span class="text-gray-500">{{ $child->status->name }}</span>
+                </li>
+            @endforeach
+        </ul>
     @endif
 
     @php $attachments = $issue->attachments(); @endphp

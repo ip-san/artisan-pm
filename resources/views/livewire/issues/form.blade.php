@@ -37,6 +37,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $fixed_version_id = null;
 
+    public ?int $parent_id = null;
+
     public string $subject = '';
 
     public string $description = '';
@@ -76,6 +78,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->category_id = $issue->category_id;
             $this->assigned_to_id = $issue->assigned_to_id;
             $this->fixed_version_id = $issue->fixed_version_id;
+            $this->parent_id = $issue->parent_id;
             $this->subject = $issue->subject;
             $this->description = (string) $issue->description;
             $this->start_date = $issue->start_date?->toDateString();
@@ -187,6 +190,27 @@ new #[Layout('components.layouts.app')] class extends Component
             'description' => ['nullable', 'string'],
             'assigned_to_id' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
             'fixed_version_id' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $this->project->id)],
+            'parent_id' => [
+                'nullable',
+                Rule::exists('issues', 'id')->where('project_id', $this->project->id),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === null || $this->issue === null) {
+                        return;
+                    }
+
+                    $ancestorId = (int) $value;
+
+                    while ($ancestorId !== null) {
+                        if ($ancestorId === $this->issue->id) {
+                            $fail('選択した課題はこの課題自身またはその子孫であるため、親に設定できません。');
+
+                            return;
+                        }
+
+                        $ancestorId = Issue::query()->whereKey($ancestorId)->value('parent_id');
+                    }
+                },
+            ],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
             'done_ratio' => ['integer', 'min:0', 'max:100'],
@@ -350,6 +374,13 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                 </select>
             </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">親課題ID</label>
+            <input type="number" wire:model="parent_id" placeholder="例: 123"
+                class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm sm:text-sm">
+            @error('parent_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
         @if ($this->customFields->isNotEmpty())
