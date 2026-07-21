@@ -155,3 +155,66 @@ test('the saved matrix is actually consumed by WorkflowService', function () {
     expect($allowed->pluck('id'))->toContain($inProgress->id)
         ->and($rules['subject'] ?? null)->toBe(WorkflowFieldRuleType::ReadOnly->value);
 });
+
+test('the status grid is limited to statuses used in the tracker\'s existing transitions by default', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+    $role = Role::factory()->create();
+    $used = IssueStatus::factory()->create(['name' => 'Used']);
+    $alsoUsed = IssueStatus::factory()->create(['name' => 'Also Used']);
+    $unused = IssueStatus::factory()->create(['name' => 'Unused']);
+
+    WorkflowTransition::create([
+        'tracker_id' => $tracker->id, 'role_id' => $role->id,
+        'old_status_id' => $used->id, 'new_status_id' => $alsoUsed->id,
+        'author' => false, 'assignee' => false,
+    ]);
+
+    $component = Livewire::actingAs($admin)
+        ->test('workflows.edit')
+        ->set('tracker_id', $tracker->id)
+        ->set('role_id', $role->id);
+
+    $statusIds = $component->get('statuses')->pluck('id');
+
+    expect($statusIds)->toContain($used->id)
+        ->toContain($alsoUsed->id)
+        ->not->toContain($unused->id);
+});
+
+test('unchecking used-statuses-only shows every status', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+    $role = Role::factory()->create();
+    $used = IssueStatus::factory()->create();
+    $alsoUsed = IssueStatus::factory()->create();
+    $unused = IssueStatus::factory()->create();
+
+    WorkflowTransition::create([
+        'tracker_id' => $tracker->id, 'role_id' => $role->id,
+        'old_status_id' => $used->id, 'new_status_id' => $alsoUsed->id,
+        'author' => false, 'assignee' => false,
+    ]);
+
+    $component = Livewire::actingAs($admin)
+        ->test('workflows.edit')
+        ->set('tracker_id', $tracker->id)
+        ->set('role_id', $role->id)
+        ->set('usedStatusesOnly', false);
+
+    expect($component->get('statuses')->pluck('id'))->toContain($unused->id);
+});
+
+test('a tracker with no existing transitions falls back to showing every status', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+    $role = Role::factory()->create();
+    $status = IssueStatus::factory()->create();
+
+    $component = Livewire::actingAs($admin)
+        ->test('workflows.edit')
+        ->set('tracker_id', $tracker->id)
+        ->set('role_id', $role->id);
+
+    expect($component->get('statuses')->pluck('id'))->toContain($status->id);
+});

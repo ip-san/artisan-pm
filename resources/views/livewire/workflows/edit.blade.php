@@ -60,6 +60,14 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<string, string> keyed "{field_name}-{status_id}" => ''|'required'|'read_only' */
     public array $fieldRules = [];
 
+    /**
+     * Matches Redmine's "used statuses only" checkbox on the workflow
+     * admin screen: once a tracker has any transitions defined, the grid
+     * only shows the statuses actually referenced by them instead of
+     * every status in the system. Defaults on, same as Redmine.
+     */
+    public bool $usedStatusesOnly = true;
+
     public function mount(): void
     {
         $this->authorize('manage', WorkflowTransition::class);
@@ -80,6 +88,19 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function statuses(): Collection
     {
+        if ($this->tracker_id !== null && $this->usedStatusesOnly) {
+            $usedStatusIds = WorkflowTransition::query()
+                ->where('tracker_id', $this->tracker_id)
+                ->whereColumn('old_status_id', '!=', 'new_status_id')
+                ->get(['old_status_id', 'new_status_id'])
+                ->flatMap(fn (WorkflowTransition $transition) => [$transition->old_status_id, $transition->new_status_id])
+                ->unique();
+
+            if ($usedStatusIds->isNotEmpty()) {
+                return IssueStatus::query()->whereIn('id', $usedStatusIds)->orderBy('position')->get();
+            }
+        }
+
         return IssueStatus::query()->orderBy('position')->get();
     }
 
@@ -260,6 +281,11 @@ new #[Layout('components.layouts.app')] class extends Component
             </select>
         </div>
     </div>
+
+    <label class="mb-6 flex items-center gap-2 text-sm text-gray-700">
+        <input type="checkbox" wire:model.live="usedStatusesOnly" class="rounded border-gray-300">
+        使用中のステータスのみ表示(選択したトラッカーで遷移が定義済みのステータスに限定)
+    </label>
 
     @if ($tracker_id && $role_id)
         <form wire:submit="save" class="space-y-8">
