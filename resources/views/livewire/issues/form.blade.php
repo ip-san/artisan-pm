@@ -50,6 +50,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public int $done_ratio = 0;
 
+    public bool $is_private = false;
+
     public string $comment = '';
 
     /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
@@ -85,6 +87,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->start_date = $issue->start_date?->toDateString();
             $this->due_date = $issue->due_date?->toDateString();
             $this->done_ratio = $issue->done_ratio;
+            $this->is_private = $issue->is_private;
 
             $this->fieldRules = app(WorkflowService::class)->fieldRules($issue, auth()->user());
             $this->allowedStatuses = app(WorkflowService::class)->allowedTransitions($issue, auth()->user())
@@ -287,6 +290,14 @@ new #[Layout('components.layouts.app')] class extends Component
         $customFieldData = $data['customFieldValues'] ?? [];
         unset($data['customFieldValues'], $data['newAttachments']);
 
+        // Only ever set is_private when the user actually holds
+        // set_issues_private — otherwise leave the key out entirely so an
+        // unrelated save by a lower-permission editor can't silently flip
+        // an already-private issue back to public.
+        if (auth()->user()->can('setPrivate', [Issue::class, $this->project])) {
+            $data['is_private'] = $this->is_private;
+        }
+
         if ($this->issue) {
             if ($data['status_id'] !== $this->issue->status_id) {
                 $this->authorize('transitionTo', [$this->issue, IssueStatus::findOrFail($data['status_id'])]);
@@ -430,6 +441,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('parent_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
+
+        @can('setPrivate', [\App\Models\Issue::class, $project])
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="is_private" class="rounded border-gray-300">
+                非公開課題にする(作成者・担当者と、閲覧範囲が「すべて」のロールのみ閲覧可能)
+            </label>
+        @endcan
 
         @if ($this->customFields->isNotEmpty())
             <div class="space-y-4 border-t border-gray-200 pt-4">

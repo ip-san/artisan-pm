@@ -50,8 +50,8 @@
 | 担当者「自分」ショートカット・作成時の既定開始/期日 | done(2026-07-21) | 課題フォームに「自分に割り当てる」ボタン(プロジェクトメンバーかつ未自己割当時のみ表示)。新規課題の開始日は作成日をデフォルトに(期日はRedmine同様デフォルト値なし) |
 | 楽観的ロック(競合解決) | missing | `lock_version` 相当なし。後勝ちで無警告上書き |
 | 編集画面からの直接工数記録 | missing | 別画面へ遷移するのみ |
-| `is_private`(非公開課題)フラグ | missing | — |
-| ロール別の課題閲覧範囲(全て/デフォルト/自分のみ) | done(2026-07-21) | `Role.issues_visibility`(all/default/own) + `AuthorizationService::issueVisibilityFor()`。`IssuePolicy::view`と課題一覧のクエリ両方で`own`を強制。複数ロール保持時は最も緩い設定が優先。`default`は`all`と同じ挙動(非公開課題`is_private`が未実装のため区別する意味がまだない、と明記) |
+| `is_private`(非公開課題)フラグ | done(2026-07-21) | `issues.is_private`。`set_issues_private`権限保持者のみ作成/編集画面でON可能(サーバー側でも再チェックし、権限のない編集者が既存の非公開課題を意図せず公開化することを防止)。Journal記録・詳細画面のバッジ表示も対応 |
+| ロール別の課題閲覧範囲(全て/デフォルト/自分のみ) | done(2026-07-21) | `Role.issues_visibility`(all/default/own) + `AuthorizationService::issueVisibilityFor()`。`IssuePolicy::view`と課題一覧のクエリで3段階を正しく強制:all=無条件、default=非公開課題は作成者/担当者のみ(Redmineの`Issue.visible_condition`と同じ規則、2026-07-21に`is_private`実装と合わせて修正)、own=作成者/担当者のみ。複数ロール保持時は最も緩い設定が優先 |
 | Atom フィード / REST API 拡張(`include=`) | missing | — |
 
 ### サブタスク・親子関係

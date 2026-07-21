@@ -30,11 +30,21 @@ final class IssuePolicy
             return false;
         }
 
-        if ($this->authorization->issueVisibilityFor($user, $issue->project) !== IssueVisibility::Own) {
-            return true;
-        }
+        return match ($this->authorization->issueVisibilityFor($user, $issue->project)) {
+            IssueVisibility::All => true,
+            IssueVisibility::Default => ! $issue->is_private || $this->isAuthorOrAssignee($user, $issue),
+            IssueVisibility::Own => $this->isAuthorOrAssignee($user, $issue),
+        };
+    }
 
+    private function isAuthorOrAssignee(?User $user, Issue $issue): bool
+    {
         return $user !== null && ($issue->author_id === $user->id || $issue->assigned_to_id === $user->id);
+    }
+
+    public function setPrivate(User $user, Project $project): bool
+    {
+        return $this->authorization->can($user, 'set_issues_private', $project);
     }
 
     public function create(User $user, Project $project): bool

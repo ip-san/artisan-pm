@@ -123,10 +123,15 @@ new #[Layout('components.layouts.app')] class extends Component
             ->where('project_id', $this->project->id)
             ->with(['tracker', 'status', 'priority', 'category', 'assignedTo', 'author', 'fixedVersion']);
 
-        if (app(AuthorizationService::class)->issueVisibilityFor(auth()->user(), $this->project) === IssueVisibility::Own) {
-            $userId = auth()->id();
-            $query->where(fn ($q) => $q->where('author_id', $userId)->orWhere('assigned_to_id', $userId));
-        }
+        $userId = auth()->id();
+
+        match (app(AuthorizationService::class)->issueVisibilityFor(auth()->user(), $this->project)) {
+            IssueVisibility::All => null,
+            IssueVisibility::Default => $query->where(fn ($q) => $q->where('is_private', false)
+                ->orWhere('author_id', $userId)
+                ->orWhere('assigned_to_id', $userId)),
+            IssueVisibility::Own => $query->where(fn ($q) => $q->where('author_id', $userId)->orWhere('assigned_to_id', $userId)),
+        };
 
         if ($this->statusFilter !== 'all') {
             $isClosed = $this->statusFilter === 'closed';

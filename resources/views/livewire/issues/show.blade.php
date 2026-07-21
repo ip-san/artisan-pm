@@ -291,7 +291,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 </p>
             @endif
             <p class="text-sm text-gray-500">{{ $issue->tracker->name }} #{{ $issue->id }}</p>
-            <h1 class="text-xl font-semibold text-gray-900">{{ $issue->subject }}</h1>
+            <h1 class="text-xl font-semibold text-gray-900">
+                {{ $issue->subject }}
+                @if ($issue->is_private)
+                    <span class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 align-middle text-xs font-normal text-gray-600">非公開</span>
+                @endif
+            </h1>
         </div>
         <div class="flex gap-2">
             <button wire:click="toggleWatch" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">

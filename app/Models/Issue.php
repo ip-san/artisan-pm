@@ -25,7 +25,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 #[Fillable([
     'project_id', 'tracker_id', 'status_id', 'priority_id', 'author_id',
     'assigned_to_id', 'fixed_version_id', 'parent_id', 'category_id', 'subject',
-    'description', 'start_date', 'due_date', 'done_ratio',
+    'description', 'start_date', 'due_date', 'done_ratio', 'is_private',
 ])]
 final class Issue extends Model implements HasMedia
 {
@@ -42,6 +42,7 @@ final class Issue extends Model implements HasMedia
      */
     protected $attributes = [
         'done_ratio' => 0,
+        'is_private' => false,
     ];
 
     protected function casts(): array
@@ -51,6 +52,7 @@ final class Issue extends Model implements HasMedia
             'due_date' => 'date',
             'done_ratio' => 'integer',
             'closed_on' => 'datetime',
+            'is_private' => 'boolean',
         ];
     }
 

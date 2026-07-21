@@ -75,11 +75,10 @@ final class AuthorizationService
     }
 
     /**
-     * The broadest issues_visibility across a user's role(s) in this
-     * project — All/Default (equivalent today, see IssueVisibility's own
-     * docblock) win over Own if the user holds any role granting them.
-     * Admins and non-members/anonymous (whose access comes from a
-     * builtin role, not an explicit Member row) always see everything.
+     * The most permissive issues_visibility across every role a user holds
+     * in this project (All > Default > Own) — uses rolesFor() rather than
+     * memberRolesFor() directly so guests/non-members correctly consult
+     * their builtin role's own setting instead of always resolving to All.
      */
     public function issueVisibilityFor(?User $user, Project $project): IssueVisibility
     {
@@ -87,15 +86,21 @@ final class AuthorizationService
             return IssueVisibility::All;
         }
 
-        $memberRoles = $user === null ? collect() : $this->memberRolesFor($user, $project);
+        $roles = $this->rolesFor($user, $project);
 
-        if ($memberRoles->isEmpty()) {
+        if ($roles->isEmpty()) {
             return IssueVisibility::All;
         }
 
-        $broadest = $memberRoles->first(fn (Role $role) => $role->issues_visibility !== IssueVisibility::Own);
+        if ($roles->contains(fn (Role $role) => $role->issues_visibility === IssueVisibility::All)) {
+            return IssueVisibility::All;
+        }
 
-        return $broadest !== null ? IssueVisibility::All : IssueVisibility::Own;
+        if ($roles->contains(fn (Role $role) => $role->issues_visibility === IssueVisibility::Default)) {
+            return IssueVisibility::Default;
+        }
+
+        return IssueVisibility::Own;
     }
 
     /**
