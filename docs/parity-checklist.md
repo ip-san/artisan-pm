@@ -344,11 +344,11 @@
 
 | 機能 | 状態 | 備考 |
 |---|---|---|
-| エンティティごとの複数添付 | done | Spatie MediaLibrary、対象は Issue/Version/News/Document/WikiPage(2026-07-21〜) |
+| エンティティごとの複数添付 | done | Spatie MediaLibrary、対象は Issue/Version/News/Document/WikiPage/Message(2026-07-21〜) |
 | **サムネイル/画像変換** | **missing** | `registerMediaConversions` が未使用。ダウンロード専用 |
 | **添付ファイルの説明文** | **missing** | ファイル名+サイズのみ表示、説明文は保存も編集もできない |
 | ダウンロード数カウント | missing | — |
-| Wiki/フォーラム投稿への添付 | partial | Wikiは対応済み(2026-07-21)。フォーラム投稿(`Message`)は引き続き `HasMedia` 未実装 |
+| Wiki/フォーラム投稿への添付 | done(2026-07-21) | Wiki/フォーラム投稿(`Message`、トピック・返信とも)ともに対応 |
 | 本文中のインライン画像参照(`attachment:file.png`) | missing | — |
 
 ---

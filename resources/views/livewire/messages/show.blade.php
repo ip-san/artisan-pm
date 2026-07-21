@@ -78,6 +78,19 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->topic->unsetRelation('watchers');
     }
 
+    public function deleteAttachment(int $messageId, int $mediaId): void
+    {
+        $message = Message::query()->where('board_id', $this->board->id)->findOrFail($messageId);
+
+        $this->authorize('update', $message);
+
+        $message->attachments()->firstWhere('id', $mediaId)?->delete();
+
+        if (! $message->isTopic()) {
+            unset($this->replies);
+        }
+    }
+
     public function deleteMessage(int $messageId): void
     {
         $message = Message::query()->where('board_id', $this->board->id)->findOrFail($messageId);
@@ -138,6 +151,24 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="rounded-md border border-gray-200 bg-white p-4 mb-2">
         <p class="whitespace-pre-line text-sm text-gray-800">{{ $topic->content }}</p>
     </div>
+    @if ($topic->attachments()->isNotEmpty())
+        <ul class="mb-2 space-y-1">
+            @foreach ($topic->attachments() as $media)
+                <li class="flex items-center justify-between text-sm">
+                    <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                        {{ $media->file_name }}
+                    </a>
+                    <span class="flex items-center gap-2">
+                        <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                        @can('update', $topic)
+                            <button wire:click="deleteAttachment({{ $topic->id }}, {{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
+                                class="text-red-600 hover:underline">削除</button>
+                        @endcan
+                    </span>
+                </li>
+            @endforeach
+        </ul>
+    @endif
     <p class="mb-6 text-xs text-gray-500">{{ $topic->author->name }} — {{ $topic->created_at->format('Y-m-d H:i') }}</p>
 
     <h2 class="text-sm font-semibold text-gray-900 mb-2">返信 ({{ $this->replies->count() }})</h2>
@@ -145,6 +176,24 @@ new #[Layout('components.layouts.app')] class extends Component
         @foreach ($this->replies as $reply)
             <li wire:key="reply-{{ $reply->id }}" class="rounded-md border border-gray-200 bg-white p-4">
                 <p class="whitespace-pre-line text-sm text-gray-800">{{ $reply->content }}</p>
+                @if ($reply->attachments()->isNotEmpty())
+                    <ul class="mt-2 space-y-1">
+                        @foreach ($reply->attachments() as $media)
+                            <li class="flex items-center justify-between text-sm">
+                                <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                                    {{ $media->file_name }}
+                                </a>
+                                <span class="flex items-center gap-2">
+                                    <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                                    @can('update', $reply)
+                                        <button wire:click="deleteAttachment({{ $reply->id }}, {{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
+                                            class="text-red-600 hover:underline">削除</button>
+                                    @endcan
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
                 <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
                     <span>{{ $reply->author->name }} — {{ $reply->created_at->format('Y-m-d H:i') }}</span>
                     <span class="flex gap-2">

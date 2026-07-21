@@ -6,9 +6,12 @@ use App\Models\Project;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use WithFileUploads;
+
     public Project $project;
 
     public Board $board;
@@ -28,6 +31,9 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $is_sticky = false;
 
     public bool $is_locked = false;
+
+    /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
+    public array $newAttachments = [];
 
     public function mount(Project $project, Board $board, ?Message $message = null): void
     {
@@ -58,6 +64,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $rules = [
             'subject' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
+            'newAttachments.*' => ['file', 'max:'.intdiv(config('media-library.max_file_size'), 1024)],
         ];
 
         if ($this->canManageFlags) {
@@ -66,16 +73,25 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $data = $this->validate($rules);
+        unset($data['newAttachments']);
 
         if ($this->editingMessage) {
             $this->editingMessage->update($data);
-            $topic = $this->editingMessage->isTopic() ? $this->editingMessage : $this->editingMessage->parent;
+            $message = $this->editingMessage;
+            $topic = $message->isTopic() ? $message : $message->parent;
         } else {
-            $topic = Message::create([
+            $message = Message::create([
                 ...$data,
                 'board_id' => $this->board->id,
                 'author_id' => auth()->id(),
             ]);
+            $topic = $message;
+        }
+
+        foreach ($this->newAttachments as $file) {
+            $message->addMedia($file->getRealPath())
+                ->usingFileName($file->getClientOriginalName())
+                ->toMediaCollection('attachments');
         }
 
         $this->redirect(route('messages.show', [$this->project, $this->board, $topic]), navigate: true);
@@ -98,6 +114,21 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="block text-sm font-medium text-gray-700">本文</label>
             <textarea wire:model="content" rows="10" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
             @error('content') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">添付ファイル</label>
+            <input type="file" wire:model="newAttachments" multiple
+                class="mt-1 block w-full text-sm text-gray-700">
+            @error('newAttachments.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+
+            @if ($editingMessage?->attachments()->isNotEmpty())
+                <ul class="mt-2 space-y-1">
+                    @foreach ($editingMessage->attachments() as $media)
+                        <li class="text-sm text-gray-600">{{ $media->file_name }} ({{ $media->human_readable_size }})</li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
 
         @if ($this->canManageFlags)

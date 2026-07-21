@@ -6,6 +6,7 @@ use App\Models\Message;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 
 function boardMember(Project $project, array $permissions = ['view_messages', 'add_messages']): User
@@ -180,6 +181,31 @@ test('visiting a reply directly redirects to its parent topic', function () {
     Livewire::actingAs($user)
         ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $reply])
         ->assertRedirect(route('messages.show', [$project, $board, $topic]));
+});
+
+test('a member with add_messages can attach a file when starting a topic, and delete it', function () {
+    $project = Project::factory()->create();
+    $user = boardMember($project, ['view_messages', 'add_messages', 'edit_own_messages']);
+    $board = Board::factory()->for($project)->create();
+
+    Livewire::actingAs($user)
+        ->test('messages.form', ['project' => $project, 'board' => $board])
+        ->set('subject', 'Topic with a file')
+        ->set('content', 'body')
+        ->set('newAttachments', [UploadedFile::fake()->create('spec.pdf', 200)])
+        ->call('save')
+        ->assertRedirect();
+
+    $topic = Message::where('subject', 'Topic with a file')->firstOrFail();
+    expect($topic->attachments())->toHaveCount(1);
+
+    $media = $topic->attachments()->first();
+
+    Livewire::actingAs($user)
+        ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic])
+        ->call('deleteAttachment', $topic->id, $media->id);
+
+    expect($topic->fresh()->attachments())->toHaveCount(0);
 });
 
 test('a member with view_messages can watch and unwatch a topic', function () {
