@@ -49,6 +49,9 @@
                             @can('manage', \App\Models\WorkflowTransition::class)
                                 <a href="{{ route('workflows.edit') }}" class="text-sm text-gray-600 hover:text-gray-900">ワークフロー管理</a>
                             @endcan
+                            @can('viewAny', \App\Models\Enumeration::class)
+                                <a href="{{ route('enumerations.index', \App\Enums\EnumerationType::IssuePriority->value) }}" class="text-sm text-gray-600 hover:text-gray-900">値の一覧</a>
+                            @endcan
                             @foreach (app(\App\Support\Plugins\PluginManager::class)->menuItems('nav') as $item)
                                 <a href="{{ $item->url }}" class="text-sm text-gray-600 hover:text-gray-900">{{ $item->label }}</a>
                             @endforeach

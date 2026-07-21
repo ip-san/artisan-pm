@@ -113,4 +113,8 @@ Route::middleware('auth')->group(function () {
     Volt::route('/issue-statuses/{issueStatus}/edit', 'issue-statuses.form')->name('issue-statuses.edit');
 
     Volt::route('/workflows', 'workflows.edit')->name('workflows.edit');
+
+    Volt::route('/enumerations/{type}', 'enumerations.index')->name('enumerations.index');
+    Volt::route('/enumerations/{type}/create', 'enumerations.form')->name('enumerations.create');
+    Volt::route('/enumerations/{type}/{enumeration}/edit', 'enumerations.form')->name('enumerations.edit');
 });

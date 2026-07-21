@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
@@ -49,5 +50,37 @@ final class Enumeration extends Model implements Sortable
     public function scopeOfType(Builder $query, EnumerationType $type): Builder
     {
         return $query->where('type', $type);
+    }
+
+    /**
+     * Only meaningful when type is IssuePriority.
+     *
+     * @return HasMany<Issue, $this>
+     */
+    public function issues(): HasMany
+    {
+        return $this->hasMany(Issue::class, 'priority_id');
+    }
+
+    /**
+     * Only meaningful when type is TimeEntryActivity.
+     *
+     * @return HasMany<TimeEntry, $this>
+     */
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class, 'activity_id');
+    }
+
+    /**
+     * Setting is_default clears every other enumeration of the same type,
+     * matching Redmine's own "only one default per type" behavior — a
+     * plain boolean column can't enforce this at the schema level.
+     */
+    public function makeDefault(): void
+    {
+        self::query()->where('type', $this->type)->where('id', '!=', $this->id)->update(['is_default' => false]);
+
+        $this->update(['is_default' => true]);
     }
 }
