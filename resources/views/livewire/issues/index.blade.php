@@ -446,7 +446,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span class="text-gray-500">保存済みクエリ:</span>
         @forelse ($this->savedQueries as $savedQuery)
-            <button wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50">
+            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50">
                 {{ $savedQuery->name }}
             </button>
         @empty
@@ -460,7 +460,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <span class="font-medium text-gray-700">フィルタを追加:</span>
             @foreach ($this->engine->fields() as $field)
                 @unless (in_array($field->key(), $activeFilterKeys, true))
-                    <button wire:click="addFilter('{{ $field->key() }}')" class="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                    <button wire:key="add-filter-{{ $field->key() }}" wire:click="addFilter('{{ $field->key() }}')" class="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50">
                         + {{ $field->label() }}
                     </button>
                 @endunless
@@ -472,7 +472,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @foreach ($activeFilterKeys as $key)
                     @php $field = $this->engine->field($key); @endphp
                     @continue(! $field)
-                    <div class="flex flex-wrap items-center gap-2">
+                    <div wire:key="filter-row-{{ $key }}" class="flex flex-wrap items-center gap-2">
                         <span class="w-28 text-sm text-gray-700">{{ $field->label() }}</span>
                         <select wire:model="filterOperators.{{ $key }}" class="rounded-md border-gray-300 text-sm">
                             @foreach ($field->operators() as $operator)
@@ -631,11 +631,12 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @foreach ($this->groupedIssues as $groupLabel => $groupIssues)
+        @php $groupKey = $groupLabel !== '' ? $groupLabel : '__ungrouped__'; @endphp
         @if ($groupBy !== null)
-            <h2 class="mb-2 mt-4 text-sm font-semibold text-gray-900">{{ $groupLabel ?: '(未設定)' }} ({{ $groupIssues->count() }})</h2>
+            <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-gray-900">{{ $groupLabel ?: '(未設定)' }} ({{ $groupIssues->count() }})</h2>
         @endif
 
-        <div class="overflow-x-auto rounded-md border border-gray-200 bg-white mb-4">
+        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-gray-200 bg-white mb-4">
             <table class="min-w-full divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
@@ -644,7 +645,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endif
                         <th class="px-4 py-2">#</th>
                         @foreach ($columns as $columnKey)
-                            <th class="px-4 py-2">
+                            <th wire:key="column-heading-{{ $columnKey }}" class="px-4 py-2">
                                 <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
                                     {{ self::DISPLAY_COLUMNS[$columnKey] ?? $columnKey }}
                                     @if ($sortKey === $columnKey)
@@ -657,7 +658,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($groupIssues as $issue)
-                        <tr>
+                        <tr wire:key="issue-row-{{ $issue->id }}">
                             @if ($this->canBulkEdit)
                                 <td class="px-4 py-2">
                                     <input type="checkbox" wire:model="selected" value="{{ $issue->id }}" class="rounded border-gray-300">
@@ -665,7 +666,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             @endif
                             <td class="px-4 py-2 text-gray-500">{{ $issue->id }}</td>
                             @foreach ($columns as $columnKey)
-                                <td class="px-4 py-2">
+                                <td wire:key="issue-{{ $issue->id }}-column-{{ $columnKey }}" class="px-4 py-2">
                                     @if ($columnKey === 'subject')
                                         <a href="{{ route('issues.show', [$project, $issue]) }}" class="text-indigo-600 hover:underline">
                                             {{ $issue->subject }}

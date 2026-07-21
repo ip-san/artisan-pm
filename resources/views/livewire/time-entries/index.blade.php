@@ -306,7 +306,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span class="text-gray-500">保存済みクエリ:</span>
         @forelse ($this->savedQueries as $savedQuery)
-            <button wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50">
+            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50">
                 {{ $savedQuery->name }}
             </button>
         @empty
@@ -320,7 +320,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <span class="font-medium text-gray-700">フィルタを追加:</span>
             @foreach ($this->engine->fields() as $field)
                 @unless (in_array($field->key(), $activeFilterKeys, true))
-                    <button wire:click="addFilter('{{ $field->key() }}')" class="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                    <button wire:key="add-filter-{{ $field->key() }}" wire:click="addFilter('{{ $field->key() }}')" class="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50">
                         + {{ $field->label() }}
                     </button>
                 @endunless
@@ -332,7 +332,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @foreach ($activeFilterKeys as $key)
                     @php $field = $this->engine->field($key); @endphp
                     @continue(! $field)
-                    <div class="flex flex-wrap items-center gap-2">
+                    <div wire:key="filter-row-{{ $key }}" class="flex flex-wrap items-center gap-2">
                         <span class="w-28 text-sm text-gray-700">{{ $field->label() }}</span>
                         <select wire:model="filterOperators.{{ $key }}" class="rounded-md border-gray-300 text-sm">
                             @foreach ($field->operators() as $operator)
@@ -363,10 +363,14 @@ new #[Layout('components.layouts.app')] class extends Component
                                     <input type="date" wire:model="filterValues.{{ $key }}.1" class="rounded-md border-gray-300 text-sm">
                                 @endif
                             @elseif ($field->type() === \App\Enums\FilterFieldType::Integer)
-                                <input type="number" wire:model="filterValues.{{ $key }}.0" class="w-24 rounded-md border-gray-300 text-sm">
+                                {{-- step="0.01" also covers the "hours" field, the one decimal
+                                     value filterable here — FilterFieldType has no distinct
+                                     decimal case yet, and any whole number is still a valid
+                                     multiple of 0.01, so this doesn't affect true integer fields. --}}
+                                <input type="number" step="0.01" wire:model="filterValues.{{ $key }}.0" class="w-24 rounded-md border-gray-300 text-sm">
                                 @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)
                                     <span class="text-gray-400">〜</span>
-                                    <input type="number" wire:model="filterValues.{{ $key }}.1" class="w-24 rounded-md border-gray-300 text-sm">
+                                    <input type="number" step="0.01" wire:model="filterValues.{{ $key }}.1" class="w-24 rounded-md border-gray-300 text-sm">
                                 @endif
                             @else
                                 <input type="text" wire:model="filterValues.{{ $key }}.0" class="rounded-md border-gray-300 text-sm">
@@ -411,13 +415,14 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @foreach ($this->groupedTimeEntries as $groupLabel => $groupEntries)
+        @php $groupKey = $groupLabel !== '' ? $groupLabel : '__ungrouped__'; @endphp
         @if ($groupBy !== null)
-            <h2 class="mb-2 mt-4 text-sm font-semibold text-gray-900">
+            <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-gray-900">
                 {{ $groupLabel ?: '(未設定)' }} ({{ $groupEntries->count() }}件 / {{ $this->groupTotalHours($groupEntries) }} 時間)
             </h2>
         @endif
 
-        <div class="overflow-x-auto rounded-md border border-gray-200 bg-white mb-4">
+        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-gray-200 bg-white mb-4">
             <table class="min-w-full divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
@@ -454,7 +459,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($groupEntries as $entry)
-                        <tr>
+                        <tr wire:key="time-entry-{{ $entry->id }}">
                             <td class="px-4 py-2">{{ $entry->spent_on->toDateString() }}</td>
                             <td class="px-4 py-2">{{ $entry->user->name }}</td>
                             <td class="px-4 py-2">{{ $entry->activity->name }}</td>
