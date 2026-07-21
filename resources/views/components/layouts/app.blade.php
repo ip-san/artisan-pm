@@ -38,7 +38,7 @@
                     </div>
                     <div class="flex items-center gap-4 text-sm">
                         @auth
-                            <span class="text-gray-500">{{ auth()->user()->name }}</span>
+                            <a href="{{ route('profile.index') }}" class="text-gray-500 hover:text-gray-900">{{ auth()->user()->name }}</a>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="text-gray-600 hover:text-gray-900">ログアウト</button>
