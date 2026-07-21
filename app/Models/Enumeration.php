@@ -10,11 +10,12 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
-#[Fillable(['type', 'name', 'position', 'is_default', 'active'])]
+#[Fillable(['type', 'name', 'position', 'is_default', 'active', 'project_id', 'parent_id'])]
 final class Enumeration extends Model implements Sortable
 {
     /** @use HasFactory<EnumerationFactory> */
@@ -40,7 +41,7 @@ final class Enumeration extends Model implements Sortable
      */
     public function buildSortQuery(): Builder
     {
-        return self::query()->where('type', $this->type);
+        return self::query()->where('type', $this->type)->where('project_id', $this->project_id);
     }
 
     /**
@@ -50,6 +51,29 @@ final class Enumeration extends Model implements Sortable
     public function scopeOfType(Builder $query, EnumerationType $type): Builder
     {
         return $query->where('type', $type);
+    }
+
+    /**
+     * The project this override applies to — only set on a project-specific
+     * override row (`parent_id` also set); global enumerations have neither.
+     * Only meaningful for TimeEntryActivity, matching Redmine's own scope
+     * for project-level enumeration overrides.
+     *
+     * @return BelongsTo<Project, $this>
+     */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * The global enumeration this project-specific row overrides.
+     *
+     * @return BelongsTo<Enumeration, $this>
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
     }
 
     /**

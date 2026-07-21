@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Concerns\HasCustomFields;
 use App\Enums\CustomizableType;
+use App\Enums\EnumerationType;
 use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
 use App\Enums\VersionStatus;
@@ -139,6 +140,49 @@ final class Project extends Model implements HasMedia
     public function timeEntries(): HasMany
     {
         return $this->hasMany(TimeEntry::class);
+    }
+
+    /**
+     * This project's own TimeEntryActivity overrides — matches Redmine's
+     * Project#time_entry_activities. Each row's parent_id points at the
+     * global Enumeration it overrides; only its `active` flag differs
+     * from the parent (Redmine's own project-activity form only ever
+     * toggles active/inactive, never renames — see
+     * Project#create_time_entry_activity_if_needed, which always copies
+     * the parent's name).
+     *
+     * @return HasMany<Enumeration, $this>
+     */
+    public function timeEntryActivityOverrides(): HasMany
+    {
+        return $this->hasMany(Enumeration::class)->ofType(EnumerationType::TimeEntryActivity)->whereNotNull('parent_id');
+    }
+
+    /**
+     * The effective set of TimeEntryActivity enumerations available to
+     * this project: every global one except those this project has
+     * overridden, plus this project's own override rows in their place —
+     * matches Redmine's Project#activities.
+     *
+     * @return Collection<int, Enumeration>
+     */
+    public function activities(bool $includeInactive = false): Collection
+    {
+        $overriddenParentIds = $this->timeEntryActivityOverrides()->pluck('parent_id');
+
+        $query = Enumeration::query()
+            ->ofType(EnumerationType::TimeEntryActivity)
+            ->where(fn (Builder $q) => $q->whereNull('project_id')->orWhere('project_id', $this->id));
+
+        if ($overriddenParentIds->isNotEmpty()) {
+            $query->whereNotIn('id', $overriddenParentIds);
+        }
+
+        if (! $includeInactive) {
+            $query->where('active', true);
+        }
+
+        return $query->orderBy('position')->get();
     }
 
     /**

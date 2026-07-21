@@ -18,10 +18,15 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->type = $type;
     }
 
+    /**
+     * Global values only — project-specific TimeEntryActivity overrides
+     * (see Project::activities()) live in the same table but must never
+     * appear in this system-wide management list.
+     */
     #[Computed]
     public function enumerations(): Collection
     {
-        return Enumeration::query()->ofType($this->type)->orderBy('position')->get();
+        return Enumeration::query()->ofType($this->type)->whereNull('project_id')->orderBy('position')->get();
     }
 
     public function makeDefault(int $enumerationId): void

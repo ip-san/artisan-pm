@@ -109,10 +109,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->lockVersion = $issue->lock_version;
 
             if ($this->canLogTime) {
-                $this->logTimeActivityId = Enumeration::query()
-                    ->ofType(EnumerationType::TimeEntryActivity)
-                    ->where('is_default', true)
-                    ->first()?->id;
+                $this->logTimeActivityId = $this->timeEntryActivities->firstWhere('is_default', true)?->id;
             }
 
             $this->fieldRules = app(WorkflowService::class)->fieldRules($issue, auth()->user());
@@ -388,10 +385,16 @@ new #[Layout('components.layouts.app')] class extends Component
         return app(AuthorizationService::class)->can(auth()->user(), 'log_time', $this->project);
     }
 
+    /**
+     * This project's effective TimeEntryActivity set — see
+     * Project::activities(). Inactive ones stay included, matching this
+     * list's prior behavior of not filtering by `active` (narrowing that
+     * is a separate, pre-existing gap out of scope here).
+     */
     #[Computed]
     public function timeEntryActivities(): Collection
     {
-        return Enumeration::query()->ofType(EnumerationType::TimeEntryActivity)->orderBy('position')->get();
+        return $this->project->activities(includeInactive: true);
     }
 
     public function save(): void
@@ -452,7 +455,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $rules['logTimeHours'] = ['nullable', 'numeric', 'min:0.01', 'max:1000'];
             $rules['logTimeActivityId'] = [
                 'required_with:logTimeHours',
-                Rule::exists('enumerations', 'id')->where('type', EnumerationType::TimeEntryActivity->value),
+                Rule::in($this->timeEntryActivities->pluck('id')->all()),
             ];
             $rules['logTimeComments'] = ['nullable', 'string'];
         }

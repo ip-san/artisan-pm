@@ -187,7 +187,7 @@
 | プロジェクト削除 | missing UI | ポリシーはあるがルート/ボタンなし |
 | プロジェクトのコピー | missing | — |
 | ブックマーク | done(2026-07-21) | `project_bookmarks`テーブル+`User::bookmarkedProjects()`。詳細画面とプロジェクト一覧の★ボタンでトグル、一覧に「ブックマークのみ表示」フィルタ |
-| プロジェクト別 Enumeration(工数種別等)の上書き | missing | — |
+| プロジェクト別 Enumeration(工数種別等)の上書き | done(2026-07-22) | Redmineと同じくTimeEntryActivityのみ対象(`Project#activities`/`create_time_entry_activity_if_needed`相当)。`enumerations`に`project_id`/`parent_id`を追加し、新規`projects/{project}/activities`画面(`edit_project`権限)でプロジェクトごとに有効/無効をトグル(Redmine同様リネームは不可、グローバル値の名前をそのまま複製)。状態がグローバル既定と一致する場合は上書き行を作らず/削除し、`Project::activities()`が実効的な一覧を解決。工数記録フォーム・課題フォームの工数記録欄・工数一覧の絞り込みドロップダウンをすべてこの実効一覧に差し替え |
 | メンバー管理 | partial | メールアドレス完全一致でのみ追加(候補選択なし)。~~グループをメンバーとして追加できない~~ → **done**(2026-07-21)。「ユーザー/グループ」切替式フォームでグループもロール付きで追加可能に。既存メンバーのロール編集は「編集」リンクでフォームにプリフィルして更新可能(グループメンバーは編集フォームの対象外、削除→再追加のみ) |
 | 課題カテゴリ | done (2026-07-21) | プロジェクト設定画面から管理(§ Issue Categories参照) |
 
@@ -380,7 +380,7 @@
 | 機能 | 状態 | 備考 |
 |---|---|---|
 | TimeEntry CRUD | done | 一括編集はなし |
-| 工数種別(TimeEntryActivity) | done | プロジェクト別上書き・カスタムフィールドはなし |
+| 工数種別(TimeEntryActivity) | done | プロジェクト別の有効/無効上書きに対応(2026-07-22、詳細は上の「プロジェクト別 Enumeration」行を参照)。カスタムフィールドはなし |
 | 課題の実績工数合計 | done(訂正2026-07-22) | **訂正**: 従来「partial」と誤記されていたが、`Issue::totalSpentHours()`は`descendantIds()`の再帰CTEで子孫全体を合算済み(上の「子孫を含めた予定/実績工数の集計」行と同一実装、本行が重複・古いまま残っていたため訂正)。課題詳細画面にも「合計: X時間」として表示される |
 | プロジェクトの実績工数合計 | done(2026-07-22) | `projects/show.blade.php`に「実績工数」ブロックを追加(`view_time_entries`権限保有時、工数が1件以上ある場合のみ表示)。Redmineの`ProjectsController#show`の`@total_hours`相当だが、`display_subprojects_issues`設定自体が本アプリに存在しないためサブプロジェクト分の合算は対象外(このプロジェクト自身のTimeEntryのみ) |
 | **多次元工数レポート(ピボット表)** | **missing — 最大のギャップの一つ** | 単一次元のグループ化リストのみ。Redmine は最大3軸(プロジェクト/ステータス/バージョン/カテゴリ/ユーザー/トラッカー/工数種別/課題+カスタムフィールド)を期間列(年/月/週/日)と掛け合わせ、行・列・総計を算出する |

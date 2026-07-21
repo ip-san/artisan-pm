@@ -20,6 +20,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}', 'projects.show')->name('projects.show');
     Volt::route('/projects/{project:identifier}/edit', 'projects.form')->name('projects.edit');
     Volt::route('/projects/{project:identifier}/members', 'projects.members')->name('projects.members');
+    Volt::route('/projects/{project:identifier}/activities', 'projects.activities')->name('projects.activities');
 
     Volt::route('/projects/{project:identifier}/issue_categories', 'issue-categories.index')->name('issue-categories.index');
     Volt::route('/projects/{project:identifier}/issue_categories/create', 'issue-categories.form')->name('issue-categories.create');

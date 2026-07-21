@@ -1,7 +1,5 @@
 <?php
 
-use App\Enums\EnumerationType;
-use App\Models\Enumeration;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Support\Authorization\AuthorizationService;
@@ -48,18 +46,24 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $this->issue_id = request()->integer('issue_id') ?: null;
             $this->user_id = auth()->id();
-            $this->activity_id = Enumeration::query()
-                ->ofType(EnumerationType::TimeEntryActivity)
-                ->where('is_default', true)
-                ->first()?->id;
+            $this->activity_id = $this->activities->firstWhere('is_default', true)?->id;
             $this->spent_on = now()->toDateString();
         }
     }
 
+    /**
+     * This project's effective TimeEntryActivity set — matches Redmine's
+     * Project#activities, so an activity a project has deactivated (see
+     * projects.activities) no longer appears here even though it's still
+     * globally defined. Inactive (system-wide) ones are still included,
+     * matching this form's prior behavior of not filtering by `active` at
+     * all — narrowing that is a separate, pre-existing gap out of scope
+     * here.
+     */
     #[Computed]
     public function activities(): Collection
     {
-        return Enumeration::query()->ofType(EnumerationType::TimeEntryActivity)->orderBy('position')->get();
+        return $this->project->activities(includeInactive: true);
     }
 
     #[Computed]
@@ -106,7 +110,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $rules = [
             'issue_id' => ['nullable', Rule::exists('issues', 'id')->where('project_id', $this->project->id)],
-            'activity_id' => ['required', Rule::exists('enumerations', 'id')->where('type', EnumerationType::TimeEntryActivity->value)],
+            'activity_id' => ['required', Rule::in($this->activities->pluck('id')->all())],
             'hours' => ['required', 'numeric', 'min:0.01', 'max:1000'],
             'spent_on' => ['required', 'date'],
             'comments' => ['nullable', 'string'],

@@ -172,6 +172,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     メンバー管理
                 </a>
             @endcan
+            @can('update', $project)
+                <a href="{{ route('projects.activities', $project) }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    作業分類
+                </a>
+            @endcan
             @can('viewAny', [\App\Models\IssueCategory::class, $project])
                 <a href="{{ route('issue-categories.index', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
