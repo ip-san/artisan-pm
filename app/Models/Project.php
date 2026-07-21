@@ -59,6 +59,22 @@ class Project extends Model
         return $this->belongsToMany(Tracker::class, 'project_tracker');
     }
 
+    /**
+     * @return HasMany<Issue, $this>
+     */
+    public function issues(): HasMany
+    {
+        return $this->hasMany(Issue::class);
+    }
+
+    /**
+     * @return HasMany<Version, $this>
+     */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(Version::class);
+    }
+
     public function hasModule(ProjectModuleKey $module): bool
     {
         return $this->moduleAssignments->contains(

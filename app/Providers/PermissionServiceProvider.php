@@ -34,5 +34,12 @@ class PermissionServiceProvider extends ServiceProvider
 
         $registry->register('manage_versions', module: ProjectModuleKey::IssueTracking);
         $registry->register('manage_categories', module: ProjectModuleKey::IssueTracking);
+
+        $registry->register('view_issues', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::None);
+        $registry->register('add_issues', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::LoggedIn);
+        $registry->register('edit_issues', module: ProjectModuleKey::IssueTracking);
+        $registry->register('delete_issues', module: ProjectModuleKey::IssueTracking);
+        $registry->register('manage_issue_relations', module: ProjectModuleKey::IssueTracking);
+        $registry->register('add_issue_watchers', module: ProjectModuleKey::IssueTracking);
     }
 }

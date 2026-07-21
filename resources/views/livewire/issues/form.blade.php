@@ -1,0 +1,274 @@
+<?php
+
+use App\Enums\EnumerationType;
+use App\Models\Enumeration;
+use App\Models\Issue;
+use App\Models\IssueStatus;
+use App\Models\Project;
+use App\Services\IssueService;
+use App\Services\WorkflowService;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\Layout;
+use Livewire\Volt\Component;
+
+new #[Layout('components.layouts.app')] class extends Component
+{
+    public Project $project;
+
+    public ?Issue $issue = null;
+
+    public ?int $tracker_id = null;
+
+    public ?int $status_id = null;
+
+    public ?int $priority_id = null;
+
+    public ?int $assigned_to_id = null;
+
+    public ?int $fixed_version_id = null;
+
+    public string $subject = '';
+
+    public string $description = '';
+
+    public ?string $start_date = null;
+
+    public ?string $due_date = null;
+
+    public int $done_ratio = 0;
+
+    public string $comment = '';
+
+    /** @var array<string, string> */
+    public array $fieldRules = [];
+
+    /** @var array<int, IssueStatus> */
+    public Collection $allowedStatuses;
+
+    public function mount(Project $project, ?Issue $issue = null): void
+    {
+        $this->project = $project;
+        $this->allowedStatuses = collect();
+
+        if ($issue?->exists) {
+            $this->authorize('update', $issue);
+
+            $this->issue = $issue;
+            $this->tracker_id = $issue->tracker_id;
+            $this->status_id = $issue->status_id;
+            $this->priority_id = $issue->priority_id;
+            $this->assigned_to_id = $issue->assigned_to_id;
+            $this->fixed_version_id = $issue->fixed_version_id;
+            $this->subject = $issue->subject;
+            $this->description = (string) $issue->description;
+            $this->start_date = $issue->start_date?->toDateString();
+            $this->due_date = $issue->due_date?->toDateString();
+            $this->done_ratio = $issue->done_ratio;
+
+            $this->fieldRules = app(WorkflowService::class)->fieldRules($issue, auth()->user());
+            $this->allowedStatuses = app(WorkflowService::class)->allowedTransitions($issue, auth()->user())
+                ->push($issue->status)
+                ->unique('id');
+        } else {
+            $this->authorize('create', [Issue::class, $project]);
+
+            $this->tracker_id = $project->trackers->first()?->id;
+            $this->status_id = IssueStatus::query()->orderBy('position')->first()?->id;
+            $this->priority_id = Enumeration::query()
+                ->ofType(EnumerationType::IssuePriority)
+                ->where('is_default', true)
+                ->first()?->id;
+        }
+    }
+
+    public function getProjectTrackersProperty(): Collection
+    {
+        return $this->project->trackers;
+    }
+
+    public function getPrioritiesProperty(): Collection
+    {
+        return Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->get();
+    }
+
+    public function getProjectMembersProperty(): Collection
+    {
+        return $this->project->users;
+    }
+
+    public function getProjectVersionsProperty(): Collection
+    {
+        return $this->project->versions;
+    }
+
+    public function isRequired(string $field): bool
+    {
+        return ($this->fieldRules[$field] ?? null) === 'required';
+    }
+
+    public function isReadOnly(string $field): bool
+    {
+        return ($this->fieldRules[$field] ?? null) === 'read_only';
+    }
+
+    public function save(): void
+    {
+        $rules = [
+            'tracker_id' => ['required', 'exists:trackers,id'],
+            'priority_id' => ['required', 'exists:enumerations,id'],
+            'subject' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'assigned_to_id' => ['nullable', 'exists:users,id'],
+            'fixed_version_id' => ['nullable', 'exists:versions,id'],
+            'start_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date'],
+            'done_ratio' => ['integer', 'min:0', 'max:100'],
+        ];
+
+        foreach ($this->fieldRules as $field => $rule) {
+            if ($rule === 'required' && isset($rules[$field])) {
+                $rules[$field][] = 'required';
+                $rules[$field] = array_diff($rules[$field], ['nullable']);
+            }
+        }
+
+        if ($this->issue) {
+            $rules['status_id'] = ['required', 'exists:issue_statuses,id'];
+        }
+
+        $data = $this->validate($rules);
+
+        if ($this->issue) {
+            if ($data['status_id'] !== $this->issue->status_id) {
+                $this->authorize('transitionTo', [$this->issue, IssueStatus::findOrFail($data['status_id'])]);
+            }
+
+            $issue = app(IssueService::class)->update($this->issue, $data, auth()->user(), $this->comment ?: null);
+        } else {
+            $data['project_id'] = $this->project->id;
+            $data['status_id'] = $this->status_id;
+            $issue = app(IssueService::class)->create($data, auth()->user());
+        }
+
+        $this->redirect(route('issues.show', [$this->project, $issue]), navigate: true);
+    }
+}; ?>
+
+<div class="max-w-2xl">
+    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+        {{ $issue ? "#{$issue->id} を編集" : '新規課題' }}
+    </h1>
+
+    <form wire:submit="save" class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">トラッカー</label>
+                <select wire:model="tracker_id" @disabled($this->isReadOnly('tracker_id'))
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach ($this->projectTrackers as $tracker)
+                        <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
+                    @endforeach
+                </select>
+                @error('tracker_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            @if ($issue)
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">ステータス</label>
+                    <select wire:model="status_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        @foreach ($allowedStatuses as $status)
+                            <option value="{{ $status->id }}">{{ $status->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('status_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+            @endif
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">
+                題名 @if ($this->isRequired('subject'))<span class="text-red-500">*</span>@endif
+            </label>
+            <input type="text" wire:model="subject" @disabled($this->isReadOnly('subject'))
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            @error('subject') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">説明</label>
+            <textarea wire:model="description" rows="4" @disabled($this->isReadOnly('description'))
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">優先度</label>
+                <select wire:model="priority_id" @disabled($this->isReadOnly('priority_id'))
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach ($this->priorities as $priority)
+                        <option value="{{ $priority->id }}">{{ $priority->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">担当者</label>
+                <select wire:model="assigned_to_id" @disabled($this->isReadOnly('assigned_to_id'))
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">未割当</option>
+                    @foreach ($this->projectMembers as $member)
+                        <option value="{{ $member->id }}">{{ $member->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">開始日</label>
+                <input type="date" wire:model="start_date" @disabled($this->isReadOnly('start_date'))
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">期日</label>
+                <input type="date" wire:model="due_date" @disabled($this->isReadOnly('due_date'))
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">対象バージョン</label>
+            <select wire:model="fixed_version_id" @disabled($this->isReadOnly('fixed_version_id'))
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <option value="">なし</option>
+                @foreach ($this->projectVersions as $version)
+                    <option value="{{ $version->id }}">{{ $version->name }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        @if ($issue)
+            <div>
+                <label class="block text-sm font-medium text-gray-700">進捗率 ({{ $done_ratio }}%)</label>
+                <input type="range" wire:model="done_ratio" min="0" max="100" step="10" class="mt-1 block w-full">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">コメント</label>
+                <textarea wire:model="comment" rows="3"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"
+                    placeholder="変更内容についてのコメント(任意)"></textarea>
+            </div>
+        @endif
+
+        <div class="flex gap-3">
+            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                保存
+            </button>
+            <a href="{{ $issue ? route('issues.show', [$project, $issue]) : route('issues.index', $project) }}"
+                class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                キャンセル
+            </a>
+        </div>
+    </form>
+</div>
