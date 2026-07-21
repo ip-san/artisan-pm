@@ -82,6 +82,25 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public string $sortDirection = 'asc';
 
+    /**
+     * Additional sort levels applied after the primary sortKey/
+     * sortDirection above — Redmine allows sorting by up to 3 columns
+     * total, so these two cover the remaining 2. Set via the "並べ替え"
+     * panel rather than header clicks, which only ever control the
+     * primary key.
+     */
+    #[Url]
+    public ?string $sortKey2 = null;
+
+    #[Url]
+    public string $sortDirection2 = 'asc';
+
+    #[Url]
+    public ?string $sortKey3 = null;
+
+    #[Url]
+    public string $sortDirection3 = 'asc';
+
     #[Url]
     public ?string $groupBy = null;
 
@@ -153,13 +172,41 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $query = $this->engine->applyFilters($query, $this->builtFilters());
 
-        if ($this->sortKey !== null) {
-            $query = $this->engine->applySort($query, [[$this->sortKey, $this->sortDirection]]);
+        $sortCriteria = $this->sortCriteria();
+
+        if ($sortCriteria !== []) {
+            $query = $this->engine->applySort($query, $sortCriteria);
         } else {
             $query->orderByDesc('id');
         }
 
         return $query;
+    }
+
+    /**
+     * Up to 3 [key, direction] pairs — Redmine's own cap on how many
+     * columns an issue list can be sorted by. The 2nd/3rd levels are only
+     * meaningful once a primary key is set.
+     *
+     * @return array<int, array{0: string, 1: string}>
+     */
+    private function sortCriteria(): array
+    {
+        if ($this->sortKey === null) {
+            return [];
+        }
+
+        $criteria = [[$this->sortKey, $this->sortDirection]];
+
+        if ($this->sortKey2 !== null) {
+            $criteria[] = [$this->sortKey2, $this->sortDirection2];
+        }
+
+        if ($this->sortKey3 !== null) {
+            $criteria[] = [$this->sortKey3, $this->sortDirection3];
+        }
+
+        return $criteria;
     }
 
     /**
@@ -303,7 +350,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'is_public' => $data['newQueryIsPublic'],
             'filters' => $this->builtFilters(),
             'column_names' => $this->columns,
-            'sort_criteria' => $this->sortKey ? [[$this->sortKey, $this->sortDirection]] : [],
+            'sort_criteria' => $this->sortCriteria(),
             'group_by' => $this->groupBy,
         ]);
 
@@ -330,8 +377,22 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->columns = $query->column_names;
         $this->groupBy = $query->group_by;
 
-        if ($query->sort_criteria !== [] && $query->sort_criteria !== null) {
-            [$this->sortKey, $this->sortDirection] = $query->sort_criteria[0];
+        $this->sortKey = null;
+        $this->sortKey2 = null;
+        $this->sortKey3 = null;
+
+        $criteria = $query->sort_criteria ?? [];
+
+        if (isset($criteria[0])) {
+            [$this->sortKey, $this->sortDirection] = $criteria[0];
+        }
+
+        if (isset($criteria[1])) {
+            [$this->sortKey2, $this->sortDirection2] = $criteria[1];
+        }
+
+        if (isset($criteria[2])) {
+            [$this->sortKey3, $this->sortDirection3] = $criteria[2];
         }
 
         $this->resetPage();
@@ -811,6 +872,25 @@ new #[Layout('components.layouts.app')] class extends Component
                         <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-gray-300">
                         {{ $label }}
                     </label>
+                @endforeach
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                並べ替え(最大3列。列見出しのクリックは1列目のみ変更):
+                @foreach ([[2, 'sortKey2', 'sortDirection2'], [3, 'sortKey3', 'sortDirection3']] as [$level, $keyProp, $dirProp])
+                    <span class="flex items-center gap-1">
+                        {{ $level }}列目:
+                        <select wire:model.live="{{ $keyProp }}" class="rounded-md border-gray-300 text-sm">
+                            <option value="">なし</option>
+                            @foreach (self::DISPLAY_COLUMNS as $columnKey => $label)
+                                <option value="{{ $columnKey }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model.live="{{ $dirProp }}" class="rounded-md border-gray-300 text-sm">
+                            <option value="asc">昇順</option>
+                            <option value="desc">降順</option>
+                        </select>
+                    </span>
                 @endforeach
             </div>
 
