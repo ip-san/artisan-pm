@@ -14,12 +14,19 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public WikiPage $wikiPage;
 
+    /** @var array<int, string> attachment media id => description input value */
+    public array $attachmentDescriptions = [];
+
     public function mount(Project $project, WikiPage $wikiPage): void
     {
         $this->authorize('view', $wikiPage);
 
         $this->project = $project;
         $this->wikiPage = $wikiPage->load(['parent', 'currentVersion.author']);
+
+        foreach ($this->wikiPage->attachments() as $media) {
+            $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
+        }
     }
 
     #[Computed]
@@ -73,6 +80,23 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('update', $this->wikiPage);
 
         $this->wikiPage->attachments()->firstWhere('id', $mediaId)?->delete();
+    }
+
+    /**
+     * Matches Redmine's Attachment#description — see the same feature on
+     * issues.show for the reasoning behind reading from the bound array
+     * rather than taking the value as a parameter.
+     */
+    public function updateAttachmentDescription(int $mediaId): void
+    {
+        $this->authorize('update', $this->wikiPage);
+
+        $media = $this->wikiPage->attachments()->firstWhere('id', $mediaId);
+        abort_if($media === null, 404);
+
+        $description = trim((string) ($this->attachmentDescriptions[$mediaId] ?? ''));
+        $media->setCustomProperty('description', $description !== '' ? $description : null);
+        $media->save();
     }
 }; ?>
 
@@ -131,18 +155,32 @@ new #[Layout('components.layouts.app')] class extends Component
         <h2 class="mt-4 text-sm font-semibold text-gray-900 mb-2">添付ファイル</h2>
         <ul class="mb-4 space-y-1">
             @foreach ($attachments as $media)
-                <li class="flex items-center justify-between text-sm">
-                    <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
-                        {{ $media->file_name }}
-                    </a>
-                    <span class="flex items-center gap-2">
-                        <span class="text-gray-500">{{ $media->human_readable_size }}</span>
-                        <x-download-count :media="$media" />
-                        @can('update', $wikiPage)
-                            <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
-                                class="text-red-600 hover:underline">削除</button>
-                        @endcan
-                    </span>
+                <li class="py-1 text-sm" wire:key="wiki-attachment-{{ $media->id }}">
+                    <div class="flex items-center justify-between">
+                        <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                            {{ $media->file_name }}
+                        </a>
+                        <span class="flex items-center gap-2">
+                            <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                            <x-download-count :media="$media" />
+                            @can('update', $wikiPage)
+                                <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
+                                    class="text-red-600 hover:underline">削除</button>
+                            @endcan
+                        </span>
+                    </div>
+                    @can('update', $wikiPage)
+                        <div class="mt-1 flex items-center gap-2">
+                            <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
+                                class="block w-full rounded-md border-gray-300 text-xs shadow-sm">
+                            <button wire:click="updateAttachmentDescription({{ $media->id }})"
+                                class="shrink-0 text-xs text-indigo-600 hover:underline">保存</button>
+                        </div>
+                    @else
+                        @if ($media->getCustomProperty('description'))
+                            <p class="mt-1 text-xs text-gray-500">{{ $media->getCustomProperty('description') }}</p>
+                        @endif
+                    @endcan
                 </li>
             @endforeach
         </ul>

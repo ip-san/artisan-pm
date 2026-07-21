@@ -267,6 +267,35 @@ test('a member with edit_wiki_pages can attach and delete a file on a wiki page'
     expect($page->fresh()->attachments())->toHaveCount(0);
 });
 
+test('a member with edit_wiki_pages can set an attachment description on a wiki page', function () {
+    $project = Project::factory()->create();
+    $user = wikiMember($project);
+    $page = WikiPage::factory()->for($project)->create();
+    $media = $page->addMedia(UploadedFile::fake()->create('notes.pdf', 200))->toMediaCollection('attachments');
+
+    Livewire::actingAs($user)
+        ->test('wiki.show', ['project' => $project, 'wikiPage' => $page])
+        ->set("attachmentDescriptions.{$media->id}", 'Meeting notes from the kickoff')
+        ->call('updateAttachmentDescription', $media->id);
+
+    expect($media->fresh()->getCustomProperty('description'))->toBe('Meeting notes from the kickoff');
+});
+
+test('a member without edit_wiki_pages cannot set an attachment description', function () {
+    $project = Project::factory()->create();
+    $user = wikiMember($project, ['view_wiki_pages']);
+    $page = WikiPage::factory()->for($project)->create();
+    $media = $page->addMedia(UploadedFile::fake()->create('notes.pdf', 200))->toMediaCollection('attachments');
+
+    Livewire::actingAs($user)
+        ->test('wiki.show', ['project' => $project, 'wikiPage' => $page])
+        ->set("attachmentDescriptions.{$media->id}", 'sneaky')
+        ->call('updateAttachmentDescription', $media->id)
+        ->assertForbidden();
+
+    expect($media->fresh()->getCustomProperty('description'))->toBeNull();
+});
+
 test('a member with view_wiki_pages can watch and unwatch a page', function () {
     $project = Project::factory()->create();
     $user = wikiMember($project, ['view_wiki_pages']);
