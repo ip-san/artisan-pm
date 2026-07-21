@@ -2,6 +2,7 @@
 
 use App\Enums\CustomFieldFormat;
 use App\Enums\EnumerationType;
+use App\Exceptions\StaleIssueUpdateException;
 use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
@@ -54,6 +55,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $is_private = false;
 
+    public int $lockVersion = 0;
+
     public string $comment = '';
 
     /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
@@ -90,6 +93,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->due_date = $issue->due_date?->toDateString();
             $this->done_ratio = $issue->done_ratio;
             $this->is_private = $issue->is_private;
+            $this->lockVersion = $issue->lock_version;
 
             $this->fieldRules = app(WorkflowService::class)->fieldRules($issue, auth()->user());
             $this->allowedStatuses = app(WorkflowService::class)->allowedTransitions($issue, auth()->user())
@@ -340,7 +344,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 $this->authorize('transitionTo', [$this->issue, IssueStatus::findOrFail($data['status_id'])]);
             }
 
-            $issue = app(IssueService::class)->update($this->issue, $data, auth()->user(), $this->comment ?: null, $customFieldData);
+            try {
+                $issue = app(IssueService::class)->update($this->issue, $data, auth()->user(), $this->comment ?: null, $customFieldData, $this->lockVersion);
+            } catch (StaleIssueUpdateException) {
+                $this->addError('lockVersion', 'この課題は他のユーザーによって更新されています。ページを再読み込みして最新の内容を確認してから、再度保存してください。');
+
+                return;
+            }
         } else {
             $data['project_id'] = $this->project->id;
             $data['status_id'] = $this->status_id;
@@ -361,6 +371,10 @@ new #[Layout('components.layouts.app')] class extends Component
     <h1 class="text-xl font-semibold text-gray-900 mb-6">
         {{ $issue ? "#{$issue->id} を編集" : '新規課題' }}
     </h1>
+
+    @error('lockVersion')
+        <div class="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $message }}</div>
+    @enderror
 
     <form wire:submit="save" class="space-y-4">
         <div class="grid grid-cols-2 gap-4">

@@ -44,6 +44,7 @@ final class Issue extends Model implements HasMedia
     protected $attributes = [
         'done_ratio' => 0,
         'is_private' => false,
+        'lock_version' => 0,
     ];
 
     protected function casts(): array
@@ -54,6 +55,7 @@ final class Issue extends Model implements HasMedia
             'done_ratio' => 'integer',
             'closed_on' => 'datetime',
             'is_private' => 'boolean',
+            'lock_version' => 'integer',
         ];
     }
 

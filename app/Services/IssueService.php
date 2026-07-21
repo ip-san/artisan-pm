@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Events\IssueCreated;
 use App\Events\IssueUpdated;
+use App\Exceptions\StaleIssueUpdateException;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
 use App\Models\Issue;
@@ -59,13 +60,21 @@ final class IssueService
     /**
      * @param  array<string, mixed>  $attributes
      * @param  array<int, mixed>  $customFieldData  custom_field_id => raw input
+     *
+     * @throws StaleIssueUpdateException if $expectedLockVersion is given and no longer matches — someone
+     *                                   else saved a change since the caller loaded this issue
      */
-    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null, array $customFieldData = []): Issue
+    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null, array $customFieldData = [], ?int $expectedLockVersion = null): Issue
     {
+        if ($expectedLockVersion !== null && $expectedLockVersion !== $issue->lock_version) {
+            throw new StaleIssueUpdateException($issue);
+        }
+
         $original = $issue->only(self::JOURNALED_ATTRIBUTES);
         $originalCustomValues = $this->customFieldSnapshot($issue);
 
         $issue->fill($attributes);
+        $issue->lock_version++;
 
         $assignedToChanged = $issue->isDirty('assigned_to_id');
 
