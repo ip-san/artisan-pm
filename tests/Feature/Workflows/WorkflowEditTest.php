@@ -218,3 +218,110 @@ test('a tracker with no existing transitions falls back to showing every status'
 
     expect($component->get('statuses')->pluck('id'))->toContain($status->id);
 });
+
+test('copying a workflow duplicates transitions and field rules onto every target tracker/role combination', function () {
+    $admin = User::factory()->admin()->create();
+    $sourceTracker = Tracker::factory()->create();
+    $sourceRole = Role::factory()->create();
+    $targetTrackerA = Tracker::factory()->create();
+    $targetTrackerB = Tracker::factory()->create();
+    $targetRole = Role::factory()->create();
+    $statusA = IssueStatus::factory()->create();
+    $statusB = IssueStatus::factory()->create();
+
+    WorkflowTransition::create([
+        'tracker_id' => $sourceTracker->id, 'role_id' => $sourceRole->id,
+        'old_status_id' => $statusA->id, 'new_status_id' => $statusB->id,
+        'author' => false, 'assignee' => false,
+    ]);
+    WorkflowFieldRule::create([
+        'tracker_id' => $sourceTracker->id, 'role_id' => $sourceRole->id,
+        'status_id' => $statusA->id, 'field_name' => 'subject',
+        'rule' => WorkflowFieldRuleType::Required, 'author' => false, 'assignee' => false,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('workflows.edit')
+        ->set('copySourceTrackerId', $sourceTracker->id)
+        ->set('copySourceRoleId', $sourceRole->id)
+        ->set('copyTargetTrackerIds', [$targetTrackerA->id, $targetTrackerB->id])
+        ->set('copyTargetRoleIds', [$targetRole->id])
+        ->call('copyWorkflow')
+        ->assertHasNoErrors();
+
+    foreach ([$targetTrackerA, $targetTrackerB] as $targetTracker) {
+        $transition = WorkflowTransition::where('tracker_id', $targetTracker->id)->where('role_id', $targetRole->id)->sole();
+        expect($transition->old_status_id)->toBe($statusA->id)
+            ->and($transition->new_status_id)->toBe($statusB->id);
+
+        $fieldRule = WorkflowFieldRule::where('tracker_id', $targetTracker->id)->where('role_id', $targetRole->id)->sole();
+        expect($fieldRule->field_name)->toBe('subject')
+            ->and($fieldRule->rule)->toBe(WorkflowFieldRuleType::Required);
+    }
+});
+
+test('copying a workflow replaces (not merges into) the target pair\'s existing rules', function () {
+    $admin = User::factory()->admin()->create();
+    $sourceTracker = Tracker::factory()->create();
+    $sourceRole = Role::factory()->create();
+    $targetTracker = Tracker::factory()->create();
+    $targetRole = Role::factory()->create();
+    $statusA = IssueStatus::factory()->create();
+    $statusB = IssueStatus::factory()->create();
+    $staleStatus = IssueStatus::factory()->create();
+
+    WorkflowTransition::create([
+        'tracker_id' => $targetTracker->id, 'role_id' => $targetRole->id,
+        'old_status_id' => $staleStatus->id, 'new_status_id' => $statusB->id,
+        'author' => false, 'assignee' => false,
+    ]);
+    WorkflowTransition::create([
+        'tracker_id' => $sourceTracker->id, 'role_id' => $sourceRole->id,
+        'old_status_id' => $statusA->id, 'new_status_id' => $statusB->id,
+        'author' => false, 'assignee' => false,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('workflows.edit')
+        ->set('copySourceTrackerId', $sourceTracker->id)
+        ->set('copySourceRoleId', $sourceRole->id)
+        ->set('copyTargetTrackerIds', [$targetTracker->id])
+        ->set('copyTargetRoleIds', [$targetRole->id])
+        ->call('copyWorkflow');
+
+    $remaining = WorkflowTransition::where('tracker_id', $targetTracker->id)->where('role_id', $targetRole->id)->get();
+
+    expect($remaining)->toHaveCount(1)
+        ->and($remaining->first()->old_status_id)->toBe($statusA->id);
+});
+
+test('the source tracker/role pair is skipped when it also appears among the targets', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+    $role = Role::factory()->create();
+    $statusA = IssueStatus::factory()->create();
+    $statusB = IssueStatus::factory()->create();
+
+    WorkflowTransition::create([
+        'tracker_id' => $tracker->id, 'role_id' => $role->id,
+        'old_status_id' => $statusA->id, 'new_status_id' => $statusB->id,
+        'author' => false, 'assignee' => false,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('workflows.edit')
+        ->set('copySourceTrackerId', $tracker->id)
+        ->set('copySourceRoleId', $role->id)
+        ->set('copyTargetTrackerIds', [$tracker->id])
+        ->set('copyTargetRoleIds', [$role->id])
+        ->call('copyWorkflow')
+        ->assertHasNoErrors();
+
+    expect(WorkflowTransition::where('tracker_id', $tracker->id)->where('role_id', $role->id)->count())->toBe(1);
+});
+
+test('a non-admin cannot access the workflow editor to copy a workflow', function () {
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)->test('workflows.edit')->assertForbidden();
+});

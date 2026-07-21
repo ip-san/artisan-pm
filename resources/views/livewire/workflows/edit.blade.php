@@ -68,6 +68,16 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public bool $usedStatusesOnly = true;
 
+    public ?int $copySourceTrackerId = null;
+
+    public ?int $copySourceRoleId = null;
+
+    /** @var array<int, int> */
+    public array $copyTargetTrackerIds = [];
+
+    /** @var array<int, int> */
+    public array $copyTargetRoleIds = [];
+
     public function mount(): void
     {
         $this->authorize('manage', WorkflowTransition::class);
@@ -246,6 +256,80 @@ new #[Layout('components.layouts.app')] class extends Component
 
         session()->flash('status', 'ワークフローを保存しました。');
     }
+
+    /**
+     * Copies every workflow_transitions/workflow_field_rules row for a
+     * single source (tracker, role) pair onto every (target tracker ×
+     * target role) combination — matches Redmine's WorkflowRule.copy,
+     * scoped down to always requiring an explicit source and target
+     * selection rather than Redmine's "blank means all" shorthand. Each
+     * target pair's existing rows are replaced, not merged, same as
+     * Redmine's copy_one.
+     */
+    public function copyWorkflow(): void
+    {
+        $this->authorize('manage', WorkflowTransition::class);
+
+        $data = $this->validate([
+            'copySourceTrackerId' => ['required', 'exists:trackers,id'],
+            'copySourceRoleId' => ['required', 'exists:roles,id'],
+            'copyTargetTrackerIds' => ['required', 'array', 'min:1'],
+            'copyTargetTrackerIds.*' => ['exists:trackers,id'],
+            'copyTargetRoleIds' => ['required', 'array', 'min:1'],
+            'copyTargetRoleIds.*' => ['exists:roles,id'],
+        ]);
+
+        DB::transaction(function () use ($data) {
+            foreach ($data['copyTargetTrackerIds'] as $targetTrackerId) {
+                foreach ($data['copyTargetRoleIds'] as $targetRoleId) {
+                    if ($targetTrackerId === $data['copySourceTrackerId'] && $targetRoleId === $data['copySourceRoleId']) {
+                        continue;
+                    }
+
+                    $this->copyWorkflowPair($data['copySourceTrackerId'], $data['copySourceRoleId'], $targetTrackerId, $targetRoleId);
+                }
+            }
+        });
+
+        session()->flash('status', 'ワークフローをコピーしました。');
+    }
+
+    private function copyWorkflowPair(int $sourceTrackerId, int $sourceRoleId, int $targetTrackerId, int $targetRoleId): void
+    {
+        WorkflowTransition::query()->where('tracker_id', $targetTrackerId)->where('role_id', $targetRoleId)->delete();
+        WorkflowFieldRule::query()->where('tracker_id', $targetTrackerId)->where('role_id', $targetRoleId)->delete();
+
+        WorkflowTransition::query()
+            ->where('tracker_id', $sourceTrackerId)
+            ->where('role_id', $sourceRoleId)
+            ->get()
+            ->each(function (WorkflowTransition $transition) use ($targetTrackerId, $targetRoleId) {
+                WorkflowTransition::create([
+                    'tracker_id' => $targetTrackerId,
+                    'role_id' => $targetRoleId,
+                    'old_status_id' => $transition->old_status_id,
+                    'new_status_id' => $transition->new_status_id,
+                    'author' => $transition->author,
+                    'assignee' => $transition->assignee,
+                ]);
+            });
+
+        WorkflowFieldRule::query()
+            ->where('tracker_id', $sourceTrackerId)
+            ->where('role_id', $sourceRoleId)
+            ->get()
+            ->each(function (WorkflowFieldRule $rule) use ($targetTrackerId, $targetRoleId) {
+                WorkflowFieldRule::create([
+                    'tracker_id' => $targetTrackerId,
+                    'role_id' => $targetRoleId,
+                    'status_id' => $rule->status_id,
+                    'field_name' => $rule->field_name,
+                    'rule' => $rule->rule,
+                    'author' => $rule->author,
+                    'assignee' => $rule->assignee,
+                ]);
+            });
+    }
 }; ?>
 
 <div>
@@ -356,4 +440,65 @@ new #[Layout('components.layouts.app')] class extends Component
     @else
         <p class="text-sm text-gray-500">トラッカーとロールを選択してください。</p>
     @endif
+
+    <div class="mt-10 rounded-md border border-gray-200 bg-white p-4">
+        <h2 class="mb-4 text-sm font-semibold text-gray-900">ワークフローをコピー</h2>
+
+        <form wire:submit="copyWorkflow" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">コピー元トラッカー</label>
+                    <select wire:model="copySourceTrackerId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        <option value="">選択してください</option>
+                        @foreach ($this->trackers as $tracker)
+                            <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('copySourceTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">コピー元ロール</label>
+                    <select wire:model="copySourceRoleId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        <option value="">選択してください</option>
+                        @foreach ($this->roles as $role)
+                            <option value="{{ $role->id }}">{{ $role->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('copySourceRoleId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <span class="block text-sm font-medium text-gray-700 mb-1">コピー先トラッカー</span>
+                    <div class="max-h-40 space-y-1 overflow-y-auto rounded-md border border-gray-200 p-2">
+                        @foreach ($this->trackers as $tracker)
+                            <label class="flex items-center gap-2 text-sm text-gray-700">
+                                <input type="checkbox" wire:model="copyTargetTrackerIds" value="{{ $tracker->id }}" class="rounded border-gray-300">
+                                {{ $tracker->name }}
+                            </label>
+                        @endforeach
+                    </div>
+                    @error('copyTargetTrackerIds') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <span class="block text-sm font-medium text-gray-700 mb-1">コピー先ロール</span>
+                    <div class="max-h-40 space-y-1 overflow-y-auto rounded-md border border-gray-200 p-2">
+                        @foreach ($this->roles as $role)
+                            <label class="flex items-center gap-2 text-sm text-gray-700">
+                                <input type="checkbox" wire:model="copyTargetRoleIds" value="{{ $role->id }}" class="rounded border-gray-300">
+                                {{ $role->name }}
+                            </label>
+                        @endforeach
+                    </div>
+                    @error('copyTargetRoleIds') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            <button type="submit" wire:confirm="コピー先の既存ワークフロー設定は上書きされます。よろしいですか?"
+                class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                コピー
+            </button>
+        </form>
+    </div>
 </div>
