@@ -106,6 +106,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $bulkMoveToTrackerId = null;
 
+    public ?int $bulkCopyToProjectId = null;
+
+    public ?int $bulkCopyToTrackerId = null;
+
     public function mount(Project $project): void
     {
         $this->authorize('viewAny', [Issue::class, $project]);
@@ -387,6 +391,12 @@ new #[Layout('components.layouts.app')] class extends Component
         return app(AuthorizationService::class)->can(auth()->user(), 'edit_issues', $this->project);
     }
 
+    #[Computed]
+    public function canBulkCopy(): bool
+    {
+        return app(AuthorizationService::class)->can(auth()->user(), 'copy_issues', $this->project);
+    }
+
     /**
      * @return EloquentCollection<int, Issue>
      */
@@ -576,6 +586,68 @@ new #[Layout('components.layouts.app')] class extends Component
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
         session()->flash('status', "{$count}件の課題を削除しました。");
+    }
+
+    /**
+     * Copy targets are simply every project the user holds add_issues on,
+     * including the current one — unlike move, copying within the same
+     * project is a normal Redmine use case (duplicate an issue as a
+     * template).
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function bulkCopyTargetProjects(): Collection
+    {
+        return Project::query()
+            ->get()
+            ->filter(fn (Project $candidate) => auth()->user()?->can('create', [Issue::class, $candidate]))
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, Tracker>
+     */
+    #[Computed]
+    public function bulkCopyTargetTrackers(): Collection
+    {
+        if ($this->bulkCopyToProjectId === null) {
+            return collect();
+        }
+
+        $target = $this->bulkCopyTargetProjects->firstWhere('id', $this->bulkCopyToProjectId);
+
+        return $target?->trackers ?? collect();
+    }
+
+    public function applyBulkCopy(): void
+    {
+        $issues = $this->selectedIssues;
+
+        abort_if($issues->isEmpty(), 404);
+
+        $data = $this->validate([
+            'bulkCopyToProjectId' => ['required', Rule::in($this->bulkCopyTargetProjects->pluck('id')->all())],
+            'bulkCopyToTrackerId' => ['required', Rule::in($this->bulkCopyTargetTrackers->pluck('id')->all())],
+        ]);
+
+        $targetProject = Project::findOrFail($data['bulkCopyToProjectId']);
+
+        foreach ($issues as $issue) {
+            $this->authorize('copy', [$issue, $targetProject]);
+        }
+
+        foreach ($issues as $issue) {
+            app(IssueService::class)->copy($issue, $targetProject, $data['bulkCopyToTrackerId'], auth()->user());
+        }
+
+        $count = $issues->count();
+
+        $this->reset(['selected', 'bulkCopyToProjectId', 'bulkCopyToTrackerId']);
+        $this->resetPage();
+        unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
+
+        session()->flash('status', "{$count}件の課題を「{$targetProject->name}」へ複製しました。");
     }
 }; ?>
 
@@ -820,6 +892,37 @@ new #[Layout('components.layouts.app')] class extends Component
                 <button type="submit" wire:confirm="移動するとカテゴリ・対象バージョン・親課題はリセットされます。よろしいですか?"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     移動
+                </button>
+            @endif
+        </form>
+    @endif
+
+    @if (count($selected) > 0 && $this->canBulkCopy && $this->bulkCopyTargetProjects->isNotEmpty())
+        <form wire:submit="applyBulkCopy" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-white p-4">
+            <div>
+                <label class="block text-xs font-medium text-gray-700">{{ count($selected) }}件をコピーして複製</label>
+                <select wire:model.live="bulkCopyToProjectId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                    <option value="">選択してください</option>
+                    @foreach ($this->bulkCopyTargetProjects as $candidate)
+                        <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
+                    @endforeach
+                </select>
+                @error('bulkCopyToProjectId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+            @if ($bulkCopyToProjectId)
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">複製先のトラッカー</label>
+                    <select wire:model="bulkCopyToTrackerId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                        <option value="">選択してください</option>
+                        @foreach ($this->bulkCopyTargetTrackers as $candidateTracker)
+                            <option value="{{ $candidateTracker->id }}">{{ $candidateTracker->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('bulkCopyToTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <button type="submit"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    複製
                 </button>
             @endif
         </form>

@@ -101,4 +101,10 @@ final class IssuePolicy
     {
         return $this->authorization->can($user, 'move_issues', $issue->project);
     }
+
+    public function copy(User $user, Issue $issue, Project $targetProject): bool
+    {
+        return $this->authorization->can($user, 'copy_issues', $issue->project)
+            && $this->authorization->can($user, 'add_issues', $targetProject);
+    }
 }

@@ -208,6 +208,42 @@ final class IssueService
     }
 
     /**
+     * Creates a new issue with the same core attributes and custom field
+     * values as $source, in $targetProject. Matches a deliberately scoped
+     * subset of Redmine's Issue#copy: category and fixed version are
+     * project-local so they're reset (same reasoning as moveToProject),
+     * and the assignee is dropped if they aren't a member of the target
+     * project. Attachments, subtasks, watchers, and a copied-from relation
+     * are NOT duplicated — out of scope for this pass.
+     */
+    public function copy(Issue $source, Project $targetProject, int $trackerId, User $actor): Issue
+    {
+        $assignedToId = $source->assigned_to_id;
+
+        if ($assignedToId !== null && ! $targetProject->users()->whereKey($assignedToId)->exists()) {
+            $assignedToId = null;
+        }
+
+        $customFieldData = $source->relevantCustomFields()
+            ->mapWithKeys(fn (CustomField $field) => [$field->id => $this->normalizedCustomFieldValue($source, $field)])
+            ->filter(fn (?string $value) => $value !== null)
+            ->all();
+
+        return $this->create([
+            'project_id' => $targetProject->id,
+            'tracker_id' => $trackerId,
+            'status_id' => $source->status_id,
+            'priority_id' => $source->priority_id,
+            'subject' => $source->subject,
+            'description' => $source->description,
+            'assigned_to_id' => $assignedToId,
+            'start_date' => $source->start_date,
+            'due_date' => $source->due_date,
+            'done_ratio' => $source->done_ratio,
+        ], $actor, $customFieldData);
+    }
+
+    /**
      * Overrides done_ratio from the issue's (possibly just-changed) status
      * whenever the issue_done_ratio setting is 'issue_status' — matches
      * Redmine's own Issue#update_done_ratio_from_issue_status, called

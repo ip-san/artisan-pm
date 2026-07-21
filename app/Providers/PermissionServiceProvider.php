@@ -44,6 +44,7 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('manage_issue_relations', module: ProjectModuleKey::IssueTracking);
         $registry->register('set_issues_private', module: ProjectModuleKey::IssueTracking);
         $registry->register('move_issues', module: ProjectModuleKey::IssueTracking);
+        $registry->register('copy_issues', module: ProjectModuleKey::IssueTracking);
         $registry->register('add_issue_watchers', module: ProjectModuleKey::IssueTracking);
         $registry->register('view_private_notes', module: ProjectModuleKey::IssueTracking);
         $registry->register('set_notes_private', module: ProjectModuleKey::IssueTracking);
