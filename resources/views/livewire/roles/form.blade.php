@@ -23,6 +23,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $timeEntriesVisibility = 'all';
 
+    public bool $assignable = true;
+
     public function mount(?Role $role = null): void
     {
         if ($role?->exists) {
@@ -33,6 +35,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->permissions = $role->permissionKeys();
             $this->issuesVisibility = $role->issues_visibility->value;
             $this->timeEntriesVisibility = $role->time_entries_visibility->value;
+            $this->assignable = $role->assignable;
         } else {
             $this->authorize('create', Role::class);
 
@@ -64,6 +67,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->permissions = $source->permissionKeys();
         $this->issuesVisibility = $source->issues_visibility->value;
         $this->timeEntriesVisibility = $source->time_entries_visibility->value;
+        $this->assignable = $source->assignable;
     }
 
     /**
@@ -91,6 +95,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $data['permissions'] = array_values(array_intersect($this->permissions, $this->availablePermissions));
         $data['issues_visibility'] = $data['issuesVisibility'];
         $data['time_entries_visibility'] = $data['timeEntriesVisibility'];
+        $data['assignable'] = $this->assignable;
         unset($data['issuesVisibility'], $data['timeEntriesVisibility']);
 
         if ($this->role) {
@@ -135,6 +140,11 @@ new #[Layout('components.layouts.app')] class extends Component
             </select>
             @error('timeEntriesVisibility') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
+
+        <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" wire:model="assignable" class="rounded border-gray-300">
+            このロールを持つメンバーを課題の担当者として選択可能にする
+        </label>
 
         <div>
             <span class="block text-sm font-medium text-gray-700 mb-2">権限</span>

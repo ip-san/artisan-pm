@@ -11,6 +11,7 @@ use App\Enums\ProjectStatus;
 use App\Support\Authorization\AuthorizationService;
 use Database\Factories\ProjectFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -52,6 +53,26 @@ final class Project extends Model implements HasMedia
     {
         return $this->belongsToMany(User::class, 'members')
             ->withTimestamps();
+    }
+
+    /**
+     * Members eligible to be picked as an issue's assignee — those
+     * holding at least one role with `assignable = true`. Only considers
+     * direct user memberships, not roles gained through a group's own
+     * project membership, unlike AuthorizationService's permission
+     * resolution — a reasonable simplification since this only narrows
+     * an assignee dropdown, not an access-control decision.
+     *
+     * @return Collection<int, User>
+     */
+    public function assignableUsers(): Collection
+    {
+        return $this->users()
+            ->whereHas('memberships', function (Builder $query): void {
+                $query->where('project_id', $this->id)
+                    ->whereHas('roles', fn (Builder $roles) => $roles->where('assignable', true));
+            })
+            ->get();
     }
 
     /**

@@ -423,7 +423,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function projectMembers(): Collection
     {
-        return $this->project->users;
+        return $this->project->assignableUsers();
     }
 
     #[Computed]

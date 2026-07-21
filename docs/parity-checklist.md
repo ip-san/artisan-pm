@@ -201,7 +201,7 @@
 | 課題の閲覧範囲(全て/デフォルト/自分のみ) | done(2026-07-21) | ロール編集フォームにセレクトを追加。詳細は §Issues本体参照 |
 | 工数エントリ閲覧範囲 | done(2026-07-21) | `Role.time_entries_visibility`(all/default/own)。課題閲覧範囲と同一パターンで`TimeEntryPolicy::view`と一覧クエリに適用 |
 | ユーザー閲覧範囲 | missing | — |
-| 「課題に割当可能」フラグ | missing | — |
+| 「課題に割当可能」フラグ | done(2026-07-21) | `Role.assignable`(デフォルトtrue) + `Project::assignableUsers()`。課題フォーム/一覧の一括編集/カテゴリの既定担当者セレクトに適用。バリデーション自体は緩めたままで、既にnon-assignableなメンバーへ割当済みの課題を編集しても既存の割当は保持される(意図的) |
 | 管理可能ロールの制限 | missing | — |
 | 権限一覧レポート・一括更新マトリクス | missing | — |
 

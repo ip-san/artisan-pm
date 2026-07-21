@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable(['name', 'builtin', 'permissions', 'position', 'issues_visibility', 'time_entries_visibility'])]
+#[Fillable(['name', 'builtin', 'permissions', 'position', 'issues_visibility', 'time_entries_visibility', 'assignable'])]
 final class Role extends Model
 {
     /** @use HasFactory<RoleFactory> */
@@ -22,14 +22,15 @@ final class Role extends Model
     /**
      * Eloquent doesn't read back server-side column defaults on a freshly
      * created (unrefreshed) model, so declare these defaults here too —
-     * otherwise a just-created Role's in-memory value is null even though
-     * the roles table defaults both to 'all'.
+     * otherwise a just-created Role's in-memory value is null/false even
+     * though the roles table defaults to 'all'/'all'/true.
      *
      * @var array<string, mixed>
      */
     protected $attributes = [
         'issues_visibility' => 'all',
         'time_entries_visibility' => 'all',
+        'assignable' => true,
     ];
 
     protected function casts(): array
@@ -39,6 +40,7 @@ final class Role extends Model
             'permissions' => 'array',
             'issues_visibility' => IssueVisibility::class,
             'time_entries_visibility' => TimeEntryVisibility::class,
+            'assignable' => 'boolean',
         ];
     }
 
