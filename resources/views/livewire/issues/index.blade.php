@@ -8,11 +8,13 @@ use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
+use App\Models\Setting;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -21,9 +23,12 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use WithPagination;
+
     /**
      * Columns selectable for display/CSV export. Custom fields are already
      * filterable (see IssueFilterFieldRegistry) but not yet offered as a
@@ -132,23 +137,32 @@ new #[Layout('components.layouts.app')] class extends Component
         return $query;
     }
 
+    /**
+     * @return LengthAwarePaginator<int, Issue>
+     */
     #[Computed]
-    public function issues(): EloquentCollection
+    public function issues(): LengthAwarePaginator
     {
-        return $this->filteredIssuesQuery()->get();
+        return $this->filteredIssuesQuery()->paginate(Setting::get('default_issues_per_page', 25));
     }
 
     /**
+     * Grouped within the current page rather than across the whole result
+     * set — matching Redmine's own paginate-then-group behaviour, since
+     * grouping the entire filtered set would defeat the point of paginating.
+     *
      * @return Collection<string, EloquentCollection<int, Issue>>
      */
     #[Computed]
     public function groupedIssues(): Collection
     {
+        $pageIssues = $this->issues->getCollection();
+
         if ($this->groupBy === null) {
-            return collect(['' => $this->issues]);
+            return collect(['' => $pageIssues]);
         }
 
-        return $this->issues->groupBy(fn (Issue $issue) => $this->columnValue($issue, $this->groupBy));
+        return $pageIssues->groupBy(fn (Issue $issue) => $this->columnValue($issue, $this->groupBy));
     }
 
     /**
@@ -190,6 +204,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function applyFilters(): void
     {
+        $this->resetPage();
         unset($this->issues, $this->groupedIssues);
     }
 
@@ -201,6 +216,18 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->sortKey = $key;
             $this->sortDirection = 'asc';
         }
+
+        $this->resetPage();
+    }
+
+    public function updatedStatusFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedGroupBy(): void
+    {
+        $this->resetPage();
     }
 
     public function saveQuery(): void
@@ -249,6 +276,7 @@ new #[Layout('components.layouts.app')] class extends Component
             [$this->sortKey, $this->sortDirection] = $query->sort_criteria[0];
         }
 
+        $this->resetPage();
         unset($this->issues, $this->groupedIssues);
     }
 
@@ -409,6 +437,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $count = $issues->count();
 
         $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkComment']);
+        $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues);
 
         session()->flash('status', "{$count}件の課題を更新しました。");
@@ -686,4 +715,6 @@ new #[Layout('components.layouts.app')] class extends Component
             </table>
         </div>
     @endforeach
+
+    {{ $this->issues->links() }}
 </div>

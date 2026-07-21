@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full bg-gray-50">
 <head>
+    @php $appTitle = \App\Models\Setting::get('app_title', config('app.name')); @endphp
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $title ?? config('app.name') }}</title>
+    <title>{{ $title ?? $appTitle }}</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -14,7 +15,7 @@
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="flex h-14 items-center justify-between">
                     <div class="flex items-center gap-6">
-                        <a href="{{ route('projects.index') }}" class="font-semibold text-gray-900">{{ config('app.name') }}</a>
+                        <a href="{{ route('projects.index') }}" class="font-semibold text-gray-900">{{ $appTitle }}</a>
                         @auth
                             <a href="{{ route('my-page.index') }}" class="text-sm text-gray-600 hover:text-gray-900">マイページ</a>
                             <a href="{{ route('projects.index') }}" class="text-sm text-gray-600 hover:text-gray-900">プロジェクト</a>
@@ -26,6 +27,9 @@
                             @endcan
                             @can('viewAny', \App\Models\CustomField::class)
                                 <a href="{{ route('custom-fields.index') }}" class="text-sm text-gray-600 hover:text-gray-900">カスタムフィールド管理</a>
+                            @endcan
+                            @can('manage', \App\Models\Setting::class)
+                                <a href="{{ route('settings.index') }}" class="text-sm text-gray-600 hover:text-gray-900">設定</a>
                             @endcan
                         @endauth
                     </div>

@@ -6,6 +6,7 @@ use App\Models\Member;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -156,4 +157,42 @@ test('csv export streams a csv containing the filtered issues', function () {
         ->set('columns', ['subject'])
         ->call('exportCsv')
         ->assertFileDownloaded("{$project->identifier}-issues.csv");
+});
+
+test('the issue list is paginated according to the configured per-page setting', function () {
+    Setting::set('default_issues_per_page', 5);
+
+    $project = Project::factory()->create();
+    $user = queryListMember($project);
+    Issue::factory()->for($project)->count(7)->create();
+
+    $component = Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('statusFilter', 'all');
+
+    expect($component->get('issues'))->toHaveCount(5)
+        ->and($component->get('issues')->total())->toBe(7);
+});
+
+test('applying a filter resets the list back to the first page', function () {
+    Setting::set('default_issues_per_page', 5);
+
+    $project = Project::factory()->create();
+    $user = queryListMember($project);
+    $status = IssueStatus::factory()->create();
+    Issue::factory()->for($project)->count(7)->create(['status_id' => $status->id]);
+
+    $component = Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('statusFilter', 'all')
+        ->call('nextPage');
+
+    expect($component->get('issues')->currentPage())->toBe(2);
+
+    $component->call('addFilter', 'status_id')
+        ->set('filterOperators.status_id', '=')
+        ->set('filterValues.status_id.0', $status->id)
+        ->call('applyFilters');
+
+    expect($component->get('issues')->currentPage())->toBe(1);
 });
