@@ -58,4 +58,14 @@ final class IssuePolicy
     {
         return $this->authorization->can($user, 'manage_issue_relations', $issue->project);
     }
+
+    public function viewPrivateNotes(User $user, Issue $issue): bool
+    {
+        return $this->authorization->can($user, 'view_private_notes', $issue->project);
+    }
+
+    public function setNotesPrivate(User $user, Issue $issue): bool
+    {
+        return $this->authorization->can($user, 'set_notes_private', $issue->project);
+    }
 }

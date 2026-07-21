@@ -43,6 +43,8 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('delete_issues', module: ProjectModuleKey::IssueTracking);
         $registry->register('manage_issue_relations', module: ProjectModuleKey::IssueTracking);
         $registry->register('add_issue_watchers', module: ProjectModuleKey::IssueTracking);
+        $registry->register('view_private_notes', module: ProjectModuleKey::IssueTracking);
+        $registry->register('set_notes_private', module: ProjectModuleKey::IssueTracking);
 
         $registry->register('log_time', module: ProjectModuleKey::TimeTracking, requirement: PermissionRequirement::LoggedIn);
         $registry->register('view_time_entries', module: ProjectModuleKey::TimeTracking, requirement: PermissionRequirement::None);

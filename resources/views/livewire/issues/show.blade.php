@@ -39,6 +39,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $comment = '';
 
+    public bool $commentIsPrivate = false;
+
     public ?int $relatedIssueId = null;
 
     public string $relationType = 'relates';
@@ -143,10 +145,33 @@ new #[Layout('components.layouts.app')] class extends Component
             'issue_id' => $this->issue->id,
             'user_id' => auth()->id(),
             'notes' => $data['comment'],
+            // Trusts the checkbox's own gate, not the client: even if the
+            // hidden input were tampered with, only a user who actually
+            // holds set_notes_private can flip this to true.
+            'private_notes' => $this->commentIsPrivate && auth()->user()->can('setNotesPrivate', $this->issue),
         ]);
 
-        $this->reset('comment');
+        $this->reset('comment', 'commentIsPrivate');
         $this->issue->load('journals.user', 'journals.details');
+    }
+
+    /**
+     * @return Collection<int, Journal>
+     */
+    #[Computed]
+    public function visibleJournals(): Collection
+    {
+        $user = auth()->user();
+
+        if ($user->can('viewPrivateNotes', $this->issue)) {
+            return $this->issue->journals;
+        }
+
+        // A user can always see their own private notes, even without
+        // view_private_notes — matching Redmine's Journal#visible?.
+        return $this->issue->journals
+            ->filter(fn (Journal $journal) => ! $journal->private_notes || $journal->user_id === $user->id)
+            ->values();
     }
 
     public function toggleWatch(): void
@@ -326,11 +351,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <h2 class="text-sm font-semibold text-gray-900 mb-2">履歴</h2>
     <ul class="space-y-3 mb-6">
-        @forelse ($issue->journals as $journal)
+        @forelse ($this->visibleJournals as $journal)
             @unless ($journal->isEmpty())
                 <li class="rounded-md border border-gray-200 bg-white p-3 text-sm">
                     <div class="text-gray-500 text-xs mb-1">
                         {{ $journal->user->name }} — {{ $journal->created_at->format('Y-m-d H:i') }}
+                        @if ($journal->private_notes)
+                            <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-amber-700">非公開</span>
+                        @endif
                     </div>
                     @foreach ($journal->details as $detail)
                         <div class="text-gray-600 text-xs">
@@ -352,6 +380,12 @@ new #[Layout('components.layouts.app')] class extends Component
             <textarea wire:model="comment" rows="3" placeholder="コメントを追加"
                 class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
             @error('comment') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+            @can('setNotesPrivate', $issue)
+                <label class="flex items-center gap-1.5 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="commentIsPrivate">
+                    非公開メモにする
+                </label>
+            @endcan
             <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
                 コメントを追加
             </button>

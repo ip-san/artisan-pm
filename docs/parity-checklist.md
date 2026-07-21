@@ -27,7 +27,7 @@
 
 ### すぐ着手すべき小〜中規模の修正(見つかったバグ・欠落)
 
-- Journal の `private_notes` カラムが存在するのに一切セット/フィルタされていない(死んだ列であり、将来配線した際の可視性リスクにもなる)。
+- ~~Journal の `private_notes` カラムが存在するのに一切セット/フィルタされていない~~ → **done**(2026-07-21)。`view_private_notes`/`set_notes_private` 権限を新設し配線(詳細は §Journal参照)。
 - カスタムフィールドの変更が Journal(監査証跡)に記録されない。
 - カスタムフィールド値が `searchable => true` でも全文検索にインデックスされていない。
 - Issue の一覧グルーピングが「現在のページ内のみ」で集計されており、Redmine のような全件 SQL 集計になっていない。
@@ -71,7 +71,7 @@
 |---|---|---|
 | コメント追加 | done | — |
 | 属性変更の監査証跡 | partial | 固定スカラー項目のみ。CF/カテゴリ/添付/関連の変更は記録されない |
-| プライベートノート(`view_private_notes`) | missing | `private_notes` カラムは存在するが一切セット/フィルタされず、死んだ列 |
+| プライベートノート(`view_private_notes`) | done(2026-07-21) | `set_notes_private` 権限保持者がコメント投稿時に非公開フラグを立てられる(サーバー側でも権限を再チェックし、クライアント改ざんを無効化)。`view_private_notes` を持たないユーザーには非公開Journalを非表示(自分自身が書いたものは例外的に閲覧可、Redmineの`Journal#visible?`と同様)。活動フィード(`IssueJournalActivityProvider`)は既存どおり非公開Journalを丸ごと除外 |
 | 過去コメントの引用返信 | missing | — |
 | 個別 Journal の編集/削除 | missing | — |
 | 変更点を含むプライベートノートの分割記録 | missing | — |
