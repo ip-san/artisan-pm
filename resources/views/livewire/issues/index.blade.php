@@ -1,13 +1,19 @@
 <?php
 
 use App\Enums\EnumerationType;
+use App\Enums\FilterOperator;
+use App\Enums\QueryType;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
+use App\Models\Query as SavedQuery;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Query\IssueFilterFieldRegistry;
+use App\Support\Query\QueryFilterEngine;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -18,10 +24,60 @@ use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    /**
+     * Columns selectable for display/CSV export. Custom fields are already
+     * filterable (see IssueFilterFieldRegistry) but not yet offered as a
+     * display column — rendering an EAV value generically is deferred.
+     *
+     * @var array<string, string>
+     */
+    public const DISPLAY_COLUMNS = [
+        'tracker_id' => 'トラッカー',
+        'status_id' => 'ステータス',
+        'priority_id' => '優先度',
+        'subject' => '題名',
+        'assigned_to_id' => '担当者',
+        'author_id' => '作成者',
+        'fixed_version_id' => '対象バージョン',
+        'start_date' => '開始日',
+        'due_date' => '期日',
+        'created_at' => '作成日',
+        'done_ratio' => '進捗率',
+    ];
+
     public Project $project;
 
     #[Url]
     public string $statusFilter = 'open';
+
+    /** @var array<int, string> */
+    #[Url]
+    public array $activeFilterKeys = [];
+
+    /** @var array<string, string> */
+    public array $filterOperators = [];
+
+    /** @var array<string, array<int, mixed>> */
+    public array $filterValues = [];
+
+    /** @var array<int, string> */
+    #[Url]
+    public array $columns = ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id'];
+
+    #[Url]
+    public ?string $sortKey = null;
+
+    #[Url]
+    public string $sortDirection = 'asc';
+
+    #[Url]
+    public ?string $groupBy = null;
+
+    public string $newQueryName = '';
+
+    public bool $newQueryIsPublic = false;
+
+    public bool $showSaveForm = false;
 
     /** @var array<int, int> */
     public array $selected = [];
@@ -46,18 +102,204 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     #[Computed]
-    public function issues(): EloquentCollection
+    public function engine(): QueryFilterEngine
     {
-        $query = $this->project->issues()
-            ->with(['tracker', 'status', 'priority', 'assignedTo'])
-            ->orderByDesc('id');
+        return new QueryFilterEngine(IssueFilterFieldRegistry::forProject($this->project));
+    }
+
+    /**
+     * @return Builder<Issue>
+     */
+    private function filteredIssuesQuery(): Builder
+    {
+        $query = Issue::query()
+            ->where('project_id', $this->project->id)
+            ->with(['tracker', 'status', 'priority', 'assignedTo', 'author', 'fixedVersion']);
 
         if ($this->statusFilter !== 'all') {
             $isClosed = $this->statusFilter === 'closed';
             $query->whereHas('status', fn ($q) => $q->where('is_closed', $isClosed));
         }
 
-        return $query->get();
+        $query = $this->engine->applyFilters($query, $this->builtFilters());
+
+        if ($this->sortKey !== null) {
+            $query = $this->engine->applySort($query, [[$this->sortKey, $this->sortDirection]]);
+        } else {
+            $query->orderByDesc('id');
+        }
+
+        return $query;
+    }
+
+    #[Computed]
+    public function issues(): EloquentCollection
+    {
+        return $this->filteredIssuesQuery()->get();
+    }
+
+    /**
+     * @return Collection<string, EloquentCollection<int, Issue>>
+     */
+    #[Computed]
+    public function groupedIssues(): Collection
+    {
+        if ($this->groupBy === null) {
+            return collect(['' => $this->issues]);
+        }
+
+        return $this->issues->groupBy(fn (Issue $issue) => $this->columnValue($issue, $this->groupBy));
+    }
+
+    /**
+     * @return array<string, array{operator: string, values: array<int, mixed>}>
+     */
+    private function builtFilters(): array
+    {
+        $filters = [];
+
+        foreach ($this->activeFilterKeys as $key) {
+            $operator = $this->filterOperators[$key] ?? null;
+
+            if ($operator === null) {
+                continue;
+            }
+
+            $filters[$key] = [
+                'operator' => $operator,
+                'values' => array_values(array_filter($this->filterValues[$key] ?? [], fn ($v) => $v !== null && $v !== '')),
+            ];
+        }
+
+        return $filters;
+    }
+
+    public function addFilter(string $key): void
+    {
+        if (! in_array($key, $this->activeFilterKeys, true) && $this->engine->field($key) !== null) {
+            $this->activeFilterKeys[] = $key;
+            $this->filterOperators[$key] = $this->engine->field($key)->operators()[0]->value;
+        }
+    }
+
+    public function removeFilter(string $key): void
+    {
+        $this->activeFilterKeys = array_values(array_diff($this->activeFilterKeys, [$key]));
+        unset($this->filterOperators[$key], $this->filterValues[$key]);
+    }
+
+    public function applyFilters(): void
+    {
+        unset($this->issues, $this->groupedIssues);
+    }
+
+    public function sortBy(string $key): void
+    {
+        if ($this->sortKey === $key) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortKey = $key;
+            $this->sortDirection = 'asc';
+        }
+    }
+
+    public function saveQuery(): void
+    {
+        $data = $this->validate([
+            'newQueryName' => ['required', 'string', 'max:255'],
+            'newQueryIsPublic' => ['boolean'],
+        ]);
+
+        SavedQuery::create([
+            'name' => $data['newQueryName'],
+            'type' => QueryType::Issue->value,
+            'user_id' => auth()->id(),
+            'project_id' => $this->project->id,
+            'is_public' => $data['newQueryIsPublic'],
+            'filters' => $this->builtFilters(),
+            'column_names' => $this->columns,
+            'sort_criteria' => $this->sortKey ? [[$this->sortKey, $this->sortDirection]] : [],
+            'group_by' => $this->groupBy,
+        ]);
+
+        $this->reset(['newQueryName', 'newQueryIsPublic', 'showSaveForm']);
+        unset($this->savedQueries);
+        session()->flash('status', 'クエリを保存しました。');
+    }
+
+    public function loadQuery(int $queryId): void
+    {
+        $query = SavedQuery::query()->where('project_id', $this->project->id)->findOrFail($queryId);
+
+        abort_unless($query->visibleTo(auth()->user()), 403);
+
+        $this->activeFilterKeys = array_keys($query->filters);
+        $this->filterOperators = [];
+        $this->filterValues = [];
+
+        foreach ($query->filters as $key => $filter) {
+            $this->filterOperators[$key] = $filter['operator'];
+            $this->filterValues[$key] = $filter['values'] ?? [];
+        }
+
+        $this->columns = $query->column_names;
+        $this->groupBy = $query->group_by;
+
+        if ($query->sort_criteria !== [] && $query->sort_criteria !== null) {
+            [$this->sortKey, $this->sortDirection] = $query->sort_criteria[0];
+        }
+
+        unset($this->issues, $this->groupedIssues);
+    }
+
+    #[Computed]
+    public function savedQueries(): Collection
+    {
+        return SavedQuery::query()
+            ->where('project_id', $this->project->id)
+            ->where('type', QueryType::Issue->value)
+            ->where(fn ($q) => $q->where('user_id', auth()->id())->orWhere('is_public', true))
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function columnValue(Issue $issue, string $key): string
+    {
+        return match ($key) {
+            'tracker_id' => $issue->tracker->name,
+            'status_id' => $issue->status->name,
+            'priority_id' => $issue->priority->name,
+            'subject' => $issue->subject,
+            'assigned_to_id' => $issue->assignedTo?->name ?? '未割当',
+            'author_id' => $issue->author->name,
+            'fixed_version_id' => $issue->fixedVersion?->name ?? 'なし',
+            'start_date' => $issue->start_date?->toDateString() ?? '',
+            'due_date' => $issue->due_date?->toDateString() ?? '',
+            'created_at' => $issue->created_at->toDateString(),
+            'done_ratio' => "{$issue->done_ratio}%",
+            default => '',
+        };
+    }
+
+    public function exportCsv(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $this->authorize('viewAny', [Issue::class, $this->project]);
+
+        $columns = $this->columns;
+        $query = $this->filteredIssuesQuery();
+
+        return response()->streamDownload(function () use ($columns, $query) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, array_map(fn ($key) => self::DISPLAY_COLUMNS[$key] ?? $key, $columns));
+
+            $query->chunk(200, function ($chunk) use ($handle, $columns) {
+                foreach ($chunk as $issue) {
+                    fputcsv($handle, array_map(fn ($key) => $this->columnValue($issue, $key), $columns));
+                }
+            });
+
+            fclose($handle);
+        }, "{$this->project->identifier}-issues.csv");
     }
 
     #[Computed]
@@ -167,7 +409,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $count = $issues->count();
 
         $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkComment']);
-        unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions);
+        unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues);
 
         session()->flash('status', "{$count}件の課題を更新しました。");
     }
@@ -184,6 +426,9 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </div>
         <div class="flex gap-2">
+            <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                CSVエクスポート
+            </button>
             @can('create', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.import', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -195,6 +440,125 @@ new #[Layout('components.layouts.app')] class extends Component
                 </a>
             @endcan
         </div>
+    </div>
+
+    {{-- Saved queries --}}
+    <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <span class="text-gray-500">保存済みクエリ:</span>
+        @forelse ($this->savedQueries as $savedQuery)
+            <button wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50">
+                {{ $savedQuery->name }}
+            </button>
+        @empty
+            <span class="text-gray-400">なし</span>
+        @endforelse
+    </div>
+
+    {{-- Filter builder --}}
+    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+        <div class="mb-3 flex flex-wrap items-center gap-2 text-sm">
+            <span class="font-medium text-gray-700">フィルタを追加:</span>
+            @foreach ($this->engine->fields() as $field)
+                @unless (in_array($field->key(), $activeFilterKeys, true))
+                    <button wire:click="addFilter('{{ $field->key() }}')" class="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                        + {{ $field->label() }}
+                    </button>
+                @endunless
+            @endforeach
+        </div>
+
+        @if ($activeFilterKeys !== [])
+            <div class="space-y-2">
+                @foreach ($activeFilterKeys as $key)
+                    @php $field = $this->engine->field($key); @endphp
+                    @continue(! $field)
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="w-28 text-sm text-gray-700">{{ $field->label() }}</span>
+                        <select wire:model="filterOperators.{{ $key }}" class="rounded-md border-gray-300 text-sm">
+                            @foreach ($field->operators() as $operator)
+                                <option value="{{ $operator->value }}">{{ $operator->label() }}</option>
+                            @endforeach
+                        </select>
+
+                        @if (($filterOperators[$key] ?? null) !== \App\Enums\FilterOperator::IsEmpty->value && ($filterOperators[$key] ?? null) !== \App\Enums\FilterOperator::IsNotEmpty->value)
+                            @if ($field->type() === \App\Enums\FilterFieldType::Select && $field->options() !== [])
+                                @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::In->value || ($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::NotIn->value)
+                                    <select wire:model="filterValues.{{ $key }}" multiple class="min-w-[10rem] rounded-md border-gray-300 text-sm">
+                                        @foreach ($field->options() as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <select wire:model="filterValues.{{ $key }}.0" class="rounded-md border-gray-300 text-sm">
+                                        <option value="">選択してください</option>
+                                        @foreach ($field->options() as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                @endif
+                            @elseif ($field->type() === \App\Enums\FilterFieldType::Date)
+                                <input type="date" wire:model="filterValues.{{ $key }}.0" class="rounded-md border-gray-300 text-sm">
+                                @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)
+                                    <span class="text-gray-400">〜</span>
+                                    <input type="date" wire:model="filterValues.{{ $key }}.1" class="rounded-md border-gray-300 text-sm">
+                                @endif
+                            @elseif ($field->type() === \App\Enums\FilterFieldType::Integer)
+                                <input type="number" wire:model="filterValues.{{ $key }}.0" class="w-24 rounded-md border-gray-300 text-sm">
+                                @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)
+                                    <span class="text-gray-400">〜</span>
+                                    <input type="number" wire:model="filterValues.{{ $key }}.1" class="w-24 rounded-md border-gray-300 text-sm">
+                                @endif
+                            @else
+                                <input type="text" wire:model="filterValues.{{ $key }}.0" class="rounded-md border-gray-300 text-sm">
+                            @endif
+                        @endif
+
+                        <button wire:click="removeFilter('{{ $key }}')" class="text-xs text-red-600 hover:underline">削除</button>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
+        <div class="mt-3 flex flex-wrap items-center gap-3">
+            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                絞り込み適用
+            </button>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                グループ化:
+                <select wire:model.live="groupBy" class="rounded-md border-gray-300 text-sm">
+                    <option value="">なし</option>
+                    <option value="status_id">ステータス</option>
+                    <option value="tracker_id">トラッカー</option>
+                    <option value="priority_id">優先度</option>
+                    <option value="assigned_to_id">担当者</option>
+                </select>
+            </label>
+
+            <div class="flex items-center gap-2 text-sm text-gray-700">
+                表示列:
+                @foreach (self::DISPLAY_COLUMNS as $key => $label)
+                    <label class="flex items-center gap-1">
+                        <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-gray-300">
+                        {{ $label }}
+                    </label>
+                @endforeach
+            </div>
+
+            <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
+        </div>
+
+        @if ($showSaveForm)
+            <form wire:submit="saveQuery" class="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
+                <input type="text" wire:model="newQueryName" placeholder="クエリ名" class="rounded-md border-gray-300 text-sm">
+                <label class="flex items-center gap-1 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="newQueryIsPublic" class="rounded border-gray-300">
+                    公開する
+                </label>
+                <button type="submit" class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500">保存</button>
+                @error('newQueryName') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+            </form>
+        @endif
     </div>
 
     @if ($this->canBulkEdit && count($selected) > 0)
@@ -266,46 +630,59 @@ new #[Layout('components.layouts.app')] class extends Component
         </form>
     @endif
 
-    <div class="overflow-x-auto rounded-md border border-gray-200 bg-white">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
-            <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
-                <tr>
-                    @if ($this->canBulkEdit)
-                        <th class="px-4 py-2"></th>
-                    @endif
-                    <th class="px-4 py-2">#</th>
-                    <th class="px-4 py-2">トラッカー</th>
-                    <th class="px-4 py-2">ステータス</th>
-                    <th class="px-4 py-2">優先度</th>
-                    <th class="px-4 py-2">題名</th>
-                    <th class="px-4 py-2">担当者</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-                @forelse ($this->issues as $issue)
+    @foreach ($this->groupedIssues as $groupLabel => $groupIssues)
+        @if ($groupBy !== null)
+            <h2 class="mb-2 mt-4 text-sm font-semibold text-gray-900">{{ $groupLabel ?: '(未設定)' }} ({{ $groupIssues->count() }})</h2>
+        @endif
+
+        <div class="overflow-x-auto rounded-md border border-gray-200 bg-white mb-4">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
                         @if ($this->canBulkEdit)
-                            <td class="px-4 py-2">
-                                <input type="checkbox" wire:model="selected" value="{{ $issue->id }}" class="rounded border-gray-300">
-                            </td>
+                            <th class="px-4 py-2"></th>
                         @endif
-                        <td class="px-4 py-2 text-gray-500">{{ $issue->id }}</td>
-                        <td class="px-4 py-2">{{ $issue->tracker->name }}</td>
-                        <td class="px-4 py-2">{{ $issue->status->name }}</td>
-                        <td class="px-4 py-2">{{ $issue->priority->name }}</td>
-                        <td class="px-4 py-2">
-                            <a href="{{ route('issues.show', [$project, $issue]) }}" class="text-indigo-600 hover:underline">
-                                {{ $issue->subject }}
-                            </a>
-                        </td>
-                        <td class="px-4 py-2 text-gray-600">{{ $issue->assignedTo?->name ?? '-' }}</td>
+                        <th class="px-4 py-2">#</th>
+                        @foreach ($columns as $columnKey)
+                            <th class="px-4 py-2">
+                                <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
+                                    {{ self::DISPLAY_COLUMNS[$columnKey] ?? $columnKey }}
+                                    @if ($sortKey === $columnKey)
+                                        <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                    @endif
+                                </button>
+                            </th>
+                        @endforeach
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="7" class="px-4 py-6 text-center text-gray-500">課題がありません。</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse ($groupIssues as $issue)
+                        <tr>
+                            @if ($this->canBulkEdit)
+                                <td class="px-4 py-2">
+                                    <input type="checkbox" wire:model="selected" value="{{ $issue->id }}" class="rounded border-gray-300">
+                                </td>
+                            @endif
+                            <td class="px-4 py-2 text-gray-500">{{ $issue->id }}</td>
+                            @foreach ($columns as $columnKey)
+                                <td class="px-4 py-2">
+                                    @if ($columnKey === 'subject')
+                                        <a href="{{ route('issues.show', [$project, $issue]) }}" class="text-indigo-600 hover:underline">
+                                            {{ $issue->subject }}
+                                        </a>
+                                    @else
+                                        {{ $this->columnValue($issue, $columnKey) }}
+                                    @endif
+                                </td>
+                            @endforeach
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="{{ count($columns) + 2 }}" class="px-4 py-6 text-center text-gray-500">課題がありません。</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    @endforeach
 </div>
