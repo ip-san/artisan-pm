@@ -116,7 +116,18 @@ final readonly class GitAdapter implements ScmAdapter
      */
     private function git(array $args, int $timeout): ProcessResult
     {
-        return Process::path($this->path)->timeout($timeout)->run(['git', ...self::SAFETY_FLAGS, ...$args]);
+        return Process::path($this->path)
+            // Without a ceiling, git searches upward through parent
+            // directories for a .git — so a $path that isn't itself a
+            // repository (e.g. an empty directory a user mistakenly
+            // configured) would silently resolve to whatever ancestor
+            // repository it happens to sit inside (this app's own, if
+            // scm.repositories_root lives under the project checkout) and
+            // operate on THAT one instead of failing. Capping discovery at
+            // $path's parent makes "not a repository" fail cleanly.
+            ->env(['GIT_CEILING_DIRECTORIES' => dirname($this->path)])
+            ->timeout($timeout)
+            ->run(['git', ...self::SAFETY_FLAGS, ...$args]);
     }
 
     /**

@@ -109,7 +109,7 @@ test('the repository form accepts svn as a repository type', function () {
     $project = Project::factory()->create();
     $manager = svnRepositoryMember($project, ['view_changesets', 'manage_repository']);
     $allowedPath = config('scm.repositories_root').'/allowed-svn-'.uniqid();
-    mkdir($allowedPath);
+    Process::path(config('scm.repositories_root'))->run(['svnadmin', 'create', $allowedPath])->throw();
 
     Livewire::actingAs($manager)
         ->test('repository.form', ['project' => $project])

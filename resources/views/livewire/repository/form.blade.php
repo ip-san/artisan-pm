@@ -35,7 +35,22 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $data = $this->validate([
             'type' => ['required', new Enum(RepositoryType::class)],
-            'path' => ['required', 'string', 'max:500', new WithinRepositoriesRoot],
+            // bail is load-bearing here, not just an optimization: the
+            // closure below shells out via the adapter, and it must never
+            // run against a path WithinRepositoriesRoot has already
+            // rejected — that containment check is what makes it safe to
+            // invoke git/svn against this path at all.
+            'path' => [
+                'required', 'bail', 'string', 'max:500',
+                new WithinRepositoriesRoot,
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    $candidate = new Repository(['type' => $this->type, 'path' => $value]);
+
+                    if (! $candidate->adapter()->isAvailable()) {
+                        $fail("有効な{$this->type}リポジトリではありません。");
+                    }
+                },
+            ],
         ]);
 
         if ($this->repository) {

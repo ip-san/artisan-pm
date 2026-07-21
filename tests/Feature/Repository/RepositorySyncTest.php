@@ -141,6 +141,7 @@ test('only a member with manage_repository can configure the repository or trigg
     $manager = repositoryMember($project, ['view_changesets', 'manage_repository']);
     $allowedPath = config('scm.repositories_root').'/allowed-'.uniqid();
     mkdir($allowedPath);
+    Process::path($allowedPath)->run(['git', 'init', '-q'])->throw();
 
     Livewire::actingAs($viewer)->test('repository.form', ['project' => $project])->assertForbidden();
 
@@ -215,6 +216,41 @@ test('a repository path outside the configured repositories root is rejected', f
         ->assertHasErrors(['path']);
 
     expect(Repository::where('project_id', $project->id)->exists())->toBeFalse();
+});
+
+test('a path outside the root never reaches the isAvailable check that would shell out to it', function () {
+    $project = Project::factory()->create();
+    $manager = repositoryMember($project, ['view_changesets', 'manage_repository']);
+
+    // If the WithinRepositoriesRoot rejection didn't `bail` before the
+    // isAvailable() closure, this would try to run git against a path
+    // outside the allowed root — exactly what the rule exists to prevent.
+    Process::fake(['*' => Process::result(output: 'SHOULD NOT BE CALLED')]);
+
+    Livewire::actingAs($manager)
+        ->test('repository.form', ['project' => $project])
+        ->set('path', sys_get_temp_dir())
+        ->call('save')
+        ->assertHasErrors(['path']);
+
+    Process::assertNothingRan();
+});
+
+test('a path within the root that is not a real repository is rejected with a helpful error', function () {
+    $project = Project::factory()->create();
+    $manager = repositoryMember($project, ['view_changesets', 'manage_repository']);
+    $emptyPath = config('scm.repositories_root').'/not-a-repo-'.uniqid();
+    mkdir($emptyPath);
+
+    Livewire::actingAs($manager)
+        ->test('repository.form', ['project' => $project])
+        ->set('path', $emptyPath)
+        ->call('save')
+        ->assertHasErrors(['path']);
+
+    expect(Repository::where('project_id', $project->id)->exists())->toBeFalse();
+
+    Process::path(config('scm.repositories_root'))->run(['rm', '-rf', $emptyPath]);
 });
 
 test('the diff view is cached rather than re-invoking git on every request', function () {
