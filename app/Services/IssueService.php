@@ -121,7 +121,57 @@ final class IssueService
             IssueUpdated::dispatch($issue);
         }
 
+        if ($this->isClosingTransition($original, $issue)) {
+            $this->closeDuplicates($issue, $actor, $comment);
+        }
+
         return $issue->refresh();
+    }
+
+    /**
+     * status_id changed, the new status is closed, and the old one
+     * wasn't — matches Redmine's Issue#closing?. Reopening (closed to
+     * closed, or closed to open) doesn't count.
+     *
+     * @param  array<string, mixed>  $original
+     */
+    private function isClosingTransition(array $original, Issue $issue): bool
+    {
+        $oldStatusId = $original['status_id'] ?? null;
+
+        if ($oldStatusId === $issue->status_id) {
+            return false;
+        }
+
+        $wasClosed = $oldStatusId !== null && IssueStatus::query()->whereKey($oldStatusId)->value('is_closed');
+        $isClosed = IssueStatus::query()->whereKey($issue->status_id)->value('is_closed');
+
+        return (bool) $isClosed && ! $wasClosed;
+    }
+
+    /**
+     * Closes every issue that duplicates this one, gated by the
+     * close_duplicate_issues setting — matches Redmine's Issue#
+     * close_duplicates. Re-fetches each duplicate's closed state right
+     * before recursing so a mutual-duplicate cycle (A duplicates B,
+     * B duplicates A) terminates once the far side is already closed,
+     * the same guard Redmine itself relies on.
+     */
+    private function closeDuplicates(Issue $issue, User $actor, ?string $comment): void
+    {
+        if (! Setting::get('close_duplicate_issues', true)) {
+            return;
+        }
+
+        foreach ($issue->duplicates() as $duplicate) {
+            $fresh = Issue::query()->find($duplicate->id);
+
+            if ($fresh === null || $fresh->isClosed()) {
+                continue;
+            }
+
+            $this->update($fresh, ['status_id' => $issue->status_id], $actor, $comment);
+        }
     }
 
     /**

@@ -3,8 +3,10 @@
 use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Services\IssueService;
@@ -146,4 +148,100 @@ test('an unchanged custom field value writes no journal entry for it', function 
     $updated = issueService()->update($issue, [], $actor, null, [$field->id => 'Same']);
 
     expect($updated->journals)->toBeEmpty();
+});
+
+test('closing an issue also closes issues that duplicate it', function () {
+    Setting::set('close_duplicate_issues', true);
+
+    $actor = User::factory()->create();
+    $open = IssueStatus::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $original = Issue::factory()->create(['status_id' => $open->id]);
+    $duplicate = Issue::factory()->create(['status_id' => $open->id]);
+    IssueRelation::create([
+        'issue_from_id' => $duplicate->id,
+        'issue_to_id' => $original->id,
+        'relation_type' => 'duplicates',
+    ]);
+
+    issueService()->update($original, ['status_id' => $closed->id], $actor);
+
+    expect($original->fresh()->status_id)->toBe($closed->id)
+        ->and($duplicate->fresh()->status_id)->toBe($closed->id)
+        ->and($duplicate->fresh()->journals()->exists())->toBeTrue();
+});
+
+test('duplicate closing is skipped when close_duplicate_issues is disabled', function () {
+    Setting::set('close_duplicate_issues', false);
+
+    $actor = User::factory()->create();
+    $open = IssueStatus::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $original = Issue::factory()->create(['status_id' => $open->id]);
+    $duplicate = Issue::factory()->create(['status_id' => $open->id]);
+    IssueRelation::create([
+        'issue_from_id' => $duplicate->id,
+        'issue_to_id' => $original->id,
+        'relation_type' => 'duplicates',
+    ]);
+
+    issueService()->update($original, ['status_id' => $closed->id], $actor);
+
+    expect($duplicate->fresh()->status_id)->toBe($open->id);
+});
+
+test('an already-closed duplicate is left untouched', function () {
+    Setting::set('close_duplicate_issues', true);
+
+    $actor = User::factory()->create();
+    $open = IssueStatus::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $alreadyClosed = IssueStatus::factory()->closed()->create();
+    $original = Issue::factory()->create(['status_id' => $open->id]);
+    $duplicate = Issue::factory()->create(['status_id' => $alreadyClosed->id]);
+    IssueRelation::create([
+        'issue_from_id' => $duplicate->id,
+        'issue_to_id' => $original->id,
+        'relation_type' => 'duplicates',
+    ]);
+
+    issueService()->update($original, ['status_id' => $closed->id], $actor);
+
+    expect($duplicate->fresh()->status_id)->toBe($alreadyClosed->id);
+});
+
+test('a mutual duplicate cycle does not infinitely recurse', function () {
+    Setting::set('close_duplicate_issues', true);
+
+    $actor = User::factory()->create();
+    $open = IssueStatus::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $a = Issue::factory()->create(['status_id' => $open->id]);
+    $b = Issue::factory()->create(['status_id' => $open->id]);
+    IssueRelation::create(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => 'duplicates']);
+    IssueRelation::create(['issue_from_id' => $b->id, 'issue_to_id' => $a->id, 'relation_type' => 'duplicates']);
+
+    issueService()->update($a, ['status_id' => $closed->id], $actor);
+
+    expect($a->fresh()->status_id)->toBe($closed->id)
+        ->and($b->fresh()->status_id)->toBe($closed->id);
+});
+
+test('reopening an issue does not cascade to its duplicates', function () {
+    Setting::set('close_duplicate_issues', true);
+
+    $actor = User::factory()->create();
+    $open = IssueStatus::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $original = Issue::factory()->create(['status_id' => $closed->id]);
+    $duplicate = Issue::factory()->create(['status_id' => $open->id]);
+    IssueRelation::create([
+        'issue_from_id' => $duplicate->id,
+        'issue_to_id' => $original->id,
+        'relation_type' => 'duplicates',
+    ]);
+
+    issueService()->update($original, ['status_id' => $open->id], $actor);
+
+    expect($duplicate->fresh()->status_id)->toBe($open->id);
 });

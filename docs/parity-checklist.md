@@ -95,7 +95,7 @@
 | 関連タイプ | partial | relates/blocks/duplicates/precedes/follows のみ。逆方向・コピー系タイプ(blocked, duplicated, copied_to/from)の**新規Enum値**は追加していないが、blocks/duplicatesは表示側でfrom/to方向に応じたラベル反転(「ブロックする」⇔「ブロックされている」)を実装。precedes/followsは元々ユーザーが方向を選んで別々に保存する設計のため反転不要 |
 | precedes/follows の遅延日数(delay) | missing | マイグレーションに該当カラムなし |
 | 関連日付からの自動リスケジュール・循環/プロジェクト間検証 | missing | DBのユニーク制約のみ |
-| 重複課題のクローズ連動・ブロック中クローズ禁止 | partial(2026-07-21) | `Issue::isBlocked()`/`isClosable()`(`blocks`関係で自分をブロックする未クローズ課題があるか判定)。詳細は§クローズ可否のフィルタ参照。重複課題のクローズ連動(`duplicates`関係で片方をクローズしたらもう片方も自動クローズ)は未実装 |
+| 重複課題のクローズ連動・ブロック中クローズ禁止 | done(2026-07-21) | 両方実装。ブロック中クローズ禁止は§クローズ可否のフィルタ参照。重複課題のクローズ連動は新設定`close_duplicate_issues`(デフォルトtrue)で制御、`IssueService`が open→closed の遷移(Redmineの`Issue#closing?`と同じ判定)のたびに`Issue::duplicates()`を再帰的にクローズ(相互複製の循環も、都度DBから再取得して既にクローズ済みか確認することで安全に停止する、Redmine自身と同じガード) |
 
 ### Issue Categories
 

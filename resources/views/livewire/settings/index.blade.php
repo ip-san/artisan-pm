@@ -31,6 +31,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $issue_done_ratio = 'issue_field';
 
+    public bool $close_duplicate_issues = true;
+
     public function mount(): void
     {
         $this->authorize('manage', Setting::class);
@@ -38,6 +40,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->app_title = Setting::get('app_title', config('app.name'));
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
+        $this->close_duplicate_issues = Setting::get('close_duplicate_issues', true);
         $this->incoming_mail_enabled = Setting::get('incoming_mail_enabled', false);
         $this->incoming_mail_default_project_id = Setting::get('incoming_mail_default_project_id');
         $this->incoming_mail_default_tracker_id = Setting::get('incoming_mail_default_tracker_id');
@@ -78,6 +81,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'attachment_extensions_allowed' => ['nullable', 'string', 'max:1000'],
             'attachment_extensions_denied' => ['nullable', 'string', 'max:1000'],
             'issue_done_ratio' => ['required', 'in:issue_field,issue_status'],
+            'close_duplicate_issues' => ['boolean'],
         ]);
 
         foreach ($data as $key => $value) {
@@ -113,6 +117,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('issue_done_ratio') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="close_duplicate_issues" class="rounded border-gray-300">
+                重複課題を自動的にクローズする(この課題を複製とする課題がクローズされたとき)
+            </label>
         </section>
 
         <section class="space-y-4 border-t border-gray-200 pt-6">

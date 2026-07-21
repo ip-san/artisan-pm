@@ -236,6 +236,22 @@ final class Issue extends Model implements HasMedia
         return ! $this->isBlocked() && ! $this->hasOpenChildren();
     }
 
+    /**
+     * Issues that duplicate this one — the `from` side of any 'duplicates'
+     * relation where this issue is the `to` side, matching Redmine's
+     * Issue#duplicates ("issue_from duplicates issue_to").
+     *
+     * @return Collection<int, Issue>
+     */
+    public function duplicates(): Collection
+    {
+        return $this->relationsTo()
+            ->where('relation_type', IssueRelationType::Duplicates->value)
+            ->with('from')
+            ->get()
+            ->map(fn (IssueRelation $relation) => $relation->from);
+    }
+
     public static function customizableType(): CustomizableType
     {
         return CustomizableType::Issue;
