@@ -196,4 +196,6 @@ new #[Layout('components.layouts.app')] class extends Component
             </button>
         </form>
     @endcan
+
+    <x-hook name="issues.show.details_bottom" :issue="$issue" />
 </div>
