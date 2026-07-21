@@ -5,6 +5,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -24,9 +25,16 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->project = $project;
     }
 
-    public function getRolesProperty(): Collection
+    #[Computed]
+    public function roles(): Collection
     {
         return Role::query()->whereNull('builtin')->orderBy('position')->get();
+    }
+
+    #[Computed]
+    public function members(): Collection
+    {
+        return $this->project->members()->with(['user', 'group', 'roles'])->get();
     }
 
     public function addMember(): void
@@ -47,7 +55,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $member->roles()->sync($data['roleIds']);
 
         $this->reset('email', 'roleIds');
-        $this->project->unsetRelation('members');
+        unset($this->members);
     }
 
     public function removeMember(int $memberId): void
@@ -59,7 +67,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->findOrFail($memberId)
             ->delete();
 
-        $this->project->unsetRelation('members');
+        unset($this->members);
     }
 }; ?>
 
@@ -92,7 +100,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </form>
 
     <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
-        @forelse ($project->members()->with(['user', 'group', 'roles'])->get() as $member)
+        @forelse ($this->members as $member)
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
                     <span class="font-medium text-gray-900">

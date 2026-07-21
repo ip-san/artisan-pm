@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -81,22 +82,26 @@ new #[Layout('components.layouts.app')] class extends Component
         }
     }
 
-    public function getProjectTrackersProperty(): Collection
+    #[Computed]
+    public function projectTrackers(): Collection
     {
         return $this->project->trackers;
     }
 
-    public function getPrioritiesProperty(): Collection
+    #[Computed]
+    public function priorities(): Collection
     {
         return Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->get();
     }
 
-    public function getProjectMembersProperty(): Collection
+    #[Computed]
+    public function projectMembers(): Collection
     {
         return $this->project->users;
     }
 
-    public function getProjectVersionsProperty(): Collection
+    #[Computed]
+    public function projectVersions(): Collection
     {
         return $this->project->versions;
     }

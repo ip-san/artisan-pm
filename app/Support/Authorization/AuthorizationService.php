@@ -47,6 +47,10 @@ final class AuthorizationService
     }
 
     /**
+     * Resolves in tiers: guests get the Anonymous builtin role on public
+     * projects; members get their assigned role(s); everyone else falls
+     * back to the NonMember builtin role, again only on public projects.
+     *
      * @return Collection<int, Role>
      */
     public function rolesFor(?User $user, Project $project): Collection
@@ -78,8 +82,8 @@ final class AuthorizationService
         return Role::query()
             ->whereHas('members', function ($query) use ($user, $project, $groupIds) {
                 $query->where('project_id', $project->id)
-                    ->where(function ($query) use ($user, $groupIds) {
-                        $query->where('user_id', $user->id)
+                    ->where(function ($member) use ($user, $groupIds) {
+                        $member->where('user_id', $user->id)
                             ->orWhereIn('group_id', $groupIds);
                     });
             })

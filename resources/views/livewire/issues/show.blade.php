@@ -35,7 +35,6 @@ new #[Layout('components.layouts.app')] class extends Component
         ]);
 
         $this->reset('comment');
-        $this->issue->unsetRelation('journals');
         $this->issue->load('journals.user', 'journals.details');
     }
 

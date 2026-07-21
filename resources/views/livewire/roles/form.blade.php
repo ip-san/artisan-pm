@@ -4,6 +4,7 @@ use App\Enums\RoleBuiltin;
 use App\Models\Role;
 use App\Support\Permissions\PermissionRegistry;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -32,7 +33,8 @@ new #[Layout('components.layouts.app')] class extends Component
     /**
      * @return array<string>
      */
-    public function getAvailablePermissionsProperty(): array
+    #[Computed]
+    public function availablePermissions(): array
     {
         $registry = app(PermissionRegistry::class);
 

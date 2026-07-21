@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Enums;
 
 /**
- * Redmine models "anonymous visitor" and "logged-in non-member" as pseudo-roles
- * that apply to public projects without an explicit Member row. `Regular` roles
- * are the ones administrators create and assign to project members.
+ * Pseudo-roles applied to public projects when a user has no explicit
+ * Member row: an anonymous visitor, or a logged-in non-member. Ordinary
+ * roles (`builtin = null`) are created by admins and assigned to members.
  */
 enum RoleBuiltin: string
 {

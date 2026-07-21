@@ -17,7 +17,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount(Project $project): void
     {
-        $this->authorize('viewAny', [\App\Models\Issue::class, $project]);
+        $this->authorize('viewAny', [Issue::class, $project]);
 
         $this->project = $project;
     }
@@ -25,12 +25,16 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function issues(): Collection
     {
-        return $this->project->issues()
+        $query = $this->project->issues()
             ->with(['tracker', 'status', 'priority', 'assignedTo'])
-            ->when($this->statusFilter === 'open', fn ($q) => $q->whereHas('status', fn ($q) => $q->where('is_closed', false)))
-            ->when($this->statusFilter === 'closed', fn ($q) => $q->whereHas('status', fn ($q) => $q->where('is_closed', true)))
-            ->orderByDesc('id')
-            ->get();
+            ->orderByDesc('id');
+
+        if ($this->statusFilter !== 'all') {
+            $isClosed = $this->statusFilter === 'closed';
+            $query->whereHas('status', fn ($q) => $q->where('is_closed', $isClosed));
+        }
+
+        return $query->get();
     }
 }; ?>
 

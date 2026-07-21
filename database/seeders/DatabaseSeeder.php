@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Enums\EnumerationType;
-use App\Enums\ProjectModuleKey;
 use App\Enums\RoleBuiltin;
 use App\Models\Enumeration;
 use App\Models\Issue;
@@ -33,11 +32,12 @@ class DatabaseSeeder extends Seeder
         $this->seedEnumerations();
         $this->seedWorkflow();
 
+        // ProjectFactory::configure() already syncs the default modules via
+        // its afterCreating hook, matching real project-creation behavior.
         $project = Project::factory()->create([
             'name' => 'Demo Project',
             'identifier' => 'demo-project',
         ]);
-        $project->syncModules(ProjectModuleKey::defaults());
         $project->trackers()->attach(Tracker::all());
 
         $member = $project->members()->create(['user_id' => $admin->id]);
@@ -48,15 +48,14 @@ class DatabaseSeeder extends Seeder
 
     private function seedBuiltinRoles(): void
     {
-        Role::query()->firstOrCreate(
-            ['builtin' => RoleBuiltin::Anonymous->value],
-            ['name' => 'Anonymous', 'permissions' => ['view_project'], 'position' => 1]
-        );
+        $builtinRoles = [
+            RoleBuiltin::Anonymous->value => ['name' => 'Anonymous', 'permissions' => ['view_project'], 'position' => 1],
+            RoleBuiltin::NonMember->value => ['name' => 'Non member', 'permissions' => ['view_project'], 'position' => 2],
+        ];
 
-        Role::query()->firstOrCreate(
-            ['builtin' => RoleBuiltin::NonMember->value],
-            ['name' => 'Non member', 'permissions' => ['view_project'], 'position' => 2]
-        );
+        foreach ($builtinRoles as $builtin => $attributes) {
+            Role::query()->firstOrCreate(['builtin' => $builtin], $attributes);
+        }
     }
 
     private function seedDefaultRoles(): void
@@ -111,7 +110,7 @@ class DatabaseSeeder extends Seeder
     private function seedEnumerations(): void
     {
         $priorities = ['Low', 'Normal', 'High', 'Urgent', 'Immediate'];
-        foreach ($priorities as $i => $name) {
+        foreach ($priorities as $name) {
             Enumeration::query()->firstOrCreate(
                 ['type' => EnumerationType::IssuePriority->value, 'name' => $name],
                 ['is_default' => $name === 'Normal']
@@ -135,9 +134,7 @@ class DatabaseSeeder extends Seeder
     private function seedWorkflow(): void
     {
         $statuses = IssueStatus::query()->pluck('id', 'name');
-        $manager = Role::where('name', 'Manager')->first();
-        $developer = Role::where('name', 'Developer')->first();
-        $reporter = Role::where('name', 'Reporter')->first();
+        $roles = Role::query()->whereIn('name', ['Manager', 'Developer', 'Reporter'])->pluck('id', 'name');
 
         $commonTransitions = [
             ['New', 'In Progress'],
@@ -153,22 +150,24 @@ class DatabaseSeeder extends Seeder
             ['Closed', 'New'],
         ];
 
-        foreach (Tracker::all() as $tracker) {
-            foreach ([$manager, $developer, $reporter] as $role) {
-                foreach ($commonTransitions as [$from, $to]) {
-                    WorkflowTransition::query()->firstOrCreate([
-                        'tracker_id' => $tracker->id,
-                        'role_id' => $role->id,
-                        'old_status_id' => $statuses[$from],
-                        'new_status_id' => $statuses[$to],
-                    ]);
-                }
+        // Flatten into a single (role, from, to) list so every tracker
+        // creates its transitions through one loop instead of duplicating
+        // the firstOrCreate call for the common and manager-only cases.
+        $roleTransitions = [];
+        foreach (['Manager', 'Developer', 'Reporter'] as $roleName) {
+            foreach ($commonTransitions as [$from, $to]) {
+                $roleTransitions[] = [$roleName, $from, $to];
             }
+        }
+        foreach ($managerOnlyTransitions as [$from, $to]) {
+            $roleTransitions[] = ['Manager', $from, $to];
+        }
 
-            foreach ($managerOnlyTransitions as [$from, $to]) {
+        foreach (Tracker::all() as $tracker) {
+            foreach ($roleTransitions as [$roleName, $from, $to]) {
                 WorkflowTransition::query()->firstOrCreate([
                     'tracker_id' => $tracker->id,
-                    'role_id' => $manager->id,
+                    'role_id' => $roles[$roleName],
                     'old_status_id' => $statuses[$from],
                     'new_status_id' => $statuses[$to],
                 ]);
@@ -180,11 +179,10 @@ class DatabaseSeeder extends Seeder
     {
         $newStatus = IssueStatus::where('name', 'New')->firstOrFail();
         $normalPriority = Enumeration::query()->ofType(EnumerationType::IssuePriority)->where('name', 'Normal')->firstOrFail();
-        $bug = Tracker::where('name', 'Bug')->firstOrFail();
-        $feature = Tracker::where('name', 'Feature')->firstOrFail();
+        $trackers = Tracker::query()->whereIn('name', ['Bug', 'Feature'])->pluck('id', 'name');
 
         Issue::factory()->for($project)->create([
-            'tracker_id' => $bug->id,
+            'tracker_id' => $trackers['Bug'],
             'status_id' => $newStatus->id,
             'priority_id' => $normalPriority->id,
             'author_id' => $author->id,
@@ -192,7 +190,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         Issue::factory()->for($project)->create([
-            'tracker_id' => $feature->id,
+            'tracker_id' => $trackers['Feature'],
             'status_id' => $newStatus->id,
             'priority_id' => $normalPriority->id,
             'author_id' => $author->id,

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -22,11 +21,6 @@ final class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -34,6 +28,7 @@ final class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'status' => UserStatus::class,
         ];
     }
 
@@ -64,6 +59,6 @@ final class User extends Authenticatable
 
     public function isActive(): bool
     {
-        return $this->status === UserStatus::Active->value;
+        return $this->status === UserStatus::Active;
     }
 }

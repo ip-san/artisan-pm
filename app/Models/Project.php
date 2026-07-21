@@ -79,9 +79,7 @@ final class Project extends Model
 
     public function hasModule(ProjectModuleKey $module): bool
     {
-        return $this->moduleAssignments->contains(
-            fn (ProjectModuleAssignment $assignment) => $assignment->module === $module
-        );
+        return $this->moduleAssignments->contains('module', $module);
     }
 
     /**

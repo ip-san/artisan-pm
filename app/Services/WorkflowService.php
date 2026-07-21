@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\WorkflowFieldRule;
 use App\Models\WorkflowTransition;
 use App\Support\Authorization\AuthorizationService;
+use Closure;
 use Illuminate\Support\Collection;
 
 /**
@@ -35,7 +36,7 @@ final class WorkflowService
             return IssueStatus::query()->orderBy('position')->get();
         }
 
-        $roleIds = $this->authorization->rolesFor($user, $issue->project)->pluck('id');
+        $roleIds = $this->roleIdsFor($issue, $user);
 
         if ($roleIds->isEmpty()) {
             return collect();
@@ -61,7 +62,7 @@ final class WorkflowService
             return [];
         }
 
-        $roleIds = $this->authorization->rolesFor($user, $issue->project)->pluck('id');
+        $roleIds = $this->roleIdsFor($issue, $user);
 
         if ($roleIds->isEmpty()) {
             return [];
@@ -90,14 +91,22 @@ final class WorkflowService
         return $resolved;
     }
 
-    private function authorRelationScope(Issue $issue, User $user): \Closure
+    /**
+     * @return Collection<int, int>
+     */
+    private function roleIdsFor(Issue $issue, User $user): Collection
+    {
+        return $this->authorization->rolesFor($user, $issue->project)->pluck('id');
+    }
+
+    private function authorRelationScope(Issue $issue, User $user): Closure
     {
         $isAuthor = $issue->author_id === $user->id;
         $isAssignee = $issue->assigned_to_id !== null && $issue->assigned_to_id === $user->id;
 
         return function ($query) use ($isAuthor, $isAssignee) {
-            $query->where(function ($query) {
-                $query->where('author', false)->where('assignee', false);
+            $query->where(function ($group) {
+                $group->where('author', false)->where('assignee', false);
             });
 
             if ($isAuthor) {
