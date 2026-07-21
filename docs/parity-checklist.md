@@ -15,7 +15,7 @@
 ### 構造的なギャップ(単一機能の欠落ではなく、設計レベルの差分)
 
 1. **プロジェクト横断ビューが皆無**(マイページを除く)。Issues/TimeEntries/Activity/Calendar/Gantt/Search はすべて `/projects/{project}/...` 配下のみで、Redmine の `/issues`, `/time_entries/report`, `/activity`, `/search` 相当のグローバルビューが存在しない。`routes/web.php` を見ればプロジェクト非依存のユーザー向けルートは `/my/page` と `/profile` のみ。
-2. **管理者によるユーザー管理画面が皆無**。`is_admin`・`UserStatus`(Active/Registered/Locked)・`auth_source_id` はモデルに存在するが、他ユーザーを一覧/作成/編集/ロック/強制パスワードリセットする画面が一切ない。セルフサービスの `profile/index.blade.php` のみ。
+2. ~~**管理者によるユーザー管理画面が皆無**~~ → **done**(2026-07-21)。`users/{index,form}.blade.php` で一覧/作成/編集/ロック・ロック解除に対応。強制パスワードリセットは「編集画面でパスワード欄に新しい値を入力」で代替(専用の「リセットして通知」フローはまだない)。詳細は §2 参照。
 3. **アプリケーション設定が Redmine の 119 キー中わずか 6 項目**(`app_title`, `default_issues_per_page`, incoming-mail 系4項目)。表示/認証ポリシー/通知/添付ファイル制限/リポジトリ設定などのタブが丸ごと存在しない。
 4. **カスタムフィールド対応が Issue と Project の2種のみ**(Redmine は User/Version/Group/TimeEntryActivity/DocumentCategory 等 ~10種)。
 5. **REST API が Projects と Issues の2リソースのみ**(Redmine は ~20 リソース群)。DELETE 系は皆無、ファイルアップロード API もなし。API認証も OAuth2(Passport)のみで、スクリプト用途に適した API キー方式が存在しない。
@@ -245,16 +245,18 @@
 
 | 機能 | 状態 | 備考 |
 |---|---|---|
-| **管理者によるユーザー一覧/作成/編集/ロック/強制パスワードリセット** | **missing** | 画面が全く存在しない。セルフサービスの `profile/index.blade.php` のみ |
+| 管理者によるユーザー一覧/作成/編集 | done | `users/{index,form}.blade.php`, `UserPolicy`(admin-only) |
+| アカウントロック/アンロック | done | 一覧画面からワンクリックで切替。`AuthenticateUser` がログイン時に `UserStatus::Locked` を実際にブロックする(この画面の実装と同時に修正した既存バグ) |
+| 管理者による強制パスワードリセット | partial | 編集フォームでパスワード欄に新しい値を直接入力する形。Redmineのような「リセットしてメール通知」専用フローはない |
+| 自分自身のロック防止 | done | 一覧画面の切替アクションは自分自身に対して403を返す(唯一の管理者が自分をロックして誰も解除できなくなる事態を防止)。編集フォーム自体は自分の`is_admin`/`status`変更を意図的に許可(Redmineと同様、誤操作ではなく意図的操作として扱う) |
 | LDAP認証ソース CRUD | done | ホスト/ポート/TLS/base_dn/direct-bind or search+bind/属性/onthefly登録/タイムアウト |
 | LDAP接続テストボタン | missing | — |
 | LDAPカスタムフィルタ/属性→カスタムフィールドマッピング | missing | login/name/mailのみ |
 | LDAPオンザフライ登録 | done | — |
-| 二要素認証(TOTP) | done | Fortify経由。ただし管理者による強制無効化・全体必須ポリシー設定は画面なし(ユーザー管理画面が無いため) |
+| 二要素認証(TOTP) | done | Fortify経由。管理者による強制無効化の専用ボタンはまだ画面にないが、ユーザー編集画面自体は存在する |
 | パスキー/WebAuthn | done(Redmineにはない機能) | — |
 | パスワードリセット | done | — |
 | 登録モード(無効/手動承認/メール確認/自動) | missing | 常時「自動」でハードコード。`emailVerification` はコメントアウト済み |
-| アカウントロック/アンロック・強制パスワード変更・有効化フロー | missing | カラム/Enumはあるが画面がない(ユーザー管理画面の欠落が根本原因) |
 
 ---
 
