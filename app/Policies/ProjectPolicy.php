@@ -67,4 +67,13 @@ final class ProjectPolicy
     {
         return $this->authorization->can($user, 'add_subprojects', $project);
     }
+
+    /**
+     * Project-level files (not tied to a Version) — same manage_files
+     * permission VersionPolicy::manageFiles already uses.
+     */
+    public function manageFiles(User $user, Project $project): bool
+    {
+        return $this->authorization->can($user, 'manage_files', $project);
+    }
 }

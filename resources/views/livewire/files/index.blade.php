@@ -49,23 +49,24 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('viewAny', [Version::class, $this->project]);
 
         $data = $this->validate([
-            'version_id' => ['required', Rule::exists('versions', 'id')->where('project_id', $this->project->id)],
+            'version_id' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $this->project->id)],
             'newFiles' => ['required', 'array', 'min:1'],
             'newFiles.*' => ['file', 'max:'.intdiv(config('media-library.max_file_size'), 1024)],
         ]);
 
-        $version = $this->project->versions()->findOrFail($data['version_id']);
+        $target = $data['version_id'] === null ? $this->project : $this->project->versions()->findOrFail($data['version_id']);
 
-        $this->authorize('manageFiles', $version);
+        $this->authorize('manageFiles', $target);
 
         foreach ($this->newFiles as $file) {
-            $version->addMedia($file->getRealPath())
+            $target->addMedia($file->getRealPath())
                 ->usingFileName($file->getClientOriginalName())
                 ->toMediaCollection('files');
         }
 
         $this->reset('newFiles');
         unset($this->versions);
+        $this->project->unsetRelation('media');
     }
 }; ?>
 
@@ -77,6 +78,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="block text-sm font-medium text-gray-700">バージョン</label>
                 <select wire:model="version_id" class="mt-1 block rounded-md border-gray-300 text-sm">
+                    <option value="">プロジェクト全体(バージョンなし)</option>
                     @foreach ($this->versions as $version)
                         <option value="{{ $version->id }}">{{ $version->name }}</option>
                     @endforeach
@@ -93,6 +95,29 @@ new #[Layout('components.layouts.app')] class extends Component
                 アップロード
             </button>
         </form>
+    @endif
+
+    @if ($this->project->files()->isNotEmpty() || $this->canManage)
+        <div class="mb-4 overflow-hidden rounded-md border border-gray-200 bg-white">
+            <div class="border-b border-gray-200 bg-gray-50 px-4 py-2">
+                <span class="text-sm font-medium text-gray-900">プロジェクト全体(バージョンなし)</span>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                @forelse ($this->project->files() as $media)
+                    <li class="flex items-center justify-between px-4 py-2 text-sm">
+                        <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                            {{ $media->file_name }}
+                        </a>
+                        <span class="flex items-center gap-2">
+                            <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                            <x-download-count :media="$media" />
+                        </span>
+                    </li>
+                @empty
+                    <li class="px-4 py-3 text-sm text-gray-500">ファイルはありません。</li>
+                @endforelse
+            </ul>
+        </div>
     @endif
 
     @forelse ($this->versions as $version)

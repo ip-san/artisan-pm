@@ -50,6 +50,33 @@ test('only a member with manage_files can upload a file to a version', function 
     expect($version->fresh()->files())->toHaveCount(1);
 });
 
+test('a member with manage_files can upload a project-level file with no version', function () {
+    $project = Project::factory()->create();
+    $manager = filesMember($project, ['view_files', 'manage_files']);
+
+    Livewire::actingAs($manager)
+        ->test('files.index', ['project' => $project])
+        ->set('version_id', null)
+        ->set('newFiles', [UploadedFile::fake()->create('readme.txt', 50)])
+        ->call('upload');
+
+    expect($project->fresh()->files())->toHaveCount(1);
+});
+
+test('a viewer without manage_files cannot upload a project-level file', function () {
+    $project = Project::factory()->create();
+    $viewer = filesMember($project);
+
+    Livewire::actingAs($viewer)
+        ->test('files.index', ['project' => $project])
+        ->set('version_id', null)
+        ->set('newFiles', [UploadedFile::fake()->create('readme.txt', 50)])
+        ->call('upload')
+        ->assertForbidden();
+
+    expect($project->fresh()->files())->toHaveCount(0);
+});
+
 test('a version belonging to another project is rejected', function () {
     $project = Project::factory()->create();
     $otherProject = Project::factory()->create();

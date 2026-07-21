@@ -18,12 +18,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
 use Kalnoy\Nestedset\NodeTrait;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 #[Fillable(['name', 'identifier', 'description', 'is_public', 'parent_id'])]
-final class Project extends Model
+final class Project extends Model implements HasMedia
 {
     /** @use HasFactory<ProjectFactory> */
-    use HasCustomFields, HasFactory, NodeTrait;
+    use HasCustomFields, HasFactory, InteractsWithMedia, NodeTrait;
 
     protected function casts(): array
     {
@@ -160,6 +164,21 @@ final class Project extends Model
     public function isOpen(): bool
     {
         return $this->status === ProjectStatus::Active;
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('files');
+    }
+
+    /**
+     * Project-level files — not tied to any Version, unlike Version::files().
+     *
+     * @return MediaCollection<int, Media>
+     */
+    public function files(): MediaCollection
+    {
+        return $this->getMedia('files');
     }
 
     public static function customizableType(): CustomizableType
