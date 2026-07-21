@@ -299,7 +299,7 @@
 | 機能 | 状態 | 備考 |
 |---|---|---|
 | Board CRUD・並べ替え | done | — |
-| ネストしたBoard | missing | `parent_id` なし、フラット構造 |
+| ネストしたBoard | done(2026-07-21) | `boards.parent_id`追加。フォーム側で自己参照/循環を防ぐ親セレクト(Wikiページと同じパターン)、一覧はトップレベル+ネストした子を表示 |
 | トピック作成/返信 | done | — |
 | Sticky | done | — |
 | ロック | done | `MessagePolicy::reply` で返信禁止を実装 |

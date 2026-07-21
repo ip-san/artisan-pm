@@ -222,6 +222,49 @@ test('quoting a topic prefills the reply textarea with a blockquote', function (
     expect($component->get('replyContent'))->toBe("Bob wrote:\n> hello\n> world\n\n");
 });
 
+test('a manager can create a board nested under an existing one', function () {
+    $project = Project::factory()->create();
+    $manager = boardMember($project, ['view_messages', 'manage_boards']);
+    $parent = Board::factory()->for($project)->create();
+
+    Livewire::actingAs($manager)
+        ->test('boards.form', ['project' => $project])
+        ->set('name', 'Sub-forum')
+        ->set('parent_id', $parent->id)
+        ->call('save');
+
+    $child = Board::where('name', 'Sub-forum')->firstOrFail();
+    expect($child->parent_id)->toBe($parent->id);
+});
+
+test('the board parent picker excludes the board itself and its descendants', function () {
+    $project = Project::factory()->create();
+    $manager = boardMember($project, ['view_messages', 'manage_boards']);
+    $grandparent = Board::factory()->for($project)->create();
+    $parent = Board::factory()->for($project)->create(['parent_id' => $grandparent->id]);
+    $child = Board::factory()->for($project)->create(['parent_id' => $parent->id]);
+
+    $component = Livewire::actingAs($manager)->test('boards.form', ['project' => $project, 'board' => $grandparent]);
+
+    $availableIds = $component->get('availableParents')->pluck('id');
+
+    expect($availableIds)->not->toContain($grandparent->id)
+        ->not->toContain($parent->id)
+        ->not->toContain($child->id);
+});
+
+test('the board list shows child boards nested under their parent', function () {
+    $project = Project::factory()->create();
+    $user = boardMember($project);
+    $parent = Board::factory()->for($project)->create(['name' => 'Parent Forum']);
+    $child = Board::factory()->for($project)->create(['name' => 'Child Forum', 'parent_id' => $parent->id]);
+
+    Livewire::actingAs($user)
+        ->test('boards.index', ['project' => $project])
+        ->assertSee('Parent Forum')
+        ->assertSee('Child Forum');
+});
+
 test('a member with view_messages can watch and unwatch a topic', function () {
     $project = Project::factory()->create();
     $user = boardMember($project, ['view_messages']);

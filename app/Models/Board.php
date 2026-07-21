@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
-#[Fillable(['project_id', 'name', 'description', 'position'])]
+#[Fillable(['project_id', 'parent_id', 'name', 'description', 'position'])]
 final class Board extends Model implements Sortable
 {
     /** @use HasFactory<BoardFactory> */
@@ -40,6 +40,22 @@ final class Board extends Model implements Sortable
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * @return BelongsTo<Board, $this>
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    /**
+     * @return HasMany<Board, $this>
+     */
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id')->orderBy('position');
     }
 
     /**
