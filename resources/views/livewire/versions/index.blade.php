@@ -40,16 +40,35 @@ new #[Layout('components.layouts.app')] class extends Component
 
         unset($this->versions);
     }
+
+    public function closeCompleted(): void
+    {
+        $this->project->closeCompletedVersions();
+
+        unset($this->versions);
+
+        session()->flash('status', '完了したバージョンをクローズしました。');
+    }
 }; ?>
 
 <div>
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — バージョン</h1>
-        <a href="{{ route('versions.create', $project) }}"
-            class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
-            新規バージョン
-        </a>
+        <div class="flex gap-2">
+            <button wire:click="closeCompleted" wire:confirm="期日を過ぎ、未クローズの課題が残っていないオープン/ロック中のバージョンをすべてクローズします。よろしいですか?"
+                class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                完了したバージョンをクローズ
+            </button>
+            <a href="{{ route('versions.create', $project) }}"
+                class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                新規バージョン
+            </a>
+        </div>
     </div>
+
+    @if (session('status'))
+        <div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>
+    @endif
 
     @if (session('error'))
         <div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{{ session('error') }}</div>

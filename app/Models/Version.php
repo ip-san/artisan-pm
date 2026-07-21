@@ -97,6 +97,23 @@ final class Version extends Model implements HasMedia
             ->sum('hours');
     }
 
+    /**
+     * A version is complete once it's already closed, or its due date has
+     * passed with no open issues remaining — matches Redmine's Version#
+     * completed?. Used by Project::closeCompletedVersions() to decide
+     * which open/locked versions to auto-close.
+     */
+    public function isCompleted(): bool
+    {
+        if ($this->status === VersionStatus::Closed) {
+            return true;
+        }
+
+        return $this->due_date !== null
+            && $this->due_date->isPast()
+            && ! $this->issues()->whereHas('status', fn ($query) => $query->where('is_closed', false))->exists();
+    }
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('files');

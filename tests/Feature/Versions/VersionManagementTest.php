@@ -119,3 +119,57 @@ test('version hour totals only count leaf issues for estimated hours but all iss
         ->and($version->estimatedRemainingHours())->toBe(2.0)
         ->and($version->spentHours())->toBe(3.0);
 });
+
+test('a version with a past due date and no open issues is completed', function () {
+    $project = Project::factory()->create();
+    $version = Version::factory()->for($project)->create(['due_date' => now()->subDay()->toDateString()]);
+    Issue::factory()->for($project)->create([
+        'tracker_id' => Tracker::factory()->create()->id,
+        'status_id' => IssueStatus::factory()->closed()->create()->id,
+        'priority_id' => Enumeration::factory()->create()->id,
+        'fixed_version_id' => $version->id,
+    ]);
+
+    expect($version->isCompleted())->toBeTrue();
+});
+
+test('a version with a past due date but an open issue is not completed', function () {
+    $project = Project::factory()->create();
+    $version = Version::factory()->for($project)->create(['due_date' => now()->subDay()->toDateString()]);
+    Issue::factory()->for($project)->create([
+        'tracker_id' => Tracker::factory()->create()->id,
+        'status_id' => IssueStatus::factory()->create()->id,
+        'priority_id' => Enumeration::factory()->create()->id,
+        'fixed_version_id' => $version->id,
+    ]);
+
+    expect($version->isCompleted())->toBeFalse();
+});
+
+test('a version with no due date is never auto-completed', function () {
+    $project = Project::factory()->create();
+    $version = Version::factory()->for($project)->create(['due_date' => null]);
+
+    expect($version->isCompleted())->toBeFalse();
+});
+
+test('closing completed versions leaves an incomplete version untouched', function () {
+    $project = Project::factory()->create();
+    $incomplete = Version::factory()->for($project)->create(['due_date' => now()->addWeek()->toDateString()]);
+
+    $project->closeCompletedVersions();
+
+    expect($incomplete->fresh()->status)->toBe(VersionStatus::Open);
+});
+
+test('the close-completed-versions button closes a completed version and leaves others alone', function () {
+    $project = Project::factory()->create();
+    $completed = Version::factory()->for($project)->create(['status' => VersionStatus::Open->value, 'due_date' => now()->subDay()->toDateString()]);
+    $stillOpen = Version::factory()->for($project)->create(['status' => VersionStatus::Open->value, 'due_date' => now()->addWeek()->toDateString()]);
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)->test('versions.index', ['project' => $project])->call('closeCompleted');
+
+    expect($completed->fresh()->status)->toBe(VersionStatus::Closed)
+        ->and($stillOpen->fresh()->status)->toBe(VersionStatus::Open);
+});

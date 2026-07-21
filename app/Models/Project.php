@@ -8,6 +8,7 @@ use App\Concerns\HasCustomFields;
 use App\Enums\CustomizableType;
 use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
+use App\Enums\VersionStatus;
 use App\Support\Authorization\AuthorizationService;
 use Database\Factories\ProjectFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -113,6 +114,23 @@ final class Project extends Model implements HasMedia
     public function versions(): HasMany
     {
         return $this->hasMany(Version::class);
+    }
+
+    /**
+     * Closes every open/locked version that's completed — matches
+     * Redmine's Project#close_completed_versions, triggered by an explicit
+     * admin action rather than automatically on every issue close.
+     */
+    public function closeCompletedVersions(): void
+    {
+        $this->versions()
+            ->whereIn('status', [VersionStatus::Open->value, VersionStatus::Locked->value])
+            ->get()
+            ->each(function (Version $version) {
+                if ($version->isCompleted()) {
+                    $version->update(['status' => VersionStatus::Closed]);
+                }
+            });
     }
 
     /**
