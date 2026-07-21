@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Issue;
 use App\Models\IssueStatus;
+use App\Models\Setting;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -19,6 +21,12 @@ new #[Layout('components.layouts.app')] class extends Component
         return IssueStatus::query()->withCount('issues')->orderBy('position')->get();
     }
 
+    #[Computed]
+    public function usesStatusForDoneRatio(): bool
+    {
+        return Setting::get('issue_done_ratio', 'issue_field') === 'issue_status';
+    }
+
     public function delete(int $statusId): void
     {
         $status = IssueStatus::findOrFail($statusId);
@@ -34,16 +42,54 @@ new #[Layout('components.layouts.app')] class extends Component
 
         unset($this->statuses);
     }
+
+    /**
+     * Matches Redmine's IssueStatus.update_issue_done_ratios: a manual
+     * admin action (not triggered automatically on every status edit)
+     * that sets done_ratio to each status's default_done_ratio for
+     * every issue currently in that status. Only meaningful — and only
+     * offered — while issue_done_ratio is 'issue_status'.
+     */
+    public function updateIssueDoneRatios(): void
+    {
+        $this->authorize('viewAny', IssueStatus::class);
+
+        if (! $this->usesStatusForDoneRatio) {
+            return;
+        }
+
+        IssueStatus::query()
+            ->whereNotNull('default_done_ratio')
+            ->get(['id', 'default_done_ratio'])
+            ->each(fn (IssueStatus $status) => Issue::query()
+                ->where('status_id', $status->id)
+                ->update(['done_ratio' => $status->default_done_ratio]));
+
+        session()->flash('status', '既存の課題の進捗率を更新しました。');
+    }
 }; ?>
 
 <div>
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-gray-900">ステータス管理</h1>
-        <a href="{{ route('issue-statuses.create') }}"
-            class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
-            新規ステータス
-        </a>
+        <div class="flex gap-2">
+            @if ($this->usesStatusForDoneRatio)
+                <button wire:click="updateIssueDoneRatios"
+                    wire:confirm="既存の全課題の進捗率を、現在のステータスの既定値で上書きします。よろしいですか?"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    既存課題の進捗率を一括更新
+                </button>
+            @endif
+            <a href="{{ route('issue-statuses.create') }}"
+                class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                新規ステータス
+            </a>
+        </div>
     </div>
+
+    @if (session('status'))
+        <div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>
+    @endif
 
     @if (session('error'))
         <div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{{ session('error') }}</div>
