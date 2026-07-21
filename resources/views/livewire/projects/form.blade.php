@@ -23,6 +23,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $is_public = true;
 
+    public ?int $parent_id = null;
+
     /** @var array<string> */
     public array $modules = [];
 
@@ -42,6 +44,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->identifier = $project->identifier;
             $this->description = (string) $project->description;
             $this->is_public = $project->is_public;
+            $this->parent_id = $project->parent_id;
             $this->modules = $project->moduleAssignments->pluck('module.value')->all();
             $this->trackerIds = $project->trackers->pluck('id')->all();
 
@@ -51,7 +54,19 @@ new #[Layout('components.layouts.app')] class extends Component
                     : $project->customValue($field);
             }
         } else {
-            $this->authorize('create', Project::class);
+            // A parent_id in the query string (arrived at via a project's
+            // "add subproject" link) is authorized against that specific
+            // parent's add_subprojects permission — less restrictive than
+            // top-level project creation, which stays admin-only.
+            $requestedParentId = request()->integer('parent_id') ?: null;
+            $parentProject = $requestedParentId !== null ? Project::query()->find($requestedParentId) : null;
+
+            if ($parentProject !== null) {
+                $this->authorize('createSubproject', $parentProject);
+                $this->parent_id = $parentProject->id;
+            } else {
+                $this->authorize('create', Project::class);
+            }
 
             $this->modules = array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults());
         }
@@ -61,6 +76,26 @@ new #[Layout('components.layouts.app')] class extends Component
     public function trackers(): Collection
     {
         return Tracker::query()->orderBy('position')->get();
+    }
+
+    /**
+     * Every project that could legally become this one's parent — i.e.
+     * everything except itself and its own descendants, which would
+     * otherwise create a cycle in the nested set.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function availableParents(): Collection
+    {
+        $excludedIds = $this->project
+            ? $this->project->descendants()->pluck('id')->push($this->project->id)
+            : collect();
+
+        return Project::query()
+            ->whereNotIn('id', $excludedIds)
+            ->orderBy('name')
+            ->get();
     }
 
     /**
@@ -89,6 +124,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ],
             'description' => ['nullable', 'string'],
             'is_public' => ['boolean'],
+            'parent_id' => ['nullable', Rule::in($this->availableParents->pluck('id')->all())],
             'trackerIds' => ['required', 'array', 'min:1'],
             'trackerIds.*' => ['exists:trackers,id'],
         ];
@@ -168,6 +204,19 @@ new #[Layout('components.layouts.app')] class extends Component
             <textarea wire:model="description" rows="3"
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
         </div>
+
+        @if ($this->availableParents->isNotEmpty())
+            <div>
+                <label class="block text-sm font-medium text-gray-700">親プロジェクト</label>
+                <select wire:model="parent_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">なし(最上位プロジェクト)</option>
+                    @foreach ($this->availableParents as $candidate)
+                        <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
+                    @endforeach
+                </select>
+                @error('parent_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+        @endif
 
         <label class="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" wire:model="is_public" class="rounded border-gray-300">
