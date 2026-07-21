@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Services\IssueService;
+use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
@@ -64,6 +65,23 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->project = $project;
         $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user']);
+    }
+
+    /**
+     * The description and every Journal comment share the same Markdown
+     * dialect as Wiki pages (#123 links, [[Page]] links, inline images
+     * resolved against this issue's own attachments) — previously neither
+     * was rendered as Markdown at all, just shown as raw text.
+     */
+    #[Computed]
+    public function renderedDescription(): string
+    {
+        return app(WikiMarkdownRenderer::class)->render((string) $this->issue->description, $this->project, $this->issue->attachments());
+    }
+
+    public function renderedNotes(Journal $journal): string
+    {
+        return app(WikiMarkdownRenderer::class)->render((string) $journal->notes, $this->project, $this->issue->attachments());
     }
 
     /**
@@ -488,7 +506,9 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($issue->description)
-        <div class="mb-6 whitespace-pre-line text-sm text-gray-700">{{ $issue->description }}</div>
+        <div class="prose prose-sm max-w-none mb-6 rounded-md border border-gray-200 bg-white p-4">
+            {!! $this->renderedDescription !!}
+        </div>
     @endif
 
     @if ($this->customFieldDisplayValues->isNotEmpty())
@@ -661,7 +681,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </div>
                     @endforeach
                     @if ($journal->notes)
-                        <p class="mt-1 text-gray-800">{{ $journal->notes }}</p>
+                        <div class="prose prose-sm max-w-none mt-1 text-gray-800">{!! $this->renderedNotes($journal) !!}</div>
                         @can('update', $issue)
                             <button wire:click="quote({{ $journal->id }})" class="mt-1 text-xs text-indigo-600 hover:underline">引用</button>
                         @endcan
