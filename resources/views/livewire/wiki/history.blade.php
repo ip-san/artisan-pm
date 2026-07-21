@@ -14,12 +14,20 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public WikiPage $wikiPage;
 
+    public ?int $diffFrom = null;
+
+    public ?int $diffTo = null;
+
     public function mount(Project $project, WikiPage $wikiPage): void
     {
         $this->authorize('view', $wikiPage);
 
         $this->project = $project;
         $this->wikiPage = $wikiPage;
+
+        $versionNumbers = $this->versions->pluck('version')->sortDesc()->values();
+        $this->diffTo = $versionNumbers->first();
+        $this->diffFrom = $versionNumbers->get(1);
     }
 
     /**
@@ -68,14 +76,28 @@ new #[Layout('components.layouts.app')] class extends Component
     <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
         @foreach ($this->versions as $version)
             <li wire:key="wiki-version-{{ $version->id }}" class="flex items-center justify-between px-4 py-2 text-sm">
-                <div>
-                    <a href="{{ route('wiki.version', [$project, $wikiPage, $version->version]) }}" class="text-indigo-600 hover:underline">
-                        v{{ $version->version }}
-                    </a>
-                    <span class="text-gray-500">— {{ $version->author->name }} — {{ $version->created_at->format('Y-m-d H:i') }}</span>
-                    @if ($version->comments)
-                        <span class="text-gray-400">({{ $version->comments }})</span>
+                <div class="flex items-center gap-3">
+                    @if ($this->versions->count() > 1)
+                        <span class="flex items-center gap-1 text-xs text-gray-400">
+                            <label class="flex items-center gap-0.5">
+                                旧
+                                <input type="radio" wire:model="diffFrom" value="{{ $version->version }}" class="border-gray-300">
+                            </label>
+                            <label class="flex items-center gap-0.5">
+                                新
+                                <input type="radio" wire:model="diffTo" value="{{ $version->version }}" class="border-gray-300">
+                            </label>
+                        </span>
                     @endif
+                    <div>
+                        <a href="{{ route('wiki.version', [$project, $wikiPage, $version->version]) }}" class="text-indigo-600 hover:underline">
+                            v{{ $version->version }}
+                        </a>
+                        <span class="text-gray-500">— {{ $version->author->name }} — {{ $version->created_at->format('Y-m-d H:i') }}</span>
+                        @if ($version->comments)
+                            <span class="text-gray-400">({{ $version->comments }})</span>
+                        @endif
+                    </div>
                 </div>
                 @can('update', $wikiPage)
                     @if ($version->version !== $this->versions->max('version') && $this->versions->count() > 1)
@@ -88,4 +110,17 @@ new #[Layout('components.layouts.app')] class extends Component
             </li>
         @endforeach
     </ul>
+
+    @if ($this->versions->count() > 1)
+        <div class="mt-4">
+            @if ($diffFrom !== null && $diffTo !== null && $diffFrom !== $diffTo)
+                <a href="{{ route('wiki.diff', [$project, $wikiPage, 'from' => $diffFrom, 'to' => $diffTo]) }}"
+                    class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                    選択したバージョンを比較
+                </a>
+            @else
+                <span class="text-xs text-gray-400">比較する2つのバージョンを選択してください(旧/新)。</span>
+            @endif
+        </div>
+    @endif
 </div>
