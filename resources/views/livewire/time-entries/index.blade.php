@@ -10,6 +10,7 @@ use App\Support\Query\TimeEntryFilterFieldRegistry;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Number;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -221,12 +222,20 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function totalHours(): string
     {
-        return number_format((float) $this->timeEntries->sum('hours'), 2);
+        return $this->formatHours($this->timeEntries);
     }
 
     public function groupTotalHours(EloquentCollection $entries): string
     {
-        return number_format((float) $entries->sum('hours'), 2);
+        return $this->formatHours($entries);
+    }
+
+    /**
+     * @param  EloquentCollection<int, TimeEntry>  $entries
+     */
+    private function formatHours(EloquentCollection $entries): string
+    {
+        return Number::format((float) $entries->sum('hours'), precision: 2);
     }
 
     #[Computed]

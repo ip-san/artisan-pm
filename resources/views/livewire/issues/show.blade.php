@@ -5,6 +5,7 @@ use App\Models\Issue;
 use App\Models\Journal;
 use App\Models\Project;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Number;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -150,7 +151,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($issue->timeEntries->isNotEmpty())
         <h2 class="text-sm font-semibold text-gray-900 mb-2">
-            工数 ({{ number_format((float) $issue->timeEntries->sum('hours'), 2) }} 時間)
+            工数 ({{ Number::format((float) $issue->timeEntries->sum('hours'), precision: 2) }} 時間)
         </h2>
         <ul class="mb-6 space-y-1">
             @foreach ($issue->timeEntries as $entry)
