@@ -79,9 +79,13 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Every project that could legally become this one's parent — i.e.
-     * everything except itself and its own descendants, which would
-     * otherwise create a cycle in the nested set.
+     * Every project that could legally become this one's parent: not
+     * itself or its own descendants (which would create a cycle in the
+     * nested set), and — since this drives both the dropdown and the
+     * Rule::in() allowlist in save() — only ones the current user
+     * actually holds createSubproject on, so the list can't be used to
+     * either submit an unauthorized parent or discover private project
+     * names via the dropdown.
      *
      * @return Collection<int, Project>
      */
@@ -95,7 +99,9 @@ new #[Layout('components.layouts.app')] class extends Component
         return Project::query()
             ->whereNotIn('id', $excludedIds)
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->filter(fn (Project $candidate) => auth()->user()?->can('createSubproject', $candidate))
+            ->values();
     }
 
     /**
@@ -116,6 +122,23 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function save(): void
     {
+        // Re-authorize against whatever parent_id is actually about to be
+        // submitted — mount() only checked the query-string parent at load
+        // time, and parent_id is a public property a client could still
+        // change before calling save(). Only re-check when it's actually
+        // changing (or this is a new project), so editing an existing
+        // subproject's other fields doesn't newly require createSubproject
+        // on a parent that was never being touched.
+        $parentChanged = $this->project === null || $this->parent_id !== $this->project->parent_id;
+
+        if ($parentChanged) {
+            if ($this->parent_id !== null) {
+                $this->authorize('createSubproject', Project::findOrFail($this->parent_id));
+            } elseif ($this->project === null) {
+                $this->authorize('create', Project::class);
+            }
+        }
+
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'identifier' => [
@@ -124,7 +147,12 @@ new #[Layout('components.layouts.app')] class extends Component
             ],
             'description' => ['nullable', 'string'],
             'is_public' => ['boolean'],
-            'parent_id' => ['nullable', Rule::in($this->availableParents->pluck('id')->all())],
+            // Allowed parents are the permission-filtered list, plus this
+            // project's own current parent (if any) — so leaving parent_id
+            // untouched on an ordinary edit never fails validation just
+            // because the editor doesn't hold createSubproject on a parent
+            // that was set before they had that permission or ever needed it.
+            'parent_id' => ['nullable', Rule::in([...$this->availableParents->pluck('id')->all(), $this->project?->parent_id])],
             'trackerIds' => ['required', 'array', 'min:1'],
             'trackerIds.*' => ['exists:trackers,id'],
         ];

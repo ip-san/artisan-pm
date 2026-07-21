@@ -75,3 +75,84 @@ test('a member without add_subprojects cannot reach the create form via a parent
 
     Livewire::actingAs($user)->withQueryParams(['parent_id' => $parent->id])->test('projects.form')->assertForbidden();
 });
+
+test('re-targeting parent_id to an unauthorized project after mount is rejected on save', function () {
+    $authorizedParent = Project::factory()->create();
+    $unauthorizedParent = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['add_subprojects', 'view_project']]);
+    Member::factory()->for($authorizedParent)->for($user)->create()->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->withQueryParams(['parent_id' => $authorizedParent->id])
+        ->test('projects.form')
+        ->set('name', 'Sneaky Child')
+        ->set('identifier', 'sneaky-child')
+        ->set('trackerIds', [$tracker->id])
+        // Simulates a tampered request: the form mounted authorized against
+        // $authorizedParent, but the client sends a different parent_id.
+        ->set('parent_id', $unauthorizedParent->id)
+        ->call('save')
+        ->assertForbidden();
+
+    expect(Project::where('identifier', 'sneaky-child')->exists())->toBeFalse();
+});
+
+test('clearing parent_id after mount does not escalate to top-level project creation', function () {
+    $authorizedParent = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['add_subprojects', 'view_project']]);
+    Member::factory()->for($authorizedParent)->for($user)->create()->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->withQueryParams(['parent_id' => $authorizedParent->id])
+        ->test('projects.form')
+        ->set('name', 'Sneaky Top Level')
+        ->set('identifier', 'sneaky-top-level')
+        ->set('trackerIds', [$tracker->id])
+        ->set('parent_id', null)
+        ->call('save')
+        ->assertForbidden();
+
+    expect(Project::where('identifier', 'sneaky-top-level')->exists())->toBeFalse();
+});
+
+test('reparenting to a project without createSubproject there is rejected even with edit_project on the project itself', function () {
+    $project = Project::factory()->create();
+    $project->trackers()->attach(Tracker::factory()->create());
+    $unauthorizedParent = Project::factory()->create();
+
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['edit_project', 'view_project']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('projects.form', ['project' => $project])
+        ->set('parent_id', $unauthorizedParent->id)
+        ->call('save')
+        ->assertForbidden();
+
+    expect($project->refresh()->parent_id)->toBeNull();
+});
+
+test('editing other fields on an existing subproject does not require createSubproject on its current parent', function () {
+    $parent = Project::factory()->create();
+    $project = Project::factory()->create(['parent_id' => $parent->id, 'name' => 'Old name']);
+    $project->trackers()->attach(Tracker::factory()->create());
+
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['edit_project', 'view_project']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('projects.form', ['project' => $project])
+        ->set('name', 'Updated name')
+        ->call('save')
+        ->assertRedirect();
+
+    expect($project->refresh())
+        ->name->toBe('Updated name')
+        ->parent_id->toBe($parent->id);
+});
