@@ -250,14 +250,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 $this->authorize('transitionTo', [$this->issue, IssueStatus::findOrFail($data['status_id'])]);
             }
 
-            $issue = app(IssueService::class)->update($this->issue, $data, auth()->user(), $this->comment ?: null);
+            $issue = app(IssueService::class)->update($this->issue, $data, auth()->user(), $this->comment ?: null, $customFieldData);
         } else {
             $data['project_id'] = $this->project->id;
             $data['status_id'] = $this->status_id;
-            $issue = app(IssueService::class)->create($data, auth()->user());
+            $issue = app(IssueService::class)->create($data, auth()->user(), $customFieldData);
         }
-
-        $issue->setCustomFieldValues($customFieldData);
 
         foreach ($this->newAttachments as $file) {
             $issue->addMedia($file->getRealPath())

@@ -20,11 +20,10 @@ use LogicException;
  * issue-edit split.
  *
  * Journals with private_notes = true are excluded outright rather than
- * gated behind a permission: this app doesn't yet have a dedicated
- * "view private notes" permission anywhere (including the issue's own
- * show page, which is a pre-existing gap from Phase 1, not something
- * this feed should compound by surfacing private note content on a
- * higher-visibility, cross-issue page).
+ * gated behind view_private_notes (which the issue show page does check,
+ * see IssuePolicy::viewPrivateNotes) — this is a cross-issue, higher-
+ * visibility feed, so it deliberately stays conservative rather than
+ * per-viewer-filtering private note content into it.
  */
 final class IssueJournalActivityProvider implements ActivityProvider
 {

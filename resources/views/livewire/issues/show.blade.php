@@ -5,6 +5,7 @@ use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\IssueRelation;
 use App\Models\Journal;
+use App\Models\JournalDetail;
 use App\Models\Project;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
@@ -119,6 +120,24 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->issue->load(['relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project']);
         unset($this->relations);
+    }
+
+    /**
+     * @return Collection<int, string>
+     */
+    #[Computed]
+    public function customFieldNames(): Collection
+    {
+        return CustomField::query()->pluck('name', 'id');
+    }
+
+    public function journalDetailLabel(JournalDetail $detail): string
+    {
+        if ($detail->property !== 'cf') {
+            return $detail->prop_key;
+        }
+
+        return $this->customFieldNames[(int) $detail->prop_key] ?? $detail->prop_key;
     }
 
     /**
@@ -362,7 +381,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                     @foreach ($journal->details as $detail)
                         <div class="text-gray-600 text-xs">
-                            {{ $detail->prop_key }}: {{ $detail->old_value ?? '(未設定)' }} → {{ $detail->new_value ?? '(未設定)' }}
+                            {{ $this->journalDetailLabel($detail) }}: {{ $detail->old_value ?? '(未設定)' }} → {{ $detail->new_value ?? '(未設定)' }}
                         </div>
                     @endforeach
                     @if ($journal->notes)

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -66,4 +67,53 @@ test('an update with no field changes and no comment writes no journal', functio
     issueService()->update($issue, ['subject' => 'Same subject'], $actor);
 
     expect($issue->fresh()->journals)->toBeEmpty();
+});
+
+test('a custom field change is recorded in the journal', function () {
+    $actor = User::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $field = CustomField::factory()->create(['name' => 'Severity']);
+    $field->trackers()->attach($tracker);
+    $issue = Issue::factory()->create(['tracker_id' => $tracker->id]);
+
+    $updated = issueService()->update($issue, [], $actor, null, [$field->id => 'High']);
+
+    $journal = $updated->journals()->firstOrFail();
+    $detail = $journal->details->firstOrFail();
+
+    expect($detail->property)->toBe('cf')
+        ->and($detail->prop_key)->toBe((string) $field->id)
+        ->and($detail->old_value)->toBeNull()
+        ->and($detail->new_value)->toBe('High');
+});
+
+test('a custom field change alongside a core attribute change is journaled in one entry', function () {
+    $actor = User::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $field = CustomField::factory()->create();
+    $field->trackers()->attach($tracker);
+    $issue = Issue::factory()->create(['tracker_id' => $tracker->id, 'subject' => 'Old subject']);
+    $issue->setCustomFieldValues([$field->id => 'Low']);
+
+    $updated = issueService()->update($issue, ['subject' => 'New subject'], $actor, null, [$field->id => 'High']);
+
+    $journal = $updated->journals()->firstOrFail();
+
+    expect($journal->details)->toHaveCount(2)
+        ->and($journal->details->firstWhere('property', 'attr')->prop_key)->toBe('subject')
+        ->and($journal->details->firstWhere('property', 'cf')->old_value)->toBe('Low')
+        ->and($journal->details->firstWhere('property', 'cf')->new_value)->toBe('High');
+});
+
+test('an unchanged custom field value writes no journal entry for it', function () {
+    $actor = User::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $field = CustomField::factory()->create();
+    $field->trackers()->attach($tracker);
+    $issue = Issue::factory()->create(['tracker_id' => $tracker->id]);
+    $issue->setCustomFieldValues([$field->id => 'Same']);
+
+    $updated = issueService()->update($issue, [], $actor, null, [$field->id => 'Same']);
+
+    expect($updated->journals)->toBeEmpty();
 });

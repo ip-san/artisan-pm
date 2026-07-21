@@ -6,6 +6,8 @@ namespace App\Services;
 
 use App\Events\IssueCreated;
 use App\Events\IssueUpdated;
+use App\Models\CustomField;
+use App\Models\CustomFieldValue;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Journal;
@@ -32,13 +34,16 @@ final class IssueService
 
     /**
      * @param  array<string, mixed>  $attributes
+     * @param  array<int, mixed>  $customFieldData  custom_field_id => raw input
      */
-    public function create(array $attributes, User $author): Issue
+    public function create(array $attributes, User $author, array $customFieldData = []): Issue
     {
         $issue = new Issue;
         $issue->fill($attributes);
         $issue->author_id = $author->id;
         $issue->save();
+
+        $issue->setCustomFieldValues($customFieldData);
 
         IssueCreated::dispatch($issue);
 
@@ -47,10 +52,12 @@ final class IssueService
 
     /**
      * @param  array<string, mixed>  $attributes
+     * @param  array<int, mixed>  $customFieldData  custom_field_id => raw input
      */
-    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null): Issue
+    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null, array $customFieldData = []): Issue
     {
         $original = $issue->only(self::JOURNALED_ATTRIBUTES);
+        $originalCustomValues = $this->customFieldSnapshot($issue);
 
         $issue->fill($attributes);
 
@@ -65,9 +72,12 @@ final class IssueService
 
         $issue->save();
 
-        $changes = $this->diff($original, $issue->only(self::JOURNALED_ATTRIBUTES));
+        $issue->setCustomFieldValues($customFieldData);
 
-        if ($changes !== [] || filled($comment)) {
+        $changes = $this->diff($original, $issue->only(self::JOURNALED_ATTRIBUTES));
+        $customFieldChanges = $this->diffCustomFieldSnapshots($originalCustomValues, $this->customFieldSnapshot($issue));
+
+        if ($changes !== [] || $customFieldChanges !== [] || filled($comment)) {
             $journal = Journal::create([
                 'issue_id' => $issue->id,
                 'user_id' => $actor->id,
@@ -82,9 +92,18 @@ final class IssueService
                     'new_value' => $new,
                 ]);
             }
+
+            foreach ($customFieldChanges as $fieldId => [$old, $new]) {
+                $journal->details()->create([
+                    'property' => 'cf',
+                    'prop_key' => (string) $fieldId,
+                    'old_value' => $old,
+                    'new_value' => $new,
+                ]);
+            }
         }
 
-        if ($changes !== []) {
+        if ($changes !== [] || $customFieldChanges !== []) {
             IssueUpdated::dispatch($issue);
         }
 
@@ -103,6 +122,61 @@ final class IssueService
         foreach (self::JOURNALED_ATTRIBUTES as $field) {
             if ((string) ($original[$field] ?? '') !== (string) ($updated[$field] ?? '')) {
                 $changes[$field] = [$original[$field] ?? null, $updated[$field] ?? null];
+            }
+        }
+
+        return $changes;
+    }
+
+    /**
+     * A comparable snapshot of this issue's current custom field values,
+     * keyed by field id — captured both before and after the update so
+     * changes (including from a tracker switch, which can change which
+     * fields are relevant) can be diffed into the same journal as core
+     * attribute changes.
+     *
+     * @return array<int, string|null>
+     */
+    private function customFieldSnapshot(Issue $issue): array
+    {
+        return $issue->relevantCustomFields()
+            ->mapWithKeys(fn (CustomField $field) => [$field->id => $this->normalizedCustomFieldValue($issue, $field)])
+            ->all();
+    }
+
+    private function normalizedCustomFieldValue(Issue $issue, CustomField $field): ?string
+    {
+        if ($field->multiple) {
+            $values = $issue->customFieldValues
+                ->where('custom_field_id', $field->id)
+                ->map(fn (CustomFieldValue $value) => (string) $value->value())
+                ->sort()
+                ->values()
+                ->all();
+
+            return $values === [] ? null : implode(',', $values);
+        }
+
+        $value = $issue->customValue($field);
+
+        return $value === null || $value === '' ? null : (string) $value;
+    }
+
+    /**
+     * @param  array<int, string|null>  $before
+     * @param  array<int, string|null>  $after
+     * @return array<int, array{0: ?string, 1: ?string}>
+     */
+    private function diffCustomFieldSnapshots(array $before, array $after): array
+    {
+        $changes = [];
+
+        foreach (array_unique([...array_keys($before), ...array_keys($after)]) as $fieldId) {
+            $old = $before[$fieldId] ?? null;
+            $new = $after[$fieldId] ?? null;
+
+            if ($old !== $new) {
+                $changes[$fieldId] = [$old, $new];
             }
         }
 
