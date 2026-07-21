@@ -208,6 +208,54 @@ test('a member with add_messages can attach a file when starting a topic, and de
     expect($topic->fresh()->attachments())->toHaveCount(0);
 });
 
+test('a member can set a description on a topic attachment', function () {
+    $project = Project::factory()->create();
+    $user = boardMember($project, ['view_messages', 'add_messages', 'edit_own_messages']);
+    $board = Board::factory()->for($project)->create();
+    $topic = Message::factory()->for($board)->for($user, 'author')->create();
+    $media = $topic->addMedia(UploadedFile::fake()->create('spec.pdf', 200))->toMediaCollection('attachments');
+
+    Livewire::actingAs($user)
+        ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic])
+        ->set("attachmentDescriptions.{$media->id}", 'Full specification')
+        ->call('updateAttachmentDescription', $topic->id, $media->id);
+
+    expect($media->fresh()->getCustomProperty('description'))->toBe('Full specification');
+});
+
+test('a member can set a description on a reply attachment', function () {
+    $project = Project::factory()->create();
+    $user = boardMember($project, ['view_messages', 'add_messages', 'edit_own_messages']);
+    $board = Board::factory()->for($project)->create();
+    $topic = Message::factory()->for($board)->create();
+    $reply = Message::factory()->for($board)->for($user, 'author')->create(['parent_id' => $topic->id]);
+    $media = $reply->addMedia(UploadedFile::fake()->create('notes.pdf', 200))->toMediaCollection('attachments');
+
+    Livewire::actingAs($user)
+        ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic])
+        ->set("attachmentDescriptions.{$media->id}", 'Meeting notes')
+        ->call('updateAttachmentDescription', $reply->id, $media->id);
+
+    expect($media->fresh()->getCustomProperty('description'))->toBe('Meeting notes');
+});
+
+test('a member without edit rights on the message cannot set an attachment description', function () {
+    $project = Project::factory()->create();
+    $author = boardMember($project, ['view_messages', 'add_messages', 'edit_own_messages']);
+    $other = boardMember($project, ['view_messages', 'add_messages', 'edit_own_messages']);
+    $board = Board::factory()->for($project)->create();
+    $topic = Message::factory()->for($board)->for($author, 'author')->create();
+    $media = $topic->addMedia(UploadedFile::fake()->create('spec.pdf', 200))->toMediaCollection('attachments');
+
+    Livewire::actingAs($other)
+        ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic])
+        ->set("attachmentDescriptions.{$media->id}", 'sneaky')
+        ->call('updateAttachmentDescription', $topic->id, $media->id)
+        ->assertForbidden();
+
+    expect($media->fresh()->getCustomProperty('description'))->toBeNull();
+});
+
 test('quoting a topic prefills the reply textarea with a blockquote', function () {
     $project = Project::factory()->create();
     $user = boardMember($project);
