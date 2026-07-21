@@ -18,11 +18,31 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int> */
     public array $roleIds = [];
 
+    public ?int $editingMemberId = null;
+
     public function mount(Project $project): void
     {
         $this->authorize('manageMembers', $project);
 
         $this->project = $project;
+    }
+
+    public function editMember(int $memberId): void
+    {
+        $this->authorize('manageMembers', $this->project);
+
+        $member = Member::query()->where('project_id', $this->project->id)->findOrFail($memberId);
+
+        abort_if($member->isForGroup(), 404);
+
+        $this->editingMemberId = $member->id;
+        $this->email = $member->user->email;
+        $this->roleIds = $member->roles->pluck('id')->all();
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->reset('email', 'roleIds', 'editingMemberId');
     }
 
     #[Computed]
@@ -54,7 +74,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $member->roles()->sync($data['roleIds']);
 
-        $this->reset('email', 'roleIds');
+        $this->reset('email', 'roleIds', 'editingMemberId');
         unset($this->members);
     }
 
@@ -77,7 +97,8 @@ new #[Layout('components.layouts.app')] class extends Component
     <form wire:submit="addMember" class="mb-8 space-y-3 rounded-md border border-gray-200 bg-white p-4">
         <div>
             <label class="block text-sm font-medium text-gray-700">ユーザーのメールアドレス</label>
-            <input type="email" wire:model="email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <input type="email" wire:model="email" @disabled($editingMemberId !== null)
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
@@ -94,9 +115,16 @@ new #[Layout('components.layouts.app')] class extends Component
             @error('roleIds') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
-        <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
-            メンバーを追加
-        </button>
+        <div class="flex gap-2">
+            <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                {{ $editingMemberId ? 'ロールを更新' : 'メンバーを追加' }}
+            </button>
+            @if ($editingMemberId)
+                <button type="button" wire:click="cancelEdit" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    キャンセル
+                </button>
+            @endif
+        </div>
     </form>
 
     <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
@@ -110,10 +138,17 @@ new #[Layout('components.layouts.app')] class extends Component
                         {{ $member->roles->pluck('name')->join(', ') }}
                     </span>
                 </div>
-                <button wire:click="removeMember({{ $member->id }})" wire:confirm="このメンバーを削除しますか?"
-                    class="text-sm text-red-600 hover:underline">
-                    削除
-                </button>
+                <div class="flex gap-3">
+                    @unless ($member->isForGroup())
+                        <button wire:click="editMember({{ $member->id }})" class="text-sm text-indigo-600 hover:underline">
+                            編集
+                        </button>
+                    @endunless
+                    <button wire:click="removeMember({{ $member->id }})" wire:confirm="このメンバーを削除しますか?"
+                        class="text-sm text-red-600 hover:underline">
+                        削除
+                    </button>
+                </div>
             </li>
         @empty
             <li class="px-4 py-6 text-sm text-gray-500">メンバーがいません。</li>
