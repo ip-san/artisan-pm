@@ -223,3 +223,32 @@ test('csv export streams a csv containing the filtered time entries', function (
         ->call('exportCsv')
         ->assertFileDownloaded("{$project->identifier}-time_entries.csv");
 });
+
+test('a member with own-only time entry visibility only sees their own entries', function () {
+    $project = Project::factory()->create();
+    $activity = timeEntryActivity();
+    $role = Role::factory()->create(['permissions' => ['view_time_entries'], 'time_entries_visibility' => 'own']);
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    $mine = TimeEntry::factory()->for($project)->for($user)->create(['activity_id' => $activity->id]);
+    $notMine = TimeEntry::factory()->for($project)->create(['activity_id' => $activity->id]);
+
+    $ids = Livewire::actingAs($user)->test('time-entries.index', ['project' => $project])->get('timeEntries')->pluck('id');
+
+    expect($ids)->toContain($mine->id)->not->toContain($notMine->id);
+});
+
+test('a member with all time entry visibility sees every entry', function () {
+    $project = Project::factory()->create();
+    $activity = timeEntryActivity();
+    $role = Role::factory()->create(['permissions' => ['view_time_entries'], 'time_entries_visibility' => 'all']);
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    $other = TimeEntry::factory()->for($project)->create(['activity_id' => $activity->id]);
+
+    $ids = Livewire::actingAs($user)->test('time-entries.index', ['project' => $project])->get('timeEntries')->pluck('id');
+
+    expect($ids)->toContain($other->id);
+});

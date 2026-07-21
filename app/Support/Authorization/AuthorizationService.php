@@ -6,6 +6,7 @@ namespace App\Support\Authorization;
 
 use App\Enums\IssueVisibility;
 use App\Enums\RoleBuiltin;
+use App\Enums\TimeEntryVisibility;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
@@ -95,6 +96,27 @@ final class AuthorizationService
         $broadest = $memberRoles->first(fn (Role $role) => $role->issues_visibility !== IssueVisibility::Own);
 
         return $broadest !== null ? IssueVisibility::All : IssueVisibility::Own;
+    }
+
+    /**
+     * Same broadest-wins resolution as issueVisibilityFor(), for
+     * time_entries_visibility.
+     */
+    public function timeEntryVisibilityFor(?User $user, Project $project): TimeEntryVisibility
+    {
+        if ($user?->is_admin) {
+            return TimeEntryVisibility::All;
+        }
+
+        $memberRoles = $user === null ? collect() : $this->memberRolesFor($user, $project);
+
+        if ($memberRoles->isEmpty()) {
+            return TimeEntryVisibility::All;
+        }
+
+        $broadest = $memberRoles->first(fn (Role $role) => $role->time_entries_visibility !== TimeEntryVisibility::Own);
+
+        return $broadest !== null ? TimeEntryVisibility::All : TimeEntryVisibility::Own;
     }
 
     /**

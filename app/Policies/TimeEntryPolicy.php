@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\TimeEntryVisibility;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Models\User;
@@ -18,6 +19,19 @@ final class TimeEntryPolicy
     public function viewAny(?User $user, Project $project): bool
     {
         return $this->authorization->can($user, 'view_time_entries', $project);
+    }
+
+    public function view(?User $user, TimeEntry $timeEntry): bool
+    {
+        if (! $this->authorization->can($user, 'view_time_entries', $timeEntry->project)) {
+            return false;
+        }
+
+        if ($this->authorization->timeEntryVisibilityFor($user, $timeEntry->project) !== TimeEntryVisibility::Own) {
+            return true;
+        }
+
+        return $user !== null && $timeEntry->user_id === $user->id;
     }
 
     public function create(User $user, Project $project): bool

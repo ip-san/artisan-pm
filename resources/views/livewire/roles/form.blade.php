@@ -2,6 +2,7 @@
 
 use App\Enums\IssueVisibility;
 use App\Enums\RoleBuiltin;
+use App\Enums\TimeEntryVisibility;
 use App\Models\Role;
 use App\Support\Permissions\PermissionRegistry;
 use Illuminate\Validation\Rule;
@@ -20,6 +21,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $issuesVisibility = 'all';
 
+    public string $timeEntriesVisibility = 'all';
+
     public function mount(?Role $role = null): void
     {
         if ($role?->exists) {
@@ -29,6 +32,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->name = $role->name;
             $this->permissions = $role->permissionKeys();
             $this->issuesVisibility = $role->issues_visibility->value;
+            $this->timeEntriesVisibility = $role->time_entries_visibility->value;
         } else {
             $this->authorize('create', Role::class);
 
@@ -59,6 +63,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->name = "{$source->name} のコピー";
         $this->permissions = $source->permissionKeys();
         $this->issuesVisibility = $source->issues_visibility->value;
+        $this->timeEntriesVisibility = $source->time_entries_visibility->value;
     }
 
     /**
@@ -80,11 +85,13 @@ new #[Layout('components.layouts.app')] class extends Component
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->ignore($this->role?->id)],
             'issuesVisibility' => ['required', Rule::enum(IssueVisibility::class)],
+            'timeEntriesVisibility' => ['required', Rule::enum(TimeEntryVisibility::class)],
         ]);
 
         $data['permissions'] = array_values(array_intersect($this->permissions, $this->availablePermissions));
         $data['issues_visibility'] = $data['issuesVisibility'];
-        unset($data['issuesVisibility']);
+        $data['time_entries_visibility'] = $data['timeEntriesVisibility'];
+        unset($data['issuesVisibility'], $data['timeEntriesVisibility']);
 
         if ($this->role) {
             $this->role->update($data);
@@ -117,6 +124,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 <option value="own">自分が作成または担当する課題のみ</option>
             </select>
             @error('issuesVisibility') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">工数の閲覧範囲</label>
+            <select wire:model="timeEntriesVisibility" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <option value="all">すべての工数</option>
+                <option value="default">デフォルト</option>
+                <option value="own">自分の工数のみ</option>
+            </select>
+            @error('timeEntriesVisibility') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
         <div>

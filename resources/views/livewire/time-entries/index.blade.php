@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\QueryType;
+use App\Enums\TimeEntryVisibility;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\TimeEntry;
@@ -66,6 +67,10 @@ new #[Layout('components.layouts.app')] class extends Component
         $query = TimeEntry::query()
             ->where('project_id', $this->project->id)
             ->with(['user', 'activity', 'issue']);
+
+        if (app(AuthorizationService::class)->timeEntryVisibilityFor(auth()->user(), $this->project) === TimeEntryVisibility::Own) {
+            $query->where('user_id', auth()->id());
+        }
 
         $query = $this->engine->applyFilters($query, $this->builtFilters());
 
