@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Support\Scm;
 
 use DateTimeImmutable;
+use Illuminate\Contracts\Process\ProcessResult;
+use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Process;
 
 final readonly class GitAdapter implements ScmAdapter
@@ -21,13 +23,32 @@ final readonly class GitAdapter implements ScmAdapter
 
     private const string RECORD_END = "\x03";
 
+    /**
+     * -c overrides neutralizing config-based attack vectors a hostile
+     * repository could plant in its own (committed or loose) .git/config —
+     * fsmonitor/sshCommand/hooksPath can all be abused to run arbitrary
+     * commands as soon as git reads config from the target directory, even
+     * for otherwise read-only operations like log/show/ls-tree. This is
+     * defense-in-depth on top of WithinRepositoriesRoot confining *which*
+     * directories are reachable at all — it deliberately does NOT touch
+     * safe.directory, so git's own dubious-ownership protection stays on.
+     *
+     * @var array<int, string>
+     */
+    private const array SAFETY_FLAGS = [
+        '-c', 'protocol.ext.allow=never',
+        '-c', 'core.fsmonitor=',
+        '-c', 'core.hooksPath=/dev/null',
+        '-c', 'core.sshCommand=false',
+    ];
+
     public function __construct(
         private string $path,
     ) {}
 
     public function isAvailable(): bool
     {
-        return Process::path($this->path)->timeout(10)->run(['git', 'rev-parse', '--is-inside-work-tree'])->successful();
+        return $this->git(['rev-parse', '--is-inside-work-tree'], 10)->successful();
     }
 
     public function log(?string $sinceRevision = null): array
@@ -35,9 +56,7 @@ final readonly class GitAdapter implements ScmAdapter
         $format = self::RECORD_START.'%H'.self::FIELD_SEP.'%an <%ae>'.self::FIELD_SEP.'%aI'.self::FIELD_SEP.'%B'.self::RECORD_END;
         $range = $sinceRevision !== null ? "{$sinceRevision}..HEAD" : 'HEAD';
 
-        $result = Process::path($this->path)->timeout(60)->run([
-            'git', 'log', '--reverse', '--name-status', "--pretty=format:{$format}", $range,
-        ]);
+        $result = $this->git(['log', '--reverse', '--name-status', "--pretty=format:{$format}", $range], 60);
 
         if (! $result->successful()) {
             // An empty repository (no commits yet) or an unreachable range
@@ -50,9 +69,60 @@ final readonly class GitAdapter implements ScmAdapter
 
     public function diff(string $revision): string
     {
-        $result = Process::path($this->path)->timeout(30)->run(['git', 'show', '--format=', $revision]);
+        $result = $this->git(['show', '--format=', $revision], 30);
 
         return $result->successful() ? $result->output() : '';
+    }
+
+    public function tree(string $revision, string $path = ''): array
+    {
+        $path = trim($path, '/');
+        $treeish = $path === '' ? "{$revision}:" : "{$revision}:{$path}";
+
+        $result = $this->git(['ls-tree', $treeish], 15);
+
+        if (! $result->successful()) {
+            return [];
+        }
+
+        $entries = [];
+
+        foreach (explode("\n", trim($result->output())) as $line) {
+            if ($line === '') {
+                continue;
+            }
+
+            [$info, $name] = explode("\t", $line, 2);
+            [, $type] = explode(' ', $info);
+
+            $entries[] = new ScmTreeEntry(
+                name: $name,
+                path: $path === '' ? $name : "{$path}/{$name}",
+                isDirectory: $type === 'tree',
+            );
+        }
+
+        return $entries;
+    }
+
+    public function fileContentAt(string $revision, string $path): string
+    {
+        $result = $this->git(['show', "{$revision}:{$path}"], 15);
+
+        return $result->successful() ? $result->output() : '';
+    }
+
+    /**
+     * @param  array<int, string>  $args
+     */
+    private function git(array $args, int $timeout): ProcessResult
+    {
+        return $this->process()->timeout($timeout)->run(['git', ...self::SAFETY_FLAGS, ...$args]);
+    }
+
+    private function process(): PendingProcess
+    {
+        return Process::path($this->path);
     }
 
     /**

@@ -3,6 +3,7 @@
 use App\Enums\RepositoryType;
 use App\Models\Project;
 use App\Models\Repository;
+use App\Rules\WithinRepositoriesRoot;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -33,7 +34,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $data = $this->validate([
             'type' => ['required', 'in:git'],
-            'path' => ['required', 'string', 'max:500'],
+            'path' => ['required', 'string', 'max:500', new WithinRepositoriesRoot],
         ]);
 
         if ($this->repository) {
@@ -67,7 +68,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('path') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             <p class="mt-1 text-xs text-gray-500">
-                アプリケーションサーバーからアクセス可能なローカルパスを指定してください。
+                管理者が配置したリポジトリ用ディレクトリ({{ config('scm.repositories_root') }})配下のパスのみ指定できます。
             </p>
         </div>
 

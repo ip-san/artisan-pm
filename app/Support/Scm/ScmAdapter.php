@@ -26,4 +26,17 @@ interface ScmAdapter
      * Unified diff text for a single revision against its parent.
      */
     public function diff(string $revision): string;
+
+    /**
+     * Immediate children of $path (a directory) at $revision — not
+     * recursive.
+     *
+     * @return array<int, ScmTreeEntry>
+     */
+    public function tree(string $revision, string $path = ''): array;
+
+    /**
+     * Raw content of the file at $path as of $revision.
+     */
+    public function fileContentAt(string $revision, string $path): string;
 }

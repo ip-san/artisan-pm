@@ -47,6 +47,7 @@ function createTestGitRepo(array $commitMessages): string
 
 afterEach(function () {
     Process::path(sys_get_temp_dir())->run(['find', '.', '-maxdepth', '1', '-name', 'scm-test-*', '-exec', 'rm', '-rf', '{}', ';']);
+    Process::path(config('scm.repositories_root'))->run(['find', '.', '-maxdepth', '1', '-name', 'allowed-*', '-exec', 'rm', '-rf', '{}', ';']);
 });
 
 test('syncing a repository records a changeset per commit, oldest first', function () {
@@ -136,21 +137,36 @@ test('only a member with manage_repository can configure the repository or trigg
     $project = Project::factory()->create();
     $viewer = repositoryMember($project);
     $manager = repositoryMember($project, ['view_changesets', 'manage_repository']);
+    $allowedPath = config('scm.repositories_root').'/allowed-'.uniqid();
+    mkdir($allowedPath);
 
     Livewire::actingAs($viewer)->test('repository.form', ['project' => $project])->assertForbidden();
 
     Livewire::actingAs($manager)
         ->test('repository.form', ['project' => $project])
-        ->set('path', '/tmp/does-not-matter')
+        ->set('path', $allowedPath)
         ->call('save');
 
     $repository = Repository::where('project_id', $project->id)->firstOrFail();
-    expect($repository->path)->toBe('/tmp/does-not-matter');
+    expect(realpath($repository->path))->toBe(realpath($allowedPath));
 
     Livewire::actingAs($viewer)
         ->test('repository.index', ['project' => $project])
         ->call('sync')
         ->assertForbidden();
+});
+
+test('a repository path outside the configured repositories root is rejected', function () {
+    $project = Project::factory()->create();
+    $manager = repositoryMember($project, ['view_changesets', 'manage_repository']);
+
+    Livewire::actingAs($manager)
+        ->test('repository.form', ['project' => $project])
+        ->set('path', sys_get_temp_dir())
+        ->call('save')
+        ->assertHasErrors(['path']);
+
+    expect(Repository::where('project_id', $project->id)->exists())->toBeFalse();
 });
 
 test('the diff view is cached rather than re-invoking git on every request', function () {
