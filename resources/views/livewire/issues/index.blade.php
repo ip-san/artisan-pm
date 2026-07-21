@@ -10,6 +10,7 @@ use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Setting;
+use App\Models\Tracker;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
@@ -100,6 +101,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public ?int $bulkDoneRatio = null;
 
     public string $bulkComment = '';
+
+    public ?int $bulkMoveToProjectId = null;
+
+    public ?int $bulkMoveToTrackerId = null;
 
     public function mount(Project $project): void
     {
@@ -488,6 +493,67 @@ new #[Layout('components.layouts.app')] class extends Component
 
         session()->flash('status', "{$count}件の課題を更新しました。");
     }
+
+    /**
+     * Same eligibility rule as the single-issue move: projects the user
+     * actually holds add_issues on.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function bulkMoveTargetProjects(): Collection
+    {
+        return Project::query()
+            ->where('id', '!=', $this->project->id)
+            ->get()
+            ->filter(fn (Project $candidate) => auth()->user()?->can('create', [Issue::class, $candidate]))
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, Tracker>
+     */
+    #[Computed]
+    public function bulkMoveTargetTrackers(): Collection
+    {
+        if ($this->bulkMoveToProjectId === null) {
+            return collect();
+        }
+
+        $target = $this->bulkMoveTargetProjects->firstWhere('id', $this->bulkMoveToProjectId);
+
+        return $target?->trackers ?? collect();
+    }
+
+    public function applyBulkMove(): void
+    {
+        $issues = $this->selectedIssues;
+
+        abort_if($issues->isEmpty(), 404);
+
+        foreach ($issues as $issue) {
+            $this->authorize('move', $issue);
+        }
+
+        $data = $this->validate([
+            'bulkMoveToProjectId' => ['required', Rule::in($this->bulkMoveTargetProjects->pluck('id')->all())],
+            'bulkMoveToTrackerId' => ['required', Rule::in($this->bulkMoveTargetTrackers->pluck('id')->all())],
+        ]);
+
+        $targetProject = Project::findOrFail($data['bulkMoveToProjectId']);
+
+        foreach ($issues as $issue) {
+            app(IssueService::class)->moveToProject($issue, $targetProject, $data['bulkMoveToTrackerId'], auth()->user());
+        }
+
+        $count = $issues->count();
+
+        $this->reset(['selected', 'bulkMoveToProjectId', 'bulkMoveToTrackerId']);
+        $this->resetPage();
+        unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
+
+        session()->flash('status', "{$count}件の課題を「{$targetProject->name}」へ移動しました。");
+    }
 }; ?>
 
 <div>
@@ -702,6 +768,37 @@ new #[Layout('components.layouts.app')] class extends Component
                     選択解除
                 </button>
             </div>
+        </form>
+    @endif
+
+    @if (count($selected) > 0 && auth()->user()?->can('move', $this->selectedIssues->first()) && $this->bulkMoveTargetProjects->isNotEmpty())
+        <form wire:submit="applyBulkMove" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-white p-4">
+            <div>
+                <label class="block text-xs font-medium text-gray-700">{{ count($selected) }}件を別のプロジェクトへ移動</label>
+                <select wire:model.live="bulkMoveToProjectId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                    <option value="">選択してください</option>
+                    @foreach ($this->bulkMoveTargetProjects as $candidate)
+                        <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
+                    @endforeach
+                </select>
+                @error('bulkMoveToProjectId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+            @if ($bulkMoveToProjectId)
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">移動後のトラッカー</label>
+                    <select wire:model="bulkMoveToTrackerId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                        <option value="">選択してください</option>
+                        @foreach ($this->bulkMoveTargetTrackers as $candidateTracker)
+                            <option value="{{ $candidateTracker->id }}">{{ $candidateTracker->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('bulkMoveToTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <button type="submit" wire:confirm="移動するとカテゴリ・対象バージョン・親課題はリセットされます。よろしいですか?"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    移動
+                </button>
+            @endif
         </form>
     @endif
 
