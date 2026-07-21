@@ -5,6 +5,7 @@ use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\Authorization\AuthorizationService;
 use Livewire\Livewire;
 
 test('an admin can add a member with roles by email', function () {
@@ -70,4 +71,33 @@ test('a group member cannot be opened for edit through editMember', function () 
         ->test('projects.members', ['project' => $project])
         ->call('editMember', $member->id)
         ->assertStatus(404);
+});
+
+test('an admin can add a group as a project member with roles', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $group = Group::factory()->create();
+    $role = Role::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('projects.members', ['project' => $project])
+        ->set('addType', 'group')
+        ->set('groupId', $group->id)
+        ->set('roleIds', [$role->id])
+        ->call('addMember');
+
+    $member = Member::where('project_id', $project->id)->where('group_id', $group->id)->firstOrFail();
+    expect($member->roles->pluck('id')->all())->toBe([$role->id]);
+});
+
+test('a user in a project-member group inherits the group role', function () {
+    $project = Project::factory()->create();
+    $group = Group::factory()->create();
+    $user = User::factory()->create();
+    $group->users()->attach($user);
+    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    $member = Member::factory()->for($project)->create(['group_id' => $group->id, 'user_id' => null]);
+    $member->roles()->attach($role);
+
+    expect(app(AuthorizationService::class)->can($user, 'view_issues', $project))->toBeTrue();
 });

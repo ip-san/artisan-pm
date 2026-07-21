@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Group;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
@@ -13,7 +14,11 @@ new #[Layout('components.layouts.app')] class extends Component
 {
     public Project $project;
 
+    public string $addType = 'user';
+
     public string $email = '';
+
+    public ?int $groupId = null;
 
     /** @var array<int> */
     public array $roleIds = [];
@@ -42,13 +47,27 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function cancelEdit(): void
     {
-        $this->reset('email', 'roleIds', 'editingMemberId');
+        $this->reset('email', 'groupId', 'roleIds', 'editingMemberId');
     }
 
     #[Computed]
     public function roles(): Collection
     {
         return Role::query()->whereNull('builtin')->orderBy('position')->get();
+    }
+
+    /**
+     * Groups not already members of this project — offered in the "add a
+     * group" selector.
+     *
+     * @return Collection<int, Group>
+     */
+    #[Computed]
+    public function availableGroups(): Collection
+    {
+        $memberGroupIds = $this->project->members()->whereNotNull('group_id')->pluck('group_id');
+
+        return Group::query()->whereNotIn('id', $memberGroupIds)->orderBy('name')->get();
     }
 
     #[Computed]
@@ -61,21 +80,32 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('manageMembers', $this->project);
 
-        $data = $this->validate([
-            'email' => ['required', 'email', 'exists:users,email'],
-            'roleIds' => ['required', 'array', 'min:1'],
-            'roleIds.*' => ['exists:roles,id'],
-        ]);
+        if ($this->addType === 'group') {
+            $data = $this->validate([
+                'groupId' => ['required', 'exists:groups,id'],
+                'roleIds' => ['required', 'array', 'min:1'],
+                'roleIds.*' => ['exists:roles,id'],
+            ]);
 
-        $user = User::query()->where('email', $data['email'])->firstOrFail();
+            $member = Member::query()
+                ->firstOrCreate(['project_id' => $this->project->id, 'group_id' => $data['groupId']]);
+        } else {
+            $data = $this->validate([
+                'email' => ['required', 'email', 'exists:users,email'],
+                'roleIds' => ['required', 'array', 'min:1'],
+                'roleIds.*' => ['exists:roles,id'],
+            ]);
 
-        $member = Member::query()
-            ->firstOrCreate(['project_id' => $this->project->id, 'user_id' => $user->id]);
+            $user = User::query()->where('email', $data['email'])->firstOrFail();
+
+            $member = Member::query()
+                ->firstOrCreate(['project_id' => $this->project->id, 'user_id' => $user->id]);
+        }
 
         $member->roles()->sync($data['roleIds']);
 
-        $this->reset('email', 'roleIds', 'editingMemberId');
-        unset($this->members);
+        $this->reset('email', 'groupId', 'roleIds', 'editingMemberId');
+        unset($this->members, $this->availableGroups);
     }
 
     public function removeMember(int $memberId): void
@@ -95,12 +125,38 @@ new #[Layout('components.layouts.app')] class extends Component
     <h1 class="text-xl font-semibold text-gray-900 mb-6">{{ $project->name }} — メンバー管理</h1>
 
     <form wire:submit="addMember" class="mb-8 space-y-3 rounded-md border border-gray-200 bg-white p-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700">ユーザーのメールアドレス</label>
-            <input type="email" wire:model="email" @disabled($editingMemberId !== null)
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-        </div>
+        @unless ($editingMemberId)
+            <div class="flex gap-4">
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="radio" wire:model.live="addType" value="user" class="border-gray-300">
+                    ユーザー
+                </label>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="radio" wire:model.live="addType" value="group" class="border-gray-300">
+                    グループ
+                </label>
+            </div>
+        @endunless
+
+        @if ($addType === 'group' && ! $editingMemberId)
+            <div>
+                <label class="block text-sm font-medium text-gray-700">グループ</label>
+                <select wire:model="groupId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">選択してください</option>
+                    @foreach ($this->availableGroups as $group)
+                        <option value="{{ $group->id }}">{{ $group->name }}</option>
+                    @endforeach
+                </select>
+                @error('groupId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+        @else
+            <div>
+                <label class="block text-sm font-medium text-gray-700">ユーザーのメールアドレス</label>
+                <input type="email" wire:model="email" @disabled($editingMemberId !== null)
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+        @endif
 
         <div>
             <span class="block text-sm font-medium text-gray-700 mb-1">ロール</span>
