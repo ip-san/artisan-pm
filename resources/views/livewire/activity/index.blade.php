@@ -89,7 +89,10 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">{{ $project->name }} — 活動</h1>
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — 活動</h1>
+        <a href="{{ route('activity.atom', $project) }}" class="text-xs text-orange-600 hover:underline">Atom</a>
+    </div>
 
     <div class="mb-6 flex flex-wrap items-end gap-4 rounded-md border border-gray-200 bg-white p-4">
         <div>

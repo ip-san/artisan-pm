@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityFeedController;
 use App\Http\Controllers\AttachmentController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -79,6 +80,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/repository/entry/{path}', 'repository.entry')->where('path', '.*')->name('repository.entry');
 
     Volt::route('/projects/{project:identifier}/activity', 'activity.index')->name('activity.index');
+    Route::get('/projects/{project:identifier}/activity.atom', ActivityFeedController::class)->name('activity.atom');
 
     Volt::route('/projects/{project:identifier}/calendar', 'calendar.index')->name('calendar.index');
 
