@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\RepositoryType;
 use App\Support\Scm\GitAdapter;
 use App\Support\Scm\ScmAdapter;
+use App\Support\Scm\SvnAdapter;
 use Database\Factories\RepositoryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -47,6 +48,7 @@ final class Repository extends Model
     {
         return match ($this->type) {
             RepositoryType::Git => new GitAdapter($this->path),
+            RepositoryType::Svn => new SvnAdapter($this->path),
         };
     }
 }

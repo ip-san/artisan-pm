@@ -4,6 +4,7 @@ use App\Enums\RepositoryType;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Rules\WithinRepositoriesRoot;
+use Illuminate\Validation\Rules\Enum;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -33,7 +34,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function save(): void
     {
         $data = $this->validate([
-            'type' => ['required', 'in:git'],
+            'type' => ['required', new Enum(RepositoryType::class)],
             'path' => ['required', 'string', 'max:500', new WithinRepositoriesRoot],
         ]);
 
