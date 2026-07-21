@@ -3,6 +3,7 @@
 use App\Enums\ProjectModuleKey;
 use App\Models\CustomField;
 use App\Models\Project;
+use App\Models\Tracker;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -25,6 +26,9 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<string> */
     public array $modules = [];
 
+    /** @var array<int> */
+    public array $trackerIds = [];
+
     /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
     public array $customFieldValues = [];
 
@@ -39,6 +43,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->description = (string) $project->description;
             $this->is_public = $project->is_public;
             $this->modules = $project->moduleAssignments->pluck('module.value')->all();
+            $this->trackerIds = $project->trackers->pluck('id')->all();
 
             foreach ($project->relevantCustomFields() as $field) {
                 $this->customFieldValues[$field->id] = $field->multiple
@@ -50,6 +55,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $this->modules = array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults());
         }
+    }
+
+    #[Computed]
+    public function trackers(): Collection
+    {
+        return Tracker::query()->orderBy('position')->get();
     }
 
     /**
@@ -78,6 +89,8 @@ new #[Layout('components.layouts.app')] class extends Component
             ],
             'description' => ['nullable', 'string'],
             'is_public' => ['boolean'],
+            'trackerIds' => ['required', 'array', 'min:1'],
+            'trackerIds.*' => ['exists:trackers,id'],
         ];
 
         foreach ($this->customFields as $field) {
@@ -94,7 +107,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data = $this->validate($rules);
         $customFieldData = $data['customFieldValues'] ?? [];
-        unset($data['customFieldValues']);
+        $trackerIds = $data['trackerIds'];
+        unset($data['customFieldValues'], $data['trackerIds']);
 
         if ($this->project) {
             $this->project->update($data);
@@ -105,6 +119,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->project->syncModules(
             collect($this->modules)->map(fn (string $m) => ProjectModuleKey::from($m))->all()
         );
+
+        $this->project->trackers()->sync($trackerIds);
 
         $this->project->setCustomFieldValues($customFieldData);
 
@@ -153,6 +169,24 @@ new #[Layout('components.layouts.app')] class extends Component
                     </label>
                 @endforeach
             </div>
+        </div>
+
+        <div>
+            <span class="block text-sm font-medium text-gray-700 mb-2">使用するトラッカー</span>
+            <div class="grid grid-cols-2 gap-2">
+                @foreach ($this->trackers as $tracker)
+                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" wire:model="trackerIds" value="{{ $tracker->id }}" class="rounded border-gray-300">
+                        {{ $tracker->name }}
+                    </label>
+                @endforeach
+            </div>
+            @error('trackerIds') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @if ($this->trackers->isEmpty())
+                <p class="mt-1 text-xs text-amber-600">
+                    トラッカーが登録されていません。先に <a href="{{ route('trackers.create') }}" class="underline">トラッカーを作成</a> してください。
+                </p>
+            @endif
         </div>
 
         @if ($this->customFields->isNotEmpty())

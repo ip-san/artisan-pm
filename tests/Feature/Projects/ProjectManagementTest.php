@@ -4,18 +4,21 @@ use App\Enums\ProjectModuleKey;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Tracker;
 use App\Models\User;
 use App\Policies\ProjectPolicy;
 use Livewire\Livewire;
 
-test('an admin can create a project with modules through the form', function () {
+test('an admin can create a project with modules and trackers through the form', function () {
     $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
 
     Livewire::actingAs($admin)
         ->test('projects.form')
         ->set('name', 'New Project')
         ->set('identifier', 'new-project')
         ->set('modules', [ProjectModuleKey::IssueTracking->value, ProjectModuleKey::Wiki->value])
+        ->set('trackerIds', [$tracker->id])
         ->call('save')
         ->assertRedirect();
 
@@ -23,7 +26,19 @@ test('an admin can create a project with modules through the form', function () 
 
     expect($project->name)->toBe('New Project')
         ->and($project->hasModule(ProjectModuleKey::IssueTracking))->toBeTrue()
-        ->and($project->hasModule(ProjectModuleKey::Boards))->toBeFalse();
+        ->and($project->hasModule(ProjectModuleKey::Boards))->toBeFalse()
+        ->and($project->trackers->pluck('id')->all())->toBe([$tracker->id]);
+});
+
+test('a project must have at least one tracker', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('projects.form')
+        ->set('name', 'New Project')
+        ->set('identifier', 'new-project')
+        ->call('save')
+        ->assertHasErrors(['trackerIds']);
 });
 
 test('a non-admin without the create permission cannot open the project form', function () {
@@ -35,6 +50,7 @@ test('a non-admin without the create permission cannot open the project form', f
 test('a project member with edit_project can update the project but not delete it', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create(['name' => 'Old name']);
+    $project->trackers()->attach(Tracker::factory()->create());
     $role = Role::factory()->create(['permissions' => ['edit_project']]);
     $member = Member::factory()->for($project)->for($user)->create();
     $member->roles()->attach($role);

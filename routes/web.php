@@ -103,4 +103,12 @@ Route::middleware('auth')->group(function () {
     Volt::route('/users', 'users.index')->name('users.index');
     Volt::route('/users/create', 'users.form')->name('users.create');
     Volt::route('/users/{user}/edit', 'users.form')->name('users.edit');
+
+    Volt::route('/trackers', 'trackers.index')->name('trackers.index');
+    Volt::route('/trackers/create', 'trackers.form')->name('trackers.create');
+    Volt::route('/trackers/{tracker}/edit', 'trackers.form')->name('trackers.edit');
+
+    Volt::route('/issue-statuses', 'issue-statuses.index')->name('issue-statuses.index');
+    Volt::route('/issue-statuses/create', 'issue-statuses.form')->name('issue-statuses.create');
+    Volt::route('/issue-statuses/{issueStatus}/edit', 'issue-statuses.form')->name('issue-statuses.edit');
 });
