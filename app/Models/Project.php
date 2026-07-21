@@ -85,6 +85,14 @@ final class Project extends Model
         return $this->hasMany(TimeEntry::class);
     }
 
+    /**
+     * @return HasMany<WikiPage, $this>
+     */
+    public function wikiPages(): HasMany
+    {
+        return $this->hasMany(WikiPage::class);
+    }
+
     public function hasModule(ProjectModuleKey $module): bool
     {
         return $this->moduleAssignments->contains('module', $module);

@@ -35,6 +35,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     工数
                 </a>
             @endcan
+            @can('viewAny', [\App\Models\WikiPage::class, $project])
+                <a href="{{ route('wiki.index', $project) }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Wiki
+                </a>
+            @endcan
             @can('manageMembers', $project)
                 <a href="{{ route('projects.members', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">

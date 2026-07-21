@@ -47,5 +47,11 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('log_time', module: ProjectModuleKey::TimeTracking, requirement: PermissionRequirement::LoggedIn);
         $registry->register('view_time_entries', module: ProjectModuleKey::TimeTracking, requirement: PermissionRequirement::None);
         $registry->register('edit_time_entries', module: ProjectModuleKey::TimeTracking);
+
+        $registry->register('view_wiki_pages', module: ProjectModuleKey::Wiki, requirement: PermissionRequirement::None);
+        $registry->register('edit_wiki_pages', module: ProjectModuleKey::Wiki, requirement: PermissionRequirement::LoggedIn);
+        $registry->register('rename_wiki_pages', module: ProjectModuleKey::Wiki);
+        $registry->register('delete_wiki_pages', module: ProjectModuleKey::Wiki);
+        $registry->register('protect_wiki_pages', module: ProjectModuleKey::Wiki);
     }
 }
