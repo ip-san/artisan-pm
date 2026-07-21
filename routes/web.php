@@ -39,6 +39,16 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/history', 'wiki.history')->name('wiki.history');
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/versions/{version}', 'wiki.version')->name('wiki.version');
 
+    Volt::route('/projects/{project:identifier}/boards', 'boards.index')->name('boards.index');
+    // Registered before the {board} routes below so "new" isn't matched
+    // as a board-id route-model-binding segment.
+    Volt::route('/projects/{project:identifier}/boards/new', 'boards.form')->name('boards.create');
+    Volt::route('/projects/{project:identifier}/boards/{board}/edit', 'boards.form')->name('boards.edit');
+    Volt::route('/projects/{project:identifier}/boards/{board}/topics/new', 'messages.form')->name('messages.create');
+    Volt::route('/projects/{project:identifier}/boards/{board}', 'boards.show')->name('boards.show');
+    Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}', 'messages.show')->name('messages.show');
+    Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}/edit', 'messages.form')->name('messages.edit');
+
     Volt::route('/roles', 'roles.index')->name('roles.index');
     Volt::route('/roles/create', 'roles.form')->name('roles.create');
     Volt::route('/roles/{role}/edit', 'roles.form')->name('roles.edit');

@@ -93,6 +93,14 @@ final class Project extends Model
         return $this->hasMany(WikiPage::class);
     }
 
+    /**
+     * @return HasMany<Board, $this>
+     */
+    public function boards(): HasMany
+    {
+        return $this->hasMany(Board::class);
+    }
+
     public function hasModule(ProjectModuleKey $module): bool
     {
         return $this->moduleAssignments->contains('module', $module);

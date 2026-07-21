@@ -53,5 +53,13 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('rename_wiki_pages', module: ProjectModuleKey::Wiki);
         $registry->register('delete_wiki_pages', module: ProjectModuleKey::Wiki);
         $registry->register('protect_wiki_pages', module: ProjectModuleKey::Wiki);
+
+        $registry->register('view_messages', module: ProjectModuleKey::Boards, requirement: PermissionRequirement::None);
+        $registry->register('add_messages', module: ProjectModuleKey::Boards, requirement: PermissionRequirement::LoggedIn);
+        $registry->register('edit_messages', module: ProjectModuleKey::Boards);
+        $registry->register('edit_own_messages', module: ProjectModuleKey::Boards, requirement: PermissionRequirement::LoggedIn);
+        $registry->register('delete_messages', module: ProjectModuleKey::Boards);
+        $registry->register('delete_own_messages', module: ProjectModuleKey::Boards, requirement: PermissionRequirement::LoggedIn);
+        $registry->register('manage_boards', module: ProjectModuleKey::Boards);
     }
 }
