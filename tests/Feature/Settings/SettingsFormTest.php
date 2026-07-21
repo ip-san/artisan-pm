@@ -1,6 +1,9 @@
 <?php
 
+use App\Models\IssueStatus;
+use App\Models\Project;
 use App\Models\Setting;
+use App\Models\Tracker;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -32,4 +35,25 @@ test('the per-page setting must be within a sane range', function () {
         ->set('default_issues_per_page', 1)
         ->call('save')
         ->assertHasErrors(['default_issues_per_page']);
+});
+
+test('an admin can configure incoming mail settings', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('incoming_mail_enabled', true)
+        ->set('incoming_mail_default_project_id', $project->id)
+        ->set('incoming_mail_default_tracker_id', $tracker->id)
+        ->set('incoming_mail_default_status_id', $status->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('incoming_mail_enabled'))->toBeTrue()
+        ->and(Setting::get('incoming_mail_default_project_id'))->toBe($project->id)
+        ->and(Setting::get('incoming_mail_default_tracker_id'))->toBe($tracker->id)
+        ->and(Setting::get('incoming_mail_default_status_id'))->toBe($status->id);
 });

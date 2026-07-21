@@ -19,7 +19,8 @@
         "livewire/volt": "^1.10",
         "spatie/eloquent-sortable": "^5.0",
         "spatie/laravel-medialibrary": "^11.23",
-        "spatie/laravel-webhook-server": "^3.10"
+        "spatie/laravel-webhook-server": "^3.10",
+        "webklex/laravel-imap": "^6.2"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
