@@ -111,4 +111,6 @@ Route::middleware('auth')->group(function () {
     Volt::route('/issue-statuses', 'issue-statuses.index')->name('issue-statuses.index');
     Volt::route('/issue-statuses/create', 'issue-statuses.form')->name('issue-statuses.create');
     Volt::route('/issue-statuses/{issueStatus}/edit', 'issue-statuses.form')->name('issue-statuses.edit');
+
+    Volt::route('/workflows', 'workflows.edit')->name('workflows.edit');
 });
