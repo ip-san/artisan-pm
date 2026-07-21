@@ -136,6 +136,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->start_date = now()->toDateString();
 
             $this->prefillFromCopySource($project);
+            $this->applyCustomFieldDefaults();
 
             // Resolved after the copy-from prefill (which may itself change
             // tracker_id) so the default status matches whichever tracker
@@ -223,6 +224,29 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->customFieldValues[$field->id] = $field->multiple
                 ? $source->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
                 : $source->customValue($field);
+        }
+    }
+
+    /**
+     * Seeds a brand-new issue's custom field inputs from each field's own
+     * default_value — matches Redmine's CustomField#default_value being
+     * used to prefill new records. Only applies to a field with no value
+     * already set (e.g. by prefillFromCopySource(), which takes
+     * precedence since it ran first), and only when a default is
+     * actually configured.
+     */
+    private function applyCustomFieldDefaults(): void
+    {
+        foreach ($this->customFields as $field) {
+            if (array_key_exists($field->id, $this->customFieldValues)) {
+                continue;
+            }
+
+            if ($field->default_value === null || $field->default_value === '') {
+                continue;
+            }
+
+            $this->customFieldValues[$field->id] = $field->multiple ? [$field->default_value] : $field->default_value;
         }
     }
 

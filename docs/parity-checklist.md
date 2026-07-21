@@ -223,7 +223,7 @@
 | User/Version/Group/TimeEntryActivity/DocumentCategory用 | missing | `CustomizableType` は Issue, Project の2種のみ |
 | フィールド形式 | partial | string/text/int/float/date/bool/list の7種。user/version/enumeration/attachment/link は未対応 |
 | custom_field_enumerations(選択肢の管理された一覧) | missing | — |
-| default_value/regexp/searchable/editable・visible フラグ、「全プロジェクト対象」 | missing | フォームは min/max 文字数+必須+複数値+選択肢のみ |
+| default_value/regexp/searchable/editable・visible フラグ、「全プロジェクト対象」 | partial(2026-07-22) | 「全プロジェクト対象」は元々実装済み(対象プロジェクト未選択時は`CustomField::appliesToProject()`が全プロジェクト扱い)。今回`default_value`(新規課題作成時に自動入力、`prefillFromCopySource`の後に適用され上書きしない)・`regexp`(保存時に不正な正規表現を検証)・`searchable`をフォームに追加(モデル/カラムは既存、フォーム未配線だった)。`editable`/`visible`フラグはカラム自体が存在せず引き続き未実装 |
 
 ### Enumerations(優先度・工数種別・文書カテゴリ)
 

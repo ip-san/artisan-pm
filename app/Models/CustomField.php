@@ -35,6 +35,21 @@ final class CustomField extends Model implements Sortable
         'sort_when_creating' => true,
     ];
 
+    /**
+     * Eloquent doesn't read back server-side column defaults on a freshly
+     * created (unrefreshed) model, so declare these here too — otherwise
+     * a just-created CustomField's in-memory booleans are null even
+     * though their table defaults are false (same issue already worked
+     * around elsewhere in this app for other models' defaulted columns).
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'is_required' => false,
+        'multiple' => false,
+        'searchable' => false,
+    ];
+
     protected function casts(): array
     {
         return [

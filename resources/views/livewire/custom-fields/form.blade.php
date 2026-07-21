@@ -30,6 +30,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $max_length = null;
 
+    public string $regexp = '';
+
+    public string $default_value = '';
+
+    public bool $searchable = false;
+
     public string $possibleValuesText = '';
 
     /** @var array<int> */
@@ -54,6 +60,9 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->multiple = $customField->multiple;
             $this->min_length = $customField->min_length;
             $this->max_length = $customField->max_length;
+            $this->regexp = (string) $customField->regexp;
+            $this->default_value = (string) $customField->default_value;
+            $this->searchable = $customField->searchable;
             $this->possibleValuesText = implode("\n", $customField->possible_values ?? []);
             $this->trackerIds = $customField->trackers->pluck('id')->all();
             $this->projectIds = $customField->projects->pluck('id')->all();
@@ -103,6 +112,17 @@ new #[Layout('components.layouts.app')] class extends Component
             'multiple' => ['boolean'],
             'min_length' => ['nullable', 'integer', 'min:0'],
             'max_length' => ['nullable', 'integer', 'min:0'],
+            'regexp' => ['nullable', 'string', 'max:255', function (string $attribute, mixed $value, \Closure $fail): void {
+                if ($value === '' || $value === null) {
+                    return;
+                }
+
+                if (@preg_match('/'.str_replace('/', '\/', $value).'/', '') === false) {
+                    $fail('正規表現の形式が正しくありません。');
+                }
+            }],
+            'default_value' => ['nullable', 'string'],
+            'searchable' => ['boolean'],
             'trackerIds' => $isForIssues ? ['required', 'array', 'min:1'] : ['array'],
             'trackerIds.*' => ['exists:trackers,id'],
             'projectIds' => ['array'],
@@ -123,6 +143,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'multiple' => $data['multiple'],
             'min_length' => $data['min_length'],
             'max_length' => $data['max_length'],
+            'regexp' => $data['regexp'] !== '' ? $data['regexp'] : null,
+            'default_value' => $data['default_value'] !== '' ? $data['default_value'] : null,
+            'searchable' => $data['searchable'],
             'possible_values' => $possibleValues,
         ];
 
@@ -203,6 +226,19 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         @endif
 
+        <div>
+            <label class="block text-sm font-medium text-gray-700">正規表現による検証(任意)</label>
+            <input type="text" wire:model="regexp" placeholder="例: ^[A-Z]{2}\d{4}$"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            @error('regexp') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">既定値(任意、新規課題作成時に自動入力)</label>
+            <input type="text" wire:model="default_value" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            @error('default_value') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
         <div class="flex gap-6">
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" wire:model="is_required" class="rounded border-gray-300">
@@ -211,6 +247,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" wire:model="multiple" class="rounded border-gray-300">
                 複数値を許可する
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="searchable" class="rounded border-gray-300">
+                検索対象にする
             </label>
         </div>
 
