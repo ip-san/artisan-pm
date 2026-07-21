@@ -62,7 +62,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — リポジトリ</h1>
         <div class="flex gap-2">
-            @if ($repository && auth()->user()?->can('browse', [\App\Models\Repository::class, $project]))
+            @if ($repository && auth()->user()?->can('browse', [Repository::class, $project]))
                 <a href="{{ route('repository.browse', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     ファイル一覧

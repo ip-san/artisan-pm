@@ -6,7 +6,6 @@ namespace App\Support\Scm;
 
 use DateTimeImmutable;
 use Illuminate\Contracts\Process\ProcessResult;
-use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Process;
 
 final readonly class GitAdapter implements ScmAdapter
@@ -117,12 +116,7 @@ final readonly class GitAdapter implements ScmAdapter
      */
     private function git(array $args, int $timeout): ProcessResult
     {
-        return $this->process()->timeout($timeout)->run(['git', ...self::SAFETY_FLAGS, ...$args]);
-    }
-
-    private function process(): PendingProcess
-    {
-        return Process::path($this->path);
+        return Process::path($this->path)->timeout($timeout)->run(['git', ...self::SAFETY_FLAGS, ...$args]);
     }
 
     /**
