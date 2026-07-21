@@ -69,6 +69,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->issue->unsetRelation('watchers');
     }
+
+    public function deleteAttachment(int $mediaId): void
+    {
+        $this->authorize('update', $this->issue);
+
+        $this->issue->attachments()->firstWhere('id', $mediaId)?->delete();
+    }
 }; ?>
 
 <div class="max-w-3xl">
@@ -114,6 +121,24 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
             @endforeach
         </div>
+    @endif
+
+    @if ($issue->attachments()->isNotEmpty())
+        <h2 class="text-sm font-semibold text-gray-900 mb-2">添付ファイル</h2>
+        <ul class="mb-6 space-y-1">
+            @foreach ($issue->attachments() as $media)
+                <li class="flex items-center justify-between text-sm">
+                    <a href="{{ $media->getUrl() }}" target="_blank" class="text-indigo-600 hover:underline">
+                        {{ $media->file_name }}
+                    </a>
+                    <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                    @can('update', $issue)
+                        <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
+                            class="text-red-600 hover:underline">削除</button>
+                    @endcan
+                </li>
+            @endforeach
+        </ul>
     @endif
 
     <h2 class="text-sm font-semibold text-gray-900 mb-2">履歴</h2>

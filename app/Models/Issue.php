@@ -14,16 +14,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 #[Fillable([
     'project_id', 'tracker_id', 'status_id', 'priority_id', 'author_id',
     'assigned_to_id', 'fixed_version_id', 'parent_id', 'subject',
     'description', 'start_date', 'due_date', 'done_ratio',
 ])]
-final class Issue extends Model
+final class Issue extends Model implements HasMedia
 {
     /** @use HasFactory<IssueFactory> */
-    use HasCustomFields, HasFactory;
+    use HasCustomFields, HasFactory, InteractsWithMedia;
 
     /**
      * Eloquent doesn't read back server-side column defaults on a freshly
@@ -154,6 +158,19 @@ final class Issue extends Model
     public function isWatchedBy(User $user): bool
     {
         return $this->watchers->contains('user_id', $user->id);
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('attachments');
+    }
+
+    /**
+     * @return MediaCollection<int, Media>
+     */
+    public function attachments(): MediaCollection
+    {
+        return $this->getMedia('attachments');
     }
 
     public function isClosed(): bool

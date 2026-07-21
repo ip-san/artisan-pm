@@ -13,9 +13,12 @@ use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use WithFileUploads;
+
     public Project $project;
 
     public ?Issue $issue = null;
@@ -41,6 +44,9 @@ new #[Layout('components.layouts.app')] class extends Component
     public int $done_ratio = 0;
 
     public string $comment = '';
+
+    /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
+    public array $newAttachments = [];
 
     /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
     public array $customFieldValues = [];
@@ -154,6 +160,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
             'done_ratio' => ['integer', 'min:0', 'max:100'],
+            'newAttachments.*' => ['file', 'max:10240'],
         ];
 
         foreach ($this->fieldRules as $field => $rule) {
@@ -181,7 +188,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data = $this->validate($rules);
         $customFieldData = $data['customFieldValues'] ?? [];
-        unset($data['customFieldValues']);
+        unset($data['customFieldValues'], $data['newAttachments']);
 
         if ($this->issue) {
             if ($data['status_id'] !== $this->issue->status_id) {
@@ -196,6 +203,12 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $issue->setCustomFieldValues($customFieldData);
+
+        foreach ($this->newAttachments as $file) {
+            $issue->addMedia($file->getRealPath())
+                ->usingFileName($file->getClientOriginalName())
+                ->toMediaCollection('attachments');
+        }
 
         $this->redirect(route('issues.show', [$this->project, $issue]), navigate: true);
     }
@@ -334,6 +347,21 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </div>
         @endif
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">添付ファイル</label>
+            <input type="file" wire:model="newAttachments" multiple
+                class="mt-1 block w-full text-sm text-gray-700">
+            @error('newAttachments.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+
+            @if ($issue && $issue->attachments()->isNotEmpty())
+                <ul class="mt-2 space-y-1">
+                    @foreach ($issue->attachments() as $media)
+                        <li class="text-sm text-gray-600">{{ $media->file_name }} ({{ $media->human_readable_size }})</li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
 
         @if ($issue)
             <div>
