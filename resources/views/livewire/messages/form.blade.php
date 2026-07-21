@@ -3,6 +3,7 @@
 use App\Models\Board;
 use App\Models\Message;
 use App\Models\Project;
+use App\Support\Attachments\AttachmentValidationRules;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -64,7 +65,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $rules = [
             'subject' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
-            'newAttachments.*' => ['file', 'max:'.intdiv(config('media-library.max_file_size'), 1024)],
+            'newAttachments.*' => AttachmentValidationRules::rules(),
         ];
 
         if ($this->canManageFlags) {

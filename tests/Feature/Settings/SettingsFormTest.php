@@ -57,3 +57,28 @@ test('an admin can configure incoming mail settings', function () {
         ->and(Setting::get('incoming_mail_default_tracker_id'))->toBe($tracker->id)
         ->and(Setting::get('incoming_mail_default_status_id'))->toBe($status->id);
 });
+
+test('an admin can configure attachment size and extension limits', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('attachment_max_size', 2048)
+        ->set('attachment_extensions_allowed', 'png, jpg')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('attachment_max_size'))->toBe(2048)
+        ->and(Setting::get('attachment_extensions_allowed'))->toBe('png, jpg');
+});
+
+test('attachment_max_size cannot exceed the underlying media-library cap', function () {
+    $admin = User::factory()->admin()->create();
+    $hardCapKb = intdiv((int) config('media-library.max_file_size'), 1024);
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('attachment_max_size', $hardCapKb + 1)
+        ->call('save')
+        ->assertHasErrors(['attachment_max_size']);
+});

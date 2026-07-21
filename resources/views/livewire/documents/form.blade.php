@@ -4,6 +4,7 @@ use App\Enums\EnumerationType;
 use App\Models\Document;
 use App\Models\Enumeration;
 use App\Models\Project;
+use App\Support\Attachments\AttachmentValidationRules;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -56,7 +57,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'title' => ['required', 'string', 'max:255'],
             'category_id' => ['nullable', Rule::exists('enumerations', 'id')->where('type', EnumerationType::DocumentCategory->value)],
             'description' => ['nullable', 'string'],
-            'newAttachments.*' => ['file', 'max:'.intdiv(config('media-library.max_file_size'), 1024)],
+            'newAttachments.*' => AttachmentValidationRules::rules(),
         ]);
         unset($data['newAttachments']);
 

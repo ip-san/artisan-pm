@@ -2,6 +2,7 @@
 
 use App\Models\News;
 use App\Models\Project;
+use App\Support\Attachments\AttachmentValidationRules;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithFileUploads;
@@ -45,7 +46,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'title' => ['required', 'string', 'max:255'],
             'summary' => ['nullable', 'string', 'max:255'],
             'description' => ['required', 'string'],
-            'newAttachments.*' => ['file', 'max:'.intdiv(config('media-library.max_file_size'), 1024)],
+            'newAttachments.*' => AttachmentValidationRules::rules(),
         ]);
         unset($data['newAttachments']);
 

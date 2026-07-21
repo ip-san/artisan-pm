@@ -10,6 +10,7 @@ use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
+use App\Support\Attachments\AttachmentValidationRules;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -257,7 +258,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'done_ratio' => ['integer', 'min:0', 'max:100'],
             // Kilobytes, derived from media-library's own byte-based cap so
             // the two limits can't silently drift apart.
-            'newAttachments.*' => ['file', 'max:'.intdiv(config('media-library.max_file_size'), 1024)],
+            'newAttachments.*' => AttachmentValidationRules::rules(),
         ];
 
         foreach ($this->fieldRules as $field => $rule) {

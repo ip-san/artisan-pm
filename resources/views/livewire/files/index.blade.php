@@ -2,6 +2,7 @@
 
 use App\Models\Project;
 use App\Models\Version;
+use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -51,7 +52,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $data = $this->validate([
             'version_id' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $this->project->id)],
             'newFiles' => ['required', 'array', 'min:1'],
-            'newFiles.*' => ['file', 'max:'.intdiv(config('media-library.max_file_size'), 1024)],
+            'newFiles.*' => AttachmentValidationRules::rules(),
         ]);
 
         $target = $data['version_id'] === null ? $this->project : $this->project->versions()->findOrFail($data['version_id']);

@@ -6,6 +6,7 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -39,6 +40,81 @@ test('uploading files on issue creation attaches them to the issue', function ()
 
     expect($issue->attachments())->toHaveCount(1)
         ->and($issue->attachments()->first()->file_name)->toBe('screenshot.png');
+});
+
+test('an attachment exceeding the configured attachment_max_size setting is rejected', function () {
+    Storage::fake('local');
+
+    Enumeration::factory()->create(['is_default' => true]);
+    IssueStatus::factory()->create();
+    Setting::set('attachment_max_size', 100);
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('issues.form', ['project' => $project])
+        ->set('tracker_id', $tracker->id)
+        ->set('subject', 'Issue with a file too big for the configured limit')
+        ->set('newAttachments', [UploadedFile::fake()->create('too-big.zip', 200)])
+        ->call('save')
+        ->assertHasErrors(['newAttachments.0']);
+});
+
+test('an attachment with a denied extension is rejected', function () {
+    Storage::fake('local');
+
+    Enumeration::factory()->create(['is_default' => true]);
+    IssueStatus::factory()->create();
+    Setting::set('attachment_extensions_denied', 'exe, sh');
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('issues.form', ['project' => $project])
+        ->set('tracker_id', $tracker->id)
+        ->set('subject', 'Issue with a denied extension')
+        ->set('newAttachments', [UploadedFile::fake()->create('script.exe', 10)])
+        ->call('save')
+        ->assertHasErrors(['newAttachments.0']);
+});
+
+test('an allow-list takes precedence, rejecting any extension not on it', function () {
+    Storage::fake('local');
+
+    Enumeration::factory()->create(['is_default' => true]);
+    IssueStatus::factory()->create();
+    Setting::set('attachment_extensions_allowed', 'png, jpg');
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('issues.form', ['project' => $project])
+        ->set('tracker_id', $tracker->id)
+        ->set('subject', 'Issue with a non-allow-listed extension')
+        ->set('newAttachments', [UploadedFile::fake()->create('notes.pdf', 10)])
+        ->call('save')
+        ->assertHasErrors(['newAttachments.0']);
 });
 
 test('an oversized attachment is rejected by validation', function () {

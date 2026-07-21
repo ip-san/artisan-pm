@@ -23,6 +23,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $incoming_mail_default_status_id = null;
 
+    public int $attachment_max_size = 10240;
+
+    public string $attachment_extensions_allowed = '';
+
+    public string $attachment_extensions_denied = '';
+
     public function mount(): void
     {
         $this->authorize('manage', Setting::class);
@@ -33,6 +39,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->incoming_mail_default_project_id = Setting::get('incoming_mail_default_project_id');
         $this->incoming_mail_default_tracker_id = Setting::get('incoming_mail_default_tracker_id');
         $this->incoming_mail_default_status_id = Setting::get('incoming_mail_default_status_id');
+        $this->attachment_max_size = Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024));
+        $this->attachment_extensions_allowed = Setting::get('attachment_extensions_allowed', '');
+        $this->attachment_extensions_denied = Setting::get('attachment_extensions_denied', '');
     }
 
     #[Computed]
@@ -62,6 +71,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'incoming_mail_default_project_id' => ['nullable', 'exists:projects,id'],
             'incoming_mail_default_tracker_id' => ['nullable', 'exists:trackers,id'],
             'incoming_mail_default_status_id' => ['nullable', 'exists:issue_statuses,id'],
+            'attachment_max_size' => ['required', 'integer', 'min:1', 'max:'.intdiv((int) config('media-library.max_file_size'), 1024)],
+            'attachment_extensions_allowed' => ['nullable', 'string', 'max:1000'],
+            'attachment_extensions_denied' => ['nullable', 'string', 'max:1000'],
         ]);
 
         foreach ($data as $key => $value) {
@@ -87,6 +99,30 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">課題一覧の1ページあたりの件数</label>
                 <input type="number" wire:model="default_issues_per_page" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('default_issues_per_page') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+        </section>
+
+        <section class="space-y-4 border-t border-gray-200 pt-6">
+            <h2 class="text-sm font-semibold text-gray-900">添付ファイル</h2>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">最大アップロードサイズ(KB)</label>
+                <input type="number" wire:model="attachment_max_size" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('attachment_max_size') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">許可する拡張子(カンマ区切り、空欄は制限なし)</label>
+                <input type="text" wire:model="attachment_extensions_allowed" placeholder="例: png, jpg, pdf"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('attachment_extensions_allowed') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">禁止する拡張子(カンマ区切り、許可リストが設定されている場合は無視)</label>
+                <input type="text" wire:model="attachment_extensions_denied" placeholder="例: exe, sh"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('attachment_extensions_denied') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
         </section>
 

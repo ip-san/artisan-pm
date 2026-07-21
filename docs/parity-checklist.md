@@ -234,7 +234,7 @@
 | 種別ごとに既定値を1つだけに制限 | done(2026-07-21) | `Enumeration::makeDefault()` |
 | 使用中の値の削除防止 | done(2026-07-21) | IssuePriority(`issues.priority_id`)・TimeEntryActivity(`time_entries.activity_id`)は使用中なら削除不可。DocumentCategoryは `nullOnDelete()` のためガード不要 |
 
-### アプリケーション設定(Redmine 119キー中 ~6項目)
+### アプリケーション設定(Redmine 119キー中 ~9項目)
 
 | Redmineのタブ | 状態 | 備考 |
 |---|---|---|
@@ -246,7 +246,7 @@
 | 課題トラッキング(進捗率算出方式、プロジェクト間関連/サブタスク許可、既定表示列) | missing | — |
 | メール通知(送信元、ヘッダ/フッタ、通知イベント種別) | missing | — |
 | 受信メール | partial | 有効フラグ+既定プロジェクト/トラッカー/ステータスのみ |
-| 添付ファイル(最大サイズ、許可/禁止拡張子) | missing | — |
+| 添付ファイル(最大サイズ、許可/禁止拡張子) | done(2026-07-21) | `attachment_max_size`/`attachment_extensions_allowed`/`attachment_extensions_denied`。`App\Support\Attachments\AttachmentValidationRules`を全6箇所のアップロードフォーム(Issue/News/Wiki/Message/Document/Files)で共通利用。最大サイズは`media-library.max_file_size`をハード上限として超過不可 |
 | リポジトリ(有効SCM、自動フェッチ、コミットキーワード) | missing | — |
 
 ### ユーザー管理・認証

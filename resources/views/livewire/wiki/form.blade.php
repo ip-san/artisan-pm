@@ -3,6 +3,7 @@
 use App\Models\Project;
 use App\Models\WikiPage;
 use App\Services\WikiPageService;
+use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -96,7 +97,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $rules = [
             'text' => ['required', 'string'],
             'comments' => ['nullable', 'string', 'max:255'],
-            'newAttachments.*' => ['file', 'max:'.intdiv(config('media-library.max_file_size'), 1024)],
+            'newAttachments.*' => AttachmentValidationRules::rules(),
         ];
 
         if ($this->canRename) {
