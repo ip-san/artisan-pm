@@ -44,7 +44,7 @@
 |---|---|---|
 | 課題の作成/編集/閲覧 | done | `IssueService::create/update`, `issues/{form,show}.blade.php` |
 | 更新時の属性差分 Journal 記録 | partial | 固定11項目のみ差分記録(`IssueService.php`)。`category_id` およびカスタムフィールドの変更は記録されない |
-| 課題削除 | partial | `IssuePolicy::delete` は存在するが画面に削除アクションが配線されていない。工数の再割当/削除選択(Redmine の `params[:todo]`)もない |
+| 課題削除 | done(2026-07-21) | 詳細画面に削除ボタンを配線(`delete_issues`権限+確認ダイアログ)。工数は`nullOnDelete`で保持(切り離されるのみ)、子課題も`nullOnDelete`でトップレベル化。Redmineの`params[:todo]`(工数の再割当/削除選択)は意図的に対象外、常に保持のみ |
 | 課題のコピー | missing | — |
 | プロジェクト間の課題移動 | missing | `project_id` を編集する手段がない |
 | 担当者「自分」ショートカット・作成時の既定開始/期日 | missing | — |

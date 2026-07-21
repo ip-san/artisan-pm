@@ -214,6 +214,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->issue->attachments()->firstWhere('id', $mediaId)?->delete();
     }
+
+    public function deleteIssue(): void
+    {
+        $this->authorize('delete', $this->issue);
+
+        $this->issue->delete();
+
+        $this->redirect(route('issues.index', $this->project), navigate: true);
+    }
 }; ?>
 
 <div class="max-w-3xl">
@@ -245,6 +254,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
                     編集
                 </a>
+            @endcan
+            @can('delete', $issue)
+                <button wire:click="deleteIssue" wire:confirm="この課題を削除しますか?この操作は取り消せません。"
+                    class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
+                    削除
+                </button>
             @endcan
         </div>
     </div>
