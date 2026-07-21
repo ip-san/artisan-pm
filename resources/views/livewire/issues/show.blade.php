@@ -7,7 +7,9 @@ use App\Models\IssueRelation;
 use App\Models\Journal;
 use App\Models\JournalDetail;
 use App\Models\Project;
+use App\Models\Tracker;
 use App\Models\User;
+use App\Services\IssueService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
@@ -48,6 +50,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $relationType = 'relates';
 
     public ?int $newWatcherId = null;
+
+    public ?int $moveToProjectId = null;
+
+    public ?int $moveToTrackerId = null;
 
     public function mount(Project $project, Issue $issue): void
     {
@@ -277,6 +283,54 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->redirect(route('issues.index', $this->project), navigate: true);
     }
+
+    /**
+     * Other projects the user could move this issue into — must hold
+     * add_issues there, matching Redmine's own requirement that moving
+     * somewhere still lets you create issues in the destination.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function moveTargetProjects(): Collection
+    {
+        return Project::query()
+            ->where('id', '!=', $this->project->id)
+            ->get()
+            ->filter(fn (Project $candidate) => auth()->user()?->can('create', [Issue::class, $candidate]))
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, Tracker>
+     */
+    #[Computed]
+    public function moveTargetTrackers(): Collection
+    {
+        if ($this->moveToProjectId === null) {
+            return collect();
+        }
+
+        $target = $this->moveTargetProjects->firstWhere('id', $this->moveToProjectId);
+
+        return $target?->trackers ?? collect();
+    }
+
+    public function moveIssue(): void
+    {
+        $this->authorize('move', $this->issue);
+
+        $data = $this->validate([
+            'moveToProjectId' => ['required', Rule::in($this->moveTargetProjects->pluck('id')->all())],
+            'moveToTrackerId' => ['required', Rule::in($this->moveTargetTrackers->pluck('id')->all())],
+        ]);
+
+        $targetProject = Project::findOrFail($data['moveToProjectId']);
+
+        $issue = app(IssueService::class)->moveToProject($this->issue, $targetProject, $data['moveToTrackerId'], auth()->user());
+
+        $this->redirect(route('issues.show', [$targetProject, $issue]), navigate: true);
+    }
 }; ?>
 
 <div class="max-w-3xl">
@@ -328,6 +382,39 @@ new #[Layout('components.layouts.app')] class extends Component
             @endcan
         </div>
     </div>
+
+    @can('move', $issue)
+        @if ($this->moveTargetProjects->isNotEmpty())
+            <form wire:submit="moveIssue" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-white p-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">別のプロジェクトへ移動</label>
+                    <select wire:model.live="moveToProjectId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                        <option value="">選択してください</option>
+                        @foreach ($this->moveTargetProjects as $candidate)
+                            <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('moveToProjectId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                @if ($moveToProjectId)
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">移動後のトラッカー</label>
+                        <select wire:model="moveToTrackerId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                            <option value="">選択してください</option>
+                            @foreach ($this->moveTargetTrackers as $candidateTracker)
+                                <option value="{{ $candidateTracker->id }}">{{ $candidateTracker->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('moveToTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <button type="submit" wire:confirm="移動するとカテゴリ・対象バージョン・親課題はリセットされます。よろしいですか?"
+                        class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        移動
+                    </button>
+                @endif
+            </form>
+        @endif
+    @endcan
 
     <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-gray-200 bg-white p-4 text-sm mb-6">
         <div><span class="text-gray-500">ステータス:</span> {{ $issue->status->name }}</div>

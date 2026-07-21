@@ -96,4 +96,9 @@ final class IssuePolicy
     {
         return $this->authorization->can($user, 'set_notes_private', $issue->project);
     }
+
+    public function move(User $user, Issue $issue): bool
+    {
+        return $this->authorization->can($user, 'move_issues', $issue->project);
+    }
 }

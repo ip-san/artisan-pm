@@ -11,6 +11,7 @@ use App\Models\CustomFieldValue;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Journal;
+use App\Models\Project;
 use App\Models\User;
 
 /**
@@ -27,7 +28,7 @@ final class IssueService
      * @var array<string>
      */
     private const JOURNALED_ATTRIBUTES = [
-        'tracker_id', 'status_id', 'priority_id', 'category_id', 'subject',
+        'project_id', 'tracker_id', 'status_id', 'priority_id', 'category_id', 'subject',
         'description', 'assigned_to_id', 'fixed_version_id', 'parent_id',
         'start_date', 'due_date', 'done_ratio', 'is_private',
     ];
@@ -117,6 +118,39 @@ final class IssueService
         }
 
         return $issue->refresh();
+    }
+
+    /**
+     * Moves an issue to a different project, resetting whatever fields are
+     * scoped to the old project and would otherwise reference something
+     * that doesn't exist there: category and fixed version (both strictly
+     * project-local, so there's no sensible equivalent to carry over),
+     * the assignee (only if they're not also a member of the target
+     * project), and parent (subtasks are deliberately kept single-project
+     * elsewhere in this app, so a stale cross-project parent would just
+     * fail re-validation on the next edit). Any of this issue's own
+     * children get detached rather than silently left pointing at a
+     * parent that moved out from under them.
+     */
+    public function moveToProject(Issue $issue, Project $targetProject, int $trackerId, User $actor): Issue
+    {
+        $updates = [
+            'project_id' => $targetProject->id,
+            'tracker_id' => $trackerId,
+            'category_id' => null,
+            'fixed_version_id' => null,
+            'parent_id' => null,
+        ];
+
+        if ($issue->assigned_to_id !== null && ! $targetProject->users()->whereKey($issue->assigned_to_id)->exists()) {
+            $updates['assigned_to_id'] = null;
+        }
+
+        $moved = $this->update($issue, $updates, $actor, "「{$targetProject->name}」へ移動しました。");
+
+        Issue::query()->where('parent_id', $moved->id)->update(['parent_id' => null]);
+
+        return $moved;
     }
 
     /**
