@@ -33,6 +33,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $close_duplicate_issues = true;
 
+    public bool $parent_issue_priority = true;
+
+    public bool $parent_issue_dates = true;
+
+    public bool $parent_issue_done_ratio = true;
+
     public function mount(): void
     {
         $this->authorize('manage', Setting::class);
@@ -41,6 +47,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
         $this->close_duplicate_issues = Setting::get('close_duplicate_issues', true);
+        $this->parent_issue_priority = Setting::get('parent_issue_priority', true);
+        $this->parent_issue_dates = Setting::get('parent_issue_dates', true);
+        $this->parent_issue_done_ratio = Setting::get('parent_issue_done_ratio', true);
         $this->incoming_mail_enabled = Setting::get('incoming_mail_enabled', false);
         $this->incoming_mail_default_project_id = Setting::get('incoming_mail_default_project_id');
         $this->incoming_mail_default_tracker_id = Setting::get('incoming_mail_default_tracker_id');
@@ -82,6 +91,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'attachment_extensions_denied' => ['nullable', 'string', 'max:1000'],
             'issue_done_ratio' => ['required', 'in:issue_field,issue_status'],
             'close_duplicate_issues' => ['boolean'],
+            'parent_issue_priority' => ['boolean'],
+            'parent_issue_dates' => ['boolean'],
+            'parent_issue_done_ratio' => ['boolean'],
         ]);
 
         foreach ($data as $key => $value) {
@@ -121,6 +133,21 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" wire:model="close_duplicate_issues" class="rounded border-gray-300">
                 重複課題を自動的にクローズする(この課題を複製とする課題がクローズされたとき)
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="parent_issue_priority" class="rounded border-gray-300">
+                親課題の優先度を子課題から算出する(未クローズの子課題のうち最高優先度)
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="parent_issue_dates" class="rounded border-gray-300">
+                親課題の開始日/期日を子課題から算出する(最も早い開始日〜最も遅い期日)
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="parent_issue_done_ratio" class="rounded border-gray-300">
+                親課題の進捗率を子課題から算出する(予定工数で重み付けした平均)
             </label>
         </section>
 

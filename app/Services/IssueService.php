@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\EnumerationType;
 use App\Events\IssueCreated;
 use App\Events\IssueUpdated;
 use App\Exceptions\StaleIssueUpdateException;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
+use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Journal;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Support\Collection;
 
 /**
  * Applies changes to an Issue and records a Journal entry for the diff in
@@ -51,6 +54,8 @@ final class IssueService
 
         $this->autoWatch($issue, $issue->author_id);
         $this->autoWatch($issue, $issue->assigned_to_id);
+
+        $this->recalculateAncestorAttributes($issue->parent_id);
 
         IssueCreated::dispatch($issue);
 
@@ -132,6 +137,14 @@ final class IssueService
 
         if ($this->isClosingTransition($original, $issue)) {
             $this->closeDuplicates($issue, $actor, $comment);
+        }
+
+        $this->recalculateAncestorAttributes($issue->parent_id);
+
+        $oldParentId = $original['parent_id'] ?? null;
+
+        if ($oldParentId !== null && $oldParentId !== $issue->parent_id) {
+            $this->recalculateAncestorAttributes($oldParentId);
         }
 
         return $issue->refresh();
@@ -271,6 +284,146 @@ final class IssueService
         if ($defaultDoneRatio !== null) {
             $issue->done_ratio = $defaultDoneRatio;
         }
+    }
+
+    /**
+     * Recomputes priority/dates/done_ratio for $parentId and every
+     * ancestor above it from their respective children, matching
+     * Redmine's Issue#recalculate_attributes_for — walked iteratively up
+     * the parent chain rather than Redmine's implicit recursion via
+     * save callbacks. Each derived attribute is individually gated by
+     * its own Setting (parent_issue_priority/_dates/_done_ratio,
+     * default on) and, like Redmine, saved directly without validation,
+     * events, or a journal entry — this is a silent bookkeeping
+     * recalculation, not a user-authored edit.
+     */
+    private function recalculateAncestorAttributes(?int $parentId): void
+    {
+        while ($parentId !== null) {
+            $parent = Issue::query()->find($parentId);
+
+            if ($parent === null) {
+                return;
+            }
+
+            $children = $parent->children()->get();
+            $updates = [];
+
+            if (Setting::get('parent_issue_priority', true)) {
+                $this->derivePriority($parent, $children, $updates);
+            }
+
+            if (Setting::get('parent_issue_dates', true)) {
+                $this->deriveDates($children, $updates);
+            }
+
+            if (Setting::get('parent_issue_done_ratio', true)) {
+                $this->deriveDoneRatio($parent, $children, $updates);
+            }
+
+            if ($updates !== []) {
+                $parent->forceFill($updates)->save();
+            }
+
+            $parentId = $parent->parent_id;
+        }
+    }
+
+    /**
+     * Parent's priority becomes the highest-position priority among its
+     * open children; if every child is closed, falls back to the
+     * catalog's default priority (left unchanged if there's neither).
+     *
+     * @param  Collection<int, Issue>  $children
+     * @param  array<string, mixed>  $updates
+     */
+    private function derivePriority(Issue $parent, Collection $children, array &$updates): void
+    {
+        $openPriorityIds = $children->filter(fn (Issue $child) => ! $child->isClosed())->pluck('priority_id');
+
+        if ($openPriorityIds->isNotEmpty()) {
+            $highestPosition = Enumeration::query()->whereIn('id', $openPriorityIds)->max('position');
+            $priorityId = Enumeration::query()
+                ->ofType(EnumerationType::IssuePriority)
+                ->where('position', $highestPosition)
+                ->value('id');
+
+            if ($priorityId !== null) {
+                $updates['priority_id'] = $priorityId;
+            }
+
+            return;
+        }
+
+        $defaultPriorityId = Enumeration::query()
+            ->ofType(EnumerationType::IssuePriority)
+            ->where('is_default', true)
+            ->value('id');
+
+        if ($defaultPriorityId !== null) {
+            $updates['priority_id'] = $defaultPriorityId;
+        }
+    }
+
+    /**
+     * Parent's start/due dates become the earliest/latest across its
+     * children, swapped if that would otherwise put due before start.
+     *
+     * @param  Collection<int, Issue>  $children
+     * @param  array<string, mixed>  $updates
+     */
+    private function deriveDates(Collection $children, array &$updates): void
+    {
+        $startDate = $children->pluck('start_date')->filter()->min();
+        $dueDate = $children->pluck('due_date')->filter()->max();
+
+        if ($startDate !== null && $dueDate !== null && $dueDate->lt($startDate)) {
+            [$startDate, $dueDate] = [$dueDate, $startDate];
+        }
+
+        $updates['start_date'] = $startDate;
+        $updates['due_date'] = $dueDate;
+    }
+
+    /**
+     * Parent's done_ratio becomes the average of its children's ratios
+     * (100 for a closed child, regardless of its own done_ratio),
+     * weighted by each child's total_estimated_hours — a child with no
+     * estimate is weighted as the average estimate among children that
+     * have one, rather than zero, matching Redmine's Rational-based
+     * average exactly. Skipped when the parent's own done_ratio is
+     * already status-derived (that setting takes precedence).
+     *
+     * @param  Collection<int, Issue>  $children
+     * @param  array<string, mixed>  $updates
+     */
+    private function deriveDoneRatio(Issue $parent, Collection $children, array &$updates): void
+    {
+        if ($children->isEmpty()) {
+            return;
+        }
+
+        if (Setting::get('issue_done_ratio', 'issue_field') === 'issue_status') {
+            $statusDefault = IssueStatus::query()->whereKey($parent->status_id)->value('default_done_ratio');
+
+            if ($statusDefault !== null) {
+                return;
+            }
+        }
+
+        $withEstimates = $children->filter(fn (Issue $child) => $child->totalEstimatedHours() > 0.0);
+        $averageEstimate = $withEstimates->isNotEmpty()
+            ? $withEstimates->sum(fn (Issue $child) => $child->totalEstimatedHours()) / $withEstimates->count()
+            : 1.0;
+
+        $weightedSum = $children->sum(function (Issue $child) use ($averageEstimate) {
+            $estimate = $child->totalEstimatedHours() > 0.0 ? $child->totalEstimatedHours() : $averageEstimate;
+            $ratio = $child->isClosed() ? 100 : $child->done_ratio;
+
+            return $estimate * $ratio;
+        });
+
+        $updates['done_ratio'] = (int) floor($weightedSum / ($averageEstimate * $children->count()));
     }
 
     /**

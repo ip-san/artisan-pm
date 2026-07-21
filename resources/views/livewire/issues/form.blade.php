@@ -298,6 +298,31 @@ new #[Layout('components.layouts.app')] class extends Component
         return Setting::get('issue_done_ratio', 'issue_field') === 'issue_status';
     }
 
+    /**
+     * Whether this (existing) issue has children whose own values roll up
+     * into these fields — matches Redmine's parent_issue_priority/_dates/
+     * _done_ratio settings, which make the parent's own field
+     * non-editable once it has children, since the next child save would
+     * just overwrite whatever was manually entered.
+     */
+    #[Computed]
+    public function priorityIsDerived(): bool
+    {
+        return $this->issue !== null && ! $this->issue->isLeaf() && Setting::get('parent_issue_priority', true);
+    }
+
+    #[Computed]
+    public function datesAreDerived(): bool
+    {
+        return $this->issue !== null && ! $this->issue->isLeaf() && Setting::get('parent_issue_dates', true);
+    }
+
+    #[Computed]
+    public function doneRatioIsParentDerived(): bool
+    {
+        return $this->issue !== null && ! $this->issue->isLeaf() && Setting::get('parent_issue_done_ratio', true);
+    }
+
     #[Computed]
     public function canLogTime(): bool
     {
@@ -497,12 +522,15 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700">優先度</label>
-                <select wire:model="priority_id" @disabled($this->isReadOnly('priority_id'))
+                <select wire:model="priority_id" @disabled($this->isReadOnly('priority_id') || $this->priorityIsDerived)
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                     @foreach ($this->priorities as $priority)
                         <option value="{{ $priority->id }}">{{ $priority->name }}</option>
                     @endforeach
                 </select>
+                @if ($this->priorityIsDerived)
+                    <p class="mt-1 text-xs text-gray-500">未クローズの子課題のうち最高優先度から自動算出されます。</p>
+                @endif
             </div>
 
             <div>
@@ -528,15 +556,18 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700">開始日</label>
-                <input type="date" wire:model="start_date" @disabled($this->isReadOnly('start_date'))
+                <input type="date" wire:model="start_date" @disabled($this->isReadOnly('start_date') || $this->datesAreDerived)
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">期日</label>
-                <input type="date" wire:model="due_date" @disabled($this->isReadOnly('due_date'))
+                <input type="date" wire:model="due_date" @disabled($this->isReadOnly('due_date') || $this->datesAreDerived)
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             </div>
         </div>
+        @if ($this->datesAreDerived)
+            <p class="-mt-3 text-xs text-gray-500">子課題の開始日〜期日の範囲から自動算出されます。</p>
+        @endif
 
         <div>
             <label class="block text-sm font-medium text-gray-700">予定工数(時間)</label>
@@ -614,9 +645,11 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="block text-sm font-medium text-gray-700">進捗率 ({{ $done_ratio }}%)</label>
                 <input type="range" wire:model="done_ratio" min="0" max="100" step="10" class="mt-1 block w-full"
-                    @disabled($this->doneRatioIsStatusDerived)>
+                    @disabled($this->doneRatioIsStatusDerived || $this->doneRatioIsParentDerived)>
                 @if ($this->doneRatioIsStatusDerived)
                     <p class="mt-1 text-xs text-gray-500">設定によりステータスから自動算出されます。</p>
+                @elseif ($this->doneRatioIsParentDerived)
+                    <p class="mt-1 text-xs text-gray-500">子課題の進捗率(予定工数で重み付け)から自動算出されます。</p>
                 @endif
             </div>
 
