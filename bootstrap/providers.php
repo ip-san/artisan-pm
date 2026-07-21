@@ -1,5 +1,6 @@
 <?php
 
+use App\Providers\ActivityServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\CustomFieldServiceProvider;
 use App\Providers\FortifyServiceProvider;
@@ -12,6 +13,7 @@ return [
     PermissionServiceProvider::class,
     CustomFieldServiceProvider::class,
     MorphMapServiceProvider::class,
+    ActivityServiceProvider::class,
     FortifyServiceProvider::class,
     VoltServiceProvider::class,
 ];

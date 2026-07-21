@@ -67,6 +67,8 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/repository/browse/{path?}', 'repository.browse')->where('path', '.*')->name('repository.browse');
     Volt::route('/projects/{project:identifier}/repository/entry/{path}', 'repository.entry')->where('path', '.*')->name('repository.entry');
 
+    Volt::route('/projects/{project:identifier}/activity', 'activity.index')->name('activity.index');
+
     Volt::route('/roles', 'roles.index')->name('roles.index');
     Volt::route('/roles/create', 'roles.form')->name('roles.create');
     Volt::route('/roles/{role}/edit', 'roles.form')->name('roles.edit');

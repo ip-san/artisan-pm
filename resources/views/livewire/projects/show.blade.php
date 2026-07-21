@@ -23,6 +23,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <p class="text-sm text-gray-500">{{ $project->identifier }}</p>
         </div>
         <div class="flex gap-2">
+            <a href="{{ route('activity.index', $project) }}"
+                class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                活動
+            </a>
             @can('viewAny', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.index', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
