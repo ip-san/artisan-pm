@@ -2,6 +2,8 @@
 
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use Illuminate\Support\Number;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -14,6 +16,18 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $project);
 
         $this->project = $project;
+    }
+
+    /**
+     * This project's own logged hours — matches Redmine's project overview
+     * @total_hours, but without the display_subprojects_issues-driven
+     * subproject rollup (no such setting exists in this app yet), so it's
+     * this project's TimeEntry rows only.
+     */
+    #[Computed]
+    public function totalSpentHours(): float
+    {
+        return (float) $this->project->timeEntries()->sum('hours');
     }
 
     public function toggleBookmark(): void
@@ -214,6 +228,15 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($project->description)
         <p class="text-sm text-gray-700 mb-6">{{ $project->description }}</p>
     @endif
+
+    @can('viewAny', [\App\Models\TimeEntry::class, $project])
+        @if ($this->totalSpentHours > 0)
+            <div class="rounded-md border border-gray-200 bg-white p-4 mb-6">
+                <h2 class="text-sm font-semibold text-gray-900 mb-2">実績工数</h2>
+                <p class="text-sm text-gray-700">{{ Number::format($this->totalSpentHours, precision: 2) }} 時間</p>
+            </div>
+        @endif
+    @endcan
 
     <div class="rounded-md border border-gray-200 bg-white p-4">
         <h2 class="text-sm font-semibold text-gray-900 mb-2">有効なモジュール</h2>
