@@ -10,12 +10,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Scout\Searchable;
 
 #[Fillable(['board_id', 'parent_id', 'author_id', 'subject', 'content', 'is_sticky', 'is_locked'])]
 final class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
-    use HasFactory;
+    use HasFactory, Searchable;
 
     protected function casts(): array
     {
@@ -60,5 +61,16 @@ final class Message extends Model
     public function isTopic(): bool
     {
         return $this->parent_id === null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'subject' => $this->subject,
+            'content' => $this->content,
+        ];
     }
 }

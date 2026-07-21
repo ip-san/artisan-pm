@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
+use Laravel\Scout\Searchable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
@@ -29,7 +30,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 final class Issue extends Model implements HasMedia
 {
     /** @use HasFactory<IssueFactory> */
-    use HasCustomFields, HasFactory, InteractsWithMedia;
+    use HasCustomFields, HasFactory, InteractsWithMedia, Searchable;
 
     /**
      * Eloquent doesn't read back server-side column defaults on a freshly
@@ -227,5 +228,16 @@ final class Issue extends Model implements HasMedia
         $userRoles = $user ? app(AuthorizationService::class)->rolesFor($user, $this->project) : collect();
 
         return $fields->filter(fn (CustomField $field) => $field->visibleToRoles($userRoles))->values();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'subject' => $this->subject,
+            'description' => $this->description,
+        ];
     }
 }
