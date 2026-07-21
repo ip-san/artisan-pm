@@ -303,7 +303,7 @@
 | トピック作成/返信 | done | — |
 | Sticky | done | — |
 | ロック | done | `MessagePolicy::reply` で返信禁止を実装 |
-| トピックの別Boardへの移動 | missing | — |
+| トピックの別Boardへの移動 | done(2026-07-21) | `edit_messages`保持者(`MessagePolicy::manageFlags`)がトピック詳細から別フォーラムへ移動可能。返信は独自の`board_id`を持つため、トピックと返信の両方を一括更新 |
 | トピックのWatch | done(2026-07-21) | トピックのみWatch可能(返信は対象外、`MessagePolicy::watch`)。他ユーザーの追加/削除UIはまだなし |
 | 引用返信 | done(2026-07-21) | トピック/返信それぞれに「引用」ボタン、返信入力欄に`>`引用形式をプリフィル |
 | 添付ファイル | missing | `Message` が `HasMedia` 未実装 |

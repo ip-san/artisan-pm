@@ -265,6 +265,40 @@ test('the board list shows child boards nested under their parent', function () 
         ->assertSee('Child Forum');
 });
 
+test('a member with edit_messages can move a topic and its replies to another board', function () {
+    $project = Project::factory()->create();
+    $manager = boardMember($project, ['view_messages', 'add_messages', 'edit_messages']);
+    $originalBoard = Board::factory()->for($project)->create();
+    $targetBoard = Board::factory()->for($project)->create();
+    $topic = Message::factory()->for($originalBoard)->create();
+    $reply = Message::factory()->for($originalBoard)->create(['parent_id' => $topic->id]);
+
+    Livewire::actingAs($manager)
+        ->test('messages.show', ['project' => $project, 'board' => $originalBoard, 'message' => $topic])
+        ->set('moveToBoardId', $targetBoard->id)
+        ->call('moveTopic')
+        ->assertRedirect(route('messages.show', [$project, $targetBoard, $topic]));
+
+    expect($topic->fresh()->board_id)->toBe($targetBoard->id)
+        ->and($reply->fresh()->board_id)->toBe($targetBoard->id);
+});
+
+test('a member without edit_messages cannot move a topic', function () {
+    $project = Project::factory()->create();
+    $author = boardMember($project, ['view_messages', 'add_messages', 'edit_own_messages']);
+    $originalBoard = Board::factory()->for($project)->create();
+    $targetBoard = Board::factory()->for($project)->create();
+    $topic = Message::factory()->for($originalBoard)->for($author, 'author')->create();
+
+    Livewire::actingAs($author)
+        ->test('messages.show', ['project' => $project, 'board' => $originalBoard, 'message' => $topic])
+        ->set('moveToBoardId', $targetBoard->id)
+        ->call('moveTopic')
+        ->assertForbidden();
+
+    expect($topic->fresh()->board_id)->toBe($originalBoard->id);
+});
+
 test('a member with view_messages can watch and unwatch a topic', function () {
     $project = Project::factory()->create();
     $user = boardMember($project, ['view_messages']);

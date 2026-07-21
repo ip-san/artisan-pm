@@ -4,6 +4,7 @@ use App\Models\Board;
 use App\Models\Message;
 use App\Models\Project;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -17,6 +18,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public Message $topic;
 
     public string $replyContent = '';
+
+    public ?int $moveToBoardId = null;
 
     public function mount(Project $project, Board $board, Message $message): void
     {
@@ -93,6 +96,38 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->topic->unsetRelation('watchers');
     }
 
+    /**
+     * @return Collection<int, Board>
+     */
+    #[Computed]
+    public function otherBoards(): Collection
+    {
+        return Board::query()
+            ->where('project_id', $this->project->id)
+            ->where('id', '!=', $this->board->id)
+            ->orderBy('position')
+            ->get();
+    }
+
+    public function moveTopic(): void
+    {
+        $this->authorize('manageFlags', $this->topic);
+
+        $data = $this->validate([
+            'moveToBoardId' => ['required', Rule::exists('boards', 'id')->where('project_id', $this->project->id)],
+        ]);
+
+        $newBoard = Board::findOrFail($data['moveToBoardId']);
+
+        // Replies carry their own board_id rather than inheriting it from
+        // the topic, so both need updating to keep them together.
+        Message::query()
+            ->where(fn ($q) => $q->whereKey($this->topic->id)->orWhere('parent_id', $this->topic->id))
+            ->update(['board_id' => $newBoard->id]);
+
+        $this->redirect(route('messages.show', [$this->project, $newBoard, $this->topic]), navigate: true);
+    }
+
     public function deleteAttachment(int $messageId, int $mediaId): void
     {
         $message = Message::query()->where('board_id', $this->board->id)->findOrFail($messageId);
@@ -162,6 +197,26 @@ new #[Layout('components.layouts.app')] class extends Component
             @endcan
         </div>
     </div>
+
+    @can('manageFlags', $topic)
+        @if ($this->otherBoards->isNotEmpty())
+            <form wire:submit="moveTopic" class="mb-6 flex items-end gap-2">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">別のフォーラムへ移動</label>
+                    <select wire:model="moveToBoardId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                        <option value="">選択してください</option>
+                        @foreach ($this->otherBoards as $otherBoard)
+                            <option value="{{ $otherBoard->id }}">{{ $otherBoard->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('moveToBoardId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <button type="submit" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    移動
+                </button>
+            </form>
+        @endif
+    @endcan
 
     <div class="rounded-md border border-gray-200 bg-white p-4 mb-2">
         <p class="whitespace-pre-line text-sm text-gray-800">{{ $topic->content }}</p>
