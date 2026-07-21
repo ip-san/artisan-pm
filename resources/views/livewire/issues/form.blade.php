@@ -104,6 +104,46 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->ofType(EnumerationType::IssuePriority)
                 ->where('is_default', true)
                 ->first()?->id;
+
+            $this->prefillFromCopySource($project);
+        }
+    }
+
+    /**
+     * Prefills a new issue's fields from ?copy_from=<id> — the source
+     * issue's own tracker/status/journals/attachments/relations are
+     * deliberately not carried over: status resets to the normal new-
+     * issue default above, and the rest are considered out of scope for
+     * a lightweight "start from a similar issue" copy.
+     */
+    private function prefillFromCopySource(Project $project): void
+    {
+        $sourceId = request()->integer('copy_from');
+
+        if ($sourceId === 0) {
+            return;
+        }
+
+        $source = Issue::query()->where('project_id', $project->id)->find($sourceId);
+
+        if ($source === null || auth()->user()?->cannot('view', $source)) {
+            return;
+        }
+
+        $this->tracker_id = $source->tracker_id;
+        $this->priority_id = $source->priority_id;
+        $this->category_id = $source->category_id;
+        $this->assigned_to_id = $source->assigned_to_id;
+        $this->fixed_version_id = $source->fixed_version_id;
+        $this->subject = $source->subject;
+        $this->description = (string) $source->description;
+        $this->start_date = $source->start_date?->toDateString();
+        $this->due_date = $source->due_date?->toDateString();
+
+        foreach ($source->relevantCustomFields() as $field) {
+            $this->customFieldValues[$field->id] = $field->multiple
+                ? $source->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
+                : $source->customValue($field);
         }
     }
 

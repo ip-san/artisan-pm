@@ -249,6 +249,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     工数を記録
                 </a>
             @endcan
+            @can('create', [\App\Models\Issue::class, $project])
+                <a href="{{ route('issues.create', $project) }}?copy_from={{ $issue->id }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    コピー
+                </a>
+            @endcan
             @can('update', $issue)
                 <a href="{{ route('issues.edit', [$project, $issue]) }}"
                     class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
