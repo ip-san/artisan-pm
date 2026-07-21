@@ -3,6 +3,7 @@
 use App\Providers\ActivityServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\CustomFieldServiceProvider;
+use App\Providers\DashboardBlockServiceProvider;
 use App\Providers\FortifyServiceProvider;
 use App\Providers\MorphMapServiceProvider;
 use App\Providers\PermissionServiceProvider;
@@ -14,6 +15,7 @@ return [
     CustomFieldServiceProvider::class,
     MorphMapServiceProvider::class,
     ActivityServiceProvider::class,
+    DashboardBlockServiceProvider::class,
     FortifyServiceProvider::class,
     VoltServiceProvider::class,
 ];

@@ -16,6 +16,7 @@
                     <div class="flex items-center gap-6">
                         <a href="{{ route('projects.index') }}" class="font-semibold text-gray-900">{{ config('app.name') }}</a>
                         @auth
+                            <a href="{{ route('my-page.index') }}" class="text-sm text-gray-600 hover:text-gray-900">マイページ</a>
                             <a href="{{ route('projects.index') }}" class="text-sm text-gray-600 hover:text-gray-900">プロジェクト</a>
                             @can('viewAny', \App\Models\Role::class)
                                 <a href="{{ route('roles.index') }}" class="text-sm text-gray-600 hover:text-gray-900">ロール管理</a>

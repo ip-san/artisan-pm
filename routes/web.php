@@ -11,6 +11,8 @@ Route::get('/', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/attachments/{media}', AttachmentController::class)->name('attachments.show');
 
+    Volt::route('/my/page', 'my-page.index')->name('my-page.index');
+
     Volt::route('/projects', 'projects.index')->name('projects.index');
     Volt::route('/projects/create', 'projects.form')->name('projects.create');
     Volt::route('/projects/{project:identifier}', 'projects.show')->name('projects.show');
