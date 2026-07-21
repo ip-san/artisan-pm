@@ -39,6 +39,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     カレンダー
                 </a>
             @endcan
+            @can('viewGantt', $project)
+                <a href="{{ route('gantt.index', $project) }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    ガントチャート
+                </a>
+            @endcan
             @can('viewAny', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.index', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">

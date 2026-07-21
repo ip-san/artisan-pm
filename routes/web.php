@@ -71,6 +71,8 @@ Route::middleware('auth')->group(function () {
 
     Volt::route('/projects/{project:identifier}/calendar', 'calendar.index')->name('calendar.index');
 
+    Volt::route('/projects/{project:identifier}/gantt', 'gantt.index')->name('gantt.index');
+
     Volt::route('/roles', 'roles.index')->name('roles.index');
     Volt::route('/roles/create', 'roles.form')->name('roles.create');
     Volt::route('/roles/{role}/edit', 'roles.form')->name('roles.edit');
