@@ -1,29 +1,122 @@
 <?php
 
+use App\Enums\IssueRelationType;
 use App\Models\CustomField;
 use App\Models\Issue;
+use App\Models\IssueRelation;
 use App\Models\Journal;
 use App\Models\Project;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    /**
+     * How each relation type reads from the "from" side vs. the "to" side
+     * of the row — e.g. issue A "blocks" issue B, but viewed from B the
+     * same row should read "blocked by". `relates` has no directional
+     * language, and `precedes`/`follows` are already distinct storable
+     * types (picked directly by the user), so only blocks/duplicates need
+     * a computed reverse label.
+     *
+     * @var array<string, array{from: string, to: string}>
+     */
+    private const array RELATION_LABELS = [
+        'relates' => ['from' => '関連', 'to' => '関連'],
+        'blocks' => ['from' => 'ブロックする', 'to' => 'ブロックされている'],
+        'duplicates' => ['from' => '重複する', 'to' => '重複されている'],
+        'precedes' => ['from' => '先行', 'to' => '先行'],
+        'follows' => ['from' => '後続', 'to' => '後続'],
+    ];
+
     public Project $project;
 
     public Issue $issue;
 
     public string $comment = '';
 
+    public ?int $relatedIssueId = null;
+
+    public string $relationType = 'relates';
+
     public function mount(Project $project, Issue $issue): void
     {
         $this->authorize('view', $issue);
 
         $this->project = $project;
-        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity']);
+        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project']);
+    }
+
+    /**
+     * @return Collection<int, array{relation: IssueRelation, other: Issue, label: string}>
+     */
+    #[Computed]
+    public function relations(): Collection
+    {
+        $from = $this->issue->relationsFrom->map(fn (IssueRelation $relation) => [
+            'relation' => $relation,
+            'other' => $relation->to,
+            'label' => self::RELATION_LABELS[$relation->relation_type->value]['from'],
+        ]);
+
+        $to = $this->issue->relationsTo->map(fn (IssueRelation $relation) => [
+            'relation' => $relation,
+            'other' => $relation->from,
+            'label' => self::RELATION_LABELS[$relation->relation_type->value]['to'],
+        ]);
+
+        return $from->concat($to)->sortBy(fn (array $entry) => $entry['relation']->id);
+    }
+
+    public function addRelation(): void
+    {
+        $this->authorize('manageRelations', $this->issue);
+
+        $data = $this->validate([
+            'relatedIssueId' => [
+                'required', 'integer', Rule::exists('issues', 'id'),
+                Rule::notIn([$this->issue->id]),
+                Rule::unique('issue_relations', 'issue_to_id')
+                    ->where('issue_from_id', $this->issue->id)
+                    ->where('relation_type', $this->relationType),
+            ],
+            'relationType' => ['required', Rule::enum(IssueRelationType::class)],
+        ]);
+
+        $otherIssue = Issue::findOrFail($data['relatedIssueId']);
+        $this->authorize('view', $otherIssue);
+
+        IssueRelation::create([
+            'issue_from_id' => $this->issue->id,
+            'issue_to_id' => $otherIssue->id,
+            'relation_type' => $data['relationType'],
+        ]);
+
+        $this->reset('relatedIssueId');
+        $this->reloadRelations();
+    }
+
+    public function deleteRelation(int $relationId): void
+    {
+        $this->authorize('manageRelations', $this->issue);
+
+        $relation = IssueRelation::query()
+            ->where(fn ($q) => $q->where('issue_from_id', $this->issue->id)->orWhere('issue_to_id', $this->issue->id))
+            ->findOrFail($relationId);
+
+        $relation->delete();
+
+        $this->reloadRelations();
+    }
+
+    private function reloadRelations(): void
+    {
+        $this->issue->load(['relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project']);
+        unset($this->relations);
     }
 
     /**
@@ -148,6 +241,51 @@ new #[Layout('components.layouts.app')] class extends Component
                 </li>
             @endforeach
         </ul>
+    @endif
+
+    @if ($this->relations->isNotEmpty() || auth()->user()?->can('manageRelations', $issue))
+        <h2 class="text-sm font-semibold text-gray-900 mb-2">関連課題</h2>
+        <ul class="mb-4 space-y-1">
+            @foreach ($this->relations as $entry)
+                <li class="flex items-center justify-between text-sm rounded-md border border-gray-200 bg-white px-3 py-2">
+                    <span>
+                        <span class="text-gray-500">{{ $entry['label'] }}:</span>
+                        <a href="{{ route('issues.show', [$entry['other']->project, $entry['other']]) }}" class="text-indigo-600 hover:underline">
+                            {{ $entry['other']->tracker->name }} #{{ $entry['other']->id }} — {{ $entry['other']->subject }}
+                        </a>
+                    </span>
+                    @can('manageRelations', $issue)
+                        <button wire:click="deleteRelation({{ $entry['relation']->id }})" wire:confirm="この関連を削除しますか?"
+                            class="text-red-600 hover:underline">削除</button>
+                    @endcan
+                </li>
+            @endforeach
+        </ul>
+
+        @can('manageRelations', $issue)
+            <form wire:submit="addRelation" class="mb-6 flex items-end gap-2">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">関連種別</label>
+                    <select wire:model="relationType" class="mt-1 block rounded-md border-gray-300 shadow-sm text-sm">
+                        <option value="relates">関連</option>
+                        <option value="blocks">ブロックする</option>
+                        <option value="duplicates">重複する</option>
+                        <option value="precedes">先行</option>
+                        <option value="follows">後続</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">課題ID</label>
+                    <input type="number" wire:model="relatedIssueId" placeholder="例: 123"
+                        class="mt-1 block w-28 rounded-md border-gray-300 shadow-sm text-sm">
+                </div>
+                <button type="submit" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    追加
+                </button>
+            </form>
+            @error('relatedIssueId') <p class="-mt-4 mb-6 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('relationType') <p class="-mt-4 mb-6 text-sm text-red-600">{{ $message }}</p> @enderror
+        @endcan
     @endif
 
     @if ($issue->timeEntries->isNotEmpty())

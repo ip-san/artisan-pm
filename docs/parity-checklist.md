@@ -19,7 +19,7 @@
 3. **アプリケーション設定が Redmine の 119 キー中わずか 6 項目**(`app_title`, `default_issues_per_page`, incoming-mail 系4項目)。表示/認証ポリシー/通知/添付ファイル制限/リポジトリ設定などのタブが丸ごと存在しない。
 4. **カスタムフィールド対応が Issue と Project の2種のみ**(Redmine は User/Version/Group/TimeEntryActivity/DocumentCategory 等 ~10種)。
 5. **REST API が Projects と Issues の2リソースのみ**(Redmine は ~20 リソース群)。DELETE 系は皆無、ファイルアップロード API もなし。API認証も OAuth2(Passport)のみで、スクリプト用途に適した API キー方式が存在しない。
-6. **Issue の関連機能(サブタスク・関連)がモデルはあるがUIがない**。`IssueRelation` はマイグレーション/Enumは存在するが画面から作成・閲覧できない。~~IssueCategory はモデル自体が存在しない。~~ → **done**(2026-07-21)。`IssueCategory` モデル・プロジェクト単位の管理画面・課題フォーム/一覧/フィルタ/CSV連携まで実装(詳細は §Issue Categories 参照)。
+6. **Issue のサブタスク(親子)機能がモデルはあるがUIがない**。`parent_id` とリレーションは存在するが画面から親を設定できない(詳細は §サブタスク・親子関係 参照)。~~関連課題(`IssueRelation`)もUIが皆無だった。~~ → **done**(2026-07-21)。課題詳細画面に追加/削除UIを実装(詳細は §Issue Relations 参照)。~~IssueCategory はモデル自体が存在しない。~~ → **done**(2026-07-21)。`IssueCategory` モデル・プロジェクト単位の管理画面・課題フォーム/一覧/フィルタ/CSV連携まで実装(詳細は §Issue Categories 参照)。
 7. **添付ファイルが Issue/Version/News/Document にしか付かない**。Wiki ページ・フォーラム投稿に添付できない。サムネイル生成・説明文・ダウンロード数もない。
 8. **Wiki の差分表示・リダイレクト・マクロエンジンが丸ごと未実装**。
 9. ~~**Tracker・IssueStatus に管理画面が皆無**~~ → **done**(2026-07-21)。当初の監査では両方とも「done」と誤って報告されていたが、実際にはモデルのみでルート/画面が一切なく、さらにプロジェクト編集フォームにトラッカー選択欄が無いため UI 経由で作成したプロジェクトは課題を一切作成できない状態だった(トラッカーが0件のため)。この3点をまとめて修正。
@@ -91,8 +91,8 @@
 
 | 機能 | 状態 | 備考 |
 |---|---|---|
-| データモデル | partial | `IssueRelation` とリレーションは存在するが、UIから作成/閲覧/削除する手段が皆無 |
-| 関連タイプ | partial | relates/blocks/duplicates/precedes/follows のみ。逆方向・コピー系タイプ(blocked, duplicated, copied_to/from)欠落 |
+| データモデル | done(2026-07-21) | 課題詳細画面に「関連課題」セクションを追加。`manage_issue_relations` 権限で作成/削除を保護、閲覧は `view_issues` があれば誰でも可。追加時は対象課題IDを指定し、対象課題を閲覧できない場合(別プロジェクトで権限なし等)は403、自己参照・DB一意制約違反(重複)はバリデーションエラーとして表示 |
+| 関連タイプ | partial | relates/blocks/duplicates/precedes/follows のみ。逆方向・コピー系タイプ(blocked, duplicated, copied_to/from)の**新規Enum値**は追加していないが、blocks/duplicatesは表示側でfrom/to方向に応じたラベル反転(「ブロックする」⇔「ブロックされている」)を実装。precedes/followsは元々ユーザーが方向を選んで別々に保存する設計のため反転不要 |
 | precedes/follows の遅延日数(delay) | missing | マイグレーションに該当カラムなし |
 | 関連日付からの自動リスケジュール・循環/プロジェクト間検証 | missing | DBのユニーク制約のみ |
 | 重複課題のクローズ連動・ブロック中クローズ禁止 | missing | — |

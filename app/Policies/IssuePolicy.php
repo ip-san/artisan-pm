@@ -53,4 +53,9 @@ final class IssuePolicy
     {
         return $this->workflow->allowedTransitions($issue, $user)->contains('id', $status->id);
     }
+
+    public function manageRelations(User $user, Issue $issue): bool
+    {
+        return $this->authorization->can($user, 'manage_issue_relations', $issue->project);
+    }
 }
