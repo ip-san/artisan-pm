@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Concerns\HasCustomFields;
+use App\Concerns\HasThumbnails;
 use App\Enums\CustomizableType;
 use App\Enums\VersionStatus;
 use App\Support\Authorization\AuthorizationService;
@@ -24,7 +25,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 final class Version extends Model implements HasMedia
 {
     /** @use HasFactory<VersionFactory> */
-    use HasCustomFields, HasFactory, InteractsWithMedia;
+    use HasCustomFields, HasFactory, HasThumbnails, InteractsWithMedia {
+        HasThumbnails::registerMediaConversions insteadof InteractsWithMedia;
+    }
 
     /**
      * Eloquent doesn't read back server-side column defaults on a freshly
@@ -167,6 +170,14 @@ final class Version extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('files');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function thumbnailCollections(): array
+    {
+        return ['files'];
     }
 
     /**

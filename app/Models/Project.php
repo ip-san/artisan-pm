@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Concerns\HasCustomFields;
+use App\Concerns\HasThumbnails;
 use App\Enums\CustomizableType;
 use App\Enums\EnumerationType;
 use App\Enums\ProjectModuleKey;
@@ -30,7 +31,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 final class Project extends Model implements HasMedia
 {
     /** @use HasFactory<ProjectFactory> */
-    use HasCustomFields, HasFactory, InteractsWithMedia, NodeTrait;
+    use HasCustomFields, HasFactory, HasThumbnails, InteractsWithMedia, NodeTrait {
+        HasThumbnails::registerMediaConversions insteadof InteractsWithMedia;
+    }
 
     protected function casts(): array
     {
@@ -267,6 +270,14 @@ final class Project extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('files');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function thumbnailCollections(): array
+    {
+        return ['files'];
     }
 
     /**

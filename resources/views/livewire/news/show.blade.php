@@ -146,7 +146,8 @@ new #[Layout('components.layouts.app')] class extends Component
         <ul class="mb-6 space-y-1">
             @foreach ($attachments as $media)
                 <li class="text-sm" wire:key="news-attachment-{{ $media->id }}">
-                    <div>
+                    <div class="flex items-center gap-2">
+                        <x-attachment-thumbnail :media="$media" />
                         <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
                             {{ $media->file_name }}
                         </a>

@@ -270,9 +270,12 @@ new #[Layout('components.layouts.app')] class extends Component
             @foreach ($topic->attachments() as $media)
                 <li class="text-sm" wire:key="topic-attachment-{{ $media->id }}">
                     <div class="flex items-center justify-between">
-                        <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
-                            {{ $media->file_name }}
-                        </a>
+                        <span class="flex items-center gap-2">
+                            <x-attachment-thumbnail :media="$media" />
+                            <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                                {{ $media->file_name }}
+                            </a>
+                        </span>
                         <span class="flex items-center gap-2">
                             <span class="text-gray-500">{{ $media->human_readable_size }}</span>
                             <x-download-count :media="$media" />
@@ -311,9 +314,12 @@ new #[Layout('components.layouts.app')] class extends Component
                         @foreach ($reply->attachments() as $media)
                             <li class="text-sm" wire:key="reply-attachment-{{ $media->id }}">
                                 <div class="flex items-center justify-between">
-                                    <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
-                                        {{ $media->file_name }}
-                                    </a>
+                                    <span class="flex items-center gap-2">
+                                        <x-attachment-thumbnail :media="$media" />
+                                        <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                                            {{ $media->file_name }}
+                                        </a>
+                                    </span>
                                     <span class="flex items-center gap-2">
                                         <span class="text-gray-500">{{ $media->human_readable_size }}</span>
                                         <x-download-count :media="$media" />

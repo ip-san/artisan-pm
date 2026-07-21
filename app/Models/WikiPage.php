@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\HasThumbnails;
 use Database\Factories\WikiPageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,7 +22,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 final class WikiPage extends Model implements HasMedia
 {
     /** @use HasFactory<WikiPageFactory> */
-    use HasFactory, InteractsWithMedia;
+    use HasFactory, HasThumbnails, InteractsWithMedia {
+        HasThumbnails::registerMediaConversions insteadof InteractsWithMedia;
+    }
 
     protected function casts(): array
     {

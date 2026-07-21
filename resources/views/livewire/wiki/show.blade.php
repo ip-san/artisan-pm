@@ -157,9 +157,12 @@ new #[Layout('components.layouts.app')] class extends Component
             @foreach ($attachments as $media)
                 <li class="py-1 text-sm" wire:key="wiki-attachment-{{ $media->id }}">
                     <div class="flex items-center justify-between">
-                        <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
-                            {{ $media->file_name }}
-                        </a>
+                        <span class="flex items-center gap-2">
+                            <x-attachment-thumbnail :media="$media" />
+                            <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                                {{ $media->file_name }}
+                            </a>
+                        </span>
                         <span class="flex items-center gap-2">
                             <span class="text-gray-500">{{ $media->human_readable_size }}</span>
                             <x-download-count :media="$media" />

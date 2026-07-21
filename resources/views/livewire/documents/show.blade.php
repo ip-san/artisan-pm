@@ -88,7 +88,8 @@ new #[Layout('components.layouts.app')] class extends Component
     <ul class="space-y-1">
         @forelse ($attachments as $media)
             <li class="text-sm" wire:key="document-attachment-{{ $media->id }}">
-                <div>
+                <div class="flex items-center gap-2">
+                    <x-attachment-thumbnail :media="$media" />
                     <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
                         {{ $media->file_name }}
                     </a>

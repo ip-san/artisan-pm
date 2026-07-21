@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\HasThumbnails;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,7 +22,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 final class Message extends Model implements HasMedia
 {
     /** @use HasFactory<MessageFactory> */
-    use HasFactory, InteractsWithMedia, Searchable;
+    use HasFactory, HasThumbnails, InteractsWithMedia, Searchable {
+        HasThumbnails::registerMediaConversions insteadof InteractsWithMedia;
+    }
 
     protected function casts(): array
     {

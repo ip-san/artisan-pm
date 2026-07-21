@@ -20,7 +20,7 @@
 4. ~~**カスタムフィールド対応が Issue と Project の2種のみ**~~ → **一部done**(2026-07-22)。Version にも対応(`CustomizableType::Version`、`app/Models/Version.php` に `HasCustomFields` トレイト+`relevantCustomFields()`、`versions/form.blade.php` で入力/保存)。可視性はプロジェクトのロール経由で解決(Versionは自身のロール/メンバー概念を持たないため)。User/Group/TimeEntryActivity/DocumentCategory 等(Redmine は ~10種)は引き続き未対応。
 5. **REST API が Projects と Issues の2リソースのみ**(Redmine は ~20 リソース群)。DELETE 系は皆無、ファイルアップロード API もなし。API認証も OAuth2(Passport)のみで、スクリプト用途に適した API キー方式が存在しない。
 6. ~~**Issue のサブタスク(親子)機能がモデルはあるがUIがない**。~~ → **done**(2026-07-21)。課題フォームに親課題ID欄、詳細画面に親リンク/サブタスク一覧を追加(詳細は §サブタスク・親子関係 参照)。~~関連課題(`IssueRelation`)もUIが皆無だった。~~ → **done**(2026-07-21)。課題詳細画面に追加/削除UIを実装(詳細は §Issue Relations 参照)。~~IssueCategory はモデル自体が存在しない。~~ → **done**(2026-07-21)。`IssueCategory` モデル・プロジェクト単位の管理画面・課題フォーム/一覧/フィルタ/CSV連携まで実装(詳細は §Issue Categories 参照)。
-7. **添付ファイルが Issue/Version/News/Document にしか付かない**。Wiki ページ・フォーラム投稿に添付できない。サムネイル生成・説明文・ダウンロード数もない。
+7. ~~**添付ファイルが Issue/Version/News/Document にしか付かない**。Wiki ページ・フォーラム投稿に添付できない。サムネイル生成・説明文・ダウンロード数もない。~~ → **done**(2026-07-21〜22)。Wiki/フォーラム投稿への添付、ダウンロード数、説明文、サムネイル生成のすべてに対応済み(詳細は §添付ファイル 参照)。
 8. **Wiki の差分表示・リダイレクト・マクロエンジンが丸ごと未実装**。
 9. ~~**Tracker・IssueStatus に管理画面が皆無**~~ → **done**(2026-07-21)。当初の監査では両方とも「done」と誤って報告されていたが、実際にはモデルのみでルート/画面が一切なく、さらにプロジェクト編集フォームにトラッカー選択欄が無いため UI 経由で作成したプロジェクトは課題を一切作成できない状態だった(トラッカーが0件のため)。この3点をまとめて修正。
 10. ~~**ワークフロー遷移・フィールドルールの管理画面が皆無**~~ → **done**(2026-07-21)。`workflows/edit.blade.php` でトラッカー×ロール×適用対象(通常/作成者/担当者)を選んで遷移グリッド・フィールドルールグリッドを編集可能に。新規課題(`old_status_id IS NULL`)の遷移編集は意図的に対象外(`IssueService::create()` のステータス初期値決定がワークフローテーブルを一切参照しないため、現状は編集しても挙動に反映されない — §1 参照)。
@@ -347,7 +347,7 @@
 | 機能 | 状態 | 備考 |
 |---|---|---|
 | エンティティごとの複数添付 | done | Spatie MediaLibrary、対象は Issue/Version/News/Document/WikiPage/Message(2026-07-21〜) |
-| **サムネイル/画像変換** | **missing** | `registerMediaConversions` が未使用。ダウンロード専用 |
+| サムネイル/画像変換 | done(2026-07-22) | Redmineの`Attachment#thumbnail`相当。添付ファイルを持つ全モデル(Issue/WikiPage/News/Document/Message/Project/Version)に`registerMediaConversions()`で100x100の`thumb`変換を登録(共通ロジックは`App\Concerns\HasThumbnails`、`InteractsWithMedia`の同名no-op実装と衝突するため`insteadof`で明示解決)。非画像ファイルはMedia Library側が自動的にスキップ(`ImageGenerator`が対応しないため)。専用ルート`attachments.thumb`+`AttachmentThumbnailController`でプライベートディスク越しに配信(`attachments.show`と同じ`view`権限境界、強制ダウンロードではなくインライン表示用)。`<x-attachment-thumbnail>`コンポーネントを課題・Wiki・ファイル(プロジェクト/バージョン)・News・Document・フォーラムの添付一覧すべてに配線 |
 | 添付ファイルの説明文 | done(2026-07-22) | Redmineの`Attachment#description`相当を`media.custom_properties.description`として実装。課題・Wikiページ・プロジェクト/バージョンファイル・News・Documentに続き、フォーラム(Message、トピック・返信とも)にも対応し、添付ファイルを持つ全エンティティで完了。返信は`WithPagination`で分割表示されるため、`mount()`時点で全返信を(表示ページに関わらず)一括取得して`attachmentDescriptions`を事前充填 |
 | ダウンロード数カウント | done(2026-07-21) | `AttachmentController`が`media.custom_properties`の`download_count`をダウンロードごとにインクリメント。`<x-download-count>`コンポーネントで各添付ファイル一覧に表示 |
 | Wiki/フォーラム投稿への添付 | done(2026-07-21) | Wiki/フォーラム投稿(`Message`、トピック・返信とも)ともに対応 |

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityFeedController;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\AttachmentThumbnailController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -11,6 +12,7 @@ Route::get('/', function () {
 
 Route::middleware('auth')->group(function () {
     Route::get('/attachments/{media}', AttachmentController::class)->name('attachments.show');
+    Route::get('/attachments/{media}/thumb', AttachmentThumbnailController::class)->name('attachments.thumb');
 
     Volt::route('/my/page', 'my-page.index')->name('my-page.index');
     Volt::route('/profile', 'profile.index')->name('profile.index');

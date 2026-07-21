@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\Version;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 function filesMember(Project $project, array $permissions = ['view_files']): User
@@ -150,4 +151,17 @@ test('a file on another project cannot have its description set through this pro
         ->assertStatus(404);
 
     expect($foreignMedia->fresh()->getCustomProperty('description'))->toBeNull();
+});
+
+test('an image uploaded to a project or version file generates a thumb conversion', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $version = Version::factory()->for($project)->create();
+
+    $projectMedia = $project->addMedia(UploadedFile::fake()->image('cover.jpg', 400, 300))->toMediaCollection('files');
+    $versionMedia = $version->addMedia(UploadedFile::fake()->image('cover.jpg', 400, 300))->toMediaCollection('files');
+
+    expect($projectMedia->hasGeneratedConversion('thumb'))->toBeTrue()
+        ->and($versionMedia->hasGeneratedConversion('thumb'))->toBeTrue();
 });

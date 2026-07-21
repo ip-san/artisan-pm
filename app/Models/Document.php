@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\HasThumbnails;
 use Database\Factories\DocumentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,7 +20,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 final class Document extends Model implements HasMedia
 {
     /** @use HasFactory<DocumentFactory> */
-    use HasFactory, InteractsWithMedia, Searchable;
+    use HasFactory, HasThumbnails, InteractsWithMedia, Searchable {
+        HasThumbnails::registerMediaConversions insteadof InteractsWithMedia;
+    }
 
     /**
      * @return BelongsTo<Project, $this>
