@@ -72,7 +72,7 @@
 | コメント追加 | done | — |
 | 属性変更の監査証跡 | partial | コア属性(category_id/parent_id含む)とカスタムフィールドは記録される(2026-07-21)。添付/関連の変更は引き続き未記録 |
 | プライベートノート(`view_private_notes`) | done(2026-07-21) | `set_notes_private` 権限保持者がコメント投稿時に非公開フラグを立てられる(サーバー側でも権限を再チェックし、クライアント改ざんを無効化)。`view_private_notes` を持たないユーザーには非公開Journalを非表示(自分自身が書いたものは例外的に閲覧可、Redmineの`Journal#visible?`と同様)。活動フィード(`IssueJournalActivityProvider`)は既存どおり非公開Journalを丸ごと除外 |
-| 過去コメントの引用返信 | missing | — |
+| 過去コメントの引用返信 | done(2026-07-21) | 各コメントの「引用」ボタンでコメント入力欄に`>`引用形式をプリフィル |
 | 個別 Journal の編集/削除 | missing | — |
 | 変更点を含むプライベートノートの分割記録 | missing | — |
 | イベント別の通知粒度 | partial | `IssueCreated`/`IssueUpdated` のみ。コメント単体では何も発火しない |
@@ -305,7 +305,7 @@
 | ロック | done | `MessagePolicy::reply` で返信禁止を実装 |
 | トピックの別Boardへの移動 | missing | — |
 | トピックのWatch | done(2026-07-21) | トピックのみWatch可能(返信は対象外、`MessagePolicy::watch`)。他ユーザーの追加/削除UIはまだなし |
-| 引用返信 | missing | — |
+| 引用返信 | done(2026-07-21) | トピック/返信それぞれに「引用」ボタン、返信入力欄に`>`引用形式をプリフィル |
 | 添付ファイル | missing | `Message` が `HasMedia` 未実装 |
 | 返信のページネーション | missing | 全件ロード |
 | Atomフィード | missing | — |

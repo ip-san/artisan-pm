@@ -42,6 +42,21 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->topic->replies()->with('author')->get();
     }
 
+    public function quote(int $messageId): void
+    {
+        $this->authorize('reply', $this->topic);
+
+        $message = $messageId === $this->topic->id ? $this->topic : $this->replies->firstWhere('id', $messageId);
+
+        if ($message === null) {
+            return;
+        }
+
+        $quoted = collect(explode("\n", $message->content))->map(fn (string $line) => "> {$line}")->implode("\n");
+
+        $this->replyContent = "{$message->author->name} wrote:\n{$quoted}\n\n";
+    }
+
     public function addReply(): void
     {
         $this->authorize('reply', $this->topic);
@@ -150,6 +165,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <div class="rounded-md border border-gray-200 bg-white p-4 mb-2">
         <p class="whitespace-pre-line text-sm text-gray-800">{{ $topic->content }}</p>
+        @can('reply', $topic)
+            <button wire:click="quote({{ $topic->id }})" class="mt-1 text-xs text-indigo-600 hover:underline">引用</button>
+        @endcan
     </div>
     @if ($topic->attachments()->isNotEmpty())
         <ul class="mb-2 space-y-1">
@@ -177,6 +195,9 @@ new #[Layout('components.layouts.app')] class extends Component
         @foreach ($this->replies as $reply)
             <li wire:key="reply-{{ $reply->id }}" class="rounded-md border border-gray-200 bg-white p-4">
                 <p class="whitespace-pre-line text-sm text-gray-800">{{ $reply->content }}</p>
+                @can('reply', $topic)
+                    <button wire:click="quote({{ $reply->id }})" class="text-xs text-indigo-600 hover:underline">引用</button>
+                @endcan
                 @if ($reply->attachments()->isNotEmpty())
                     <ul class="mt-2 space-y-1">
                         @foreach ($reply->attachments() as $media)

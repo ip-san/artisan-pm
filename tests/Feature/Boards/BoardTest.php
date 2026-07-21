@@ -208,6 +208,20 @@ test('a member with add_messages can attach a file when starting a topic, and de
     expect($topic->fresh()->attachments())->toHaveCount(0);
 });
 
+test('quoting a topic prefills the reply textarea with a blockquote', function () {
+    $project = Project::factory()->create();
+    $user = boardMember($project);
+    $board = Board::factory()->for($project)->create();
+    $author = User::factory()->create(['name' => 'Bob']);
+    $topic = Message::factory()->for($board)->for($author, 'author')->create(['content' => "hello\nworld"]);
+
+    $component = Livewire::actingAs($user)
+        ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic])
+        ->call('quote', $topic->id);
+
+    expect($component->get('replyContent'))->toBe("Bob wrote:\n> hello\n> world\n\n");
+});
+
 test('a member with view_messages can watch and unwatch a topic', function () {
     $project = Project::factory()->create();
     $user = boardMember($project, ['view_messages']);

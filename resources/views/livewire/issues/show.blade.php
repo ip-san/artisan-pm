@@ -157,6 +157,21 @@ new #[Layout('components.layouts.app')] class extends Component
         ]);
     }
 
+    public function quote(int $journalId): void
+    {
+        $this->authorize('update', $this->issue);
+
+        $journal = $this->visibleJournals->firstWhere('id', $journalId);
+
+        if ($journal === null || blank($journal->notes)) {
+            return;
+        }
+
+        $quoted = collect(explode("\n", $journal->notes))->map(fn (string $line) => "> {$line}")->implode("\n");
+
+        $this->comment = "{$journal->user->name} wrote:\n{$quoted}\n\n";
+    }
+
     public function addComment(): void
     {
         $this->authorize('update', $this->issue);
@@ -482,6 +497,9 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                     @if ($journal->notes)
                         <p class="mt-1 text-gray-800">{{ $journal->notes }}</p>
+                        @can('update', $issue)
+                            <button wire:click="quote({{ $journal->id }})" class="mt-1 text-xs text-indigo-600 hover:underline">引用</button>
+                        @endcan
                     @endif
                 </li>
             @endunless
