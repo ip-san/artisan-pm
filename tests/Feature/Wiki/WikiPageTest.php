@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\WikiPage;
 use App\Services\WikiPageService;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 
 function wikiMember(Project $project, array $permissions = ['view_wiki_pages', 'edit_wiki_pages']): User
@@ -241,6 +242,29 @@ test('history lists all versions and an old version can be viewed read-only', fu
         ->test('wiki.version', ['project' => $project, 'wikiPage' => $page, 'version' => 1]);
 
     expect($component->get('wikiPageVersion')->version)->toBe(1);
+});
+
+test('a member with edit_wiki_pages can attach and delete a file on a wiki page', function () {
+    $project = Project::factory()->create();
+    $user = wikiMember($project);
+    $page = WikiPage::factory()->for($project)->create();
+
+    Livewire::actingAs($user)
+        ->test('wiki.form', ['project' => $project, 'wikiPage' => $page])
+        ->set('text', $page->currentVersion?->text ?? 'text')
+        ->set('newAttachments', [UploadedFile::fake()->create('notes.pdf', 200)])
+        ->call('save')
+        ->assertRedirect();
+
+    expect($page->fresh()->attachments())->toHaveCount(1);
+
+    $media = $page->fresh()->attachments()->first();
+
+    Livewire::actingAs($user)
+        ->test('wiki.show', ['project' => $project, 'wikiPage' => $page])
+        ->call('deleteAttachment', $media->id);
+
+    expect($page->fresh()->attachments())->toHaveCount(0);
 });
 
 test('a member with view_wiki_pages can watch and unwatch a page', function () {

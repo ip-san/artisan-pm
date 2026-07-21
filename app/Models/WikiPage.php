@@ -12,12 +12,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 #[Fillable(['project_id', 'parent_id', 'title', 'is_protected'])]
-final class WikiPage extends Model
+final class WikiPage extends Model implements HasMedia
 {
     /** @use HasFactory<WikiPageFactory> */
-    use HasFactory;
+    use HasFactory, InteractsWithMedia;
 
     protected function casts(): array
     {
@@ -77,5 +81,18 @@ final class WikiPage extends Model
     public function isWatchedBy(User $user): bool
     {
         return $this->watchers->contains('user_id', $user->id);
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('attachments');
+    }
+
+    /**
+     * @return MediaCollection<int, Media>
+     */
+    public function attachments(): MediaCollection
+    {
+        return $this->getMedia('attachments');
     }
 }

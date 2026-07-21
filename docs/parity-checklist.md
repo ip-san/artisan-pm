@@ -292,7 +292,7 @@
 | PDF/HTML/TXT/ZIPエクスポート | missing | — |
 | 日付インデックス表示 | missing | — |
 | ページのWatch | done(2026-07-21) | `WikiPage`に`watchers()`(ポリモーフィック`Watcher`)を追加、`view_wiki_pages`権限で自己Watch/Unwatch可能。他ユーザーの追加/削除UIはまだなし(Issueの`manageWatchers`相当は未実装) |
-| 添付ファイル | missing | `WikiPage` が `HasMedia` 未実装 |
+| 添付ファイル | done(2026-07-21) | `WikiPage implements HasMedia`。フォームからアップロード、詳細画面で表示/削除(`update`権限) |
 
 ### フォーラム(Boards / Messages)
 
@@ -344,11 +344,11 @@
 
 | 機能 | 状態 | 備考 |
 |---|---|---|
-| エンティティごとの複数添付 | done | Spatie MediaLibrary、対象は Issue/Version/News/Document のみ |
+| エンティティごとの複数添付 | done | Spatie MediaLibrary、対象は Issue/Version/News/Document/WikiPage(2026-07-21〜) |
 | **サムネイル/画像変換** | **missing** | `registerMediaConversions` が未使用。ダウンロード専用 |
 | **添付ファイルの説明文** | **missing** | ファイル名+サイズのみ表示、説明文は保存も編集もできない |
 | ダウンロード数カウント | missing | — |
-| Wiki/フォーラム投稿への添付 | missing | 該当モデルが `HasMedia` 未実装 |
+| Wiki/フォーラム投稿への添付 | partial | Wikiは対応済み(2026-07-21)。フォーラム投稿(`Message`)は引き続き `HasMedia` 未実装 |
 | 本文中のインライン画像参照(`attachment:file.png`) | missing | — |
 
 ---

@@ -9,9 +9,12 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use WithFileUploads;
+
     public Project $project;
 
     public ?WikiPage $wikiPage = null;
@@ -25,6 +28,9 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $text = '';
 
     public string $comments = '';
+
+    /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
+    public array $newAttachments = [];
 
     public function mount(Project $project, ?WikiPage $wikiPage = null): void
     {
@@ -90,6 +96,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $rules = [
             'text' => ['required', 'string'],
             'comments' => ['nullable', 'string', 'max:255'],
+            'newAttachments.*' => ['file', 'max:'.intdiv(config('media-library.max_file_size'), 1024)],
         ];
 
         if ($this->canRename) {
@@ -111,7 +118,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $data = $this->validate($rules);
         $text = $data['text'];
         $comments = $data['comments'] ?? null;
-        unset($data['text'], $data['comments']);
+        unset($data['text'], $data['comments'], $data['newAttachments']);
 
         $service = app(WikiPageService::class);
 
@@ -119,6 +126,12 @@ new #[Layout('components.layouts.app')] class extends Component
             $page = $service->update($this->wikiPage, $data, $text, auth()->user(), $comments ?: null);
         } else {
             $page = $service->create($this->project, $data, $text, auth()->user());
+        }
+
+        foreach ($this->newAttachments as $file) {
+            $page->addMedia($file->getRealPath())
+                ->usingFileName($file->getClientOriginalName())
+                ->toMediaCollection('attachments');
         }
 
         $this->redirect(route('wiki.show', [$this->project, $page]), navigate: true);
@@ -174,6 +187,21 @@ new #[Layout('components.layouts.app')] class extends Component
                 保護する(編集にはページ保護権限が必要になります)
             </label>
         @endif
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">添付ファイル</label>
+            <input type="file" wire:model="newAttachments" multiple
+                class="mt-1 block w-full text-sm text-gray-700">
+            @error('newAttachments.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+
+            @if ($wikiPage?->attachments()->isNotEmpty())
+                <ul class="mt-2 space-y-1">
+                    @foreach ($wikiPage->attachments() as $media)
+                        <li class="text-sm text-gray-600">{{ $media->file_name }} ({{ $media->human_readable_size }})</li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">

@@ -67,6 +67,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->redirect(route('wiki.index', $this->project), navigate: true);
     }
+
+    public function deleteAttachment(int $mediaId): void
+    {
+        $this->authorize('update', $this->wikiPage);
+
+        $this->wikiPage->attachments()->firstWhere('id', $mediaId)?->delete();
+    }
 }; ?>
 
 <div class="max-w-3xl">
@@ -118,6 +125,27 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="prose prose-sm max-w-none rounded-md border border-gray-200 bg-white p-4">
         {!! $this->renderedContent !!}
     </div>
+
+    @php $attachments = $wikiPage->attachments(); @endphp
+    @if ($attachments->isNotEmpty())
+        <h2 class="mt-4 text-sm font-semibold text-gray-900 mb-2">添付ファイル</h2>
+        <ul class="mb-4 space-y-1">
+            @foreach ($attachments as $media)
+                <li class="flex items-center justify-between text-sm">
+                    <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                        {{ $media->file_name }}
+                    </a>
+                    <span class="flex items-center gap-2">
+                        <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                        @can('update', $wikiPage)
+                            <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
+                                class="text-red-600 hover:underline">削除</button>
+                        @endcan
+                    </span>
+                </li>
+            @endforeach
+        </ul>
+    @endif
 
     @if ($wikiPage->currentVersion)
         <p class="mt-2 text-xs text-gray-500">
