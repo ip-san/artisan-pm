@@ -43,9 +43,17 @@ new #[Layout('components.layouts.app')] class extends Component
         </a>
     </p>
 
-    <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-        これは v{{ $wikiPageVersion->version }} の過去バージョンです
-        ({{ $wikiPageVersion->author->name }} — {{ $wikiPageVersion->created_at->format('Y-m-d H:i') }})。
+    <div class="mb-4 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+        <span>
+            これは v{{ $wikiPageVersion->version }} の過去バージョンです
+            ({{ $wikiPageVersion->author->name }} — {{ $wikiPageVersion->created_at->format('Y-m-d H:i') }})。
+        </span>
+        @can('update', $wikiPage)
+            <a href="{{ route('wiki.edit', [$project, $wikiPage]) }}?version={{ $wikiPageVersion->version }}"
+                class="shrink-0 rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100">
+                このバージョンを復元
+            </a>
+        @endcan
     </div>
 
     <h1 class="text-xl font-semibold text-gray-900 mb-4">{{ $wikiPage->title }}</h1>

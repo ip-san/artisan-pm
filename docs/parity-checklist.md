@@ -281,8 +281,8 @@
 | バージョン履歴 | done | 追記型 `wiki_page_versions` テーブル |
 | **任意の2バージョン間の差分表示** | **missing** | 履歴は単一バージョン閲覧のみ。Wikiの核心機能の一つが欠落 |
 | Annotate/Blame | missing | — |
-| バージョンの復元(revert) | missing | — |
-| バージョン単体の削除 | missing | — |
+| バージョンの復元(revert) | done(2026-07-22) | Redmine自体に専用の「復元」アクションはなく、過去バージョンの本文を編集フォームに読み込んで保存し直すことで新しいバージョンとして記録する(`WikiController#edit`+`content_for_version`)方式。同様に過去バージョン閲覧画面(`wiki.version`)に「このバージョンを復元」リンクを追加、`wiki.edit`へ`?version=N`付きで遷移し、`wiki/form.blade.php`の`mount()`がそのバージョンの本文をプリフィル(`update`権限が必要) |
+| バージョン単体の削除 | done(2026-07-22) | `wiki/history.blade.php`に`deleteVersion()`を追加(`update`権限で認可、Redmineの`destroy_version`アクションの実際の認可チェック`editable?`と同じ境界)。現在バージョン(最新番号)と、残り1件のみの場合は削除不可 ― Redmineは現在の本文(`WikiContent`)と履歴(`WikiContentVersion`)が別テーブルで、最新の履歴行を消しても表示中の本文には影響しないが、本アプリは「現在バージョン=最も番号が大きい履歴行」という設計のため、それを消すと表示中の本文が変わってしまう。データ整合性を優先した意図的なスコープ限定 |
 | **リネーム時のリダイレクト** | **missing** | 単純なタイトル更新のみ。`wiki_redirects` 相当のテーブル/モデルが存在せず、リネームすると既存の `[[リンク]]` が壊れる |
 | 保護ページ | done | `is_protected` + ポリシー |
 | デフォルト保護ページ(Sidebar等) | missing | — |

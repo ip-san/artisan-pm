@@ -44,7 +44,19 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->title = $wikiPage->title;
             $this->parent_id = $wikiPage->parent_id;
             $this->is_protected = $wikiPage->is_protected;
-            $this->text = $wikiPage->currentVersion?->text ?? '';
+
+            // A `?version=` query string (arrived at via a past version's
+            // "このバージョンを復元" link) prefills the editor with that
+            // older text instead of the current one — matching Redmine's
+            // WikiController#edit + content_for_version, where "reverting"
+            // isn't a distinct action but simply editing an old version's
+            // text and saving it as a new version.
+            $requestedVersion = request()->integer('version') ?: null;
+            $sourceVersion = $requestedVersion !== null
+                ? $wikiPage->versions()->where('version', $requestedVersion)->first()
+                : null;
+
+            $this->text = ($sourceVersion ?? $wikiPage->currentVersion)?->text ?? '';
         } else {
             $this->authorize('create', [WikiPage::class, $project]);
 

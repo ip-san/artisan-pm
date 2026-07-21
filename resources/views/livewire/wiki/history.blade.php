@@ -30,6 +30,31 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         return $this->wikiPage->versions()->with('author')->get();
     }
+
+    /**
+     * Deletes one historical snapshot. The current (highest-numbered)
+     * version can't be deleted — unlike Redmine, where WikiContent holds
+     * the live text separately from its version history, this app's
+     * "current" version *is* the highest-numbered history row, so removing
+     * it would silently change the page's live content as a side effect
+     * of what looks like a routine history cleanup action. Deletion is
+     * also blocked once only one version remains, matching Redmine's own
+     * `@version_count > 1` guard (a page must always have some history).
+     */
+    public function deleteVersion(int $versionId): void
+    {
+        $this->authorize('update', $this->wikiPage);
+
+        $version = $this->wikiPage->versions()->findOrFail($versionId);
+        $currentVersionNumber = $this->wikiPage->versions()->max('version');
+
+        abort_if($version->version === $currentVersionNumber, 403);
+        abort_if($this->wikiPage->versions()->count() <= 1, 403);
+
+        $version->delete();
+
+        unset($this->versions);
+    }
 }; ?>
 
 <div class="max-w-2xl">
@@ -52,6 +77,14 @@ new #[Layout('components.layouts.app')] class extends Component
                         <span class="text-gray-400">({{ $version->comments }})</span>
                     @endif
                 </div>
+                @can('update', $wikiPage)
+                    @if ($version->version !== $this->versions->max('version') && $this->versions->count() > 1)
+                        <button wire:click="deleteVersion({{ $version->id }})" wire:confirm="このバージョンを削除しますか?"
+                            class="shrink-0 text-xs font-medium text-red-600 hover:underline">
+                            削除
+                        </button>
+                    @endif
+                @endcan
             </li>
         @endforeach
     </ul>
