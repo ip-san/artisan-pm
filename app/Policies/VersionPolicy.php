@@ -9,12 +9,6 @@ use App\Models\User;
 use App\Models\Version;
 use App\Support\Authorization\AuthorizationService;
 
-/**
- * Covers only the "Files" module's use of Version (viewing/uploading the
- * release files attached to a version) — full version CRUD (create/edit/
- * delete a Version itself, gated by manage_versions) has no UI yet and is
- * out of this policy's scope.
- */
 final class VersionPolicy
 {
     public function __construct(
@@ -34,5 +28,31 @@ final class VersionPolicy
     public function manageFiles(User $user, Version $version): bool
     {
         return $this->authorization->can($user, 'manage_files', $version->project);
+    }
+
+    /**
+     * Gates the version CRUD admin screens (list/create/edit/delete) —
+     * distinct from viewAny()/view(), which gate the Files module's
+     * per-version file browsing and stay on view_files so ordinary
+     * members keep that access without also holding manage_versions.
+     */
+    public function manageVersions(User $user, Project $project): bool
+    {
+        return $this->authorization->can($user, 'manage_versions', $project);
+    }
+
+    public function create(User $user, Project $project): bool
+    {
+        return $this->authorization->can($user, 'manage_versions', $project);
+    }
+
+    public function update(User $user, Version $version): bool
+    {
+        return $this->authorization->can($user, 'manage_versions', $version->project);
+    }
+
+    public function delete(User $user, Version $version): bool
+    {
+        return $this->authorization->can($user, 'manage_versions', $version->project);
     }
 }

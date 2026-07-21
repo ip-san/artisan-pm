@@ -164,6 +164,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     課題カテゴリ
                 </a>
             @endcan
+            @can('manageVersions', [\App\Models\Version::class, $project])
+                <a href="{{ route('versions.index', $project) }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    バージョン
+                </a>
+            @endcan
             @can('update', $project)
                 <a href="{{ route('projects.edit', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
