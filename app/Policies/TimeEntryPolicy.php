@@ -15,7 +15,7 @@ final class TimeEntryPolicy
         private readonly AuthorizationService $authorization,
     ) {}
 
-    public function viewAny(User $user, Project $project): bool
+    public function viewAny(?User $user, Project $project): bool
     {
         return $this->authorization->can($user, 'view_time_entries', $project);
     }

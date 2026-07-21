@@ -69,10 +69,27 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->project->users;
     }
 
+    /**
+     * Limited to the 100 most recent issues so the dropdown stays small on
+     * large projects, but the currently selected issue (e.g. arrived at via
+     * an issue's "log time" link, or already set on an entry being edited)
+     * is always included even if it falls outside that window — otherwise
+     * the select would silently show no match for it.
+     */
     #[Computed]
     public function projectIssues(): Collection
     {
-        return $this->project->issues()->orderByDesc('id')->limit(100)->get();
+        $issues = $this->project->issues()->orderByDesc('id')->limit(100)->get();
+
+        if ($this->issue_id !== null && ! $issues->contains('id', $this->issue_id)) {
+            $selected = $this->project->issues()->find($this->issue_id);
+
+            if ($selected !== null) {
+                $issues->prepend($selected);
+            }
+        }
+
+        return $issues;
     }
 
     /**

@@ -1,13 +1,17 @@
 <?php
 
 use App\Enums\EnumerationType;
+use App\Enums\RoleBuiltin;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\TimeEntry;
+use App\Models\Tracker;
 use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 
 function timeEntryMember(Project $project, array $permissions = ['log_time', 'view_time_entries']): User
@@ -178,6 +182,34 @@ test('a project member can log time against a specific issue', function () {
     $entry = TimeEntry::firstOrFail();
 
     expect($entry->issue_id)->toBe($issue->id);
+});
+
+test('anonymous visitors granted view_time_entries can view the list on a public project', function () {
+    Role::factory()->create([
+        'builtin' => RoleBuiltin::Anonymous->value,
+        'permissions' => ['view_time_entries'],
+    ]);
+    $publicProject = Project::factory()->create();
+
+    expect(Gate::forUser(null)->allows('viewAny', [TimeEntry::class, $publicProject]))->toBeTrue();
+});
+
+test('the issue picker includes the currently selected issue even outside the 100 most recent', function () {
+    $project = Project::factory()->create();
+    $user = timeEntryMember($project);
+    $shared = [
+        'tracker_id' => Tracker::factory()->create()->id,
+        'status_id' => IssueStatus::factory()->create()->id,
+        'priority_id' => Enumeration::factory()->create()->id,
+    ];
+    $oldIssue = Issue::factory()->for($project)->create($shared);
+    Issue::factory()->for($project)->count(100)->create($shared);
+
+    $component = Livewire::actingAs($user)
+        ->test('time-entries.form', ['project' => $project])
+        ->set('issue_id', $oldIssue->id);
+
+    expect($component->get('projectIssues')->pluck('id'))->toContain($oldIssue->id);
 });
 
 test('csv export streams a csv containing the filtered time entries', function () {
