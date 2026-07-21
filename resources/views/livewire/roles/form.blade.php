@@ -27,7 +27,33 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->permissions = $role->permissionKeys();
         } else {
             $this->authorize('create', Role::class);
+
+            $this->prefillFromCopySource();
         }
+    }
+
+    /**
+     * ?copy_from=<id> seeds a new role's name/permissions from an existing
+     * one — the name gets a distinct suffix so it doesn't collide with the
+     * source's own unique name if left unedited, and builtin is never
+     * copied (this form never sets it at all, even for a fresh role).
+     */
+    private function prefillFromCopySource(): void
+    {
+        $sourceId = request()->integer('copy_from');
+
+        if ($sourceId === 0) {
+            return;
+        }
+
+        $source = Role::find($sourceId);
+
+        if ($source === null) {
+            return;
+        }
+
+        $this->name = "{$source->name} のコピー";
+        $this->permissions = $source->permissionKeys();
     }
 
     /**

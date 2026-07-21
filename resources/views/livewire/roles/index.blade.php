@@ -50,6 +50,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 <div class="flex gap-3">
                     <a href="{{ route('roles.edit', $role) }}" class="text-sm text-indigo-600 hover:underline">編集</a>
+                    <a href="{{ route('roles.create') }}?copy_from={{ $role->id }}" class="text-sm text-indigo-600 hover:underline">コピー</a>
                     <button wire:click="delete({{ $role->id }})" wire:confirm="このロールを削除しますか?"
                         class="text-sm text-red-600 hover:underline">削除</button>
                 </div>
