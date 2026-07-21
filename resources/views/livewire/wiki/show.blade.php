@@ -44,6 +44,21 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->wikiPage->update(['is_protected' => ! $this->wikiPage->is_protected]);
     }
 
+    public function toggleWatch(): void
+    {
+        $this->authorize('watch', $this->wikiPage);
+
+        $existing = $this->wikiPage->watchers()->where('user_id', auth()->id())->first();
+
+        if ($existing) {
+            $existing->delete();
+        } else {
+            $this->wikiPage->watchers()->create(['user_id' => auth()->id()]);
+        }
+
+        $this->wikiPage->unsetRelation('watchers');
+    }
+
     public function delete(): void
     {
         $this->authorize('delete', $this->wikiPage);
@@ -71,6 +86,11 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
         </h1>
         <div class="flex gap-2">
+            @can('watch', $wikiPage)
+                <button wire:click="toggleWatch" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    {{ $wikiPage->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
+                </button>
+            @endcan
             <a href="{{ route('wiki.history', [$project, $wikiPage]) }}"
                 class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 履歴

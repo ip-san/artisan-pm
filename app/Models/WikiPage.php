@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 #[Fillable(['project_id', 'parent_id', 'title', 'is_protected'])]
 final class WikiPage extends Model
@@ -63,5 +64,18 @@ final class WikiPage extends Model
     public function currentVersion(): HasOne
     {
         return $this->hasOne(WikiPageVersion::class)->latestOfMany('version');
+    }
+
+    /**
+     * @return MorphMany<Watcher, $this>
+     */
+    public function watchers(): MorphMany
+    {
+        return $this->morphMany(Watcher::class, 'watchable');
+    }
+
+    public function isWatchedBy(User $user): bool
+    {
+        return $this->watchers->contains('user_id', $user->id);
     }
 }

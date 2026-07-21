@@ -9,6 +9,7 @@ use App\Models\Issue;
 use App\Models\News;
 use App\Models\Project;
 use App\Models\Version;
+use App\Models\WikiPage;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,6 +34,7 @@ final class MorphMapServiceProvider extends ServiceProvider
             'document' => Document::class,
             'version' => Version::class,
             'project' => Project::class,
+            'wiki_page' => WikiPage::class,
         ]);
     }
 }

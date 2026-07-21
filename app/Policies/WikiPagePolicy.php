@@ -57,4 +57,9 @@ final class WikiPagePolicy
     {
         return $this->authorization->can($user, 'delete_wiki_pages', $wikiPage->project);
     }
+
+    public function watch(User $user, WikiPage $wikiPage): bool
+    {
+        return $this->authorization->can($user, 'view_wiki_pages', $wikiPage->project);
+    }
 }

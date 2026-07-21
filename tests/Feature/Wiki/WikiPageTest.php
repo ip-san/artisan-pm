@@ -242,3 +242,21 @@ test('history lists all versions and an old version can be viewed read-only', fu
 
     expect($component->get('wikiPageVersion')->version)->toBe(1);
 });
+
+test('a member with view_wiki_pages can watch and unwatch a page', function () {
+    $project = Project::factory()->create();
+    $user = wikiMember($project, ['view_wiki_pages']);
+    $page = WikiPage::factory()->for($project)->create();
+
+    Livewire::actingAs($user)
+        ->test('wiki.show', ['project' => $project, 'wikiPage' => $page])
+        ->call('toggleWatch');
+
+    expect($page->fresh()->isWatchedBy($user))->toBeTrue();
+
+    Livewire::actingAs($user)
+        ->test('wiki.show', ['project' => $project, 'wikiPage' => $page])
+        ->call('toggleWatch');
+
+    expect($page->fresh()->isWatchedBy($user))->toBeFalse();
+});

@@ -291,7 +291,7 @@
 | プレビュー | missing | 保存後閲覧のみ |
 | PDF/HTML/TXT/ZIPエクスポート | missing | — |
 | 日付インデックス表示 | missing | — |
-| ページのWatch | missing | `Watcher` は Issue専用 |
+| ページのWatch | done(2026-07-21) | `WikiPage`に`watchers()`(ポリモーフィック`Watcher`)を追加、`view_wiki_pages`権限で自己Watch/Unwatch可能。他ユーザーの追加/削除UIはまだなし(Issueの`manageWatchers`相当は未実装) |
 | 添付ファイル | missing | `WikiPage` が `HasMedia` 未実装 |
 
 ### フォーラム(Boards / Messages)
