@@ -49,6 +49,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $relationType = 'relates';
 
+    public ?int $relationDelay = null;
+
     public ?int $newWatcherId = null;
 
     public ?int $moveToProjectId = null;
@@ -97,18 +99,24 @@ new #[Layout('components.layouts.app')] class extends Component
                     ->where('relation_type', $this->relationType),
             ],
             'relationType' => ['required', Rule::enum(IssueRelationType::class)],
+            'relationDelay' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $otherIssue = Issue::findOrFail($data['relatedIssueId']);
         $this->authorize('view', $otherIssue);
 
+        // delay is only meaningful for precedes/follows — matches
+        // Redmine's IssueRelation, which clears it for every other type.
+        $isSequential = in_array($data['relationType'], ['precedes', 'follows'], true);
+
         IssueRelation::create([
             'issue_from_id' => $this->issue->id,
             'issue_to_id' => $otherIssue->id,
             'relation_type' => $data['relationType'],
+            'delay' => $isSequential ? $data['relationDelay'] : null,
         ]);
 
-        $this->reset('relatedIssueId');
+        $this->reset('relatedIssueId', 'relationDelay');
         $this->reloadRelations();
     }
 
@@ -529,6 +537,9 @@ new #[Layout('components.layouts.app')] class extends Component
                         <a href="{{ route('issues.show', [$entry['other']->project, $entry['other']]) }}" class="text-indigo-600 hover:underline">
                             {{ $entry['other']->tracker->name }} #{{ $entry['other']->id }} — {{ $entry['other']->subject }}
                         </a>
+                        @if ($entry['relation']->delay)
+                            <span class="text-gray-500">({{ $entry['relation']->delay }}日後)</span>
+                        @endif
                     </span>
                     @can('manageRelations', $issue)
                         <button wire:click="deleteRelation({{ $entry['relation']->id }})" wire:confirm="この関連を削除しますか?"
@@ -542,7 +553,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <form wire:submit="addRelation" class="mb-6 flex items-end gap-2">
                 <div>
                     <label class="block text-xs font-medium text-gray-700">関連種別</label>
-                    <select wire:model="relationType" class="mt-1 block rounded-md border-gray-300 shadow-sm text-sm">
+                    <select wire:model.live="relationType" class="mt-1 block rounded-md border-gray-300 shadow-sm text-sm">
                         <option value="relates">関連</option>
                         <option value="blocks">ブロックする</option>
                         <option value="duplicates">重複する</option>
@@ -555,12 +566,20 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input type="number" wire:model="relatedIssueId" placeholder="例: 123"
                         class="mt-1 block w-28 rounded-md border-gray-300 shadow-sm text-sm">
                 </div>
+                @if (in_array($relationType, ['precedes', 'follows'], true))
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">遅延日数</label>
+                        <input type="number" min="0" wire:model="relationDelay" placeholder="0"
+                            class="mt-1 block w-20 rounded-md border-gray-300 shadow-sm text-sm">
+                    </div>
+                @endif
                 <button type="submit" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     追加
                 </button>
             </form>
             @error('relatedIssueId') <p class="-mt-4 mb-6 text-sm text-red-600">{{ $message }}</p> @enderror
             @error('relationType') <p class="-mt-4 mb-6 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('relationDelay') <p class="-mt-4 mb-6 text-sm text-red-600">{{ $message }}</p> @enderror
         @endcan
     @endif
 

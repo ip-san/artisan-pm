@@ -132,3 +132,54 @@ test('a member with manage_issue_relations can delete a relation from either sid
 
     expect(IssueRelation::find($relation->id))->toBeNull();
 });
+
+test('a delay in days can be recorded on a precedes relation', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $other = makeIssue($project);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set('relationType', 'precedes')
+        ->set('relatedIssueId', $other->id)
+        ->set('relationDelay', 3)
+        ->call('addRelation')
+        ->assertHasNoErrors();
+
+    $relation = IssueRelation::where('issue_from_id', $issue->id)->where('issue_to_id', $other->id)->firstOrFail();
+    expect($relation->delay)->toBe(3);
+});
+
+test('delay is discarded for relation types other than precedes/follows', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $other = makeIssue($project);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set('relationType', 'blocks')
+        ->set('relatedIssueId', $other->id)
+        ->set('relationDelay', 5)
+        ->call('addRelation')
+        ->assertHasNoErrors();
+
+    $relation = IssueRelation::where('issue_from_id', $issue->id)->where('issue_to_id', $other->id)->firstOrFail();
+    expect($relation->delay)->toBeNull();
+});
+
+test('the relation list shows the delay for a precedes relation', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $other = makeIssue($project);
+    IssueRelation::create([
+        'issue_from_id' => $issue->id, 'issue_to_id' => $other->id,
+        'relation_type' => 'precedes', 'delay' => 2,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->assertSee('2日後');
+});

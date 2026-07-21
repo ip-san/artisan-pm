@@ -93,7 +93,7 @@
 |---|---|---|
 | データモデル | done(2026-07-21) | 課題詳細画面に「関連課題」セクションを追加。`manage_issue_relations` 権限で作成/削除を保護、閲覧は `view_issues` があれば誰でも可。追加時は対象課題IDを指定し、対象課題を閲覧できない場合(別プロジェクトで権限なし等)は403、自己参照・DB一意制約違反(重複)はバリデーションエラーとして表示 |
 | 関連タイプ | partial | relates/blocks/duplicates/precedes/follows のみ。逆方向・コピー系タイプ(blocked, duplicated, copied_to/from)の**新規Enum値**は追加していないが、blocks/duplicatesは表示側でfrom/to方向に応じたラベル反転(「ブロックする」⇔「ブロックされている」)を実装。precedes/followsは元々ユーザーが方向を選んで別々に保存する設計のため反転不要 |
-| precedes/follows の遅延日数(delay) | missing | マイグレーションに該当カラムなし |
+| precedes/follows の遅延日数(delay) | partial(2026-07-22) | `issue_relations.delay`列を追加。関連追加フォームで先行/後続選択時のみ入力欄を表示し、それ以外の種別では保存時にRedmine同様nullにリセット。関連一覧に「X日後」として表示。**遅延日数に基づく日付の自動リスケジュール計算**(下の行に別記載)は未実装、あくまで値の保存/表示のみ |
 | 関連日付からの自動リスケジュール・循環/プロジェクト間検証 | missing | DBのユニーク制約のみ |
 | 重複課題のクローズ連動・ブロック中クローズ禁止 | done(2026-07-21) | 両方実装。ブロック中クローズ禁止は§クローズ可否のフィルタ参照。重複課題のクローズ連動は新設定`close_duplicate_issues`(デフォルトtrue)で制御、`IssueService`が open→closed の遷移(Redmineの`Issue#closing?`と同じ判定)のたびに`Issue::duplicates()`を再帰的にクローズ(相互複製の循環も、都度DBから再取得して既にクローズ済みか確認することで安全に停止する、Redmine自身と同じガード) |
 

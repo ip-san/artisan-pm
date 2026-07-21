@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['issue_from_id', 'issue_to_id', 'relation_type'])]
+#[Fillable(['issue_from_id', 'issue_to_id', 'relation_type', 'delay'])]
 final class IssueRelation extends Model
 {
     /** @use HasFactory<IssueRelationFactory> */
