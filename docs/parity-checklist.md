@@ -75,7 +75,7 @@
 | 過去コメントの引用返信 | done(2026-07-21) | 各コメントの「引用」ボタンでコメント入力欄に`>`引用形式をプリフィル |
 | 個別 Journal の編集/削除 | missing | — |
 | 変更点を含むプライベートノートの分割記録 | missing | — |
-| イベント別の通知粒度 | partial | `IssueCreated`/`IssueUpdated` のみ。コメント単体では何も発火しない |
+| イベント別の通知粒度 | partial(2026-07-22) | `IssueService::update()`のJournal作成条件と`IssueUpdated`イベント発火条件が食い違っていたバグを修正: 属性変更が無くコメントのみの更新でもJournalは作成されるのに`IssueUpdated`(Webhookの`issue.updated`が購読)は発火しないという不整合があった。現在はコメント単体でも発火。メール通知システム自体は依然未実装(`IssueCreated`/`IssueUpdated`はWebhook専用) |
 | テキスト差分表示・リアクション | missing | — |
 
 ### Watchers

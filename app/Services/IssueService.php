@@ -131,7 +131,13 @@ final class IssueService
             }
         }
 
-        if ($changes !== [] || $customFieldChanges !== []) {
+        // Matches the journal-creation condition above: a comment-only
+        // update (no attribute or custom field changes) still counts as
+        // an issue update for anything listening to this event (webhooks
+        // today) — previously it fired for nothing, so a webhook
+        // configured for "issue updated" silently never saw plain
+        // comments.
+        if ($changes !== [] || $customFieldChanges !== [] || filled($comment)) {
             IssueUpdated::dispatch($issue);
         }
 

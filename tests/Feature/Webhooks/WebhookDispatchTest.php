@@ -90,6 +90,19 @@ test('updating an issue dispatches a webhook subscribed to issue.updated, but no
     Queue::assertPushed(CallWebhookJob::class);
 });
 
+test('a comment-only update (no attribute changes) still dispatches issue.updated', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::IssueUpdated->value]]);
+    $actor = User::factory()->create();
+    $issue = Issue::factory()->for($project)->create(webhookIssueDefaults());
+
+    app(IssueService::class)->update($issue, [], $actor, 'Just a comment, nothing else changed');
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::IssueUpdated->value);
+});
+
 test('a webhook with a secret signs its request', function () {
     Queue::fake();
 
