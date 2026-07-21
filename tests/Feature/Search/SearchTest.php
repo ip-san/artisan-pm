@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Board;
+use App\Models\CustomField;
 use App\Models\Document;
 use App\Models\Enumeration;
 use App\Models\Issue;
@@ -138,6 +139,57 @@ test('a reply message result links to its parent topic', function () {
         ->get('results');
 
     expect($results->first()->url)->toContain((string) $topic->id);
+});
+
+test('an issue is found by a searchable custom field value', function () {
+    $project = Project::factory()->create();
+    $user = searchMember($project, ['view_project', 'view_issues']);
+    $tracker = Tracker::factory()->create();
+    $field = CustomField::factory()->create(['searchable' => true]);
+    $field->trackers()->attach($tracker);
+
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id,
+        'status_id' => IssueStatus::factory(),
+        'priority_id' => Enumeration::factory(),
+        'author_id' => User::factory(),
+        'subject' => 'Unrelated subject',
+    ]);
+    $issue->setCustomFieldValues([$field->id => 'unique-custom-field-token']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', 'unique-custom-field-token')
+        ->call('search')
+        ->get('results');
+
+    expect($results->pluck('type'))->toContain('issue')
+        ->and($results->first()->title)->toContain((string) $issue->id);
+});
+
+test('a custom field value is not searchable unless the field is marked searchable', function () {
+    $project = Project::factory()->create();
+    $user = searchMember($project, ['view_project', 'view_issues']);
+    $tracker = Tracker::factory()->create();
+    $field = CustomField::factory()->create(['searchable' => false]);
+    $field->trackers()->attach($tracker);
+
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id,
+        'status_id' => IssueStatus::factory(),
+        'priority_id' => Enumeration::factory(),
+        'author_id' => User::factory(),
+        'subject' => 'Unrelated subject',
+    ]);
+    $issue->setCustomFieldValues([$field->id => 'non-searchable-token']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', 'non-searchable-token')
+        ->call('search')
+        ->get('results');
+
+    expect($results)->toBeEmpty();
 });
 
 test('search results are scoped to the current project only', function () {

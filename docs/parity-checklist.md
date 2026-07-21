@@ -29,7 +29,7 @@
 
 - ~~Journal の `private_notes` カラムが存在するのに一切セット/フィルタされていない~~ → **done**(2026-07-21)。`view_private_notes`/`set_notes_private` 権限を新設し配線(詳細は §Journal参照)。
 - ~~カスタムフィールドの変更が Journal(監査証跡)に記録されない。~~ → **done**(2026-07-21)。`IssueService::update()` がカスタムフィールド値の設定を取り込み、コア属性の差分と同一Journalに`property: 'cf'`として記録(詳細は §Journal参照)。
-- カスタムフィールド値が `searchable => true` でも全文検索にインデックスされていない。
+- ~~カスタムフィールド値が `searchable => true` でも全文検索にインデックスされていない。~~ → **done**(2026-07-21)。`SearchService::searchIssues()` がScout(subject/description)の結果に`searchable`なカスタムフィールド値(`value_string`/`value_text`へのLIKE検索)をID単位でマージ。詳細は §クエリ/フィルタ/レポートエンジンおよび§検索参照。
 - ~~Issue の一覧グルーピングが「現在のページ内のみ」で集計されており、全件SQL集計になっていない。~~ → **done**(2026-07-21)。グループ見出しの件数は`groupTotals()`がSQL `GROUP BY`で全件集計するように変更(表示行自体は引き続き現在のページ内のみ、パフォーマンス上の理由で意図的)。詳細は §クエリ/フィルタ/レポートエンジン参照。
 
 ---
@@ -149,7 +149,7 @@
 | モデル・フォーマットレジストリ・トラッカー/プロジェクト適用・ロール可視性 | done | — |
 | フィールド形式のカバレッジ | partial | Redmine の~12形式に対しレジストリのサブセット |
 | regexp/min/max/default_value | partial | カラムはあるが `date_offset` 等の高度なデフォルトモードなし |
-| 検索対象(`searchable`)の実効性 | partial | フラグはあるが値が全文検索にインデックスされていない |
+| 検索対象(`searchable`)の実効性 | done(2026-07-21) | プロジェクト内検索でstring/textカスタムフィールド値がLIKE検索される |
 | 保存後のフォーマット変更禁止・多重度変更時のクリーンアップ | missing | — |
 | CustomFieldEnumeration(選択肢の位置/有効フラグ、削除時再割当) | missing | `possible_values` は単純な配列カラム |
 | 表示列・CSV列としてのカスタムフィールド | missing | 意図的に見送り済み(コード内コメントで明記) |

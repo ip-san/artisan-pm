@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CustomizableType;
+use App\Models\CustomField;
+use App\Models\CustomFieldValue;
 use App\Models\Document;
 use App\Models\Issue;
 use App\Models\Message;
@@ -63,6 +66,12 @@ final class SearchService
     }
 
     /**
+     * Combines Scout's subject/description match with a direct LIKE search
+     * over searchable custom field values — Scout's database engine can
+     * only match real columns on the searched model's own table via
+     * toSearchableArray(), so custom field values (a separate EAV table)
+     * need their own query merged in by id.
+     *
      * @return Collection<int, SearchResult>
      */
     private function searchIssues(Project $project, ?User $viewer, string $query): Collection
@@ -71,8 +80,16 @@ final class SearchService
             return collect();
         }
 
-        return Issue::search($query)
+        $matchedIds = Issue::search($query)
             ->where('project_id', $project->id)
+            ->take(self::RESULTS_PER_TYPE)
+            ->get()
+            ->pluck('id')
+            ->merge($this->issueIdsMatchingSearchableCustomFields($project, $query))
+            ->unique();
+
+        return Issue::query()
+            ->whereIn('id', $matchedIds)
             ->take(self::RESULTS_PER_TYPE)
             ->get()
             ->map(fn (Issue $issue) => new SearchResult(
@@ -82,6 +99,33 @@ final class SearchService
                 excerpt: $this->excerpt($issue->description),
                 updatedAt: $issue->updated_at,
             ));
+    }
+
+    /**
+     * @return Collection<int, int>
+     */
+    private function issueIdsMatchingSearchableCustomFields(Project $project, string $query): Collection
+    {
+        $searchableFieldIds = CustomField::query()
+            ->where('customized_type', CustomizableType::Issue)
+            ->where('searchable', true)
+            ->pluck('id');
+
+        if ($searchableFieldIds->isEmpty()) {
+            return collect();
+        }
+
+        // Only value_string/value_text are searched — a LIKE against an
+        // int/float/date/bool field's own storage column wouldn't be a
+        // meaningful text match, and those formats leave value_string/
+        // value_text NULL anyway, so this naturally excludes them without
+        // needing to branch on field_format.
+        return CustomFieldValue::query()
+            ->where('customized_type', CustomizableType::Issue)
+            ->whereIn('custom_field_id', $searchableFieldIds)
+            ->where(fn ($q) => $q->where('value_string', 'like', "%{$query}%")->orWhere('value_text', 'like', "%{$query}%"))
+            ->whereIn('customized_id', fn ($q) => $q->select('id')->from('issues')->where('project_id', $project->id))
+            ->pluck('customized_id');
     }
 
     /**
