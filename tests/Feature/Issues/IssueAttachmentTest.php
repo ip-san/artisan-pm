@@ -187,6 +187,90 @@ test('a user without edit_issues cannot delete an attachment', function () {
     expect($issue->fresh()->attachments())->toHaveCount(1);
 });
 
+test('a user with edit_issues can set an attachment description from the issue show page', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $issue->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
+
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    $media = $issue->attachments()->first();
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set("attachmentDescriptions.{$media->id}", 'Screenshot of the crash dialog')
+        ->call('updateAttachmentDescription', $media->id);
+
+    expect($media->fresh()->getCustomProperty('description'))->toBe('Screenshot of the crash dialog');
+});
+
+test('setting an attachment description to blank clears it', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $media = $issue->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
+    $media->setCustomProperty('description', 'old description')->save();
+
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set("attachmentDescriptions.{$media->id}", '   ')
+        ->call('updateAttachmentDescription', $media->id);
+
+    expect($media->fresh()->getCustomProperty('description'))->toBeNull();
+});
+
+test('a user without edit_issues cannot set an attachment description', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $issue->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
+
+    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    $media = $issue->attachments()->first();
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set("attachmentDescriptions.{$media->id}", 'sneaky')
+        ->call('updateAttachmentDescription', $media->id)
+        ->assertForbidden();
+
+    expect($media->fresh()->getCustomProperty('description'))->toBeNull();
+});
+
+test('an existing attachment description is visible to a viewer without edit_issues', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $media = $issue->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
+    $media->setCustomProperty('description', 'Steps to reproduce')->save();
+
+    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->assertSee('Steps to reproduce');
+});
+
 test('a member of the owning project can download an attachment', function () {
     Storage::fake('local');
 

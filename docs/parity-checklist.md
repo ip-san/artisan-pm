@@ -348,7 +348,7 @@
 |---|---|---|
 | エンティティごとの複数添付 | done | Spatie MediaLibrary、対象は Issue/Version/News/Document/WikiPage/Message(2026-07-21〜) |
 | **サムネイル/画像変換** | **missing** | `registerMediaConversions` が未使用。ダウンロード専用 |
-| **添付ファイルの説明文** | **missing** | ファイル名+サイズのみ表示、説明文は保存も編集もできない |
+| 添付ファイルの説明文 | partial(2026-07-22) | Redmineの`Attachment#description`相当を`media.custom_properties.description`として実装。まず課題詳細画面のみ対応: `edit_issues`権限保有者は各添付ファイルの下にインライン入力+保存ボタン、権限なしの閲覧者には設定済みの説明文をテキスト表示。Wiki/News/Document/Files/フォーラム等、他の添付ファイル表示画面への展開は次のwell-scoped候補として持ち越し |
 | ダウンロード数カウント | done(2026-07-21) | `AttachmentController`が`media.custom_properties`の`download_count`をダウンロードごとにインクリメント。`<x-download-count>`コンポーネントで各添付ファイル一覧に表示 |
 | Wiki/フォーラム投稿への添付 | done(2026-07-21) | Wiki/フォーラム投稿(`Message`、トピック・返信とも)ともに対応 |
 | 本文中のインライン画像参照(`attachment:file.png`) | done(2026-07-22) | Redmineの実装(`InlineAttachmentsScrubber`)は`attachment:`という独自プレフィックス構文ではなく、通常のMarkdown画像記法でファイル名だけを裸で書いた場合(`![](screenshot.png)`)にレンダリング後のHTMLを走査し、同一オブジェクトの添付ファイルからファイル名(大小文字区別なし)で解決する後処理。本アプリも`WikiMarkdownRenderer`に同等の後処理(DOMDocument走査)を追加し、Wikiページ本文・過去バージョン表示の両方で対応。スキームやパスを含むURL、非画像拡張子は対象外(Redmineと同じ拡張子ホワイトリスト)。実装当時は課題説明文がそもそもMarkdownレンダリングされていなかったためWikiのみのスコープだったが、その欠落は「課題本文・コメントのMarkdownレンダリング」行(2026-07-22)で解消済み、インライン画像参照も課題側で同様に有効 |

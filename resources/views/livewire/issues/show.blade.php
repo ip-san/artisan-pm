@@ -59,12 +59,19 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $moveToTrackerId = null;
 
+    /** @var array<int, string> attachment media id => description input value */
+    public array $attachmentDescriptions = [];
+
     public function mount(Project $project, Issue $issue): void
     {
         $this->authorize('view', $issue);
 
         $this->project = $project;
         $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user']);
+
+        foreach ($this->issue->attachments() as $media) {
+            $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
+        }
     }
 
     /**
@@ -345,6 +352,25 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->issue->attachments()->firstWhere('id', $mediaId)?->delete();
     }
 
+    /**
+     * Matches Redmine's Attachment#description — free text edited from
+     * wherever the attachment is listed, not just at upload time. Read
+     * from the bound attachmentDescriptions array (keyed by media id,
+     * pre-filled in mount()) rather than taking the value as a parameter,
+     * since a wire:click can't read a sibling input's live value directly.
+     */
+    public function updateAttachmentDescription(int $mediaId): void
+    {
+        $this->authorize('update', $this->issue);
+
+        $media = $this->issue->attachments()->firstWhere('id', $mediaId);
+        abort_if($media === null, 404);
+
+        $description = trim((string) ($this->attachmentDescriptions[$mediaId] ?? ''));
+        $media->setCustomProperty('description', $description !== '' ? $description : null);
+        $media->save();
+    }
+
     public function deleteIssue(): void
     {
         $this->authorize('delete', $this->issue);
@@ -576,15 +602,29 @@ new #[Layout('components.layouts.app')] class extends Component
         <h2 class="text-sm font-semibold text-gray-900 mb-2">添付ファイル</h2>
         <ul class="mb-6 space-y-1">
             @foreach ($attachments as $media)
-                <li class="flex items-center justify-between text-sm">
-                    <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
-                        {{ $media->file_name }}
-                    </a>
-                    <span class="text-gray-500">{{ $media->human_readable_size }}</span>
-                    <x-download-count :media="$media" />
+                <li class="py-1 text-sm" wire:key="issue-attachment-{{ $media->id }}">
+                    <div class="flex items-center justify-between">
+                        <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                            {{ $media->file_name }}
+                        </a>
+                        <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                        <x-download-count :media="$media" />
+                        @can('update', $issue)
+                            <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
+                                class="text-red-600 hover:underline">削除</button>
+                        @endcan
+                    </div>
                     @can('update', $issue)
-                        <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
-                            class="text-red-600 hover:underline">削除</button>
+                        <div class="mt-1 flex items-center gap-2">
+                            <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
+                                class="block w-full rounded-md border-gray-300 text-xs shadow-sm">
+                            <button wire:click="updateAttachmentDescription({{ $media->id }})"
+                                class="shrink-0 text-xs text-indigo-600 hover:underline">保存</button>
+                        </div>
+                    @else
+                        @if ($media->getCustomProperty('description'))
+                            <p class="mt-1 text-xs text-gray-500">{{ $media->getCustomProperty('description') }}</p>
+                        @endif
                     @endcan
                 </li>
             @endforeach
