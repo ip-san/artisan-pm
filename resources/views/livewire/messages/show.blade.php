@@ -3,14 +3,20 @@
 use App\Models\Board;
 use App\Models\Message;
 use App\Models\Project;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use WithPagination;
+
+    private const int REPLIES_PER_PAGE = 25;
+
     public Project $project;
 
     public Board $board;
@@ -37,12 +43,12 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * @return Collection<int, Message>
+     * @return LengthAwarePaginator<int, Message>
      */
     #[Computed]
-    public function replies(): Collection
+    public function replies(): LengthAwarePaginator
     {
-        return $this->topic->replies()->with('author')->get();
+        return $this->topic->replies()->with('author')->paginate(self::REPLIES_PER_PAGE);
     }
 
     public function quote(int $messageId): void
@@ -245,8 +251,8 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
     <p class="mb-6 text-xs text-gray-500">{{ $topic->author->name }} — {{ $topic->created_at->format('Y-m-d H:i') }}</p>
 
-    <h2 class="text-sm font-semibold text-gray-900 mb-2">返信 ({{ $this->replies->count() }})</h2>
-    <ul class="mb-6 space-y-3">
+    <h2 class="text-sm font-semibold text-gray-900 mb-2">返信 ({{ $this->replies->total() }})</h2>
+    <ul class="mb-2 space-y-3">
         @foreach ($this->replies as $reply)
             <li wire:key="reply-{{ $reply->id }}" class="rounded-md border border-gray-200 bg-white p-4">
                 <p class="whitespace-pre-line text-sm text-gray-800">{{ $reply->content }}</p>
@@ -286,6 +292,10 @@ new #[Layout('components.layouts.app')] class extends Component
             </li>
         @endforeach
     </ul>
+
+    <div class="mb-6">
+        {{ $this->replies->links() }}
+    </div>
 
     @can('reply', $topic)
         <form wire:submit="addReply" class="space-y-2">

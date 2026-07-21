@@ -299,6 +299,23 @@ test('a member without edit_messages cannot move a topic', function () {
     expect($topic->fresh()->board_id)->toBe($originalBoard->id);
 });
 
+test('replies beyond the first page are not loaded until navigated to', function () {
+    $project = Project::factory()->create();
+    $user = boardMember($project, ['view_messages']);
+    $board = Board::factory()->for($project)->create();
+    $topic = Message::factory()->for($board)->create();
+    Message::factory(30)->for($board)->create(['parent_id' => $topic->id]);
+
+    $component = Livewire::actingAs($user)->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic]);
+
+    expect($component->get('replies')->total())->toBe(30)
+        ->and($component->get('replies')->count())->toBe(25);
+
+    $component->call('nextPage');
+
+    expect($component->get('replies')->count())->toBe(5);
+});
+
 test('a member with view_messages can watch and unwatch a topic', function () {
     $project = Project::factory()->create();
     $user = boardMember($project, ['view_messages']);
