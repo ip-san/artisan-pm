@@ -9,12 +9,13 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'language'])]
+#[Fillable(['name', 'email', 'password', 'language', 'auth_source_id', 'login', 'status'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 final class User extends Authenticatable
 {
@@ -30,6 +31,14 @@ final class User extends Authenticatable
             'is_admin' => 'boolean',
             'status' => UserStatus::class,
         ];
+    }
+
+    /**
+     * @return BelongsTo<AuthSource, $this>
+     */
+    public function authSource(): BelongsTo
+    {
+        return $this->belongsTo(AuthSource::class);
     }
 
     /**

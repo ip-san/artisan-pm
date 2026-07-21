@@ -90,4 +90,8 @@ Route::middleware('auth')->group(function () {
     Volt::route('/custom-fields/{customField}/edit', 'custom-fields.form')->name('custom-fields.edit');
 
     Volt::route('/settings', 'settings.index')->name('settings.index');
+
+    Volt::route('/auth-sources', 'auth-sources.index')->name('auth-sources.index');
+    Volt::route('/auth-sources/create', 'auth-sources.form')->name('auth-sources.create');
+    Volt::route('/auth-sources/{authSource}/edit', 'auth-sources.form')->name('auth-sources.edit');
 });
