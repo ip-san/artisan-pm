@@ -8,6 +8,7 @@ use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Repository;
 use App\Models\User;
+use App\Support\Authorization\AuthorizationService;
 
 /**
  * Fetches new commits from a Repository's adapter and records them as
@@ -22,9 +23,13 @@ use App\Models\User;
  * to-user mapping UI yet (a separate, larger gap), so unmatched commits
  * still link the issue (via extractIssueIds) but don't change its status,
  * since there'd be no real user to attribute the journal entry to.
- * Deliberately skips any edit_issues permission check on the matched
- * user — Redmine does check it, but replicating that here would require
- * a project in scope this method doesn't otherwise need.
+ *
+ * The committer field is attacker-controlled (anyone who can push a
+ * commit can set `git config user.email` to any address), so a matched
+ * actor is *not* trusted outright: the transition only applies if that
+ * actor genuinely holds edit_issues on the issue's project. Without this
+ * check, spoofing another real user's commit email would force status
+ * changes attributed to — and effectively authorized as — them.
  */
 final class RepositorySyncService
 {
@@ -32,6 +37,10 @@ final class RepositorySyncService
      * @var array<int, string>
      */
     private const array FIXING_KEYWORDS = ['fixes', 'fix', 'closes', 'close'];
+
+    public function __construct(
+        private readonly AuthorizationService $authorization,
+    ) {}
 
     /**
      * @return int number of changesets created
@@ -106,6 +115,10 @@ final class RepositorySyncService
         $issues = Issue::query()->whereIn('id', $fixedIds)->where('status_id', '!=', $closedStatusId)->get();
 
         foreach ($issues as $issue) {
+            if (! $this->authorization->can($actor, 'edit_issues', $issue->project)) {
+                continue;
+            }
+
             app(IssueService::class)->update(
                 $issue,
                 ['status_id' => $closedStatusId],

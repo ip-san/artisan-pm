@@ -100,17 +100,38 @@ test('a commit message referencing #123 links the changeset to that issue', func
     expect($changeset->issues->pluck('id')->all())->toBe([$issue->id]);
 });
 
-test('a "fixes #N" commit closes the issue when the committer matches a real user', function () {
+test('a "fixes #N" commit closes the issue when the committer matches a real user with edit_issues', function () {
     $project = Project::factory()->create();
     $closed = IssueStatus::factory()->closed()->create();
     $issue = Issue::factory()->for($project)->create();
-    User::factory()->create(['email' => 'test@example.com']);
+    $committerUser = User::factory()->create(['email' => 'test@example.com']);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    Member::factory()->for($project)->for($committerUser)->create()->roles()->attach($role);
     $path = createTestGitRepo(["Fixes #{$issue->id}"]);
     $repository = Repository::factory()->for($project)->create(['path' => $path]);
 
     app(RepositorySyncService::class)->sync($repository);
 
     expect($issue->fresh()->status_id)->toBe($closed->id);
+});
+
+test('a "fixes #N" commit does not close the issue when the matched user lacks edit_issues on the project', function () {
+    $project = Project::factory()->create();
+    IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $originalStatusId = $issue->status_id;
+    // A real user whose email happens to match the commit's spoofable
+    // committer field, but who is not a project member (or has no
+    // edit_issues permission) — the transition must not apply, or
+    // anyone able to push a commit could force status changes
+    // attributed to an unrelated user just by faking their git email.
+    User::factory()->create(['email' => 'test@example.com']);
+    $path = createTestGitRepo(["Fixes #{$issue->id}"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect($issue->fresh()->status_id)->toBe($originalStatusId);
 });
 
 test('a "fixes #N" commit does not change status when the committer matches no user', function () {
