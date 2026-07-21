@@ -3,7 +3,9 @@
 use App\Enums\VersionStatus;
 use App\Models\Project;
 use App\Models\Version;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -21,6 +23,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?string $due_date = null;
 
+    public string $wiki_page_title = '';
+
     public function mount(Project $project, ?Version $version = null): void
     {
         $this->project = $project;
@@ -35,9 +39,16 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->description = (string) $version->description;
             $this->status = $version->status->value;
             $this->due_date = $version->due_date?->toDateString();
+            $this->wiki_page_title = (string) $version->wiki_page_title;
         } else {
             $this->authorize('create', [Version::class, $project]);
         }
+    }
+
+    #[Computed]
+    public function wikiPages(): Collection
+    {
+        return $this->project->wikiPages()->orderBy('title')->get();
     }
 
     public function save(): void
@@ -50,8 +61,10 @@ new #[Layout('components.layouts.app')] class extends Component
             'description' => ['nullable', 'string'],
             'status' => ['required', Rule::in(array_map(fn (VersionStatus $s) => $s->value, VersionStatus::cases()))],
             'due_date' => ['nullable', 'date'],
+            'wiki_page_title' => ['nullable', 'string', Rule::in([...$this->wikiPages->pluck('title')->all(), ''])],
         ]);
 
+        $data['wiki_page_title'] = $data['wiki_page_title'] !== '' ? $data['wiki_page_title'] : null;
         $data['project_id'] = $this->project->id;
 
         if ($this->version) {
@@ -95,6 +108,17 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="block text-sm font-medium text-gray-700">期日</label>
             <input type="date" wire:model="due_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('due_date') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">関連Wikiページ</label>
+            <select wire:model="wiki_page_title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <option value="">なし</option>
+                @foreach ($this->wikiPages as $page)
+                    <option value="{{ $page->title }}">{{ $page->title }}</option>
+                @endforeach
+            </select>
+            @error('wiki_page_title') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
         <div class="flex gap-3">

@@ -112,7 +112,7 @@
 | バージョン共有範囲(none/descendants/hierarchy/tree/system) | missing | プロジェクトローカル限定 |
 | ロードマップ・完了率・遅延表示 | missing | — |
 | 予定/実績/残工数の集計 | done(2026-07-22) | `Version::estimatedHours()`/`spentHours()`/`estimatedRemainingHours()`をRedmineの同名メソッド相当で実装(予定/残工数は子課題を持つ課題を除いた末端課題のみ合算し二重計上を防止、実績工数はTimeEntry経由で階層に関わらず合算)。`versions/index.blade.php`の一覧に表示 |
-| Wikiページ紐付け・既定バージョン設定 | missing | `due_date` のみ |
+| Wikiページ紐付け・既定バージョン設定 | partial(2026-07-22) | Wikiページ紐付けを実装: `versions.wiki_page_title`列を追加(Redmine同様、外部キーではなくタイトル文字列で解決)。バージョンフォームでプロジェクト内のWikiページから選択(他プロジェクトのページは選択肢に出ず、バリデーションでも拒否)。一覧にリンク表示。「既定バージョン設定」に該当するRedmine機能は未特定のため未着手 |
 
 ### Trackers
 

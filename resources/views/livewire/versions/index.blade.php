@@ -95,6 +95,13 @@ new #[Layout('components.layouts.app')] class extends Component
                         @if ($version->description)
                             <p class="mt-1 text-sm text-gray-600">{{ $version->description }}</p>
                         @endif
+                        @if ($version->wiki_page_title && $version->wikiPage())
+                            <p class="mt-1 text-xs">
+                                <a href="{{ route('wiki.show', [$project, $version->wikiPage()]) }}" class="text-indigo-600 hover:underline">
+                                    {{ $version->wiki_page_title }}
+                                </a>
+                            </p>
+                        @endif
                     </div>
                     <div class="flex gap-3">
                         <a href="{{ route('versions.edit', [$project, $version]) }}" class="text-sm text-indigo-600 hover:underline">編集</a>

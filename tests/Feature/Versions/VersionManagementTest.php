@@ -11,6 +11,7 @@ use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
+use App\Models\WikiPage;
 use Livewire\Livewire;
 
 function versionMember(Project $project, array $permissions): User
@@ -184,4 +185,45 @@ test('a member without manage_versions cannot open the versions list or trigger 
     Livewire::actingAs($user)->test('versions.index', ['project' => $project])->assertForbidden();
 
     expect($completed->fresh()->status)->toBe(VersionStatus::Open);
+});
+
+test('a version can be linked to a wiki page in its project', function () {
+    $project = Project::factory()->create();
+    $wikiPage = WikiPage::factory()->for($project)->create(['title' => 'Release Notes']);
+    $user = versionMember($project, ['manage_versions']);
+
+    Livewire::actingAs($user)
+        ->test('versions.form', ['project' => $project])
+        ->set('name', '2.0.0')
+        ->set('wiki_page_title', 'Release Notes')
+        ->call('save')
+        ->assertRedirect();
+
+    $version = Version::where('name', '2.0.0')->firstOrFail();
+
+    expect($version->wiki_page_title)->toBe('Release Notes')
+        ->and($version->wikiPage()->id)->toBe($wikiPage->id);
+});
+
+test('linking to a wiki page from another project is rejected', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    WikiPage::factory()->for($otherProject)->create(['title' => 'Foreign Page']);
+    $user = versionMember($project, ['manage_versions']);
+
+    Livewire::actingAs($user)
+        ->test('versions.form', ['project' => $project])
+        ->set('name', '3.0.0')
+        ->set('wiki_page_title', 'Foreign Page')
+        ->call('save')
+        ->assertHasErrors(['wiki_page_title']);
+
+    expect(Version::where('name', '3.0.0')->exists())->toBeFalse();
+});
+
+test('a version with no linked wiki page returns null', function () {
+    $project = Project::factory()->create();
+    $version = Version::factory()->for($project)->create();
+
+    expect($version->wikiPage())->toBeNull();
 });

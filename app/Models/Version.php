@@ -16,7 +16,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-#[Fillable(['project_id', 'name', 'description', 'status', 'due_date'])]
+#[Fillable(['project_id', 'name', 'description', 'status', 'due_date', 'wiki_page_title'])]
 final class Version extends Model implements HasMedia
 {
     /** @use HasFactory<VersionFactory> */
@@ -112,6 +112,21 @@ final class Version extends Model implements HasMedia
         return $this->due_date !== null
             && $this->due_date->isPast()
             && ! $this->issues()->whereHas('status', fn ($query) => $query->where('is_closed', false))->exists();
+    }
+
+    /**
+     * The wiki page this version links to, resolved by title within its
+     * own project's wiki — matches Redmine's Version#wiki_page, which
+     * resolves wiki_page_title the same way rather than storing a foreign
+     * key (wiki pages are identified by title, not id, throughout Redmine).
+     */
+    public function wikiPage(): ?WikiPage
+    {
+        if ($this->wiki_page_title === null) {
+            return null;
+        }
+
+        return $this->project->wikiPages()->where('title', $this->wiki_page_title)->first();
     }
 
     public function registerMediaCollections(): void
