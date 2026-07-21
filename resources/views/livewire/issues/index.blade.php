@@ -759,6 +759,9 @@ new #[Layout('components.layouts.app')] class extends Component
             <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 CSVエクスポート
             </button>
+            <a href="{{ route('issues.report', $project) }}" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                レポート
+            </a>
             @can('create', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.import', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
