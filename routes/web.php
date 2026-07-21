@@ -81,6 +81,10 @@ Route::middleware('auth')->group(function () {
     Volt::route('/roles/create', 'roles.form')->name('roles.create');
     Volt::route('/roles/{role}/edit', 'roles.form')->name('roles.edit');
 
+    Volt::route('/groups', 'groups.index')->name('groups.index');
+    Volt::route('/groups/create', 'groups.form')->name('groups.create');
+    Volt::route('/groups/{group}/edit', 'groups.form')->name('groups.edit');
+
     Volt::route('/custom-fields', 'custom-fields.index')->name('custom-fields.index');
     Volt::route('/custom-fields/create', 'custom-fields.form')->name('custom-fields.create');
     Volt::route('/custom-fields/{customField}/edit', 'custom-fields.form')->name('custom-fields.edit');

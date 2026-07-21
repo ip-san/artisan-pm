@@ -21,6 +21,9 @@
                             @can('viewAny', \App\Models\Role::class)
                                 <a href="{{ route('roles.index') }}" class="text-sm text-gray-600 hover:text-gray-900">ロール管理</a>
                             @endcan
+                            @can('viewAny', \App\Models\Group::class)
+                                <a href="{{ route('groups.index') }}" class="text-sm text-gray-600 hover:text-gray-900">グループ管理</a>
+                            @endcan
                             @can('viewAny', \App\Models\CustomField::class)
                                 <a href="{{ route('custom-fields.index') }}" class="text-sm text-gray-600 hover:text-gray-900">カスタムフィールド管理</a>
                             @endcan
