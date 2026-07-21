@@ -30,6 +30,36 @@ test('creating an issue does not write a journal entry', function () {
         ->and($issue->journals)->toBeEmpty();
 });
 
+test('creating an issue auto-watches its author and assignee', function () {
+    $author = User::factory()->create();
+    $assignee = User::factory()->create();
+    $project = Project::factory()->create();
+
+    $issue = issueService()->create([
+        'project_id' => $project->id,
+        'tracker_id' => Tracker::factory()->create()->id,
+        'status_id' => IssueStatus::factory()->create()->id,
+        'priority_id' => Enumeration::factory()->create()->id,
+        'subject' => 'Watched issue',
+        'assigned_to_id' => $assignee->id,
+    ], $author);
+
+    $watcherIds = $issue->watchers()->pluck('user_id');
+
+    expect($watcherIds)->toContain($author->id)
+        ->and($watcherIds)->toContain($assignee->id);
+});
+
+test('reassigning an issue auto-watches the new assignee', function () {
+    $actor = User::factory()->create();
+    $newAssignee = User::factory()->create();
+    $issue = Issue::factory()->create();
+
+    issueService()->update($issue, ['assigned_to_id' => $newAssignee->id], $actor);
+
+    expect($issue->watchers()->pluck('user_id'))->toContain($newAssignee->id);
+});
+
 test('updating journaled fields records a journal entry with the diff', function () {
     $actor = User::factory()->create();
     $issue = Issue::factory()->create(['subject' => 'Old subject']);

@@ -45,6 +45,9 @@ final class IssueService
 
         $issue->setCustomFieldValues($customFieldData);
 
+        $this->autoWatch($issue, $issue->author_id);
+        $this->autoWatch($issue, $issue->assigned_to_id);
+
         IssueCreated::dispatch($issue);
 
         return $issue;
@@ -61,6 +64,8 @@ final class IssueService
 
         $issue->fill($attributes);
 
+        $assignedToChanged = $issue->isDirty('assigned_to_id');
+
         if ($issue->isDirty('status_id')) {
             // Query the target status directly rather than the `status`
             // relation, which may still hold a stale cached instance from
@@ -73,6 +78,10 @@ final class IssueService
         $issue->save();
 
         $issue->setCustomFieldValues($customFieldData);
+
+        if ($assignedToChanged) {
+            $this->autoWatch($issue, $issue->assigned_to_id);
+        }
 
         $changes = $this->diff($original, $issue->only(self::JOURNALED_ATTRIBUTES));
         $customFieldChanges = $this->diffCustomFieldSnapshots($originalCustomValues, $this->customFieldSnapshot($issue));
@@ -108,6 +117,21 @@ final class IssueService
         }
 
         return $issue->refresh();
+    }
+
+    /**
+     * Matches Redmine's default behavior of auto-watching an issue's
+     * author on creation and its assignee whenever assignment changes.
+     * firstOrCreate rather than create() since the same user can already
+     * be watching (e.g. assigned to the issue they authored).
+     */
+    private function autoWatch(Issue $issue, ?int $userId): void
+    {
+        if ($userId === null) {
+            return;
+        }
+
+        $issue->watchers()->firstOrCreate(['user_id' => $userId]);
     }
 
     /**
