@@ -230,7 +230,9 @@
 | 機能 | 状態 | 備考 |
 |---|---|---|
 | モデル(position/is_default/active) | done | `Enumeration` + `EnumerationType`、各所で消費されている |
-| **管理画面** | **missing** | ルート・ビュー・メニュー項目が一切ない。値はシード投入のみで運用中に変更不可 |
+| 管理画面 | done(2026-07-21) | `enumerations/{index,form}.blade.php`。`/enumerations/{type}` を `EnumerationType` のネイティブ暗黙Enumルートバインディングで解決し、タブ切り替えで3種別を編集 |
+| 種別ごとに既定値を1つだけに制限 | done(2026-07-21) | `Enumeration::makeDefault()` |
+| 使用中の値の削除防止 | done(2026-07-21) | IssuePriority(`issues.priority_id`)・TimeEntryActivity(`time_entries.activity_id`)は使用中なら削除不可。DocumentCategoryは `nullOnDelete()` のためガード不要 |
 
 ### アプリケーション設定(Redmine 119キー中 ~6項目)
 
