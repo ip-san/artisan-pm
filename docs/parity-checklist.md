@@ -43,6 +43,7 @@
 | 機能 | 状態 | 備考 |
 |---|---|---|
 | 課題の作成/編集/閲覧 | done | `IssueService::create/update`, `issues/{form,show}.blade.php` |
+| **課題本文のMarkdownレンダリング** | **missing(新規発見、2026-07-22)** | Wiki用インライン画像参照機能の実装調査中に判明: `issues/show.blade.php`は説明文を`WikiMarkdownRenderer`に一切通しておらず、`whitespace-pre-line`な生テキスト表示のみ。`#123`課題リンク・`[[Page]]`Wikiリンク・インライン画像参照などWikiで動く参照構文が課題側には一切効かない。Wiki側は対応済みのため`WikiMarkdownRenderer`自体の再利用は容易なはずで、次の well-scoped 候補 |
 | 更新時の属性差分 Journal 記録 | done(2026-07-22訂正) | **訂正**: 従来「category_id・カスタムフィールドは記録されない」と誤記されていたが、実際には`JOURNALED_ATTRIBUTES`に`category_id`含め15項目が既に含まれ、カスタムフィールドも`diffCustomFieldSnapshots()`で別途記録済み(詳細は下の「属性変更の監査証跡」行を参照、内容が重複していたため本行はそちらに合わせて訂正) |
 | 課題削除 | done(2026-07-21) | 詳細画面に削除ボタンを配線(`delete_issues`権限+確認ダイアログ)。工数は`nullOnDelete`で保持(切り離されるのみ)、子課題も`nullOnDelete`でトップレベル化。Redmineの`params[:todo]`(工数の再割当/削除選択)は意図的に対象外、常に保持のみ |
 | 課題のコピー | done(2026-07-21) | 詳細画面の「コピー」リンクが`?copy_from=<id>`付きで新規課題フォームを開き、トラッカー/優先度/カテゴリ/担当者/対象バージョン/題名/説明/日付/カスタムフィールドをプリフィル。ステータス/進捗率/作成者は通常の新規課題と同じ初期値。ジャーナル/添付/関連/親子は意図的にコピー対象外(軽量な「似た課題から始める」機能として設計) |
@@ -350,7 +351,7 @@
 | **添付ファイルの説明文** | **missing** | ファイル名+サイズのみ表示、説明文は保存も編集もできない |
 | ダウンロード数カウント | done(2026-07-21) | `AttachmentController`が`media.custom_properties`の`download_count`をダウンロードごとにインクリメント。`<x-download-count>`コンポーネントで各添付ファイル一覧に表示 |
 | Wiki/フォーラム投稿への添付 | done(2026-07-21) | Wiki/フォーラム投稿(`Message`、トピック・返信とも)ともに対応 |
-| 本文中のインライン画像参照(`attachment:file.png`) | missing | — |
+| 本文中のインライン画像参照(`attachment:file.png`) | done(2026-07-22) | Redmineの実装(`InlineAttachmentsScrubber`)は`attachment:`という独自プレフィックス構文ではなく、通常のMarkdown画像記法でファイル名だけを裸で書いた場合(`![](screenshot.png)`)にレンダリング後のHTMLを走査し、同一オブジェクトの添付ファイルからファイル名(大小文字区別なし)で解決する後処理。本アプリも`WikiMarkdownRenderer`に同等の後処理(DOMDocument走査)を追加し、Wikiページ本文・過去バージョン表示の両方で対応。スキームやパスを含むURL、非画像拡張子は対象外(Redmineと同じ拡張子ホワイトリスト)。**課題本文は別建て**: 調査の結果、課題説明文はそもそもMarkdownとしてレンダリングされておらず(生テキスト表示のみ)、`#123`や`[[Page]]`等の参照構文も課題側には未配線と判明 — 別途の構造的ギャップとして扱う(本行のスコープはWikiのみ) |
 
 ---
 
