@@ -19,6 +19,10 @@ Route::middleware('auth')->group(function () {
 
     Volt::route('/projects/{project:identifier}/issues', 'issues.index')->name('issues.index');
     Volt::route('/projects/{project:identifier}/issues/create', 'issues.form')->name('issues.create');
+    // Registered before the {issue} routes below so "import" isn't matched
+    // as an issue-id route-model-binding segment.
+    Volt::route('/projects/{project:identifier}/issues/import', 'issues.import')->name('issues.import');
+    Volt::route('/projects/{project:identifier}/issues/imports/{import}', 'issues.import-status')->name('issues.import-status');
     Volt::route('/projects/{project:identifier}/issues/{issue}', 'issues.show')->name('issues.show');
     Volt::route('/projects/{project:identifier}/issues/{issue}/edit', 'issues.form')->name('issues.edit');
 
