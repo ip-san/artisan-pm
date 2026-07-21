@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use App\Enums\PermissionRequirement;
@@ -13,7 +15,7 @@ use Illuminate\Support\ServiceProvider;
  * system will call PermissionRegistry::register() the same way from its
  * own service providers.
  */
-class PermissionServiceProvider extends ServiceProvider
+final class PermissionServiceProvider extends ServiceProvider
 {
     public function register(): void
     {

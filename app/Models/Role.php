@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\RoleBuiltin;
@@ -10,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 #[Fillable(['name', 'builtin', 'permissions', 'position'])]
-class Role extends Model
+final class Role extends Model
 {
     /** @use HasFactory<RoleFactory> */
     use HasFactory;

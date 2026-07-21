@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\ProjectModuleKey;
@@ -13,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kalnoy\Nestedset\NodeTrait;
 
 #[Fillable(['name', 'identifier', 'description', 'is_public', 'parent_id'])]
-class Project extends Model
+final class Project extends Model
 {
     /** @use HasFactory<ProjectFactory> */
     use HasFactory, NodeTrait;

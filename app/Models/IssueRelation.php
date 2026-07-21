@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\IssueRelationType;
@@ -8,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['issue_from_id', 'issue_to_id', 'relation_type'])]
-class IssueRelation extends Model
+final class IssueRelation extends Model
 {
     protected function casts(): array
     {

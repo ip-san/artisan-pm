@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\EnumerationType;
@@ -12,7 +14,7 @@ use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
 #[Fillable(['type', 'name', 'position', 'is_default', 'active'])]
-class Enumeration extends Model implements Sortable
+final class Enumeration extends Model implements Sortable
 {
     /** @use HasFactory<EnumerationFactory> */
     use HasFactory, SortableTrait;

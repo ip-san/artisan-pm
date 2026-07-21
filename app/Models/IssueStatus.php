@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\IssueStatusFactory;
@@ -10,7 +12,7 @@ use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
 #[Fillable(['name', 'is_closed', 'position'])]
-class IssueStatus extends Model implements Sortable
+final class IssueStatus extends Model implements Sortable
 {
     /** @use HasFactory<IssueStatusFactory> */
     use HasFactory, SortableTrait;

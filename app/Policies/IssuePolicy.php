@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Issue;
@@ -9,7 +11,7 @@ use App\Models\User;
 use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
 
-class IssuePolicy
+final class IssuePolicy
 {
     public function __construct(
         private readonly AuthorizationService $authorization,

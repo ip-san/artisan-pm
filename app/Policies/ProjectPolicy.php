@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
 
-class ProjectPolicy
+final class ProjectPolicy
 {
     public function __construct(
         private readonly AuthorizationService $authorization,

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Role;
@@ -11,7 +13,7 @@ use App\Models\User;
  * the Gate::before admin bypass in AppServiceProvider; every method here
  * denies by default for everyone else.
  */
-class RolePolicy
+final class RolePolicy
 {
     public function viewAny(User $user): bool
     {

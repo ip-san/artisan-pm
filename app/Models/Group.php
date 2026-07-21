@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\GroupFactory;
@@ -10,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['name'])]
-class Group extends Model
+final class Group extends Model
 {
     /** @use HasFactory<GroupFactory> */
     use HasFactory;

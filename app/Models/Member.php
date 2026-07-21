@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\MemberFactory;
@@ -11,14 +13,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use LogicException;
 
 #[Fillable(['project_id', 'user_id', 'group_id'])]
-class Member extends Model
+final class Member extends Model
 {
     /** @use HasFactory<MemberFactory> */
     use HasFactory;
 
     protected static function booted(): void
     {
-        static::saving(function (Member $member) {
+        self::saving(function (Member $member) {
             if (($member->user_id === null) === ($member->group_id === null)) {
                 throw new LogicException('A member must belong to exactly one of a user or a group.');
             }

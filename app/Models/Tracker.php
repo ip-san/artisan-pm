@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\TrackerFactory;
@@ -11,7 +13,7 @@ use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
 #[Fillable(['name', 'description', 'position'])]
-class Tracker extends Model implements Sortable
+final class Tracker extends Model implements Sortable
 {
     /** @use HasFactory<TrackerFactory> */
     use HasFactory, SortableTrait;

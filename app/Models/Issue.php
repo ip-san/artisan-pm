@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Database\Factories\IssueFactory;
@@ -15,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'assigned_to_id', 'fixed_version_id', 'parent_id', 'subject',
     'description', 'start_date', 'due_date', 'done_ratio',
 ])]
-class Issue extends Model
+final class Issue extends Model
 {
     /** @use HasFactory<IssueFactory> */
     use HasFactory;

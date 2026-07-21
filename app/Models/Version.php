@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\VersionStatus;
@@ -11,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['name', 'description', 'status', 'due_date'])]
-class Version extends Model
+final class Version extends Model
 {
     /** @use HasFactory<VersionFactory> */
     use HasFactory;
