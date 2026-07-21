@@ -66,31 +66,42 @@ trait HasCustomFields
 
     private function setCustomFieldValue(CustomField $field, mixed $raw): void
     {
-        $column = $field->format()->storageColumn();
-
         if ($field->multiple) {
-            $this->customFieldValues()->where('custom_field_id', $field->id)->delete();
-
-            foreach ((array) $raw as $item) {
-                $prepared = $field->format()->prepareValue($item);
-
-                if ($prepared === null) {
-                    continue;
-                }
-
-                $value = $this->customFieldValues()->make();
-                $value->custom_field_id = $field->id;
-                $value->{$column} = $prepared;
-                $value->save();
-            }
+            $this->setMultipleCustomFieldValues($field, (array) $raw);
 
             return;
         }
 
-        $prepared = $field->format()->prepareValue($raw);
+        $this->setSingleCustomFieldValue($field, $raw);
+    }
 
+    private function setSingleCustomFieldValue(CustomField $field, mixed $raw): void
+    {
         $value = $this->customFieldValues()->firstOrNew(['custom_field_id' => $field->id]);
-        $value->{$column} = $prepared;
+        $value->{$field->format()->storageColumn()} = $field->format()->prepareValue($raw);
         $value->save();
+    }
+
+    /**
+     * @param  array<int, mixed>  $items
+     */
+    private function setMultipleCustomFieldValues(CustomField $field, array $items): void
+    {
+        $this->customFieldValues()->where('custom_field_id', $field->id)->delete();
+
+        $column = $field->format()->storageColumn();
+
+        foreach ($items as $item) {
+            $prepared = $field->format()->prepareValue($item);
+
+            if ($prepared === null) {
+                continue;
+            }
+
+            $value = $this->customFieldValues()->make();
+            $value->custom_field_id = $field->id;
+            $value->{$column} = $prepared;
+            $value->save();
+        }
     }
 }

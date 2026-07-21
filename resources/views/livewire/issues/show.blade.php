@@ -123,10 +123,11 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     @endif
 
-    @if ($issue->attachments()->isNotEmpty())
+    @php $attachments = $issue->attachments(); @endphp
+    @if ($attachments->isNotEmpty())
         <h2 class="text-sm font-semibold text-gray-900 mb-2">添付ファイル</h2>
         <ul class="mb-6 space-y-1">
-            @foreach ($issue->attachments() as $media)
+            @foreach ($attachments as $media)
                 <li class="flex items-center justify-between text-sm">
                     <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
                         {{ $media->file_name }}

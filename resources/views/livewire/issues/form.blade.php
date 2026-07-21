@@ -167,8 +167,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         foreach ($this->fieldRules as $field => $rule) {
             if ($rule === 'required' && isset($rules[$field])) {
-                $rules[$field][] = 'required';
-                $rules[$field] = array_diff($rules[$field], ['nullable']);
+                $rules[$field] = [...array_diff($rules[$field], ['nullable']), 'required'];
             }
         }
 
@@ -178,13 +177,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
         foreach ($this->customFields as $field) {
             $key = "customFieldValues.{$field->id}";
-            $required = $field->is_required || $this->isRequired("cf_{$field->id}");
+            $presence = ($field->is_required || $this->isRequired("cf_{$field->id}")) ? 'required' : 'nullable';
 
             if ($field->multiple) {
-                $rules[$key] = [$required ? 'required' : 'nullable', 'array'];
+                $rules[$key] = [$presence, 'array'];
                 $rules["{$key}.*"] = $field->format()->validationRules($field);
             } else {
-                $rules[$key] = array_merge([$required ? 'required' : 'nullable'], $field->format()->validationRules($field));
+                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
             }
         }
 
@@ -356,9 +355,10 @@ new #[Layout('components.layouts.app')] class extends Component
                 class="mt-1 block w-full text-sm text-gray-700">
             @error('newAttachments.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
 
-            @if ($issue && $issue->attachments()->isNotEmpty())
+            @php $existingAttachments = $issue?->attachments(); @endphp
+            @if ($existingAttachments?->isNotEmpty())
                 <ul class="mt-2 space-y-1">
-                    @foreach ($issue->attachments() as $media)
+                    @foreach ($existingAttachments as $media)
                         <li class="text-sm text-gray-600">{{ $media->file_name }} ({{ $media->human_readable_size }})</li>
                     @endforeach
                 </ul>
