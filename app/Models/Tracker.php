@@ -14,17 +14,49 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
-#[Fillable(['name', 'description', 'position', 'default_status_id'])]
+#[Fillable(['name', 'description', 'position', 'default_status_id', 'disabled_core_fields'])]
 final class Tracker extends Model implements Sortable
 {
     /** @use HasFactory<TrackerFactory> */
     use HasFactory, SortableTrait;
+
+    /**
+     * Core issue fields a tracker may hide entirely — matches Redmine's
+     * Tracker::CORE_FIELDS. project_id/tracker_id/subject/is_private are
+     * deliberately excluded, matching Redmine's CORE_FIELDS_UNDISABLABLE.
+     *
+     * @var array<string, string>
+     */
+    public const array DISABLABLE_CORE_FIELDS = [
+        'assigned_to_id' => '担当者',
+        'category_id' => 'カテゴリ',
+        'fixed_version_id' => '対象バージョン',
+        'parent_id' => '親課題',
+        'start_date' => '開始日',
+        'due_date' => '期日',
+        'estimated_hours' => '予定工数',
+        'done_ratio' => '進捗率',
+        'description' => '説明',
+        'priority_id' => '優先度',
+    ];
 
     /** @var array{order_column_name: string, sort_when_creating: bool} */
     public array $sortable = [
         'order_column_name' => 'position',
         'sort_when_creating' => true,
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'disabled_core_fields' => 'array',
+        ];
+    }
+
+    public function isCoreFieldDisabled(string $field): bool
+    {
+        return in_array($field, $this->disabled_core_fields ?? [], true);
+    }
 
     /**
      * @return BelongsToMany<Project, $this>

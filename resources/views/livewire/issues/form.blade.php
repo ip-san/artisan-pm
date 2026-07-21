@@ -293,6 +293,22 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     #[Computed]
+    public function currentTracker(): ?Tracker
+    {
+        return Tracker::query()->find($this->tracker_id);
+    }
+
+    /**
+     * Matches Redmine's Tracker#disabled_core_fields: a tracker can hide
+     * a core field from the issue form entirely, distinct from the
+     * per-workflow read_only/required rules above.
+     */
+    public function isCoreFieldDisabled(string $field): bool
+    {
+        return $this->currentTracker?->isCoreFieldDisabled($field) ?? false;
+    }
+
+    #[Computed]
     public function doneRatioIsStatusDerived(): bool
     {
         return Setting::get('issue_done_ratio', 'issue_field') === 'issue_status';
@@ -513,100 +529,122 @@ new #[Layout('components.layouts.app')] class extends Component
             @error('subject') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700">説明</label>
-            <textarea wire:model="description" rows="4" @disabled($this->isReadOnly('description'))
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
-        </div>
+        @unless ($this->isCoreFieldDisabled('description'))
+            <div>
+                <label class="block text-sm font-medium text-gray-700">説明</label>
+                <textarea wire:model="description" rows="4" @disabled($this->isReadOnly('description'))
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+            </div>
+        @endunless
 
         <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700">優先度</label>
-                <select wire:model="priority_id" @disabled($this->isReadOnly('priority_id') || $this->priorityIsDerived)
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                    @foreach ($this->priorities as $priority)
-                        <option value="{{ $priority->id }}">{{ $priority->name }}</option>
-                    @endforeach
-                </select>
-                @if ($this->priorityIsDerived)
-                    <p class="mt-1 text-xs text-gray-500">未クローズの子課題のうち最高優先度から自動算出されます。</p>
-                @endif
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700">
-                    担当者
-                    @if (! $this->isReadOnly('assigned_to_id') && $assigned_to_id !== auth()->id() && $this->projectMembers->contains('id', auth()->id()))
-                        <button type="button" wire:click="$set('assigned_to_id', {{ auth()->id() }})"
-                            class="ml-1 text-xs font-normal text-indigo-600 hover:underline">
-                            自分に割り当てる
-                        </button>
+            @unless ($this->isCoreFieldDisabled('priority_id'))
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">優先度</label>
+                    <select wire:model="priority_id" @disabled($this->isReadOnly('priority_id') || $this->priorityIsDerived)
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        @foreach ($this->priorities as $priority)
+                            <option value="{{ $priority->id }}">{{ $priority->name }}</option>
+                        @endforeach
+                    </select>
+                    @if ($this->priorityIsDerived)
+                        <p class="mt-1 text-xs text-gray-500">未クローズの子課題のうち最高優先度から自動算出されます。</p>
                     @endif
-                </label>
-                <select wire:model="assigned_to_id" @disabled($this->isReadOnly('assigned_to_id'))
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                    <option value="">未割当</option>
-                    @foreach ($this->projectMembers as $member)
-                        <option value="{{ $member->id }}">{{ $member->name }}</option>
-                    @endforeach
-                </select>
-            </div>
+                </div>
+            @endunless
+
+            @unless ($this->isCoreFieldDisabled('assigned_to_id'))
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">
+                        担当者
+                        @if (! $this->isReadOnly('assigned_to_id') && $assigned_to_id !== auth()->id() && $this->projectMembers->contains('id', auth()->id()))
+                            <button type="button" wire:click="$set('assigned_to_id', {{ auth()->id() }})"
+                                class="ml-1 text-xs font-normal text-indigo-600 hover:underline">
+                                自分に割り当てる
+                            </button>
+                        @endif
+                    </label>
+                    <select wire:model="assigned_to_id" @disabled($this->isReadOnly('assigned_to_id'))
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        <option value="">未割当</option>
+                        @foreach ($this->projectMembers as $member)
+                            <option value="{{ $member->id }}">{{ $member->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endunless
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700">開始日</label>
-                <input type="date" wire:model="start_date" @disabled($this->isReadOnly('start_date') || $this->datesAreDerived)
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+        @if (! $this->isCoreFieldDisabled('start_date') || ! $this->isCoreFieldDisabled('due_date'))
+            <div class="grid grid-cols-2 gap-4">
+                @unless ($this->isCoreFieldDisabled('start_date'))
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">開始日</label>
+                        <input type="date" wire:model="start_date" @disabled($this->isReadOnly('start_date') || $this->datesAreDerived)
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    </div>
+                @endunless
+                @unless ($this->isCoreFieldDisabled('due_date'))
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">期日</label>
+                        <input type="date" wire:model="due_date" @disabled($this->isReadOnly('due_date') || $this->datesAreDerived)
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    </div>
+                @endunless
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">期日</label>
-                <input type="date" wire:model="due_date" @disabled($this->isReadOnly('due_date') || $this->datesAreDerived)
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            </div>
-        </div>
-        @if ($this->datesAreDerived)
-            <p class="-mt-3 text-xs text-gray-500">子課題の開始日〜期日の範囲から自動算出されます。</p>
+            @if ($this->datesAreDerived)
+                <p class="-mt-3 text-xs text-gray-500">子課題の開始日〜期日の範囲から自動算出されます。</p>
+            @endif
         @endif
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700">予定工数(時間)</label>
-            <input type="number" step="0.01" min="0" wire:model="estimated_hours"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('estimated_hours') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
+        @unless ($this->isCoreFieldDisabled('estimated_hours'))
             <div>
-                <label class="block text-sm font-medium text-gray-700">カテゴリ</label>
-                <select wire:model.live="category_id" @disabled($this->isReadOnly('category_id'))
+                <label class="block text-sm font-medium text-gray-700">予定工数(時間)</label>
+                <input type="number" step="0.01" min="0" wire:model="estimated_hours"
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                    <option value="">なし</option>
-                    @foreach ($this->projectCategories as $category)
-                        <option value="{{ $category->id }}">{{ $category->name }}</option>
-                    @endforeach
-                </select>
-                @error('category_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('estimated_hours') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+        @endunless
 
+        @if (! $this->isCoreFieldDisabled('category_id') || ! $this->isCoreFieldDisabled('fixed_version_id'))
+            <div class="grid grid-cols-2 gap-4">
+                @unless ($this->isCoreFieldDisabled('category_id'))
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">カテゴリ</label>
+                        <select wire:model.live="category_id" @disabled($this->isReadOnly('category_id'))
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                            <option value="">なし</option>
+                            @foreach ($this->projectCategories as $category)
+                                <option value="{{ $category->id }}">{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('category_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                @endunless
+
+                @unless ($this->isCoreFieldDisabled('fixed_version_id'))
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">対象バージョン</label>
+                        <select wire:model="fixed_version_id" @disabled($this->isReadOnly('fixed_version_id'))
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                            <option value="">なし</option>
+                            @foreach ($this->projectVersions as $version)
+                                <option value="{{ $version->id }}">{{ $version->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endunless
+            </div>
+        @endif
+
+        @unless ($this->isCoreFieldDisabled('parent_id'))
             <div>
-                <label class="block text-sm font-medium text-gray-700">対象バージョン</label>
-                <select wire:model="fixed_version_id" @disabled($this->isReadOnly('fixed_version_id'))
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                    <option value="">なし</option>
-                    @foreach ($this->projectVersions as $version)
-                        <option value="{{ $version->id }}">{{ $version->name }}</option>
-                    @endforeach
-                </select>
+                <label class="block text-sm font-medium text-gray-700">親課題ID</label>
+                <input type="number" wire:model="parent_id" placeholder="例: 123"
+                    class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('parent_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
-        </div>
-
-        <div>
-            <label class="block text-sm font-medium text-gray-700">親課題ID</label>
-            <input type="number" wire:model="parent_id" placeholder="例: 123"
-                class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('parent_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-        </div>
+        @endunless
 
         @can('setPrivate', [\App\Models\Issue::class, $project])
             <label class="flex items-center gap-2 text-sm text-gray-700">
@@ -642,16 +680,18 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         @if ($issue)
-            <div>
-                <label class="block text-sm font-medium text-gray-700">進捗率 ({{ $done_ratio }}%)</label>
-                <input type="range" wire:model="done_ratio" min="0" max="100" step="10" class="mt-1 block w-full"
-                    @disabled($this->doneRatioIsStatusDerived || $this->doneRatioIsParentDerived)>
-                @if ($this->doneRatioIsStatusDerived)
-                    <p class="mt-1 text-xs text-gray-500">設定によりステータスから自動算出されます。</p>
-                @elseif ($this->doneRatioIsParentDerived)
-                    <p class="mt-1 text-xs text-gray-500">子課題の進捗率(予定工数で重み付け)から自動算出されます。</p>
-                @endif
-            </div>
+            @unless ($this->isCoreFieldDisabled('done_ratio'))
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">進捗率 ({{ $done_ratio }}%)</label>
+                    <input type="range" wire:model="done_ratio" min="0" max="100" step="10" class="mt-1 block w-full"
+                        @disabled($this->doneRatioIsStatusDerived || $this->doneRatioIsParentDerived)>
+                    @if ($this->doneRatioIsStatusDerived)
+                        <p class="mt-1 text-xs text-gray-500">設定によりステータスから自動算出されます。</p>
+                    @elseif ($this->doneRatioIsParentDerived)
+                        <p class="mt-1 text-xs text-gray-500">子課題の進捗率(予定工数で重み付け)から自動算出されます。</p>
+                    @endif
+                </div>
+            @endunless
 
             <div>
                 <label class="block text-sm font-medium text-gray-700">コメント</label>
