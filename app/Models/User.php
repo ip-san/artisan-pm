@@ -79,6 +79,15 @@ final class User extends Authenticatable implements OAuthenticatable
             ->withTimestamps();
     }
 
+    /**
+     * @return BelongsToMany<Project, $this>
+     */
+    public function bookmarkedProjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_bookmarks')
+            ->withTimestamps();
+    }
+
     public function isActive(): bool
     {
         return $this->status === UserStatus::Active;

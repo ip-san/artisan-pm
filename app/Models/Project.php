@@ -166,6 +166,11 @@ final class Project extends Model implements HasMedia
         return $this->status === ProjectStatus::Active;
     }
 
+    public function isBookmarkedBy(User $user): bool
+    {
+        return $user->bookmarkedProjects()->where('projects.id', $this->id)->exists();
+    }
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('files');

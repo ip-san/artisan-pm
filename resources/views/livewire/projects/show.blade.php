@@ -16,6 +16,17 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->project = $project;
     }
 
+    public function toggleBookmark(): void
+    {
+        $user = auth()->user();
+
+        if ($this->project->isBookmarkedBy($user)) {
+            $user->bookmarkedProjects()->detach($this->project->id);
+        } else {
+            $user->bookmarkedProjects()->attach($this->project->id);
+        }
+    }
+
     public function closeProject(): void
     {
         $this->authorize('close', $this->project);
@@ -70,6 +81,9 @@ new #[Layout('components.layouts.app')] class extends Component
             <p class="text-sm text-gray-500">{{ $project->identifier }}</p>
         </div>
         <div class="flex gap-2">
+            <button wire:click="toggleBookmark" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                {{ $project->isBookmarkedBy(auth()->user()) ? '★ ブックマーク解除' : '☆ ブックマーク' }}
+            </button>
             <a href="{{ route('activity.index', $project) }}"
                 class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 活動
