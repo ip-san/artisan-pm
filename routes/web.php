@@ -90,6 +90,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/search', 'search.index')->name('search.index');
 
     Volt::route('/roles', 'roles.index')->name('roles.index');
+    Volt::route('/roles/report', 'roles.report')->name('roles.report');
     Volt::route('/roles/create', 'roles.form')->name('roles.create');
     Volt::route('/roles/{role}/edit', 'roles.form')->name('roles.edit');
 

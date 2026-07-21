@@ -32,10 +32,16 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-gray-900">ロール管理</h1>
-        <a href="{{ route('roles.create') }}"
-            class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
-            新規ロール
-        </a>
+        <div class="flex gap-2">
+            <a href="{{ route('roles.report') }}"
+                class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                権限レポート
+            </a>
+            <a href="{{ route('roles.create') }}"
+                class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                新規ロール
+            </a>
+        </div>
     </div>
 
     <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
