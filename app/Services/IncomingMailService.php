@@ -130,9 +130,22 @@ final class IncomingMailService
                 continue;
             }
 
-            $issue->addMediaFromString($attachment['content'])
-                ->usingFileName($attachment['filename'] !== '' ? $attachment['filename'] : 'attachment')
-                ->toMediaCollection('attachments');
+            // Isolated per attachment — e.g. one that fails media-library's
+            // max_file_size check shouldn't abort the loop and leave the
+            // issue (already created above) missing every attachment after
+            // it, or get the whole message misreported as a failure when
+            // most of it succeeded.
+            try {
+                $issue->addMediaFromString($attachment['content'])
+                    ->usingFileName($attachment['filename'] !== '' ? $attachment['filename'] : 'attachment')
+                    ->toMediaCollection('attachments');
+            } catch (Throwable $e) {
+                Log::warning('Incoming mail: failed to attach a file to the created issue.', [
+                    'issue_id' => $issue->id,
+                    'filename' => $attachment['filename'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $issue;

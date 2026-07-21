@@ -174,3 +174,29 @@ test('a subject longer than the column limit is truncated rather than failing', 
     expect($issue)->not->toBeNull()
         ->and(mb_strlen($issue->subject))->toBe(255);
 });
+
+test('an oversized attachment is skipped without losing the issue or the other attachments', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    config(['media-library.max_file_size' => 10]);
+
+    $mail = new ParsedIncomingMail(
+        subject: 'With one oversized attachment',
+        body: '...',
+        fromEmail: 'sender@example.com',
+        attachments: [
+            ['filename' => 'too-big.txt', 'content' => str_repeat('x', 100)],
+            ['filename' => 'small.txt', 'content' => 'ok'],
+        ],
+    );
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue)->not->toBeNull()
+        ->and($issue->attachments())->toHaveCount(1)
+        ->and($issue->attachments()->first()->file_name)->toBe('small.txt');
+});
