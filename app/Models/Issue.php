@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Concerns\HasCustomFields;
 use App\Enums\CustomizableType;
+use App\Support\Authorization\AuthorizationService;
 use Database\Factories\IssueFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -184,16 +185,30 @@ final class Issue extends Model implements HasMedia
     }
 
     /**
+     * The custom fields relevant to this issue's tracker and project, further
+     * narrowed to the ones visible to the current user's role(s) — admins,
+     * and anyone when a field has no role restriction, see everything.
+     *
      * @return Collection<int, CustomField>
      */
     public function relevantCustomFields(): Collection
     {
-        return CustomField::query()
+        $fields = CustomField::query()
             ->where('customized_type', CustomizableType::Issue)
             ->whereHas('trackers', fn ($query) => $query->where('trackers.id', $this->tracker_id))
             ->with(['trackers', 'projects', 'roles'])
             ->orderBy('position')
             ->get()
             ->filter(fn (CustomField $field) => $field->appliesToProject($this->project));
+
+        $user = auth()->user();
+
+        if ($user?->is_admin) {
+            return $fields->values();
+        }
+
+        $userRoles = $user ? app(AuthorizationService::class)->rolesFor($user, $this->project) : collect();
+
+        return $fields->filter(fn (CustomField $field) => $field->visibleToRoles($userRoles))->values();
     }
 }

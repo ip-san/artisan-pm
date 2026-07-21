@@ -2,6 +2,7 @@
 
 use App\Enums\CustomFieldFormat;
 use App\Models\CustomField;
+use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
 use Livewire\Livewire;
@@ -46,6 +47,24 @@ test('a non-admin cannot access custom field administration', function () {
 
     Livewire::actingAs($user)->test('custom-fields.index')->assertForbidden();
     Livewire::actingAs($user)->test('custom-fields.form')->assertForbidden();
+});
+
+test('an admin can restrict a custom field to specific roles', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+    $role = Role::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('custom-fields.form')
+        ->set('name', 'Restricted field')
+        ->set('field_format', CustomFieldFormat::String->value)
+        ->set('trackerIds', [$tracker->id])
+        ->set('roleIds', [$role->id])
+        ->call('save');
+
+    $field = CustomField::where('name', 'Restricted field')->firstOrFail();
+
+    expect($field->roles->pluck('id')->all())->toBe([$role->id]);
 });
 
 test('a custom field must be attached to at least one tracker', function () {

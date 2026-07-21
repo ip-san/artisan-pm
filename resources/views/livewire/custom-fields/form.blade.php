@@ -4,6 +4,7 @@ use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Models\CustomField;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\Tracker;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -35,6 +36,9 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int> */
     public array $projectIds = [];
 
+    /** @var array<int> */
+    public array $roleIds = [];
+
     public function mount(?CustomField $customField = null): void
     {
         if ($customField?->exists) {
@@ -50,6 +54,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->possibleValuesText = implode("\n", $customField->possible_values ?? []);
             $this->trackerIds = $customField->trackers->pluck('id')->all();
             $this->projectIds = $customField->projects->pluck('id')->all();
+            $this->roleIds = $customField->roles->pluck('id')->all();
         } else {
             $this->authorize('create', CustomField::class);
         }
@@ -67,6 +72,12 @@ new #[Layout('components.layouts.app')] class extends Component
         return Project::query()->orderBy('name')->get();
     }
 
+    #[Computed]
+    public function roles(): Collection
+    {
+        return Role::query()->whereNull('builtin')->orderBy('position')->get();
+    }
+
     public function save(): void
     {
         $data = $this->validate([
@@ -80,6 +91,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'trackerIds.*' => ['exists:trackers,id'],
             'projectIds' => ['array'],
             'projectIds.*' => ['exists:projects,id'],
+            'roleIds' => ['array'],
+            'roleIds.*' => ['exists:roles,id'],
         ]);
 
         $possibleValues = $this->field_format === CustomFieldFormat::List->value
@@ -105,6 +118,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->customField->trackers()->sync($data['trackerIds']);
         $this->customField->projects()->sync($data['projectIds']);
+        $this->customField->roles()->sync($data['roleIds']);
 
         $this->redirect(route('custom-fields.index'), navigate: true);
     }
@@ -185,6 +199,18 @@ new #[Layout('components.layouts.app')] class extends Component
                     <label class="flex items-center gap-2 text-sm text-gray-700">
                         <input type="checkbox" wire:model="projectIds" value="{{ $project->id }}" class="rounded border-gray-300">
                         {{ $project->name }}
+                    </label>
+                @endforeach
+            </div>
+        </div>
+
+        <div>
+            <span class="block text-sm font-medium text-gray-700 mb-2">閲覧可能ロール(未選択=全ロールに表示)</span>
+            <div class="flex flex-wrap gap-3">
+                @foreach ($this->roles as $role)
+                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" wire:model="roleIds" value="{{ $role->id }}" class="rounded border-gray-300">
+                        {{ $role->name }}
                     </label>
                 @endforeach
             </div>

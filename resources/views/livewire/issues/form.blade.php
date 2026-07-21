@@ -160,7 +160,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
             'done_ratio' => ['integer', 'min:0', 'max:100'],
-            'newAttachments.*' => ['file', 'max:10240'],
+            // Kilobytes, derived from media-library's own byte-based cap so
+            // the two limits can't silently drift apart.
+            'newAttachments.*' => ['file', 'max:'.intdiv(config('media-library.max_file_size'), 1024)],
         ];
 
         foreach ($this->fieldRules as $field => $rule) {
