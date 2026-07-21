@@ -187,6 +187,16 @@ final class Project extends Model implements HasMedia
         return $this->status === ProjectStatus::Active;
     }
 
+    public function isArchived(): bool
+    {
+        return $this->status === ProjectStatus::Archived;
+    }
+
+    public function isClosed(): bool
+    {
+        return $this->status === ProjectStatus::Closed;
+    }
+
     public function isBookmarkedBy(User $user): bool
     {
         return $user->bookmarkedProjects()->where('projects.id', $this->id)->exists();

@@ -182,8 +182,8 @@
 | プロジェクト編集 | done | 名前/識別子/説明/公開設定/モジュール/プロジェクトカスタムフィールド |
 | サブプロジェクト | partial | `NodeTrait` 使用、ポリシーもあるが**フォームに親選択がなく**、UIから作成/再配置できない |
 | 有効モジュール | done | `Project::syncModules()` |
-| アーカイブ/アーカイブ解除 | partial(2026-07-21) | 詳細画面にボタンを配線(管理者専用、`ProjectPolicy::archive`)。**ステータスの切り替えのみ**で、アーカイブ中のプロジェクトへのアクセス制限・一覧からの除外等の実際の強制は未実装(Redmineはアーカイブ中プロジェクトを実質不可視化するが、本アプリの`AuthorizationService`はまだprojectのstatusを一切参照しない) |
-| クローズ/再オープン | partial(2026-07-21) | 詳細画面にボタンを配線(`close_project`権限、ステータスバッジ表示)。**ステータスの切り替えのみ**で、クローズ中の編集制限(課題作成禁止等)は未強制 |
+| アーカイブ/アーカイブ解除 | done(2026-07-22) | 詳細画面にボタンを配線(管理者専用、`ProjectPolicy::archive`)。`AuthorizationService::can()`がRedmineの`Project#allows_to?`と同様、アーカイブ中プロジェクトへの全操作を拒否(管理者はGate::before経由で従来どおりバイパス)。`ProjectPolicy::view()`もis_publicより優先してアーカイブを弾くため一覧・詳細から実質不可視化 |
+| クローズ/再オープン | done(2026-07-22) | 詳細画面にボタンを配線(`close_project`権限、ステータスバッジ表示)。`Permission::$readOnly`フラグ(view_*/browse_repository等に付与)を追加し、クローズ中はモジュール権限のうち読み取り専用以外(課題作成・編集・工数記録等)を拒否。`close_project`/`edit_project`等プロジェクト管理系(module未指定)権限は対象外とし、クローズ中でも再オープンや設定変更は可能なままにする実装上の判断(Redmine本家は再オープン自体も同じ経路でブロックされ得る特殊挙動があるが、ここでは追わない) |
 | プロジェクト削除 | missing UI | ポリシーはあるがルート/ボタンなし |
 | プロジェクトのコピー | missing | — |
 | ブックマーク | done(2026-07-21) | `project_bookmarks`テーブル+`User::bookmarkedProjects()`。詳細画面とプロジェクト一覧の★ボタンでトグル、一覧に「ブックマークのみ表示」フィルタ |

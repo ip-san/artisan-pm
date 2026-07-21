@@ -18,9 +18,9 @@ final class PermissionRegistry
     /** @var array<string, Permission> */
     private array $permissions = [];
 
-    public function register(string $key, ?ProjectModuleKey $module = null, PermissionRequirement $requirement = PermissionRequirement::Member): void
+    public function register(string $key, ?ProjectModuleKey $module = null, PermissionRequirement $requirement = PermissionRequirement::Member, bool $readOnly = false): void
     {
-        $this->permissions[$key] = new Permission($key, $module, $requirement);
+        $this->permissions[$key] = new Permission($key, $module, $requirement, $readOnly);
     }
 
     public function get(string $key): ?Permission

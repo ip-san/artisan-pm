@@ -13,5 +13,6 @@ final readonly class Permission
         public string $key,
         public ?ProjectModuleKey $module = null,
         public PermissionRequirement $requirement = PermissionRequirement::Member,
+        public bool $readOnly = false,
     ) {}
 }

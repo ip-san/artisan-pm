@@ -16,6 +16,10 @@ final class ProjectPolicy
 
     public function view(?User $user, Project $project): bool
     {
+        if ($project->isArchived()) {
+            return false;
+        }
+
         return $project->is_public || $this->authorization->can($user, 'view_project', $project);
     }
 
