@@ -20,6 +20,10 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/edit', 'projects.form')->name('projects.edit');
     Volt::route('/projects/{project:identifier}/members', 'projects.members')->name('projects.members');
 
+    Volt::route('/projects/{project:identifier}/issue_categories', 'issue-categories.index')->name('issue-categories.index');
+    Volt::route('/projects/{project:identifier}/issue_categories/create', 'issue-categories.form')->name('issue-categories.create');
+    Volt::route('/projects/{project:identifier}/issue_categories/{issueCategory}/edit', 'issue-categories.form')->name('issue-categories.edit');
+
     Volt::route('/projects/{project:identifier}/issues', 'issues.index')->name('issues.index');
     Volt::route('/projects/{project:identifier}/issues/create', 'issues.form')->name('issues.create');
     // Registered before the {issue} routes below so "import" isn't matched

@@ -5,6 +5,7 @@ use App\Enums\EnumerationType;
 use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Services\IssueService;
@@ -29,6 +30,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public ?int $status_id = null;
 
     public ?int $priority_id = null;
+
+    public ?int $category_id = null;
 
     public ?int $assigned_to_id = null;
 
@@ -70,6 +73,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->tracker_id = $issue->tracker_id;
             $this->status_id = $issue->status_id;
             $this->priority_id = $issue->priority_id;
+            $this->category_id = $issue->category_id;
             $this->assigned_to_id = $issue->assigned_to_id;
             $this->fixed_version_id = $issue->fixed_version_id;
             $this->subject = $issue->subject;
@@ -119,6 +123,26 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     #[Computed]
+    public function projectCategories(): Collection
+    {
+        return $this->project->issueCategories;
+    }
+
+    /**
+     * Prefills the assignee from the category's default, matching
+     * Redmine's own behaviour — a UI convenience only, so it deliberately
+     * doesn't override an assignee the user already picked.
+     */
+    public function updatedCategoryId(): void
+    {
+        if ($this->assigned_to_id !== null || $this->category_id === null) {
+            return;
+        }
+
+        $this->assigned_to_id = IssueCategory::query()->whereKey($this->category_id)->value('assigned_to_id');
+    }
+
+    #[Computed]
     public function projectVersions(): Collection
     {
         return $this->project->versions;
@@ -158,6 +182,7 @@ new #[Layout('components.layouts.app')] class extends Component
             // that's actually a different enumeration type's row.
             'tracker_id' => ['required', Rule::exists('project_tracker', 'tracker_id')->where('project_id', $this->project->id)],
             'priority_id' => ['required', Rule::exists('enumerations', 'id')->where('type', EnumerationType::IssuePriority->value)],
+            'category_id' => ['nullable', Rule::exists('issue_categories', 'id')->where('project_id', $this->project->id)],
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'assigned_to_id' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
@@ -302,15 +327,29 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </div>
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700">対象バージョン</label>
-            <select wire:model="fixed_version_id" @disabled($this->isReadOnly('fixed_version_id'))
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                <option value="">なし</option>
-                @foreach ($this->projectVersions as $version)
-                    <option value="{{ $version->id }}">{{ $version->name }}</option>
-                @endforeach
-            </select>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">カテゴリ</label>
+                <select wire:model.live="category_id" @disabled($this->isReadOnly('category_id'))
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">なし</option>
+                    @foreach ($this->projectCategories as $category)
+                        <option value="{{ $category->id }}">{{ $category->name }}</option>
+                    @endforeach
+                </select>
+                @error('category_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">対象バージョン</label>
+                <select wire:model="fixed_version_id" @disabled($this->isReadOnly('fixed_version_id'))
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">なし</option>
+                    @foreach ($this->projectVersions as $version)
+                        <option value="{{ $version->id }}">{{ $version->name }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
 
         @if ($this->customFields->isNotEmpty())

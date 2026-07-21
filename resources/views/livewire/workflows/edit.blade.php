@@ -29,6 +29,7 @@ new #[Layout('components.layouts.app')] class extends Component
         'subject' => '題名',
         'description' => '説明',
         'priority_id' => '優先度',
+        'category_id' => 'カテゴリ',
         'assigned_to_id' => '担当者',
         'start_date' => '開始日',
         'due_date' => '期日',

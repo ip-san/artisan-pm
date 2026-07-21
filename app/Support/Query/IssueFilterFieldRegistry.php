@@ -37,6 +37,7 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('status_id', 'ステータス', 'status_id', FilterFieldType::Select, $selectOperators, fn () => IssueStatus::query()->orderBy('position')->pluck('name', 'id')->all()),
             new NativeColumnFilter('tracker_id', 'トラッカー', 'tracker_id', FilterFieldType::Select, $selectOperators, fn () => $project->trackers->pluck('name', 'id')->all()),
             new NativeColumnFilter('priority_id', '優先度', 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
+            new NativeColumnFilter('category_id', 'カテゴリ', 'category_id', FilterFieldType::Select, $selectOperators, fn () => $project->issueCategories->pluck('name', 'id')->all()),
             new NativeColumnFilter('assigned_to_id', '担当者', 'assigned_to_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
             new NativeColumnFilter('author_id', '作成者', 'author_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
             new NativeColumnFilter('fixed_version_id', '対象バージョン', 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $project->versions->pluck('name', 'id')->all()),

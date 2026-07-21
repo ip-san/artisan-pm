@@ -24,7 +24,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 #[Fillable([
     'project_id', 'tracker_id', 'status_id', 'priority_id', 'author_id',
-    'assigned_to_id', 'fixed_version_id', 'parent_id', 'subject',
+    'assigned_to_id', 'fixed_version_id', 'parent_id', 'category_id', 'subject',
     'description', 'start_date', 'due_date', 'done_ratio',
 ])]
 final class Issue extends Model implements HasMedia
@@ -84,6 +84,14 @@ final class Issue extends Model implements HasMedia
     public function priority(): BelongsTo
     {
         return $this->belongsTo(Enumeration::class, 'priority_id');
+    }
+
+    /**
+     * @return BelongsTo<IssueCategory, $this>
+     */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(IssueCategory::class);
     }
 
     /**

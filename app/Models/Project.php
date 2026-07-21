@@ -75,6 +75,14 @@ final class Project extends Model
     }
 
     /**
+     * @return HasMany<IssueCategory, $this>
+     */
+    public function issueCategories(): HasMany
+    {
+        return $this->hasMany(IssueCategory::class);
+    }
+
+    /**
      * @return HasMany<Version, $this>
      */
     public function versions(): HasMany

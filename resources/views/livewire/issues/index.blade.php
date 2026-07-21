@@ -41,6 +41,7 @@ new #[Layout('components.layouts.app')] class extends Component
         'status_id' => 'ステータス',
         'priority_id' => '優先度',
         'subject' => '題名',
+        'category_id' => 'カテゴリ',
         'assigned_to_id' => '担当者',
         'author_id' => '作成者',
         'fixed_version_id' => '対象バージョン',
@@ -119,7 +120,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $query = Issue::query()
             ->where('project_id', $this->project->id)
-            ->with(['tracker', 'status', 'priority', 'assignedTo', 'author', 'fixedVersion']);
+            ->with(['tracker', 'status', 'priority', 'category', 'assignedTo', 'author', 'fixedVersion']);
 
         if ($this->statusFilter !== 'all') {
             $isClosed = $this->statusFilter === 'closed';
@@ -298,6 +299,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'status_id' => $issue->status->name,
             'priority_id' => $issue->priority->name,
             'subject' => $issue->subject,
+            'category_id' => $issue->category?->name ?? 'なし',
             'assigned_to_id' => $issue->assignedTo?->name ?? '未割当',
             'author_id' => $issue->author->name,
             'fixed_version_id' => $issue->fixedVersion?->name ?? 'なし',
