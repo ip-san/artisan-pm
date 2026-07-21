@@ -128,7 +128,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <ul class="mb-6 space-y-1">
             @foreach ($issue->attachments() as $media)
                 <li class="flex items-center justify-between text-sm">
-                    <a href="{{ $media->getUrl() }}" target="_blank" class="text-indigo-600 hover:underline">
+                    <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
                         {{ $media->file_name }}
                     </a>
                     <span class="text-gray-500">{{ $media->human_readable_size }}</span>

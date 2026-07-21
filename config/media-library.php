@@ -32,8 +32,13 @@ return [
     /*
      * The disk on which to store added files and derived images by default. Choose
      * one or more of the disks you've configured in config/filesystems.php.
+     *
+     * Deliberately 'local' (private, outside public/storage) rather than
+     * 'public' — issue attachments must go through an authorizing download
+     * route (see routes/web.php `attachments.show`), not a guessable public
+     * URL, since some issues belong to private projects.
      */
-    'disk_name' => env('MEDIA_DISK', 'public'),
+    'disk_name' => env('MEDIA_DISK', 'local'),
 
     /*
      * The disk on which to store conversions (thumbnails, etc.) and responsive images
@@ -62,7 +67,13 @@ return [
      * and the in-code fallback (used when the config is cached without the
      * key) cannot drift. Override here to extend or shrink it.
      */
-    'disallowed_extensions' => FileAdder::$defaultDisallowedExtensions,
+    'disallowed_extensions' => [
+        ...FileAdder::$defaultDisallowedExtensions,
+        // Attachments are downloaded through an authorizing route, but reject
+        // markup/script-bearing formats too, in case a disk or route is ever
+        // misconfigured to serve them inline (stored-XSS defense in depth).
+        'svg', 'svgz', 'html', 'htm', 'xml', 'xhtml',
+    ],
 
     /*
      * When this is set to an array of extensions, only uploads whose final

@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 test('uploading files on issue creation attaches them to the issue', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     Enumeration::factory()->create(['is_default' => true]);
     IssueStatus::factory()->create();
@@ -42,7 +42,7 @@ test('uploading files on issue creation attaches them to the issue', function ()
 });
 
 test('an oversized attachment is rejected by validation', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     Enumeration::factory()->create(['is_default' => true]);
     IssueStatus::factory()->create();
@@ -69,7 +69,7 @@ test('an oversized attachment is rejected by validation', function () {
 });
 
 test('a user with edit_issues can delete an attachment from the issue show page', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $project = Project::factory()->create();
     $issue = Issue::factory()->for($project)->create();
@@ -90,7 +90,7 @@ test('a user with edit_issues can delete an attachment from the issue show page'
 });
 
 test('a user without edit_issues cannot delete an attachment', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $project = Project::factory()->create();
     $issue = Issue::factory()->for($project)->create();
@@ -109,4 +109,51 @@ test('a user without edit_issues cannot delete an attachment', function () {
         ->assertForbidden();
 
     expect($issue->fresh()->attachments())->toHaveCount(1);
+});
+
+test('a member of the owning project can download an attachment', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->private()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $issue->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
+
+    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    $media = $issue->attachments()->first();
+
+    $this->actingAs($user)
+        ->get(route('attachments.show', $media))
+        ->assertOk()
+        ->assertHeader('content-disposition', 'attachment; filename=notes.txt');
+});
+
+test('a non-member cannot download an attachment from a private project', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->private()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $issue->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
+
+    $outsider = User::factory()->create();
+    $media = $issue->attachments()->first();
+
+    $this->actingAs($outsider)
+        ->get(route('attachments.show', $media))
+        ->assertForbidden();
+});
+
+test('a guest is redirected to login when trying to download an attachment', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $issue->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
+
+    $media = $issue->attachments()->first();
+
+    $this->get(route('attachments.show', $media))->assertRedirect(route('login'));
 });

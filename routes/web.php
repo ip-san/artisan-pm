@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AttachmentController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -8,6 +9,8 @@ Route::get('/', function () {
 });
 
 Route::middleware('auth')->group(function () {
+    Route::get('/attachments/{media}', AttachmentController::class)->name('attachments.show');
+
     Volt::route('/projects', 'projects.index')->name('projects.index');
     Volt::route('/projects/create', 'projects.form')->name('projects.create');
     Volt::route('/projects/{project:identifier}', 'projects.show')->name('projects.show');
