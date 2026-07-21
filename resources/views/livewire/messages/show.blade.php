@@ -63,6 +63,21 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->topic->touch();
     }
 
+    public function toggleWatch(): void
+    {
+        $this->authorize('watch', $this->topic);
+
+        $existing = $this->topic->watchers()->where('user_id', auth()->id())->first();
+
+        if ($existing) {
+            $existing->delete();
+        } else {
+            $this->topic->watchers()->create(['user_id' => auth()->id()]);
+        }
+
+        $this->topic->unsetRelation('watchers');
+    }
+
     public function deleteMessage(int $messageId): void
     {
         $message = Message::query()->where('board_id', $this->board->id)->findOrFail($messageId);
@@ -100,6 +115,11 @@ new #[Layout('components.layouts.app')] class extends Component
             {{ $topic->subject }}
         </h1>
         <div class="flex gap-2">
+            @can('watch', $topic)
+                <button wire:click="toggleWatch" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    {{ $topic->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
+                </button>
+            @endcan
             @can('update', $topic)
                 <a href="{{ route('messages.edit', [$project, $board, $topic]) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">

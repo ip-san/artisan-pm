@@ -72,4 +72,13 @@ final class MessagePolicy
     {
         return $this->authorization->can($user, 'edit_messages', $message->board->project);
     }
+
+    /**
+     * Only topics are watchable, matching Redmine — a reply has no
+     * separate watch state of its own.
+     */
+    public function watch(User $user, Message $message): bool
+    {
+        return $message->isTopic() && $this->authorization->can($user, 'view_messages', $message->board->project);
+    }
 }

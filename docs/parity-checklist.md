@@ -304,7 +304,7 @@
 | Sticky | done | — |
 | ロック | done | `MessagePolicy::reply` で返信禁止を実装 |
 | トピックの別Boardへの移動 | missing | — |
-| トピックのWatch | missing | — |
+| トピックのWatch | done(2026-07-21) | トピックのみWatch可能(返信は対象外、`MessagePolicy::watch`)。他ユーザーの追加/削除UIはまだなし |
 | 引用返信 | missing | — |
 | 添付ファイル | missing | `Message` が `HasMedia` 未実装 |
 | 返信のページネーション | missing | 全件ロード |

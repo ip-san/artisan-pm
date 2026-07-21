@@ -181,3 +181,22 @@ test('visiting a reply directly redirects to its parent topic', function () {
         ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $reply])
         ->assertRedirect(route('messages.show', [$project, $board, $topic]));
 });
+
+test('a member with view_messages can watch and unwatch a topic', function () {
+    $project = Project::factory()->create();
+    $user = boardMember($project, ['view_messages']);
+    $board = Board::factory()->for($project)->create();
+    $topic = Message::factory()->for($board)->create();
+
+    Livewire::actingAs($user)
+        ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic])
+        ->call('toggleWatch');
+
+    expect($topic->fresh()->isWatchedBy($user))->toBeTrue();
+
+    Livewire::actingAs($user)
+        ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic])
+        ->call('toggleWatch');
+
+    expect($topic->fresh()->isWatchedBy($user))->toBeFalse();
+});

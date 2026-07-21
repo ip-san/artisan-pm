@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Laravel\Scout\Searchable;
 
 #[Fillable(['board_id', 'parent_id', 'author_id', 'subject', 'content', 'is_sticky', 'is_locked'])]
@@ -61,6 +62,19 @@ final class Message extends Model
     public function isTopic(): bool
     {
         return $this->parent_id === null;
+    }
+
+    /**
+     * @return MorphMany<Watcher, $this>
+     */
+    public function watchers(): MorphMany
+    {
+        return $this->morphMany(Watcher::class, 'watchable');
+    }
+
+    public function isWatchedBy(User $user): bool
+    {
+        return $this->watchers->contains('user_id', $user->id);
     }
 
     /**

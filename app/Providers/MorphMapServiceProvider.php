@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Models\Document;
 use App\Models\Issue;
+use App\Models\Message;
 use App\Models\News;
 use App\Models\Project;
 use App\Models\Version;
@@ -35,6 +36,7 @@ final class MorphMapServiceProvider extends ServiceProvider
             'version' => Version::class,
             'project' => Project::class,
             'wiki_page' => WikiPage::class,
+            'message' => Message::class,
         ]);
     }
 }
