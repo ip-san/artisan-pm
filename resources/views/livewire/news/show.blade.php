@@ -69,12 +69,32 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->redirect(route('news.index', $this->project), navigate: true);
     }
+
+    public function toggleWatch(): void
+    {
+        $this->authorize('watch', $this->news);
+
+        $existing = $this->news->watchers()->where('user_id', auth()->id())->first();
+
+        if ($existing) {
+            $existing->delete();
+        } else {
+            $this->news->watchers()->create(['user_id' => auth()->id()]);
+        }
+
+        $this->news->unsetRelation('watchers');
+    }
 }; ?>
 
 <div class="max-w-2xl">
     <div class="flex items-start justify-between mb-4">
         <h1 class="text-xl font-semibold text-gray-900">{{ $news->title }}</h1>
         <div class="flex gap-2">
+            @can('watch', $news)
+                <button wire:click="toggleWatch" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    {{ $news->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
+                </button>
+            @endcan
             @can('update', $news)
                 <a href="{{ route('news.edit', [$project, $news]) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">

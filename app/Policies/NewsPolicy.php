@@ -44,4 +44,9 @@ final class NewsPolicy
     {
         return $this->authorization->can($user, 'comment_news', $news->project);
     }
+
+    public function watch(User $user, News $news): bool
+    {
+        return $this->authorization->can($user, 'view_news', $news->project);
+    }
 }

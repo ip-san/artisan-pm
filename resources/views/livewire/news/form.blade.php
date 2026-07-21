@@ -56,6 +56,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $data['project_id'] = $this->project->id;
             $data['author_id'] = auth()->id();
             $news = News::create($data);
+            $news->watchers()->create(['user_id' => auth()->id()]);
         }
 
         foreach ($this->newAttachments as $file) {

@@ -317,7 +317,7 @@
 | CRUD・概要/本文 | done | — |
 | コメント | done | `NewsComment` |
 | 添付ファイル | done | `News implements HasMedia` |
-| Watch・作成者自動Watch | missing | — |
+| Watch・作成者自動Watch | done(2026-07-21) | `News::watchers()`+トグルボタン、作成時に作成者を自動Watch |
 | メール通知 | missing | — |
 | **プロジェクト横断のNews一覧** | missing | プロジェクト配下ルートのみ |
 

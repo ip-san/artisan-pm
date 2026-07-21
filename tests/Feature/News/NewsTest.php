@@ -92,3 +92,37 @@ test('a member without comment_news cannot comment', function () {
         ->call('addComment')
         ->assertForbidden();
 });
+
+test('a member with view_news can watch and unwatch a news item', function () {
+    $project = Project::factory()->create();
+    $user = newsMember($project);
+    $news = News::factory()->for($project)->create();
+
+    Livewire::actingAs($user)
+        ->test('news.show', ['project' => $project, 'news' => $news])
+        ->call('toggleWatch');
+
+    expect($news->fresh()->isWatchedBy($user))->toBeTrue();
+
+    Livewire::actingAs($user)
+        ->test('news.show', ['project' => $project, 'news' => $news])
+        ->call('toggleWatch');
+
+    expect($news->fresh()->isWatchedBy($user))->toBeFalse();
+});
+
+test('creating a news item auto-watches its author', function () {
+    $project = Project::factory()->create();
+    $user = newsMember($project, ['view_news', 'manage_news']);
+
+    Livewire::actingAs($user)
+        ->test('news.form', ['project' => $project])
+        ->set('title', 'Release notes')
+        ->set('description', 'Details here')
+        ->call('save')
+        ->assertRedirect();
+
+    $news = News::where('title', 'Release notes')->firstOrFail();
+
+    expect($news->isWatchedBy($user))->toBeTrue();
+});
