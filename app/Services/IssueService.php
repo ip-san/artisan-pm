@@ -12,6 +12,7 @@ use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Journal;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\User;
 
 /**
@@ -42,6 +43,7 @@ final class IssueService
         $issue = new Issue;
         $issue->fill($attributes);
         $issue->author_id = $author->id;
+        $this->applyStatusDoneRatio($issue);
         $issue->save();
 
         $issue->setCustomFieldValues($customFieldData);
@@ -75,6 +77,8 @@ final class IssueService
             $issue->closed_on = $isClosed ? now() : null;
             $issue->unsetRelation('status');
         }
+
+        $this->applyStatusDoneRatio($issue);
 
         $issue->save();
 
@@ -151,6 +155,27 @@ final class IssueService
         Issue::query()->where('parent_id', $moved->id)->update(['parent_id' => null]);
 
         return $moved;
+    }
+
+    /**
+     * Overrides done_ratio from the issue's (possibly just-changed) status
+     * whenever the issue_done_ratio setting is 'issue_status' — matches
+     * Redmine's own Issue#update_done_ratio_from_issue_status, called
+     * unconditionally on every save rather than only when status_id
+     * changes, so an issue re-saved for an unrelated reason still picks
+     * up a status's default_done_ratio if it was edited since.
+     */
+    private function applyStatusDoneRatio(Issue $issue): void
+    {
+        if (Setting::get('issue_done_ratio', 'issue_field') !== 'issue_status') {
+            return;
+        }
+
+        $defaultDoneRatio = IssueStatus::query()->whereKey($issue->status_id)->value('default_done_ratio');
+
+        if ($defaultDoneRatio !== null) {
+            $issue->done_ratio = $defaultDoneRatio;
+        }
     }
 
     /**

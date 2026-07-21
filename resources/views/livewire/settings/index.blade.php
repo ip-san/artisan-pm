@@ -29,12 +29,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $attachment_extensions_denied = '';
 
+    public string $issue_done_ratio = 'issue_field';
+
     public function mount(): void
     {
         $this->authorize('manage', Setting::class);
 
         $this->app_title = Setting::get('app_title', config('app.name'));
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
+        $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
         $this->incoming_mail_enabled = Setting::get('incoming_mail_enabled', false);
         $this->incoming_mail_default_project_id = Setting::get('incoming_mail_default_project_id');
         $this->incoming_mail_default_tracker_id = Setting::get('incoming_mail_default_tracker_id');
@@ -74,6 +77,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'attachment_max_size' => ['required', 'integer', 'min:1', 'max:'.intdiv((int) config('media-library.max_file_size'), 1024)],
             'attachment_extensions_allowed' => ['nullable', 'string', 'max:1000'],
             'attachment_extensions_denied' => ['nullable', 'string', 'max:1000'],
+            'issue_done_ratio' => ['required', 'in:issue_field,issue_status'],
         ]);
 
         foreach ($data as $key => $value) {
@@ -99,6 +103,15 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">課題一覧の1ページあたりの件数</label>
                 <input type="number" wire:model="default_issues_per_page" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('default_issues_per_page') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">課題の進捗率</label>
+                <select wire:model="issue_done_ratio" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="issue_field">課題ごとに手動入力</option>
+                    <option value="issue_status">ステータスから算出</option>
+                </select>
+                @error('issue_done_ratio') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
         </section>
 

@@ -8,6 +8,7 @@ use App\Models\Issue;
 use App\Models\IssueCategory;
 use App\Models\IssueStatus;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\Tracker;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
@@ -249,6 +250,12 @@ new #[Layout('components.layouts.app')] class extends Component
     public function isReadOnly(string $field): bool
     {
         return ($this->fieldRules[$field] ?? null) === 'read_only';
+    }
+
+    #[Computed]
+    public function doneRatioIsStatusDerived(): bool
+    {
+        return Setting::get('issue_done_ratio', 'issue_field') === 'issue_status';
     }
 
     public function save(): void
@@ -508,7 +515,11 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($issue)
             <div>
                 <label class="block text-sm font-medium text-gray-700">進捗率 ({{ $done_ratio }}%)</label>
-                <input type="range" wire:model="done_ratio" min="0" max="100" step="10" class="mt-1 block w-full">
+                <input type="range" wire:model="done_ratio" min="0" max="100" step="10" class="mt-1 block w-full"
+                    @disabled($this->doneRatioIsStatusDerived)>
+                @if ($this->doneRatioIsStatusDerived)
+                    <p class="mt-1 text-xs text-gray-500">設定によりステータスから自動算出されます。</p>
+                @endif
             </div>
 
             <div>

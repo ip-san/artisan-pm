@@ -133,7 +133,7 @@
 |---|---|---|
 | ステータス CRUD・並べ替え・`is_closed` | done(2026-07-21) | `issue-statuses/{index,form}.blade.php`。**訂正**: Trackerと同様、当初「done」と報告されていたが実際は画面が皆無だった |
 | 使用中ステータスの削除防止 | done(2026-07-21) | — |
-| デフォルト進捗率・ステータス変更時の一括更新 | missing | — |
+| デフォルト進捗率・ステータス変更時の一括更新 | partial(2026-07-21) | `issue_statuses.default_done_ratio` + 設定「課題の進捗率」(手動/ステータスから算出)。算出モード時は`IssueService`が保存のたびに`done_ratio`をステータスの既定値で上書き(Redmineの`update_done_ratio_from_issue_status`と同じ`before_save`相当のタイミング)、フォームのスライダーも無効化。**一括更新**(ステータスの既定値編集時に既存の全課題を再計算する管理操作)は未実装 |
 | ロール×トラッカー×新旧ステータスの遷移制御 | done | `WorkflowService::allowedTransitions` |
 | 作成者/担当者限定の遷移 | done | — |
 | ロール×トラッカー×ステータスのフィールド必須/読取専用 | done | コアフィールド+`cf_<id>` に適用 |

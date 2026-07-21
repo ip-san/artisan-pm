@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
-#[Fillable(['name', 'is_closed', 'position'])]
+#[Fillable(['name', 'is_closed', 'position', 'default_done_ratio'])]
 final class IssueStatus extends Model implements Sortable
 {
     /** @use HasFactory<IssueStatusFactory> */
