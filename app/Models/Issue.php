@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Laravel\Scout\Searchable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -26,7 +27,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 #[Fillable([
     'project_id', 'tracker_id', 'status_id', 'priority_id', 'author_id',
     'assigned_to_id', 'fixed_version_id', 'parent_id', 'category_id', 'subject',
-    'description', 'start_date', 'due_date', 'done_ratio', 'is_private',
+    'description', 'start_date', 'due_date', 'done_ratio', 'estimated_hours', 'is_private',
 ])]
 final class Issue extends Model implements HasMedia
 {
@@ -53,6 +54,7 @@ final class Issue extends Model implements HasMedia
             'start_date' => 'date',
             'due_date' => 'date',
             'done_ratio' => 'integer',
+            'estimated_hours' => 'decimal:2',
             'closed_on' => 'datetime',
             'is_private' => 'boolean',
             'lock_version' => 'integer',
@@ -252,6 +254,74 @@ final class Issue extends Model implements HasMedia
             ->with('from')
             ->get()
             ->map(fn (IssueRelation $relation) => $relation->from);
+    }
+
+    public function isLeaf(): bool
+    {
+        return ! $this->children()->exists();
+    }
+
+    /**
+     * Every descendant issue's id (children, grandchildren, ...) via a
+     * recursive CTE — Issue's hierarchy is an adjacency list (parent_id),
+     * the same structural reason GanttService uses raw SQL for the
+     * whole-project tree; this is the single-issue equivalent.
+     *
+     * @return Collection<int, int>
+     */
+    public function descendantIds(): Collection
+    {
+        $table = $this->getTable();
+
+        $rows = DB::select(<<<SQL
+            WITH RECURSIVE descendants AS (
+                SELECT id FROM {$table} WHERE parent_id = ?
+                UNION ALL
+                SELECT i.id FROM {$table} i INNER JOIN descendants d ON i.parent_id = d.id
+            )
+            SELECT id FROM descendants
+            SQL, [$this->id]);
+
+        return collect($rows)->pluck('id');
+    }
+
+    /**
+     * Hours logged directly against this issue — matches Redmine's
+     * Issue#spent_hours.
+     */
+    public function spentHours(): float
+    {
+        return (float) $this->timeEntries()->sum('hours');
+    }
+
+    /**
+     * Hours logged against this issue and all of its descendants —
+     * matches Redmine's Issue#total_spent_hours.
+     */
+    public function totalSpentHours(): float
+    {
+        if ($this->isLeaf()) {
+            return $this->spentHours();
+        }
+
+        $ids = $this->descendantIds()->push($this->id);
+
+        return (float) TimeEntry::query()->whereIn('issue_id', $ids)->sum('hours');
+    }
+
+    /**
+     * The estimated_hours of this issue and all of its descendants summed
+     * together — matches Redmine's Issue#total_estimated_hours.
+     */
+    public function totalEstimatedHours(): float
+    {
+        if ($this->isLeaf()) {
+            return (float) ($this->estimated_hours ?? 0);
+        }
+
+        $ids = $this->descendantIds()->push($this->id);
+
+        return (float) Issue::query()->whereIn('id', $ids)->sum('estimated_hours');
     }
 
     public static function customizableType(): CustomizableType

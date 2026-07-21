@@ -55,6 +55,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public int $done_ratio = 0;
 
+    public string $estimated_hours = '';
+
     public bool $is_private = false;
 
     public int $lockVersion = 0;
@@ -100,6 +102,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->start_date = $issue->start_date?->toDateString();
             $this->due_date = $issue->due_date?->toDateString();
             $this->done_ratio = $issue->done_ratio;
+            $this->estimated_hours = $issue->estimated_hours !== null ? (string) $issue->estimated_hours : '';
             $this->is_private = $issue->is_private;
             $this->lockVersion = $issue->lock_version;
 
@@ -327,6 +330,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
             'done_ratio' => ['integer', 'min:0', 'max:100'],
+            'estimated_hours' => ['nullable', 'numeric', 'min:0', 'max:9999.99'],
             // Kilobytes, derived from media-library's own byte-based cap so
             // the two limits can't silently drift apart.
             'newAttachments.*' => AttachmentValidationRules::rules(),
@@ -369,6 +373,10 @@ new #[Layout('components.layouts.app')] class extends Component
         $logTimeActivityId = $data['logTimeActivityId'] ?? null;
         $logTimeComments = $data['logTimeComments'] ?? '';
         unset($data['customFieldValues'], $data['newAttachments'], $data['logTimeHours'], $data['logTimeActivityId'], $data['logTimeComments']);
+
+        // An empty text input means "no estimate", not zero — store null
+        // rather than letting the decimal cast coerce '' to 0.00.
+        $data['estimated_hours'] = $data['estimated_hours'] !== '' ? $data['estimated_hours'] : null;
 
         // Only ever set is_private when the user actually holds
         // set_issues_private — otherwise leave the key out entirely so an
@@ -510,6 +518,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="date" wire:model="due_date" @disabled($this->isReadOnly('due_date'))
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">予定工数(時間)</label>
+            <input type="number" step="0.01" min="0" wire:model="estimated_hours"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            @error('estimated_hours') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
         <div class="grid grid-cols-2 gap-4">

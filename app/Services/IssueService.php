@@ -32,7 +32,7 @@ final class IssueService
     private const JOURNALED_ATTRIBUTES = [
         'project_id', 'tracker_id', 'status_id', 'priority_id', 'category_id', 'subject',
         'description', 'assigned_to_id', 'fixed_version_id', 'parent_id',
-        'start_date', 'due_date', 'done_ratio', 'is_private',
+        'start_date', 'due_date', 'done_ratio', 'estimated_hours', 'is_private',
     ];
 
     /**

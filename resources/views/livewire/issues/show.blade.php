@@ -426,6 +426,13 @@ new #[Layout('components.layouts.app')] class extends Component
         <div><span class="text-gray-500">進捗率:</span> {{ $issue->done_ratio }}%</div>
         <div><span class="text-gray-500">開始日:</span> {{ $issue->start_date?->toDateString() ?? '-' }}</div>
         <div><span class="text-gray-500">期日:</span> {{ $issue->due_date?->toDateString() ?? '-' }}</div>
+        <div>
+            <span class="text-gray-500">予定工数:</span>
+            {{ $issue->estimated_hours !== null ? Number::format((float) $issue->estimated_hours, precision: 2).' 時間' : '-' }}
+            @if (! $issue->isLeaf() && $issue->totalEstimatedHours() > 0)
+                <span class="text-gray-400">(合計: {{ Number::format($issue->totalEstimatedHours(), precision: 2) }} 時間)</span>
+            @endif
+        </div>
     </div>
 
     @if ($issue->description)
@@ -557,9 +564,12 @@ new #[Layout('components.layouts.app')] class extends Component
         @endcan
     @endif
 
-    @if ($issue->timeEntries->isNotEmpty())
+    @if ($issue->timeEntries->isNotEmpty() || (! $issue->isLeaf() && $issue->totalSpentHours() > 0))
         <h2 class="text-sm font-semibold text-gray-900 mb-2">
             工数 ({{ Number::format((float) $issue->timeEntries->sum('hours'), precision: 2) }} 時間)
+            @if (! $issue->isLeaf())
+                <span class="font-normal text-gray-400">(合計: {{ Number::format($issue->totalSpentHours(), precision: 2) }} 時間)</span>
+            @endif
         </h2>
         <ul class="mb-6 space-y-1">
             @foreach ($issue->timeEntries as $entry)
