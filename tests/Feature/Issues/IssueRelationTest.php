@@ -7,6 +7,7 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use Livewire\Livewire;
@@ -90,6 +91,11 @@ test('a duplicate relation is rejected', function () {
 });
 
 test('a relation cannot be created to an issue the user cannot view', function () {
+    // Cross-project relations are allowed here specifically so this
+    // exercises the authorize('view') check rather than being rejected
+    // earlier by the cross-project restriction (covered separately below).
+    Setting::set('cross_project_issue_relations', true);
+
     $project = Project::factory()->create();
     $otherProject = Project::factory()->create();
     $user = relationProjectMember($project);
@@ -182,4 +188,98 @@ test('the relation list shows the delay for a precedes relation', function () {
     Livewire::actingAs($user)
         ->test('issues.show', ['project' => $project, 'issue' => $issue])
         ->assertSee('2日後');
+});
+
+test('a cross-project relation is rejected by default', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $other = makeIssue($otherProject);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set('relationType', 'relates')
+        ->set('relatedIssueId', $other->id)
+        ->call('addRelation')
+        ->assertHasErrors(['relatedIssueId']);
+
+    expect(IssueRelation::count())->toBe(0);
+});
+
+test('a cross-project relation is allowed once the setting is enabled', function () {
+    Setting::set('cross_project_issue_relations', true);
+
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $other = makeIssue($otherProject);
+
+    $member = Member::factory()->for($otherProject)->for($user)->create();
+    $member->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set('relationType', 'relates')
+        ->set('relatedIssueId', $other->id)
+        ->call('addRelation')
+        ->assertHasNoErrors();
+
+    expect(IssueRelation::count())->toBe(1);
+});
+
+test('relating a parent issue to its own child is rejected', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $parent = makeIssue($project);
+    $child = Issue::factory()->for($project)->create([
+        'tracker_id' => Tracker::factory()->create()->id,
+        'status_id' => IssueStatus::factory()->create()->id,
+        'priority_id' => Enumeration::factory()->create()->id,
+        'parent_id' => $parent->id,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $parent])
+        ->set('relationType', 'relates')
+        ->set('relatedIssueId', $child->id)
+        ->call('addRelation')
+        ->assertHasErrors(['relatedIssueId']);
+
+    expect(IssueRelation::count())->toBe(0);
+});
+
+test('a reverse "relates" relation is rejected as a duplicate', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $other = makeIssue($project);
+    IssueRelation::create(['issue_from_id' => $other->id, 'issue_to_id' => $issue->id, 'relation_type' => 'relates']);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set('relationType', 'relates')
+        ->set('relatedIssueId', $other->id)
+        ->call('addRelation')
+        ->assertHasErrors(['relatedIssueId']);
+
+    expect(IssueRelation::count())->toBe(1);
+});
+
+test('a circular direct blocks relation is rejected', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $other = makeIssue($project);
+    IssueRelation::create(['issue_from_id' => $other->id, 'issue_to_id' => $issue->id, 'relation_type' => 'blocks']);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set('relationType', 'blocks')
+        ->set('relatedIssueId', $other->id)
+        ->call('addRelation')
+        ->assertHasErrors(['relatedIssueId']);
+
+    expect(IssueRelation::count())->toBe(1);
 });

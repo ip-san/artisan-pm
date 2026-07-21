@@ -7,6 +7,7 @@ use App\Models\IssueRelation;
 use App\Models\Journal;
 use App\Models\JournalDetail;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Services\IssueService;
@@ -97,6 +98,49 @@ new #[Layout('components.layouts.app')] class extends Component
                 Rule::unique('issue_relations', 'issue_to_id')
                     ->where('issue_from_id', $this->issue->id)
                     ->where('relation_type', $this->relationType),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $other = Issue::find($value);
+
+                    if ($other === null) {
+                        return;
+                    }
+
+                    if ($other->project_id !== $this->issue->project_id && ! Setting::get('cross_project_issue_relations', false)) {
+                        $fail('プロジェクトをまたぐ関連付けは許可されていません。');
+
+                        return;
+                    }
+
+                    if ($this->issue->descendantIds()->contains($other->id) || $other->descendantIds()->contains($this->issue->id)) {
+                        $fail('親子・祖先/子孫関係にある課題同士は関連付けできません。');
+
+                        return;
+                    }
+
+                    if ($this->relationType === 'relates') {
+                        $reverseExists = IssueRelation::query()
+                            ->where('issue_from_id', $other->id)
+                            ->where('issue_to_id', $this->issue->id)
+                            ->where('relation_type', 'relates')
+                            ->exists();
+
+                        if ($reverseExists) {
+                            $fail('この関連は既に登録されています。');
+                        }
+                    }
+
+                    if ($this->relationType === 'blocks') {
+                        $reverseBlocks = IssueRelation::query()
+                            ->where('issue_from_id', $other->id)
+                            ->where('issue_to_id', $this->issue->id)
+                            ->where('relation_type', 'blocks')
+                            ->exists();
+
+                        if ($reverseBlocks) {
+                            $fail('循環したブロック関係は作成できません。');
+                        }
+                    }
+                },
             ],
             'relationType' => ['required', Rule::enum(IssueRelationType::class)],
             'relationDelay' => ['nullable', 'integer', 'min:0'],
