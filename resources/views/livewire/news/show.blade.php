@@ -126,6 +126,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         {{ $media->file_name }}
                     </a>
                     <span class="text-gray-500">({{ $media->human_readable_size }})</span>
+                    <x-download-count :media="$media" />
                 </li>
             @endforeach
         </ul>

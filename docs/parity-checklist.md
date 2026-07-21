@@ -337,7 +337,7 @@
 |---|---|---|
 | バージョンへのファイル添付 | done | — |
 | **プロジェクトレベルのファイル**(バージョン非依存) | missing | バージョン添付のみ対応 |
-| ファイル名/日付/サイズ/ダウンロード数での並べ替え | missing | ダウンロード数自体を追跡していない |
+| ファイル名/日付/サイズ/ダウンロード数での並べ替え | missing | ダウンロード数自体は追跡されるようになった(2026-07-21)が、並べ替えUIは未実装 |
 | 複数ファイル同時アップロード | done | — |
 
 ### 添付ファイル(横断)
@@ -347,7 +347,7 @@
 | エンティティごとの複数添付 | done | Spatie MediaLibrary、対象は Issue/Version/News/Document/WikiPage/Message(2026-07-21〜) |
 | **サムネイル/画像変換** | **missing** | `registerMediaConversions` が未使用。ダウンロード専用 |
 | **添付ファイルの説明文** | **missing** | ファイル名+サイズのみ表示、説明文は保存も編集もできない |
-| ダウンロード数カウント | missing | — |
+| ダウンロード数カウント | done(2026-07-21) | `AttachmentController`が`media.custom_properties`の`download_count`をダウンロードごとにインクリメント。`<x-download-count>`コンポーネントで各添付ファイル一覧に表示 |
 | Wiki/フォーラム投稿への添付 | done(2026-07-21) | Wiki/フォーラム投稿(`Message`、トピック・返信とも)ともに対応 |
 | 本文中のインライン画像参照(`attachment:file.png`) | missing | — |
 

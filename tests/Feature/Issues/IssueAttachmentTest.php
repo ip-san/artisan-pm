@@ -146,6 +146,27 @@ test('a non-member cannot download an attachment from a private project', functi
         ->assertForbidden();
 });
 
+test('downloading an attachment increments its download count', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->private()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $issue->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
+
+    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    $media = $issue->attachments()->first();
+    expect($media->getCustomProperty('download_count', 0))->toBe(0);
+
+    $this->actingAs($user)->get(route('attachments.show', $media));
+    $this->actingAs($user)->get(route('attachments.show', $media));
+
+    expect($media->fresh()->getCustomProperty('download_count'))->toBe(2);
+});
+
 test('a guest is redirected to login when trying to download an attachment', function () {
     Storage::fake('local');
 

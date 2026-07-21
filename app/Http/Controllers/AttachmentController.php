@@ -24,6 +24,9 @@ final class AttachmentController extends Controller
 
         Gate::authorize('view', $model);
 
+        $media->setCustomProperty('download_count', ((int) $media->getCustomProperty('download_count', 0)) + 1);
+        $media->save();
+
         return response()->download($media->getPath(), $media->file_name);
     }
 }

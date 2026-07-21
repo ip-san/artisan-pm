@@ -109,7 +109,10 @@ new #[Layout('components.layouts.app')] class extends Component
                         <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
                             {{ $media->file_name }}
                         </a>
-                        <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                        <span class="flex items-center gap-2">
+                            <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                            <x-download-count :media="$media" />
+                        </span>
                     </li>
                 @empty
                     <li class="px-4 py-3 text-sm text-gray-500">ファイルはありません。</li>
