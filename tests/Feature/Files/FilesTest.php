@@ -92,3 +92,62 @@ test('a version belonging to another project is rejected', function () {
 
     expect($foreignVersion->fresh()->files())->toHaveCount(0);
 });
+
+test('a manager can set a description on a project-level file', function () {
+    $project = Project::factory()->create();
+    $manager = filesMember($project, ['view_files', 'manage_files']);
+    $media = $project->addMedia(UploadedFile::fake()->create('readme.txt', 10))->toMediaCollection('files');
+
+    Livewire::actingAs($manager)
+        ->test('files.index', ['project' => $project])
+        ->set("attachmentDescriptions.{$media->id}", 'Project overview document')
+        ->call('updateAttachmentDescription', $media->id);
+
+    expect($media->fresh()->getCustomProperty('description'))->toBe('Project overview document');
+});
+
+test('a manager can set a description on a version file', function () {
+    $project = Project::factory()->create();
+    $manager = filesMember($project, ['view_files', 'manage_files']);
+    $version = Version::factory()->for($project)->create();
+    $media = $version->addMedia(UploadedFile::fake()->create('release-notes.pdf', 200))->toMediaCollection('files');
+
+    Livewire::actingAs($manager)
+        ->test('files.index', ['project' => $project])
+        ->set("attachmentDescriptions.{$media->id}", 'Release notes for 1.0')
+        ->call('updateAttachmentDescription', $media->id);
+
+    expect($media->fresh()->getCustomProperty('description'))->toBe('Release notes for 1.0');
+});
+
+test('a viewer without manage_files cannot set a file description', function () {
+    $project = Project::factory()->create();
+    $viewer = filesMember($project);
+    $media = $project->addMedia(UploadedFile::fake()->create('readme.txt', 10))->toMediaCollection('files');
+
+    Livewire::actingAs($viewer)
+        ->test('files.index', ['project' => $project])
+        ->set("attachmentDescriptions.{$media->id}", 'sneaky')
+        ->call('updateAttachmentDescription', $media->id)
+        ->assertForbidden();
+
+    expect($media->fresh()->getCustomProperty('description'))->toBeNull();
+});
+
+test('a file on another project cannot have its description set through this project', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $manager = filesMember($project, ['view_files', 'manage_files']);
+    Member::factory()->for($otherProject)->for($manager)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_files', 'manage_files']])
+    );
+    $foreignMedia = $otherProject->addMedia(UploadedFile::fake()->create('secret.txt', 10))->toMediaCollection('files');
+
+    Livewire::actingAs($manager)
+        ->test('files.index', ['project' => $project])
+        ->set("attachmentDescriptions.{$foreignMedia->id}", 'leaked')
+        ->call('updateAttachmentDescription', $foreignMedia->id)
+        ->assertStatus(404);
+
+    expect($foreignMedia->fresh()->getCustomProperty('description'))->toBeNull();
+});

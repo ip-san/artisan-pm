@@ -33,12 +33,21 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $sortDirection = 'asc';
 
+    /** @var array<int, string> attachment media id => description input value */
+    public array $attachmentDescriptions = [];
+
     public function mount(Project $project): void
     {
         $this->authorize('viewAny', [Version::class, $project]);
 
         $this->project = $project;
         $this->version_id = $this->versions->first()?->id;
+
+        $allFiles = $this->project->files()->concat($this->versions->flatMap(fn (Version $version) => $version->files()));
+
+        foreach ($allFiles as $media) {
+            $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
+        }
     }
 
     public function sortFiles(string $field): void
@@ -106,6 +115,35 @@ new #[Layout('components.layouts.app')] class extends Component
         unset($this->versions);
         $this->project->unsetRelation('media');
     }
+
+    /**
+     * Matches Redmine's Attachment#description — see the same feature on
+     * issues.show for the reasoning behind reading from the bound array
+     * rather than taking the value as a parameter. The target (project or
+     * one of its versions) is derived from the media's own polymorphic
+     * owner rather than trusted from the client, and re-scoped to this
+     * project so a crafted id can't touch another project's file.
+     */
+    public function updateAttachmentDescription(int $mediaId): void
+    {
+        $media = Media::query()->find($mediaId);
+        abort_if($media === null, 404);
+
+        $target = $media->model;
+        abort_unless($target instanceof Project || $target instanceof Version, 404);
+
+        $belongsToThisProject = $target instanceof Project
+            ? $target->is($this->project)
+            : $target->project_id === $this->project->id;
+
+        abort_unless($belongsToThisProject, 404);
+
+        $this->authorize('manageFiles', $target);
+
+        $description = trim((string) ($this->attachmentDescriptions[$mediaId] ?? ''));
+        $media->setCustomProperty('description', $description !== '' ? $description : null);
+        $media->save();
+    }
 }; ?>
 
 <div>
@@ -155,14 +193,26 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
             <ul class="divide-y divide-gray-100">
                 @forelse ($this->sortedFiles($this->project->files()) as $media)
-                    <li class="flex items-center justify-between px-4 py-2 text-sm">
-                        <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
-                            {{ $media->file_name }}
-                        </a>
-                        <span class="flex items-center gap-2">
-                            <span class="text-gray-500">{{ $media->human_readable_size }}</span>
-                            <x-download-count :media="$media" />
-                        </span>
+                    <li class="px-4 py-2 text-sm" wire:key="project-file-{{ $media->id }}">
+                        <div class="flex items-center justify-between">
+                            <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                                {{ $media->file_name }}
+                            </a>
+                            <span class="flex items-center gap-2">
+                                <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                                <x-download-count :media="$media" />
+                            </span>
+                        </div>
+                        @if ($this->canManage)
+                            <div class="mt-1 flex items-center gap-2">
+                                <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
+                                    class="block w-full rounded-md border-gray-300 text-xs shadow-sm">
+                                <button wire:click="updateAttachmentDescription({{ $media->id }})"
+                                    class="shrink-0 text-xs text-indigo-600 hover:underline">保存</button>
+                            </div>
+                        @elseif ($media->getCustomProperty('description'))
+                            <p class="mt-1 text-xs text-gray-500">{{ $media->getCustomProperty('description') }}</p>
+                        @endif
                     </li>
                 @empty
                     <li class="px-4 py-3 text-sm text-gray-500">ファイルはありません。</li>
@@ -181,14 +231,26 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
             <ul class="divide-y divide-gray-100">
                 @forelse ($this->sortedFiles($version->files()) as $media)
-                    <li class="flex items-center justify-between px-4 py-2 text-sm">
-                        <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
-                            {{ $media->file_name }}
-                        </a>
-                        <span class="flex items-center gap-2">
-                            <span class="text-gray-500">{{ $media->human_readable_size }}</span>
-                            <x-download-count :media="$media" />
-                        </span>
+                    <li class="px-4 py-2 text-sm" wire:key="version-file-{{ $media->id }}">
+                        <div class="flex items-center justify-between">
+                            <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                                {{ $media->file_name }}
+                            </a>
+                            <span class="flex items-center gap-2">
+                                <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                                <x-download-count :media="$media" />
+                            </span>
+                        </div>
+                        @if ($this->canManage)
+                            <div class="mt-1 flex items-center gap-2">
+                                <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
+                                    class="block w-full rounded-md border-gray-300 text-xs shadow-sm">
+                                <button wire:click="updateAttachmentDescription({{ $media->id }})"
+                                    class="shrink-0 text-xs text-indigo-600 hover:underline">保存</button>
+                            </div>
+                        @elseif ($media->getCustomProperty('description'))
+                            <p class="mt-1 text-xs text-gray-500">{{ $media->getCustomProperty('description') }}</p>
+                        @endif
                     </li>
                 @empty
                     <li class="px-4 py-3 text-sm text-gray-500">ファイルはありません。</li>
