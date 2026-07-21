@@ -84,7 +84,7 @@
 |---|---|---|
 | 自分のWatch/Unwatch | done | — |
 | Watch権限ゲート | partial | `view_issues` があれば誰でも可能(`IssuePolicy::watch`) |
-| 他ユーザーをWatcherとして追加/削除 | missing | 管理UI・オートコンプリートなし |
+| 他ユーザーをWatcherとして追加/削除 | done(2026-07-21) | 詳細画面にウォッチャー一覧+追加(プロジェクトメンバーのセレクト)+削除を配線。`add_issue_watchers`権限で保護(`IssuePolicy::manageWatchers`)。追加対象はプロジェクトメンバーに限定、単純なセレクトのみでオートコンプリートは未実装 |
 | 作成者/担当者の自動Watch・@mention・自動整理 | partial | 作成者は作成時に、担当者は割当変更のたびに自動Watch(2026-07-21、`IssueService::autoWatch()`)。@mention・自動整理は引き続き未実装 |
 
 ### Issue Relations(関連課題)

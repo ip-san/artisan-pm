@@ -49,6 +49,15 @@ final class IssuePolicy
             || $this->authorization->can($user, 'view_issues', $issue->project);
     }
 
+    /**
+     * Adding/removing *other* users as watchers — distinct from watch(),
+     * which lets anyone with view access toggle their own watch state.
+     */
+    public function manageWatchers(User $user, Issue $issue): bool
+    {
+        return $this->authorization->can($user, 'add_issue_watchers', $issue->project);
+    }
+
     public function transitionTo(User $user, Issue $issue, IssueStatus $status): bool
     {
         return $this->workflow->allowedTransitions($issue, $user)->contains('id', $status->id);
