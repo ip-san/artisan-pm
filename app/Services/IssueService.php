@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\IssueCreated;
+use App\Events\IssueUpdated;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Journal;
@@ -37,6 +39,8 @@ final class IssueService
         $issue->fill($attributes);
         $issue->author_id = $author->id;
         $issue->save();
+
+        IssueCreated::dispatch($issue);
 
         return $issue;
     }
@@ -78,6 +82,10 @@ final class IssueService
                     'new_value' => $new,
                 ]);
             }
+        }
+
+        if ($changes !== []) {
+            IssueUpdated::dispatch($issue);
         }
 
         return $issue->refresh();

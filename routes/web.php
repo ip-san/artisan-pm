@@ -95,4 +95,8 @@ Route::middleware('auth')->group(function () {
     Volt::route('/auth-sources', 'auth-sources.index')->name('auth-sources.index');
     Volt::route('/auth-sources/create', 'auth-sources.form')->name('auth-sources.create');
     Volt::route('/auth-sources/{authSource}/edit', 'auth-sources.form')->name('auth-sources.edit');
+
+    Volt::route('/webhooks', 'webhooks.index')->name('webhooks.index');
+    Volt::route('/webhooks/create', 'webhooks.form')->name('webhooks.create');
+    Volt::route('/webhooks/{webhook}/edit', 'webhooks.form')->name('webhooks.edit');
 });

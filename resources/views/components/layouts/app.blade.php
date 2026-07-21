@@ -34,6 +34,9 @@
                             @can('viewAny', \App\Models\AuthSource::class)
                                 <a href="{{ route('auth-sources.index') }}" class="text-sm text-gray-600 hover:text-gray-900">LDAP認証</a>
                             @endcan
+                            @can('viewAny', \App\Models\Webhook::class)
+                                <a href="{{ route('webhooks.index') }}" class="text-sm text-gray-600 hover:text-gray-900">Webhook</a>
+                            @endcan
                         @endauth
                     </div>
                     <div class="flex items-center gap-4 text-sm">
