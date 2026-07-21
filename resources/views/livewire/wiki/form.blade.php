@@ -30,6 +30,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $comments = '';
 
+    public bool $redirectExistingLinks = true;
+
     /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
     public array $newAttachments = [];
 
@@ -136,7 +138,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $service = app(WikiPageService::class);
 
         if ($this->wikiPage) {
-            $page = $service->update($this->wikiPage, $data, $text, auth()->user(), $comments ?: null);
+            $page = $service->update($this->wikiPage, $data, $text, auth()->user(), $comments ?: null, $this->redirectExistingLinks);
         } else {
             $page = $service->create($this->project, $data, $text, auth()->user());
         }
@@ -163,6 +165,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="text" wire:model="title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('title') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+
+            @if ($wikiPage)
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="redirectExistingLinks" class="rounded border-gray-300">
+                    タイトルを変更した場合、旧タイトルへのリンクをリダイレクトする
+                </label>
+            @endif
 
             <div>
                 <label class="block text-sm font-medium text-gray-700">親ページ</label>

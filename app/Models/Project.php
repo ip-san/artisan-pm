@@ -197,6 +197,14 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * @return HasMany<WikiRedirect, $this>
+     */
+    public function wikiRedirects(): HasMany
+    {
+        return $this->hasMany(WikiRedirect::class);
+    }
+
+    /**
      * @return HasMany<Board, $this>
      */
     public function boards(): HasMany

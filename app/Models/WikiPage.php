@@ -34,6 +34,18 @@ final class WikiPage extends Model implements HasMedia
     }
 
     /**
+     * Matches Redmine's WikiPage#delete_redirects (a before_destroy
+     * callback there) — a redirect that now points at a deleted page
+     * would only ever resolve to a 404, so it's cleaned up too.
+     */
+    protected static function booted(): void
+    {
+        self::deleting(function (WikiPage $page) {
+            $page->project->wikiRedirects()->where('redirects_to', $page->title)->delete();
+        });
+    }
+
+    /**
      * @return BelongsTo<Project, $this>
      */
     public function project(): BelongsTo

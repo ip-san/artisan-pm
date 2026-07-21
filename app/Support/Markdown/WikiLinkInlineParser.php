@@ -6,6 +6,7 @@ namespace App\Support\Markdown;
 
 use App\Models\Project;
 use App\Models\WikiPage;
+use App\Models\WikiRedirect;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Link;
 use League\CommonMark\Parser\Inline\InlineParserInterface;
 use League\CommonMark\Parser\Inline\InlineParserMatch;
@@ -45,6 +46,24 @@ final class WikiLinkInlineParser implements InlineParserInterface
             ->where('project_id', $this->project->id)
             ->where('title', $title)
             ->first();
+
+        // A page renamed away from this title still resolves, via the
+        // redirect WikiPageService::update() leaves behind — matches
+        // Redmine's Wiki#find_page, which falls back to WikiRedirect the
+        // same way when no page matches the title directly.
+        if ($page === null) {
+            $redirectsTo = WikiRedirect::query()
+                ->where('project_id', $this->project->id)
+                ->where('title', $title)
+                ->value('redirects_to');
+
+            if ($redirectsTo !== null) {
+                $page = WikiPage::query()
+                    ->where('project_id', $this->project->id)
+                    ->where('title', $redirectsTo)
+                    ->first();
+            }
+        }
 
         $url = $page !== null
             ? route('wiki.show', [$this->project, $page])

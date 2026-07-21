@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\WikiPage;
+use App\Models\WikiRedirect;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -44,11 +45,17 @@ final class WikiPageService
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function update(WikiPage $page, array $attributes, string $text, User $author, ?string $comment = null): WikiPage
+    public function update(WikiPage $page, array $attributes, string $text, User $author, ?string $comment = null, bool $redirectExistingLinks = true): WikiPage
     {
-        return DB::transaction(function () use ($page, $attributes, $text, $author, $comment) {
+        return DB::transaction(function () use ($page, $attributes, $text, $author, $comment, $redirectExistingLinks) {
+            $oldTitle = $page->title;
+
             $page->fill($attributes);
             $page->save();
+
+            if (isset($attributes['title']) && $attributes['title'] !== $oldTitle) {
+                $this->handleRename($page, $oldTitle, $attributes['title'], $redirectExistingLinks);
+            }
 
             if ($text !== $page->currentVersion?->text) {
                 $nextVersion = ($page->versions()->max('version') ?? 0) + 1;
@@ -65,5 +72,39 @@ final class WikiPageService
 
             return $page->refresh();
         });
+    }
+
+    /**
+     * Keeps "[[Old Title]]" links resolvable after a rename — matches
+     * Redmine's WikiPage#handle_rename_or_move. WikiLinkInlineParser is
+     * where the actual lookup fallback lives; this only maintains the
+     * redirect chain data.
+     */
+    private function handleRename(WikiPage $page, string $oldTitle, string $newTitle, bool $redirectExistingLinks): void
+    {
+        // Existing redirects that pointed at the old title now chain
+        // forward to the new one — unless that would make a redirect
+        // point at itself, in which case it's just removed.
+        $page->project->wikiRedirects()
+            ->where('redirects_to', $oldTitle)
+            ->get()
+            ->each(function (WikiRedirect $redirect) use ($newTitle) {
+                if ($redirect->title === $newTitle) {
+                    $redirect->delete();
+                } else {
+                    $redirect->update(['redirects_to' => $newTitle]);
+                }
+            });
+
+        // The new title is now a live page, not a redirect source.
+        $page->project->wikiRedirects()->where('title', $newTitle)->delete();
+
+        if ($redirectExistingLinks) {
+            WikiRedirect::create([
+                'project_id' => $page->project_id,
+                'title' => $oldTitle,
+                'redirects_to' => $newTitle,
+            ]);
+        }
     }
 }
