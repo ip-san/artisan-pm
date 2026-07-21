@@ -73,5 +73,9 @@ final class PermissionServiceProvider extends ServiceProvider
 
         $registry->register('view_files', module: ProjectModuleKey::Files, requirement: PermissionRequirement::None);
         $registry->register('manage_files', module: ProjectModuleKey::Files, requirement: PermissionRequirement::LoggedIn);
+
+        $registry->register('view_changesets', module: ProjectModuleKey::Repository, requirement: PermissionRequirement::None);
+        $registry->register('browse_repository', module: ProjectModuleKey::Repository, requirement: PermissionRequirement::None);
+        $registry->register('manage_repository', module: ProjectModuleKey::Repository);
     }
 }

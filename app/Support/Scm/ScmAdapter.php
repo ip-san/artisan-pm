@@ -1,0 +1,29 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Support\Scm;
+
+/**
+ * Boundary between the app and a specific version-control tool. Every
+ * implementation shells out to the underlying VCS binary via Laravel's
+ * Process facade with array-form arguments (never string-interpolated),
+ * so repository paths and revisions can't reach a shell.
+ */
+interface ScmAdapter
+{
+    public function isAvailable(): bool;
+
+    /**
+     * Commits after $sinceRevision (exclusive), oldest first. Pass null to
+     * fetch the full history from the first commit.
+     *
+     * @return array<int, ScmLogEntry>
+     */
+    public function log(?string $sinceRevision = null): array;
+
+    /**
+     * Unified diff text for a single revision against its parent.
+     */
+    public function diff(string $revision): string;
+}

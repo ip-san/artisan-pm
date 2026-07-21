@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kalnoy\Nestedset\NodeTrait;
 
 #[Fillable(['name', 'identifier', 'description', 'is_public', 'parent_id'])]
@@ -115,6 +116,14 @@ final class Project extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);
+    }
+
+    /**
+     * @return HasOne<Repository, $this>
+     */
+    public function repository(): HasOne
+    {
+        return $this->hasOne(Repository::class);
     }
 
     public function hasModule(ProjectModuleKey $module): bool

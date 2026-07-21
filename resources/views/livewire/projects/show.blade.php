@@ -65,6 +65,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     ファイル
                 </a>
             @endcan
+            @can('viewAny', [\App\Models\Repository::class, $project])
+                <a href="{{ route('repository.index', $project) }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    リポジトリ
+                </a>
+            @endcan
             @can('manageMembers', $project)
                 <a href="{{ route('projects.members', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
