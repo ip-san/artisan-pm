@@ -43,6 +43,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function closeCompleted(): void
     {
+        $this->authorize('manageVersions', [Version::class, $this->project]);
+
         $this->project->closeCompletedVersions();
 
         unset($this->versions);

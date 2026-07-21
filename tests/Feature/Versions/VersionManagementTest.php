@@ -173,3 +173,15 @@ test('the close-completed-versions button closes a completed version and leaves 
     expect($completed->fresh()->status)->toBe(VersionStatus::Closed)
         ->and($stillOpen->fresh()->status)->toBe(VersionStatus::Open);
 });
+
+test('a member without manage_versions cannot open the versions list or trigger close-completed-versions', function () {
+    $project = Project::factory()->create();
+    $completed = Version::factory()->for($project)->create(['status' => VersionStatus::Open->value, 'due_date' => now()->subDay()->toDateString()]);
+    $user = versionMember($project, ['view_issues']);
+
+    expect($user->can('manageVersions', [Version::class, $project]))->toBeFalse();
+
+    Livewire::actingAs($user)->test('versions.index', ['project' => $project])->assertForbidden();
+
+    expect($completed->fresh()->status)->toBe(VersionStatus::Open);
+});
