@@ -84,3 +84,14 @@ test('an admin can delete a webhook', function () {
 
     expect(Webhook::find($webhook->id))->toBeNull();
 });
+
+test('secret never appears in the model\'s serialized form', function () {
+    $webhook = Webhook::factory()->create(['secret' => 'super-secret']);
+
+    // The edit form binds the whole model as a public Livewire property,
+    // which Livewire serializes into the page's wire snapshot sent to the
+    // browser — if this attribute weren't hidden, the decrypted webhook
+    // signing secret would leak into that HTML/JS payload.
+    expect($webhook->toArray())->not->toHaveKey('secret')
+        ->and($webhook->toJson())->not->toContain('super-secret');
+});

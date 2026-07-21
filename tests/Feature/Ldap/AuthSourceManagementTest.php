@@ -73,3 +73,14 @@ test('deleting an auth source detaches its linked users rather than deleting the
 
     expect($linkedUser->fresh()->auth_source_id)->toBeNull();
 });
+
+test('account_password never appears in the model\'s serialized form', function () {
+    $source = AuthSource::factory()->searchThenBind()->create(['account_password' => 'super-secret']);
+
+    // The edit form binds the whole model as a public Livewire property,
+    // which Livewire serializes into the page's wire snapshot sent to the
+    // browser — if this attribute weren't hidden, the decrypted LDAP bind
+    // password would leak into that HTML/JS payload.
+    expect($source->toArray())->not->toHaveKey('account_password')
+        ->and($source->toJson())->not->toContain('super-secret');
+});

@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Database\Factories\AuthSourceFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'name', 'host', 'port', 'use_tls', 'base_dn', 'account', 'account_password',
     'attr_login', 'attr_name', 'attr_mail', 'onthefly_register', 'timeout',
 ])]
+#[Hidden(['account_password'])]
 final class AuthSource extends Model
 {
     /** @use HasFactory<AuthSourceFactory> */
