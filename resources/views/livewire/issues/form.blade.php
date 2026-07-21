@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\CustomFieldFormat;
 use App\Enums\EnumerationType;
+use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -40,6 +42,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $comment = '';
 
+    /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
+    public array $customFieldValues = [];
+
     /** @var array<string, string> */
     public array $fieldRules = [];
 
@@ -70,6 +75,12 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->allowedStatuses = app(WorkflowService::class)->allowedTransitions($issue, auth()->user())
                 ->push($issue->status)
                 ->unique('id');
+
+            foreach ($issue->relevantCustomFields() as $field) {
+                $this->customFieldValues[$field->id] = $field->multiple
+                    ? $issue->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
+                    : $issue->customValue($field);
+            }
         } else {
             $this->authorize('create', [Issue::class, $project]);
 
@@ -104,6 +115,21 @@ new #[Layout('components.layouts.app')] class extends Component
     public function projectVersions(): Collection
     {
         return $this->project->versions;
+    }
+
+    /**
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function customFields(): Collection
+    {
+        if ($this->tracker_id === null) {
+            return collect();
+        }
+
+        return (new Issue(['tracker_id' => $this->tracker_id]))
+            ->setRelation('project', $this->project)
+            ->relevantCustomFields();
     }
 
     public function isRequired(string $field): bool
@@ -141,7 +167,21 @@ new #[Layout('components.layouts.app')] class extends Component
             $rules['status_id'] = ['required', 'exists:issue_statuses,id'];
         }
 
+        foreach ($this->customFields as $field) {
+            $key = "customFieldValues.{$field->id}";
+            $required = $field->is_required || $this->isRequired("cf_{$field->id}");
+
+            if ($field->multiple) {
+                $rules[$key] = [$required ? 'required' : 'nullable', 'array'];
+                $rules["{$key}.*"] = $field->format()->validationRules($field);
+            } else {
+                $rules[$key] = array_merge([$required ? 'required' : 'nullable'], $field->format()->validationRules($field));
+            }
+        }
+
         $data = $this->validate($rules);
+        $customFieldData = $data['customFieldValues'] ?? [];
+        unset($data['customFieldValues']);
 
         if ($this->issue) {
             if ($data['status_id'] !== $this->issue->status_id) {
@@ -154,6 +194,8 @@ new #[Layout('components.layouts.app')] class extends Component
             $data['status_id'] = $this->status_id;
             $issue = app(IssueService::class)->create($data, auth()->user());
         }
+
+        $issue->setCustomFieldValues($customFieldData);
 
         $this->redirect(route('issues.show', [$this->project, $issue]), navigate: true);
     }
@@ -168,7 +210,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700">トラッカー</label>
-                <select wire:model="tracker_id" @disabled($this->isReadOnly('tracker_id'))
+                <select wire:model.live="tracker_id" @disabled($this->isReadOnly('tracker_id'))
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                     @foreach ($this->projectTrackers as $tracker)
                         <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
@@ -251,6 +293,47 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </select>
         </div>
+
+        @if ($this->customFields->isNotEmpty())
+            <div class="space-y-4 border-t border-gray-200 pt-4">
+                @foreach ($this->customFields as $field)
+                    @php $cfKey = "cf_{$field->id}"; @endphp
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">
+                            {{ $field->name }}
+                            @if ($field->is_required || $this->isRequired($cfKey))<span class="text-red-500">*</span>@endif
+                        </label>
+
+                        @if ($field->field_format === \App\Enums\CustomFieldFormat::Bool)
+                            <input type="checkbox" wire:model="customFieldValues.{{ $field->id }}"
+                                @disabled($this->isReadOnly($cfKey)) class="mt-1 rounded border-gray-300">
+                        @elseif ($field->field_format === \App\Enums\CustomFieldFormat::List)
+                            <select wire:model="customFieldValues.{{ $field->id }}" @disabled($this->isReadOnly($cfKey))
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                                <option value="">選択してください</option>
+                                @foreach ($field->possible_values ?? [] as $option)
+                                    <option value="{{ $option }}">{{ $option }}</option>
+                                @endforeach
+                            </select>
+                        @elseif ($field->field_format === \App\Enums\CustomFieldFormat::Text)
+                            <textarea wire:model="customFieldValues.{{ $field->id }}" rows="3" @disabled($this->isReadOnly($cfKey))
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+                        @elseif ($field->field_format === \App\Enums\CustomFieldFormat::Date)
+                            <input type="date" wire:model="customFieldValues.{{ $field->id }}" @disabled($this->isReadOnly($cfKey))
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        @elseif ($field->field_format === \App\Enums\CustomFieldFormat::Int || $field->field_format === \App\Enums\CustomFieldFormat::Float)
+                            <input type="number" wire:model="customFieldValues.{{ $field->id }}" @disabled($this->isReadOnly($cfKey))
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        @else
+                            <input type="text" wire:model="customFieldValues.{{ $field->id }}" @disabled($this->isReadOnly($cfKey))
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        @endif
+
+                        @error("customFieldValues.{$field->id}") <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                @endforeach
+            </div>
+        @endif
 
         @if ($issue)
             <div>

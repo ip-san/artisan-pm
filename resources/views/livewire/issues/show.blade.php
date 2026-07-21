@@ -1,8 +1,11 @@
 <?php
 
+use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\Journal;
 use App\Models\Project;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -19,7 +22,21 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $issue);
 
         $this->project = $project;
-        $this->issue = $issue->load(['tracker', 'status', 'priority', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details']);
+        $this->issue = $issue->load(['tracker', 'status', 'priority', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'customFieldValues']);
+    }
+
+    /**
+     * @return Collection<int, array{field: CustomField, value: mixed}>
+     */
+    #[Computed]
+    public function customFieldDisplayValues(): Collection
+    {
+        return $this->issue->relevantCustomFields()->map(fn (CustomField $field) => [
+            'field' => $field,
+            'value' => $field->multiple
+                ? $this->issue->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->join(', ')
+                : $this->issue->customValue($field),
+        ]);
     }
 
     public function addComment(): void
@@ -86,6 +103,17 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($issue->description)
         <div class="mb-6 whitespace-pre-line text-sm text-gray-700">{{ $issue->description }}</div>
+    @endif
+
+    @if ($this->customFieldDisplayValues->isNotEmpty())
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-gray-200 bg-white p-4 text-sm mb-6">
+            @foreach ($this->customFieldDisplayValues as $entry)
+                <div>
+                    <span class="text-gray-500">{{ $entry['field']->name }}:</span>
+                    {{ $entry['value'] === null || $entry['value'] === '' ? '-' : $entry['value'] }}
+                </div>
+            @endforeach
+        </div>
     @endif
 
     <h2 class="text-sm font-semibold text-gray-900 mb-2">履歴</h2>

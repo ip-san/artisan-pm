@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\HasCustomFields;
+use App\Enums\CustomizableType;
 use Database\Factories\IssueFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Collection;
 
 #[Fillable([
     'project_id', 'tracker_id', 'status_id', 'priority_id', 'author_id',
@@ -20,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 final class Issue extends Model
 {
     /** @use HasFactory<IssueFactory> */
-    use HasFactory;
+    use HasCustomFields, HasFactory;
 
     /**
      * Eloquent doesn't read back server-side column defaults on a freshly
@@ -156,5 +159,24 @@ final class Issue extends Model
     public function isClosed(): bool
     {
         return $this->status->is_closed;
+    }
+
+    public static function customizableType(): CustomizableType
+    {
+        return CustomizableType::Issue;
+    }
+
+    /**
+     * @return Collection<int, CustomField>
+     */
+    public function relevantCustomFields(): Collection
+    {
+        return CustomField::query()
+            ->where('customized_type', CustomizableType::Issue)
+            ->whereHas('trackers', fn ($query) => $query->where('trackers.id', $this->tracker_id))
+            ->with(['trackers', 'projects', 'roles'])
+            ->orderBy('position')
+            ->get()
+            ->filter(fn (CustomField $field) => $field->appliesToProject($this->project));
     }
 }
