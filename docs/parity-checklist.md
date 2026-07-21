@@ -1,0 +1,466 @@
+# Redmine 機能パリティ・チェックリスト
+
+`/Users/sesoko/Desktop/workspace/artisan-pm`(本アプリ)と `/Users/sesoko/Desktop/workspace/redmine`(参照元 Redmine)を突き合わせた機能パリティの追跡ドキュメント。計画書 §6 で言及されている実務ドキュメントとして、Phase 0〜6 完了時点(2026-07-21)の状態を初回スナップショットとして作成した。
+
+**凡例**: `done` = 実装済み / `partial` = 部分実装(要注記) / `missing` = 未実装
+
+**運用方針**: 新しい機能を実装したら、該当する行のステータスを更新すること。恒久的に対応しない項目(スコープ外と判断したもの)は削除せず `missing` のまま残し、理由を注記する。
+
+---
+
+## 0. 全体サマリー — 優先度の高いギャップ
+
+個別セクションを横断して特に影響の大きいものを先に挙げる。詳細は各セクション参照。
+
+### 構造的なギャップ(単一機能の欠落ではなく、設計レベルの差分)
+
+1. **プロジェクト横断ビューが皆無**(マイページを除く)。Issues/TimeEntries/Activity/Calendar/Gantt/Search はすべて `/projects/{project}/...` 配下のみで、Redmine の `/issues`, `/time_entries/report`, `/activity`, `/search` 相当のグローバルビューが存在しない。`routes/web.php` を見ればプロジェクト非依存のユーザー向けルートは `/my/page` と `/profile` のみ。
+2. **管理者によるユーザー管理画面が皆無**。`is_admin`・`UserStatus`(Active/Registered/Locked)・`auth_source_id` はモデルに存在するが、他ユーザーを一覧/作成/編集/ロック/強制パスワードリセットする画面が一切ない。セルフサービスの `profile/index.blade.php` のみ。
+3. **アプリケーション設定が Redmine の 119 キー中わずか 6 項目**(`app_title`, `default_issues_per_page`, incoming-mail 系4項目)。表示/認証ポリシー/通知/添付ファイル制限/リポジトリ設定などのタブが丸ごと存在しない。
+4. **カスタムフィールド対応が Issue と Project の2種のみ**(Redmine は User/Version/Group/TimeEntryActivity/DocumentCategory 等 ~10種)。
+5. **REST API が Projects と Issues の2リソースのみ**(Redmine は ~20 リソース群)。DELETE 系は皆無、ファイルアップロード API もなし。API認証も OAuth2(Passport)のみで、スクリプト用途に適した API キー方式が存在しない。
+6. **Issue の関連機能(サブタスク・関連・カテゴリ)がモデルはあるがUIがない**、または丸ごと未実装。`IssueRelation` はマイグレーション/Enumは存在するが画面から作成・閲覧できない。IssueCategory はモデル自体が存在しない。
+7. **添付ファイルが Issue/Version/News/Document にしか付かない**。Wiki ページ・フォーラム投稿に添付できない。サムネイル生成・説明文・ダウンロード数もない。
+8. **Wiki の差分表示・リダイレクト・マクロエンジンが丸ごと未実装**。
+
+### すぐ着手すべき小〜中規模の修正(見つかったバグ・欠落)
+
+- Journal の `private_notes` カラムが存在するのに一切セット/フィルタされていない(死んだ列であり、将来配線した際の可視性リスクにもなる)。
+- カスタムフィールドの変更が Journal(監査証跡)に記録されない。
+- カスタムフィールド値が `searchable => true` でも全文検索にインデックスされていない。
+- Issue の一覧グルーピングが「現在のページ内のみ」で集計されており、Redmine のような全件 SQL 集計になっていない。
+
+---
+
+## 1. 課題管理(Issues / Workflow / Custom Fields)
+
+対象: Issues, Trackers, IssueStatuses, IssuePriorities, Workflow, Journals, Watchers, IssueRelations, IssueCategories, Versions, 一括編集, CSVインポート/エクスポート。
+
+### Issues 本体
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| 課題の作成/編集/閲覧 | done | `IssueService::create/update`, `issues/{form,show}.blade.php` |
+| 更新時の属性差分 Journal 記録 | partial | 固定11項目のみ差分記録(`IssueService.php`)。`category_id` およびカスタムフィールドの変更は記録されない |
+| 課題削除 | partial | `IssuePolicy::delete` は存在するが画面に削除アクションが配線されていない。工数の再割当/削除選択(Redmine の `params[:todo]`)もない |
+| 課題のコピー | missing | — |
+| プロジェクト間の課題移動 | missing | `project_id` を編集する手段がない |
+| 担当者「自分」ショートカット・作成時の既定開始/期日 | missing | — |
+| 楽観的ロック(競合解決) | missing | `lock_version` 相当なし。後勝ちで無警告上書き |
+| 編集画面からの直接工数記録 | missing | 別画面へ遷移するのみ |
+| `is_private`(非公開課題)フラグ | missing | — |
+| ロール別の課題閲覧範囲(全て/デフォルト/自分のみ) | missing | `IssuePolicy::view` はフラットな `view_issues` のみ |
+| Atom フィード / REST API 拡張(`include=`) | missing | — |
+
+### サブタスク・親子関係
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| 親子データモデル | partial | `parent_id` とリレーションは存在するが、UIから親を設定する手段が皆無。親/子の表示もない |
+| Nested set・親子並べ替え | missing | — |
+| 親への集計ロールアップ(優先度/日付/進捗率) | missing | — |
+| ステータスやサブタスクからの進捗率導出 | missing | 単純なスライダー入力のみ |
+| 後続課題のスケジュール連動・プロジェクト間サブタスク | missing | — |
+| 子孫を含めた予定/実績工数の集計 | missing | 直接の TimeEntry のみ合算 |
+
+### Journal(履歴・コメント)
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| コメント追加 | done | — |
+| 属性変更の監査証跡 | partial | 固定スカラー項目のみ。CF/カテゴリ/添付/関連の変更は記録されない |
+| プライベートノート(`view_private_notes`) | missing | `private_notes` カラムは存在するが一切セット/フィルタされず、死んだ列 |
+| 過去コメントの引用返信 | missing | — |
+| 個別 Journal の編集/削除 | missing | — |
+| 変更点を含むプライベートノートの分割記録 | missing | — |
+| イベント別の通知粒度 | partial | `IssueCreated`/`IssueUpdated` のみ。コメント単体では何も発火しない |
+| テキスト差分表示・リアクション | missing | — |
+
+### Watchers
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| 自分のWatch/Unwatch | done | — |
+| Watch権限ゲート | partial | `view_issues` があれば誰でも可能(`IssuePolicy::watch`) |
+| 他ユーザーをWatcherとして追加/削除 | missing | 管理UI・オートコンプリートなし |
+| 作成者/担当者の自動Watch・@mention・自動整理 | missing | — |
+
+### Issue Relations(関連課題)
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| データモデル | partial | `IssueRelation` とリレーションは存在するが、UIから作成/閲覧/削除する手段が皆無 |
+| 関連タイプ | partial | relates/blocks/duplicates/precedes/follows のみ。逆方向・コピー系タイプ(blocked, duplicated, copied_to/from)欠落 |
+| precedes/follows の遅延日数(delay) | missing | マイグレーションに該当カラムなし |
+| 関連日付からの自動リスケジュール・循環/プロジェクト間検証 | missing | DBのユニーク制約のみ |
+| 重複課題のクローズ連動・ブロック中クローズ禁止 | missing | — |
+
+### Issue Categories
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| カテゴリ機能全体 | missing | モデル・テーブル・`category_id` すべて存在しない。既定担当者のヒント機能もなし |
+
+### Versions
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| Version CRUD・対象バージョン割当 | done | — |
+| open/locked/closed ステータス | partial | Enum/カラムはあるが強制なし(ロック中でも選択可能)。`close_completed_versions` 相当なし |
+| バージョン共有範囲(none/descendants/hierarchy/tree/system) | missing | プロジェクトローカル限定 |
+| ロードマップ・完了率・遅延表示 | missing | — |
+| 予定/実績/残工数の集計 | missing | — |
+| Wikiページ紐付け・既定バージョン設定 | missing | `due_date` のみ |
+
+### Trackers
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| CRUD・並べ替え・プロジェクト紐付け | done | — |
+| トラッカー別デフォルトステータス | missing | 新規課題は常にグローバルな最初のステータス |
+| トラッカー別コアフィールド非表示(ビットマスク) | missing | — |
+| トラッカー/ワークフローのコピー | missing | — |
+| ロードマップ対象フラグ・デフォルト非公開・説明文テンプレート | missing | — |
+| カスタムフィールド紐付け | done | `custom_field_tracker` pivot |
+
+### Issue Statuses / Workflow
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| ステータス CRUD・並べ替え・`is_closed` | done | — |
+| デフォルト進捗率・ステータス変更時の一括更新 | missing | — |
+| ロール×トラッカー×新旧ステータスの遷移制御 | done | `WorkflowService::allowedTransitions` |
+| 作成者/担当者限定の遷移 | done | — |
+| ロール×トラッカー×ステータスのフィールド必須/読取専用 | done | コアフィールド+`cf_<id>` に適用 |
+| ワークフローのコピー(トラッカー間/ロール間/一括複製) | missing | — |
+| 「使用中ステータスのみ表示」フィルタ | missing | — |
+| クローズ可否のフィルタ(未完了サブタスク/ブロック関連の考慮) | missing | — |
+
+### カスタムフィールド(課題)
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| モデル・フォーマットレジストリ・トラッカー/プロジェクト適用・ロール可視性 | done | — |
+| フィールド形式のカバレッジ | partial | Redmine の~12形式に対しレジストリのサブセット |
+| regexp/min/max/default_value | partial | カラムはあるが `date_offset` 等の高度なデフォルトモードなし |
+| 検索対象(`searchable`)の実効性 | partial | フラグはあるが値が全文検索にインデックスされていない |
+| 保存後のフォーマット変更禁止・多重度変更時のクリーンアップ | missing | — |
+| CustomFieldEnumeration(選択肢の位置/有効フラグ、削除時再割当) | missing | `possible_values` は単純な配列カラム |
+| 表示列・CSV列としてのカスタムフィールド | missing | 意図的に見送り済み(コード内コメントで明記) |
+
+### 一括編集・インポート・エクスポート
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| 一括編集(ステータス/優先度/担当者/バージョン/進捗率+共通コメント) | done | 各課題ごとに認可チェック・Journal記録 |
+| ステータス一括編集の選択制約 | partial(意図的) | 選択課題が単一ステータスの場合のみ許可。トラッカー/カテゴリ/日付/CF/親/一括コメント欄はさらに少ない |
+| 一括コピー・一括プロジェクト間移動・一括削除 | missing | — |
+| CSVインポート(列マッピング・バックグラウンド処理・進捗表示) | done | `ImportIssuesJob`, `IssueImport` |
+| マッピング可能な列 | partial | カテゴリ/対象バージョン/親/非公開フラグ/カスタムフィールド/遅延付き関連は対象外 |
+| カテゴリ/バージョンの自動作成、`unique_id`による遅延親子/関連解決 | missing | — |
+| CSVエクスポート | partial | 選択列のみ。エンコーディング/区切り文字オプション、CF/関連/添付/Watcher列なし |
+| PDFエクスポート・Atomフィード | missing | — |
+
+---
+
+## 2. プロジェクト・管理機能・認証
+
+対象: Projects, Roles & Permissions, Members, Groups, Custom Fields(全対象種別), Enumerations, Settings, User管理, LDAP, 2FA, 登録モード。
+
+### Projects
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| プロジェクト一覧 | partial | ルートのみ表示(`whereDoesntHave('parent')`)、実質フラット表示。検索/ステータスフィルタ/ページネーションなし |
+| プロジェクト作成 | partial | 管理者専用(ポリシーで一般ユーザーは常に `false`)。作成時のデフォルトモジュール/トラッカー設定なし |
+| プロジェクト編集 | done | 名前/識別子/説明/公開設定/モジュール/プロジェクトカスタムフィールド |
+| サブプロジェクト | partial | `NodeTrait` 使用、ポリシーもあるが**フォームに親選択がなく**、UIから作成/再配置できない |
+| 有効モジュール | done | `Project::syncModules()` |
+| アーカイブ/アーカイブ解除 | missing | Enum はあるがルート/アクションなし |
+| クローズ/再オープン | missing UI | ポリシー/Enumはあるがボタンなし |
+| プロジェクト削除 | missing UI | ポリシーはあるがルート/ボタンなし |
+| プロジェクトのコピー | missing | — |
+| ブックマーク | missing | — |
+| プロジェクト別 Enumeration(工数種別等)の上書き | missing | — |
+| メンバー管理 | partial | メールアドレス完全一致でのみ追加(候補選択なし)。**グループをメンバーとして追加できない**。既存メンバーのロール編集不可(メンバー丸ごと削除→再追加のみ) |
+| 課題カテゴリ | missing | モデル自体が存在しない(§1参照) |
+
+### ロール・権限
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| ロール一覧/作成/編集(権限チェックボックス) | done | Anonymous/Non-member向けの権限フィルタも正しく機能 |
+| ロール削除 | done | — |
+| ロールのコピー作成 | missing | — |
+| 課題の閲覧範囲(全て/デフォルト/自分のみ) | missing | `Role` モデルにカラムなし |
+| 工数エントリ閲覧範囲 | missing | — |
+| ユーザー閲覧範囲 | missing | — |
+| 「課題に割当可能」フラグ | missing | — |
+| 管理可能ロールの制限 | missing | — |
+| 権限一覧レポート・一括更新マトリクス | missing | — |
+
+### グループ
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| グループ CRUD | done | — |
+| グループメンバー管理 | partial | メール完全一致のみ、オートコンプリートなし |
+| グループをプロジェクトにロール付きで割当 | missing | プロジェクト側もグループ受け入れ非対応 |
+| グループ用カスタムフィールド | missing | `CustomizableType` 未対応 |
+
+### カスタムフィールド
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| Issue用カスタムフィールド | done | トラッカー/プロジェクト範囲、ロール可視性、必須/複数値 |
+| Project用カスタムフィールド | done | ロール可視性は `Project::relevantCustomFields()` で反映 |
+| User/Version/Group/TimeEntryActivity/DocumentCategory用 | missing | `CustomizableType` は Issue, Project の2種のみ |
+| フィールド形式 | partial | string/text/int/float/date/bool/list の7種。user/version/enumeration/attachment/link は未対応 |
+| custom_field_enumerations(選択肢の管理された一覧) | missing | — |
+| default_value/regexp/searchable/editable・visible フラグ、「全プロジェクト対象」 | missing | フォームは min/max 文字数+必須+複数値+選択肢のみ |
+
+### Enumerations(優先度・工数種別・文書カテゴリ)
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| モデル(position/is_default/active) | done | `Enumeration` + `EnumerationType`、各所で消費されている |
+| **管理画面** | **missing** | ルート・ビュー・メニュー項目が一切ない。値はシード投入のみで運用中に変更不可 |
+
+### アプリケーション設定(Redmine 119キー中 ~6項目)
+
+| Redmineのタブ | 状態 | 備考 |
+|---|---|---|
+| 全般 | partial | `app_title`, `default_issues_per_page` のみ |
+| 表示(日付/時刻形式、テーマ、週始まり、サムネイル) | missing | — |
+| 認証(ログイン必須、セルフ登録、パスワードポリシー、2FA必須設定、セッションタイムアウト、自動ログイン、REST API有効化) | missing | — |
+| プロジェクト(デフォルト公開設定、デフォルトモジュール、識別子連番化、新規プロジェクトの既定ロール) | missing | — |
+| ユーザー | missing | — |
+| 課題トラッキング(進捗率算出方式、プロジェクト間関連/サブタスク許可、既定表示列) | missing | — |
+| メール通知(送信元、ヘッダ/フッタ、通知イベント種別) | missing | — |
+| 受信メール | partial | 有効フラグ+既定プロジェクト/トラッカー/ステータスのみ |
+| 添付ファイル(最大サイズ、許可/禁止拡張子) | missing | — |
+| リポジトリ(有効SCM、自動フェッチ、コミットキーワード) | missing | — |
+
+### ユーザー管理・認証
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| **管理者によるユーザー一覧/作成/編集/ロック/強制パスワードリセット** | **missing** | 画面が全く存在しない。セルフサービスの `profile/index.blade.php` のみ |
+| LDAP認証ソース CRUD | done | ホスト/ポート/TLS/base_dn/direct-bind or search+bind/属性/onthefly登録/タイムアウト |
+| LDAP接続テストボタン | missing | — |
+| LDAPカスタムフィルタ/属性→カスタムフィールドマッピング | missing | login/name/mailのみ |
+| LDAPオンザフライ登録 | done | — |
+| 二要素認証(TOTP) | done | Fortify経由。ただし管理者による強制無効化・全体必須ポリシー設定は画面なし(ユーザー管理画面が無いため) |
+| パスキー/WebAuthn | done(Redmineにはない機能) | — |
+| パスワードリセット | done | — |
+| 登録モード(無効/手動承認/メール確認/自動) | missing | 常時「自動」でハードコード。`emailVerification` はコメントアウト済み |
+| アカウントロック/アンロック・強制パスワード変更・有効化フロー | missing | カラム/Enumはあるが画面がない(ユーザー管理画面の欠落が根本原因) |
+
+---
+
+## 3. コンテンツモジュール(Wiki / フォーラム / お知らせ / 文書 / ファイル)
+
+### Wiki
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| ページ CRUD | done | — |
+| 階層(親子) | done | — |
+| 親の付け替え | partial | 循環参照を除外した `parent_id` 変更のみ。プロジェクト間移動なし |
+| バージョン履歴 | done | 追記型 `wiki_page_versions` テーブル |
+| **任意の2バージョン間の差分表示** | **missing** | 履歴は単一バージョン閲覧のみ。Wikiの核心機能の一つが欠落 |
+| Annotate/Blame | missing | — |
+| バージョンの復元(revert) | missing | — |
+| バージョン単体の削除 | missing | — |
+| **リネーム時のリダイレクト** | **missing** | 単純なタイトル更新のみ。`wiki_redirects` 相当のテーブル/モデルが存在せず、リネームすると既存の `[[リンク]]` が壊れる |
+| 保護ページ | done | `is_protected` + ポリシー |
+| デフォルト保護ページ(Sidebar等) | missing | — |
+| 開始ページ設定 | missing | — |
+| **マクロエンジン全体** | **missing** | `#123` 課題メンションと `[[ページ]]` リンクのみ。`{{toc}}`, `{{child_pages}}`, `{{include}}`, `{{collapse}}` 等すべて未実装 |
+| セクション単位編集 | missing | 全文テキストエリアのみ |
+| プレビュー | missing | 保存後閲覧のみ |
+| PDF/HTML/TXT/ZIPエクスポート | missing | — |
+| 日付インデックス表示 | missing | — |
+| ページのWatch | missing | `Watcher` は Issue専用 |
+| 添付ファイル | missing | `WikiPage` が `HasMedia` 未実装 |
+
+### フォーラム(Boards / Messages)
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| Board CRUD・並べ替え | done | — |
+| ネストしたBoard | missing | `parent_id` なし、フラット構造 |
+| トピック作成/返信 | done | — |
+| Sticky | done | — |
+| ロック | done | `MessagePolicy::reply` で返信禁止を実装 |
+| トピックの別Boardへの移動 | missing | — |
+| トピックのWatch | missing | — |
+| 引用返信 | missing | — |
+| 添付ファイル | missing | `Message` が `HasMedia` 未実装 |
+| 返信のページネーション | missing | 全件ロード |
+| Atomフィード | missing | — |
+
+### News
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| CRUD・概要/本文 | done | — |
+| コメント | done | `NewsComment` |
+| 添付ファイル | done | `News implements HasMedia` |
+| Watch・作成者自動Watch | missing | — |
+| メール通知 | missing | — |
+| **プロジェクト横断のNews一覧** | missing | プロジェクト配下ルートのみ |
+
+### Documents
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| CRUD | done | — |
+| カテゴリ | done | `Enumeration` 経由 |
+| 添付ファイル | done | `Document implements HasMedia` |
+| カテゴリ/日付/タイトル/作成者でのグルーピング・並べ替え | missing | `->latest()` のみ |
+| カスタムフィールド | missing | — |
+
+### Files モジュール
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| バージョンへのファイル添付 | done | — |
+| **プロジェクトレベルのファイル**(バージョン非依存) | missing | バージョン添付のみ対応 |
+| ファイル名/日付/サイズ/ダウンロード数での並べ替え | missing | ダウンロード数自体を追跡していない |
+| 複数ファイル同時アップロード | done | — |
+
+### 添付ファイル(横断)
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| エンティティごとの複数添付 | done | Spatie MediaLibrary、対象は Issue/Version/News/Document のみ |
+| **サムネイル/画像変換** | **missing** | `registerMediaConversions` が未使用。ダウンロード専用 |
+| **添付ファイルの説明文** | **missing** | ファイル名+サイズのみ表示、説明文は保存も編集もできない |
+| ダウンロード数カウント | missing | — |
+| Wiki/フォーラム投稿への添付 | missing | 該当モデルが `HasMedia` 未実装 |
+| 本文中のインライン画像参照(`attachment:file.png`) | missing | — |
+
+---
+
+## 4. クエリ・レポート・工数管理・ダッシュボード横断機能
+
+**見出しの結論: マイページを除き、プロジェクト横断ビューが一切存在しない。** `routes/web.php` の非プロジェクトルートは `/my/page` と `/profile` のみ。Issues/TimeEntries/Activity/Calendar/Gantt/Search は全て `/projects/{project}/...` 配下限定。
+
+### クエリ/フィルタ/レポートエンジン
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| 保存済みクエリ(フィルタ/列/ソート/グループ) | done | `App\Models\Query` |
+| 公開/非公開 | partial | 2値(`is_public`)のみ。Redmine は PRIVATE/ROLES/PUBLIC の3値+ロールスコープ+`manage_public_queries` 権限。誰でも公開フラグを立てられ、権限チェックがない |
+| プロジェクト横断クエリ | missing | 常に `project_id` でフィルタ |
+| 列選択 | partial(課題)/missing(工数) | 課題: 固定のネイティブ列のみ、カスタムフィールドは列にできず、並べ替えもできない。工数: 列選択UI自体がない |
+| グルーピング | partial | 固定の短いリストのみ、**現在のページ内のみでPHP側集計**(全件のSQL集計になっていない)。カスタムフィールドでのグルーピング不可 |
+| 合計/集計 | partial | 課題: 集計なし(予定/実績工数の合計等)。工数: 全体+グループ別の時間合計のみ |
+| 相対日付フィルタ(「過去N日以内」等) | done | — |
+| フィルタ演算子(=,≠,in,contains,empty,between,≥/≤) | done | — |
+| カスタムフィールドでのフィルタ | done(課題)/n/a(工数) | — |
+| 複数列ソート | missing | 単一ソートキーのみ(Redmineは3列まで) |
+| CSVエクスポート | done | 課題・工数とも。PDF/Atomはなし |
+| 課題レポート(トラッカー/ステータス別集計) | missing | — |
+
+### 工数管理
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| TimeEntry CRUD | done | 一括編集はなし |
+| 工数種別(TimeEntryActivity) | done | プロジェクト別上書き・カスタムフィールドはなし |
+| 課題の実績工数合計 | partial | 直接のTimeEntryのみ合算、サブタスク分は含まない |
+| プロジェクトの実績工数合計 | missing | リレーションはあるが画面に表示されていない |
+| **多次元工数レポート(ピボット表)** | **missing — 最大のギャップの一つ** | 単一次元のグループ化リストのみ。Redmine は最大3軸(プロジェクト/ステータス/バージョン/カテゴリ/ユーザー/トラッカー/工数種別/課題+カスタムフィールド)を期間列(年/月/週/日)と掛け合わせ、行・列・総計を算出する |
+| プロジェクト横断の工数レポート | missing | — |
+| 工数フィルタ(ユーザー/種別/日付/時間) | done | — |
+| 工数のCSVインポート | missing | — |
+
+### ダッシュボード横断機能
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| マイページ(ブロック追加/削除/ドラッグ並べ替え) | partial | 動作は良好だが、固定5ブロックのカタログ(担当課題/報告課題/Watch課題/最新News/工数)。Redmine は calendar/documents/timelog/activity に加え**保存済みクエリをブロック化**(issuequery、複数配置可)できるが、artisan-pmには保存済みクエリ↔ダッシュボードの橋渡しがない |
+| グローバルアクティビティフィード | partial | 8種類のプロバイダを集約(日付範囲・種別チェックボックス)。プロジェクト単位限定、サブプロジェクト包含なし、Atomなし |
+| **プロジェクト横断の課題一覧** | **missing** | Redmineの主要機能の一つだが、トップレベル `/issues` が存在しない |
+| カレンダー | partial | 月グリッド、期日のみ(開始日〜期日のスパン表示なし)、クエリフィルタと連動しない固定クエリ、プロジェクト限定 |
+| ガント | partial | 再帰CTEツリー+進捗バー。クエリ/フィルタを一切無視(常に全ツリー表示)、バージョンのマイルストーン表示なし、関連線なし、PDF/PNGエクスポートなし、プロジェクト限定 |
+| 検索(モジュール横断) | partial | Issue/Wiki/News/Document/Message を1プロジェクト内で検索。all/my_projects/bookmarks/subprojects等のスコープ切替なし、all_words/titles_only/open_issues等のトグルなし、`#123`ジャンプなし、プロジェクト/チェンジセット/Journalは検索対象外 |
+
+---
+
+## 5. リポジトリ(SCM)・REST API・拡張性
+
+### リポジトリ連携
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| リポジトリブラウズ(指定リビジョンでのツリー表示) | done | `GitAdapter`/`SvnAdapter` |
+| 対応SCM種別 | partial | Git・SVNのみ。Redmine は Mercurial/Bazaar/CVS/Filesystem等も対応(4種欠落) |
+| チェンジセット一覧・単体表示 | done | `RepositorySyncService`, `Changeset` |
+| Diff表示 | partial | 単一コミットのdiffのみ。任意リビジョン間・単一ファイルの履歴diffは非対応 |
+| **Annotate/Blame** | **missing** | アダプタ・画面とも未実装 |
+| 生ファイルダウンロード | partial | Blade経由の表示のみ。バイナリ対応・Content-Dispositionの適切な制御なし |
+| リポジトリ統計・コミットグラフ | missing | — |
+| プロジェクトあたり複数リポジトリ | missing(要確認) | `Repository belongsTo Project` の1対1想定 |
+| 非同期チェンジセット取得 | done | `RepositorySyncJob`(ユニーク制約・タイムアウト調整済み) |
+| **コミットメッセージのキーワード連動**(`fixes #123`でクローズ、`refs #123`で単純リンク、工数記録`@2h`等) | **missing — 重要なギャップ** | `RepositorySyncService::extractIssueIds()` は `#(\d+)` の正規表現で既存課題にリンクするのみ。ステータス自動遷移・進捗率更新・工数記録は一切ない。fixesとrefsの区別もない |
+| チェンジセットへの関連課題の手動追加/削除 | missing | — |
+| コミッター→ユーザーのマッピング | missing | `Changeset.committer` は自由文字列 |
+
+### REST API
+
+**現状: Projects(index/show)とIssues(index/show/store/update)の2リソースのみ**。Redmineは ~20 リソース群を公開。
+
+| Redmine APIリソース | 状態 | 備考 |
+|---|---|---|
+| Issues | partial | GET/POST/PUTのみ。DELETEなし、`include=`(journals/watchers/relations/attachments/children)なし |
+| Projects | partial | GETのみ。POST/PUT/DELETE・アーカイブ操作なし |
+| Users | missing | — |
+| Time entries | missing | — |
+| Versions | missing | — |
+| News | missing | — |
+| Memberships | missing | — |
+| Groups | missing | — |
+| Roles | missing | — |
+| Trackers | missing | — |
+| Issue statuses | missing | — |
+| Issue categories | missing | — |
+| Issue relations | missing | — |
+| Enumerations | missing | — |
+| Custom fields | missing | — |
+| 添付ファイル(アップロードAPI) | missing | ファイルアップロード用のAPIエンドポイントが皆無 |
+| Wiki pages | missing | — |
+| Queries | missing | — |
+| Journals | missing | — |
+| Watchers | missing | — |
+| Search | missing | — |
+| My account | missing | — |
+
+**API認証**: OAuth2(Passport)のみ。Redmineの `X-Redmine-API-Key` ヘッダー方式やHTTP Basic(APIキーをユーザー名として使用)に相当する、スクリプト/自動化向けの軽量な認証手段が存在しない。cronジョブ等でOAuth2の認可コードフローを要求するのは実用上の後退。
+
+### 拡張性(プラグイン/フック/Webhook/受信メール)
+
+| 機能 | 状態 | 備考 |
+|---|---|---|
+| プラグイン登録面(権限/アクティビティ/ダッシュボードブロック/カスタムフィールド形式/メニュー項目/ビューフック) | done | `PluginManager` が既存レジストリに委譲 |
+| ランタイムでのプラグイン検出 | missing(意図的、第一段階) | `bootstrap/providers.php` への手動登録。計画書で明記済みのスコープ |
+| プロジェクトモジュールのプラグイン拡張 | missing(意図的) | `ProjectModuleKey` はコンパイル時Enum。`PluginManager` のdocblockに明記 |
+| クエリフィルタ演算子のプラグイン拡張 | missing(意図的) | `IssueFilterFieldRegistry` 等に `register()` が存在せず、そもそも呼び出し箇所もない(Phase 2由来の別の既存ギャップ) |
+| プラグイン設定UI・永続化 | missing | — |
+| プラグインのバージョン依存チェック | missing | `Plugin.requiresCoreVersion` は保持のみで強制なし |
+| コントローラ/モデルのライフサイクルフック | partial | ビュー描画フック(`<x-hook>`)のみ。Redmineの `controller_issues_edit_before_save` 等、数十のモデル/コントローラフックに相当するものはない |
+| **Webhook**(Redmineコア機能ではない、本アプリでの追加機能) | done(範囲限定) | Issue作成/更新イベントのみ。削除・プロジェクト/バージョン/工数/Wikiイベントは未対応 |
+| 受信メールによる課題作成 | done | `[識別子]` プレフィックスでのプロジェクト振り分け、送信者=既存ユーザーの権限チェック |
+| 受信メールでの`unknown_user`/`no_permission_check`相当 | missing(意図的) | メールからのアカウント自動作成を意図的に非対応としている(セキュリティ上の判断としてコード内に明記) |
+| **メール返信による課題更新** | **missing** | `In-Reply-To`/件名`[#123]`への返信が課題へのコメント追加や再オープンに繋がらない |
+| **メール本文のキーワードコマンド**(`Status: Closed`, `Assigned to:`, `Priority:` 等) | **missing** | 本文はそのまま説明文として保存されるのみ。Redmineは~12種の組み込みキーワード+`allow_override`をパースする |
+
+---
+
+## 6. 次にトラッキング表を更新するタイミング
+
+- 新しいフェーズ/機能追加のたびに該当行を `missing`/`partial` → `done` に更新する。
+- 意図的にスコープ外とした項目は、その理由をコード側のdocblock/コメントに残し、このドキュメントの備考にも「意図的」である旨を明記する(既に実施済みの例: `PluginManager` のプロジェクトモジュール/フィルタ演算子除外、受信メールの `unknown_user` 非対応)。
+- このドキュメント自体の生成方法: `/Users/sesoko/Desktop/workspace/redmine` の実装(コントローラ/モデル)と `/Users/sesoko/Desktop/workspace/artisan-pm` の実装を突き合わせる並列調査(5系統: 課題管理/管理機能・認証/コンテンツモジュール/クエリ・工数・ダッシュボード/SCM・API・拡張性)を実施し、その結果を統合した。
