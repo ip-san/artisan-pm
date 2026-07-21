@@ -49,7 +49,7 @@
 | プロジェクト間の課題移動 | done(2026-07-21) | `move_issues`権限(移動元)+移動先での`add_issues`が必要。`IssueService::moveToProject()`がカテゴリ/対象バージョン/親をリセットし、移動先の非メンバーである担当者を解除、この課題を親としていた子課題も切り離す。Journalに記録 |
 | 担当者「自分」ショートカット・作成時の既定開始/期日 | done(2026-07-21) | 課題フォームに「自分に割り当てる」ボタン(プロジェクトメンバーかつ未自己割当時のみ表示)。新規課題の開始日は作成日をデフォルトに(期日はRedmine同様デフォルト値なし) |
 | 楽観的ロック(競合解決) | done(2026-07-22) | `issues.lock_version`列を追加。`IssueService::update()`が任意の`$expectedLockVersion`引数を受け取り、現在値と不一致なら`StaleIssueUpdateException`を投げて保存前に中断(保存のたびに`lock_version`をインクリメント)。課題編集フォームがフォーム読み込み時のlock_versionを保持し送信時に照合、競合時はエラーバナー表示で上書きを防止。一括編集/リポジトリ連携等プログラム的な更新は引き続き未指定(常に許可) |
-| 編集画面からの直接工数記録 | missing | 別画面へ遷移するのみ |
+| 編集画面からの直接工数記録 | done(2026-07-22) | Redmineの`_edit.html.erb`内`log_time`fieldset相当。`log_time`権限を持つメンバーには課題編集フォームに時間/作業分類/コメントのインライン欄を表示し、課題保存と同じ送信で`TimeEntry`を作成(時間未入力ならスキップ)。別画面(`time-entries.create`)からの記録も引き続き利用可能 |
 | `is_private`(非公開課題)フラグ | done(2026-07-21) | `issues.is_private`。`set_issues_private`権限保持者のみ作成/編集画面でON可能(サーバー側でも再チェックし、権限のない編集者が既存の非公開課題を意図せず公開化することを防止)。Journal記録・詳細画面のバッジ表示も対応 |
 | ロール別の課題閲覧範囲(全て/デフォルト/自分のみ) | done(2026-07-21) | `Role.issues_visibility`(all/default/own) + `AuthorizationService::issueVisibilityFor()`。`IssuePolicy::view`と課題一覧のクエリで3段階を正しく強制:all=無条件、default=非公開課題は作成者/担当者のみ(Redmineの`Issue.visible_condition`と同じ規則、2026-07-21に`is_private`実装と合わせて修正)、own=作成者/担当者のみ。複数ロール保持時は最も緩い設定が優先 |
 | Atom フィード / REST API 拡張(`include=`) | missing | — |

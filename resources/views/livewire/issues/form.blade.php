@@ -10,10 +10,12 @@ use App\Models\IssueCategory;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Setting;
+use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Attachments\AttachmentValidationRules;
+use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -59,6 +61,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $comment = '';
 
+    public ?int $logTimeActivityId = null;
+
+    public string $logTimeHours = '';
+
+    public string $logTimeComments = '';
+
     /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
     public array $newAttachments = [];
 
@@ -94,6 +102,13 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->done_ratio = $issue->done_ratio;
             $this->is_private = $issue->is_private;
             $this->lockVersion = $issue->lock_version;
+
+            if ($this->canLogTime) {
+                $this->logTimeActivityId = Enumeration::query()
+                    ->ofType(EnumerationType::TimeEntryActivity)
+                    ->where('is_default', true)
+                    ->first()?->id;
+            }
 
             $this->fieldRules = app(WorkflowService::class)->fieldRules($issue, auth()->user());
             $this->allowedStatuses = app(WorkflowService::class)->allowedTransitions($issue, auth()->user())
@@ -262,6 +277,18 @@ new #[Layout('components.layouts.app')] class extends Component
         return Setting::get('issue_done_ratio', 'issue_field') === 'issue_status';
     }
 
+    #[Computed]
+    public function canLogTime(): bool
+    {
+        return app(AuthorizationService::class)->can(auth()->user(), 'log_time', $this->project);
+    }
+
+    #[Computed]
+    public function timeEntryActivities(): Collection
+    {
+        return Enumeration::query()->ofType(EnumerationType::TimeEntryActivity)->orderBy('position')->get();
+    }
+
     public function save(): void
     {
         $rules = [
@@ -315,6 +342,15 @@ new #[Layout('components.layouts.app')] class extends Component
             $rules['status_id'] = ['required', 'exists:issue_statuses,id'];
         }
 
+        if ($this->issue && $this->canLogTime) {
+            $rules['logTimeHours'] = ['nullable', 'numeric', 'min:0.01', 'max:1000'];
+            $rules['logTimeActivityId'] = [
+                'required_with:logTimeHours',
+                Rule::exists('enumerations', 'id')->where('type', EnumerationType::TimeEntryActivity->value),
+            ];
+            $rules['logTimeComments'] = ['nullable', 'string'];
+        }
+
         foreach ($this->customFields as $field) {
             $key = "customFieldValues.{$field->id}";
             $presence = ($field->is_required || $this->isRequired("cf_{$field->id}")) ? 'required' : 'nullable';
@@ -329,7 +365,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data = $this->validate($rules);
         $customFieldData = $data['customFieldValues'] ?? [];
-        unset($data['customFieldValues'], $data['newAttachments']);
+        $logTimeHours = $data['logTimeHours'] ?? null;
+        $logTimeActivityId = $data['logTimeActivityId'] ?? null;
+        $logTimeComments = $data['logTimeComments'] ?? '';
+        unset($data['customFieldValues'], $data['newAttachments'], $data['logTimeHours'], $data['logTimeActivityId'], $data['logTimeComments']);
 
         // Only ever set is_private when the user actually holds
         // set_issues_private — otherwise leave the key out entirely so an
@@ -361,6 +400,18 @@ new #[Layout('components.layouts.app')] class extends Component
             $issue->addMedia($file->getRealPath())
                 ->usingFileName($file->getClientOriginalName())
                 ->toMediaCollection('attachments');
+        }
+
+        if (filled($logTimeHours)) {
+            TimeEntry::create([
+                'project_id' => $this->project->id,
+                'issue_id' => $issue->id,
+                'user_id' => auth()->id(),
+                'activity_id' => $logTimeActivityId,
+                'hours' => $logTimeHours,
+                'spent_on' => now()->toDateString(),
+                'comments' => $logTimeComments,
+            ]);
         }
 
         $this->redirect(route('issues.show', [$this->project, $issue]), navigate: true);
@@ -542,6 +593,36 @@ new #[Layout('components.layouts.app')] class extends Component
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"
                     placeholder="変更内容についてのコメント(任意)"></textarea>
             </div>
+
+            @if ($this->canLogTime)
+                <fieldset class="rounded-md border border-gray-200 p-4">
+                    <legend class="px-1 text-sm font-medium text-gray-700">工数を記録</legend>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">時間</label>
+                            <input type="number" step="0.01" wire:model="logTimeHours"
+                                class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                            @error('logTimeHours') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700">作業分類</label>
+                            <select wire:model="logTimeActivityId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                                <option value="">選択してください</option>
+                                @foreach ($this->timeEntryActivities as $activity)
+                                    <option value="{{ $activity->id }}">{{ $activity->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('logTimeActivityId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-xs font-medium text-gray-700">工数のコメント</label>
+                        <input type="text" wire:model="logTimeComments"
+                            class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                        @error('logTimeComments') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                </fieldset>
+            @endif
         @endif
 
         <div class="flex gap-3">
