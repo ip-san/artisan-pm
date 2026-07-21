@@ -177,6 +177,18 @@ test('triggering a sync queues the job rather than running it inline', function 
     expect($repository->changesets()->count())->toBe(0);
 });
 
+test('dispatching a sync for a repository twice in a row only queues one job', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    $repository = Repository::factory()->for($project)->create();
+
+    RepositorySyncJob::dispatch($repository);
+    RepositorySyncJob::dispatch($repository);
+
+    Queue::assertPushed(RepositorySyncJob::class, 1);
+});
+
 test('a failed sync is logged rather than swallowed silently', function () {
     Log::spy();
 
