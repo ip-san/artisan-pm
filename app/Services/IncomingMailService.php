@@ -114,7 +114,7 @@ final class IncomingMailService
             return null;
         }
 
-        $subject = $this->stripProjectPrefix($mail->subject);
+        $subject = mb_substr($this->stripProjectPrefix($mail->subject), 0, 255);
 
         $issue = $this->issues->create([
             'project_id' => $project->id,
@@ -140,8 +140,10 @@ final class IncomingMailService
 
     private function resolveProject(string $subject): ?Project
     {
+        // Eager-loaded here rather than left to createIssueFromMail()'s
+        // ->trackers access, since every caller of resolveProject() needs it.
         if (preg_match('/^\[([^\]]+)\]/', $subject, $matches) === 1) {
-            $project = Project::query()->where('identifier', $matches[1])->first();
+            $project = Project::query()->with('trackers')->where('identifier', $matches[1])->first();
 
             if ($project !== null) {
                 return $project;
@@ -150,7 +152,7 @@ final class IncomingMailService
 
         $defaultProjectId = Setting::get('incoming_mail_default_project_id');
 
-        return $defaultProjectId ? Project::find($defaultProjectId) : null;
+        return $defaultProjectId ? Project::with('trackers')->find($defaultProjectId) : null;
     }
 
     private function stripProjectPrefix(string $subject): string

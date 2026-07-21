@@ -159,3 +159,18 @@ test('a blank subject falls back to a placeholder', function () {
 
     expect($issue->subject)->toBe('(no subject)');
 });
+
+test('a subject longer than the column limit is truncated rather than failing', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(subject: str_repeat('a', 300), body: '...', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue)->not->toBeNull()
+        ->and(mb_strlen($issue->subject))->toBe(255);
+});
