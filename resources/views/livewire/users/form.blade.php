@@ -5,6 +5,7 @@ use App\Models\AuthSource;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -109,6 +110,23 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->redirect(route('users.index'), navigate: true);
     }
+
+    /**
+     * Sends Laravel's standard password-reset-link email rather than
+     * setting a new password directly — matches Redmine's admin "reset
+     * password and notify" action, as opposed to typing a new value into
+     * the password field above.
+     */
+    public function sendPasswordReset(): void
+    {
+        $this->authorize('update', $this->user);
+
+        abort_if($this->user->auth_source_id !== null, 400);
+
+        Password::sendResetLink(['email' => $this->user->email]);
+
+        session()->flash('status', 'パスワードリセットメールを送信しました。');
+    }
 }; ?>
 
 <div class="max-w-xl">
@@ -174,6 +192,20 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">パスワード(確認)</label>
                 <input type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             </div>
+
+            @if ($user)
+                <div>
+                    <button type="button" wire:click="sendPasswordReset"
+                        wire:confirm="{{ $user->email }} 宛にパスワードリセットメールを送信しますか?"
+                        class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        パスワードリセットメールを送信
+                    </button>
+                </div>
+            @endif
+        @endif
+
+        @if (session('status'))
+            <div class="rounded-md bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>
         @endif
 
         <div class="flex gap-3">

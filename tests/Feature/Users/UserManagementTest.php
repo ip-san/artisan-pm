@@ -3,7 +3,9 @@
 use App\Enums\UserStatus;
 use App\Models\AuthSource;
 use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 
 test('is_admin cannot be set through plain mass assignment', function () {
@@ -156,4 +158,45 @@ test('an admin cannot lock their own account from the user list', function () {
     Livewire::actingAs($admin)->test('users.index')->call('toggleLock', $admin->id)->assertForbidden();
 
     expect($admin->fresh()->status)->toBe(UserStatus::Active);
+});
+
+test('an admin can send a password reset email to a local user', function () {
+    Notification::fake();
+
+    $admin = User::factory()->admin()->create();
+    $target = User::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('users.form', ['user' => $target])
+        ->call('sendPasswordReset');
+
+    Notification::assertSentTo($target, ResetPassword::class);
+});
+
+test('a non-admin cannot trigger a password reset for another user', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $target = User::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test('users.form', ['user' => $target])
+        ->assertForbidden();
+
+    Notification::assertNothingSent();
+});
+
+test('sending a password reset for an LDAP-linked user is rejected', function () {
+    Notification::fake();
+
+    $admin = User::factory()->admin()->create();
+    $authSource = AuthSource::factory()->create();
+    $target = User::factory()->create(['auth_source_id' => $authSource->id]);
+
+    Livewire::actingAs($admin)
+        ->test('users.form', ['user' => $target])
+        ->call('sendPasswordReset')
+        ->assertStatus(400);
+
+    Notification::assertNothingSent();
 });
