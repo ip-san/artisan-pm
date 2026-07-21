@@ -16,12 +16,19 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $commentContent = '';
 
+    /** @var array<int, string> attachment media id => description input value */
+    public array $attachmentDescriptions = [];
+
     public function mount(Project $project, News $news): void
     {
         $this->authorize('view', $news);
 
         $this->project = $project;
         $this->news = $news->load('author');
+
+        foreach ($this->news->attachments() as $media) {
+            $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
+        }
     }
 
     /**
@@ -84,6 +91,23 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->news->unsetRelation('watchers');
     }
+
+    /**
+     * Matches Redmine's Attachment#description — see the same feature on
+     * issues.show for the reasoning behind reading from the bound array
+     * rather than taking the value as a parameter.
+     */
+    public function updateAttachmentDescription(int $mediaId): void
+    {
+        $this->authorize('update', $this->news);
+
+        $media = $this->news->attachments()->firstWhere('id', $mediaId);
+        abort_if($media === null, 404);
+
+        $description = trim((string) ($this->attachmentDescriptions[$mediaId] ?? ''));
+        $media->setCustomProperty('description', $description !== '' ? $description : null);
+        $media->save();
+    }
 }; ?>
 
 <div class="max-w-2xl">
@@ -121,12 +145,24 @@ new #[Layout('components.layouts.app')] class extends Component
         <h2 class="text-sm font-semibold text-gray-900 mb-2">添付ファイル</h2>
         <ul class="mb-6 space-y-1">
             @foreach ($attachments as $media)
-                <li class="text-sm">
-                    <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
-                        {{ $media->file_name }}
-                    </a>
-                    <span class="text-gray-500">({{ $media->human_readable_size }})</span>
-                    <x-download-count :media="$media" />
+                <li class="text-sm" wire:key="news-attachment-{{ $media->id }}">
+                    <div>
+                        <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                            {{ $media->file_name }}
+                        </a>
+                        <span class="text-gray-500">({{ $media->human_readable_size }})</span>
+                        <x-download-count :media="$media" />
+                    </div>
+                    @can('update', $news)
+                        <div class="mt-1 flex items-center gap-2">
+                            <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
+                                class="block w-full rounded-md border-gray-300 text-xs shadow-sm">
+                            <button wire:click="updateAttachmentDescription({{ $media->id }})"
+                                class="shrink-0 text-xs text-indigo-600 hover:underline">保存</button>
+                        </div>
+                    @elseif ($media->getCustomProperty('description'))
+                        <p class="mt-1 text-xs text-gray-500">{{ $media->getCustomProperty('description') }}</p>
+                    @endcan
                 </li>
             @endforeach
         </ul>

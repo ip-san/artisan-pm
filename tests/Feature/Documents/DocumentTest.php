@@ -5,6 +5,7 @@ use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 
 function documentMember(Project $project, array $permissions = ['view_documents']): User
@@ -64,4 +65,33 @@ test('edit_documents and delete_documents are checked independently of add_docum
         ->call('delete');
 
     expect(Document::find($document->id))->toBeNull();
+});
+
+test('a member with edit_documents can set an attachment description', function () {
+    $project = Project::factory()->create();
+    $editor = documentMember($project, ['view_documents', 'edit_documents']);
+    $document = Document::factory()->for($project)->create();
+    $media = $document->addMedia(UploadedFile::fake()->create('spec.pdf', 200))->toMediaCollection('attachments');
+
+    Livewire::actingAs($editor)
+        ->test('documents.show', ['project' => $project, 'document' => $document])
+        ->set("attachmentDescriptions.{$media->id}", 'Full specification')
+        ->call('updateAttachmentDescription', $media->id);
+
+    expect($media->fresh()->getCustomProperty('description'))->toBe('Full specification');
+});
+
+test('a member without edit_documents cannot set an attachment description', function () {
+    $project = Project::factory()->create();
+    $viewer = documentMember($project);
+    $document = Document::factory()->for($project)->create();
+    $media = $document->addMedia(UploadedFile::fake()->create('spec.pdf', 200))->toMediaCollection('attachments');
+
+    Livewire::actingAs($viewer)
+        ->test('documents.show', ['project' => $project, 'document' => $document])
+        ->set("attachmentDescriptions.{$media->id}", 'sneaky')
+        ->call('updateAttachmentDescription', $media->id)
+        ->assertForbidden();
+
+    expect($media->fresh()->getCustomProperty('description'))->toBeNull();
 });

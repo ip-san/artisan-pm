@@ -6,6 +6,7 @@ use App\Models\NewsComment;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 
 function newsMember(Project $project, array $permissions = ['view_news']): User
@@ -109,6 +110,35 @@ test('a member with view_news can watch and unwatch a news item', function () {
         ->call('toggleWatch');
 
     expect($news->fresh()->isWatchedBy($user))->toBeFalse();
+});
+
+test('a manager can set an attachment description on a news item', function () {
+    $project = Project::factory()->create();
+    $manager = newsMember($project, ['view_news', 'manage_news']);
+    $news = News::factory()->for($project)->create();
+    $media = $news->addMedia(UploadedFile::fake()->create('slides.pdf', 200))->toMediaCollection('attachments');
+
+    Livewire::actingAs($manager)
+        ->test('news.show', ['project' => $project, 'news' => $news])
+        ->set("attachmentDescriptions.{$media->id}", 'Presentation slides')
+        ->call('updateAttachmentDescription', $media->id);
+
+    expect($media->fresh()->getCustomProperty('description'))->toBe('Presentation slides');
+});
+
+test('a member without manage_news cannot set an attachment description', function () {
+    $project = Project::factory()->create();
+    $user = newsMember($project);
+    $news = News::factory()->for($project)->create();
+    $media = $news->addMedia(UploadedFile::fake()->create('slides.pdf', 200))->toMediaCollection('attachments');
+
+    Livewire::actingAs($user)
+        ->test('news.show', ['project' => $project, 'news' => $news])
+        ->set("attachmentDescriptions.{$media->id}", 'sneaky')
+        ->call('updateAttachmentDescription', $media->id)
+        ->assertForbidden();
+
+    expect($media->fresh()->getCustomProperty('description'))->toBeNull();
 });
 
 test('creating a news item auto-watches its author', function () {
