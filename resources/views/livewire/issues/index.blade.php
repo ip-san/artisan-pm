@@ -148,9 +148,11 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Grouped within the current page rather than across the whole result
-     * set — matching Redmine's own paginate-then-group behaviour, since
-     * grouping the entire filtered set would defeat the point of paginating.
+     * The rows shown per group are limited to the current page (grouping
+     * the entire filtered set would defeat the point of paginating), but
+     * the group header counts come from groupTotals() below, which runs a
+     * real SQL aggregate over the full filtered set — so counts are
+     * accurate even though a group's rows may span multiple pages.
      *
      * @return Collection<string, EloquentCollection<int, Issue>>
      */
@@ -164,6 +166,37 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         return $pageIssues->groupBy(fn (Issue $issue) => $this->columnValue($issue, $this->groupBy));
+    }
+
+    /**
+     * True per-group counts across the entire filtered result set (not
+     * just the current page), computed via a SQL GROUP BY. Only offered
+     * for the groupBy select's options (status/tracker/priority/assigned
+     * to), all plain FK columns on `issues`, so grouping directly by the
+     * raw column name is safe — $groupBy is checked against the known
+     * column whitelist before it ever reaches raw SQL.
+     *
+     * @return Collection<string, int>
+     */
+    #[Computed]
+    public function groupTotals(): Collection
+    {
+        if ($this->groupBy === null || ! array_key_exists($this->groupBy, self::DISPLAY_COLUMNS)) {
+            return collect();
+        }
+
+        $column = $this->groupBy;
+        $options = $this->engine->field($column)?->options() ?? [];
+        $nullLabel = $column === 'assigned_to_id' ? '未割当' : '';
+
+        return $this->filteredIssuesQuery()
+            ->reorder()
+            ->selectRaw("{$column} as group_key, COUNT(*) as total")
+            ->groupBy($column)
+            ->pluck('total', 'group_key')
+            ->mapWithKeys(fn ($total, $rawKey) => [
+                ($rawKey === null || $rawKey === '') ? $nullLabel : ($options[$rawKey] ?? (string) $rawKey) => (int) $total,
+            ]);
     }
 
     /**
@@ -206,7 +239,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function applyFilters(): void
     {
         $this->resetPage();
-        unset($this->issues, $this->groupedIssues);
+        unset($this->issues, $this->groupedIssues, $this->groupTotals);
     }
 
     public function sortBy(string $key): void
@@ -278,7 +311,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $this->resetPage();
-        unset($this->issues, $this->groupedIssues);
+        unset($this->issues, $this->groupedIssues, $this->groupTotals);
     }
 
     #[Computed]
@@ -440,7 +473,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkComment']);
         $this->resetPage();
-        unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues);
+        unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
         session()->flash('status', "{$count}件の課題を更新しました。");
     }
@@ -664,7 +697,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @foreach ($this->groupedIssues as $groupLabel => $groupIssues)
         @php $groupKey = $groupLabel !== '' ? $groupLabel : '__ungrouped__'; @endphp
         @if ($groupBy !== null)
-            <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-gray-900">{{ $groupLabel ?: '(未設定)' }} ({{ $groupIssues->count() }})</h2>
+            <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-gray-900">{{ $groupLabel ?: '(未設定)' }} ({{ $this->groupTotals[$groupLabel] ?? $groupIssues->count() }})</h2>
         @endif
 
         <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-gray-200 bg-white mb-4">
