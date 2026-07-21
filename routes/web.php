@@ -99,4 +99,8 @@ Route::middleware('auth')->group(function () {
     Volt::route('/webhooks', 'webhooks.index')->name('webhooks.index');
     Volt::route('/webhooks/create', 'webhooks.form')->name('webhooks.create');
     Volt::route('/webhooks/{webhook}/edit', 'webhooks.form')->name('webhooks.edit');
+
+    Volt::route('/users', 'users.index')->name('users.index');
+    Volt::route('/users/create', 'users.form')->name('users.create');
+    Volt::route('/users/{user}/edit', 'users.form')->name('users.edit');
 });

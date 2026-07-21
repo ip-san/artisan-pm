@@ -37,6 +37,9 @@
                             @can('viewAny', \App\Models\Webhook::class)
                                 <a href="{{ route('webhooks.index') }}" class="text-sm text-gray-600 hover:text-gray-900">Webhook</a>
                             @endcan
+                            @can('viewAny', \App\Models\User::class)
+                                <a href="{{ route('users.index') }}" class="text-sm text-gray-600 hover:text-gray-900">ユーザー管理</a>
+                            @endcan
                             @foreach (app(\App\Support\Plugins\PluginManager::class)->menuItems('nav') as $item)
                                 <a href="{{ $item->url }}" class="text-sm text-gray-600 hover:text-gray-900">{{ $item->label }}</a>
                             @endforeach

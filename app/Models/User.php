@@ -18,7 +18,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'language', 'auth_source_id', 'login', 'status'])]
+#[Fillable(['name', 'email', 'password', 'language', 'auth_source_id', 'login', 'status', 'is_admin'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 final class User extends Authenticatable implements OAuthenticatable
 {
