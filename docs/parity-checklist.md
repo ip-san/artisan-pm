@@ -123,7 +123,7 @@
 | トラッカー別デフォルトステータス | done(2026-07-21) | `trackers.default_status_id`。未設定時は全体の先頭ステータスにフォールバック。新規課題作成中のトラッカー切替で再計算(編集中の課題では既存ステータスを維持し変更しない) |
 | トラッカー別コアフィールド非表示(ビットマスク) | done(2026-07-22) | Redmineの`Tracker::CORE_FIELDS`相当を実装。`trackers.disabled_core_fields`(JSON配列、ビットマスクではなくフィールドキー配列で保持)+トラッカー編集フォームのチェックボックス群。課題フォーム側は無効化されたフィールドをdisabled表示ではなく完全に非表示(Redmine同様)。`project_id`/`tracker_id`/`subject`/`is_private`は対象外(Redmineの`CORE_FIELDS_UNDISABLABLE`相当) |
 | トラッカー/ワークフローのコピー | missing | — |
-| ロードマップ対象フラグ・デフォルト非公開・説明文テンプレート | missing | — |
+| ロードマップ対象フラグ・デフォルト非公開・説明文テンプレート | partial(2026-07-22) | デフォルト非公開(`private_by_default`)を実装: Redmineの`Issue#safe_attributes=`と同じ条件(トラッカーに設定あり・フォームで未指定・`set_issues_private`権限あり)で新規課題の非公開チェックボックスを自動プリチェック。トラッカー切替時も再判定。`is_in_roadmap`(ロードマップ対象フラグ)はロードマップ画面自体が未実装のため見送り。「説明文テンプレート」に該当するRedmine側フィールドは調査したが特定できず未着手 |
 | カスタムフィールド紐付け | done | `custom_field_tracker` pivot |
 | 使用中トラッカーの削除防止 | done(2026-07-21) | 参照している課題がある場合は削除をブロック(生のFK違反エラーではなく分かりやすいメッセージ) |
 

@@ -21,6 +21,8 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int, string> */
     public array $disabled_core_fields = [];
 
+    public bool $private_by_default = false;
+
     public function mount(?Tracker $tracker = null): void
     {
         if ($tracker?->exists) {
@@ -31,6 +33,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->description = (string) $tracker->description;
             $this->default_status_id = $tracker->default_status_id;
             $this->disabled_core_fields = $tracker->disabled_core_fields ?? [];
+            $this->private_by_default = $tracker->private_by_default;
         } else {
             $this->authorize('create', Tracker::class);
         }
@@ -53,6 +56,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_status_id' => ['nullable', 'exists:issue_statuses,id'],
             'disabled_core_fields' => ['array'],
             'disabled_core_fields.*' => [Rule::in(array_keys(Tracker::DISABLABLE_CORE_FIELDS))],
+            'private_by_default' => ['boolean'],
         ]);
 
         if ($this->tracker) {
@@ -107,6 +111,11 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
             @error('disabled_core_fields.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
+
+        <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" wire:model="private_by_default" class="rounded border-gray-300">
+            このトラッカーの新規課題は既定で非公開にする
+        </label>
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">

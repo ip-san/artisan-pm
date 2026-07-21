@@ -141,7 +141,25 @@ new #[Layout('components.layouts.app')] class extends Component
             // tracker_id) so the default status matches whichever tracker
             // actually ends up selected, not the project's first one.
             $this->status_id = $this->defaultStatusIdForTracker($this->tracker_id);
+            $this->applyPrivateByDefault($this->tracker_id);
         }
+    }
+
+    /**
+     * Pre-checks "非公開課題にする" when the selected tracker has
+     * private_by_default set — matches Redmine's Issue#safe_attributes=,
+     * which defaults is_private to true for such a tracker unless the
+     * form already provided an explicit value. Only meaningful for users
+     * who can actually set is_private in the first place; the checkbox
+     * stays hidden from (and the value discarded for) everyone else.
+     */
+    private function applyPrivateByDefault(?int $trackerId): void
+    {
+        if ($trackerId === null || ! auth()->user()->can('setPrivate', [Issue::class, $this->project])) {
+            return;
+        }
+
+        $this->is_private = (bool) Tracker::query()->whereKey($trackerId)->value('private_by_default');
     }
 
     /**
@@ -166,6 +184,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         if ($this->issue === null) {
             $this->status_id = $this->defaultStatusIdForTracker($this->tracker_id);
+            $this->applyPrivateByDefault($this->tracker_id);
         }
     }
 

@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
-#[Fillable(['name', 'description', 'position', 'default_status_id', 'disabled_core_fields'])]
+#[Fillable(['name', 'description', 'position', 'default_status_id', 'disabled_core_fields', 'private_by_default'])]
 final class Tracker extends Model implements Sortable
 {
     /** @use HasFactory<TrackerFactory> */
@@ -46,10 +46,25 @@ final class Tracker extends Model implements Sortable
         'sort_when_creating' => true,
     ];
 
+    /**
+     * Eloquent doesn't read back server-side column defaults on a freshly
+     * created (unrefreshed) model, so declare private_by_default's here
+     * too — otherwise a just-created Tracker's in-memory value is null
+     * even though the `trackers` table default is false (same issue
+     * already worked around on Issue/Version for their own defaulted
+     * columns).
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'private_by_default' => false,
+    ];
+
     protected function casts(): array
     {
         return [
             'disabled_core_fields' => 'array',
+            'private_by_default' => 'boolean',
         ];
     }
 
