@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Authorization;
 
+use App\Enums\IssueVisibility;
 use App\Enums\RoleBuiltin;
 use App\Models\Project;
 use App\Models\Role;
@@ -70,6 +71,30 @@ final class AuthorizationService
         return $project->is_public
             ? Role::query()->where('builtin', RoleBuiltin::NonMember)->get()
             : collect();
+    }
+
+    /**
+     * The broadest issues_visibility across a user's role(s) in this
+     * project — All/Default (equivalent today, see IssueVisibility's own
+     * docblock) win over Own if the user holds any role granting them.
+     * Admins and non-members/anonymous (whose access comes from a
+     * builtin role, not an explicit Member row) always see everything.
+     */
+    public function issueVisibilityFor(?User $user, Project $project): IssueVisibility
+    {
+        if ($user?->is_admin) {
+            return IssueVisibility::All;
+        }
+
+        $memberRoles = $user === null ? collect() : $this->memberRolesFor($user, $project);
+
+        if ($memberRoles->isEmpty()) {
+            return IssueVisibility::All;
+        }
+
+        $broadest = $memberRoles->first(fn (Role $role) => $role->issues_visibility !== IssueVisibility::Own);
+
+        return $broadest !== null ? IssueVisibility::All : IssueVisibility::Own;
     }
 
     /**

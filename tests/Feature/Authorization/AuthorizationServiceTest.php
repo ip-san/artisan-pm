@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\IssueVisibility;
 use App\Enums\ProjectModuleKey;
 use App\Enums\RoleBuiltin;
 use App\Models\Group;
@@ -107,4 +108,31 @@ test('unknown permission keys are always denied', function () {
     $project = Project::factory()->create();
 
     expect(authService()->can($admin, 'not_a_real_permission', $project))->toBeFalse();
+});
+
+test('a role with own-only issue visibility restricts issueVisibilityFor to Own', function () {
+    $project = Project::factory()->create();
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['issues_visibility' => IssueVisibility::Own->value]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    expect(authService()->issueVisibilityFor($user, $project))->toBe(IssueVisibility::Own);
+});
+
+test('holding any role with All visibility wins over an Own-only role', function () {
+    $project = Project::factory()->create();
+    $user = User::factory()->create();
+    $ownRole = Role::factory()->create(['issues_visibility' => IssueVisibility::Own->value]);
+    $allRole = Role::factory()->create(['issues_visibility' => IssueVisibility::All->value]);
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach([$ownRole->id, $allRole->id]);
+
+    expect(authService()->issueVisibilityFor($user, $project))->toBe(IssueVisibility::All);
+});
+
+test('a non-member on a public project gets All issue visibility', function () {
+    $project = Project::factory()->create();
+    $user = User::factory()->create();
+
+    expect(authService()->issueVisibilityFor($user, $project))->toBe(IssueVisibility::All);
 });

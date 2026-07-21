@@ -2,6 +2,7 @@
 
 use App\Enums\EnumerationType;
 use App\Enums\FilterOperator;
+use App\Enums\IssueVisibility;
 use App\Enums\QueryType;
 use App\Models\Enumeration;
 use App\Models\Issue;
@@ -121,6 +122,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $query = Issue::query()
             ->where('project_id', $this->project->id)
             ->with(['tracker', 'status', 'priority', 'category', 'assignedTo', 'author', 'fixedVersion']);
+
+        if (app(AuthorizationService::class)->issueVisibilityFor(auth()->user(), $this->project) === IssueVisibility::Own) {
+            $userId = auth()->id();
+            $query->where(fn ($q) => $q->where('author_id', $userId)->orWhere('assigned_to_id', $userId));
+        }
 
         if ($this->statusFilter !== 'all') {
             $isClosed = $this->statusFilter === 'closed';

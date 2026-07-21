@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\IssueVisibility;
 use App\Enums\RoleBuiltin;
 use App\Models\Role;
 use App\Support\Permissions\PermissionRegistry;
@@ -17,6 +18,8 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<string> */
     public array $permissions = [];
 
+    public string $issuesVisibility = 'all';
+
     public function mount(?Role $role = null): void
     {
         if ($role?->exists) {
@@ -25,6 +28,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->role = $role;
             $this->name = $role->name;
             $this->permissions = $role->permissionKeys();
+            $this->issuesVisibility = $role->issues_visibility->value;
         } else {
             $this->authorize('create', Role::class);
 
@@ -54,6 +58,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->name = "{$source->name} のコピー";
         $this->permissions = $source->permissionKeys();
+        $this->issuesVisibility = $source->issues_visibility->value;
     }
 
     /**
@@ -74,9 +79,12 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->ignore($this->role?->id)],
+            'issuesVisibility' => ['required', Rule::enum(IssueVisibility::class)],
         ]);
 
         $data['permissions'] = array_values(array_intersect($this->permissions, $this->availablePermissions));
+        $data['issues_visibility'] = $data['issuesVisibility'];
+        unset($data['issuesVisibility']);
 
         if ($this->role) {
             $this->role->update($data);
@@ -99,6 +107,16 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="block text-sm font-medium text-gray-700">名前</label>
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">課題の閲覧範囲</label>
+            <select wire:model="issuesVisibility" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <option value="all">すべての課題</option>
+                <option value="default">デフォルト</option>
+                <option value="own">自分が作成または担当する課題のみ</option>
+            </select>
+            @error('issuesVisibility') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
         <div>

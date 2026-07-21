@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\IssueVisibility;
 use App\Enums\RoleBuiltin;
 use App\Models\Role;
 use App\Models\User;
@@ -37,6 +38,21 @@ test('permissions requiring membership cannot be assigned to the anonymous role'
         ->call('save');
 
     expect($anonymous->refresh()->permissionKeys())->toBe(['view_project']);
+});
+
+test('an admin can set a role\'s issue visibility to own-only', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('roles.form')
+        ->set('name', 'Restricted Role')
+        ->set('issuesVisibility', 'own')
+        ->call('save')
+        ->assertRedirect(route('roles.index'));
+
+    $role = Role::where('name', 'Restricted Role')->firstOrFail();
+
+    expect($role->issues_visibility)->toBe(IssueVisibility::Own);
 });
 
 test('opening the create form with copy_from prefills name and permissions', function () {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\IssueVisibility;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
@@ -25,7 +26,15 @@ final class IssuePolicy
 
     public function view(?User $user, Issue $issue): bool
     {
-        return $this->authorization->can($user, 'view_issues', $issue->project);
+        if (! $this->authorization->can($user, 'view_issues', $issue->project)) {
+            return false;
+        }
+
+        if ($this->authorization->issueVisibilityFor($user, $issue->project) !== IssueVisibility::Own) {
+            return true;
+        }
+
+        return $user !== null && ($issue->author_id === $user->id || $issue->assigned_to_id === $user->id);
     }
 
     public function create(User $user, Project $project): bool

@@ -51,7 +51,7 @@
 | 楽観的ロック(競合解決) | missing | `lock_version` 相当なし。後勝ちで無警告上書き |
 | 編集画面からの直接工数記録 | missing | 別画面へ遷移するのみ |
 | `is_private`(非公開課題)フラグ | missing | — |
-| ロール別の課題閲覧範囲(全て/デフォルト/自分のみ) | missing | `IssuePolicy::view` はフラットな `view_issues` のみ |
+| ロール別の課題閲覧範囲(全て/デフォルト/自分のみ) | done(2026-07-21) | `Role.issues_visibility`(all/default/own) + `AuthorizationService::issueVisibilityFor()`。`IssuePolicy::view`と課題一覧のクエリ両方で`own`を強制。複数ロール保持時は最も緩い設定が優先。`default`は`all`と同じ挙動(非公開課題`is_private`が未実装のため区別する意味がまだない、と明記) |
 | Atom フィード / REST API 拡張(`include=`) | missing | — |
 
 ### サブタスク・親子関係
@@ -198,7 +198,7 @@
 | ロール一覧/作成/編集(権限チェックボックス) | done | Anonymous/Non-member向けの権限フィルタも正しく機能 |
 | ロール削除 | done | — |
 | ロールのコピー作成 | done(2026-07-21) | 一覧の「コピー」リンクが`?copy_from=<id>`付きで新規ロールフォームを開き、名前(「〜のコピー」接尾辞)と権限をプリフィル。builtin種別はコピーされない(このフォーム自体がbuiltinを一切設定しないため) |
-| 課題の閲覧範囲(全て/デフォルト/自分のみ) | missing | `Role` モデルにカラムなし |
+| 課題の閲覧範囲(全て/デフォルト/自分のみ) | done(2026-07-21) | ロール編集フォームにセレクトを追加。詳細は §Issues本体参照 |
 | 工数エントリ閲覧範囲 | missing | — |
 | ユーザー閲覧範囲 | missing | — |
 | 「課題に割当可能」フラグ | missing | — |
