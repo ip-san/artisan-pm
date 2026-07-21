@@ -101,6 +101,22 @@ final class Project extends Model
         return $this->hasMany(Board::class);
     }
 
+    /**
+     * @return HasMany<News, $this>
+     */
+    public function news(): HasMany
+    {
+        return $this->hasMany(News::class);
+    }
+
+    /**
+     * @return HasMany<Document, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
+
     public function hasModule(ProjectModuleKey $module): bool
     {
         return $this->moduleAssignments->contains('module', $module);

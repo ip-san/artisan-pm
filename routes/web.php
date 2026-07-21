@@ -49,6 +49,18 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}', 'messages.show')->name('messages.show');
     Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}/edit', 'messages.form')->name('messages.edit');
 
+    Volt::route('/projects/{project:identifier}/news', 'news.index')->name('news.index');
+    Volt::route('/projects/{project:identifier}/news/new', 'news.form')->name('news.create');
+    Volt::route('/projects/{project:identifier}/news/{news}/edit', 'news.form')->name('news.edit');
+    Volt::route('/projects/{project:identifier}/news/{news}', 'news.show')->name('news.show');
+
+    Volt::route('/projects/{project:identifier}/documents', 'documents.index')->name('documents.index');
+    Volt::route('/projects/{project:identifier}/documents/new', 'documents.form')->name('documents.create');
+    Volt::route('/projects/{project:identifier}/documents/{document}/edit', 'documents.form')->name('documents.edit');
+    Volt::route('/projects/{project:identifier}/documents/{document}', 'documents.show')->name('documents.show');
+
+    Volt::route('/projects/{project:identifier}/files', 'files.index')->name('files.index');
+
     Volt::route('/roles', 'roles.index')->name('roles.index');
     Volt::route('/roles/create', 'roles.form')->name('roles.create');
     Volt::route('/roles/{role}/edit', 'roles.form')->name('roles.edit');

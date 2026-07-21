@@ -61,5 +61,17 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('delete_messages', module: ProjectModuleKey::Boards);
         $registry->register('delete_own_messages', module: ProjectModuleKey::Boards, requirement: PermissionRequirement::LoggedIn);
         $registry->register('manage_boards', module: ProjectModuleKey::Boards);
+
+        $registry->register('view_news', module: ProjectModuleKey::News, requirement: PermissionRequirement::None);
+        $registry->register('manage_news', module: ProjectModuleKey::News);
+        $registry->register('comment_news', module: ProjectModuleKey::News, requirement: PermissionRequirement::LoggedIn);
+
+        $registry->register('view_documents', module: ProjectModuleKey::Documents, requirement: PermissionRequirement::None);
+        $registry->register('add_documents', module: ProjectModuleKey::Documents, requirement: PermissionRequirement::LoggedIn);
+        $registry->register('edit_documents', module: ProjectModuleKey::Documents, requirement: PermissionRequirement::LoggedIn);
+        $registry->register('delete_documents', module: ProjectModuleKey::Documents, requirement: PermissionRequirement::LoggedIn);
+
+        $registry->register('view_files', module: ProjectModuleKey::Files, requirement: PermissionRequirement::None);
+        $registry->register('manage_files', module: ProjectModuleKey::Files, requirement: PermissionRequirement::LoggedIn);
     }
 }

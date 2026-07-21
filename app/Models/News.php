@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\VersionStatus;
-use Database\Factories\VersionFactory;
+use Database\Factories\NewsFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,19 +15,11 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-#[Fillable(['name', 'description', 'status', 'due_date'])]
-final class Version extends Model implements HasMedia
+#[Fillable(['project_id', 'author_id', 'title', 'summary', 'description'])]
+final class News extends Model implements HasMedia
 {
-    /** @use HasFactory<VersionFactory> */
+    /** @use HasFactory<NewsFactory> */
     use HasFactory, InteractsWithMedia;
-
-    protected function casts(): array
-    {
-        return [
-            'status' => VersionStatus::class,
-            'due_date' => 'date',
-        ];
-    }
 
     /**
      * @return BelongsTo<Project, $this>
@@ -39,23 +30,31 @@ final class Version extends Model implements HasMedia
     }
 
     /**
-     * @return HasMany<Issue, $this>
+     * @return BelongsTo<User, $this>
      */
-    public function issues(): HasMany
+    public function author(): BelongsTo
     {
-        return $this->hasMany(Issue::class, 'fixed_version_id');
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * @return HasMany<NewsComment, $this>
+     */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(NewsComment::class)->orderBy('created_at');
     }
 
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('files');
+        $this->addMediaCollection('attachments');
     }
 
     /**
      * @return MediaCollection<int, Media>
      */
-    public function files(): MediaCollection
+    public function attachments(): MediaCollection
     {
-        return $this->getMedia('files');
+        return $this->getMedia('attachments');
     }
 }

@@ -47,6 +47,24 @@ new #[Layout('components.layouts.app')] class extends Component
                     フォーラム
                 </a>
             @endcan
+            @can('viewAny', [\App\Models\News::class, $project])
+                <a href="{{ route('news.index', $project) }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    お知らせ
+                </a>
+            @endcan
+            @can('viewAny', [\App\Models\Document::class, $project])
+                <a href="{{ route('documents.index', $project) }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    文書
+                </a>
+            @endcan
+            @can('viewAny', [\App\Models\Version::class, $project])
+                <a href="{{ route('files.index', $project) }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    ファイル
+                </a>
+            @endcan
             @can('manageMembers', $project)
                 <a href="{{ route('projects.members', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
