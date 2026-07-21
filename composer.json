@@ -11,6 +11,7 @@
         "kalnoy/nestedset": "^7.0",
         "laravel/fortify": "^1.37",
         "laravel/framework": "^13.8",
+        "laravel/passport": "^13.0",
         "laravel/scout": "^10",
         "laravel/tinker": "^3.0",
         "league/commonmark": "^2.8",

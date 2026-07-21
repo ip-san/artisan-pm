@@ -7,7 +7,10 @@ namespace App\Providers;
 use App\Models\User;
 use App\Policies\CalendarPolicy;
 use App\Policies\GanttPolicy;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 final class AppServiceProvider extends ServiceProvider
@@ -21,5 +24,7 @@ final class AppServiceProvider extends ServiceProvider
         // their abilities are registered explicitly here instead.
         Gate::define('viewCalendar', [CalendarPolicy::class, 'view']);
         Gate::define('viewGantt', [GanttPolicy::class, 'view']);
+
+        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
     }
 }
