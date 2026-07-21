@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Throwable;
 
 /**
  * Runs RepositorySyncService in the queue rather than inline on a web
@@ -32,5 +33,13 @@ final class RepositorySyncJob implements ShouldQueue
     public function handle(RepositorySyncService $service): void
     {
         $service->sync($this->repository);
+    }
+
+    public function failed(Throwable $e): void
+    {
+        logger()->error('RepositorySyncJob failed', [
+            'repository_id' => $this->repository->id,
+            'error' => $e->getMessage(),
+        ]);
     }
 }

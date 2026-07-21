@@ -49,9 +49,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
         RepositorySyncJob::dispatch($this->repository);
 
-        unset($this->changesets);
-        $this->repository->refresh();
-        session()->flash('status', '同期しました。');
+        // dispatch() only enqueues the job — it hasn't run yet, so this
+        // must not claim the sync itself is done (misleading outside the
+        // "sync" queue driver tests run under, where dispatch happens to
+        // run inline). The changeset list intentionally isn't refreshed
+        // here for the same reason; it'll reflect the sync on next load.
+        session()->flash('status', '同期をキューに追加しました。しばらくしてから再読み込みしてください。');
     }
 }; ?>
 

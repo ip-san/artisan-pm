@@ -9,7 +9,9 @@ use App\Models\Repository;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\RepositorySyncService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 function repositoryMember(Project $project, array $permissions = ['view_changesets']): User
@@ -154,6 +156,40 @@ test('only a member with manage_repository can configure the repository or trigg
         ->test('repository.index', ['project' => $project])
         ->call('sync')
         ->assertForbidden();
+});
+
+test('triggering a sync queues the job rather than running it inline', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    $manager = repositoryMember($project, ['view_changesets', 'manage_repository']);
+    $path = createTestGitRepo(['Initial commit']);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    Livewire::actingAs($manager)
+        ->test('repository.index', ['project' => $project])
+        ->call('sync');
+
+    // With the queue faked, the job never actually runs — proving the
+    // "queued" message can't be claiming completion, since nothing here
+    // could have created a changeset yet.
+    Queue::assertPushed(RepositorySyncJob::class, fn (RepositorySyncJob $job) => true);
+    expect($repository->changesets()->count())->toBe(0);
+});
+
+test('a failed sync is logged rather than swallowed silently', function () {
+    Log::spy();
+
+    $project = Project::factory()->create();
+    $repository = Repository::factory()->for($project)->create(['path' => sys_get_temp_dir().'/does-not-exist-'.uniqid()]);
+
+    (new RepositorySyncJob($repository))->failed(new RuntimeException('boom'));
+
+    Log::shouldHaveReceived('error')
+        ->once()
+        ->withArgs(fn (string $message, array $context) => $message === 'RepositorySyncJob failed'
+            && $context['repository_id'] === $repository->id
+            && $context['error'] === 'boom');
 });
 
 test('a repository path outside the configured repositories root is rejected', function () {
