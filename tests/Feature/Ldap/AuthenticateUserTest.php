@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Fortify\AuthenticateUser;
+use App\Enums\UserStatus;
 use App\Models\AuthSource;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -95,4 +96,26 @@ test('an LDAP source not enabled for on-the-fly registration is not tried for an
 
     expect($result)->toBeNull()
         ->and(User::count())->toBe(0);
+});
+
+test('a locked local account cannot authenticate even with the correct password', function () {
+    User::factory()->create(['email' => 'locked@example.com', 'password' => 'correct-password', 'status' => UserStatus::Locked->value]);
+
+    $result = app(AuthenticateUser::class)(loginRequest('locked@example.com', 'correct-password'));
+
+    expect($result)->toBeNull();
+});
+
+test('a locked LDAP-linked account cannot authenticate even when the directory accepts it', function () {
+    $source = AuthSource::factory()->create(['attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com']);
+    $fake = fakeAuthSourceDirectoryForUser($source);
+
+    $dn = 'uid=jdoe,dc=example,dc=com';
+    $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => ['jdoe'], 'cn' => ['John Doe'], 'mail' => ['jdoe@example.com']]);
+    $fake->actingAs($dn);
+    User::factory()->create(['auth_source_id' => $source->id, 'login' => 'jdoe', 'email' => 'jdoe@example.com', 'status' => UserStatus::Locked->value]);
+
+    $result = app(AuthenticateUser::class)(loginRequest('jdoe', 'whatever-password'));
+
+    expect($result)->toBeNull();
 });

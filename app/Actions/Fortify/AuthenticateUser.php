@@ -38,6 +38,10 @@ final class AuthenticateUser
 
         $user = $this->findExistingUser($login);
 
+        if ($user !== null && ! $user->isActive()) {
+            return null;
+        }
+
         if ($user?->auth_source_id !== null) {
             return $this->reauthenticate($user, $password);
         }
