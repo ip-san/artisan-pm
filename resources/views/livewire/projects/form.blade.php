@@ -1,9 +1,12 @@
 <?php
 
 use App\Enums\ProjectModuleKey;
+use App\Models\CustomField;
 use App\Models\Project;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -22,6 +25,9 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<string> */
     public array $modules = [];
 
+    /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
+    public array $customFieldValues = [];
+
     public function mount(?Project $project = null): void
     {
         if ($project?->exists) {
@@ -33,11 +39,26 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->description = (string) $project->description;
             $this->is_public = $project->is_public;
             $this->modules = $project->moduleAssignments->pluck('module.value')->all();
+
+            foreach ($project->relevantCustomFields() as $field) {
+                $this->customFieldValues[$field->id] = $field->multiple
+                    ? $project->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
+                    : $project->customValue($field);
+            }
         } else {
             $this->authorize('create', Project::class);
 
             $this->modules = array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults());
         }
+    }
+
+    /**
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function customFields(): Collection
+    {
+        return ($this->project ?? new Project)->relevantCustomFields();
     }
 
     public function updatedName(string $value): void
@@ -49,7 +70,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function save(): void
     {
-        $data = $this->validate([
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'identifier' => [
                 'required', 'string', 'max:100', 'alpha_dash',
@@ -57,7 +78,23 @@ new #[Layout('components.layouts.app')] class extends Component
             ],
             'description' => ['nullable', 'string'],
             'is_public' => ['boolean'],
-        ]);
+        ];
+
+        foreach ($this->customFields as $field) {
+            $key = "customFieldValues.{$field->id}";
+            $presence = $field->is_required ? 'required' : 'nullable';
+
+            if ($field->multiple) {
+                $rules[$key] = [$presence, 'array'];
+                $rules["{$key}.*"] = $field->format()->validationRules($field);
+            } else {
+                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
+            }
+        }
+
+        $data = $this->validate($rules);
+        $customFieldData = $data['customFieldValues'] ?? [];
+        unset($data['customFieldValues']);
 
         if ($this->project) {
             $this->project->update($data);
@@ -68,6 +105,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->project->syncModules(
             collect($this->modules)->map(fn (string $m) => ProjectModuleKey::from($m))->all()
         );
+
+        $this->project->setCustomFieldValues($customFieldData);
 
         $this->redirect(route('projects.show', $this->project), navigate: true);
     }
@@ -115,6 +154,14 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </div>
         </div>
+
+        @if ($this->customFields->isNotEmpty())
+            <div class="space-y-4 border-t border-gray-200 pt-4">
+                @foreach ($this->customFields as $field)
+                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" />
+                @endforeach
+            </div>
+        @endif
 
         <div class="flex gap-3">
             <button type="submit"

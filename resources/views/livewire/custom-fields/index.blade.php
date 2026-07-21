@@ -43,13 +43,16 @@ new #[Layout('components.layouts.app')] class extends Component
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
                     <span class="font-medium text-gray-900">{{ $field->name }}</span>
+                    <span class="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-600">{{ $field->customized_type->value }}</span>
                     <span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{{ $field->field_format->value }}</span>
                     @if ($field->is_required)
                         <span class="ml-2 rounded bg-red-50 px-1.5 py-0.5 text-xs text-red-600">必須</span>
                     @endif
-                    <span class="ml-2 text-xs text-gray-500">
-                        {{ $field->trackers->pluck('name')->join(', ') ?: 'トラッカー未設定' }}
-                    </span>
+                    @if ($field->customized_type === \App\Enums\CustomizableType::Issue)
+                        <span class="ml-2 text-xs text-gray-500">
+                            {{ $field->trackers->pluck('name')->join(', ') ?: 'トラッカー未設定' }}
+                        </span>
+                    @endif
                 </div>
                 <div class="flex gap-3">
                     <a href="{{ route('custom-fields.edit', $field) }}" class="text-sm text-indigo-600 hover:underline">編集</a>

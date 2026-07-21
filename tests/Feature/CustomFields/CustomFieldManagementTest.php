@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CustomFieldFormat;
+use App\Enums\CustomizableType;
 use App\Models\CustomField;
 use App\Models\Role;
 use App\Models\Tracker;
@@ -76,4 +77,34 @@ test('a custom field must be attached to at least one tracker', function () {
         ->set('field_format', CustomFieldFormat::String->value)
         ->call('save')
         ->assertHasErrors(['trackerIds']);
+});
+
+test('an admin can create a project custom field without tracker scoping', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('custom-fields.form')
+        ->set('name', 'Budget code')
+        ->set('customized_type', CustomizableType::Project->value)
+        ->set('field_format', CustomFieldFormat::String->value)
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('custom-fields.index'));
+
+    $field = CustomField::where('name', 'Budget code')->firstOrFail();
+
+    expect($field->customized_type)->toBe(CustomizableType::Project)
+        ->and($field->trackers)->toBeEmpty();
+});
+
+test('a project custom field cannot have its type changed after creation', function () {
+    $admin = User::factory()->admin()->create();
+    $field = CustomField::factory()->create(['customized_type' => CustomizableType::Project->value, 'name' => 'Original']);
+
+    Livewire::actingAs($admin)
+        ->test('custom-fields.form', ['customField' => $field])
+        ->set('customized_type', CustomizableType::Issue->value)
+        ->call('save');
+
+    expect($field->refresh()->customized_type)->toBe(CustomizableType::Project);
 });

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\HasCustomFields;
+use App\Enums\CustomizableType;
 use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
+use App\Support\Authorization\AuthorizationService;
 use Database\Factories\ProjectFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,13 +16,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 use Kalnoy\Nestedset\NodeTrait;
 
 #[Fillable(['name', 'identifier', 'description', 'is_public', 'parent_id'])]
 final class Project extends Model
 {
     /** @use HasFactory<ProjectFactory> */
-    use HasFactory, NodeTrait;
+    use HasCustomFields, HasFactory, NodeTrait;
 
     protected function casts(): array
     {
@@ -148,5 +152,38 @@ final class Project extends Model
     public function isOpen(): bool
     {
         return $this->status === ProjectStatus::Active;
+    }
+
+    public static function customizableType(): CustomizableType
+    {
+        return CustomizableType::Project;
+    }
+
+    /**
+     * All project-type custom fields, filtered to the ones visible to the
+     * viewing user's role(s) in this project — admins see everything, and
+     * a field with no role restriction is visible to anyone. There's no
+     * tracker/project scoping here (unlike Issue) since these fields
+     * describe the project itself rather than something within it.
+     *
+     * @return Collection<int, CustomField>
+     */
+    public function relevantCustomFields(): Collection
+    {
+        $fields = CustomField::query()
+            ->where('customized_type', CustomizableType::Project)
+            ->with('roles')
+            ->orderBy('position')
+            ->get();
+
+        $user = auth()->user();
+
+        if ($user?->is_admin) {
+            return $fields->values();
+        }
+
+        $userRoles = $user ? app(AuthorizationService::class)->rolesFor($user, $this) : collect();
+
+        return $fields->filter(fn (CustomField $field) => $field->visibleToRoles($userRoles))->values();
     }
 }

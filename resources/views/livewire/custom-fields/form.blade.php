@@ -20,6 +20,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $field_format = '';
 
+    public string $customized_type = '';
+
     public bool $is_required = false;
 
     public bool $multiple = false;
@@ -47,6 +49,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->customField = $customField;
             $this->name = $customField->name;
             $this->field_format = $customField->field_format->value;
+            $this->customized_type = $customField->customized_type->value;
             $this->is_required = $customField->is_required;
             $this->multiple = $customField->multiple;
             $this->min_length = $customField->min_length;
@@ -57,7 +60,14 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->roleIds = $customField->roles->pluck('id')->all();
         } else {
             $this->authorize('create', CustomField::class);
+
+            $this->customized_type = CustomizableType::Issue->value;
         }
+    }
+
+    public function isForIssues(): bool
+    {
+        return $this->customized_type === CustomizableType::Issue->value;
     }
 
     #[Computed]
@@ -80,6 +90,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function save(): void
     {
+        // customized_type is fixed at creation and never re-submitted from
+        // the edit form's (disabled) selector, so it's read from the
+        // existing record rather than trusted from client input.
+        $customizedType = $this->customField?->customized_type->value ?? $this->customized_type;
+        $isForIssues = $customizedType === CustomizableType::Issue->value;
+
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'field_format' => ['required', Rule::enum(CustomFieldFormat::class)],
@@ -87,7 +103,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'multiple' => ['boolean'],
             'min_length' => ['nullable', 'integer', 'min:0'],
             'max_length' => ['nullable', 'integer', 'min:0'],
-            'trackerIds' => ['required', 'array', 'min:1'],
+            'trackerIds' => $isForIssues ? ['required', 'array', 'min:1'] : ['array'],
             'trackerIds.*' => ['exists:trackers,id'],
             'projectIds' => ['array'],
             'projectIds.*' => ['exists:projects,id'],
@@ -102,7 +118,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $attributes = [
             'name' => $data['name'],
             'field_format' => $data['field_format'],
-            'customized_type' => CustomizableType::Issue->value,
+            'customized_type' => $customizedType,
             'is_required' => $data['is_required'],
             'multiple' => $data['multiple'],
             'min_length' => $data['min_length'],
@@ -116,8 +132,14 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->customField = CustomField::create($attributes);
         }
 
-        $this->customField->trackers()->sync($data['trackerIds']);
-        $this->customField->projects()->sync($data['projectIds']);
+        if ($isForIssues) {
+            $this->customField->trackers()->sync($data['trackerIds']);
+            $this->customField->projects()->sync($data['projectIds']);
+        } else {
+            $this->customField->trackers()->sync([]);
+            $this->customField->projects()->sync([]);
+        }
+
         $this->customField->roles()->sync($data['roleIds']);
 
         $this->redirect(route('custom-fields.index'), navigate: true);
@@ -134,6 +156,19 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="block text-sm font-medium text-gray-700">名前</label>
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">対象</label>
+            @if ($customField)
+                <p class="mt-1 text-sm text-gray-900">{{ $customized_type }}(作成後は変更できません)</p>
+            @else
+                <select wire:model.live="customized_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Enums\CustomizableType::cases() as $type)
+                        <option value="{{ $type->value }}">{{ $type->value }}</option>
+                    @endforeach
+                </select>
+            @endif
         </div>
 
         <div>
@@ -179,6 +214,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
         </div>
 
+        @if ($this->isForIssues())
         <div>
             <span class="block text-sm font-medium text-gray-700 mb-2">対象トラッカー</span>
             <div class="flex flex-wrap gap-3">
@@ -203,6 +239,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </div>
         </div>
+        @endif
 
         <div>
             <span class="block text-sm font-medium text-gray-700 mb-2">閲覧可能ロール(未選択=全ロールに表示)</span>

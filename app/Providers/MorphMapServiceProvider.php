@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Models\Document;
 use App\Models\Issue;
 use App\Models\News;
+use App\Models\Project;
 use App\Models\Version;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
@@ -31,6 +32,7 @@ final class MorphMapServiceProvider extends ServiceProvider
             'news' => News::class,
             'document' => Document::class,
             'version' => Version::class,
+            'project' => Project::class,
         ]);
     }
 }
