@@ -415,9 +415,9 @@
 | リポジトリ統計・コミットグラフ | missing | — |
 | プロジェクトあたり複数リポジトリ | missing(要確認) | `Repository belongsTo Project` の1対1想定 |
 | 非同期チェンジセット取得 | done | `RepositorySyncJob`(ユニーク制約・タイムアウト調整済み) |
-| **コミットメッセージのキーワード連動**(`fixes #123`でクローズ、`refs #123`で単純リンク、工数記録`@2h`等) | **missing — 重要なギャップ** | `RepositorySyncService::extractIssueIds()` は `#(\d+)` の正規表現で既存課題にリンクするのみ。ステータス自動遷移・進捗率更新・工数記録は一切ない。fixesとrefsの区別もない |
+| **コミットメッセージのキーワード連動**(`fixes #123`でクローズ、`refs #123`で単純リンク、工数記録`@2h`等) | partial(2026-07-21) | `fixes/fix/closes/close` キーワードを検出し、コミッターがメール/loginで実在ユーザーに一致する場合のみ最初の`is_closed`ステータスへ遷移(Journalも記録)。一致しない場合は従来どおりリンクのみ。進捗率の自動更新・工数記録`@2h`・キーワードのカスタマイズ設定は未実装 |
 | チェンジセットへの関連課題の手動追加/削除 | missing | — |
-| コミッター→ユーザーのマッピング | missing | `Changeset.committer` は自由文字列 |
+| コミッター→ユーザーのマッピング | partial(2026-07-21) | `Changeset.committer` は引き続き自由文字列(専用マッピングUIはなし)だが、`RepositorySyncService`がキーワードコマンド適用時にメール/loginでの一致を試みるベストエフォート解決を追加 |
 
 ### REST API
 

@@ -3,6 +3,7 @@
 use App\Jobs\RepositorySyncJob;
 use App\Models\Changeset;
 use App\Models\Issue;
+use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Repository;
@@ -97,6 +98,47 @@ test('a commit message referencing #123 links the changeset to that issue', func
 
     $changeset = $repository->changesets()->firstOrFail();
     expect($changeset->issues->pluck('id')->all())->toBe([$issue->id]);
+});
+
+test('a "fixes #N" commit closes the issue when the committer matches a real user', function () {
+    $project = Project::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create();
+    User::factory()->create(['email' => 'test@example.com']);
+    $path = createTestGitRepo(["Fixes #{$issue->id}"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect($issue->fresh()->status_id)->toBe($closed->id);
+});
+
+test('a "fixes #N" commit does not change status when the committer matches no user', function () {
+    $project = Project::factory()->create();
+    IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $originalStatusId = $issue->status_id;
+    $path = createTestGitRepo(["Fixes #{$issue->id}"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect($issue->fresh()->status_id)->toBe($originalStatusId);
+});
+
+test('a plain "refs #N" commit links the issue without changing its status', function () {
+    $project = Project::factory()->create();
+    IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $originalStatusId = $issue->status_id;
+    User::factory()->create(['email' => 'test@example.com']);
+    $path = createTestGitRepo(["Refs #{$issue->id}"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect($issue->fresh()->status_id)->toBe($originalStatusId)
+        ->and($repository->changesets()->firstOrFail()->issues->pluck('id')->all())->toBe([$issue->id]);
 });
 
 test('changeset files record their action', function () {
