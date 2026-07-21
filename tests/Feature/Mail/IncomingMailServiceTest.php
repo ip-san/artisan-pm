@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Enumeration;
+use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
@@ -173,6 +174,73 @@ test('a subject longer than the column limit is truncated rather than failing', 
 
     expect($issue)->not->toBeNull()
         ->and(mb_strlen($issue->subject))->toBe(255);
+});
+
+test('a subject shaped like "[... #123]" adds a comment to the existing issue instead of creating a new one', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $project->trackers()->attach($tracker);
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+    $author = incomingMailAuthor($project, ['view_issues', 'edit_issues']);
+
+    $mail = new ParsedIncomingMail(subject: "[{$project->identifier} #{$issue->id}] Re: something", body: 'Here is an update.', fromEmail: $author->email);
+
+    $result = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($result->id)->toBe($issue->id)
+        ->and(Issue::count())->toBe(1)
+        ->and($issue->fresh()->journals()->latest()->first()->notes)->toBe('Here is an update.')
+        ->and($issue->fresh()->journals()->latest()->first()->user_id)->toBe($author->id);
+});
+
+test('a reply to a non-existent issue is ignored', function () {
+    $author = User::factory()->create(['email' => 'sender@example.com']);
+
+    $mail = new ParsedIncomingMail(subject: '[project #999999] Re: something', body: 'Update.', fromEmail: $author->email);
+
+    expect(app(IncomingMailService::class)->createIssueFromMail($mail))->toBeNull();
+});
+
+test('a reply from a sender without edit_issues on the issue project is ignored', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $project->trackers()->attach($tracker);
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+    incomingMailAuthor($project, ['view_issues']);
+
+    $mail = new ParsedIncomingMail(subject: "[project #{$issue->id}] Re: something", body: 'Update.', fromEmail: 'sender@example.com');
+
+    expect(app(IncomingMailService::class)->createIssueFromMail($mail))->toBeNull();
+    expect($issue->fresh()->journals)->toBeEmpty();
+});
+
+test('a reply with attachments attaches them to the existing issue', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $project->trackers()->attach($tracker);
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+    $author = incomingMailAuthor($project, ['view_issues', 'edit_issues']);
+
+    $mail = new ParsedIncomingMail(
+        subject: "[project #{$issue->id}] Re: something",
+        body: 'See attached.',
+        fromEmail: $author->email,
+        attachments: [['filename' => 'screenshot.png', 'content' => 'fake image bytes']],
+    );
+
+    app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->fresh()->attachments())->toHaveCount(1)
+        ->and($issue->fresh()->attachments()->first()->file_name)->toBe('screenshot.png');
 });
 
 test('an oversized attachment is skipped without losing the issue or the other attachments', function () {

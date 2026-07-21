@@ -26,6 +26,10 @@ use Webklex\PHPIMAP\Message;
  * optional unknown_user/no_permission_check flags — this app has no
  * account-provisioning-from-email path and silently trusting a From:
  * header to create issues as an arbitrary user would be a real hole.
+ *
+ * A subject shaped like "[... #123]" is treated as a reply to issue
+ * #123 instead — its body is added as a comment rather than creating a
+ * new issue, matching Redmine's receive_issue_reply.
  */
 final class IncomingMailService
 {
@@ -89,15 +93,27 @@ final class IncomingMailService
 
     public function createIssueFromMail(ParsedIncomingMail $mail): ?Issue
     {
-        $project = $this->resolveProject($mail->subject);
+        $author = User::query()->where('email', $mail->fromEmail)->first();
 
-        if ($project === null) {
+        if ($author === null) {
             return null;
         }
 
-        $author = User::query()->where('email', $mail->fromEmail)->first();
+        // A subject containing "[... #123]" is a reply to a notification
+        // about issue #123 — matches Redmine's MailHandler::
+        // ISSUE_REPLY_SUBJECT_RE, routing to a comment on the existing
+        // issue instead of creating a new one. This app doesn't send
+        // outbound notification emails yet, so nothing currently
+        // generates a subject shaped like that automatically, but a
+        // sender can still trigger it by including the pattern
+        // themselves, and it's ready for whenever notifications exist.
+        if (preg_match('/\[(?:[^\]]*\s+)?#(\d+)\]/', $mail->subject, $matches) === 1) {
+            return $this->receiveIssueReply((int) $matches[1], $mail, $author);
+        }
 
-        if ($author === null || ! $this->authorization->can($author, 'add_issues', $project)) {
+        $project = $this->resolveProject($mail->subject);
+
+        if ($project === null || ! $this->authorization->can($author, 'add_issues', $project)) {
             return null;
         }
 
@@ -149,6 +165,46 @@ final class IncomingMailService
         }
 
         return $issue;
+    }
+
+    /**
+     * Adds the mail body as a comment on an existing issue, matching
+     * Redmine's MailHandler#receive_issue_reply. Any attachments on the
+     * reply are added too, same as a fresh-issue mail. Gated by
+     * edit_issues — the same permission the web edit form (which is
+     * where the comment field lives) already requires, since this app
+     * has no separate "add note" permission distinct from it.
+     */
+    private function receiveIssueReply(int $issueId, ParsedIncomingMail $mail, User $author): ?Issue
+    {
+        $issue = Issue::query()->find($issueId);
+
+        if ($issue === null || ! $this->authorization->can($author, 'edit_issues', $issue->project)) {
+            return null;
+        }
+
+        $comment = trim($mail->body);
+        $updated = $this->issues->update($issue, [], $author, $comment !== '' ? $comment : null);
+
+        foreach ($mail->attachments as $attachment) {
+            if ($attachment['content'] === '') {
+                continue;
+            }
+
+            try {
+                $updated->addMediaFromString($attachment['content'])
+                    ->usingFileName($attachment['filename'] !== '' ? $attachment['filename'] : 'attachment')
+                    ->toMediaCollection('attachments');
+            } catch (Throwable $e) {
+                Log::warning('Incoming mail: failed to attach a file to a reply comment.', [
+                    'issue_id' => $updated->id,
+                    'filename' => $attachment['filename'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $updated;
     }
 
     private function resolveProject(string $subject): ?Project
