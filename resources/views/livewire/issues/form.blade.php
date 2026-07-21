@@ -104,6 +104,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->ofType(EnumerationType::IssuePriority)
                 ->where('is_default', true)
                 ->first()?->id;
+            $this->start_date = now()->toDateString();
 
             $this->prefillFromCopySource($project);
         }
@@ -365,7 +366,15 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">担当者</label>
+                <label class="block text-sm font-medium text-gray-700">
+                    担当者
+                    @if (! $this->isReadOnly('assigned_to_id') && $assigned_to_id !== auth()->id() && $this->projectMembers->contains('id', auth()->id()))
+                        <button type="button" wire:click="$set('assigned_to_id', {{ auth()->id() }})"
+                            class="ml-1 text-xs font-normal text-indigo-600 hover:underline">
+                            自分に割り当てる
+                        </button>
+                    @endif
+                </label>
                 <select wire:model="assigned_to_id" @disabled($this->isReadOnly('assigned_to_id'))
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                     <option value="">未割当</option>
