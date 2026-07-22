@@ -41,6 +41,22 @@ new #[Layout('components.layouts.app')] class extends Component
         return auth()->user() !== null && auth()->user()->can('manage', [Repository::class, $this->project]);
     }
 
+    public string $compareFrom = '';
+
+    public string $compareTo = '';
+
+    public function compareSelected(): void
+    {
+        if ($this->compareFrom === '' || $this->compareTo === '' || $this->compareFrom === $this->compareTo) {
+            return;
+        }
+
+        $this->redirect(
+            route('repository.compare', [$this->project, 'from' => $this->compareFrom, 'to' => $this->compareTo]),
+            navigate: true,
+        );
+    }
+
     public function sync(): void
     {
         $this->authorize('manage', [Repository::class, $this->project]);
@@ -107,6 +123,8 @@ new #[Layout('components.layouts.app')] class extends Component
             <table class="min-w-full divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
+                        <th class="px-2 py-2">旧</th>
+                        <th class="px-2 py-2">新</th>
                         <th class="px-4 py-2">リビジョン</th>
                         <th class="px-4 py-2">コミットメッセージ</th>
                         <th class="px-4 py-2">作成者</th>
@@ -116,6 +134,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($this->changesets as $changeset)
                         <tr wire:key="changeset-{{ $changeset->id }}">
+                            <td class="px-2 py-2">
+                                <input type="radio" wire:model="compareFrom" value="{{ $changeset->revision }}" class="border-gray-300">
+                            </td>
+                            <td class="px-2 py-2">
+                                <input type="radio" wire:model="compareTo" value="{{ $changeset->revision }}" class="border-gray-300">
+                            </td>
                             <td class="px-4 py-2 font-mono text-xs">
                                 <a href="{{ route('repository.show', [$project, $changeset]) }}" class="text-indigo-600 hover:underline">
                                     {{ $changeset->shortRevision() }}
@@ -127,11 +151,20 @@ new #[Layout('components.layouts.app')] class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-6 text-center text-gray-500">コミットがありません。</td>
+                            <td colspan="6" class="px-4 py-6 text-center text-gray-500">コミットがありません。</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
+
+        @if ($this->changesets->count() >= 2)
+            <div class="mt-3">
+                <button wire:click="compareSelected"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    選択したリビジョンを比較
+                </button>
+            </div>
+        @endif
     @endif
 </div>

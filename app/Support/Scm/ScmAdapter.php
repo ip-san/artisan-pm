@@ -23,9 +23,11 @@ interface ScmAdapter
     public function log(?string $sinceRevision = null): array;
 
     /**
-     * Unified diff text for a single revision against its parent.
+     * Unified diff text: a single revision against its parent, or —
+     * when $fromRevision is given — the full change between the two
+     * revisions' snapshots.
      */
-    public function diff(string $revision): string;
+    public function diff(string $revision, ?string $fromRevision = null): string;
 
     /**
      * Immediate children of $path (a directory) at $revision — not

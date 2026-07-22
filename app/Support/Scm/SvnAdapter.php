@@ -47,9 +47,11 @@ final readonly class SvnAdapter implements ScmAdapter
         return $this->parseLog($result->output());
     }
 
-    public function diff(string $revision): string
+    public function diff(string $revision, ?string $fromRevision = null): string
     {
-        $result = $this->svn(['diff', '-c', $revision, $this->url()], 30);
+        $result = $fromRevision === null
+            ? $this->svn(['diff', '-c', $revision, $this->url()], 30)
+            : $this->svn(['diff', '-r', "{$fromRevision}:{$revision}", $this->url()], 30);
 
         return $result->successful() ? $result->output() : '';
     }

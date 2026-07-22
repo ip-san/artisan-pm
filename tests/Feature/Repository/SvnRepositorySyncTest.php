@@ -8,6 +8,7 @@ use App\Models\Repository;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\RepositorySyncService;
+use App\Support\Scm\SvnAdapter;
 use Illuminate\Support\Facades\Process;
 use Livewire\Livewire;
 
@@ -156,4 +157,14 @@ test('annotating a file through an svn-backed repository shows a revision and au
         ->and($lines[0]->content)->toBe('content 0')
         ->and($lines[0]->revision)->toBe('1')
         ->and($lines[0]->author)->toBe('tester');
+});
+
+test('the svn adapter produces a range diff between two revisions', function () {
+    $path = createTestSvnRepo(['First commit', 'Second commit']);
+
+    $diff = (new SvnAdapter($path))->diff('2', '1');
+
+    expect($diff)->toContain('file1.txt')
+        ->toContain('+content 1')
+        ->not->toContain('file0.txt');
 });

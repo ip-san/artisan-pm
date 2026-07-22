@@ -457,7 +457,7 @@
 | リポジトリブラウズ(指定リビジョンでのツリー表示) | done | `GitAdapter`/`SvnAdapter` |
 | 対応SCM種別 | partial | Git・SVNのみ。Redmine は Mercurial/Bazaar/CVS/Filesystem等も対応(4種欠落) |
 | チェンジセット一覧・単体表示 | done | `RepositorySyncService`, `Changeset` |
-| Diff表示 | partial | 単一コミットのdiffのみ。任意リビジョン間・単一ファイルの履歴diffは非対応 |
+| Diff表示 | partial(2026-07-22) | 任意リビジョン間Diffを実装: `ScmAdapter::diff()`に`$fromRevision`を追加(Git=`git diff from to`、SVN=`svn diff -r from:to`)、リビジョン一覧に旧/新ラジオ+「選択したリビジョンを比較」ボタン、新規`repository.compare`ルート。端点はコミット日時で正規化(古い方が常にdiffベース、Wiki差分と同じ規約)、両端不変のため差分は無期限キャッシュ。単一ファイルの履歴diffは引き続き非対応 |
 | Annotate/Blame | done(2026-07-22) | `ScmAdapter`に`blame(revision, path): ScmBlameLine[]`を追加。Git実装は`git blame --line-porcelain`(全行についてコミットヘッダをフル反復出力する形式のため、直前コミットの状態を覚えておくパーサ状態機械が不要)。Svn実装は`svn blame --xml`(行内容を含まない)で取得したリビジョン/著者列を、別途`fileContentAt()`で取得した内容行とインデックスで結合(XML側は改行有無に関わらず実際の行数のみを返すため、`fileContentAt()`側の末尾改行による余分な空要素を除去してから結合)。新規`repository.annotate`ルート+Volt画面で行番号/リビジョン(先頭8文字)/著者/内容を表形式表示、`repository.entry`にバイナリファイルを除き「注釈」リンクを追加。Redmineの色分けブロック表示(同一リビジョンの連続行をまとめて色付け)は対象外、全行に個別表示 |
 | 生ファイルダウンロード | done(2026-07-22) | 新規`RepositoryRawController`(`GET /projects/{project}/repository/raw/{path}`)を追加。`browse_repository`権限で認可後、`ScmAdapter::fileContentAt('HEAD', $path)`の生バイト列を`finfo_buffer`によるMIMEタイプ判定+`Content-Disposition: attachment; filename="..."`付きで返却(既存の`AttachmentController`と同じ強制ダウンロード方式)。テキスト/バイナリを問わず動作(既存の`repository.entry`はUTF-8として解釈できないバイナリを一切表示できなかったが、これはバイト列をそのまま返すだけなので影響を受けない)。単一ファイル表示画面(`repository/entry.blade.php`)に「ダウンロード」リンクを追加(Redmineの`entry.html.erb`の`@raw_url`ダウンロードリンクに相当) |
 | リポジトリ統計・コミットグラフ | missing | — |
