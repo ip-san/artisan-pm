@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\EnumerationType;
 use App\Jobs\AutofetchRepositoryChangesetsJob;
 use App\Jobs\RepositorySyncJob;
 use App\Models\Changeset;
+use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Member;
@@ -10,6 +12,7 @@ use App\Models\Project;
 use App\Models\Repository;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Models\TimeEntry;
 use App\Models\User;
 use App\Services\RepositorySyncService;
 use Illuminate\Support\Facades\Log;
@@ -162,6 +165,100 @@ test('a plain "refs #N" commit links the issue without changing its status', fun
 
     expect($issue->fresh()->status_id)->toBe($originalStatusId)
         ->and($repository->changesets()->firstOrFail()->issues->pluck('id')->all())->toBe([$issue->id]);
+});
+
+test('a "#N @2h" commit message does not log time when commit_logtime_enabled is off', function () {
+    $project = Project::factory()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $committerUser = User::factory()->create(['email' => 'test@example.com']);
+    Member::factory()->for($project)->for($committerUser)->create()
+        ->roles()->attach(Role::factory()->create(['permissions' => ['view_issues', 'log_time']]));
+    Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value, 'is_default' => true]);
+    $path = createTestGitRepo(["Refs #{$issue->id} @2h"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect(TimeEntry::where('issue_id', $issue->id)->count())->toBe(0);
+});
+
+test('a "#N @2h" commit message logs time against that issue when enabled', function () {
+    Setting::set('commit_logtime_enabled', true);
+    $project = Project::factory()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $committerUser = User::factory()->create(['email' => 'test@example.com']);
+    Member::factory()->for($project)->for($committerUser)->create()
+        ->roles()->attach(Role::factory()->create(['permissions' => ['view_issues', 'log_time']]));
+    $activity = Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value, 'is_default' => true]);
+    $path = createTestGitRepo(["Refs #{$issue->id} @2h"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    $entry = TimeEntry::where('issue_id', $issue->id)->firstOrFail();
+    expect((float) $entry->hours)->toBe(2.0)
+        ->and($entry->user_id)->toBe($committerUser->id)
+        ->and($entry->activity_id)->toBe($activity->id)
+        ->and($entry->project_id)->toBe($project->id);
+});
+
+test('various @Nh token formats parse to the expected hours', function (string $token, float $expectedHours) {
+    Setting::set('commit_logtime_enabled', true);
+    $project = Project::factory()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $committerUser = User::factory()->create(['email' => 'test@example.com']);
+    Member::factory()->for($project)->for($committerUser)->create()
+        ->roles()->attach(Role::factory()->create(['permissions' => ['view_issues', 'log_time']]));
+    Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value, 'is_default' => true]);
+    $path = createTestGitRepo(["Refs #{$issue->id} @{$token}"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    $entry = TimeEntry::where('issue_id', $issue->id)->firstOrFail();
+    expect((float) $entry->hours)->toBe($expectedHours);
+})->with([
+    ['2h', 2.0],
+    ['2h30m', 2.5],
+    ['30m', 0.5],
+    ['1:30', 1.5],
+    ['2.5', 2.5],
+    ['2,5', 2.5],
+]);
+
+test('time is not logged when the committer lacks log_time on the project', function () {
+    Setting::set('commit_logtime_enabled', true);
+    $project = Project::factory()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $committerUser = User::factory()->create(['email' => 'test@example.com']);
+    Member::factory()->for($project)->for($committerUser)->create()
+        ->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+    Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value, 'is_default' => true]);
+    $path = createTestGitRepo(["Refs #{$issue->id} @2h"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect(TimeEntry::where('issue_id', $issue->id)->count())->toBe(0);
+});
+
+test('a configured commit_logtime_activity_id is used over the default activity', function () {
+    Setting::set('commit_logtime_enabled', true);
+    $project = Project::factory()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $committerUser = User::factory()->create(['email' => 'test@example.com']);
+    Member::factory()->for($project)->for($committerUser)->create()
+        ->roles()->attach(Role::factory()->create(['permissions' => ['view_issues', 'log_time']]));
+    Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value, 'is_default' => true]);
+    $configuredActivity = Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value]);
+    Setting::set('commit_logtime_activity_id', $configuredActivity->id);
+    $path = createTestGitRepo(["Refs #{$issue->id} @2h"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    $entry = TimeEntry::where('issue_id', $issue->id)->firstOrFail();
+    expect($entry->activity_id)->toBe($configuredActivity->id);
 });
 
 test('changeset files record their action', function () {

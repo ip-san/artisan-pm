@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\EnumerationType;
+use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Repository;
+use App\Models\Setting;
+use App\Models\TimeEntry;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
+use DateTimeImmutable;
 
 /**
  * Fetches new commits from a Repository's adapter and records them as
@@ -24,11 +29,19 @@ use App\Support\Authorization\AuthorizationService;
  * still link the issue (via extractIssueIds) but don't change its status,
  * since there'd be no real user to attribute the journal entry to.
  *
+ * Separately, an `@Nh`-style token right after an issue reference (e.g.
+ * `refs #123 @2h30m`) logs time against that issue, gated by the
+ * commit_logtime_enabled setting — matches Redmine's Changeset#log_time.
+ * Only a subset of Redmine's TIMELOG_RE token grammar is recognized
+ * (`2h`, `2h30m`, `30m`, `1:30`, `2` or `2.5`/`2,5` as bare decimal
+ * hours) — an intentional simplification, not full grammar parity.
+ *
  * The committer field is attacker-controlled (anyone who can push a
  * commit can set `git config user.email` to any address), so a matched
- * actor is *not* trusted outright: the transition only applies if that
- * actor genuinely holds edit_issues on the issue's project. Without this
- * check, spoofing another real user's commit email would force status
+ * actor is *not* trusted outright: a status transition or logged time
+ * entry only applies if that actor genuinely holds the relevant
+ * permission (edit_issues / log_time) on the issue's project. Without
+ * this check, spoofing another real user's commit email would force
  * changes attributed to — and effectively authorized as — them.
  */
 final class RepositorySyncService
@@ -71,6 +84,7 @@ final class RepositorySyncService
             }
 
             $this->applyFixingKeywords($entry->message, $entry->committer);
+            $this->applyLoggedTime($entry->message, $entry->committer, $entry->committedOn);
 
             $repository->update(['last_synced_revision' => $entry->revision]);
         }
@@ -126,6 +140,117 @@ final class RepositorySyncService
                 'コミットメッセージのキーワードにより自動的にクローズされました。',
             );
         }
+    }
+
+    private function applyLoggedTime(string $message, string $committer, DateTimeImmutable $committedOn): void
+    {
+        if (Setting::get('commit_logtime_enabled', false) !== true) {
+            return;
+        }
+
+        $entries = $this->extractLoggedTime($message);
+
+        if ($entries === []) {
+            return;
+        }
+
+        $actor = $this->resolveCommitter($committer);
+
+        if ($actor === null) {
+            return;
+        }
+
+        $activityId = $this->resolveLogTimeActivityId();
+
+        if ($activityId === null) {
+            return;
+        }
+
+        $issues = Issue::query()->whereIn('id', array_column($entries, 'issueId'))->get()->keyBy('id');
+
+        foreach ($entries as $entry) {
+            $issue = $issues->get($entry['issueId']);
+
+            if ($issue === null || ! $this->authorization->can($actor, 'log_time', $issue->project)) {
+                continue;
+            }
+
+            TimeEntry::create([
+                'project_id' => $issue->project_id,
+                'issue_id' => $issue->id,
+                'user_id' => $actor->id,
+                'activity_id' => $activityId,
+                'hours' => $entry['hours'],
+                'spent_on' => $committedOn->format('Y-m-d'),
+                'comments' => 'コミットメッセージのキーワードにより自動的に記録されました。',
+            ]);
+        }
+    }
+
+    /**
+     * @return array<int, array{issueId: int, hours: float}>
+     */
+    private function extractLoggedTime(string $message): array
+    {
+        preg_match_all('/#(\d+)\s+@(\d+h\d+m?|\d+h|\d+m|\d+:\d+|\d+(?:[.,]\d+)?)/i', $message, $matches, PREG_SET_ORDER);
+
+        $entries = [];
+
+        foreach ($matches as $match) {
+            $hours = $this->parseHoursToken($match[2]);
+
+            if ($hours !== null && $hours > 0) {
+                $entries[] = ['issueId' => (int) $match[1], 'hours' => $hours];
+            }
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Recognizes a subset of Redmine's TIMELOG_RE grammar: `2h`, `2h30m`,
+     * `30m`, `1:30` (hours:minutes), and a bare `2`/`2.5`/`2,5` treated as
+     * decimal hours.
+     */
+    private function parseHoursToken(string $token): ?float
+    {
+        $token = str_replace(',', '.', $token);
+
+        return match (true) {
+            preg_match('/^(\d+)h(\d+)m?$/i', $token, $m) === 1 => (float) $m[1] + (float) $m[2] / 60,
+            preg_match('/^(\d+)h$/i', $token, $m) === 1 => (float) $m[1],
+            preg_match('/^(\d+)m$/i', $token, $m) === 1 => (float) $m[1] / 60,
+            preg_match('/^(\d+):(\d+)$/', $token, $m) === 1 => (float) $m[1] + (float) $m[2] / 60,
+            preg_match('/^\d+(?:\.\d+)?$/', $token) === 1 => (float) $token,
+            default => null,
+        };
+    }
+
+    /**
+     * The setting-configured activity if it's still a valid TimeEntryActivity,
+     * otherwise that type's default enumeration — mirrors Redmine's
+     * Project#commit_logtime_activity falling through to TimeEntry's own
+     * default activity resolution when unset.
+     */
+    private function resolveLogTimeActivityId(): ?int
+    {
+        $configuredId = Setting::get('commit_logtime_activity_id');
+
+        if ($configuredId !== null) {
+            $isValid = Enumeration::query()
+                ->ofType(EnumerationType::TimeEntryActivity)
+                ->where('id', $configuredId)
+                ->exists();
+
+            if ($isValid) {
+                return (int) $configuredId;
+            }
+        }
+
+        return Enumeration::query()
+            ->ofType(EnumerationType::TimeEntryActivity)
+            ->where('is_default', true)
+            ->value('id');
     }
 
     /**

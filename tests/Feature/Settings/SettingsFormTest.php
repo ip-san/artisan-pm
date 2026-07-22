@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\EnumerationType;
 use App\Enums\ProjectModuleKey;
+use App\Models\Enumeration;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Setting;
@@ -106,6 +108,31 @@ test('an admin can configure mail handler body/attachment filtering and reposito
         ->and(Setting::get('mail_handler_excluded_filenames'))->toBe('*.ics, winmail.dat')
         ->and(Setting::get('mail_handler_preferred_body_part'))->toBe('html')
         ->and(Setting::get('autofetch_changesets'))->toBeTrue();
+});
+
+test('an admin can enable commit message time logging and choose its activity', function () {
+    $admin = User::factory()->admin()->create();
+    $activity = Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value]);
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('commit_logtime_enabled', true)
+        ->set('commit_logtime_activity_id', $activity->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('commit_logtime_enabled'))->toBeTrue()
+        ->and(Setting::get('commit_logtime_activity_id'))->toBe($activity->id);
+});
+
+test('commit_logtime_activity_id must reference a real enumeration', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('commit_logtime_activity_id', 999999)
+        ->call('save')
+        ->assertHasErrors(['commit_logtime_activity_id']);
 });
 
 test('mail_handler_preferred_body_part must be plain or html', function () {

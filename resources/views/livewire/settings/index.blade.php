@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\EnumerationType;
 use App\Enums\ProjectModuleKey;
+use App\Models\Enumeration;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Tracker;
@@ -32,6 +34,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $mail_handler_preferred_body_part = 'plain';
 
     public bool $autofetch_changesets = false;
+
+    public bool $commit_logtime_enabled = false;
+
+    public ?int $commit_logtime_activity_id = null;
 
     public int $attachment_max_size = 10240;
 
@@ -82,6 +88,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->mail_handler_excluded_filenames = Setting::get('mail_handler_excluded_filenames', '');
         $this->mail_handler_preferred_body_part = Setting::get('mail_handler_preferred_body_part', 'plain');
         $this->autofetch_changesets = Setting::get('autofetch_changesets', false);
+        $this->commit_logtime_enabled = Setting::get('commit_logtime_enabled', false);
+        $this->commit_logtime_activity_id = Setting::get('commit_logtime_activity_id');
         $this->attachment_max_size = Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024));
         $this->attachment_extensions_allowed = Setting::get('attachment_extensions_allowed', '');
         $this->attachment_extensions_denied = Setting::get('attachment_extensions_denied', '');
@@ -111,6 +119,12 @@ new #[Layout('components.layouts.app')] class extends Component
         return IssueStatus::query()->orderBy('position')->get();
     }
 
+    #[Computed]
+    public function activities(): Collection
+    {
+        return Enumeration::query()->ofType(EnumerationType::TimeEntryActivity)->orderBy('position')->get();
+    }
+
     public function save(): void
     {
         $data = $this->validate([
@@ -124,6 +138,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'mail_handler_excluded_filenames' => ['nullable', 'string', 'max:1000'],
             'mail_handler_preferred_body_part' => ['required', 'in:plain,html'],
             'autofetch_changesets' => ['boolean'],
+            'commit_logtime_enabled' => ['boolean'],
+            'commit_logtime_activity_id' => ['nullable', 'exists:enumerations,id'],
             'attachment_max_size' => ['required', 'integer', 'min:1', 'max:'.intdiv((int) config('media-library.max_file_size'), 1024)],
             'attachment_extensions_allowed' => ['nullable', 'string', 'max:1000'],
             'attachment_extensions_denied' => ['nullable', 'string', 'max:1000'],
@@ -355,6 +371,22 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="checkbox" wire:model="autofetch_changesets" class="rounded border-gray-300">
                 コミットを定期的に自動取得する(15分ごと)
             </label>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="commit_logtime_enabled" class="rounded border-gray-300">
+                コミットメッセージの <code>#123 @2h</code> 形式で工数を自動記録する
+            </label>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">自動記録に使う作業分類(未選択の場合は既定の作業分類)</label>
+                <select wire:model="commit_logtime_activity_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">選択してください</option>
+                    @foreach ($this->activities as $activity)
+                        <option value="{{ $activity->id }}">{{ $activity->name }}</option>
+                    @endforeach
+                </select>
+                @error('commit_logtime_activity_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
         </section>
 
         <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
