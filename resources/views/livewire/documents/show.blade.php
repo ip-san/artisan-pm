@@ -1,7 +1,10 @@
 <?php
 
+use App\Models\CustomField;
 use App\Models\Document;
 use App\Models\Project;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -24,6 +27,20 @@ new #[Layout('components.layouts.app')] class extends Component
         foreach ($this->document->attachments() as $media) {
             $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
         }
+    }
+
+    /**
+     * @return Collection<int, array{field: CustomField, value: mixed}>
+     */
+    #[Computed]
+    public function customFieldDisplayValues(): Collection
+    {
+        return $this->document->relevantCustomFields()->map(fn (CustomField $field) => [
+            'field' => $field,
+            'value' => $field->multiple
+                ? $this->document->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->join(', ')
+                : $this->document->customValue($field),
+        ]);
     }
 
     public function delete(): void
@@ -80,6 +97,17 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($document->description)
         <div class="rounded-md border border-gray-200 bg-white p-4 mb-4">
             <p class="whitespace-pre-line text-sm text-gray-800">{{ $document->description }}</p>
+        </div>
+    @endif
+
+    @if ($this->customFieldDisplayValues->isNotEmpty())
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-gray-200 bg-white p-4 text-sm mb-4">
+            @foreach ($this->customFieldDisplayValues as $entry)
+                <div>
+                    <span class="text-gray-500">{{ $entry['field']->name }}:</span>
+                    {{ $entry['value'] === null || $entry['value'] === '' ? '-' : $entry['value'] }}
+                </div>
+            @endforeach
         </div>
     @endif
 

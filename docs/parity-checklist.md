@@ -17,7 +17,7 @@
 1. ~~**プロジェクト横断ビューが皆無**(マイページを除く)。~~ → **一部done**(2026-07-22)。News(`news.global-index`、先行実装)に続き、Issues(`issues.global-index`)・TimeEntries(`time-entries.global-index`)・Search(`search.global-index`)・Calendar(`calendar.global-index`)のトップレベルビューを追加(詳細は §4/§Search 参照)。Activity(集計フィード自体はdone、プロジェクト単位限定)/Gantt は引き続き `/projects/{project}/...` 配下限定のまま。
 2. ~~**管理者によるユーザー管理画面が皆無**~~ → **done**(2026-07-21)。`users/{index,form}.blade.php` で一覧/作成/編集/ロック・ロック解除に対応。強制パスワードリセットは「編集画面でパスワード欄に新しい値を入力」で代替(専用の「リセットして通知」フローはまだない)。詳細は §2 参照。
 3. **アプリケーション設定が Redmine の 119 キー中わずか 6 項目**(`app_title`, `default_issues_per_page`, incoming-mail 系4項目)。表示/認証ポリシー/通知/添付ファイル制限/リポジトリ設定などのタブが丸ごと存在しない。
-4. ~~**カスタムフィールド対応が Issue と Project の2種のみ**~~ → **一部done**(2026-07-22)。Version・Group・TimeEntryActivity にも対応(`CustomizableType::Version`/`::Group`/`::TimeEntryActivity`)。Versionはプロジェクトのロール経由で可視性を解決、Group/TimeEntryActivityは管理者専用リソースのためロールフィルタ自体が不要。User/DocumentCategory 等(Redmine は ~10種)は引き続き未対応。
+4. ~~**カスタムフィールド対応が Issue と Project の2種のみ**~~ → **一部done**(2026-07-22)。Version・Group・TimeEntryActivity・Document にも対応(`CustomizableType::Version`/`::Group`/`::TimeEntryActivity`/`::Document`)。Version/Documentはプロジェクトのロール経由で可視性を解決、Group/TimeEntryActivityは管理者専用リソースのためロールフィルタ自体が不要。User/DocumentCategory 等(Redmine は ~10種)は引き続き未対応。
 5. **REST API が Projects と Issues の2リソースのみ**(Redmine は ~20 リソース群)。DELETE 系は皆無、ファイルアップロード API もなし。API認証も OAuth2(Passport)のみで、スクリプト用途に適した API キー方式が存在しない。
 6. ~~**Issue のサブタスク(親子)機能がモデルはあるがUIがない**。~~ → **done**(2026-07-21)。課題フォームに親課題ID欄、詳細画面に親リンク/サブタスク一覧を追加(詳細は §サブタスク・親子関係 参照)。~~関連課題(`IssueRelation`)もUIが皆無だった。~~ → **done**(2026-07-21)。課題詳細画面に追加/削除UIを実装(詳細は §Issue Relations 参照)。~~IssueCategory はモデル自体が存在しない。~~ → **done**(2026-07-21)。`IssueCategory` モデル・プロジェクト単位の管理画面・課題フォーム/一覧/フィルタ/CSV連携まで実装(詳細は §Issue Categories 参照)。
 7. ~~**添付ファイルが Issue/Version/News/Document にしか付かない**。Wiki ページ・フォーラム投稿に添付できない。サムネイル生成・説明文・ダウンロード数もない。~~ → **done**(2026-07-21〜22)。Wiki/フォーラム投稿への添付、ダウンロード数、説明文、サムネイル生成のすべてに対応済み(詳細は §添付ファイル 参照)。
@@ -377,7 +377,7 @@
 | カテゴリ | done | `Enumeration` 経由 |
 | 添付ファイル | done | `Document implements HasMedia` |
 | カテゴリ/日付/タイトル/作成者でのグルーピング・並べ替え | partial(2026-07-22) | Redmineの`DocumentsController#index`(`sort_by`パラメータ)を移植。`documents.index`に`#[Url]`束縛の`sortBy`(既定`category`)を追加、カテゴリ別(既定・未分類は空文字キーで先頭)/更新日別(新しい日付グループが先頭)/タイトル先頭文字別にグルーピング・並べ替え。「作成者」でのグルーピング(Redmineは各文書の最新添付ファイルのアップロード者でグルーピング)は本アプリの添付ファイルがアップロード者を記録していないため対象外(記録用インフラの追加が別途必要、単独のwell-scoped項目には収まらないため見送り) |
-| カスタムフィールド | missing | — |
+| カスタムフィールド | done(2026-07-22) | `CustomizableType::Document`を追加(Issue/Project/Version/Group/TimeEntryActivityに続き4回目の同一パターン適用)。`Document`に`HasCustomFields`トレイト+`customizableType()`+`relevantCustomFields()`(Versionと同じ、プロジェクトのロール経由で可視性解決)を実装、`documents/form.blade.php`に入力欄、`documents/show.blade.php`に表示欄(Issue詳細と同じ`customFieldDisplayValues()`パターン)を追加。カスタムフィールド管理画面の「対象」選択肢は`CustomizableType::cases()`を直接列挙しているため追加のUI変更は不要 |
 
 ### Files モジュール
 

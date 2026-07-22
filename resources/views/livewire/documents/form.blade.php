@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\EnumerationType;
+use App\Models\CustomField;
 use App\Models\Document;
 use App\Models\Enumeration;
 use App\Models\Project;
@@ -29,6 +30,9 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
     public array $newAttachments = [];
 
+    /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
+    public array $customFieldValues = [];
+
     public function mount(Project $project, ?Document $document = null): void
     {
         $this->project = $project;
@@ -40,6 +44,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->title = $document->title;
             $this->category_id = $document->category_id;
             $this->description = (string) $document->description;
+            $this->customFieldValues = $document->customFieldFormValues($document->relevantCustomFields());
         } else {
             $this->authorize('create', [Document::class, $project]);
         }
@@ -51,15 +56,30 @@ new #[Layout('components.layouts.app')] class extends Component
         return Enumeration::query()->ofType(EnumerationType::DocumentCategory)->orderBy('position')->get();
     }
 
+    /**
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function customFields(): Collection
+    {
+        return ($this->document ?? (new Document)->setRelation('project', $this->project))
+            ->relevantCustomFields();
+    }
+
     public function save(): void
     {
-        $data = $this->validate([
+        $rules = [
             'title' => ['required', 'string', 'max:255'],
             'category_id' => ['nullable', Rule::exists('enumerations', 'id')->where('type', EnumerationType::DocumentCategory->value)],
             'description' => ['nullable', 'string'],
             'newAttachments.*' => AttachmentValidationRules::rules(),
-        ]);
-        unset($data['newAttachments']);
+        ];
+
+        $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
+
+        $data = $this->validate($rules);
+        $customFieldData = $data['customFieldValues'] ?? [];
+        unset($data['newAttachments'], $data['customFieldValues']);
 
         if ($this->document) {
             $this->document->update($data);
@@ -68,6 +88,8 @@ new #[Layout('components.layouts.app')] class extends Component
             $data['project_id'] = $this->project->id;
             $document = Document::create($data);
         }
+
+        $document->setCustomFieldValues($customFieldData);
 
         foreach ($this->newAttachments as $file) {
             $document->addMedia($file->getRealPath())
@@ -107,6 +129,14 @@ new #[Layout('components.layouts.app')] class extends Component
             <textarea wire:model="description" rows="6" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
             @error('description') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
+
+        @if ($this->customFields->isNotEmpty())
+            <div class="space-y-4 border-t border-gray-200 pt-4">
+                @foreach ($this->customFields as $field)
+                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" />
+                @endforeach
+            </div>
+        @endif
 
         <div>
             <label class="block text-sm font-medium text-gray-700">添付ファイル</label>
