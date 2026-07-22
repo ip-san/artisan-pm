@@ -22,6 +22,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('/issues', 'issues.global-index')->name('issues.global-index');
     Volt::route('/time_entries', 'time-entries.global-index')->name('time-entries.global-index');
     Volt::route('/search', 'search.global-index')->name('search.global-index');
+    Volt::route('/issues/calendar', 'calendar.global-index')->name('calendar.global-index');
 
     Volt::route('/projects', 'projects.index')->name('projects.index');
     Volt::route('/projects/create', 'projects.form')->name('projects.create');
