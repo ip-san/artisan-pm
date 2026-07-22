@@ -18,6 +18,7 @@ use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -50,6 +51,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $subject = '';
 
     public string $description = '';
+
+    public bool $showPreview = false;
 
     public ?string $start_date = null;
 
@@ -237,6 +240,24 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $this->customFieldValues[$field->id] = $field->multiple ? [$field->default_value] : $field->default_value;
         }
+    }
+
+    public function togglePreview(): void
+    {
+        $this->showPreview = ! $this->showPreview;
+    }
+
+    /**
+     * Matches the wiki edit form's own preview button — renders the
+     * description textarea's current content without saving. Inline
+     * image references resolve against the issue's already-uploaded
+     * attachments only; files selected in this same submission aren't
+     * Media records yet (same limitation the wiki form's preview has).
+     */
+    #[Computed]
+    public function previewHtml(): string
+    {
+        return app(WikiMarkdownRenderer::class)->render($this->description, $this->project, $this->issue?->attachments());
     }
 
     #[Computed]
@@ -577,6 +598,20 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">説明</label>
                 <textarea wire:model="description" rows="4" @disabled($this->isReadOnly('description'))
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+                <button type="button" wire:click="togglePreview"
+                    class="mt-2 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                    {{ $showPreview ? 'プレビューを閉じる' : 'プレビュー' }}
+                </button>
+
+                @if ($showPreview)
+                    <div class="prose prose-sm mt-2 max-w-none rounded-md border border-gray-200 bg-gray-50 p-4">
+                        @if (trim($description) === '')
+                            <p class="text-sm text-gray-400">(本文が空です)</p>
+                        @else
+                            {!! $this->previewHtml !!}
+                        @endif
+                    </div>
+                @endif
             </div>
         @endunless
 

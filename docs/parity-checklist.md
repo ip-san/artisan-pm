@@ -89,7 +89,7 @@
 | 機能 | 状態 | 備考 |
 |---|---|---|
 | 課題の作成/編集/閲覧 | done | `IssueService::create/update`, `issues/{form,show}.blade.php` |
-| 課題本文・コメントのMarkdownレンダリング | done(2026-07-22) | 前回の調査で発見した欠落を解消。`issues/show.blade.php`の説明文・各Journalコメント(`notes`)を`WikiMarkdownRenderer`に通すよう変更(`renderedDescription`/`renderedNotes()`)、`#123`課題リンク・`[[Page]]`Wikiリンク・インライン画像参照(添付ファイル)がすべて課題側でも有効に。課題フォームの入力プレビューは対象外(Wikiには2026-07-22にプレビュー機能を追加済みだが、課題フォームは引き続き保存後の表示のみ) |
+| 課題本文・コメントのMarkdownレンダリング | done(2026-07-22) | 前回の調査で発見した欠落を解消。`issues/show.blade.php`の説明文・各Journalコメント(`notes`)を`WikiMarkdownRenderer`に通すよう変更(`renderedDescription`/`renderedNotes()`)、`#123`課題リンク・`[[Page]]`Wikiリンク・インライン画像参照(添付ファイル)がすべて課題側でも有効に。~~課題フォームの入力プレビューは対象外~~ → **done**(2026-07-23): Wikiフォームの`showPreview`/`previewHtml()`パターンをそのまま`issues/form.blade.php`に移植。説明文入力欄の下に「プレビュー」トグルボタンを追加、既存添付ファイルへのインライン画像参照も解決(新規選択中の未アップロードファイルはWiki側と同様に対象外) |
 | 更新時の属性差分 Journal 記録 | done(2026-07-22訂正) | **訂正**: 従来「category_id・カスタムフィールドは記録されない」と誤記されていたが、実際には`JOURNALED_ATTRIBUTES`に`category_id`含め15項目が既に含まれ、カスタムフィールドも`diffCustomFieldSnapshots()`で別途記録済み(詳細は下の「属性変更の監査証跡」行を参照、内容が重複していたため本行はそちらに合わせて訂正) |
 | 課題削除 | done(2026-07-21) | 詳細画面に削除ボタンを配線(`delete_issues`権限+確認ダイアログ)。工数は`nullOnDelete`で保持(切り離されるのみ)、子課題も`nullOnDelete`でトップレベル化。Redmineの`params[:todo]`(工数の再割当/削除選択)は意図的に対象外、常に保持のみ |
 | 課題のコピー | done(2026-07-21) | 詳細画面の「コピー」リンクが`?copy_from=<id>`付きで新規課題フォームを開き、トラッカー/優先度/カテゴリ/担当者/対象バージョン/題名/説明/日付/カスタムフィールドをプリフィル。ステータス/進捗率/作成者は通常の新規課題と同じ初期値。ジャーナル/添付/関連/親子は意図的にコピー対象外(軽量な「似た課題から始める」機能として設計) |
