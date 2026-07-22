@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\CustomField;
 use App\Models\Group;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -16,6 +17,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $email = '';
 
+    /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
+    public array $customFieldValues = [];
+
     public function mount(?Group $group = null): void
     {
         if ($group?->exists) {
@@ -23,6 +27,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $this->group = $group;
             $this->name = $group->name;
+
+            foreach ($group->relevantCustomFields() as $field) {
+                $this->customFieldValues[$field->id] = $field->multiple
+                    ? $group->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
+                    : $group->customValue($field);
+            }
         } else {
             $this->authorize('create', Group::class);
         }
@@ -34,17 +44,44 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->group ? $this->group->users : collect();
     }
 
+    /**
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function customFields(): Collection
+    {
+        return ($this->group ?? new Group)->relevantCustomFields();
+    }
+
     public function save(): void
     {
-        $data = $this->validate([
+        $rules = [
             'name' => ['required', 'string', 'max:255', Rule::unique('groups', 'name')->ignore($this->group?->id)],
-        ]);
+        ];
+
+        foreach ($this->customFields as $field) {
+            $key = "customFieldValues.{$field->id}";
+            $presence = $field->is_required ? 'required' : 'nullable';
+
+            if ($field->multiple) {
+                $rules[$key] = [$presence, 'array'];
+                $rules["{$key}.*"] = $field->format()->validationRules($field);
+            } else {
+                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
+            }
+        }
+
+        $data = $this->validate($rules);
+        $customFieldData = $data['customFieldValues'] ?? [];
+        unset($data['customFieldValues']);
 
         if ($this->group) {
             $this->group->update($data);
         } else {
             $this->group = Group::create($data);
         }
+
+        $this->group->setCustomFieldValues($customFieldData);
 
         $this->redirect(route('groups.edit', $this->group), navigate: true);
     }
@@ -86,6 +123,14 @@ new #[Layout('components.layouts.app')] class extends Component
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
+
+        @if ($this->customFields->isNotEmpty())
+            <div class="space-y-4 border-t border-gray-200 pt-4">
+                @foreach ($this->customFields as $field)
+                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" />
+                @endforeach
+            </div>
+        @endif
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">

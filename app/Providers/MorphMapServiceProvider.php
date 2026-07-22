@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\Document;
+use App\Models\Group;
 use App\Models\Issue;
 use App\Models\Message;
 use App\Models\News;
@@ -37,6 +38,7 @@ final class MorphMapServiceProvider extends ServiceProvider
             'project' => Project::class,
             'wiki_page' => WikiPage::class,
             'message' => Message::class,
+            'group' => Group::class,
         ]);
     }
 }
