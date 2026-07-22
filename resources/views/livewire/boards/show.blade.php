@@ -47,6 +47,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($board->description)
                 <p class="text-sm text-gray-500">{{ $board->description }}</p>
             @endif
+            <a href="{{ route('boards.atom', [$project, $board]) }}" class="text-xs text-orange-600 hover:underline">Atom</a>
         </div>
         @can('create', [Message::class, $board])
             <a href="{{ route('messages.create', [$project, $board]) }}"

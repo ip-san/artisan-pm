@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityFeedController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AttachmentThumbnailController;
+use App\Http\Controllers\BoardAtomController;
 use App\Http\Controllers\RepositoryRawController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -66,6 +67,10 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/boards/new', 'boards.form')->name('boards.create');
     Volt::route('/projects/{project:identifier}/boards/{board}/edit', 'boards.form')->name('boards.edit');
     Volt::route('/projects/{project:identifier}/boards/{board}/topics/new', 'messages.form')->name('messages.create');
+    // Also registered before the plain {board} route below — otherwise
+    // its unconstrained parameter would swallow "5.atom" as a literal
+    // board id before this route ever got a chance to match it.
+    Route::get('/projects/{project:identifier}/boards/{board}.atom', BoardAtomController::class)->whereNumber('board')->name('boards.atom');
     Volt::route('/projects/{project:identifier}/boards/{board}', 'boards.show')->name('boards.show');
     Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}', 'messages.show')->name('messages.show');
     Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}/edit', 'messages.form')->name('messages.edit');

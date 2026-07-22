@@ -28,6 +28,30 @@ test('a member with view_messages can see the board list and a board', function 
     Livewire::actingAs($user)->test('boards.show', ['project' => $project, 'board' => $board])->assertOk();
 });
 
+test('a member with view_messages can fetch a board atom feed, seeing topics and replies newest first', function () {
+    $project = Project::factory()->create();
+    $user = boardMember($project, ['view_messages']);
+    $board = Board::factory()->for($project)->create(['name' => 'General']);
+    $topic = Message::factory()->for($board)->create(['subject' => 'First topic']);
+    Message::factory()->for($board)->create(['parent_id' => $topic->id, 'subject' => 'RE: First topic']);
+
+    $response = $this->actingAs($user)->get(route('boards.atom', [$project, $board]));
+
+    $response->assertOk();
+    expect($response->headers->get('Content-Type'))->toStartWith('application/atom+xml');
+    $response->assertSee('<feed', false);
+    $response->assertSee('First topic', false);
+    $response->assertSee('General: First topic', false);
+});
+
+test('a member without view_messages cannot fetch a board atom feed', function () {
+    $project = Project::factory()->create();
+    $user = boardMember($project, []);
+    $board = Board::factory()->for($project)->create();
+
+    $this->actingAs($user)->get(route('boards.atom', [$project, $board]))->assertForbidden();
+});
+
 test('a member without view_messages is forbidden from boards', function () {
     $project = Project::factory()->create();
     $user = boardMember($project, []);

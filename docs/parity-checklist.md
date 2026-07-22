@@ -310,7 +310,7 @@
 | 引用返信 | done(2026-07-21) | トピック/返信それぞれに「引用」ボタン、返信入力欄に`>`引用形式をプリフィル |
 | 添付ファイル | done | **訂正(2026-07-22)**: 従来「`Message`が`HasMedia`未実装」として`missing`と報告されていたが、実際には`Message implements HasMedia`が既に存在し、トピック作成/返信フォームでのアップロード、詳細画面での一覧表示・説明文編集・削除、`BoardTest`でのテストカバレッジまで全て揃っていた(過去に別行の一括作業で実装されテスト済みだったが、この行自体の更新が漏れていた) |
 | 返信のページネーション | done(2026-07-21) | 25件/ページでページネーション。見出しの件数は`total()`で全件数を表示 |
-| Atomフィード | missing | — |
+| Atomフィード | done(2026-07-22) | Redmineの`BoardsController#show`(`format.atom`)相当。新規`boards.atom`ルート(`GET /projects/{project}/boards/{board}.atom`、`{board}`ルートより前に登録 — `boards.show`の無制約パラメータが先に`5.atom`を丸ごと飲み込んでしまうのを防ぐため`whereNumber`+登録順で回避)。ボード内の全メッセージ(トピック・返信とも)を新着順に最大15件(既存の`activity.atom`と同じ既定値)配信、返信は`{board.name}: {topic.subject}`のタイトルでトピックURLへリンク(Redmineの`Message#acts_as_event`と同じ形式)。既存の`ActivityEntry`DTOとAtomテンプレート構造を`activity-atom.blade.php`から流用(`feeds.board-atom`) |
 
 ### News
 
