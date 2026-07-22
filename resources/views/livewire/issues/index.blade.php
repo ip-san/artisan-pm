@@ -132,6 +132,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $bulkCopyToTrackerId = null;
 
+    public bool $bulkCopyAttachments = true;
+
+    public bool $bulkCopyWatchers = true;
+
     public function mount(Project $project): void
     {
         $this->authorize('viewAny', [Issue::class, $project]);
@@ -781,12 +785,19 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         foreach ($issues as $issue) {
-            app(IssueService::class)->copy($issue, $targetProject, $data['bulkCopyToTrackerId'], auth()->user());
+            app(IssueService::class)->copy(
+                $issue,
+                $targetProject,
+                $data['bulkCopyToTrackerId'],
+                auth()->user(),
+                copyAttachments: $this->bulkCopyAttachments,
+                copyWatchers: $this->bulkCopyWatchers,
+            );
         }
 
         $count = $issues->count();
 
-        $this->reset(['selected', 'bulkCopyToProjectId', 'bulkCopyToTrackerId']);
+        $this->reset(['selected', 'bulkCopyToProjectId', 'bulkCopyToTrackerId', 'bulkCopyAttachments', 'bulkCopyWatchers']);
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
@@ -1029,6 +1040,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                     @error('bulkCopyToTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
+                <label class="flex items-center gap-1.5 text-xs text-gray-700">
+                    <input type="checkbox" wire:model="bulkCopyAttachments" class="rounded border-gray-300">
+                    添付ファイルも複製
+                </label>
+                <label class="flex items-center gap-1.5 text-xs text-gray-700">
+                    <input type="checkbox" wire:model="bulkCopyWatchers" class="rounded border-gray-300">
+                    ウォッチャーも複製
+                </label>
                 <button type="submit"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     複製

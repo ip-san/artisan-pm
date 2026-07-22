@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\EnumerationType;
 use App\Enums\IssueRelationType;
+use App\Enums\UserStatus;
 use App\Events\IssueCreated;
 use App\Events\IssueDeleted;
 use App\Events\IssueUpdated;
@@ -20,6 +21,7 @@ use App\Models\Journal;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\Watcher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -459,15 +461,18 @@ final class IssueService
      * subset of Redmine's Issue#copy: category and fixed version are
      * project-local so they're reset (same reasoning as moveToProject),
      * and the assignee is dropped if they aren't a member of the target
-     * project. Attachments, subtasks, and watchers are NOT duplicated —
-     * out of scope for this pass. A copied_to relation IS created back to
-     * $source, matching Redmine's Issue#after_create_from_copy — done
+     * project. Attachments and watchers are duplicated when the
+     * corresponding flag is true (both default true, matching Redmine's
+     * bulk-copy form, whose checkboxes are checked by default). Subtasks
+     * are NOT duplicated — out of scope for this pass, unlike Redmine's
+     * own recursive descendant copy. A copied_to relation IS created back
+     * to $source, matching Redmine's Issue#after_create_from_copy — done
      * automatically on every copy, same as Redmine's own default. Unlike
      * Redmine, this isn't gated by cross_project_issue_relations, since
      * the relation records provenance rather than being a user-authored
      * cross-project link.
      */
-    public function copy(Issue $source, Project $targetProject, int $trackerId, User $actor): Issue
+    public function copy(Issue $source, Project $targetProject, int $trackerId, User $actor, bool $copyAttachments = true, bool $copyWatchers = true): Issue
     {
         $assignedToId = $source->assigned_to_id;
 
@@ -498,6 +503,23 @@ final class IssueService
             'issue_to_id' => $copy->id,
             'relation_type' => IssueRelationType::CopiedTo->value,
         ]);
+
+        if ($copyAttachments) {
+            foreach ($source->getMedia('attachments') as $media) {
+                $media->copy($copy, 'attachments');
+            }
+        }
+
+        if ($copyWatchers) {
+            // firstOrCreate() rather than a bare insert since create()
+            // above already auto-watched the copy's author/assignee —
+            // matches Redmine's own watcher_user_ids= (a set, so no
+            // duplicate rows either).
+            $source->watchers()
+                ->whereHas('user', fn ($query) => $query->where('status', UserStatus::Active))
+                ->get()
+                ->each(fn (Watcher $watcher) => $copy->watchers()->firstOrCreate(['user_id' => $watcher->user_id]));
+        }
 
         return $copy;
     }

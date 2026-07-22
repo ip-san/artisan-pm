@@ -207,7 +207,7 @@
 |---|---|---|
 | 一括編集(ステータス/優先度/担当者/バージョン/進捗率+共通コメント) | done | 各課題ごとに認可チェック・Journal記録 |
 | ステータス一括編集の選択制約 | partial(意図的) | 選択課題が単一ステータスの場合のみ許可。トラッカー/カテゴリ/日付/CF/親/一括コメント欄はさらに少ない |
-| 一括コピー・一括プロジェクト間移動・一括削除 | done(2026-07-22) | 一括プロジェクト間移動(`move_issues`+移動先`add_issues`、`IssueService::moveToProject()`)、一括削除(`delete_issues`)、一括コピー(`copy_issues`+複製先`add_issues`、`IssueService::copy()`、関連カスタムフィールド値も複製先トラッカーに応じて複製)を実装。コピーの添付ファイル/サブタスク/ウォッチャー/コピー元リンクの複製は対象外(意図的スコープ外) |
+| 一括コピー・一括プロジェクト間移動・一括削除 | done(2026-07-23) | 一括プロジェクト間移動(`move_issues`+移動先`add_issues`、`IssueService::moveToProject()`)、一括削除(`delete_issues`)、一括コピー(`copy_issues`+複製先`add_issues`、`IssueService::copy()`、関連カスタムフィールド値も複製先トラッカーに応じて複製)を実装。コピー元リンク(`copied_to`関連)は元から自動作成済み。**添付ファイル/ウォッチャーの複製を追加(2026-07-23)**: `IssueService::copy()`に`copyAttachments`/`copyWatchers`引数(共にRedmine同様デフォルトtrue)を追加、一括コピーフォームにも対応するチェックボックス(共に既定でチェック済み、Redmineの一括編集フォームの`copy_attachments`/`copy_watchers`チェックボックスと同じデフォルト)を追加。添付はSpatie MediaLibraryの`Media::copy()`でファイルごと複製、ウォッチャーは`status=active`のユーザーのみ複製(Redmineの`visible_watcher_users.select{active}`相当、複製先での自動ウォッチ(作成者/担当者)との重複は`firstOrCreate`で吸収)。**サブタスクの複製のみ引き続き対象外**(Redmine本家は子孫を再帰的にコピーし可視性/対象バージョン/担当者の妥当性を個別に再検証する処理を持つが、範囲が大きいため別スコープとして意図的に保留) |
 | CSVインポート(列マッピング・バックグラウンド処理・進捗表示) | done | `ImportIssuesJob`, `IssueImport` |
 | マッピング可能な列 | partial | カテゴリ/対象バージョン/親/非公開フラグ/カスタムフィールド/遅延付き関連は対象外 |
 | カテゴリ/バージョンの自動作成、`unique_id`による遅延親子/関連解決 | missing | — |
