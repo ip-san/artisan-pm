@@ -1,9 +1,12 @@
 <?php
 
+use App\Enums\QueryType;
+use App\Models\Query as SavedQuery;
 use App\Models\UserDashboardBlock;
 use App\Support\Dashboard\DashboardBlock;
 use App\Support\Dashboard\DashboardBlockRegistry;
 use App\Support\Dashboard\DashboardBlockRow;
+use App\Support\Dashboard\SavedIssueQueryBlock;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -50,23 +53,52 @@ new #[Layout('components.layouts.app')] class extends Component
             ->reject(fn (DashboardBlock $block) => $activeKeys->contains($block->key()));
     }
 
+    /**
+     * Saved issue queries this user could add as a block — own plus any
+     * shared ones they can see, minus those already on the page. Small
+     * per-user set, filtered in memory like every other visibleTo() use.
+     *
+     * @return Collection<int, SavedQuery>
+     */
+    #[Computed]
+    public function availableSavedQueries(): Collection
+    {
+        $activeKeys = $this->activeBlocks->pluck('block_key');
+
+        return SavedQuery::query()
+            ->where('type', QueryType::Issue->value)
+            ->with(['roles', 'project'])
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (SavedQuery $query) => $query->visibleTo(auth()->user()))
+            ->reject(fn (SavedQuery $query) => $activeKeys->contains(SavedIssueQueryBlock::keyFor($query)))
+            ->values();
+    }
+
     public function addBlock(string $key): void
     {
-        abort_unless(app(DashboardBlockRegistry::class)->find($key) !== null, 404);
+        $queryId = SavedIssueQueryBlock::queryIdFromKey($key);
+
+        if ($queryId !== null) {
+            $savedQuery = SavedQuery::query()->where('type', QueryType::Issue->value)->find($queryId);
+            abort_unless($savedQuery !== null && $savedQuery->visibleTo(auth()->user()), 404);
+        } else {
+            abort_unless(app(DashboardBlockRegistry::class)->find($key) !== null, 404);
+        }
 
         UserDashboardBlock::firstOrCreate(
             ['user_id' => auth()->id(), 'block_key' => $key],
             ['position' => $this->activeBlocks->count()],
         );
 
-        unset($this->activeBlocks, $this->availableBlocks);
+        unset($this->activeBlocks, $this->availableBlocks, $this->availableSavedQueries);
     }
 
     public function removeBlock(int $id): void
     {
         UserDashboardBlock::where('user_id', auth()->id())->where('id', $id)->delete();
 
-        unset($this->activeBlocks, $this->availableBlocks);
+        unset($this->activeBlocks, $this->availableBlocks, $this->availableSavedQueries);
     }
 
     /**
@@ -100,11 +132,25 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function blockRows(string $key): Collection
     {
+        $queryId = SavedIssueQueryBlock::queryIdFromKey($key);
+
+        if ($queryId !== null) {
+            return app(SavedIssueQueryBlock::class)->rows(SavedQuery::find($queryId), auth()->user());
+        }
+
         return app(DashboardBlockRegistry::class)->find($key)?->rows(auth()->user()) ?? collect();
     }
 
     public function blockLabel(string $key): string
     {
+        $queryId = SavedIssueQueryBlock::queryIdFromKey($key);
+
+        if ($queryId !== null) {
+            $savedQuery = SavedQuery::find($queryId);
+
+            return $savedQuery !== null ? "クエリ: {$savedQuery->name}" : 'クエリ: (削除済み)';
+        }
+
         return app(DashboardBlockRegistry::class)->find($key)?->label() ?? $key;
     }
 }; ?>
@@ -140,7 +186,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endforeach
     </ul>
 
-    @if ($this->availableBlocks->isNotEmpty())
+    @if ($this->availableBlocks->isNotEmpty() || $this->availableSavedQueries->isNotEmpty())
         <div class="mt-6">
             <p class="mb-2 text-sm font-medium text-gray-700">ブロックを追加:</p>
             <div class="flex flex-wrap gap-2">
@@ -148,6 +194,13 @@ new #[Layout('components.layouts.app')] class extends Component
                     <button wire:click="addBlock('{{ $block->key() }}')"
                         class="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50">
                         + {{ $block->label() }}
+                    </button>
+                @endforeach
+                @foreach ($this->availableSavedQueries as $savedQuery)
+                    <button wire:key="add-query-block-{{ $savedQuery->id }}"
+                        wire:click="addBlock('{{ \App\Support\Dashboard\SavedIssueQueryBlock::keyFor($savedQuery) }}')"
+                        class="rounded-full border border-indigo-200 px-3 py-1 text-xs text-indigo-600 hover:bg-indigo-50">
+                        + クエリ: {{ $savedQuery->name }}
                     </button>
                 @endforeach
             </div>

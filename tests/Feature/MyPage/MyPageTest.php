@@ -6,6 +6,7 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\News;
 use App\Models\Project;
+use App\Models\Query;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
@@ -102,4 +103,92 @@ test('the latest news block only includes news from projects the viewer is a mem
 
     expect($rows->pluck('title')->implode(','))->toContain('My project news')
         ->not->toContain('Other project news');
+});
+
+test('a saved issue query can be added as a block and shows its filtered issues', function () {
+    $project = Project::factory()->create();
+    $defaults = myPageIssueDefaults();
+    $otherStatus = IssueStatus::factory()->create();
+
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    $matching = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'In query']);
+    $excluded = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'Not in query', 'status_id' => $otherStatus->id]);
+
+    $savedQuery = Query::create([
+        'name' => 'My block query',
+        'type' => 'issue',
+        'user_id' => $user->id,
+        'project_id' => $project->id,
+        'visibility' => 'private',
+        'filters' => ['status_id' => ['operator' => '=', 'values' => [$defaults['status_id']]]],
+        'column_names' => ['subject'],
+    ]);
+
+    $component = Livewire::actingAs($user)
+        ->test('my-page.index')
+        ->call('addBlock', "issue_query:{$savedQuery->id}");
+
+    expect(UserDashboardBlock::where('user_id', $user->id)->where('block_key', "issue_query:{$savedQuery->id}")->exists())->toBeTrue();
+
+    $rows = $component->instance()->blockRows("issue_query:{$savedQuery->id}");
+
+    expect($rows->pluck('title')->join(' '))->toContain("#{$matching->id}")
+        ->not->toContain("#{$excluded->id}")
+        ->and($component->instance()->blockLabel("issue_query:{$savedQuery->id}"))->toBe('クエリ: My block query');
+});
+
+test('another user\'s private query cannot be added as a block', function () {
+    $project = Project::factory()->create();
+    $owner = User::factory()->create();
+    $intruder = User::factory()->create();
+
+    $savedQuery = Query::create([
+        'name' => 'Private query',
+        'type' => 'issue',
+        'user_id' => $owner->id,
+        'project_id' => $project->id,
+        'visibility' => 'private',
+        'filters' => [],
+        'column_names' => ['subject'],
+    ]);
+
+    Livewire::actingAs($intruder)
+        ->test('my-page.index')
+        ->call('addBlock', "issue_query:{$savedQuery->id}")
+        ->assertStatus(404);
+});
+
+test('a block whose saved query was deleted renders empty with a fallback label', function () {
+    $user = User::factory()->create();
+    UserDashboardBlock::create(['user_id' => $user->id, 'block_key' => 'issue_query:999999', 'position' => 0]);
+
+    $component = Livewire::actingAs($user)->test('my-page.index')->assertOk();
+
+    expect($component->instance()->blockRows('issue_query:999999'))->toBeEmpty()
+        ->and($component->instance()->blockLabel('issue_query:999999'))->toBe('クエリ: (削除済み)');
+});
+
+test('a query block shows nothing once the owner loses view_issues on its project', function () {
+    $project = Project::factory()->private()->create();
+    $defaults = myPageIssueDefaults();
+    $user = User::factory()->create();
+    Issue::factory()->for($project)->create($defaults);
+
+    // The user owns the query but has no membership on the private project.
+    $savedQuery = Query::create([
+        'name' => 'Orphaned access',
+        'type' => 'issue',
+        'user_id' => $user->id,
+        'project_id' => $project->id,
+        'visibility' => 'private',
+        'filters' => [],
+        'column_names' => ['subject'],
+    ]);
+
+    $component = Livewire::actingAs($user)->test('my-page.index');
+
+    expect($component->instance()->blockRows("issue_query:{$savedQuery->id}"))->toBeEmpty();
 });
