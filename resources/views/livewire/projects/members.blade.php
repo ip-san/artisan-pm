@@ -5,7 +5,9 @@ use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -42,7 +44,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->editingMemberId = $member->id;
         $this->email = $member->user->email;
-        $this->roleIds = $member->roles->pluck('id')->all();
+
+        // Only the roles that actually have a checkbox (this editor's
+        // managed set) are prefilled — a role outside that set stays
+        // untouched via addMember()'s own logic regardless of what's
+        // bound here, and including it would fail that same request's
+        // Rule::in($managedRoleIds) validation on submit.
+        $this->roleIds = $member->roles->pluck('id')->intersect($this->roles->pluck('id'))->all();
     }
 
     public function cancelEdit(): void
@@ -50,10 +58,17 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->reset('email', 'groupId', 'roleIds', 'editingMemberId');
     }
 
+    /**
+     * The roles offered as checkboxes — restricted to whichever ones the
+     * current user is allowed to manage (Role::all_roles_managed /
+     * managedRoles), matching Redmine's member-role-editing restriction.
+     *
+     * @return Collection<int, Role>
+     */
     #[Computed]
     public function roles(): Collection
     {
-        return Role::query()->whereNull('builtin')->orderBy('position')->get();
+        return app(AuthorizationService::class)->managedRolesFor(auth()->user(), $this->project);
     }
 
     /**
@@ -80,11 +95,13 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('manageMembers', $this->project);
 
+        $managedRoleIds = $this->roles->pluck('id')->all();
+
         if ($this->addType === 'group') {
             $data = $this->validate([
                 'groupId' => ['required', 'exists:groups,id'],
-                'roleIds' => ['required', 'array', 'min:1'],
-                'roleIds.*' => ['exists:roles,id'],
+                'roleIds' => ['array'],
+                'roleIds.*' => [Rule::in($managedRoleIds)],
             ]);
 
             $member = Member::query()
@@ -92,8 +109,8 @@ new #[Layout('components.layouts.app')] class extends Component
         } else {
             $data = $this->validate([
                 'email' => ['required', 'email', 'exists:users,email'],
-                'roleIds' => ['required', 'array', 'min:1'],
-                'roleIds.*' => ['exists:roles,id'],
+                'roleIds' => ['array'],
+                'roleIds.*' => [Rule::in($managedRoleIds)],
             ]);
 
             $user = User::query()->where('email', $data['email'])->firstOrFail();
@@ -102,7 +119,25 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->firstOrCreate(['project_id' => $this->project->id, 'user_id' => $user->id]);
         }
 
-        $member->roles()->sync($data['roleIds']);
+        // Roles outside the editor's managed set are left untouched —
+        // matches Redmine's Member#set_editable_role_ids, so someone who
+        // can only manage a subset of roles can't silently strip a role
+        // they have no authority over just because it wasn't offered as a
+        // checkbox in the first place. "At least one role" is therefore
+        // checked against this final combined set, not the raw submission
+        // — an edit that leaves only untouched roles in place is valid
+        // even though roleIds itself came back empty.
+        $untouchedRoleIds = $member->roles->pluck('id')->diff($managedRoleIds);
+        $touchedRoleIds = collect($data['roleIds'])->intersect($managedRoleIds);
+        $finalRoleIds = $untouchedRoleIds->merge($touchedRoleIds);
+
+        if ($finalRoleIds->isEmpty()) {
+            $this->addError('roleIds', '少なくとも1つのロールを選択してください。');
+
+            return;
+        }
+
+        $member->roles()->sync($finalRoleIds);
 
         $this->reset('email', 'groupId', 'roleIds', 'editingMemberId');
         unset($this->members, $this->availableGroups);

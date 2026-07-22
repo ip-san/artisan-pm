@@ -203,7 +203,7 @@
 | 工数エントリ閲覧範囲 | done(2026-07-21) | `Role.time_entries_visibility`(all/default/own)。課題閲覧範囲と同一パターンで`TimeEntryPolicy::view`と一覧クエリに適用 |
 | ユーザー閲覧範囲 | missing | — |
 | 「課題に割当可能」フラグ | done(2026-07-21) | `Role.assignable`(デフォルトtrue) + `Project::assignableUsers()`。課題フォーム/一覧の一括編集/カテゴリの既定担当者セレクトに適用。バリデーション自体は緩めたままで、既にnon-assignableなメンバーへ割当済みの課題を編集しても既存の割当は保持される(意図的) |
-| 管理可能ロールの制限 | missing | — |
+| 管理可能ロールの制限 | done(2026-07-22) | Redmineの`Role#managed_roles`(自己参照多対多)+`all_roles_managed`フラグ+`Member#set_editable_role_ids`相当。新規`role_managed_role`ピボットテーブルと`roles.all_roles_managed`(既定true)を追加。`AuthorizationService::managedRolesFor()`が管理者=全ロール、`manage_members`権限を持つロールのうち`all_roles_managed`があれば全ロール、無ければ`managedRoles()`の和集合を解決。プロジェクトのメンバー管理画面はこの範囲外のロールをチェックボックスとして表示せず、保存時も範囲外のロールIDは`Rule::in()`で拒否した上で、既存メンバーが元々持っていた範囲外ロールは編集時も維持(サブセット管理者が権限外ロールを意図せず剥奪できないようにする)。ロール管理フォームにも「全ロールを管理可能」チェックボックス+管理可能ロール選択を追加 |
 | 権限一覧レポート・一括更新マトリクス | done(2026-07-22) | `roles/report.blade.php`(`/roles/report`)で全ロール×全権限のマトリクスを表示し、1回の保存で全ロールの権限を一括更新。各ロールで実際に付与可能な権限(匿名/非メンバー組み込みロールは`PermissionRegistry::assignableTo()`でサブセットに制限)以外はチェックボックス自体を表示せず、保存時もサーバー側で許可リストを再計算するため、無効な権限をクライアント側から注入しても反映されない |
 
 ### グループ

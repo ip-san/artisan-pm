@@ -5,6 +5,7 @@ use App\Enums\RoleBuiltin;
 use App\Enums\TimeEntryVisibility;
 use App\Models\Role;
 use App\Support\Permissions\PermissionRegistry;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -25,6 +26,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $assignable = true;
 
+    public bool $allRolesManaged = true;
+
+    /** @var array<int> */
+    public array $managedRoleIds = [];
+
     public function mount(?Role $role = null): void
     {
         if ($role?->exists) {
@@ -36,6 +42,8 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->issuesVisibility = $role->issues_visibility->value;
             $this->timeEntriesVisibility = $role->time_entries_visibility->value;
             $this->assignable = $role->assignable;
+            $this->allRolesManaged = $role->all_roles_managed;
+            $this->managedRoleIds = $role->managedRoles->pluck('id')->all();
         } else {
             $this->authorize('create', Role::class);
 
@@ -68,6 +76,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->issuesVisibility = $source->issues_visibility->value;
         $this->timeEntriesVisibility = $source->time_entries_visibility->value;
         $this->assignable = $source->assignable;
+        $this->allRolesManaged = $source->all_roles_managed;
+        $this->managedRoleIds = $source->managedRoles->pluck('id')->all();
     }
 
     /**
@@ -84,26 +94,51 @@ new #[Layout('components.layouts.app')] class extends Component
         return array_keys($registry->assignableTo($isAnonymous, $isNonMember));
     }
 
+    /**
+     * Every other custom (non-builtin) role — candidates for "管理可能
+     * ロール" when this role doesn't manage all of them. Matches Redmine's
+     * Role.givable scope.
+     *
+     * @return Collection<int, Role>
+     */
+    #[Computed]
+    public function otherGivableRoles(): Collection
+    {
+        return Role::query()
+            ->whereNull('builtin')
+            ->when($this->role, fn ($query) => $query->whereKeyNot($this->role->id))
+            ->orderBy('position')
+            ->get();
+    }
+
     public function save(): void
     {
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->ignore($this->role?->id)],
             'issuesVisibility' => ['required', Rule::enum(IssueVisibility::class)],
             'timeEntriesVisibility' => ['required', Rule::enum(TimeEntryVisibility::class)],
+            'managedRoleIds' => ['array'],
+            'managedRoleIds.*' => [Rule::in($this->otherGivableRoles->pluck('id')->all())],
         ]);
 
         $data['permissions'] = array_values(array_intersect($this->permissions, $this->availablePermissions));
         $data['issues_visibility'] = $data['issuesVisibility'];
         $data['time_entries_visibility'] = $data['timeEntriesVisibility'];
         $data['assignable'] = $this->assignable;
-        unset($data['issuesVisibility'], $data['timeEntriesVisibility']);
+        $data['all_roles_managed'] = $this->allRolesManaged;
+        unset($data['issuesVisibility'], $data['timeEntriesVisibility'], $data['managedRoleIds']);
 
         if ($this->role) {
             $this->role->update($data);
         } else {
             $data['position'] = Role::query()->max('position') + 1;
-            Role::create($data);
+            $this->role = Role::create($data);
         }
+
+        // Only meaningful when all_roles_managed is off, but kept in sync
+        // regardless so toggling it back on later doesn't resurrect a
+        // stale subset from before.
+        $this->role->managedRoles()->sync($data['all_roles_managed'] ? [] : $this->managedRoleIds);
 
         $this->redirect(route('roles.index'), navigate: true);
     }
@@ -145,6 +180,26 @@ new #[Layout('components.layouts.app')] class extends Component
             <input type="checkbox" wire:model="assignable" class="rounded border-gray-300">
             このロールを持つメンバーを課題の担当者として選択可能にする
         </label>
+
+        <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" wire:model.live="allRolesManaged" class="rounded border-gray-300">
+            このロールを持つメンバーはプロジェクトメンバーのすべてのロールを管理できる
+        </label>
+
+        @unless ($allRolesManaged)
+            <div>
+                <span class="block text-sm font-medium text-gray-700 mb-2">管理可能ロール(メンバー管理画面で割当/削除できるロール)</span>
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach ($this->otherGivableRoles as $candidate)
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" wire:model="managedRoleIds" value="{{ $candidate->id }}" class="rounded border-gray-300">
+                            {{ $candidate->name }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('managedRoleIds') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+        @endunless
 
         <div>
             <span class="block text-sm font-medium text-gray-700 mb-2">権限</span>

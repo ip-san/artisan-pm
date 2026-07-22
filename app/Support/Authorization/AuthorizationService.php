@@ -139,6 +139,52 @@ final class AuthorizationService
     }
 
     /**
+     * The roles a user may assign to other members on this project's
+     * members screen — matches Redmine's Member#managed_roles /
+     * User#managed_roles(project). Among the user's own roles in the
+     * project, only ones holding manage_members are considered; if any of
+     * those has all_roles_managed, every givable (non-builtin) role is
+     * returned, otherwise the union of their individually configured
+     * managedRoles.
+     *
+     * @return Collection<int, Role>
+     */
+    public function managedRolesFor(?User $user, Project $project): Collection
+    {
+        if ($user?->is_admin) {
+            return $this->givableRoles();
+        }
+
+        if ($user === null) {
+            return collect();
+        }
+
+        $managingRoles = $this->memberRolesFor($user, $project)
+            ->filter(fn (Role $role) => $role->hasPermission('manage_members'));
+
+        if ($managingRoles->isEmpty()) {
+            return collect();
+        }
+
+        if ($managingRoles->contains(fn (Role $role) => $role->all_roles_managed)) {
+            return $this->givableRoles();
+        }
+
+        return $managingRoles->flatMap(fn (Role $role) => $role->managedRoles)
+            ->unique('id')
+            ->sortBy('position')
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, Role>
+     */
+    private function givableRoles(): Collection
+    {
+        return Role::query()->whereNull('builtin')->orderBy('position')->get();
+    }
+
+    /**
      * @return Collection<int, Role>
      */
     private function memberRolesFor(User $user, Project $project): Collection

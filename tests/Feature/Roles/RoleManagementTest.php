@@ -83,3 +83,46 @@ test('saving a copied role creates an independent role', function () {
         ->and($copy->permissionKeys())->toBe(['view_project'])
         ->and($copy->builtin)->toBeNull();
 });
+
+test('a new role defaults to managing all roles', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('roles.form')
+        ->set('name', 'New Role')
+        ->call('save');
+
+    expect(Role::where('name', 'New Role')->firstOrFail()->all_roles_managed)->toBeTrue();
+});
+
+test('disabling all_roles_managed persists the selected managed roles', function () {
+    $admin = User::factory()->admin()->create();
+    $allowed = Role::factory()->create(['name' => 'Allowed']);
+    $other = Role::factory()->create(['name' => 'Other']);
+
+    Livewire::actingAs($admin)
+        ->test('roles.form')
+        ->set('name', 'Restricted Manager')
+        ->set('allRolesManaged', false)
+        ->set('managedRoleIds', [$allowed->id])
+        ->call('save');
+
+    $role = Role::where('name', 'Restricted Manager')->firstOrFail();
+
+    expect($role->all_roles_managed)->toBeFalse()
+        ->and($role->managedRoles->pluck('id'))->toContain($allowed->id)->not->toContain($other->id);
+});
+
+test('re-enabling all_roles_managed clears any previously selected managed roles', function () {
+    $admin = User::factory()->admin()->create();
+    $allowed = Role::factory()->create();
+    $role = Role::factory()->create(['all_roles_managed' => false]);
+    $role->managedRoles()->attach($allowed);
+
+    Livewire::actingAs($admin)
+        ->test('roles.form', ['role' => $role])
+        ->set('allRolesManaged', true)
+        ->call('save');
+
+    expect($role->fresh()->managedRoles)->toBeEmpty();
+});
