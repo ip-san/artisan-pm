@@ -28,9 +28,10 @@ use Illuminate\Support\Facades\DB;
 final class GanttService
 {
     /**
+     * @param  Collection<int, int>|null  $onlyIssueIds  restrict the tree to these issues (plus their ancestors, kept so depth and grouping stay coherent); null returns the full tree
      * @return Collection<int, GanttRow>
      */
-    public function issueTree(Project $project): Collection
+    public function issueTree(Project $project, ?Collection $onlyIssueIds = null): Collection
     {
         $issues = (new Issue)->getTable();
         $trackers = (new Tracker)->getTable();
@@ -62,6 +63,27 @@ final class GanttService
             SELECT * FROM issue_tree ORDER BY tree_path
             SQL, [$project->id, $project->id]);
 
-        return collect($rows)->map(GanttRow::fromRow(...));
+        $tree = collect($rows)->map(GanttRow::fromRow(...));
+
+        if ($onlyIssueIds === null) {
+            return $tree;
+        }
+
+        // Keep each matched issue plus its ancestor chain — a filtered
+        // child rendered without its parents would show a misleading
+        // depth indent pointing at nothing.
+        $byId = $tree->keyBy('id');
+        $keep = [];
+
+        foreach ($onlyIssueIds as $id) {
+            $current = $byId->get($id);
+
+            while ($current !== null && ! isset($keep[$current->id])) {
+                $keep[$current->id] = true;
+                $current = $current->parentId !== null ? $byId->get($current->parentId) : null;
+            }
+        }
+
+        return $tree->filter(fn (GanttRow $row) => isset($keep[$row->id]))->values();
     }
 }

@@ -1,17 +1,31 @@
 <?php
 
+use App\Models\Issue;
 use App\Models\Project;
 use App\Services\GanttService;
 use App\Support\Gantt\GanttRow;
+use App\Support\Query\IssueFilterFieldRegistry;
+use App\Support\Query\QueryFilterEngine;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
     public Project $project;
+
+    /** @var array<int, string> */
+    #[Url]
+    public array $activeFilterKeys = [];
+
+    /** @var array<string, string> */
+    public array $filterOperators = [];
+
+    /** @var array<string, array<int, mixed>> */
+    public array $filterValues = [];
 
     public function mount(Project $project): void
     {
@@ -20,13 +34,73 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->project = $project;
     }
 
+    #[Computed]
+    public function engine(): QueryFilterEngine
+    {
+        return new QueryFilterEngine(IssueFilterFieldRegistry::forProject($this->project));
+    }
+
     /**
+     * With filters active, the tree is restricted to matching issues
+     * (their ancestors stay for depth coherence — see GanttService).
+     * The matched-id set is resolved through the same QueryFilterEngine
+     * the issue list uses; the recursive-CTE tree query itself stays
+     * untouched.
+     *
      * @return Collection<int, GanttRow>
      */
     #[Computed]
     public function rows(): Collection
     {
-        return app(GanttService::class)->issueTree($this->project);
+        $filters = $this->builtFilters();
+
+        $matchedIds = $filters === []
+            ? null
+            : $this->engine->applyFilters(Issue::query()->where('project_id', $this->project->id), $filters)->pluck('id');
+
+        return app(GanttService::class)->issueTree($this->project, $matchedIds);
+    }
+
+    /**
+     * @return array<string, array{operator: string, values: array<int, mixed>}>
+     */
+    private function builtFilters(): array
+    {
+        $filters = [];
+
+        foreach ($this->activeFilterKeys as $key) {
+            $operator = $this->filterOperators[$key] ?? null;
+
+            if ($operator === null) {
+                continue;
+            }
+
+            $filters[$key] = [
+                'operator' => $operator,
+                'values' => array_values(array_filter($this->filterValues[$key] ?? [], fn ($v) => $v !== null && $v !== '')),
+            ];
+        }
+
+        return $filters;
+    }
+
+    public function addFilter(string $key): void
+    {
+        if (! in_array($key, $this->activeFilterKeys, true) && $this->engine->field($key) !== null) {
+            $this->activeFilterKeys[] = $key;
+            $this->filterOperators[$key] = $this->engine->field($key)->operators()[0]->value;
+        }
+    }
+
+    public function removeFilter(string $key): void
+    {
+        $this->activeFilterKeys = array_values(array_diff($this->activeFilterKeys, [$key]));
+        unset($this->filterOperators[$key], $this->filterValues[$key]);
+    }
+
+    public function applyFilters(): void
+    {
+        unset($this->rows, $this->rangeStart, $this->rangeEnd, $this->totalDays, $this->monthBands);
     }
 
     #[Computed]
@@ -106,6 +180,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <h1 class="text-xl font-semibold text-gray-900 mb-6">{{ $project->name }} — ガントチャート</h1>
+
+    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+        <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
+
+        <div class="mt-3">
+            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                絞り込み適用
+            </button>
+        </div>
+    </div>
 
     @if ($this->rangeStart === null)
         <p class="text-sm text-gray-500">開始日・期日が設定された課題がありません。</p>

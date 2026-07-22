@@ -127,3 +127,61 @@ test('bar position percentages are computed correctly against the overall date r
     // 10-day span (Jan 11–20 inclusive) of 31 days ≈ 32.26%
     expect($component->instance()->barWidthPercent($midRow))->toBeGreaterThan(30.0)->toBeLessThan(33.0);
 });
+
+test('an active filter restricts the gantt tree to matching issues', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+    $otherStatus = IssueStatus::factory()->create();
+
+    $matching = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'Matching']);
+    $excluded = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'Excluded', 'status_id' => $otherStatus->id]);
+
+    $rows = Livewire::actingAs($user)
+        ->test('gantt.index', ['project' => $project])
+        ->call('addFilter', 'status_id')
+        ->set('filterOperators.status_id', '=')
+        ->set('filterValues.status_id.0', $defaults['status_id'])
+        ->call('applyFilters')
+        ->get('rows');
+
+    expect($rows->pluck('id'))->toContain($matching->id)
+        ->and($rows->pluck('id'))->not->toContain($excluded->id);
+});
+
+test('a filtered child keeps its non-matching ancestors for depth coherence', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+    $otherStatus = IssueStatus::factory()->create();
+
+    // Parent does NOT match the filter; child does; unrelated root doesn't.
+    $parent = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'Parent', 'status_id' => $otherStatus->id]);
+    $child = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'Child', 'parent_id' => $parent->id]);
+    $unrelated = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'Unrelated', 'status_id' => $otherStatus->id]);
+
+    $rows = Livewire::actingAs($user)
+        ->test('gantt.index', ['project' => $project])
+        ->call('addFilter', 'status_id')
+        ->set('filterOperators.status_id', '=')
+        ->set('filterValues.status_id.0', $defaults['status_id'])
+        ->call('applyFilters')
+        ->get('rows');
+
+    expect($rows->pluck('id')->all())->toBe([$parent->id, $child->id])
+        ->and($rows->firstWhere('id', $child->id)->depth)->toBe(1)
+        ->and($rows->pluck('id'))->not->toContain($unrelated->id);
+});
+
+test('with no filters active the full tree is returned unchanged', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+    Issue::factory()->for($project)->count(3)->create($defaults);
+
+    $rows = Livewire::actingAs($user)
+        ->test('gantt.index', ['project' => $project])
+        ->get('rows');
+
+    expect($rows)->toHaveCount(3);
+});

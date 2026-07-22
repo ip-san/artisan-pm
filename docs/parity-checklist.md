@@ -443,7 +443,7 @@
 | グローバルアクティビティフィード | partial(2026-07-22) | 8種類のプロバイダを集約(日付範囲・種別チェックボックス)。`ActivityFeedController`+`feeds/activity-atom.blade.php`でAtomフィードを追加(直近10日/最大15件、Redmineの`activity_days_default`/`feeds_limit`既定値を踏襲、既存の`ActivityProviderRegistry`をそのまま再利用)。プロジェクト単位限定・サブプロジェクト包含は引き続き未対応 |
 | **プロジェクト横断の課題一覧** | **missing** | Redmineの主要機能の一つだが、トップレベル `/issues` が存在しない |
 | カレンダー | partial(2026-07-22) | 開始日/期日マーカーを実装: Redmineのカレンダーヘルパーと同様、課題を開始日(▶)と期日(◀)の2箇所にマーク表示(期間中の全日には展開しない)。開始日=期日の課題は◆1件に集約、片方の日付のみの課題はその日付にのみ表示。クエリフィルタとの連動・プロジェクト横断は引き続き未対応(ロードマップ参照) |
-| ガント | partial | 再帰CTEツリー+進捗バー。クエリ/フィルタを一切無視(常に全ツリー表示)、バージョンのマイルストーン表示なし、関連線なし、PDF/PNGエクスポートなし、プロジェクト限定 |
+| ガント | partial(2026-07-22) | クエリフィルタ連動を実装: 課題一覧と同じ`QueryFilterEngine`+`IssueFilterFieldRegistry`のフィルタビルダー(共通Bladeコンポーネント`<x-query-filter-builder>`に抽出、課題一覧/工数一覧も同コンポーネントへ移行)をガントに配線。フィルタ一致IDをEloquent側で解決し、`GanttService::issueTree()`が一致課題+その祖先(深さ表示の整合性のため保持)にツリーを絞り込む。CTE自体は無変更。バージョンのマイルストーン表示・関連線・PDF/PNGエクスポート・プロジェクト横断は引き続き未対応 |
 | 検索(モジュール横断) | partial | Issue/Wiki/News/Document/Message を1プロジェクト内で検索。all/my_projects/bookmarks/subprojects等のスコープ切替なし、all_words/titles_only/open_issues等のトグルなし、`#123`ジャンプなし、プロジェクト/チェンジセット/Journalは検索対象外 |
 
 ---
