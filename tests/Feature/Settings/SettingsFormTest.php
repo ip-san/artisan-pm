@@ -88,6 +88,34 @@ test('an admin can configure default project modules and trackers', function () 
         ->and(Setting::get('default_projects_tracker_ids'))->toBe([$tracker->id]);
 });
 
+test('an admin can configure mail handler body/attachment filtering and repository autofetch', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('mail_handler_body_delimiters', "-----Original Message-----\n> wrote:")
+        ->set('mail_handler_excluded_filenames', '*.ics, winmail.dat')
+        ->set('mail_handler_preferred_body_part', 'html')
+        ->set('autofetch_changesets', true)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('mail_handler_body_delimiters'))->toBe("-----Original Message-----\n> wrote:")
+        ->and(Setting::get('mail_handler_excluded_filenames'))->toBe('*.ics, winmail.dat')
+        ->and(Setting::get('mail_handler_preferred_body_part'))->toBe('html')
+        ->and(Setting::get('autofetch_changesets'))->toBeTrue();
+});
+
+test('mail_handler_preferred_body_part must be plain or html', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('mail_handler_preferred_body_part', 'rtf')
+        ->call('save')
+        ->assertHasErrors(['mail_handler_preferred_body_part']);
+});
+
 test('attachment_max_size cannot exceed the underlying media-library cap', function () {
     $admin = User::factory()->admin()->create();
     $hardCapKb = intdiv((int) config('media-library.max_file_size'), 1024);

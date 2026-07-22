@@ -80,15 +80,82 @@ final class IncomingMailService
         $attachments = [];
 
         foreach ($message->getAttachments() as $attachment) {
-            $attachments[] = ['filename' => (string) $attachment->name, 'content' => (string) $attachment->content];
+            $filename = (string) $attachment->name;
+
+            if ($this->filenameExcluded($filename)) {
+                continue;
+            }
+
+            $attachments[] = ['filename' => $filename, 'content' => (string) $attachment->content];
         }
+
+        $body = $this->truncateBody($this->resolveBody($message->getTextBody(), $message->getHTMLBody()));
 
         return new ParsedIncomingMail(
             subject: (string) $message->subject,
-            body: $message->getTextBody(),
+            body: $body,
             fromEmail: (string) ($message->from[0]->mail ?? ''),
             attachments: $attachments,
         );
+    }
+
+    /**
+     * Picks the text or HTML body per Setting::mail_handler_preferred_body_part
+     * (matching Redmine's own setting of the same name), falling back to
+     * whichever part is actually present when the preferred one is empty.
+     * The HTML part is stripped to plain text since issue descriptions in
+     * this app are rendered as Markdown, not raw HTML.
+     */
+    public function resolveBody(string $textBody, string $htmlBody): string
+    {
+        if (Setting::get('mail_handler_preferred_body_part', 'plain') === 'html') {
+            return $htmlBody !== '' ? trim(strip_tags($htmlBody)) : $textBody;
+        }
+
+        return $textBody !== '' ? $textBody : trim(strip_tags($htmlBody));
+    }
+
+    /**
+     * Truncates the body at the first line matching one of
+     * Setting::mail_handler_body_delimiters (one plain-text line per
+     * setting line) — matches Redmine's own delimiter truncation, used to
+     * strip quoted reply chains and signatures from the stored body.
+     */
+    public function truncateBody(string $body): string
+    {
+        $delimiters = collect(explode("\n", (string) Setting::get('mail_handler_body_delimiters', '')))
+            ->map(fn (string $line) => trim($line))
+            ->filter()
+            ->all();
+
+        if ($delimiters === []) {
+            return $body;
+        }
+
+        $lines = explode("\n", $body);
+
+        foreach ($lines as $index => $line) {
+            if (in_array(trim($line), $delimiters, true)) {
+                return trim(implode("\n", array_slice($lines, 0, $index)));
+            }
+        }
+
+        return $body;
+    }
+
+    /**
+     * Matches Setting::mail_handler_excluded_filenames (comma-separated
+     * glob patterns, e.g. "*.ics, winmail.dat") against an attachment's
+     * filename — same comma-separated-list convention as
+     * attachment_extensions_allowed/denied elsewhere in this app.
+     */
+    public function filenameExcluded(string $filename): bool
+    {
+        $patterns = collect(explode(',', (string) Setting::get('mail_handler_excluded_filenames', '')))
+            ->map(fn (string $pattern) => trim($pattern))
+            ->filter();
+
+        return $patterns->contains(fn (string $pattern) => fnmatch($pattern, $filename, FNM_CASEFOLD));
     }
 
     public function createIssueFromMail(ParsedIncomingMail $mail): ?Issue

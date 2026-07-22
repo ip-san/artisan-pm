@@ -25,6 +25,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $incoming_mail_default_status_id = null;
 
+    public string $mail_handler_body_delimiters = '';
+
+    public string $mail_handler_excluded_filenames = '';
+
+    public string $mail_handler_preferred_body_part = 'plain';
+
+    public bool $autofetch_changesets = false;
+
     public int $attachment_max_size = 10240;
 
     public string $attachment_extensions_allowed = '';
@@ -68,6 +76,10 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->incoming_mail_default_project_id = Setting::get('incoming_mail_default_project_id');
         $this->incoming_mail_default_tracker_id = Setting::get('incoming_mail_default_tracker_id');
         $this->incoming_mail_default_status_id = Setting::get('incoming_mail_default_status_id');
+        $this->mail_handler_body_delimiters = Setting::get('mail_handler_body_delimiters', '');
+        $this->mail_handler_excluded_filenames = Setting::get('mail_handler_excluded_filenames', '');
+        $this->mail_handler_preferred_body_part = Setting::get('mail_handler_preferred_body_part', 'plain');
+        $this->autofetch_changesets = Setting::get('autofetch_changesets', false);
         $this->attachment_max_size = Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024));
         $this->attachment_extensions_allowed = Setting::get('attachment_extensions_allowed', '');
         $this->attachment_extensions_denied = Setting::get('attachment_extensions_denied', '');
@@ -105,6 +117,10 @@ new #[Layout('components.layouts.app')] class extends Component
             'incoming_mail_default_project_id' => ['nullable', 'exists:projects,id'],
             'incoming_mail_default_tracker_id' => ['nullable', 'exists:trackers,id'],
             'incoming_mail_default_status_id' => ['nullable', 'exists:issue_statuses,id'],
+            'mail_handler_body_delimiters' => ['nullable', 'string', 'max:1000'],
+            'mail_handler_excluded_filenames' => ['nullable', 'string', 'max:1000'],
+            'mail_handler_preferred_body_part' => ['required', 'in:plain,html'],
+            'autofetch_changesets' => ['boolean'],
             'attachment_max_size' => ['required', 'integer', 'min:1', 'max:'.intdiv((int) config('media-library.max_file_size'), 1024)],
             'attachment_extensions_allowed' => ['nullable', 'string', 'max:1000'],
             'attachment_extensions_denied' => ['nullable', 'string', 'max:1000'],
@@ -298,6 +314,38 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('incoming_mail_default_status_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">本文の取得優先形式</label>
+                <select wire:model="mail_handler_preferred_body_part" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="plain">プレーンテキスト優先</option>
+                    <option value="html">HTML優先(プレーンテキスト化して使用)</option>
+                </select>
+                @error('mail_handler_preferred_body_part') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">本文の切り捨て行(1行に1つ、この行に完全一致した箇所以降を切り捨て)</label>
+                <textarea wire:model="mail_handler_body_delimiters" rows="2" placeholder="例: -----Original Message-----"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+                @error('mail_handler_body_delimiters') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">除外する添付ファイル名(カンマ区切り、ワイルドカード可)</label>
+                <input type="text" wire:model="mail_handler_excluded_filenames" placeholder="例: *.ics, winmail.dat"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('mail_handler_excluded_filenames') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+        </section>
+
+        <section class="space-y-4 border-t border-gray-200 pt-6">
+            <h2 class="text-sm font-semibold text-gray-900">リポジトリ</h2>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="autofetch_changesets" class="rounded border-gray-300">
+                コミットを定期的に自動取得する(15分ごと)
+            </label>
         </section>
 
         <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">

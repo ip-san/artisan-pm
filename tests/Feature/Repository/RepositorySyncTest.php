@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\AutofetchRepositoryChangesetsJob;
 use App\Jobs\RepositorySyncJob;
 use App\Models\Changeset;
 use App\Models\Issue;
@@ -8,6 +9,7 @@ use App\Models\Member;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\RepositorySyncService;
 use Illuminate\Support\Facades\Log;
@@ -251,6 +253,28 @@ test('dispatching a sync for a repository twice in a row only queues one job', f
     RepositorySyncJob::dispatch($repository);
 
     Queue::assertPushed(RepositorySyncJob::class, 1);
+});
+
+test('AutofetchRepositoryChangesetsJob does nothing when autofetch_changesets is disabled', function () {
+    Queue::fake();
+    Repository::factory()->for(Project::factory())->create();
+
+    (new AutofetchRepositoryChangesetsJob)->handle();
+
+    Queue::assertNotPushed(RepositorySyncJob::class);
+});
+
+test('AutofetchRepositoryChangesetsJob queues a sync for every repository when enabled', function () {
+    Queue::fake();
+    Setting::set('autofetch_changesets', true);
+    $repositoryA = Repository::factory()->for(Project::factory())->create();
+    $repositoryB = Repository::factory()->for(Project::factory())->create();
+
+    (new AutofetchRepositoryChangesetsJob)->handle();
+
+    Queue::assertPushed(RepositorySyncJob::class, 2);
+    Queue::assertPushed(RepositorySyncJob::class, fn (RepositorySyncJob $job) => $job->uniqueId() === (string) $repositoryA->id);
+    Queue::assertPushed(RepositorySyncJob::class, fn (RepositorySyncJob $job) => $job->uniqueId() === (string) $repositoryB->id);
 });
 
 test('a failed sync is logged rather than swallowed silently', function () {

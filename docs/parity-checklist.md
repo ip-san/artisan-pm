@@ -51,7 +51,7 @@
 | 7 | カスタムフィールドの表示列・CSV列対応(課題一覧) | 中。`castValue()`/`options()`整備済みで実装障壁が当初より大幅に低下。長年の意図的見送りを解消できる |
 | ~~8~~ | ~~トラッカーの複製~~ → **done**(2026-07-22) | 小。ワークフローコピーが既にあるため残りは属性+CF紐付けのコピーのみ |
 | ~~9~~ | ~~プロジェクト作成時のデフォルトモジュール/トラッカー~~ → **done**(2026-07-22) | 中。設定「プロジェクト」タブの行はこの機能と同時に部分消化 |
-| 10 | 受信メール設定の拡張+リポジトリ設定(自動フェッチ等) | 小×2。既存settingsパターンの追記 |
+| ~~10~~ | ~~受信メール設定の拡張+リポジトリ設定(自動フェッチ等)~~ → **done**(2026-07-22) | 小×2。既存settingsパターンの追記 |
 
 ### ユーザー判断待ち(着手には明示的な承認・確認が必要)
 
@@ -293,9 +293,9 @@
 | ユーザー | missing | — |
 | 課題トラッキング(進捗率算出方式、プロジェクト間関連/サブタスク許可、既定表示列) | missing | — |
 | メール通知(送信元、ヘッダ/フッタ、通知イベント種別) | missing | — |
-| 受信メール | partial | 有効フラグ+既定プロジェクト/トラッカー/ステータスのみ |
+| 受信メール | partial(2026-07-22) | 有効フラグ+既定プロジェクト/トラッカー/ステータスに加え、`mail_handler_preferred_body_part`(プレーンテキスト/HTML優先、HTML側は`strip_tags`でプレーン化)・`mail_handler_body_delimiters`(1行1パターンの完全一致で本文を切り捨て、返信の引用部分除去用)・`mail_handler_excluded_filenames`(カンマ区切りのワイルドカードパターンで添付を除外)を追加。Redmineの`unknown_user`/`no_permission_check`/APIキー経由受信は引き続き意図的に対象外(既存の514行目を参照) |
 | 添付ファイル(最大サイズ、許可/禁止拡張子) | done(2026-07-21) | `attachment_max_size`/`attachment_extensions_allowed`/`attachment_extensions_denied`。`App\Support\Attachments\AttachmentValidationRules`を全6箇所のアップロードフォーム(Issue/News/Wiki/Message/Document/Files)で共通利用。最大サイズは`media-library.max_file_size`をハード上限として超過不可 |
-| リポジトリ(有効SCM、自動フェッチ、コミットキーワード) | missing | — |
+| リポジトリ(有効SCM、自動フェッチ、コミットキーワード) | partial(2026-07-22) | 自動フェッチ(`autofetch_changesets`設定)を実装。`AutofetchRepositoryChangesetsJob`を15分ごとにスケジュール登録し、有効時は全リポジトリへ`RepositorySyncJob`をディスパッチ(`RepositorySyncJob`自体の`ShouldBeUnique`によりリポジトリ単位で重複実行は防止済み)。有効SCM切り替え(`enabled_scm`)・コミットキーワード設定(`commit_update_keywords`、現状`RepositorySyncService::FIXING_KEYWORDS`にハードコード)は複数行テーブルUIが必要なためスコープ外のまま |
 
 ### ユーザー管理・認証
 

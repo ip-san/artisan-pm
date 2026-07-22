@@ -268,3 +268,46 @@ test('an oversized attachment is skipped without losing the issue or the other a
         ->and($issue->attachments())->toHaveCount(1)
         ->and($issue->attachments()->first()->file_name)->toBe('small.txt');
 });
+
+test('resolveBody prefers the plain text part by default, falling back to a stripped html part when plain is empty', function () {
+    $service = app(IncomingMailService::class);
+
+    expect($service->resolveBody('Plain text.', '<p>HTML text.</p>'))->toBe('Plain text.')
+        ->and($service->resolveBody('', '<p>HTML only.</p>'))->toBe('HTML only.');
+});
+
+test('resolveBody prefers a stripped html part when configured, falling back to plain text when html is empty', function () {
+    Setting::set('mail_handler_preferred_body_part', 'html');
+    $service = app(IncomingMailService::class);
+
+    expect($service->resolveBody('Plain text.', '<p>HTML text.</p>'))->toBe('HTML text.')
+        ->and($service->resolveBody('Plain fallback.', ''))->toBe('Plain fallback.');
+});
+
+test('truncateBody cuts the body at the first configured delimiter line', function () {
+    Setting::set('mail_handler_body_delimiters', "-----Original Message-----\n> quoted reply");
+    $service = app(IncomingMailService::class);
+
+    $body = "The actual reply.\n\n-----Original Message-----\nOn Monday, someone wrote:\n> quoted text";
+
+    expect($service->truncateBody($body))->toBe('The actual reply.');
+});
+
+test('truncateBody returns the body unchanged when no delimiter is configured or matched', function () {
+    $service = app(IncomingMailService::class);
+
+    expect($service->truncateBody("Just a reply.\nNo delimiter here."))->toBe("Just a reply.\nNo delimiter here.");
+});
+
+test('filenameExcluded matches configured glob patterns against the attachment filename', function () {
+    Setting::set('mail_handler_excluded_filenames', '*.ics, winmail.dat');
+    $service = app(IncomingMailService::class);
+
+    expect($service->filenameExcluded('invite.ICS'))->toBeTrue()
+        ->and($service->filenameExcluded('winmail.dat'))->toBeTrue()
+        ->and($service->filenameExcluded('screenshot.png'))->toBeFalse();
+});
+
+test('filenameExcluded matches nothing when no pattern is configured', function () {
+    expect(app(IncomingMailService::class)->filenameExcluded('anything.txt'))->toBeFalse();
+});
