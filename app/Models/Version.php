@@ -153,6 +153,69 @@ final class Version extends Model implements HasMedia
     }
 
     /**
+     * Total issues fixed to this version, split by open/closed — matches
+     * Redmine's Version#open_count/closed_count. Unlike estimatedHours()/
+     * spentHours(), these count every issue (not leaves only): Redmine's
+     * own fixed_issues association has no such restriction.
+     *
+     * @return array{open: int, closed: int}
+     */
+    public function issueCounts(): array
+    {
+        $closed = (int) $this->issues()->whereHas('status', fn ($query) => $query->where('is_closed', true))->count();
+        $open = (int) $this->issues()->whereHas('status', fn ($query) => $query->where('is_closed', false))->count();
+
+        return ['open' => $open, 'closed' => $closed];
+    }
+
+    /**
+     * The percentage of this version's issues that are closed — matches
+     * Redmine's Version#closed_percent.
+     */
+    public function closedPercent(): float
+    {
+        $counts = $this->issueCounts();
+        $total = $counts['open'] + $counts['closed'];
+
+        if ($total === 0) {
+            return 0.0;
+        }
+
+        return round($counts['closed'] / $total * 100, 1);
+    }
+
+    /**
+     * Overall completion, weighting each issue by its estimated hours
+     * (unestimated issues use the average estimate among the ones that
+     * have one, or 1.0 if none do) and treating closed issues as 100%
+     * done — matches Redmine's Version#completed_percent /
+     * issues_progress. Same weighting scheme as IssueService's parent-
+     * issue done_ratio rollup.
+     */
+    public function completedPercent(): float
+    {
+        $issues = $this->issues()->get(['estimated_hours', 'done_ratio', 'status_id'])->load('status');
+
+        if ($issues->isEmpty()) {
+            return 0.0;
+        }
+
+        $withEstimates = $issues->filter(fn (Issue $issue) => (float) ($issue->estimated_hours ?? 0) > 0.0);
+        $averageEstimate = $withEstimates->isNotEmpty()
+            ? $withEstimates->sum(fn (Issue $issue) => (float) $issue->estimated_hours) / $withEstimates->count()
+            : 1.0;
+
+        $weightedSum = $issues->sum(function (Issue $issue) use ($averageEstimate) {
+            $estimate = (float) ($issue->estimated_hours ?? 0) > 0.0 ? (float) $issue->estimated_hours : $averageEstimate;
+            $ratio = $issue->status->is_closed ? 100 : $issue->done_ratio;
+
+            return $estimate * $ratio;
+        });
+
+        return round($weightedSum / ($averageEstimate * $issues->count()), 1);
+    }
+
+    /**
      * The wiki page this version links to, resolved by title within its
      * own project's wiki — matches Redmine's Version#wiki_page, which
      * resolves wiki_page_title the same way rather than storing a foreign

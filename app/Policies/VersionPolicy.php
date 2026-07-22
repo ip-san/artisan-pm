@@ -20,6 +20,16 @@ final class VersionPolicy
         return $this->authorization->can($user, 'view_files', $project);
     }
 
+    /**
+     * The roadmap (versions#index in Redmine, mapped under view_issues —
+     * distinct from viewAny()/view() above, which gate the Files module's
+     * per-version file browsing on view_files instead).
+     */
+    public function viewRoadmap(?User $user, Project $project): bool
+    {
+        return $this->authorization->can($user, 'view_issues', $project);
+    }
+
     public function view(?User $user, Version $version): bool
     {
         return $this->authorization->can($user, 'view_files', $version->project);
