@@ -41,6 +41,7 @@ final class MorphMapServiceProvider extends ServiceProvider
             'message' => Message::class,
             'group' => Group::class,
             'time_entry_activity' => Enumeration::class,
+            'document_category' => Enumeration::class,
         ]);
     }
 }

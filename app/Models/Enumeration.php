@@ -112,13 +112,13 @@ final class Enumeration extends Model implements Sortable
     }
 
     /**
-     * Only meaningful for TimeEntryActivity — matches Redmine's
-     * TimeEntryActivityCustomField (IssuePriority/DocumentCategory custom
-     * fields aren't tracked as in-scope here). This model represents all
-     * three enumeration kinds in one table, so unlike Issue/Project/
-     * Version/Group there's no single static "this model's type"; treated
-     * as an implementation detail since nothing else in the app actually
-     * calls this abstract trait method today.
+     * Only meaningful for TimeEntryActivity/DocumentCategory — matches
+     * Redmine's TimeEntryActivityCustomField/DocumentCategoryCustomField
+     * (IssuePriority has no custom-field equivalent in Redmine). This
+     * model represents all three enumeration kinds in one table, so
+     * unlike Issue/Project/Version/Group there's no single static "this
+     * model's type"; treated as an implementation detail since nothing
+     * else in the app actually calls this abstract trait method today.
      */
     public static function customizableType(): CustomizableType
     {
@@ -126,22 +126,28 @@ final class Enumeration extends Model implements Sortable
     }
 
     /**
-     * Every TimeEntryActivity custom field is relevant to every
-     * TimeEntryActivity enumeration — same reasoning as Group: this is an
-     * admin-only resource (EnumerationPolicy denies everyone else) with no
-     * project/role visibility concept to filter by. Enumerations of any
-     * other type never have custom fields.
+     * TimeEntryActivity/DocumentCategory custom fields are relevant to
+     * every enumeration of that same type — same reasoning as Group:
+     * these are admin-only resources (EnumerationPolicy denies everyone
+     * else) with no project/role visibility concept to filter by.
+     * IssuePriority enumerations never have custom fields.
      *
      * @return Collection<int, CustomField>
      */
     public function relevantCustomFields(): Collection
     {
-        if ($this->type !== EnumerationType::TimeEntryActivity) {
+        $customizableType = match ($this->type) {
+            EnumerationType::TimeEntryActivity => CustomizableType::TimeEntryActivity,
+            EnumerationType::DocumentCategory => CustomizableType::DocumentCategory,
+            default => null,
+        };
+
+        if ($customizableType === null) {
             return collect();
         }
 
         return CustomField::query()
-            ->where('customized_type', CustomizableType::TimeEntryActivity)
+            ->where('customized_type', $customizableType)
             ->orderBy('position')
             ->get();
     }

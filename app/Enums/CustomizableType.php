@@ -19,4 +19,5 @@ enum CustomizableType: string
     case Group = 'group';
     case TimeEntryActivity = 'time_entry_activity';
     case Document = 'document';
+    case DocumentCategory = 'document_category';
 }
