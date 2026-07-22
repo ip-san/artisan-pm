@@ -2,6 +2,7 @@
 
 use App\Enums\VersionStatus;
 use App\Models\Project;
+use App\Models\Tracker;
 use App\Models\Version;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -36,6 +37,23 @@ new #[Layout('components.layouts.app')] class extends Component
             ->reject(fn (Version $version) => $version->isCompleted())
             ->values();
     }
+
+    /**
+     * Only trackers that opted into the roadmap count toward each
+     * version's progress bar/issue counts on this page — matches
+     * Redmine's own roadmap, which defaults to trackers where
+     * is_in_roadmap? is true. Applied here rather than inside Version's
+     * own issueCounts()/completedPercent(), since those are also used
+     * where every issue should count regardless of tracker (e.g. the
+     * version's own edit/show page).
+     *
+     * @return Collection<int, int>
+     */
+    #[Computed]
+    public function roadmapTrackerIds(): Collection
+    {
+        return Tracker::query()->where('is_in_roadmap', true)->pluck('id');
+    }
 }; ?>
 
 <div class="max-w-3xl">
@@ -48,10 +66,10 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="space-y-6">
         @foreach ($this->versions as $version)
             @php
-                $counts = $version->issueCounts();
+                $counts = $version->issueCounts($this->roadmapTrackerIds);
                 $total = $counts['open'] + $counts['closed'];
                 $closedPercent = $version->closedPercent($counts);
-                $completedPercent = $version->completedPercent();
+                $completedPercent = $version->completedPercent($this->roadmapTrackerIds);
             @endphp
             <article wire:key="roadmap-version-{{ $version->id }}" class="rounded-md border border-gray-200 bg-white p-4">
                 <div class="flex items-center justify-between">

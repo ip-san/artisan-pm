@@ -191,12 +191,23 @@ final class Version extends Model implements HasMedia
      * spentHours(), these count every issue (not leaves only): Redmine's
      * own fixed_issues association has no such restriction.
      *
+     * @param  Collection<int, int>|null  $trackerIds  when given, only issues
+     *                                                 under one of these trackers are counted — the roadmap view uses
+     *                                                 this to honor each tracker's is_in_roadmap flag (matching
+     *                                                 Redmine's own roadmap, which excludes trackers that opted out);
+     *                                                 every other caller counts every issue regardless of tracker
      * @return array{open: int, closed: int}
      */
-    public function issueCounts(): array
+    public function issueCounts(?Collection $trackerIds = null): array
     {
-        $closed = $this->issues()->whereHas('status', fn ($query) => $query->where('is_closed', true))->count();
-        $open = $this->issues()->whereHas('status', fn ($query) => $query->where('is_closed', false))->count();
+        $closed = $this->issues()
+            ->whereHas('status', fn ($query) => $query->where('is_closed', true))
+            ->when($trackerIds !== null, fn ($query) => $query->whereIn('tracker_id', $trackerIds))
+            ->count();
+        $open = $this->issues()
+            ->whereHas('status', fn ($query) => $query->where('is_closed', false))
+            ->when($trackerIds !== null, fn ($query) => $query->whereIn('tracker_id', $trackerIds))
+            ->count();
 
         return ['open' => $open, 'closed' => $closed];
     }
@@ -227,10 +238,15 @@ final class Version extends Model implements HasMedia
      * done — matches Redmine's Version#completed_percent /
      * issues_progress. Same weighting scheme as IssueService's parent-
      * issue done_ratio rollup.
+     *
+     * @param  Collection<int, int>|null  $trackerIds  see issueCounts()
      */
-    public function completedPercent(): float
+    public function completedPercent(?Collection $trackerIds = null): float
     {
-        $issues = $this->issues()->get(['estimated_hours', 'done_ratio', 'status_id'])->load('status');
+        $issues = $this->issues()
+            ->when($trackerIds !== null, fn ($query) => $query->whereIn('tracker_id', $trackerIds))
+            ->get(['estimated_hours', 'done_ratio', 'status_id'])
+            ->load('status');
 
         if ($issues->isEmpty()) {
             return 0.0;

@@ -22,7 +22,23 @@ test('an admin can create a tracker', function () {
 
     $tracker = Tracker::where('name', 'Support Request')->firstOrFail();
 
-    expect($tracker->description)->toBe('Customer support tickets');
+    expect($tracker->description)->toBe('Customer support tickets')
+        ->and($tracker->is_in_roadmap)->toBeTrue();
+});
+
+test('an admin can exclude a tracker from the roadmap', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('trackers.form')
+        ->set('name', 'Support Request')
+        ->set('is_in_roadmap', false)
+        ->call('save')
+        ->assertRedirect(route('trackers.index'));
+
+    $tracker = Tracker::where('name', 'Support Request')->firstOrFail();
+
+    expect($tracker->is_in_roadmap)->toBeFalse();
 });
 
 test('a non-admin cannot access tracker administration', function () {
@@ -51,6 +67,7 @@ test('copying from a tracker prefills its attributes and copies project/custom f
         'default_status_id' => $status->id,
         'disabled_core_fields' => ['category_id'],
         'private_by_default' => true,
+        'is_in_roadmap' => false,
     ]);
     $source->projects()->attach($project);
 
@@ -64,6 +81,7 @@ test('copying from a tracker prefills its attributes and copies project/custom f
         ->assertSet('default_status_id', $status->id)
         ->assertSet('disabled_core_fields', ['category_id'])
         ->assertSet('private_by_default', true)
+        ->assertSet('is_in_roadmap', false)
         ->set('name', 'Copied Tracker')
         ->call('save')
         ->assertRedirect(route('trackers.index'));
@@ -74,6 +92,7 @@ test('copying from a tracker prefills its attributes and copies project/custom f
         ->and($copied->default_status_id)->toBe($status->id)
         ->and($copied->disabled_core_fields)->toBe(['category_id'])
         ->and($copied->private_by_default)->toBeTrue()
+        ->and($copied->is_in_roadmap)->toBeFalse()
         ->and($copied->projects->pluck('id')->all())->toBe([$project->id])
         ->and($field->fresh()->trackers->pluck('id'))->toContain($copied->id);
 });

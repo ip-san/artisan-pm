@@ -24,6 +24,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $private_by_default = false;
 
+    public bool $is_in_roadmap = true;
+
     public ?int $copyFromTrackerId = null;
 
     public function mount(?Tracker $tracker = null): void
@@ -37,6 +39,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->default_status_id = $tracker->default_status_id;
             $this->disabled_core_fields = $tracker->disabled_core_fields ?? [];
             $this->private_by_default = $tracker->private_by_default;
+            $this->is_in_roadmap = $tracker->is_in_roadmap;
         } else {
             $this->authorize('create', Tracker::class);
         }
@@ -78,6 +81,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->default_status_id = $source->default_status_id;
         $this->disabled_core_fields = $source->disabled_core_fields ?? [];
         $this->private_by_default = $source->private_by_default;
+        $this->is_in_roadmap = $source->is_in_roadmap;
     }
 
     public function save(): void
@@ -89,6 +93,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'disabled_core_fields' => ['array'],
             'disabled_core_fields.*' => [Rule::in(array_keys(Tracker::DISABLABLE_CORE_FIELDS))],
             'private_by_default' => ['boolean'],
+            'is_in_roadmap' => ['boolean'],
             'copyFromTrackerId' => ['nullable', 'exists:trackers,id'],
         ]);
 
@@ -131,7 +136,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         <option value="{{ $source->id }}">{{ $source->name }}</option>
                     @endforeach
                 </select>
-                <p class="mt-1 text-xs text-gray-500">選択すると、説明・既定ステータス・非表示フィールド・非公開既定値をコピーします。保存時にプロジェクトへの割り当てとカスタムフィールドの紐付けもコピーされます。</p>
+                <p class="mt-1 text-xs text-gray-500">選択すると、説明・既定ステータス・非表示フィールド・非公開既定値・ロードマップ対象フラグをコピーします。保存時にプロジェクトへの割り当てとカスタムフィールドの紐付けもコピーされます。</p>
                 @error('copyFromTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
         @endunless
@@ -176,6 +181,11 @@ new #[Layout('components.layouts.app')] class extends Component
         <label class="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" wire:model="private_by_default" class="rounded border-gray-300">
             このトラッカーの新規課題は既定で非公開にする
+        </label>
+
+        <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" wire:model="is_in_roadmap" class="rounded border-gray-300">
+            ロードマップに表示する
         </label>
 
         <div class="flex gap-3">

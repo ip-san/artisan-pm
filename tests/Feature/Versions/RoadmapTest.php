@@ -109,6 +109,28 @@ test('completed percent weights open issues by estimated hours and treats closed
     expect($version->completedPercent())->toBe(75.0);
 });
 
+test('the roadmap excludes issues under a tracker with is_in_roadmap disabled', function () {
+    $project = Project::factory()->create();
+    $user = roadmapMember($project);
+    $version = Version::factory()->for($project)->create();
+    $status = IssueStatus::factory()->create(['is_closed' => false]);
+
+    $roadmapTracker = Tracker::factory()->create(['is_in_roadmap' => true]);
+    $excludedTracker = Tracker::factory()->create(['is_in_roadmap' => false]);
+
+    roadmapIssue($project, ['tracker_id' => $roadmapTracker->id, 'status_id' => $status->id, 'fixed_version_id' => $version->id]);
+    roadmapIssue($project, ['tracker_id' => $excludedTracker->id, 'status_id' => $status->id, 'fixed_version_id' => $version->id]);
+
+    $component = Livewire::actingAs($user)
+        ->test('versions.roadmap', ['project' => $project])
+        ->assertSee('1件の課題');
+
+    $roadmapTrackerIds = $component->get('roadmapTrackerIds');
+
+    expect($roadmapTrackerIds)->toContain($roadmapTracker->id)->not->toContain($excludedTracker->id)
+        ->and($version->issueCounts($roadmapTrackerIds))->toBe(['open' => 1, 'closed' => 0]);
+});
+
 test('a version with no issues reports zero for counts and percentages', function () {
     $project = Project::factory()->create();
     $version = Version::factory()->for($project)->create();
