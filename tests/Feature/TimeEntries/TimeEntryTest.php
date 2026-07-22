@@ -7,6 +7,7 @@ use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
+use App\Models\Query;
 use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
@@ -222,6 +223,62 @@ test('csv export streams a csv containing the filtered time entries', function (
         ->test('time-entries.index', ['project' => $project])
         ->call('exportCsv')
         ->assertFileDownloaded("{$project->identifier}-time_entries.csv");
+});
+
+/**
+ * @param  array<int, string>  $fields
+ */
+function timeEntryCsvRow(array $fields): string
+{
+    $handle = fopen('php://memory', 'w+');
+    fputcsv($handle, $fields);
+    rewind($handle);
+    $row = stream_get_contents($handle);
+    fclose($handle);
+
+    return $row;
+}
+
+test('the selected display columns control what appears in the csv export', function () {
+    $project = Project::factory()->create();
+    $user = timeEntryMember($project);
+    $activity = timeEntryActivity();
+    $activity->update(['name' => 'Development']);
+    TimeEntry::factory()->for($project)->for($user)->create([
+        'activity_id' => $activity->id,
+        'spent_on' => '2026-01-15',
+        'hours' => 3.5,
+        'comments' => 'Wrote the feature',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('time-entries.index', ['project' => $project])
+        ->set('columns', ['spent_on', 'hours'])
+        ->call('exportCsv')
+        ->assertFileDownloaded(
+            "{$project->identifier}-time_entries.csv",
+            timeEntryCsvRow(['日付', '時間']).timeEntryCsvRow(['2026-01-15', '3.50'])
+        );
+});
+
+test('display columns are restored when a saved query is loaded', function () {
+    $project = Project::factory()->create();
+    $user = timeEntryMember($project);
+
+    $component = Livewire::actingAs($user)
+        ->test('time-entries.index', ['project' => $project])
+        ->set('columns', ['spent_on', 'hours'])
+        ->set('newQueryName', 'Hours only')
+        ->call('saveQuery');
+
+    $savedQuery = Query::where('name', 'Hours only')->firstOrFail();
+    expect($savedQuery->column_names)->toBe(['spent_on', 'hours']);
+
+    $fresh = Livewire::actingAs($user)->test('time-entries.index', ['project' => $project]);
+    expect($fresh->get('columns'))->not->toBe(['spent_on', 'hours']);
+
+    $fresh->call('loadQuery', $savedQuery->id);
+    expect($fresh->get('columns'))->toBe(['spent_on', 'hours']);
 });
 
 test('a member with own-only time entry visibility only sees their own entries', function () {

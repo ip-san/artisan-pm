@@ -19,6 +19,24 @@ use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    /**
+     * Columns selectable for display/CSV export — mirrors issues.index's
+     * own DISPLAY_COLUMNS. 'issue_id' and 'comments' aren't registered
+     * filter fields (see TimeEntryFilterFieldRegistry), so sorting by
+     * them is a harmless no-op rather than a real sort, same as any
+     * unregistered column on the issues list.
+     *
+     * @var array<string, string>
+     */
+    public const DISPLAY_COLUMNS = [
+        'spent_on' => '日付',
+        'user_id' => '担当者',
+        'activity_id' => '作業分類',
+        'issue_id' => '課題',
+        'comments' => 'コメント',
+        'hours' => '時間',
+    ];
+
     public Project $project;
 
     /** @var array<int, string> */
@@ -39,6 +57,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     #[Url]
     public ?string $groupBy = null;
+
+    /** @var array<int, string> */
+    #[Url]
+    public array $columns = ['spent_on', 'user_id', 'activity_id', 'issue_id', 'comments', 'hours'];
 
     public string $newQueryName = '';
 
@@ -168,7 +190,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'project_id' => $this->project->id,
             'is_public' => $data['newQueryIsPublic'],
             'filters' => $this->builtFilters(),
-            'column_names' => [],
+            'column_names' => $this->columns,
             'sort_criteria' => $this->sortKey ? [[$this->sortKey, $this->sortDirection]] : [],
             'group_by' => $this->groupBy,
         ]);
@@ -193,6 +215,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->filterValues[$key] = $filter['values'] ?? [];
         }
 
+        $this->columns = $query->column_names !== [] ? $query->column_names : array_keys(self::DISPLAY_COLUMNS);
         $this->groupBy = $query->group_by;
 
         if ($query->sort_criteria !== [] && $query->sort_criteria !== null) {
@@ -220,6 +243,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'activity_id' => $entry->activity->name,
             'spent_on' => $entry->spent_on->toDateString(),
             'hours' => (string) $entry->hours,
+            'issue_id' => $entry->issue ? "#{$entry->issue->id} {$entry->issue->subject}" : '',
+            'comments' => (string) $entry->comments,
             default => '',
         };
     }
@@ -265,21 +290,15 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('viewAny', [TimeEntry::class, $this->project]);
 
         $query = $this->filteredTimeEntriesQuery();
+        $columns = $this->columns;
 
-        return response()->streamDownload(function () use ($query) {
+        return response()->streamDownload(function () use ($query, $columns) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['担当者', '作業分類', '日付', '時間', '課題', 'コメント']);
+            fputcsv($handle, array_map(fn (string $key) => self::DISPLAY_COLUMNS[$key] ?? $key, $columns));
 
-            $query->chunk(200, function ($chunk) use ($handle) {
+            $query->chunk(200, function ($chunk) use ($handle, $columns) {
                 foreach ($chunk as $entry) {
-                    fputcsv($handle, [
-                        $entry->user->name,
-                        $entry->activity->name,
-                        $entry->spent_on->toDateString(),
-                        (string) $entry->hours,
-                        $entry->issue ? "#{$entry->issue->id} {$entry->issue->subject}" : '',
-                        (string) $entry->comments,
-                    ]);
+                    fputcsv($handle, array_map(fn (string $key) => $this->columnValue($entry, $key), $columns));
                 }
             });
 
@@ -403,6 +422,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
             </label>
 
+            <div class="flex items-center gap-2 text-sm text-gray-700">
+                表示列:
+                @foreach (self::DISPLAY_COLUMNS as $key => $label)
+                    <label class="flex items-center gap-1">
+                        <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-gray-300">
+                        {{ $label }}
+                    </label>
+                @endforeach
+            </div>
+
             <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
         </div>
 
@@ -431,32 +460,16 @@ new #[Layout('components.layouts.app')] class extends Component
             <table class="min-w-full divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
-                        <th class="px-4 py-2">
-                            <button wire:click="sortBy('spent_on')" class="flex items-center gap-1 hover:text-gray-900">
-                                日付
-                                @if ($sortKey === 'spent_on')<span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>@endif
-                            </button>
-                        </th>
-                        <th class="px-4 py-2">
-                            <button wire:click="sortBy('user_id')" class="flex items-center gap-1 hover:text-gray-900">
-                                担当者
-                                @if ($sortKey === 'user_id')<span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>@endif
-                            </button>
-                        </th>
-                        <th class="px-4 py-2">
-                            <button wire:click="sortBy('activity_id')" class="flex items-center gap-1 hover:text-gray-900">
-                                作業分類
-                                @if ($sortKey === 'activity_id')<span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>@endif
-                            </button>
-                        </th>
-                        <th class="px-4 py-2">課題</th>
-                        <th class="px-4 py-2">コメント</th>
-                        <th class="px-4 py-2">
-                            <button wire:click="sortBy('hours')" class="flex items-center gap-1 hover:text-gray-900">
-                                時間
-                                @if ($sortKey === 'hours')<span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>@endif
-                            </button>
-                        </th>
+                        @foreach ($columns as $columnKey)
+                            <th wire:key="column-heading-{{ $columnKey }}" class="px-4 py-2">
+                                <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
+                                    {{ self::DISPLAY_COLUMNS[$columnKey] ?? $columnKey }}
+                                    @if ($sortKey === $columnKey)
+                                        <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                    @endif
+                                </button>
+                            </th>
+                        @endforeach
                         @if ($this->canManage)
                             <th class="px-4 py-2"></th>
                         @endif
@@ -465,20 +478,21 @@ new #[Layout('components.layouts.app')] class extends Component
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($groupEntries as $entry)
                         <tr wire:key="time-entry-{{ $entry->id }}">
-                            <td class="px-4 py-2">{{ $entry->spent_on->toDateString() }}</td>
-                            <td class="px-4 py-2">{{ $entry->user->name }}</td>
-                            <td class="px-4 py-2">{{ $entry->activity->name }}</td>
-                            <td class="px-4 py-2">
-                                @if ($entry->issue)
-                                    <a href="{{ route('issues.show', [$project, $entry->issue]) }}" class="text-indigo-600 hover:underline">
-                                        #{{ $entry->issue->id }} {{ $entry->issue->subject }}
-                                    </a>
-                                @else
-                                    -
-                                @endif
-                            </td>
-                            <td class="px-4 py-2 text-gray-600">{{ $entry->comments }}</td>
-                            <td class="px-4 py-2">{{ $entry->hours }}</td>
+                            @foreach ($columns as $columnKey)
+                                <td wire:key="time-entry-{{ $entry->id }}-column-{{ $columnKey }}" class="px-4 py-2">
+                                    @if ($columnKey === 'issue_id')
+                                        @if ($entry->issue)
+                                            <a href="{{ route('issues.show', [$project, $entry->issue]) }}" class="text-indigo-600 hover:underline">
+                                                #{{ $entry->issue->id }} {{ $entry->issue->subject }}
+                                            </a>
+                                        @else
+                                            -
+                                        @endif
+                                    @else
+                                        {{ $this->columnValue($entry, $columnKey) }}
+                                    @endif
+                                </td>
+                            @endforeach
                             @if ($this->canManage)
                                 <td class="px-4 py-2 whitespace-nowrap">
                                     <a href="{{ route('time-entries.edit', [$project, $entry]) }}" class="text-indigo-600 hover:underline">編集</a>
@@ -488,7 +502,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-6 text-center text-gray-500">工数記録がありません。</td>
+                            <td colspan="{{ count($columns) + 1 }}" class="px-4 py-6 text-center text-gray-500">工数記録がありません。</td>
                         </tr>
                     @endforelse
                 </tbody>
