@@ -1,7 +1,11 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
+use App\Enums\QueryType;
+use App\Enums\QueryVisibility;
 use App\Models\Project;
+use App\Models\Query as SavedQuery;
+use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
@@ -9,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -19,10 +24,13 @@ use Livewire\Volt\Component;
  * entry across every project the current user can view_time_entries in.
  * Unlike the project-scoped time-entries.index, this intentionally has no
  * per-entry edit/delete (those need a per-project canManage() check, not
- * one global check), no CSV export, and no saved queries (Query::visibleIn
- * has no cross-project variant yet) — same scope cut issues.global-index
- * made. The pivoted multi-axis report (Redmine's TimelogController#report)
- * is a separate, larger gap this does not address.
+ * one global check), no CSV export, and only a single sort level rather
+ * than the project-scoped page's grouping-plus-sort combo — same scope
+ * cuts issues.global-index made. The pivoted multi-axis report (Redmine's
+ * TimelogController#report) is a separate, larger gap this does not
+ * address. Saved queries here are always global (`project_id IS NULL`,
+ * matching Redmine's `query_is_for_all` on the cross-project index) — see
+ * issues.global-index for the identical pattern.
  */
 new #[Layout('components.layouts.app')] class extends Component
 {
@@ -53,6 +61,15 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int, string> */
     #[Url]
     public array $columns = ['project_id', 'spent_on', 'user_id', 'activity_id', 'issue_id', 'hours'];
+
+    public string $newQueryName = '';
+
+    public string $newQueryVisibility = 'private';
+
+    /** @var array<int, int> */
+    public array $newQueryRoleIds = [];
+
+    public bool $showSaveForm = false;
 
     /**
      * @return Collection<int, Project>
@@ -159,6 +176,83 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         return Number::format((float) $entries->sum('hours'), precision: 2);
     }
+
+    #[Computed]
+    public function canManagePublicQueries(): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null && $user->is_admin;
+    }
+
+    #[Computed]
+    public function availableRoles(): Collection
+    {
+        return Role::query()->givable()->get();
+    }
+
+    #[Computed]
+    public function savedQueries(): Collection
+    {
+        return SavedQuery::visibleGlobally(QueryType::TimeEntry, auth()->user());
+    }
+
+    public function saveQuery(): void
+    {
+        $data = $this->validate([
+            'newQueryName' => ['required', 'string', 'max:255'],
+            'newQueryVisibility' => ['required', Rule::enum(QueryVisibility::class)],
+            'newQueryRoleIds' => $this->newQueryVisibility === QueryVisibility::Roles->value ? ['required', 'array', 'min:1'] : ['array'],
+            'newQueryRoleIds.*' => ['exists:roles,id'],
+        ]);
+
+        $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], null);
+
+        $query = SavedQuery::create([
+            'name' => $data['newQueryName'],
+            'type' => QueryType::TimeEntry->value,
+            'user_id' => auth()->id(),
+            'project_id' => null,
+            'visibility' => $visibility,
+            'filters' => $this->builtFilters(),
+            'column_names' => $this->columns,
+            'sort_criteria' => $this->sortKey ? [[$this->sortKey, $this->sortDirection]] : [],
+            'group_by' => $this->groupBy,
+        ]);
+
+        if ($visibility === QueryVisibility::Roles->value) {
+            $query->roles()->sync($data['newQueryRoleIds']);
+        }
+
+        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'showSaveForm']);
+        unset($this->savedQueries);
+        session()->flash('status', 'クエリを保存しました。');
+    }
+
+    public function loadQuery(int $queryId): void
+    {
+        $query = SavedQuery::query()->whereNull('project_id')->findOrFail($queryId);
+
+        abort_unless($query->visibleTo(auth()->user()), 403);
+
+        $this->activeFilterKeys = array_keys($query->filters);
+        $this->filterOperators = [];
+        $this->filterValues = [];
+
+        foreach ($query->filters as $key => $filter) {
+            $this->filterOperators[$key] = $filter['operator'];
+            $this->filterValues[$key] = $filter['values'] ?? [];
+        }
+
+        $this->columns = $query->column_names !== [] ? $query->column_names : array_keys(self::DISPLAY_COLUMNS);
+        $this->groupBy = $query->group_by;
+
+        if ($query->sort_criteria !== [] && $query->sort_criteria !== null) {
+            [$this->sortKey, $this->sortDirection] = $query->sort_criteria[0];
+        }
+
+        unset($this->timeEntries, $this->groupedTimeEntries);
+    }
 }; ?>
 
 <div>
@@ -167,6 +261,18 @@ new #[Layout('components.layouts.app')] class extends Component
             <h1 class="text-xl font-semibold text-gray-900">工数(全プロジェクト)</h1>
             <p class="mt-1 text-sm text-gray-500">合計: {{ $this->totalHours }} 時間</p>
         </div>
+    </div>
+
+    {{-- Saved queries --}}
+    <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <span class="text-gray-500">保存済みクエリ:</span>
+        @forelse ($this->savedQueries as $savedQuery)
+            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50">
+                {{ $savedQuery->name }}
+            </button>
+        @empty
+            <span class="text-gray-400">なし</span>
+        @endforelse
     </div>
 
     {{-- Filter builder --}}
@@ -198,7 +304,16 @@ new #[Layout('components.layouts.app')] class extends Component
                     </label>
                 @endforeach
             </div>
+
+            <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
         </div>
+
+        @if ($showSaveForm)
+            <x-saved-query-save-form
+                :can-manage-public-queries="$this->canManagePublicQueries"
+                :visibility="$newQueryVisibility"
+                :roles="$this->availableRoles" />
+        @endif
     </div>
 
     @foreach ($this->groupedTimeEntries as $groupLabel => $groupEntries)
