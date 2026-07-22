@@ -38,4 +38,9 @@ final class TextFormat implements FormatContract
     {
         return ['string'];
     }
+
+    public function options(CustomField $field): array
+    {
+        return [];
+    }
 }

@@ -48,11 +48,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->modules = $project->moduleAssignments->pluck('module.value')->all();
             $this->trackerIds = $project->trackers->pluck('id')->all();
 
-            foreach ($project->relevantCustomFields() as $field) {
-                $this->customFieldValues[$field->id] = $field->multiple
-                    ? $project->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
-                    : $project->customValue($field);
-            }
+            $this->customFieldValues = $project->customFieldFormValues($project->relevantCustomFields());
         } else {
             // A parent_id in the query string (arrived at via a project's
             // "add subproject" link) is authorized against that specific
@@ -157,17 +153,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'trackerIds.*' => ['exists:trackers,id'],
         ];
 
-        foreach ($this->customFields as $field) {
-            $key = "customFieldValues.{$field->id}";
-            $presence = $field->is_required ? 'required' : 'nullable';
-
-            if ($field->multiple) {
-                $rules[$key] = [$presence, 'array'];
-                $rules["{$key}.*"] = $field->format()->validationRules($field);
-            } else {
-                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
-            }
-        }
+        $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
 
         $data = $this->validate($rules);
         $customFieldData = $data['customFieldValues'] ?? [];

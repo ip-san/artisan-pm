@@ -6,7 +6,6 @@ namespace App\Support\Markdown;
 
 use App\Models\Issue;
 use App\Models\Project;
-use DOMDocument;
 use DOMElement;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
@@ -94,13 +93,7 @@ final class WikiMarkdownRenderer
      */
     private function resolveInlineAttachmentImages(string $html, MediaCollection $attachments): string
     {
-        $document = new DOMDocument;
-        libxml_use_internal_errors(true);
-        $document->loadHTML(
-            '<?xml encoding="utf-8"?><div>'.$html.'</div>',
-            LIBXML_NOERROR | LIBXML_NOWARNING | LIBXML_HTML_NODEFDTD | LIBXML_HTML_NOIMPLIED
-        );
-        libxml_clear_errors();
+        $document = HtmlFragment::load($html);
 
         // Newest first, so when multiple attachments share a filename the
         // most recently uploaded one wins — matches Redmine's own
@@ -132,13 +125,6 @@ final class WikiMarkdownRenderer
             return $html;
         }
 
-        $wrapper = $document->getElementsByTagName('div')->item(0);
-        $inner = '';
-
-        foreach (iterator_to_array($wrapper->childNodes) as $child) {
-            $inner .= $document->saveHTML($child);
-        }
-
-        return $inner;
+        return HtmlFragment::innerHtml($document);
     }
 }

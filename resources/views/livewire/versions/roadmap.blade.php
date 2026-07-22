@@ -50,7 +50,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @php
                 $counts = $version->issueCounts();
                 $total = $counts['open'] + $counts['closed'];
-                $closedPercent = $version->closedPercent();
+                $closedPercent = $version->closedPercent($counts);
                 $completedPercent = $version->completedPercent();
             @endphp
             <article wire:key="roadmap-version-{{ $version->id }}" class="rounded-md border border-gray-200 bg-white p-4">

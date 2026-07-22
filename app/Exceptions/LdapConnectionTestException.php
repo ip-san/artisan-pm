@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Exceptions;
 
 use RuntimeException;
-use Throwable;
 
 /**
  * Thrown by LdapAuthenticator::testConnection() when the directory can't
@@ -13,10 +12,4 @@ use Throwable;
  * to bind — matches Redmine's AuthSourceException raised from
  * AuthSourceLdap#test_connection.
  */
-final class LdapConnectionTestException extends RuntimeException
-{
-    public function __construct(string $message, ?Throwable $previous = null)
-    {
-        parent::__construct($message, previous: $previous);
-    }
-}
+final class LdapConnectionTestException extends RuntimeException {}

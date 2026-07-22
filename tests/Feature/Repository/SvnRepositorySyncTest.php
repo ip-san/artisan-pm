@@ -56,7 +56,11 @@ test('syncing an svn repository records a changeset per revision, oldest first',
 
     expect($created)->toBe(2);
 
-    $revisions = $repository->changesets()->orderBy('id')->pluck('revision', 'comments')->all();
+    // reorder(), not orderBy(): the changesets() relation bakes in
+    // orderByDesc('committed_on'), which a plain orderBy would only
+    // append a tiebreaker to — flipping the result whenever the two
+    // commits land in different seconds.
+    $revisions = $repository->changesets()->reorder('id')->pluck('revision', 'comments')->all();
     expect($revisions)->toBe(['Initial commit' => '1', 'Second commit' => '2']);
 });
 

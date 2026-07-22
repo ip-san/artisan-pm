@@ -191,7 +191,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function availableRoles(): Collection
     {
-        return Role::query()->whereNull('builtin')->orderBy('position')->get();
+        return Role::query()->givable()->get();
     }
 
     public function saveQuery(): void
@@ -203,11 +203,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'newQueryRoleIds.*' => ['exists:roles,id'],
         ]);
 
-        // Only a manage_public_queries holder can make a query anything
-        // but private — matches Redmine's QueriesController#new/#create,
-        // which silently forces VISIBILITY_PRIVATE for anyone else rather
-        // than rejecting the submission outright.
-        $visibility = $this->canManagePublicQueries ? $data['newQueryVisibility'] : QueryVisibility::Private->value;
+        $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], $this->project);
 
         $query = SavedQuery::create([
             'name' => $data['newQueryName'],
@@ -255,22 +251,10 @@ new #[Layout('components.layouts.app')] class extends Component
         unset($this->timeEntries, $this->groupedTimeEntries);
     }
 
-    /**
-     * Roles-scoped visibility needs a role-intersection check that isn't
-     * a single SQL predicate, so this filters in memory after the fact —
-     * the same approach projects.index uses for its own can('view')
-     * filter, and small enough per project to not matter.
-     */
     #[Computed]
     public function savedQueries(): Collection
     {
-        return SavedQuery::query()
-            ->where('project_id', $this->project->id)
-            ->where('type', QueryType::TimeEntry->value)
-            ->orderBy('name')
-            ->get()
-            ->filter(fn (SavedQuery $query) => $query->visibleTo(auth()->user()))
-            ->values();
+        return SavedQuery::visibleIn($this->project, QueryType::TimeEntry, auth()->user());
     }
 
     public function columnValue(TimeEntry $entry, string $key): string
@@ -473,34 +457,10 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         @if ($showSaveForm)
-            <form wire:submit="saveQuery" class="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
-                <input type="text" wire:model="newQueryName" placeholder="クエリ名" class="rounded-md border-gray-300 text-sm">
-
-                @if ($this->canManagePublicQueries)
-                    <select wire:model.live="newQueryVisibility" class="rounded-md border-gray-300 text-sm">
-                        <option value="private">非公開</option>
-                        <option value="roles">特定ロールに公開</option>
-                        <option value="public">全員に公開</option>
-                    </select>
-
-                    @if ($newQueryVisibility === 'roles')
-                        <span class="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                            @foreach ($this->availableRoles as $role)
-                                <label class="flex items-center gap-1">
-                                    <input type="checkbox" wire:model="newQueryRoleIds" value="{{ $role->id }}" class="rounded border-gray-300">
-                                    {{ $role->name }}
-                                </label>
-                            @endforeach
-                        </span>
-                        @error('newQueryRoleIds') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
-                    @endif
-                @else
-                    <span class="text-xs text-gray-500">(非公開クエリとして保存されます)</span>
-                @endif
-
-                <button type="submit" class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500">保存</button>
-                @error('newQueryName') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
-            </form>
+            <x-saved-query-save-form
+                :can-manage-public-queries="$this->canManagePublicQueries"
+                :visibility="$newQueryVisibility"
+                :roles="$this->availableRoles" />
         @endif
     </div>
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\News;
+use App\Models\Project;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -14,33 +15,29 @@ new #[Layout('components.layouts.app')] class extends Component
     /**
      * Matches Redmine's NewsController#index with no project_id — every
      * news item across every project the current user can view_news in,
-     * newest first. Per-item visibility (permission, module enabled,
-     * project not archived/closed, ...) isn't expressible as a single SQL
-     * WHERE clause, so this filters in memory then paginates, the same
-     * approach projects.index uses for its own can('view') filter.
+     * newest first. Visibility (permission, module enabled, project not
+     * archived/closed, ...) isn't expressible as a single SQL WHERE
+     * clause, but it's a per-PROJECT decision, so it's resolved once per
+     * project that has news at all — pagination then happens in SQL
+     * rather than loading every news row to reject most of them.
      *
      * @return LengthAwarePaginator<int, News>
      */
     #[Computed]
     public function newsItems(): LengthAwarePaginator
     {
-        $visible = News::query()
+        $visibleProjectIds = Project::query()
+            ->whereIn('id', News::query()->distinct()->pluck('project_id'))
+            ->get()
+            ->filter(fn (Project $project) => auth()->user()?->can('viewAny', [News::class, $project]))
+            ->pluck('id');
+
+        return News::query()
+            ->whereIn('project_id', $visibleProjectIds)
             ->with(['author', 'project'])
             ->withCount('comments')
             ->latest()
-            ->get()
-            ->filter(fn (News $news) => auth()->user()?->can('view', $news))
-            ->values();
-
-        $perPage = 10;
-
-        return new LengthAwarePaginator(
-            $visible->forPage($this->getPage(), $perPage)->values(),
-            $visible->count(),
-            $perPage,
-            $this->getPage(),
-            ['pageName' => 'page'],
-        );
+            ->paginate(10);
     }
 }; ?>
 

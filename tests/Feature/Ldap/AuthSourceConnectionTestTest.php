@@ -2,20 +2,8 @@
 
 use App\Models\AuthSource;
 use App\Models\User;
-use LdapRecord\Connection;
-use LdapRecord\Container;
 use LdapRecord\Laravel\Testing\DirectoryEmulator;
-use LdapRecord\Laravel\Testing\EmulatedConnectionFake;
 use Livewire\Livewire;
-
-function fakeConnectionTestDirectory(AuthSource $source): EmulatedConnectionFake
-{
-    $name = "auth-source-{$source->id}";
-
-    Container::addConnection(new Connection(['base_dn' => $source->base_dn]), $name);
-
-    return DirectoryEmulator::setup($name);
-}
 
 afterEach(function () {
     DirectoryEmulator::tearDown();
@@ -24,7 +12,7 @@ afterEach(function () {
 test('testing a connection with no search account reports success once connected', function () {
     $admin = User::factory()->admin()->create();
     $source = AuthSource::factory()->create(['account' => null, 'account_password' => null]);
-    fakeConnectionTestDirectory($source);
+    fakeAuthSourceDirectory($source);
 
     Livewire::actingAs($admin)
         ->test('auth-sources.form', ['authSource' => $source])
@@ -36,7 +24,7 @@ test('testing a connection with no search account reports success once connected
 test('testing a connection verifies the search account can bind', function () {
     $admin = User::factory()->admin()->create();
     $source = AuthSource::factory()->searchThenBind()->create();
-    $fake = fakeConnectionTestDirectory($source);
+    $fake = fakeAuthSourceDirectory($source);
     $fake->actingAs($source->account);
 
     Livewire::actingAs($admin)
@@ -48,7 +36,7 @@ test('testing a connection verifies the search account can bind', function () {
 test('testing a connection fails when the search account cannot bind', function () {
     $admin = User::factory()->admin()->create();
     $source = AuthSource::factory()->searchThenBind()->create();
-    fakeConnectionTestDirectory($source);
+    fakeAuthSourceDirectory($source);
     // No actingAs() call — nothing authorizes the search account to bind.
 
     Livewire::actingAs($admin)

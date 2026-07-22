@@ -117,11 +117,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->push($issue->status)
                 ->unique('id');
 
-            foreach ($issue->relevantCustomFields() as $field) {
-                $this->customFieldValues[$field->id] = $field->multiple
-                    ? $issue->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
-                    : $issue->customValue($field);
-            }
+            $this->customFieldValues = $issue->customFieldFormValues($issue->relevantCustomFields());
         } else {
             $this->authorize('create', [Issue::class, $project]);
 
@@ -217,11 +213,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->start_date = $source->start_date?->toDateString();
         $this->due_date = $source->due_date?->toDateString();
 
-        foreach ($source->relevantCustomFields() as $field) {
-            $this->customFieldValues[$field->id] = $field->multiple
-                ? $source->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
-                : $source->customValue($field);
-        }
+        $this->customFieldValues = $source->customFieldFormValues($source->relevantCustomFields());
     }
 
     /**
@@ -465,17 +457,10 @@ new #[Layout('components.layouts.app')] class extends Component
             $rules['logTimeComments'] = ['nullable', 'string'];
         }
 
-        foreach ($this->customFields as $field) {
-            $key = "customFieldValues.{$field->id}";
-            $presence = ($field->is_required || $this->isRequired("cf_{$field->id}")) ? 'required' : 'nullable';
-
-            if ($field->multiple) {
-                $rules[$key] = [$presence, 'array'];
-                $rules["{$key}.*"] = $field->format()->validationRules($field);
-            } else {
-                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
-            }
-        }
+        $rules = [...$rules, ...CustomField::formValidationRules(
+            $this->customFields,
+            fn (CustomField $field) => $this->isRequired("cf_{$field->id}"),
+        )];
 
         $data = $this->validate($rules);
         $customFieldData = $data['customFieldValues'] ?? [];

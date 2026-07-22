@@ -115,6 +115,37 @@ final class CustomField extends Model implements Sortable
         return app(FormatRegistry::class)->get($this->field_format);
     }
 
+    /**
+     * Livewire validation rules for a form's customFieldValues property
+     * covering $fields — the shared rule-building loop every
+     * custom-field-capable form (issue/project/version/group/enumeration)
+     * uses. $forceRequired lets the issue form add its workflow-driven
+     * per-field requiredness on top of each field's own is_required.
+     *
+     * @param  Collection<int, CustomField>  $fields
+     * @param  (callable(CustomField): bool)|null  $forceRequired
+     * @return array<string, array<int, mixed>>
+     */
+    public static function formValidationRules(Collection $fields, ?callable $forceRequired = null): array
+    {
+        $rules = [];
+
+        foreach ($fields as $field) {
+            $key = "customFieldValues.{$field->id}";
+            $required = $field->is_required || ($forceRequired !== null && $forceRequired($field));
+            $presence = $required ? 'required' : 'nullable';
+
+            if ($field->multiple) {
+                $rules[$key] = [$presence, 'array'];
+                $rules["{$key}.*"] = $field->format()->validationRules($field);
+            } else {
+                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
+            }
+        }
+
+        return $rules;
+    }
+
     public function appliesToTracker(Tracker $tracker): bool
     {
         return $this->trackers->contains('id', $tracker->id);

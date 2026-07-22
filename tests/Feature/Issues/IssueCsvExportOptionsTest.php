@@ -17,24 +17,6 @@ function csvExportMember(Project $project): User
     return $user;
 }
 
-/**
- * Builds an expected CSV row the same way fputcsv() would (quoting rules
- * vary by PHP version), rather than hand-writing a literal string that
- * could silently drift from actual fputcsv() behavior.
- *
- * @param  array<int, string>  $fields
- */
-function csvRow(array $fields, string $separator = ','): string
-{
-    $handle = fopen('php://memory', 'w+');
-    fputcsv($handle, $fields, $separator);
-    rewind($handle);
-    $row = stream_get_contents($handle);
-    fclose($handle);
-
-    return $row;
-}
-
 test('the default UTF-8 export starts with a byte-order mark', function () {
     $project = Project::factory()->create();
     $user = csvExportMember($project);

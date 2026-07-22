@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Repository;
+use finfo;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
@@ -27,11 +28,7 @@ final class RepositoryRawController extends Controller
         $path = trim($path, '/');
         $content = $repository->adapter()->fileContentAt('HEAD', $path);
 
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mimeType = ($finfo !== false ? finfo_buffer($finfo, $content) : false) ?: 'application/octet-stream';
-        if ($finfo !== false) {
-            finfo_close($finfo);
-        }
+        $mimeType = (new finfo(FILEINFO_MIME_TYPE))->buffer($content) ?: 'application/octet-stream';
 
         return response($content, 200, [
             'Content-Type' => $mimeType,

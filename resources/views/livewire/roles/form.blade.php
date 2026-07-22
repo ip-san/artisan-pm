@@ -105,9 +105,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public function otherGivableRoles(): Collection
     {
         return Role::query()
-            ->whereNull('builtin')
+            ->givable()
             ->when($this->role, fn ($query) => $query->whereKeyNot($this->role->id))
-            ->orderBy('position')
             ->get();
     }
 

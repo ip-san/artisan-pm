@@ -21,7 +21,11 @@ final class ActivityFeedController extends Controller
 {
     private const DAYS = 10;
 
-    private const LIMIT = 15;
+    /**
+     * Public so other feed endpoints (BoardAtomController) share the
+     * same cap — the stand-in for Redmine's Setting.feeds_limit.
+     */
+    public const LIMIT = 15;
 
     public function __invoke(Project $project): Response
     {
@@ -36,10 +40,10 @@ final class ActivityFeedController extends Controller
             ->take(self::LIMIT)
             ->values();
 
-        $xml = view('feeds.activity-atom', [
-            'project' => $project,
+        $xml = view('feeds.atom', [
             'entries' => $entries,
             'title' => "{$project->name} - ".config('app.name'),
+            'alternateUrl' => route('activity.index', $project),
         ])->render();
 
         return response($xml, 200, ['Content-Type' => 'application/atom+xml; charset=utf-8']);

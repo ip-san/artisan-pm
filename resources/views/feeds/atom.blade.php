@@ -2,8 +2,8 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <title>{{ $title }}</title>
     <link rel="self" href="{{ url()->current() }}" />
-    <link rel="alternate" href="{{ route('boards.show', [$project, $board]) }}" />
-    <id>{{ route('boards.show', [$project, $board]) }}</id>
+    <link rel="alternate" href="{{ $alternateUrl }}" />
+    <id>{{ $alternateUrl }}</id>
     <updated>{{ ($entries->first()?->occurredAt ?? now())->toAtomString() }}</updated>
     <author>
         <name>{{ config('app.name') }}</name>

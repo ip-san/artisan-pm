@@ -61,4 +61,24 @@ final class CustomFieldEnumeration extends Model implements Sortable
     {
         return $this->belongsTo(CustomField::class);
     }
+
+    /**
+     * Deletes this option, first moving existing custom field values that
+     * reference it to $reassignToId (or clearing them when null) — matches
+     * Redmine's CustomFieldEnumeration#destroy(reassign_to), except values
+     * are always cleared rather than left pointing at a nonexistent id.
+     * The storage column comes from the owning field's format, the one
+     * place that knows where enumeration ids live.
+     */
+    public function deleteAndReassign(?int $reassignToId): void
+    {
+        $column = $this->customField->format()->storageColumn();
+
+        CustomFieldValue::query()
+            ->where('custom_field_id', $this->custom_field_id)
+            ->where($column, (string) $this->id)
+            ->update([$column => $reassignToId !== null ? (string) $reassignToId : null]);
+
+        $this->delete();
+    }
 }

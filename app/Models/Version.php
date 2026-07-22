@@ -87,18 +87,18 @@ final class Version extends Model implements HasMedia
      */
     public function allowedSharings(?User $user): array
     {
-        $authorization = app(AuthorizationService::class);
         $root = $this->project?->rootProject();
+        $canManageRoot = $this->project === null
+            || ($root !== null && app(AuthorizationService::class)->can($user, 'manage_versions', $root));
 
-        return array_values(array_filter(VersionSharing::cases(), function (VersionSharing $sharing) use ($user, $authorization, $root) {
+        return array_values(array_filter(VersionSharing::cases(), function (VersionSharing $sharing) use ($user, $canManageRoot) {
             if ($this->sharing === $sharing) {
                 return true;
             }
 
             return match ($sharing) {
                 VersionSharing::System => (bool) $user?->is_admin,
-                VersionSharing::Hierarchy, VersionSharing::Tree => $this->project === null
-                    || ($root !== null && $authorization->can($user, 'manage_versions', $root)),
+                VersionSharing::Hierarchy, VersionSharing::Tree => $canManageRoot,
                 default => true,
             };
         }));
@@ -195,19 +195,22 @@ final class Version extends Model implements HasMedia
      */
     public function issueCounts(): array
     {
-        $closed = (int) $this->issues()->whereHas('status', fn ($query) => $query->where('is_closed', true))->count();
-        $open = (int) $this->issues()->whereHas('status', fn ($query) => $query->where('is_closed', false))->count();
+        $closed = $this->issues()->whereHas('status', fn ($query) => $query->where('is_closed', true))->count();
+        $open = $this->issues()->whereHas('status', fn ($query) => $query->where('is_closed', false))->count();
 
         return ['open' => $open, 'closed' => $closed];
     }
 
     /**
      * The percentage of this version's issues that are closed — matches
-     * Redmine's Version#closed_percent.
+     * Redmine's Version#closed_percent. Pass counts already fetched via
+     * issueCounts() to avoid re-running the same COUNT queries.
+     *
+     * @param  array{open: int, closed: int}|null  $counts
      */
-    public function closedPercent(): float
+    public function closedPercent(?array $counts = null): float
     {
-        $counts = $this->issueCounts();
+        $counts ??= $this->issueCounts();
         $total = $counts['open'] + $counts['closed'];
 
         if ($total === 0) {

@@ -53,7 +53,7 @@ final class LdapAuthenticator
         try {
             $connection->connect();
         } catch (LdapRecordException $e) {
-            throw new LdapConnectionTestException($e->getMessage(), $e);
+            throw new LdapConnectionTestException($e->getMessage(), previous: $e);
         }
 
         if ($source->account === null || $source->account === '' || $source->account_password === null || $source->account_password === '') {

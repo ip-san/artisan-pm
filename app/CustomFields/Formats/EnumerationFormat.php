@@ -45,7 +45,10 @@ final class EnumerationFormat implements FormatContract
             return null;
         }
 
-        return $field->enumerationOptions()->find((int) $stored)?->name;
+        // Reads through the (lazily loaded, then cached) relation rather
+        // than a fresh find() per value — a multi-value field or a
+        // before/after snapshot would otherwise query once per value.
+        return $field->enumerationOptions->firstWhere('id', (int) $stored)?->name;
     }
 
     public function validationRules(CustomField $field): array
@@ -56,5 +59,13 @@ final class EnumerationFormat implements FormatContract
                 ->where('custom_field_id', $field->id)
                 ->where('active', true),
         ];
+    }
+
+    public function options(CustomField $field): array
+    {
+        return $field->enumerationOptions
+            ->where('active', true)
+            ->mapWithKeys(fn ($option) => [(string) $option->id => $option->name])
+            ->all();
     }
 }

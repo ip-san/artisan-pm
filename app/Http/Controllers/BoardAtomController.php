@@ -15,14 +15,12 @@ use LogicException;
 /**
  * Matches Redmine's BoardsController#show responding to format.atom:
  * every message in this board (topics and replies alike), newest
- * first. Capped the same way the project activity feed is (see
- * ActivityFeedController) rather than exposing Setting.feeds_limit as
- * a configurable value.
+ * first. Capped the same way the project activity feed is (shared
+ * ActivityFeedController::LIMIT) rather than exposing
+ * Setting.feeds_limit as a configurable value.
  */
 final class BoardAtomController extends Controller
 {
-    private const LIMIT = 15;
-
     public function __invoke(Project $project, Board $board): Response
     {
         Gate::authorize('view', $board);
@@ -30,7 +28,7 @@ final class BoardAtomController extends Controller
         $entries = $board->messages()
             ->with(['author', 'parent'])
             ->latest('id')
-            ->limit(self::LIMIT)
+            ->limit(ActivityFeedController::LIMIT)
             ->get()
             ->map(fn (Message $message) => new ActivityEntry(
                 type: 'message',
@@ -40,11 +38,10 @@ final class BoardAtomController extends Controller
                 occurredAt: $message->created_at ?? throw new LogicException('Message is missing created_at.'),
             ));
 
-        $xml = view('feeds.board-atom', [
-            'project' => $project,
-            'board' => $board,
+        $xml = view('feeds.atom', [
             'entries' => $entries,
             'title' => "{$project->name}: {$board->name} - ".config('app.name'),
+            'alternateUrl' => route('boards.show', [$project, $board]),
         ])->render();
 
         return response($xml, 200, ['Content-Type' => 'application/atom+xml; charset=utf-8']);

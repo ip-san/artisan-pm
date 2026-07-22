@@ -38,4 +38,9 @@ final class DateFormat implements FormatContract
     {
         return ['date'];
     }
+
+    public function options(CustomField $field): array
+    {
+        return [];
+    }
 }

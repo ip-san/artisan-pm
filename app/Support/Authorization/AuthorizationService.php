@@ -181,7 +181,7 @@ final class AuthorizationService
      */
     private function givableRoles(): Collection
     {
-        return Role::query()->whereNull('builtin')->orderBy('position')->get();
+        return Role::query()->givable()->get();
     }
 
     /**

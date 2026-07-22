@@ -9,20 +9,12 @@
 
     @if ($field->field_format === \App\Enums\CustomFieldFormat::Bool)
         <input type="checkbox" wire:model="{{ $path }}" @disabled($disabled) class="mt-1 rounded border-gray-300">
-    @elseif ($field->field_format === \App\Enums\CustomFieldFormat::List)
+    @elseif (in_array($field->field_format, [\App\Enums\CustomFieldFormat::List, \App\Enums\CustomFieldFormat::Enumeration], true))
         <select wire:model="{{ $path }}" @disabled($disabled)
             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             <option value="">選択してください</option>
-            @foreach ($field->possible_values ?? [] as $option)
-                <option value="{{ $option }}">{{ $option }}</option>
-            @endforeach
-        </select>
-    @elseif ($field->field_format === \App\Enums\CustomFieldFormat::Enumeration)
-        <select wire:model="{{ $path }}" @disabled($disabled)
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            <option value="">選択してください</option>
-            @foreach ($field->enumerationOptions()->where('active', true)->get() as $option)
-                <option value="{{ $option->id }}">{{ $option->name }}</option>
+            @foreach ($field->format()->options($field) as $value => $label)
+                <option value="{{ $value }}">{{ $label }}</option>
             @endforeach
         </select>
     @elseif ($field->field_format === \App\Enums\CustomFieldFormat::Text)

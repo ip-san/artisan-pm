@@ -38,4 +38,9 @@ final class BoolFormat implements FormatContract
     {
         return ['boolean'];
     }
+
+    public function options(CustomField $field): array
+    {
+        return [];
+    }
 }

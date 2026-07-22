@@ -9,6 +9,7 @@ use App\Enums\RoleBuiltin;
 use App\Enums\TimeEntryVisibility;
 use Database\Factories\RoleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -44,6 +45,20 @@ final class Role extends Model
             'assignable' => 'boolean',
             'all_roles_managed' => 'boolean',
         ];
+    }
+
+    /**
+     * Roles that can be given to a project member — everything except
+     * the builtin Anonymous/NonMember placeholders. Matches Redmine's
+     * Role.givable scope; the one definition every role picker (member
+     * forms, custom-field visibility, saved-query visibility) reads.
+     *
+     * @param  Builder<Role>  $query
+     * @return Builder<Role>
+     */
+    public function scopeGivable(Builder $query): Builder
+    {
+        return $query->whereNull('builtin')->orderBy('position');
     }
 
     /**

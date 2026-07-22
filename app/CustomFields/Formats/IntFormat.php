@@ -38,4 +38,9 @@ final class IntFormat implements FormatContract
     {
         return ['integer'];
     }
+
+    public function options(CustomField $field): array
+    {
+        return [];
+    }
 }

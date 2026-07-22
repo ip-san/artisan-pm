@@ -134,8 +134,10 @@ final class Project extends Model implements HasMedia
 
         // An ancestor spans this node (_lft < this._lft AND _rgt >
         // this._rgt); the topmost one (smallest _lft) is the tree root.
-        // Queried directly against the nested-set columns to stay on the
-        // plain Eloquent builder rather than kalnoy's query extensions.
+        // kalnoy's own ancestors()/defaultOrder() helpers would express
+        // this, but they live on its custom relation/builder classes that
+        // PHPStan can't see through — the plain-column query keeps static
+        // analysis intact.
         return self::query()
             ->where('_lft', '<', $this->_lft)
             ->where('_rgt', '>', $this->_rgt)

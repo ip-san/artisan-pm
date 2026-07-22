@@ -4,7 +4,6 @@ use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Models\CustomField;
 use App\Models\CustomFieldEnumeration;
-use App\Models\CustomFieldValue;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Tracker;
@@ -107,7 +106,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function roles(): Collection
     {
-        return Role::query()->whereNull('builtin')->orderBy('position')->get();
+        return Role::query()->givable()->get();
     }
 
     public function addEnumerationOption(): void
@@ -122,14 +121,9 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Deletes a persisted option immediately (not deferred to save()),
-     * matching Redmine's CustomFieldEnumeration#destroy(reassign_to) —
-     * existing custom field values pointing at it are moved to the
-     * chosen replacement option, or cleared if none was chosen. Unlike
-     * Redmine (which silently leaves values pointing at a
-     * now-nonexistent id when no reassignment target is given), this
-     * always clears them, so a value can never end up referencing a
-     * deleted option.
+     * Deletes a persisted option immediately (not deferred to save());
+     * the reassign-or-clear semantics live on
+     * CustomFieldEnumeration::deleteAndReassign().
      */
     public function deleteEnumerationOption(int $index): void
     {
@@ -149,14 +143,7 @@ new #[Layout('components.layouts.app')] class extends Component
             return;
         }
 
-        $reassignToId = $option['reassignTo'] !== '' ? $option['reassignTo'] : null;
-
-        CustomFieldValue::query()
-            ->where('custom_field_id', $enumeration->custom_field_id)
-            ->where('value_string', (string) $enumeration->id)
-            ->update(['value_string' => $reassignToId]);
-
-        $enumeration->delete();
+        $enumeration->deleteAndReassign($option['reassignTo'] !== '' ? (int) $option['reassignTo'] : null);
 
         $this->removeEnumerationOption($index);
     }

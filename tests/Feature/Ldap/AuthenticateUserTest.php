@@ -5,19 +5,7 @@ use App\Enums\UserStatus;
 use App\Models\AuthSource;
 use App\Models\User;
 use Illuminate\Http\Request;
-use LdapRecord\Connection;
-use LdapRecord\Container;
 use LdapRecord\Laravel\Testing\DirectoryEmulator;
-use LdapRecord\Laravel\Testing\EmulatedConnectionFake;
-
-function fakeAuthSourceDirectoryForUser(AuthSource $source): EmulatedConnectionFake
-{
-    $name = "auth-source-{$source->id}";
-
-    Container::addConnection(new Connection(['base_dn' => $source->base_dn]), $name);
-
-    return DirectoryEmulator::setup($name);
-}
 
 function loginRequest(string $email, string $password): Request
 {
@@ -46,7 +34,7 @@ test('a local password account rejects the wrong password', function () {
 
 test('an unknown login with an on-the-fly LDAP source provisions a new local account', function () {
     $source = AuthSource::factory()->onTheFly()->create(['attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com']);
-    $fake = fakeAuthSourceDirectoryForUser($source);
+    $fake = fakeAuthSourceDirectory($source);
 
     $dn = 'uid=newuser,dc=example,dc=com';
     $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => ['newuser'], 'cn' => ['New User'], 'mail' => ['newuser@example.com']]);
@@ -63,7 +51,7 @@ test('an unknown login with an on-the-fly LDAP source provisions a new local acc
 
 test('an LDAP-provisioned user reauthenticates on a later login by their stored login, not their email', function () {
     $source = AuthSource::factory()->onTheFly()->create(['attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com']);
-    $fake = fakeAuthSourceDirectoryForUser($source);
+    $fake = fakeAuthSourceDirectory($source);
 
     $dn = 'uid=newuser,dc=example,dc=com';
     $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => ['newuser'], 'cn' => ['New User'], 'mail' => ['newuser@example.com']]);
@@ -86,7 +74,7 @@ test('a login matching no local account and no accepting LDAP source returns nul
 
 test('an LDAP source not enabled for on-the-fly registration is not tried for an unknown login', function () {
     $source = AuthSource::factory()->create(['onthefly_register' => false, 'attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com']);
-    $fake = fakeAuthSourceDirectoryForUser($source);
+    $fake = fakeAuthSourceDirectory($source);
 
     $dn = 'uid=someone,dc=example,dc=com';
     $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => ['someone'], 'cn' => ['Someone'], 'mail' => ['someone@example.com']]);
@@ -108,7 +96,7 @@ test('a locked local account cannot authenticate even with the correct password'
 
 test('a locked LDAP-linked account cannot authenticate even when the directory accepts it', function () {
     $source = AuthSource::factory()->create(['attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com']);
-    $fake = fakeAuthSourceDirectoryForUser($source);
+    $fake = fakeAuthSourceDirectory($source);
 
     $dn = 'uid=jdoe,dc=example,dc=com';
     $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => ['jdoe'], 'cn' => ['John Doe'], 'mail' => ['jdoe@example.com']]);

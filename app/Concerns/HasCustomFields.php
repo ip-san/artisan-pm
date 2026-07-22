@@ -13,8 +13,9 @@ use Illuminate\Support\Collection;
 /**
  * Gives a model dynamic, admin-configurable custom fields backed by the
  * generic (typed) EAV table custom_field_values, keyed by this model's
- * CustomizableType discriminator. Used by Issue, Project, and Version —
- * User/Group/TimeEntryActivity custom fields remain future-phase scope.
+ * CustomizableType discriminator. Used by Issue, Project, Version, Group,
+ * and Enumeration (TimeEntryActivity) — User custom fields remain
+ * future-phase scope.
  */
 trait HasCustomFields
 {
@@ -45,6 +46,28 @@ trait HasCustomFields
     public function customValue(CustomField $field): mixed
     {
         return $this->customFieldValueFor($field)?->value();
+    }
+
+    /**
+     * This model's custom field values shaped for a Livewire form
+     * property: field id => scalar, or array of scalars for a
+     * multi-value field. Every custom-field-capable form's mount()
+     * prefills from here.
+     *
+     * @param  Collection<int, CustomField>  $fields
+     * @return array<int, mixed>
+     */
+    public function customFieldFormValues(Collection $fields): array
+    {
+        $values = [];
+
+        foreach ($fields as $field) {
+            $values[$field->id] = $field->multiple
+                ? $this->customFieldValues->where('custom_field_id', $field->id)->map(fn (CustomFieldValue $value) => $value->value())->all()
+                : $this->customValue($field);
+        }
+
+        return $values;
     }
 
     /**

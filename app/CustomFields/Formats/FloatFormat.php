@@ -38,4 +38,9 @@ final class FloatFormat implements FormatContract
     {
         return ['numeric'];
     }
+
+    public function options(CustomField $field): array
+    {
+        return [];
+    }
 }

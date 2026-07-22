@@ -41,11 +41,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->is_default = $enumeration->is_default;
             $this->active = $enumeration->active;
 
-            foreach ($enumeration->relevantCustomFields() as $field) {
-                $this->customFieldValues[$field->id] = $field->multiple
-                    ? $enumeration->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
-                    : $enumeration->customValue($field);
-            }
+            $this->customFieldValues = $enumeration->customFieldFormValues($enumeration->relevantCustomFields());
         } else {
             $this->authorize('create', Enumeration::class);
         }
@@ -68,17 +64,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'active' => ['boolean'],
         ];
 
-        foreach ($this->customFields as $field) {
-            $key = "customFieldValues.{$field->id}";
-            $presence = $field->is_required ? 'required' : 'nullable';
-
-            if ($field->multiple) {
-                $rules[$key] = [$presence, 'array'];
-                $rules["{$key}.*"] = $field->format()->validationRules($field);
-            } else {
-                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
-            }
-        }
+        $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
 
         $data = $this->validate($rules);
         $customFieldData = $data['customFieldValues'] ?? [];

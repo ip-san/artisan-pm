@@ -2,25 +2,7 @@
 
 use App\Models\AuthSource;
 use App\Support\Ldap\LdapAuthenticator;
-use LdapRecord\Connection;
-use LdapRecord\Container;
 use LdapRecord\Laravel\Testing\DirectoryEmulator;
-use LdapRecord\Laravel\Testing\EmulatedConnectionFake;
-
-/**
- * DirectoryEmulator::setup() replaces an already-registered connection with
- * a fake one, so a stub must be registered under the AuthSource's
- * connection name first — mirroring what LdapAuthenticator itself would
- * register lazily in production on its first real use.
- */
-function fakeAuthSourceDirectory(AuthSource $source): EmulatedConnectionFake
-{
-    $name = "auth-source-{$source->id}";
-
-    Container::addConnection(new Connection(['base_dn' => $source->base_dn]), $name);
-
-    return DirectoryEmulator::setup($name);
-}
 
 afterEach(function () {
     DirectoryEmulator::tearDown();

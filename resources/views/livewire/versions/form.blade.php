@@ -49,11 +49,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->due_date = $version->due_date?->toDateString();
             $this->wiki_page_title = (string) $version->wiki_page_title;
 
-            foreach ($version->relevantCustomFields() as $field) {
-                $this->customFieldValues[$field->id] = $field->multiple
-                    ? $version->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
-                    : $version->customValue($field);
-            }
+            $this->customFieldValues = $version->customFieldFormValues($version->relevantCustomFields());
         } else {
             $this->authorize('create', [Version::class, $project]);
         }
@@ -105,17 +101,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'wiki_page_title' => ['nullable', 'string', Rule::in([...$this->wikiPages->pluck('title')->all(), ''])],
         ];
 
-        foreach ($this->customFields as $field) {
-            $key = "customFieldValues.{$field->id}";
-            $presence = $field->is_required ? 'required' : 'nullable';
-
-            if ($field->multiple) {
-                $rules[$key] = [$presence, 'array'];
-                $rules["{$key}.*"] = $field->format()->validationRules($field);
-            } else {
-                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
-            }
-        }
+        $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
 
         $data = $this->validate($rules);
         $customFieldData = $data['customFieldValues'] ?? [];

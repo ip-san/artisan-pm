@@ -74,10 +74,12 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('update', $this->authSource);
 
-        $source = AuthSource::findOrFail($this->authSource->id);
-
         try {
-            app(LdapAuthenticator::class)->testConnection($source);
+            // $this->authSource is a Livewire-bound model, rehydrated
+            // fresh from the database each request — the form's inputs
+            // live in separate scalar properties, so it never carries
+            // unsaved edits and needs no re-fetch.
+            app(LdapAuthenticator::class)->testConnection($this->authSource);
 
             $this->connectionTestPassed = true;
             $this->connectionTestMessage = '接続に成功しました。';

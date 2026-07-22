@@ -158,6 +158,11 @@ test('a plugin can register a custom field format', function () {
         {
             return [];
         }
+
+        public function options(CustomField $field): array
+        {
+            return [];
+        }
     };
 
     $manager->registerCustomFieldFormat($format);

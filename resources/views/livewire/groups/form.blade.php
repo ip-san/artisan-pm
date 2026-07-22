@@ -28,11 +28,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->group = $group;
             $this->name = $group->name;
 
-            foreach ($group->relevantCustomFields() as $field) {
-                $this->customFieldValues[$field->id] = $field->multiple
-                    ? $group->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
-                    : $group->customValue($field);
-            }
+            $this->customFieldValues = $group->customFieldFormValues($group->relevantCustomFields());
         } else {
             $this->authorize('create', Group::class);
         }
@@ -59,17 +55,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'name' => ['required', 'string', 'max:255', Rule::unique('groups', 'name')->ignore($this->group?->id)],
         ];
 
-        foreach ($this->customFields as $field) {
-            $key = "customFieldValues.{$field->id}";
-            $presence = $field->is_required ? 'required' : 'nullable';
-
-            if ($field->multiple) {
-                $rules[$key] = [$presence, 'array'];
-                $rules["{$key}.*"] = $field->format()->validationRules($field);
-            } else {
-                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
-            }
-        }
+        $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
 
         $data = $this->validate($rules);
         $customFieldData = $data['customFieldValues'] ?? [];

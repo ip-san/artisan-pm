@@ -52,4 +52,9 @@ final class StringFormat implements FormatContract
 
         return $rules;
     }
+
+    public function options(CustomField $field): array
+    {
+        return [];
+    }
 }

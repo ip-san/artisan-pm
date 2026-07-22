@@ -55,15 +55,7 @@ final class CustomFieldFilter implements FilterableField
 
     public function options(): array
     {
-        if ($this->field->field_format === CustomFieldFormat::Enumeration) {
-            return $this->field->enumerationOptions()->where('active', true)->get()
-                ->mapWithKeys(fn ($option) => [(string) $option->id => $option->name])
-                ->all();
-        }
-
-        $values = $this->field->possible_values ?? [];
-
-        return array_combine($values, $values);
+        return $this->field->format()->options($this->field);
     }
 
     public function apply(Builder $query, FilterOperator $operator, array $values): Builder

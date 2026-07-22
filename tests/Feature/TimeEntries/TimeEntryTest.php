@@ -225,20 +225,6 @@ test('csv export streams a csv containing the filtered time entries', function (
         ->assertFileDownloaded("{$project->identifier}-time_entries.csv");
 });
 
-/**
- * @param  array<int, string>  $fields
- */
-function timeEntryCsvRow(array $fields): string
-{
-    $handle = fopen('php://memory', 'w+');
-    fputcsv($handle, $fields);
-    rewind($handle);
-    $row = stream_get_contents($handle);
-    fclose($handle);
-
-    return $row;
-}
-
 test('the selected display columns control what appears in the csv export', function () {
     $project = Project::factory()->create();
     $user = timeEntryMember($project);
@@ -257,7 +243,7 @@ test('the selected display columns control what appears in the csv export', func
         ->call('exportCsv')
         ->assertFileDownloaded(
             "{$project->identifier}-time_entries.csv",
-            timeEntryCsvRow(['日付', '時間']).timeEntryCsvRow(['2026-01-15', '3.50'])
+            csvRow(['日付', '時間']).csvRow(['2026-01-15', '3.50'])
         );
 });
 

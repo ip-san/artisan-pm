@@ -39,4 +39,11 @@ final class ListFormat implements FormatContract
     {
         return ['string', Rule::in($field->possible_values ?? [])];
     }
+
+    public function options(CustomField $field): array
+    {
+        $values = $field->possible_values ?? [];
+
+        return array_combine($values, $values);
+    }
 }
