@@ -10,7 +10,9 @@ use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Webhook;
+use App\Models\WikiPage;
 use App\Services\IssueService;
+use App\Services\WikiPageService;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Spatie\WebhookServer\CallWebhookJob;
@@ -150,6 +152,79 @@ test('deleting an issue from the issue detail page dispatches issue.deleted', fu
         ->call('deleteIssue');
 
     Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::IssueDeleted->value);
+});
+
+test('creating a wiki page dispatches a webhook subscribed to wiki_page.created', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    $webhook = Webhook::factory()->create(['url' => 'https://example.com/hook', 'events' => [WebhookEvent::WikiPageCreated->value]]);
+    $author = User::factory()->create();
+
+    $page = app(WikiPageService::class)->create($project, ['title' => 'Introduction'], 'Some text', $author);
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+        && $job->payload['wiki_page']['id'] === $page->id
+        && $job->payload['event'] === WebhookEvent::WikiPageCreated->value);
+});
+
+test('updating a wiki page dispatches a webhook subscribed to wiki_page.updated', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::WikiPageUpdated->value]]);
+    $author = User::factory()->create();
+    $page = app(WikiPageService::class)->create($project, ['title' => 'Introduction'], 'Original text', $author);
+
+    app(WikiPageService::class)->update($page, [], 'Updated text', $author);
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::WikiPageUpdated->value);
+});
+
+test('deleting a wiki page dispatches a webhook subscribed to wiki_page.deleted', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    $webhook = Webhook::factory()->create(['url' => 'https://example.com/hook', 'events' => [WebhookEvent::WikiPageDeleted->value]]);
+    $page = WikiPage::factory()->for($project)->create();
+    $pageId = $page->id;
+
+    app(WikiPageService::class)->delete($page);
+
+    expect(WikiPage::find($pageId))->toBeNull();
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+        && $job->payload['wiki_page']['id'] === $pageId
+        && $job->payload['event'] === WebhookEvent::WikiPageDeleted->value);
+});
+
+test('a webhook subscribed only to wiki_page.created is not dispatched on wiki page delete', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::WikiPageCreated->value]]);
+    $page = WikiPage::factory()->for($project)->create();
+
+    app(WikiPageService::class)->delete($page);
+
+    Queue::assertNotPushed(CallWebhookJob::class);
+});
+
+test('deleting a wiki page from the wiki show page dispatches wiki_page.deleted', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::WikiPageDeleted->value]]);
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_wiki_pages', 'edit_wiki_pages', 'delete_wiki_pages']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+    $page = WikiPage::factory()->for($project)->create();
+
+    Livewire::actingAs($user)
+        ->test('wiki.show', ['project' => $project, 'wikiPage' => $page])
+        ->call('delete');
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::WikiPageDeleted->value);
 });
 
 test('a webhook with a secret signs its request', function () {

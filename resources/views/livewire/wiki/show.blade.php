@@ -2,6 +2,7 @@
 
 use App\Models\Project;
 use App\Models\WikiPage;
+use App\Services\WikiPageService;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use App\Support\Markdown\WikiSectionEditLinkInjector;
 use Illuminate\Support\Collection;
@@ -77,7 +78,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('delete', $this->wikiPage);
 
-        $this->wikiPage->delete();
+        app(WikiPageService::class)->delete($this->wikiPage);
 
         $this->redirect(route('wiki.index', $this->project), navigate: true);
     }

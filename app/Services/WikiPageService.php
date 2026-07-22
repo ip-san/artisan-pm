@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\WikiPageCreated;
+use App\Events\WikiPageDeleted;
+use App\Events\WikiPageUpdated;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\WikiPage;
@@ -24,7 +27,7 @@ final class WikiPageService
      */
     public function create(Project $project, array $attributes, string $text, User $author): WikiPage
     {
-        return DB::transaction(function () use ($project, $attributes, $text, $author) {
+        $page = DB::transaction(function () use ($project, $attributes, $text, $author) {
             $page = new WikiPage($attributes);
             $page->project()->associate($project);
             $page->save();
@@ -37,6 +40,10 @@ final class WikiPageService
 
             return $page->refresh();
         });
+
+        WikiPageCreated::dispatch($page);
+
+        return $page;
     }
 
     /**
@@ -47,7 +54,7 @@ final class WikiPageService
      */
     public function update(WikiPage $page, array $attributes, string $text, User $author, ?string $comment = null, bool $redirectExistingLinks = true): WikiPage
     {
-        return DB::transaction(function () use ($page, $attributes, $text, $author, $comment, $redirectExistingLinks) {
+        $page = DB::transaction(function () use ($page, $attributes, $text, $author, $comment, $redirectExistingLinks) {
             $oldTitle = $page->title;
 
             $page->fill($attributes);
@@ -72,6 +79,22 @@ final class WikiPageService
 
             return $page->refresh();
         });
+
+        WikiPageUpdated::dispatch($page);
+
+        return $page;
+    }
+
+    /**
+     * Dispatched before the row is actually removed, so listeners (e.g.
+     * the webhook payload builder) see a fully intact model — matches
+     * IssueService::delete()'s same ordering rationale.
+     */
+    public function delete(WikiPage $page): void
+    {
+        WikiPageDeleted::dispatch($page);
+
+        $page->delete();
     }
 
     /**
