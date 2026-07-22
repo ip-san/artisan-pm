@@ -37,7 +37,8 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 }; ?>
 
-<div class="max-w-2xl">
+<div class="flex items-start gap-6">
+<div class="max-w-2xl flex-1">
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — Wiki(日付順)</h1>
         <a href="{{ route('wiki.index', $project) }}" class="text-sm text-indigo-600 hover:underline">
@@ -59,4 +60,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @empty
         <p class="px-4 py-6 text-center text-sm text-gray-500">Wikiページがありません。</p>
     @endforelse
+</div>
+
+<x-wiki-sidebar :project="$project" />
 </div>

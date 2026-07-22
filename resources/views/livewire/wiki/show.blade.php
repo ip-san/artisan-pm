@@ -107,7 +107,8 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 }; ?>
 
-<div class="max-w-3xl">
+<div class="flex items-start gap-6">
+<div class="max-w-3xl flex-1">
     @if ($wikiPage->parent)
         <p class="mb-2 text-sm text-gray-500">
             <a href="{{ route('wiki.show', [$project, $wikiPage->parent]) }}" class="text-indigo-600 hover:underline">
@@ -217,4 +218,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </ul>
         </div>
     @endif
+</div>
+
+<x-wiki-sidebar :project="$project" />
 </div>
