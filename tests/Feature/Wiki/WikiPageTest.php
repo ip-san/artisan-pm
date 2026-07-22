@@ -55,6 +55,51 @@ test('a member with edit_wiki_pages can create a wiki page, starting at version 
         ->and($page->currentVersion->author_id)->toBe($user->id);
 });
 
+test('a page titled "Sidebar" is protected by default, even without protect_wiki_pages', function () {
+    $project = Project::factory()->create();
+    $user = wikiMember($project);
+
+    Livewire::actingAs($user)
+        ->test('wiki.form', ['project' => $project])
+        ->set('title', 'Sidebar')
+        ->set('text', 'Links shown on every page.')
+        ->call('save');
+
+    $page = WikiPage::where('title', 'Sidebar')->firstOrFail();
+
+    expect($page->is_protected)->toBeTrue();
+});
+
+test('the default-protected page title match is case-insensitive', function () {
+    $project = Project::factory()->create();
+    $user = wikiMember($project);
+
+    Livewire::actingAs($user)
+        ->test('wiki.form', ['project' => $project])
+        ->set('title', 'SIDEBAR')
+        ->set('text', 'Links shown on every page.')
+        ->call('save');
+
+    $page = WikiPage::where('title', 'SIDEBAR')->firstOrFail();
+
+    expect($page->is_protected)->toBeTrue();
+});
+
+test('an ordinary page title is not protected by default', function () {
+    $project = Project::factory()->create();
+    $user = wikiMember($project);
+
+    Livewire::actingAs($user)
+        ->test('wiki.form', ['project' => $project])
+        ->set('title', 'Getting Started')
+        ->set('text', 'Welcome.')
+        ->call('save');
+
+    $page = WikiPage::where('title', 'Getting Started')->firstOrFail();
+
+    expect($page->is_protected)->toBeFalse();
+});
+
 test('editing a page with changed text appends a new version', function () {
     $project = Project::factory()->create();
     $user = wikiMember($project);

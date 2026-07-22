@@ -26,6 +26,17 @@ final class WikiPage extends Model implements HasMedia
         HasThumbnails::registerMediaConversions insteadof InteractsWithMedia;
     }
 
+    /**
+     * Wiki page titles (case-insensitive) that are always protected on
+     * creation — matches Redmine's WikiPage::DEFAULT_PROTECTED_PAGES.
+     * "Sidebar" is the one Redmine core ships with: its content renders
+     * into the sidebar of every page on the wiki, so accidental edits
+     * would affect the whole project's wiki chrome.
+     *
+     * @var array<int, string>
+     */
+    public const array DEFAULT_PROTECTED_PAGES = ['sidebar'];
+
     protected function casts(): array
     {
         return [
@@ -40,6 +51,12 @@ final class WikiPage extends Model implements HasMedia
      */
     protected static function booted(): void
     {
+        self::creating(function (WikiPage $page) {
+            if (in_array(mb_strtolower($page->title), self::DEFAULT_PROTECTED_PAGES, true)) {
+                $page->is_protected = true;
+            }
+        });
+
         self::deleting(function (WikiPage $page) {
             $page->project->wikiRedirects()->where('redirects_to', $page->title)->delete();
         });
