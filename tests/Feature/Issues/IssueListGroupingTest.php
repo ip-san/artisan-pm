@@ -40,7 +40,7 @@ test('group totals reflect the full filtered set, not just the current page', fu
     // must reflect all 8 — the whole point of computing it via SQL rather
     // than counting the already-paginated in-memory collection.
     expect($component->instance()->issues->count())->toBe(5)
-        ->and($component->instance()->groupTotals[$status->name])->toBe(8);
+        ->and($component->instance()->groupTotals[$status->name]['count'])->toBe(8);
 });
 
 test('group totals use the friendly assigned_to_id placeholder for unassigned issues', function () {
@@ -66,5 +66,5 @@ test('group totals use the friendly assigned_to_id placeholder for unassigned is
         ->test('issues.index', ['project' => $project])
         ->set('groupBy', 'assigned_to_id');
 
-    expect($component->instance()->groupTotals['未割当'])->toBe(3);
+    expect($component->instance()->groupTotals['未割当']['count'])->toBe(3);
 });

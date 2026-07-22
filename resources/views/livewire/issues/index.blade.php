@@ -12,6 +12,7 @@ use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
@@ -22,6 +23,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -254,6 +256,9 @@ new #[Layout('components.layouts.app')] class extends Component
      *
      * @return Collection<string, int>
      */
+    /**
+     * @return Collection<string, array{count: int, estimated: float, spent: float}>
+     */
     #[Computed]
     public function groupTotals(): Collection
     {
@@ -264,15 +269,49 @@ new #[Layout('components.layouts.app')] class extends Component
         $column = $this->groupBy;
         $options = $this->engine->field($column)?->options() ?? [];
         $nullLabel = $column === 'assigned_to_id' ? '未割当' : '';
+        $resolveLabel = fn (mixed $rawKey) => ($rawKey === null || $rawKey === '')
+            ? $nullLabel
+            : ($options[$rawKey] ?? (string) $rawKey);
+
+        $spentByGroup = TimeEntry::query()
+            ->join('issues', 'time_entries.issue_id', '=', 'issues.id')
+            ->whereIn('issues.id', $this->filteredIssuesQuery()->reorder()->select('issues.id'))
+            ->selectRaw("issues.{$column} as group_key, SUM(time_entries.hours) as spent")
+            ->groupBy("issues.{$column}")
+            ->pluck('spent', 'group_key');
 
         return $this->filteredIssuesQuery()
             ->reorder()
-            ->selectRaw("{$column} as group_key, COUNT(*) as total")
+            ->selectRaw("{$column} as group_key, COUNT(*) as total, COALESCE(SUM(estimated_hours), 0) as estimated")
             ->groupBy($column)
-            ->pluck('total', 'group_key')
-            ->mapWithKeys(fn ($total, $rawKey) => [
-                ($rawKey === null || $rawKey === '') ? $nullLabel : ($options[$rawKey] ?? (string) $rawKey) => (int) $total,
+            ->get()
+            ->mapWithKeys(fn ($row) => [
+                $resolveLabel($row->group_key) => [
+                    'count' => (int) $row->total,
+                    'estimated' => (float) $row->estimated,
+                    'spent' => (float) ($spentByGroup[$row->group_key] ?? 0),
+                ],
             ]);
+    }
+
+    /**
+     * Estimated and spent hour sums across the entire filtered set (not
+     * just the current page) — matches Redmine's issue list totals
+     * (Setting.issue_list_default_totals), shown for both fixed rather
+     * than made configurable.
+     *
+     * @return array{estimated: float, spent: float}
+     */
+    #[Computed]
+    public function listTotals(): array
+    {
+        $estimated = (float) $this->filteredIssuesQuery()->reorder()->sum('estimated_hours');
+
+        $spent = (float) TimeEntry::query()
+            ->whereIn('issue_id', $this->filteredIssuesQuery()->reorder()->select('issues.id'))
+            ->sum('hours');
+
+        return ['estimated' => $estimated, 'spent' => $spent];
     }
 
     /**
@@ -1069,10 +1108,26 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     @endif
 
+    <p class="mb-2 text-xs text-gray-500">
+        合計: 予定工数 {{ Number::format($this->listTotals['estimated'], precision: 2) }} 時間
+        / 実績工数 {{ Number::format($this->listTotals['spent'], precision: 2) }} 時間
+    </p>
+
     @foreach ($this->groupedIssues as $groupLabel => $groupIssues)
-        @php $groupKey = $groupLabel !== '' ? $groupLabel : '__ungrouped__'; @endphp
+        @php
+            $groupKey = $groupLabel !== '' ? $groupLabel : '__ungrouped__';
+            $groupTotal = $this->groupTotals[$groupLabel] ?? null;
+        @endphp
         @if ($groupBy !== null)
-            <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-gray-900">{{ $groupLabel ?: '(未設定)' }} ({{ $this->groupTotals[$groupLabel] ?? $groupIssues->count() }})</h2>
+            <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-gray-900">
+                {{ $groupLabel ?: '(未設定)' }} ({{ $groupTotal['count'] ?? $groupIssues->count() }})
+                @if ($groupTotal !== null)
+                    <span class="ml-2 text-xs font-normal text-gray-500">
+                        予定 {{ Number::format($groupTotal['estimated'], precision: 2) }} 時間
+                        / 実績 {{ Number::format($groupTotal['spent'], precision: 2) }} 時間
+                    </span>
+                @endif
+            </h2>
         @endif
 
         <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-gray-200 bg-white mb-4">
