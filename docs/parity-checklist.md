@@ -14,7 +14,7 @@
 
 ### 構造的なギャップ(単一機能の欠落ではなく、設計レベルの差分)
 
-1. ~~**プロジェクト横断ビューが皆無**(マイページを除く)。~~ → **一部done**(2026-07-22)。News(`news.global-index`、先行実装)に続き、Issues(`issues.global-index`、トップレベル`/issues`)を追加(詳細は §4 ダッシュボード横断機能 参照)。TimeEntries/Activity(集計フィード自体はdone、プロジェクト単位限定)/Calendar/Gantt/Search は引き続き `/projects/{project}/...` 配下限定のまま。
+1. ~~**プロジェクト横断ビューが皆無**(マイページを除く)。~~ → **一部done**(2026-07-22)。News(`news.global-index`、先行実装)に続き、Issues(`issues.global-index`)・TimeEntries(`time-entries.global-index`)のトップレベルビューを追加(詳細は §4 ダッシュボード横断機能 参照)。Activity(集計フィード自体はdone、プロジェクト単位限定)/Calendar/Gantt/Search は引き続き `/projects/{project}/...` 配下限定のまま。
 2. ~~**管理者によるユーザー管理画面が皆無**~~ → **done**(2026-07-21)。`users/{index,form}.blade.php` で一覧/作成/編集/ロック・ロック解除に対応。強制パスワードリセットは「編集画面でパスワード欄に新しい値を入力」で代替(専用の「リセットして通知」フローはまだない)。詳細は §2 参照。
 3. **アプリケーション設定が Redmine の 119 キー中わずか 6 項目**(`app_title`, `default_issues_per_page`, incoming-mail 系4項目)。表示/認証ポリシー/通知/添付ファイル制限/リポジトリ設定などのタブが丸ごと存在しない。
 4. ~~**カスタムフィールド対応が Issue と Project の2種のみ**~~ → **一部done**(2026-07-22)。Version・Group・TimeEntryActivity にも対応(`CustomizableType::Version`/`::Group`/`::TimeEntryActivity`)。Versionはプロジェクトのロール経由で可視性を解決、Group/TimeEntryActivityは管理者専用リソースのためロールフィルタ自体が不要。User/DocumentCategory 等(Redmine は ~10種)は引き続き未対応。
@@ -431,7 +431,7 @@
 | 課題の実績工数合計 | done(訂正2026-07-22) | **訂正**: 従来「partial」と誤記されていたが、`Issue::totalSpentHours()`は`descendantIds()`の再帰CTEで子孫全体を合算済み(上の「子孫を含めた予定/実績工数の集計」行と同一実装、本行が重複・古いまま残っていたため訂正)。課題詳細画面にも「合計: X時間」として表示される |
 | プロジェクトの実績工数合計 | done(2026-07-22) | `projects/show.blade.php`に「実績工数」ブロックを追加(`view_time_entries`権限保有時、工数が1件以上ある場合のみ表示)。Redmineの`ProjectsController#show`の`@total_hours`相当だが、`display_subprojects_issues`設定自体が本アプリに存在しないためサブプロジェクト分の合算は対象外(このプロジェクト自身のTimeEntryのみ) |
 | **多次元工数レポート(ピボット表)** | **missing — 最大のギャップの一つ** | 単一次元のグループ化リストのみ。Redmine は最大3軸(プロジェクト/ステータス/バージョン/カテゴリ/ユーザー/トラッカー/工数種別/課題+カスタムフィールド)を期間列(年/月/週/日)と掛け合わせ、行・列・総計を算出する |
-| プロジェクト横断の工数レポート | missing | — |
+| プロジェクト横断の工数一覧 | done(2026-07-22) | トップレベル`/time_entries`(`time-entries.global-index`)を追加(Issues側の`issues.global-index`と同じ構成)。ヘッダーナビゲーションに「工数」リンクを配置。`view_time_entries`権限を持つ全プロジェクトを`news.global-index`と同じ「取得後にメモリ内でPolicy判定」方式で解決し、`TimeEntry::scopeVisibleToAcrossProjects()`(新規)がプロジェクトをAll/Own可視性ティア(工数の可視性はIssueと異なり2段階のみ)でバケット分け。フィルタ/グループ化/列選択は既存の`QueryFilterEngine`+`InteractsWithQueryFilters`+`<x-query-filter-builder>`を再利用、`TimeEntryFilterFieldRegistry::forProjects()`(新規)がプロジェクト列と担当者/作業分類の選択肢(可視プロジェクト全体の集合)を提供。編集/削除・CSVエクスポート・保存済みクエリは意図的に対象外(いずれもプロジェクト単位の前提に依存、Issues側と同じ判断)。**注**: 直下の「多次元工数レポート(ピボット表)」行とは別物 — この行は単純な横断一覧、ピボット表自体はプロジェクト単体でも未実装のまま |
 | 工数フィルタ(ユーザー/種別/日付/時間) | done | — |
 | 工数のCSVインポート | missing | — |
 
