@@ -15,7 +15,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $name = '';
 
-    public string $email = '';
+    public string $userSearch = '';
+
+    public ?int $selectedUserId = null;
+
+    public bool $showUserDropdown = false;
 
     /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
     public array $customFieldValues = [];
@@ -72,19 +76,58 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->redirect(route('groups.edit', $this->group), navigate: true);
     }
 
+    public function updatedUserSearch(): void
+    {
+        $this->selectedUserId = null;
+        $this->showUserDropdown = trim($this->userSearch) !== '';
+    }
+
+    public function selectUser(int $userId): void
+    {
+        $user = User::query()->findOrFail($userId);
+
+        $this->selectedUserId = $user->id;
+        $this->userSearch = "{$user->name} ({$user->email})";
+        $this->showUserDropdown = false;
+    }
+
+    /**
+     * Name/email substring matches, excluding users already in this
+     * group — matches Redmine's autocomplete_for_user (used by the group
+     * members form) which likewise excludes existing members.
+     *
+     * @return Collection<int, User>
+     */
+    #[Computed]
+    public function userCandidates(): Collection
+    {
+        $search = trim($this->userSearch);
+
+        if ($search === '' || $this->selectedUserId !== null) {
+            return collect();
+        }
+
+        $existingUserIds = $this->group->users()->pluck('users.id');
+
+        return User::query()
+            ->whereNotIn('id', $existingUserIds)
+            ->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
+            ->orderBy('name')
+            ->limit(10)
+            ->get();
+    }
+
     public function addMember(): void
     {
         $this->authorize('update', $this->group);
 
         $data = $this->validate([
-            'email' => ['required', 'email', 'exists:users,email'],
+            'selectedUserId' => ['required', 'exists:users,id'],
         ]);
 
-        $user = User::query()->where('email', $data['email'])->firstOrFail();
+        $this->group->users()->syncWithoutDetaching($data['selectedUserId']);
 
-        $this->group->users()->syncWithoutDetaching($user);
-
-        $this->reset('email');
+        $this->reset('userSearch', 'selectedUserId');
         unset($this->members);
     }
 
@@ -133,10 +176,26 @@ new #[Layout('components.layouts.app')] class extends Component
             <h2 class="text-sm font-semibold text-gray-900 mb-3">メンバー</h2>
 
             <form wire:submit="addMember" class="mb-4 flex items-end gap-3">
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700">ユーザーのメールアドレス</label>
-                    <input type="email" wire:model="email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                    @error('email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <div class="relative flex-1">
+                    <label class="block text-sm font-medium text-gray-700">ユーザー</label>
+                    <input type="text" wire:model.live.debounce.300ms="userSearch"
+                        placeholder="名前またはメールアドレスで検索" autocomplete="off"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @if ($showUserDropdown)
+                        <ul class="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg">
+                            @forelse ($this->userCandidates as $candidate)
+                                <li wire:key="user-candidate-{{ $candidate->id }}">
+                                    <button type="button" wire:click="selectUser({{ $candidate->id }})"
+                                        class="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
+                                        {{ $candidate->name }} ({{ $candidate->email }})
+                                    </button>
+                                </li>
+                            @empty
+                                <li class="px-3 py-2 text-sm text-gray-500">該当するユーザーがいません。</li>
+                            @endforelse
+                        </ul>
+                    @endif
+                    @error('selectedUserId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
                     追加

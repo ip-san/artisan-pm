@@ -30,7 +30,7 @@ test('an admin can add and remove a member from a group', function () {
 
     $component = Livewire::actingAs($admin)
         ->test('groups.form', ['group' => $group])
-        ->set('email', 'member@example.com')
+        ->call('selectUser', $member->id)
         ->call('addMember');
 
     expect($group->users()->pluck('users.id'))->toContain($member->id);
@@ -38,6 +38,21 @@ test('an admin can add and remove a member from a group', function () {
     $component->call('removeMember', $member->id);
 
     expect($group->users()->pluck('users.id'))->not->toContain($member->id);
+});
+
+test('the group member search dropdown excludes users already in the group', function () {
+    $admin = User::factory()->admin()->create();
+    $group = Group::factory()->create();
+    $matching = User::factory()->create(['name' => 'Carol Example']);
+    $existingMember = User::factory()->create(['name' => 'Carol Already In Group']);
+    $group->users()->attach($existingMember);
+
+    $candidates = Livewire::actingAs($admin)
+        ->test('groups.form', ['group' => $group])
+        ->set('userSearch', 'Carol')
+        ->get('userCandidates');
+
+    expect($candidates->pluck('id'))->toContain($matching->id)->not->toContain($existingMember->id);
 });
 
 test('an admin can delete a group', function () {

@@ -82,7 +82,7 @@ test('submitting a role outside the managed set is rejected', function () {
 
     Livewire::actingAs($user)
         ->test('projects.members', ['project' => $project])
-        ->set('email', $target->email)
+        ->call('selectUser', $target->id)
         ->set('roleIds', [$allowed->id, $forbidden->id])
         ->call('addMember')
         ->assertHasErrors(['roleIds.1']);

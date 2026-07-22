@@ -8,7 +8,7 @@ use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
 use Livewire\Livewire;
 
-test('an admin can add a member with roles by email', function () {
+test('an admin can add a member with roles by selecting a user from the search dropdown', function () {
     $admin = User::factory()->admin()->create();
     $project = Project::factory()->create();
     $user = User::factory()->create();
@@ -16,12 +16,31 @@ test('an admin can add a member with roles by email', function () {
 
     Livewire::actingAs($admin)
         ->test('projects.members', ['project' => $project])
-        ->set('email', $user->email)
+        ->set('userSearch', $user->name)
+        ->call('selectUser', $user->id)
         ->set('roleIds', [$role->id])
         ->call('addMember');
 
     $member = Member::where('project_id', $project->id)->where('user_id', $user->id)->firstOrFail();
     expect($member->roles->pluck('id')->all())->toBe([$role->id]);
+});
+
+test('typing a name or email narrows the user search dropdown to matching, not-yet-member users', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $matching = User::factory()->create(['name' => 'Alice Example', 'email' => 'alice@example.com']);
+    $nonMatching = User::factory()->create(['name' => 'Bob Other', 'email' => 'bob@other.com']);
+    $existingMember = User::factory()->create(['name' => 'Alice Already Member']);
+    Member::factory()->for($project)->for($existingMember)->create();
+
+    $candidates = Livewire::actingAs($admin)
+        ->test('projects.members', ['project' => $project])
+        ->set('userSearch', 'Alice')
+        ->get('userCandidates');
+
+    expect($candidates->pluck('id'))->toContain($matching->id)
+        ->not->toContain($nonMatching->id)
+        ->not->toContain($existingMember->id);
 });
 
 test('editing an existing member prefills the form and updates roles on submit', function () {
@@ -38,7 +57,7 @@ test('editing an existing member prefills the form and updates roles on submit',
         ->test('projects.members', ['project' => $project])
         ->call('editMember', $member->id);
 
-    expect($component->get('email'))->toBe($user->email)
+    expect($component->get('selectedUserId'))->toBe($user->id)
         ->and($component->get('roleIds'))->toBe([$roleA->id]);
 
     $component->set('roleIds', [$roleB->id])->call('addMember');
@@ -57,7 +76,8 @@ test('cancelling an edit resets the form', function () {
         ->test('projects.members', ['project' => $project])
         ->call('editMember', $member->id)
         ->call('cancelEdit')
-        ->assertSet('email', '')
+        ->assertSet('userSearch', '')
+        ->assertSet('selectedUserId', null)
         ->assertSet('roleIds', []);
 });
 
