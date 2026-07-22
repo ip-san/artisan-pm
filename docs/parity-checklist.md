@@ -99,7 +99,7 @@
 | 編集画面からの直接工数記録 | done(2026-07-22) | Redmineの`_edit.html.erb`内`log_time`fieldset相当。`log_time`権限を持つメンバーには課題編集フォームに時間/作業分類/コメントのインライン欄を表示し、課題保存と同じ送信で`TimeEntry`を作成(時間未入力ならスキップ)。別画面(`time-entries.create`)からの記録も引き続き利用可能 |
 | `is_private`(非公開課題)フラグ | done(2026-07-21) | `issues.is_private`。`set_issues_private`権限保持者のみ作成/編集画面でON可能(サーバー側でも再チェックし、権限のない編集者が既存の非公開課題を意図せず公開化することを防止)。Journal記録・詳細画面のバッジ表示も対応 |
 | ロール別の課題閲覧範囲(全て/デフォルト/自分のみ) | done(2026-07-21) | `Role.issues_visibility`(all/default/own) + `AuthorizationService::issueVisibilityFor()`。`IssuePolicy::view`と課題一覧のクエリで3段階を正しく強制:all=無条件、default=非公開課題は作成者/担当者のみ(Redmineの`Issue.visible_condition`と同じ規則、2026-07-21に`is_private`実装と合わせて修正)、own=作成者/担当者のみ。複数ロール保持時は最も緩い設定が優先 |
-| Atom フィード / REST API 拡張(`include=`) | partial(2026-07-22) | プロジェクトの活動(activity.atom)・フォーラム(boards.atom)・**お知らせ(news.atom、2026-07-22追加)**のAtomフィードを実装。課題一覧の個別Atomフィードや、REST APIの`include=`パラメータ拡張は引き続き未実装 |
+| Atom フィード / REST API 拡張(`include=`) | partial(2026-07-22) | プロジェクトの活動(activity.atom)・フォーラム(boards.atom)・お知らせ(news.atom)・**課題一覧(issues.atom、2026-07-22追加)**のAtomフィードを実装。課題一覧のフィードは`Issue::scopeVisibleTo()`+未クローズのみという固定条件(HTML版一覧の既定状態と同じ)で配信し、現在の絞り込み/ソート/グループ化状態は反映しない(Redmine本家は反映するが、News/Boardの各フィードも同様に「最新N件」の非フィルタ版であるため、一貫した意図的なスコープ限定)。REST APIの`include=`パラメータ拡張は引き続き未実装 |
 
 ### サブタスク・親子関係
 
@@ -420,7 +420,7 @@
 | フィルタ演算子(=,≠,in,contains,empty,between,≥/≤) | done | — |
 | カスタムフィールドでのフィルタ | done(課題)/n/a(工数) | — |
 | 複数列ソート | done(2026-07-22) | `QueryFilterEngine::applySort()`は元々`[key, direction]`配列を受け取れる設計だったが呼び出し側が1列分しか渡していなかった。課題一覧に2列目・3列目の選択欄を追加(Redmine同様最大3列)。列見出しクリックは引き続き1列目のみ変更。保存済みクエリの`sort_criteria`も3列分を保存/復元 |
-| CSVエクスポート | partial(2026-07-22) | 課題・工数とも対応。課題側はエンコーディング/区切り文字オプション追加済み(詳細は上の「クエリ/フィルタ/表示」節の同名行を参照)。PDF/Atomはなし |
+| CSVエクスポート | partial(2026-07-22) | 課題・工数とも対応。課題側はエンコーディング/区切り文字オプション追加済み(詳細は上の「クエリ/フィルタ/表示」節の同名行を参照)。PDFはなし。Atomは別行(本節冒頭「Atom フィード」行)で対応済み — 現在の絞り込み状態は反映しない固定フィード |
 | 課題レポート(トラッカー/ステータス別集計) | done(2026-07-22) | Redmineの`ReportsController#issue_report`相当。`issues/report.blade.php`(`/projects/{project}/issues/report`)でトラッカー/優先度/カテゴリ/対象バージョン/担当者/作成者の6軸×ステータス別件数グリッドを表示。カテゴリ/バージョン/担当者は「なし」行も集計。サブプロジェクト集計・セルからのフィルタ済み一覧へのリンク・CSV出力は意図的に対象外(スコープを絞った初回実装) |
 
 ### 工数管理

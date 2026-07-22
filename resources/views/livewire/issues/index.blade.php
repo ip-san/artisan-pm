@@ -803,6 +803,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </div>
         <div class="flex items-center gap-2">
+            <a href="{{ route('issues.atom', $project) }}" class="text-xs text-orange-600 hover:underline">Atom</a>
             <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-gray-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
                 <option value="SJIS-win">Shift_JIS</option>

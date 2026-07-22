@@ -4,6 +4,7 @@ use App\Http\Controllers\ActivityFeedController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AttachmentThumbnailController;
 use App\Http\Controllers\BoardAtomController;
+use App\Http\Controllers\IssueAtomController;
 use App\Http\Controllers\NewsAtomController;
 use App\Http\Controllers\RepositoryRawController;
 use Illuminate\Support\Facades\Route;
@@ -41,6 +42,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/versions/create', 'versions.form')->name('versions.create');
     Volt::route('/projects/{project:identifier}/versions/{version}/edit', 'versions.form')->name('versions.edit');
 
+    Route::get('/projects/{project:identifier}/issues.atom', IssueAtomController::class)->name('issues.atom');
     Volt::route('/projects/{project:identifier}/issues', 'issues.index')->name('issues.index');
     Volt::route('/projects/{project:identifier}/issues/create', 'issues.form')->name('issues.create');
     // Registered before the {issue} routes below so "import" isn't matched
