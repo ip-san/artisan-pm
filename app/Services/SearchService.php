@@ -16,19 +16,20 @@ use App\Models\User;
 use App\Models\WikiPage;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Search\SearchResult;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
  * Searches across every searchable module in one project, combining
- * results into a single ranked-by-recency list. Issue/News/Document/
- * Message go through Scout's database engine (no separate index — it
- * queries each model's own table directly via LIKE, so results are
- * always current). WikiPage is a plain query instead: the actual
- * searchable content (its current version's text) lives on
- * WikiPageVersion, a separate table Scout's database engine can't reach
- * through toSearchableArray() since that only maps to real columns on
- * the searched model's own table.
+ * results into a single ranked-by-recency list. Every type is queried
+ * directly (LIKE over the same columns each model's toSearchableArray()
+ * declares) rather than through Scout: Redmine's all-words/any-word
+ * matching and titles-only scope need per-word, per-column clauses that
+ * Scout's single-string database engine can't express. The Searchable
+ * traits stay on the models — they're the contract for a future switch
+ * to a real search engine (plan §1), at which point this service is the
+ * one place to reroute.
  *
  * A single service rather than a provider-per-type registry (unlike
  * ActivityProvider) because every type here follows the same "search,
@@ -47,49 +48,78 @@ final class SearchService
     /**
      * @return Collection<int, SearchResult>
      */
-    public function search(Project $project, ?User $viewer, string $query): Collection
+    public function search(Project $project, ?User $viewer, string $query, bool $allWords = true, bool $titlesOnly = false, bool $openIssuesOnly = false): Collection
     {
-        $query = trim($query);
+        $words = preg_split('/\s+/u', trim($query), -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
-        if ($query === '') {
+        if ($words === []) {
             return collect();
         }
 
         return collect()
-            ->merge($this->searchIssues($project, $viewer, $query))
-            ->merge($this->searchWikiPages($project, $viewer, $query))
-            ->merge($this->searchNews($project, $viewer, $query))
-            ->merge($this->searchDocuments($project, $viewer, $query))
-            ->merge($this->searchMessages($project, $viewer, $query))
+            ->merge($this->searchIssues($project, $viewer, $words, $allWords, $titlesOnly, $openIssuesOnly))
+            ->merge($this->searchWikiPages($project, $viewer, $words, $allWords, $titlesOnly))
+            ->merge($this->searchNews($project, $viewer, $words, $allWords, $titlesOnly))
+            ->merge($this->searchDocuments($project, $viewer, $words, $allWords, $titlesOnly))
+            ->merge($this->searchMessages($project, $viewer, $words, $allWords, $titlesOnly))
             ->sortByDesc('updatedAt')
             ->values();
     }
 
     /**
-     * Combines Scout's subject/description match with a direct LIKE search
-     * over searchable custom field values — Scout's database engine can
-     * only match real columns on the searched model's own table via
-     * toSearchableArray(), so custom field values (a separate EAV table)
-     * need their own query merged in by id.
+     * Word-level matching: with $allWords (Redmine's all_words, the
+     * default) every word must appear in at least one of $columns; with
+     * any-word matching a single word match suffices.
      *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<TModel>  $builder
+     * @param  array<int, string>  $columns
+     * @param  array<int, string>  $words
+     * @return Builder<TModel>
+     */
+    private function whereWordsMatch(Builder $builder, array $columns, array $words, bool $allWords): Builder
+    {
+        return $builder->where(function (Builder $outer) use ($columns, $words, $allWords) {
+            foreach ($words as $wordIndex => $word) {
+                $outer->where(function (Builder $inner) use ($columns, $word) {
+                    foreach ($columns as $columnIndex => $column) {
+                        $inner->where($column, 'like', "%{$word}%", $columnIndex === 0 ? 'and' : 'or');
+                    }
+                }, boolean: ($allWords || $wordIndex === 0) ? 'and' : 'or');
+            }
+        });
+    }
+
+    /**
+     * Combines the subject/description word match with a LIKE search
+     * over searchable custom field values (a separate EAV table), merged
+     * by id. Custom field values are skipped in titles-only mode — they
+     * are body content, not titles.
+     *
+     * @param  array<int, string>  $words
      * @return Collection<int, SearchResult>
      */
-    private function searchIssues(Project $project, ?User $viewer, string $query): Collection
+    private function searchIssues(Project $project, ?User $viewer, array $words, bool $allWords, bool $titlesOnly, bool $openIssuesOnly): Collection
     {
         if (! $this->authorization->can($viewer, 'view_issues', $project)) {
             return collect();
         }
 
-        $matchedIds = Issue::search($query)
-            ->where('project_id', $project->id)
-            ->take(self::RESULTS_PER_TYPE)
-            ->get()
-            ->pluck('id')
-            ->merge($this->issueIdsMatchingSearchableCustomFields($project, $query))
-            ->unique();
+        $matchedIds = $this->whereWordsMatch(
+            Issue::query()->where('project_id', $project->id),
+            $titlesOnly ? ['subject'] : ['subject', 'description'],
+            $words,
+            $allWords,
+        )->limit(self::RESULTS_PER_TYPE)->pluck('id');
+
+        if (! $titlesOnly) {
+            $matchedIds = $matchedIds->merge($this->issueIdsMatchingSearchableCustomFields($project, $words, $allWords))->unique();
+        }
 
         return Issue::query()
             ->whereIn('id', $matchedIds)
+            ->when($openIssuesOnly, fn (Builder $query) => $query->whereHas('status', fn ($status) => $status->where('is_closed', false)))
             ->take(self::RESULTS_PER_TYPE)
             ->get()
             ->map(fn (Issue $issue) => new SearchResult(
@@ -102,9 +132,10 @@ final class SearchService
     }
 
     /**
+     * @param  array<int, string>  $words
      * @return Collection<int, int>
      */
-    private function issueIdsMatchingSearchableCustomFields(Project $project, string $query): Collection
+    private function issueIdsMatchingSearchableCustomFields(Project $project, array $words, bool $allWords): Collection
     {
         $searchableFieldIds = CustomField::query()
             ->where('customized_type', CustomizableType::Issue)
@@ -120,18 +151,27 @@ final class SearchService
         // meaningful text match, and those formats leave value_string/
         // value_text NULL anyway, so this naturally excludes them without
         // needing to branch on field_format.
-        return CustomFieldValue::query()
-            ->where('customized_type', CustomizableType::Issue)
-            ->whereIn('custom_field_id', $searchableFieldIds)
-            ->where(fn ($q) => $q->where('value_string', 'like', "%{$query}%")->orWhere('value_text', 'like', "%{$query}%"))
-            ->whereIn('customized_id', fn ($q) => $q->select('id')->from('issues')->where('project_id', $project->id))
-            ->pluck('customized_id');
+        return $this->whereWordsMatch(
+            CustomFieldValue::query()
+                ->where('customized_type', CustomizableType::Issue)
+                ->whereIn('custom_field_id', $searchableFieldIds)
+                ->whereIn('customized_id', fn ($q) => $q->select('id')->from('issues')->where('project_id', $project->id)),
+            ['value_string', 'value_text'],
+            $words,
+            $allWords,
+        )->pluck('customized_id');
     }
 
     /**
+     * The wiki page body lives on a related model (currentVersion), so
+     * the per-word clause is built by hand instead of via
+     * whereWordsMatch(): each word matches the title or, outside
+     * titles-only mode, the current version's text.
+     *
+     * @param  array<int, string>  $words
      * @return Collection<int, SearchResult>
      */
-    private function searchWikiPages(Project $project, ?User $viewer, string $query): Collection
+    private function searchWikiPages(Project $project, ?User $viewer, array $words, bool $allWords, bool $titlesOnly): Collection
     {
         if (! $this->authorization->can($viewer, 'view_wiki_pages', $project)) {
             return collect();
@@ -139,9 +179,16 @@ final class SearchService
 
         return WikiPage::query()
             ->where('project_id', $project->id)
-            ->where(function ($builder) use ($query) {
-                $builder->where('title', 'like', "%{$query}%")
-                    ->orWhereHas('currentVersion', fn ($version) => $version->where('text', 'like', "%{$query}%"));
+            ->where(function (Builder $outer) use ($words, $allWords, $titlesOnly) {
+                foreach ($words as $wordIndex => $word) {
+                    $outer->where(function (Builder $inner) use ($word, $titlesOnly) {
+                        $inner->where('title', 'like', "%{$word}%");
+
+                        if (! $titlesOnly) {
+                            $inner->orWhereHas('currentVersion', fn ($version) => $version->where('text', 'like', "%{$word}%"));
+                        }
+                    }, boolean: ($allWords || $wordIndex === 0) ? 'and' : 'or');
+                }
             })
             ->with('currentVersion')
             ->limit(self::RESULTS_PER_TYPE)
@@ -156,16 +203,21 @@ final class SearchService
     }
 
     /**
+     * @param  array<int, string>  $words
      * @return Collection<int, SearchResult>
      */
-    private function searchNews(Project $project, ?User $viewer, string $query): Collection
+    private function searchNews(Project $project, ?User $viewer, array $words, bool $allWords, bool $titlesOnly): Collection
     {
         if (! $this->authorization->can($viewer, 'view_news', $project)) {
             return collect();
         }
 
-        return News::search($query)
-            ->where('project_id', $project->id)
+        return $this->whereWordsMatch(
+            News::query()->where('project_id', $project->id),
+            $titlesOnly ? ['title'] : ['title', 'summary', 'description'],
+            $words,
+            $allWords,
+        )
             ->take(self::RESULTS_PER_TYPE)
             ->get()
             ->map(fn (News $news) => new SearchResult(
@@ -178,16 +230,21 @@ final class SearchService
     }
 
     /**
+     * @param  array<int, string>  $words
      * @return Collection<int, SearchResult>
      */
-    private function searchDocuments(Project $project, ?User $viewer, string $query): Collection
+    private function searchDocuments(Project $project, ?User $viewer, array $words, bool $allWords, bool $titlesOnly): Collection
     {
         if (! $this->authorization->can($viewer, 'view_documents', $project)) {
             return collect();
         }
 
-        return Document::search($query)
-            ->where('project_id', $project->id)
+        return $this->whereWordsMatch(
+            Document::query()->where('project_id', $project->id),
+            $titlesOnly ? ['title'] : ['title', 'description'],
+            $words,
+            $allWords,
+        )
             ->take(self::RESULTS_PER_TYPE)
             ->get()
             ->map(fn (Document $document) => new SearchResult(
@@ -200,16 +257,21 @@ final class SearchService
     }
 
     /**
+     * @param  array<int, string>  $words
      * @return Collection<int, SearchResult>
      */
-    private function searchMessages(Project $project, ?User $viewer, string $query): Collection
+    private function searchMessages(Project $project, ?User $viewer, array $words, bool $allWords, bool $titlesOnly): Collection
     {
         if (! $this->authorization->can($viewer, 'view_messages', $project)) {
             return collect();
         }
 
-        return Message::search($query)
-            ->query(fn ($builder) => $builder->whereHas('board', fn ($board) => $board->where('project_id', $project->id)))
+        return $this->whereWordsMatch(
+            Message::query()->whereHas('board', fn ($board) => $board->where('project_id', $project->id)),
+            $titlesOnly ? ['subject'] : ['subject', 'content'],
+            $words,
+            $allWords,
+        )
             ->take(self::RESULTS_PER_TYPE)
             ->get()
             ->load('board')

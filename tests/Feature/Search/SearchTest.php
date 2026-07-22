@@ -216,3 +216,105 @@ test('search results are scoped to the current project only', function () {
 
     expect($results)->toBeEmpty();
 });
+
+test('all-words matching requires every word; any-word matching requires just one', function () {
+    $project = Project::factory()->create();
+    $user = searchMember($project, ['view_project', 'view_issues']);
+    $both = Issue::factory()->for($project)->create(['subject' => 'alpha beta report']);
+    $oneOnly = Issue::factory()->for($project)->create(['subject' => 'alpha only here']);
+
+    $allWords = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', 'alpha beta')
+        ->get('results');
+
+    expect($allWords->pluck('title')->join(' '))->toContain("#{$both->id}")
+        ->not->toContain("#{$oneOnly->id}");
+
+    $anyWord = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', 'alpha beta')
+        ->set('allWords', false)
+        ->get('results');
+
+    expect($anyWord->pluck('title')->join(' '))->toContain("#{$both->id}")
+        ->toContain("#{$oneOnly->id}");
+});
+
+test('titles-only mode ignores body matches', function () {
+    $project = Project::factory()->create();
+    $user = searchMember($project, ['view_project', 'view_issues']);
+    $titleMatch = Issue::factory()->for($project)->create(['subject' => 'quasar in title']);
+    $bodyMatch = Issue::factory()->for($project)->create(['subject' => 'unrelated', 'description' => 'quasar only in the body']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', 'quasar')
+        ->set('titlesOnly', true)
+        ->get('results');
+
+    $titles = $results->pluck('title')->join(' ');
+
+    expect($titles)->toContain("#{$titleMatch->id}")
+        ->not->toContain("#{$bodyMatch->id}");
+});
+
+test('open-issues-only mode excludes closed issues but leaves other types alone', function () {
+    $project = Project::factory()->create();
+    $user = searchMember($project, ['view_project', 'view_issues', 'view_news']);
+    $openStatus = IssueStatus::factory()->create(['is_closed' => false]);
+    $closedStatus = IssueStatus::factory()->create(['is_closed' => true]);
+    $open = Issue::factory()->for($project)->create(['subject' => 'nebula open', 'status_id' => $openStatus->id]);
+    $closed = Issue::factory()->for($project)->create(['subject' => 'nebula closed', 'status_id' => $closedStatus->id]);
+    News::factory()->for($project)->create(['title' => 'nebula news']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', 'nebula')
+        ->set('openIssuesOnly', true)
+        ->get('results');
+
+    $titles = $results->pluck('title')->join(' ');
+
+    expect($titles)->toContain("#{$open->id}")
+        ->not->toContain("#{$closed->id}")
+        ->and($results->pluck('type'))->toContain('news');
+});
+
+test('a #123 query jumps straight to that issue when it is visible', function () {
+    $project = Project::factory()->create();
+    $user = searchMember($project, ['view_project', 'view_issues']);
+    $issue = Issue::factory()->for($project)->create();
+
+    Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', "#{$issue->id}")
+        ->call('search')
+        ->assertRedirect(route('issues.show', [$project, $issue]));
+
+    // A bare numeric query jumps too.
+    Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', (string) $issue->id)
+        ->call('search')
+        ->assertRedirect(route('issues.show', [$project, $issue]));
+});
+
+test('a #123 query for a nonexistent or foreign issue falls through to a normal search', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $user = searchMember($project, ['view_project', 'view_issues']);
+    $foreignIssue = Issue::factory()->for($otherProject)->create();
+
+    Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', '#999999')
+        ->call('search')
+        ->assertNoRedirect();
+
+    Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', "#{$foreignIssue->id}")
+        ->call('search')
+        ->assertNoRedirect();
+});

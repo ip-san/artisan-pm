@@ -444,7 +444,7 @@
 | **プロジェクト横断の課題一覧** | **missing** | Redmineの主要機能の一つだが、トップレベル `/issues` が存在しない |
 | カレンダー | partial(2026-07-22) | 開始日/期日マーカーを実装: Redmineのカレンダーヘルパーと同様、課題を開始日(▶)と期日(◀)の2箇所にマーク表示(期間中の全日には展開しない)。開始日=期日の課題は◆1件に集約、片方の日付のみの課題はその日付にのみ表示。クエリフィルタとの連動・プロジェクト横断は引き続き未対応(ロードマップ参照) |
 | ガント | partial(2026-07-22) | クエリフィルタ連動を実装: 課題一覧と同じ`QueryFilterEngine`+`IssueFilterFieldRegistry`のフィルタビルダー(共通Bladeコンポーネント`<x-query-filter-builder>`に抽出、課題一覧/工数一覧も同コンポーネントへ移行)をガントに配線。フィルタ一致IDをEloquent側で解決し、`GanttService::issueTree()`が一致課題+その祖先(深さ表示の整合性のため保持)にツリーを絞り込む。CTE自体は無変更。バージョンのマイルストーン表示・関連線・PDF/PNGエクスポート・プロジェクト横断は引き続き未対応 |
-| 検索(モジュール横断) | partial | Issue/Wiki/News/Document/Message を1プロジェクト内で検索。all/my_projects/bookmarks/subprojects等のスコープ切替なし、all_words/titles_only/open_issues等のトグルなし、`#123`ジャンプなし、プロジェクト/チェンジセット/Journalは検索対象外 |
+| 検索(モジュール横断) | partial(2026-07-22) | all_words(既定オン、全単語AND/任意単語OR)・titles_only(タイトル/件名のみ)・open_issues(オープン課題のみ、他タイプは影響なし)のトグルと、`#123`(`#`省略可)での課題直接ジャンプ(存在しない/閲覧不可の場合は通常検索にフォールバックし他プロジェクトのID存在を漏らさない)を実装。`SearchService`はScout経由から直接クエリへ移行 — 単語単位のAND/OR・タイトル限定はScoutのdatabaseエンジン(単一文字列LIKE)では表現できないため。`Searchable`トレイトは将来の検索エンジン切替の契約として維持。スコープ切替(all/my_projects/subprojects)・プロジェクト/チェンジセット/Journalの検索対象化は引き続き未対応 |
 
 ---
 
