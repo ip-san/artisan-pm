@@ -7,6 +7,7 @@ namespace App\Support\Authorization;
 use App\Enums\IssueVisibility;
 use App\Enums\RoleBuiltin;
 use App\Enums\TimeEntryVisibility;
+use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
@@ -174,6 +175,32 @@ final class AuthorizationService
             ->unique('id')
             ->sortBy('position')
             ->values();
+    }
+
+    /**
+     * Whether a user holds any of the given roles on ANY project — used by
+     * Query::visibleTo() for a project-less (global) query's Roles
+     * visibility, matching Redmine's Query#visible? for a nil project
+     * (`user.memberships.joins(:member_roles).where(role_id: roles)`, i.e.
+     * membership in a single matching project anywhere is enough, unlike
+     * the project-scoped case which intersects roles within one project).
+     *
+     * @param  Collection<int, int>  $roleIds
+     */
+    public function hasAnyMembershipWithRoles(User $user, Collection $roleIds): bool
+    {
+        if ($roleIds->isEmpty()) {
+            return false;
+        }
+
+        $groupIds = $user->groups()->pluck('groups.id');
+
+        return Member::query()
+            ->where(function ($member) use ($user, $groupIds) {
+                $member->where('user_id', $user->id)->orWhereIn('group_id', $groupIds);
+            })
+            ->whereHas('roles', fn ($query) => $query->whereIn('roles.id', $roleIds))
+            ->exists();
     }
 
     /**

@@ -380,7 +380,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function loadQuery(int $queryId): void
     {
-        $query = SavedQuery::query()->where('project_id', $this->project->id)->findOrFail($queryId);
+        $query = SavedQuery::query()
+            ->where(fn ($q) => $q->where('project_id', $this->project->id)->orWhereNull('project_id'))
+            ->findOrFail($queryId);
 
         abort_unless($query->visibleTo(auth()->user()), 403);
 
