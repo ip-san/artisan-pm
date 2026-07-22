@@ -84,6 +84,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     ファイル一覧
                 </a>
             @endif
+            @if ($repository)
+                <a href="{{ route('repository.stats', $project) }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    統計
+                </a>
+            @endif
             @if ($this->canManage)
                 <a href="{{ route('repository.edit', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
