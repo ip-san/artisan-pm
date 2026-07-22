@@ -39,4 +39,12 @@ interface ScmAdapter
      * Raw content of the file at $path as of $revision.
      */
     public function fileContentAt(string $revision, string $path): string;
+
+    /**
+     * Per-line authorship of the file at $path as of $revision, one
+     * entry per line in file order.
+     *
+     * @return array<int, ScmBlameLine>
+     */
+    public function blame(string $revision, string $path): array;
 }

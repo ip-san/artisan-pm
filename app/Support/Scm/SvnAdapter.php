@@ -75,6 +75,38 @@ final readonly class SvnAdapter implements ScmAdapter
         return $result->successful() ? $result->output() : '';
     }
 
+    /**
+     * `svn blame --xml` deliberately omits line content (it's meant to
+     * pair with a separate `cat`, unlike git's --line-porcelain which
+     * inlines everything) — this fetches the per-line revision/author
+     * list and the file content as of the same revision separately,
+     * then zips them together by position.
+     */
+    public function blame(string $revision, string $path): array
+    {
+        $result = $this->svn(['blame', '--xml', "{$this->url()}/{$path}@{$revision}"], 30);
+
+        if (! $result->successful()) {
+            return [];
+        }
+
+        $authorship = $this->parseBlameXml($result->output());
+        $content = $this->fileContentAt($revision, $path);
+        $lines = explode("\n", $content);
+
+        if (str_ends_with($content, "\n")) {
+            array_pop($lines);
+        }
+
+        $entries = [];
+
+        foreach ($authorship as $i => [$lineRevision, $author]) {
+            $entries[] = new ScmBlameLine(revision: $lineRevision, author: $author, content: $lines[$i] ?? '');
+        }
+
+        return $entries;
+    }
+
     private function url(): string
     {
         return 'file://'.$this->path;
@@ -144,6 +176,29 @@ final readonly class SvnAdapter implements ScmAdapter
                 path: $path === '' ? $name : "{$path}/{$name}",
                 isDirectory: (string) $entry['kind'] === 'dir',
             );
+        }
+
+        return $entries;
+    }
+
+    /**
+     * @return array<int, array{0: string, 1: string}> revision/author pairs, one per line
+     */
+    private function parseBlameXml(string $xml): array
+    {
+        $document = @simplexml_load_string($xml);
+
+        if ($document === false) {
+            return [];
+        }
+
+        $entries = [];
+
+        foreach ($document->target->entry as $entry) {
+            $entries[] = [
+                (string) ($entry->commit['revision'] ?? ''),
+                (string) ($entry->commit->author ?? ''),
+            ];
         }
 
         return $entries;

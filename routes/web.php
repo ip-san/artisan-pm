@@ -87,6 +87,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/repository/revisions/{changeset}', 'repository.show')->name('repository.show');
     Volt::route('/projects/{project:identifier}/repository/browse/{path?}', 'repository.browse')->where('path', '.*')->name('repository.browse');
     Volt::route('/projects/{project:identifier}/repository/entry/{path}', 'repository.entry')->where('path', '.*')->name('repository.entry');
+    Volt::route('/projects/{project:identifier}/repository/annotate/{path}', 'repository.annotate')->where('path', '.*')->name('repository.annotate');
     Route::get('/projects/{project:identifier}/repository/raw/{path}', RepositoryRawController::class)->where('path', '.*')->name('repository.raw');
 
     Volt::route('/projects/{project:identifier}/activity', 'activity.index')->name('activity.index');

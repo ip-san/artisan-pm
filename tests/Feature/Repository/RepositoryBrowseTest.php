@@ -119,6 +119,34 @@ test('a binary file can be downloaded even though it cannot be previewed inline'
         ->assertContent($binaryContent);
 });
 
+test('a member with browse_repository can annotate a file, seeing a revision and author per line', function () {
+    $project = Project::factory()->create();
+    $user = browseMember($project);
+    $path = createBrowsableGitRepo();
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    $component = Livewire::actingAs($user)
+        ->test('repository.annotate', ['project' => $project, 'path' => 'src/app.php']);
+
+    $lines = $component->get('lines');
+
+    expect($lines)->toHaveCount(2)
+        ->and($lines[0]->content)->toBe('<?php')
+        ->and($lines[1]->content)->toBe("echo 'hi';")
+        ->and($lines[0]->author)->toBe('Test Committer')
+        ->and($lines[0]->revision)->not->toBeEmpty();
+});
+
+test('a member without browse_repository is forbidden from annotating a file', function () {
+    $project = Project::factory()->create();
+    $user = browseMember($project, []);
+    Repository::factory()->for($project)->create(['path' => createBrowsableGitRepo()]);
+
+    Livewire::actingAs($user)
+        ->test('repository.annotate', ['project' => $project, 'path' => 'src/app.php'])
+        ->assertForbidden();
+});
+
 test('a member without browse_repository cannot download a raw file', function () {
     $project = Project::factory()->create();
     $user = browseMember($project, []);

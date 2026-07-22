@@ -111,6 +111,17 @@ final readonly class GitAdapter implements ScmAdapter
         return $result->successful() ? $result->output() : '';
     }
 
+    public function blame(string $revision, string $path): array
+    {
+        $result = $this->git(['blame', '--line-porcelain', $revision, '--', $path], 30);
+
+        if (! $result->successful()) {
+            return [];
+        }
+
+        return $this->parseBlame($result->output());
+    }
+
     /**
      * @param  array<int, string>  $args
      */
@@ -177,5 +188,40 @@ final readonly class GitAdapter implements ScmAdapter
         }
 
         return $files;
+    }
+
+    /**
+     * --line-porcelain repeats the full commit header (sha, author, ...)
+     * before every single line rather than only the first line of a
+     * run, unlike plain --porcelain — trading output size for a parser
+     * that never needs to remember a previous line's commit.
+     *
+     * @return array<int, ScmBlameLine>
+     */
+    private function parseBlame(string $output): array
+    {
+        $entries = [];
+        $revision = '';
+        $author = '';
+
+        foreach (explode("\n", $output) as $line) {
+            if (preg_match('/^([0-9a-f]{40}) \d+ \d+/', $line, $matches) === 1) {
+                $revision = $matches[1];
+
+                continue;
+            }
+
+            if (str_starts_with($line, 'author ')) {
+                $author = substr($line, strlen('author '));
+
+                continue;
+            }
+
+            if (str_starts_with($line, "\t")) {
+                $entries[] = new ScmBlameLine(revision: $revision, author: $author, content: substr($line, 1));
+            }
+        }
+
+        return $entries;
     }
 }

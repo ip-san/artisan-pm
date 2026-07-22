@@ -59,10 +59,18 @@ new #[Layout('components.layouts.app')] class extends Component
         </p>
         <div class="flex items-center justify-between">
             <h1 class="text-xl font-semibold text-gray-900 font-mono">{{ $path }}</h1>
-            <a href="{{ route('repository.raw', [$project, $path]) }}"
-                class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                ダウンロード
-            </a>
+            <div class="flex gap-2">
+                @unless ($this->isBinary)
+                    <a href="{{ route('repository.annotate', [$project, $path]) }}"
+                        class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        注釈
+                    </a>
+                @endunless
+                <a href="{{ route('repository.raw', [$project, $path]) }}"
+                    class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    ダウンロード
+                </a>
+            </div>
         </div>
     </div>
 

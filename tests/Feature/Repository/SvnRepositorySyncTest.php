@@ -136,3 +136,20 @@ test('browsing and viewing a file work through an svn-backed repository', functi
         ->test('repository.entry', ['project' => $project, 'path' => 'file0.txt']);
     expect($entry->get('content'))->toBe("content 0\n");
 });
+
+test('annotating a file through an svn-backed repository shows a revision and author per line', function () {
+    $project = Project::factory()->create();
+    $user = svnRepositoryMember($project, ['browse_repository']);
+    $path = createTestSvnRepo(['Initial commit']);
+    Repository::factory()->for($project)->create(['type' => RepositoryType::Svn, 'path' => $path]);
+
+    $component = Livewire::actingAs($user)
+        ->test('repository.annotate', ['project' => $project, 'path' => 'file0.txt']);
+
+    $lines = $component->get('lines');
+
+    expect($lines)->toHaveCount(1)
+        ->and($lines[0]->content)->toBe('content 0')
+        ->and($lines[0]->revision)->toBe('1')
+        ->and($lines[0]->author)->toBe('tester');
+});
