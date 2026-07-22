@@ -292,7 +292,7 @@
 | セクション単位編集 | missing | 全文テキストエリアのみ |
 | プレビュー | done(2026-07-22) | 編集フォームに「プレビュー」トグルボタンを追加、`WikiMarkdownRenderer`で本文テキストエリアの現在値を保存せずにレンダリング(Wiki表示画面と同じレンダラーを再利用)。既存ページ編集時はインライン画像参照もそのページの既存添付ファイルに対して解決(このフォーム送信で選択中だが未アップロードのファイルはまだMediaレコードが無いため対象外) |
 | PDF/HTML/TXT/ZIPエクスポート | missing | — |
-| 日付インデックス表示 | missing | — |
+| 日付インデックス表示 | done(2026-07-22) | Redmineの`WikiController#date_index`相当。新規`wiki.date-index`ルートで、各ページの現在バージョンが書かれた日付(`currentVersion->created_at`)でグルーピングし新しい日付順に表示。Wiki一覧画面から「日付順に表示」でアクセス可能 |
 | ページのWatch | done(2026-07-21) | `WikiPage`に`watchers()`(ポリモーフィック`Watcher`)を追加、`view_wiki_pages`権限で自己Watch/Unwatch可能。他ユーザーの追加/削除UIはまだなし(Issueの`manageWatchers`相当は未実装) |
 | 添付ファイル | done(2026-07-21) | `WikiPage implements HasMedia`。フォームからアップロード、詳細画面で表示/削除(`update`権限) |
 

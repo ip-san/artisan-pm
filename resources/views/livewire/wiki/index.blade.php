@@ -39,12 +39,17 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — Wiki</h1>
-        @can('create', [WikiPage::class, $project])
-            <a href="{{ route('wiki.create', $project) }}"
-                class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
-                新規ページ
+        <div class="flex items-center gap-3">
+            <a href="{{ route('wiki.date-index', $project) }}" class="text-sm text-indigo-600 hover:underline">
+                日付順に表示
             </a>
-        @endcan
+            @can('create', [WikiPage::class, $project])
+                <a href="{{ route('wiki.create', $project) }}"
+                    class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                    新規ページ
+                </a>
+            @endcan
+        </div>
     </div>
 
     <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">

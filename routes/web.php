@@ -50,6 +50,7 @@ Route::middleware('auth')->group(function () {
     // Registered before the {wikiPage} routes below so "new" isn't matched
     // as a wiki-page-id route-model-binding segment.
     Volt::route('/projects/{project:identifier}/wiki/new', 'wiki.form')->name('wiki.create');
+    Volt::route('/projects/{project:identifier}/wiki/date-index', 'wiki.date-index')->name('wiki.date-index');
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}', 'wiki.show')->name('wiki.show');
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/edit', 'wiki.form')->name('wiki.edit');
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/history', 'wiki.history')->name('wiki.history');
