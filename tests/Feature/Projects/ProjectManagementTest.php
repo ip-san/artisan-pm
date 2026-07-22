@@ -37,6 +37,24 @@ test('the new project form falls back to every tracker when no default tracker s
         ->assertSet('trackerIds', [$trackerA->id, $trackerB->id]);
 });
 
+test('the new project form defaults visibility from the admin-configured setting', function () {
+    $admin = User::factory()->admin()->create();
+
+    Setting::set('default_projects_public', false);
+
+    Livewire::actingAs($admin)
+        ->test('projects.form')
+        ->assertSet('is_public', false);
+});
+
+test('the new project form defaults to public when no visibility setting is configured', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('projects.form')
+        ->assertSet('is_public', true);
+});
+
 test('an admin can create a project with modules and trackers through the form', function () {
     $admin = User::factory()->admin()->create();
     $tracker = Tracker::factory()->create();

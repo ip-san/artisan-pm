@@ -53,6 +53,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $self_registration = 'automatic';
 
+    public bool $default_projects_public = true;
+
     /** @var array<string> */
     public array $default_projects_modules = [];
 
@@ -83,6 +85,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->attachment_max_size = Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024));
         $this->attachment_extensions_allowed = Setting::get('attachment_extensions_allowed', '');
         $this->attachment_extensions_denied = Setting::get('attachment_extensions_denied', '');
+        $this->default_projects_public = Setting::get('default_projects_public', true);
         $this->default_projects_modules = Setting::get(
             'default_projects_modules',
             array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults())
@@ -131,6 +134,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_issue_done_ratio' => ['boolean'],
             'cross_project_issue_relations' => ['boolean'],
             'self_registration' => ['required', 'in:disabled,manual,automatic'],
+            'default_projects_public' => ['boolean'],
             'default_projects_modules' => ['array'],
             'default_projects_modules.*' => [Rule::in(array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::cases()))],
             'default_projects_tracker_ids' => ['array'],
@@ -200,6 +204,11 @@ new #[Layout('components.layouts.app')] class extends Component
         <section class="space-y-4 border-t border-gray-200 pt-6">
             <h2 class="text-sm font-semibold text-gray-900">プロジェクト</h2>
             <p class="text-xs text-gray-500">新規プロジェクト作成フォームの初期値です。作成時にプロジェクトごと変更できます。</p>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="default_projects_public" class="rounded border-gray-300">
+                既定で公開プロジェクトにする
+            </label>
 
             <div>
                 <span class="block text-sm font-medium text-gray-700 mb-2">既定で有効なモジュール</span>

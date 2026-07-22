@@ -65,6 +65,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 $this->authorize('create', Project::class);
             }
 
+            $this->is_public = Setting::get('default_projects_public', true);
+
             $this->modules = Setting::get(
                 'default_projects_modules',
                 array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults())

@@ -73,18 +73,20 @@ test('an admin can configure attachment size and extension limits', function () 
         ->and(Setting::get('attachment_extensions_allowed'))->toBe('png, jpg');
 });
 
-test('an admin can configure default project modules and trackers', function () {
+test('an admin can configure default project visibility, modules, and trackers', function () {
     $admin = User::factory()->admin()->create();
     $tracker = Tracker::factory()->create();
 
     Livewire::actingAs($admin)
         ->test('settings.index')
+        ->set('default_projects_public', false)
         ->set('default_projects_modules', [ProjectModuleKey::IssueTracking->value])
         ->set('default_projects_tracker_ids', [$tracker->id])
         ->call('save')
         ->assertHasNoErrors();
 
-    expect(Setting::get('default_projects_modules'))->toBe([ProjectModuleKey::IssueTracking->value])
+    expect(Setting::get('default_projects_public'))->toBeFalse()
+        ->and(Setting::get('default_projects_modules'))->toBe([ProjectModuleKey::IssueTracking->value])
         ->and(Setting::get('default_projects_tracker_ids'))->toBe([$tracker->id]);
 });
 
