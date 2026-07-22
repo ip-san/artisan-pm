@@ -139,3 +139,36 @@ test('a version with no issues reports zero for counts and percentages', functio
         ->and($version->closedPercent())->toBe(0.0)
         ->and($version->completedPercent())->toBe(0.0);
 });
+
+test('the roadmap\'s issue count links deep-link into a version- and status-filtered issue list', function () {
+    $project = Project::factory()->create();
+    $user = roadmapMember($project);
+    $version = Version::factory()->for($project)->create();
+    $otherVersion = Version::factory()->for($project)->create();
+    $openStatus = IssueStatus::factory()->create(['is_closed' => false]);
+    $closedStatus = IssueStatus::factory()->create(['is_closed' => true]);
+
+    $openIssue = roadmapIssue($project, ['status_id' => $openStatus->id, 'fixed_version_id' => $version->id]);
+    $closedIssue = roadmapIssue($project, ['status_id' => $closedStatus->id, 'fixed_version_id' => $version->id]);
+    $otherVersionIssue = roadmapIssue($project, ['status_id' => $openStatus->id, 'fixed_version_id' => $otherVersion->id]);
+
+    // Reflects the exact query shape roadmap.blade.php's issuesUrl() builds
+    // (statusFilter + the filter-builder's own activeFilterKeys/
+    // filterOperators/filterValues), asserted end-to-end against the issue
+    // list rather than asserting on the href string itself.
+    $query = [
+        'statusFilter' => 'all',
+        'activeFilterKeys' => ['fixed_version_id'],
+        'filterOperators' => ['fixed_version_id' => '='],
+        'filterValues' => ['fixed_version_id' => [$version->id]],
+    ];
+
+    $totalList = Livewire::actingAs($user)
+        ->withQueryParams($query)
+        ->test('issues.index', ['project' => $project])
+        ->get('issues')
+        ->pluck('id');
+
+    expect($totalList)->toContain($openIssue->id, $closedIssue->id)
+        ->not->toContain($otherVersionIssue->id);
+});

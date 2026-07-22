@@ -22,10 +22,21 @@ trait InteractsWithQueryFilters
     #[Url]
     public array $activeFilterKeys = [];
 
-    /** @var array<string, string> */
+    /**
+     * Also URL-backed, alongside activeFilterKeys — together they let a
+     * link from outside this list (e.g. the roadmap's per-version issue
+     * counts) deep-link straight into a pre-filtered list, matching
+     * Redmine's own f[]/op[]/v[][] query-string filter scheme. A key
+     * present in activeFilterKeys but missing an operator here still
+     * degrades gracefully: builtFilters() below just skips it.
+     *
+     * @var array<string, string>
+     */
+    #[Url]
     public array $filterOperators = [];
 
     /** @var array<string, array<int, mixed>> */
+    #[Url]
     public array $filterValues = [];
 
     /**

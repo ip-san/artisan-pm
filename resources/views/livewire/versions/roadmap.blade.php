@@ -54,6 +54,24 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         return Tracker::query()->where('is_in_roadmap', true)->pluck('id');
     }
+
+    /**
+     * Deep-links a version's issue counts to the pre-filtered issue list —
+     * matches Redmine's version_filtered_issues_path (status_id => '*'/'o'/'c'
+     * in versions/_overview.html.erb), reimplemented here via issues.index's
+     * own statusFilter quick-toggle rather than inventing a status_id value
+     * the filter engine doesn't otherwise support.
+     */
+    private function issuesUrl(Version $version, string $statusFilter): string
+    {
+        return route('issues.index', [
+            $this->project,
+            'statusFilter' => $statusFilter,
+            'activeFilterKeys' => ['fixed_version_id'],
+            'filterOperators' => ['fixed_version_id' => '='],
+            'filterValues' => ['fixed_version_id' => [$version->id]],
+        ]);
+    }
 }; ?>
 
 <div class="max-w-3xl">
@@ -109,8 +127,9 @@ new #[Layout('components.layouts.app')] class extends Component
                             </div>
                         </div>
                         <p class="mt-1 text-xs text-gray-500">
-                            {{ $total }}件の課題
-                            (クローズ済み{{ $counts['closed'] }}件 — オープン{{ $counts['open'] }}件)
+                            <a href="{{ $this->issuesUrl($version, 'all') }}" class="text-indigo-600 hover:underline">{{ $total }}件の課題</a>
+                            (<a href="{{ $this->issuesUrl($version, 'closed') }}" class="text-indigo-600 hover:underline">クローズ済み{{ $counts['closed'] }}件</a>
+                            — <a href="{{ $this->issuesUrl($version, 'open') }}" class="text-indigo-600 hover:underline">オープン{{ $counts['open'] }}件</a>)
                             — 完了率 {{ $completedPercent }}%
                         </p>
                     </div>
