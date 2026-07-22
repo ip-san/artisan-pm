@@ -427,7 +427,7 @@
 
 | 機能 | 状態 | 備考 |
 |---|---|---|
-| TimeEntry CRUD | done | 一括編集はなし |
+| TimeEntry CRUD | done(2026-07-23) | 一括編集・一括削除に対応。`time-entries/index.blade.php`にIssue一覧のbulk edit/deleteと同じパターン(チェックボックス列+選択件数パネル)を追加。編集対象は作業分類/日付/コメントの3項目のみ(時間・プロジェクト移動・カスタムフィールドは対象外 — TimeEntryにカスタムフィールドは存在しないため)。認可は既存の`TimeEntryPolicy::update`/`delete`をエントリごとにループ適用(自分の記録は`edit_time_entries`権限がなくても対象、他人の記録は同権限が必要)。プロジェクト横断一覧(`time-entries.global-index`)は対象外(Issueのbulk操作が`issues.global-index`を対象外にしているのと同じ判断) |
 | 工数種別(TimeEntryActivity) | done | プロジェクト別の有効/無効上書きに対応(2026-07-22、詳細は上の「プロジェクト別 Enumeration」行を参照)。カスタムフィールドはなし |
 | 課題の実績工数合計 | done(訂正2026-07-22) | **訂正**: 従来「partial」と誤記されていたが、`Issue::totalSpentHours()`は`descendantIds()`の再帰CTEで子孫全体を合算済み(上の「子孫を含めた予定/実績工数の集計」行と同一実装、本行が重複・古いまま残っていたため訂正)。課題詳細画面にも「合計: X時間」として表示される |
 | プロジェクトの実績工数合計 | done(2026-07-22) | `projects/show.blade.php`に「実績工数」ブロックを追加(`view_time_entries`権限保有時、工数が1件以上ある場合のみ表示)。Redmineの`ProjectsController#show`の`@total_hours`相当だが、`display_subprojects_issues`設定自体が本アプリに存在しないためサブプロジェクト分の合算は対象外(このプロジェクト自身のTimeEntryのみ) |

@@ -58,6 +58,15 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public array $columns = ['spent_on', 'user_id', 'activity_id', 'issue_id', 'comments', 'hours'];
 
+    /** @var array<int, int> */
+    public array $selected = [];
+
+    public ?int $bulkActivityId = null;
+
+    public string $bulkSpentOn = '';
+
+    public string $bulkComments = '';
+
     public string $newQueryName = '';
 
     public string $newQueryVisibility = 'private';
@@ -264,6 +273,88 @@ new #[Layout('components.layouts.app')] class extends Component
         unset($this->timeEntries, $this->groupedTimeEntries);
     }
 
+    /**
+     * This project's effective TimeEntryActivity set — mirrors
+     * time-entries/form.blade.php's own `activities()` computed.
+     */
+    #[Computed]
+    public function activities(): Collection
+    {
+        return $this->project->activities(includeInactive: true);
+    }
+
+    /**
+     * @return EloquentCollection<int, TimeEntry>
+     */
+    #[Computed]
+    public function selectedTimeEntries(): EloquentCollection
+    {
+        if ($this->selected === []) {
+            return new EloquentCollection;
+        }
+
+        return TimeEntry::query()
+            ->whereIn('id', $this->selected)
+            ->where('project_id', $this->project->id)
+            ->get();
+    }
+
+    public function applyBulkEdit(): void
+    {
+        $entries = $this->selectedTimeEntries;
+
+        abort_if($entries->isEmpty(), 404);
+
+        foreach ($entries as $entry) {
+            $this->authorize('update', $entry);
+        }
+
+        $data = $this->validate([
+            'bulkActivityId' => ['nullable', Rule::in($this->activities->pluck('id')->all())],
+            'bulkSpentOn' => [$this->bulkSpentOn === '' ? 'nullable' : 'date'],
+            'bulkComments' => ['nullable', 'string'],
+        ]);
+
+        $changes = array_filter([
+            'activity_id' => $data['bulkActivityId'],
+            'spent_on' => $data['bulkSpentOn'] !== '' ? $data['bulkSpentOn'] : null,
+            'comments' => $data['bulkComments'] !== '' ? $data['bulkComments'] : null,
+        ], fn ($value) => $value !== null);
+
+        foreach ($entries as $entry) {
+            $entry->update($changes);
+        }
+
+        $count = $entries->count();
+
+        $this->reset(['selected', 'bulkActivityId', 'bulkSpentOn', 'bulkComments']);
+        unset($this->timeEntries, $this->groupedTimeEntries, $this->selectedTimeEntries);
+
+        session()->flash('status', "{$count}件の工数記録を更新しました。");
+    }
+
+    public function applyBulkDelete(): void
+    {
+        $entries = $this->selectedTimeEntries;
+
+        abort_if($entries->isEmpty(), 404);
+
+        foreach ($entries as $entry) {
+            $this->authorize('delete', $entry);
+        }
+
+        $count = $entries->count();
+
+        foreach ($entries as $entry) {
+            $entry->delete();
+        }
+
+        $this->reset('selected');
+        unset($this->timeEntries, $this->groupedTimeEntries, $this->selectedTimeEntries);
+
+        session()->flash('status', "{$count}件の工数記録を削除しました。");
+    }
+
     public function exportCsv(): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         $this->authorize('viewAny', [TimeEntry::class, $this->project]);
@@ -361,6 +452,46 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
     </div>
 
+    @if ($this->canManage && count($selected) > 0)
+        <form wire:submit="applyBulkEdit" class="mb-4 space-y-3 rounded-md border border-indigo-200 bg-indigo-50 p-4">
+            <p class="text-sm font-medium text-gray-900">{{ count($selected) }}件を選択中 — 変更する項目だけ設定してください</p>
+
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">作業分類</label>
+                    <select wire:model="bulkActivityId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                        <option value="">変更なし</option>
+                        @foreach ($this->activities as $activity)
+                            <option value="{{ $activity->id }}">{{ $activity->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">日付</label>
+                    <input type="date" wire:model="bulkSpentOn" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-700">コメント(変更する場合のみ入力)</label>
+                <textarea wire:model="bulkComments" rows="2" class="mt-1 block w-full rounded-md border-gray-300 text-sm"></textarea>
+            </div>
+
+            <div class="flex gap-2">
+                <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                    一括更新
+                </button>
+                <button type="button" wire:click="applyBulkDelete" wire:confirm="選択した{{ count($selected) }}件の工数記録を削除します。この操作は取り消せません。よろしいですか?"
+                    class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
+                    選択した{{ count($selected) }}件を削除
+                </button>
+                <button type="button" wire:click="$set('selected', [])" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-white">
+                    選択解除
+                </button>
+            </div>
+        </form>
+    @endif
+
     @foreach ($this->groupedTimeEntries as $groupLabel => $groupEntries)
         @php $groupKey = $groupLabel !== '' ? $groupLabel : '__ungrouped__'; @endphp
         @if ($groupBy !== null)
@@ -373,6 +504,9 @@ new #[Layout('components.layouts.app')] class extends Component
             <table class="min-w-full divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
+                        @if ($this->canManage)
+                            <th class="px-4 py-2"></th>
+                        @endif
                         @foreach ($columns as $columnKey)
                             <th wire:key="column-heading-{{ $columnKey }}" class="px-4 py-2">
                                 <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
@@ -391,6 +525,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($groupEntries as $entry)
                         <tr wire:key="time-entry-{{ $entry->id }}">
+                            @if ($this->canManage)
+                                <td class="px-4 py-2">
+                                    <input type="checkbox" wire:model="selected" value="{{ $entry->id }}" class="rounded border-gray-300">
+                                </td>
+                            @endif
                             @foreach ($columns as $columnKey)
                                 <td wire:key="time-entry-{{ $entry->id }}-column-{{ $columnKey }}" class="px-4 py-2">
                                     @if ($columnKey === 'issue_id')
@@ -415,7 +554,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ count($columns) + 1 }}" class="px-4 py-6 text-center text-gray-500">工数記録がありません。</td>
+                            <td colspan="{{ count($columns) + ($this->canManage ? 2 : 0) }}" class="px-4 py-6 text-center text-gray-500">工数記録がありません。</td>
                         </tr>
                     @endforelse
                 </tbody>
