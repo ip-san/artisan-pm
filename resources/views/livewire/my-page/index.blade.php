@@ -7,6 +7,7 @@ use App\Support\Dashboard\DashboardBlock;
 use App\Support\Dashboard\DashboardBlockRegistry;
 use App\Support\Dashboard\DashboardBlockRow;
 use App\Support\Dashboard\SavedIssueQueryBlock;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -55,8 +56,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /**
      * Saved issue queries this user could add as a block — own plus any
-     * shared ones they can see, minus those already on the page. Small
-     * per-user set, filtered in memory like every other visibleTo() use.
+     * shared ones they can see, minus those already on the page. Own vs.
+     * public/roles-visibility is pre-filtered in SQL; only the roles
+     * check within visibleTo() still needs to run in memory.
      *
      * @return Collection<int, SavedQuery>
      */
@@ -67,6 +69,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
         return SavedQuery::query()
             ->where('type', QueryType::Issue->value)
+            ->where(fn ($q) => $q->where('user_id', auth()->id())
+                ->orWhere('visibility', 'public')
+                ->orWhere('visibility', 'roles'))
             ->with(['roles', 'project'])
             ->orderBy('name')
             ->get()
@@ -75,12 +80,46 @@ new #[Layout('components.layouts.app')] class extends Component
             ->values();
     }
 
+    /**
+     * SavedQuery models for every active issue_query:{id} block, loaded
+     * once per render instead of blockRows()/blockLabel() each querying
+     * separately for the same block.
+     *
+     * @return Collection<string, SavedQuery>
+     */
+    #[Computed]
+    public function savedQueriesByBlockKey(): Collection
+    {
+        $queryIds = $this->activeBlocks
+            ->map(fn (UserDashboardBlock $block) => SavedIssueQueryBlock::queryIdFromKey($block->block_key))
+            ->filter()
+            ->values();
+
+        if ($queryIds->isEmpty()) {
+            return collect();
+        }
+
+        return $this->savedQueryQuery()
+            ->whereIn('id', $queryIds)
+            ->with(['project', 'roles'])
+            ->get()
+            ->mapWithKeys(fn (SavedQuery $query) => [SavedIssueQueryBlock::keyFor($query) => $query]);
+    }
+
+    /**
+     * @return Builder<SavedQuery>
+     */
+    private function savedQueryQuery(): Builder
+    {
+        return SavedQuery::query()->where('type', QueryType::Issue->value);
+    }
+
     public function addBlock(string $key): void
     {
         $queryId = SavedIssueQueryBlock::queryIdFromKey($key);
 
         if ($queryId !== null) {
-            $savedQuery = SavedQuery::query()->where('type', QueryType::Issue->value)->find($queryId);
+            $savedQuery = $this->savedQueryQuery()->find($queryId);
             abort_unless($savedQuery !== null && $savedQuery->visibleTo(auth()->user()), 404);
         } else {
             abort_unless(app(DashboardBlockRegistry::class)->find($key) !== null, 404);
@@ -91,14 +130,14 @@ new #[Layout('components.layouts.app')] class extends Component
             ['position' => $this->activeBlocks->count()],
         );
 
-        unset($this->activeBlocks, $this->availableBlocks, $this->availableSavedQueries);
+        unset($this->activeBlocks, $this->availableBlocks, $this->availableSavedQueries, $this->savedQueriesByBlockKey);
     }
 
     public function removeBlock(int $id): void
     {
         UserDashboardBlock::where('user_id', auth()->id())->where('id', $id)->delete();
 
-        unset($this->activeBlocks, $this->availableBlocks, $this->availableSavedQueries);
+        unset($this->activeBlocks, $this->availableBlocks, $this->availableSavedQueries, $this->savedQueriesByBlockKey);
     }
 
     /**
@@ -132,10 +171,8 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function blockRows(string $key): Collection
     {
-        $queryId = SavedIssueQueryBlock::queryIdFromKey($key);
-
-        if ($queryId !== null) {
-            return app(SavedIssueQueryBlock::class)->rows(SavedQuery::find($queryId), auth()->user());
+        if (SavedIssueQueryBlock::queryIdFromKey($key) !== null) {
+            return app(SavedIssueQueryBlock::class)->rows($this->savedQueriesByBlockKey->get($key), auth()->user());
         }
 
         return app(DashboardBlockRegistry::class)->find($key)?->rows(auth()->user()) ?? collect();
@@ -143,10 +180,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function blockLabel(string $key): string
     {
-        $queryId = SavedIssueQueryBlock::queryIdFromKey($key);
-
-        if ($queryId !== null) {
-            $savedQuery = SavedQuery::find($queryId);
+        if (SavedIssueQueryBlock::queryIdFromKey($key) !== null) {
+            $savedQuery = $this->savedQueriesByBlockKey->get($key);
 
             return $savedQuery !== null ? "クエリ: {$savedQuery->name}" : 'クエリ: (削除済み)';
         }

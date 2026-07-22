@@ -8,9 +8,11 @@ use App\Concerns\HasCustomFields;
 use App\Concerns\HasThumbnails;
 use App\Enums\CustomizableType;
 use App\Enums\IssueRelationType;
+use App\Enums\IssueVisibility;
 use App\Support\Authorization\AuthorizationService;
 use Database\Factories\IssueFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -358,6 +360,28 @@ final class Issue extends Model implements HasMedia
         $userRoles = $user ? app(AuthorizationService::class)->rolesFor($user, $this->project) : collect();
 
         return $fields->filter(fn (CustomField $field) => $field->visibleToRoles($userRoles))->values();
+    }
+
+    /**
+     * Narrows a query to the issues $user is allowed to see in $project,
+     * per the project's configured issue visibility (all / default / own).
+     * Shared by the issue list and My Page's saved-query blocks so the two
+     * don't drift on what "visible" means.
+     *
+     * @param  Builder<Issue>  $query
+     * @return Builder<Issue>
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user, Project $project): Builder
+    {
+        $userId = $user?->id;
+
+        return match (app(AuthorizationService::class)->issueVisibilityFor($user, $project)) {
+            IssueVisibility::All => $query,
+            IssueVisibility::Default => $query->where(fn ($q) => $q->where('is_private', false)
+                ->orWhere('author_id', $userId)
+                ->orWhere('assigned_to_id', $userId)),
+            IssueVisibility::Own => $query->where(fn ($q) => $q->where('author_id', $userId)->orWhere('assigned_to_id', $userId)),
+        };
     }
 
     /**

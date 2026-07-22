@@ -39,6 +39,23 @@ new #[Layout('components.layouts.app')] class extends Component
         'follows' => ['from' => '後続', 'to' => '後続'],
     ];
 
+    /**
+     * Maps a relation journal's prop_key (including the reversed names
+     * Redmine writes on the receiving end, e.g. "blocked") back to the
+     * [type, side] pair used to index RELATION_LABELS above.
+     *
+     * @var array<string, array{0: string, 1: string}>
+     */
+    private const array RELATION_JOURNAL_KEYS = [
+        'relates' => ['relates', 'from'],
+        'blocks' => ['blocks', 'from'],
+        'blocked' => ['blocks', 'to'],
+        'duplicates' => ['duplicates', 'from'],
+        'duplicated' => ['duplicates', 'to'],
+        'precedes' => ['precedes', 'from'],
+        'follows' => ['follows', 'from'],
+    ];
+
     public Project $project;
 
     public Issue $issue;
@@ -238,16 +255,9 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function relationJournalLabel(string $propKey): string
     {
-        return match ($propKey) {
-            'relates' => '関連',
-            'blocks' => 'ブロックする',
-            'blocked' => 'ブロックされている',
-            'duplicates' => '重複する',
-            'duplicated' => '重複されている',
-            'precedes' => '先行',
-            'follows' => '後続',
-            default => $propKey,
-        };
+        [$type, $side] = self::RELATION_JOURNAL_KEYS[$propKey] ?? [null, null];
+
+        return $type !== null ? self::RELATION_LABELS[$type][$side] : $propKey;
     }
 
     /**

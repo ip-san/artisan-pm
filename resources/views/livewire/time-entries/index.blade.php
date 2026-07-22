@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\InteractsWithQueryFilters;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
 use App\Enums\TimeEntryVisibility;
@@ -22,6 +23,8 @@ use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use InteractsWithQueryFilters;
+
     /**
      * Columns selectable for display/CSV export — mirrors issues.index's
      * own DISPLAY_COLUMNS. 'issue_id' and 'comments' aren't registered
@@ -41,16 +44,6 @@ new #[Layout('components.layouts.app')] class extends Component
     ];
 
     public Project $project;
-
-    /** @var array<int, string> */
-    #[Url]
-    public array $activeFilterKeys = [];
-
-    /** @var array<string, string> */
-    public array $filterOperators = [];
-
-    /** @var array<string, array<int, mixed>> */
-    public array $filterValues = [];
 
     #[Url]
     public ?string $sortKey = 'spent_on';
@@ -128,43 +121,6 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         return $this->timeEntries->groupBy(fn (TimeEntry $entry) => $this->columnValue($entry, $this->groupBy));
-    }
-
-    /**
-     * @return array<string, array{operator: string, values: array<int, mixed>}>
-     */
-    private function builtFilters(): array
-    {
-        $filters = [];
-
-        foreach ($this->activeFilterKeys as $key) {
-            $operator = $this->filterOperators[$key] ?? null;
-
-            if ($operator === null) {
-                continue;
-            }
-
-            $filters[$key] = [
-                'operator' => $operator,
-                'values' => array_values(array_filter($this->filterValues[$key] ?? [], fn ($v) => $v !== null && $v !== '')),
-            ];
-        }
-
-        return $filters;
-    }
-
-    public function addFilter(string $key): void
-    {
-        if (! in_array($key, $this->activeFilterKeys, true) && $this->engine->field($key) !== null) {
-            $this->activeFilterKeys[] = $key;
-            $this->filterOperators[$key] = $this->engine->field($key)->operators()[0]->value;
-        }
-    }
-
-    public function removeFilter(string $key): void
-    {
-        $this->activeFilterKeys = array_values(array_diff($this->activeFilterKeys, [$key]));
-        unset($this->filterOperators[$key], $this->filterValues[$key]);
     }
 
     public function applyFilters(): void
@@ -362,7 +318,6 @@ new #[Layout('components.layouts.app')] class extends Component
     {{-- Filter builder --}}
     <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
-
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
             <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">

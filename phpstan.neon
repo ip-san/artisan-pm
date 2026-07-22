@@ -13,3 +13,11 @@ parameters:
     checkOctaneCompatibility: true
     checkModelProperties: true
     parseModelCastsMethod: true
+
+    ignoreErrors:
+        -
+            # Only used by Volt single-file components under resources/views,
+            # which are outside phpstan's scanned `paths` (Blade files mix
+            # PHP with template syntax phpstan can't parse).
+            message: '#^Trait App\\Concerns\\InteractsWithQueryFilters is used zero times#'
+            path: app/Concerns/InteractsWithQueryFilters.php

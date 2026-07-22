@@ -89,17 +89,11 @@ new #[Layout('components.layouts.app')] class extends Component
             $start = $issue->start_date?->toDateString();
             $due = $issue->due_date?->toDateString();
 
-            if ($start === $due && $inRange($start)) {
-                $entries->push(['date' => $start, 'issue' => $issue, 'marker' => 'both']);
-
-                continue;
-            }
-
             if ($inRange($start)) {
-                $entries->push(['date' => $start, 'issue' => $issue, 'marker' => 'start']);
+                $entries->push(['date' => $start, 'issue' => $issue, 'marker' => $start === $due ? 'both' : 'start']);
             }
 
-            if ($inRange($due)) {
+            if ($inRange($due) && $due !== $start) {
                 $entries->push(['date' => $due, 'issue' => $issue, 'marker' => 'due']);
             }
         }
@@ -156,7 +150,8 @@ new #[Layout('components.layouts.app')] class extends Component
                                     @foreach ($day['entries'] as $entry)
                                         @php $issue = $entry['issue']; @endphp
                                         <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-{{ $issue->id }}-{{ $entry['marker'] }}">
-                                            <span class="text-xs text-gray-400" title="{{ match ($entry['marker']) { 'start' => '開始日', 'due' => '期日', default => '開始日=期日' } }}">{{ match ($entry['marker']) { 'start' => '▶', 'due' => '◀', default => '◆' } }}</span>
+                                            @php [$markerLabel, $markerSymbol] = match ($entry['marker']) { 'start' => ['開始日', '▶'], 'due' => ['期日', '◀'], default => ['開始日=期日', '◆'] }; @endphp
+                                            <span class="text-xs text-gray-400" title="{{ $markerLabel }}">{{ $markerSymbol }}</span>
                                             <a href="{{ route('issues.show', [$project, $issue]) }}"
                                                 class="text-xs text-indigo-600 hover:underline"
                                                 title="{{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}">

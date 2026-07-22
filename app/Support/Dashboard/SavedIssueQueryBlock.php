@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Support\Dashboard;
 
-use App\Enums\IssueVisibility;
 use App\Models\Issue;
 use App\Models\Query;
 use App\Models\User;
@@ -66,15 +65,8 @@ final class SavedIssueQueryBlock
 
         $builder = Issue::query()
             ->where('project_id', $project->id)
+            ->visibleTo($user, $project)
             ->with(['project', 'tracker', 'status']);
-
-        match ($this->authorization->issueVisibilityFor($user, $project)) {
-            IssueVisibility::All => null,
-            IssueVisibility::Default => $builder->where(fn ($q) => $q->where('is_private', false)
-                ->orWhere('author_id', $user->id)
-                ->orWhere('assigned_to_id', $user->id)),
-            IssueVisibility::Own => $builder->where(fn ($q) => $q->where('author_id', $user->id)->orWhere('assigned_to_id', $user->id)),
-        };
 
         $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project));
         $builder = $engine->applyFilters($builder, $savedQuery->filters);

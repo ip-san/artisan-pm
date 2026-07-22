@@ -1,8 +1,8 @@
 <?php
 
+use App\Concerns\InteractsWithQueryFilters;
 use App\Enums\EnumerationType;
 use App\Enums\FilterOperator;
-use App\Enums\IssueVisibility;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
 use App\Models\CustomField;
@@ -34,6 +34,7 @@ use Livewire\WithPagination;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use InteractsWithQueryFilters;
     use WithPagination;
 
     /**
@@ -62,16 +63,6 @@ new #[Layout('components.layouts.app')] class extends Component
 
     #[Url]
     public string $statusFilter = 'open';
-
-    /** @var array<int, string> */
-    #[Url]
-    public array $activeFilterKeys = [];
-
-    /** @var array<string, string> */
-    public array $filterOperators = [];
-
-    /** @var array<string, array<int, mixed>> */
-    public array $filterValues = [];
 
     /** @var array<int, string> */
     #[Url]
@@ -161,17 +152,12 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $query = Issue::query()
             ->where('project_id', $this->project->id)
-            ->with(['tracker', 'status', 'priority', 'category', 'assignedTo', 'author', 'fixedVersion', 'customFieldValues.customField']);
-
-        $userId = auth()->id();
-
-        match (app(AuthorizationService::class)->issueVisibilityFor(auth()->user(), $this->project)) {
-            IssueVisibility::All => null,
-            IssueVisibility::Default => $query->where(fn ($q) => $q->where('is_private', false)
-                ->orWhere('author_id', $userId)
-                ->orWhere('assigned_to_id', $userId)),
-            IssueVisibility::Own => $query->where(fn ($q) => $q->where('author_id', $userId)->orWhere('assigned_to_id', $userId)),
-        };
+            ->visibleTo(auth()->user(), $this->project)
+            ->with(['tracker', 'status', 'priority', 'category', 'assignedTo', 'author', 'fixedVersion'])
+            ->when(
+                collect($this->columns)->contains(fn (string $column) => str_starts_with($column, 'cf_')),
+                fn (Builder $q) => $q->with('customFieldValues.customField')
+            );
 
         if ($this->statusFilter !== 'all') {
             $isClosed = $this->statusFilter === 'closed';
@@ -255,9 +241,6 @@ new #[Layout('components.layouts.app')] class extends Component
      * raw column name is safe — $groupBy is checked against the known
      * column whitelist before it ever reaches raw SQL.
      *
-     * @return Collection<string, int>
-     */
-    /**
      * @return Collection<string, array{count: int, estimated: float, spent: float}>
      */
     #[Computed]
@@ -299,13 +282,21 @@ new #[Layout('components.layouts.app')] class extends Component
      * Estimated and spent hour sums across the entire filtered set (not
      * just the current page) — matches Redmine's issue list totals
      * (Setting.issue_list_default_totals), shown for both fixed rather
-     * than made configurable.
+     * than made configurable. When grouped, these are already summed
+     * from groupTotals() rather than re-querying.
      *
      * @return array{estimated: float, spent: float}
      */
     #[Computed]
     public function listTotals(): array
     {
+        if ($this->groupBy !== null && $this->groupTotals->isNotEmpty()) {
+            return [
+                'estimated' => (float) $this->groupTotals->sum('estimated'),
+                'spent' => (float) $this->groupTotals->sum('spent'),
+            ];
+        }
+
         $estimated = (float) $this->filteredIssuesQuery()->reorder()->sum('estimated_hours');
 
         $spent = (float) TimeEntry::query()
@@ -313,43 +304,6 @@ new #[Layout('components.layouts.app')] class extends Component
             ->sum('hours');
 
         return ['estimated' => $estimated, 'spent' => $spent];
-    }
-
-    /**
-     * @return array<string, array{operator: string, values: array<int, mixed>}>
-     */
-    private function builtFilters(): array
-    {
-        $filters = [];
-
-        foreach ($this->activeFilterKeys as $key) {
-            $operator = $this->filterOperators[$key] ?? null;
-
-            if ($operator === null) {
-                continue;
-            }
-
-            $filters[$key] = [
-                'operator' => $operator,
-                'values' => array_values(array_filter($this->filterValues[$key] ?? [], fn ($v) => $v !== null && $v !== '')),
-            ];
-        }
-
-        return $filters;
-    }
-
-    public function addFilter(string $key): void
-    {
-        if (! in_array($key, $this->activeFilterKeys, true) && $this->engine->field($key) !== null) {
-            $this->activeFilterKeys[] = $key;
-            $this->filterOperators[$key] = $this->engine->field($key)->operators()[0]->value;
-        }
-    }
-
-    public function removeFilter(string $key): void
-    {
-        $this->activeFilterKeys = array_values(array_diff($this->activeFilterKeys, [$key]));
-        unset($this->filterOperators[$key], $this->filterValues[$key]);
     }
 
     public function applyFilters(): void
@@ -892,7 +846,6 @@ new #[Layout('components.layouts.app')] class extends Component
     {{-- Filter builder --}}
     <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
-
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
             <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
