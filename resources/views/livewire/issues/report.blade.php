@@ -113,6 +113,34 @@ new #[Layout('components.layouts.app')] class extends Component
 
         return $this->buildGrid($authors, $this->countsByColumn('author_id'), false);
     }
+
+    /**
+     * Deep-links a grid cell (or a row's 合計 column, when $statusId is
+     * null) to the pre-filtered issue list — matches Redmine's
+     * aggregate_link in reports/_details.html.erb. 'none' rows (no
+     * category/version/assignee set) filter with the "empty" operator
+     * instead of "=", since there's no id to match against.
+     */
+    private function cellUrl(string $column, int|string $rowKey, ?int $statusId): string
+    {
+        $activeFilterKeys = [$column];
+        $filterOperators = [$column => $rowKey === 'none' ? 'empty' : '='];
+        $filterValues = [$column => $rowKey === 'none' ? [] : [$rowKey]];
+
+        if ($statusId !== null) {
+            $activeFilterKeys[] = 'status_id';
+            $filterOperators['status_id'] = '=';
+            $filterValues['status_id'] = [$statusId];
+        }
+
+        return route('issues.index', [
+            $this->project,
+            'statusFilter' => 'all',
+            'activeFilterKeys' => $activeFilterKeys,
+            'filterOperators' => $filterOperators,
+            'filterValues' => $filterValues,
+        ]);
+    }
 }; ?>
 
 <div>
@@ -120,19 +148,20 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @php
         $sections = [
-            'トラッカー別' => $this->trackerGrid,
-            '優先度別' => $this->priorityGrid,
-            'カテゴリ別' => $this->categoryGrid,
-            '対象バージョン別' => $this->versionGrid,
-            '担当者別' => $this->assigneeGrid,
-            '作成者別' => $this->authorGrid,
+            ['title' => 'トラッカー別', 'column' => 'tracker_id', 'grid' => $this->trackerGrid],
+            ['title' => '優先度別', 'column' => 'priority_id', 'grid' => $this->priorityGrid],
+            ['title' => 'カテゴリ別', 'column' => 'category_id', 'grid' => $this->categoryGrid],
+            ['title' => '対象バージョン別', 'column' => 'fixed_version_id', 'grid' => $this->versionGrid],
+            ['title' => '担当者別', 'column' => 'assigned_to_id', 'grid' => $this->assigneeGrid],
+            ['title' => '作成者別', 'column' => 'author_id', 'grid' => $this->authorGrid],
         ];
     @endphp
 
     <div class="space-y-8">
-        @foreach ($sections as $title => $grid)
+        @foreach ($sections as $section)
+            @php $grid = $section['grid']; @endphp
             <div class="overflow-x-auto">
-                <h2 class="mb-2 text-sm font-semibold text-gray-900">{{ $title }}</h2>
+                <h2 class="mb-2 text-sm font-semibold text-gray-900">{{ $section['title'] }}</h2>
                 <table class="min-w-full border border-gray-200 bg-white text-sm">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50">
@@ -145,15 +174,25 @@ new #[Layout('components.layouts.app')] class extends Component
                     </thead>
                     <tbody>
                         @forelse ($grid['rows'] as $row)
+                            @php $rowTotal = array_sum($grid['counts'][$row['key']] ?? []); @endphp
                             <tr class="border-b border-gray-100">
                                 <td class="px-3 py-2 text-gray-900">{{ $row['label'] }}</td>
                                 @foreach ($this->statuses as $status)
+                                    @php $count = $grid['counts'][$row['key']][$status->id] ?? 0; @endphp
                                     <td class="px-3 py-2 text-right text-gray-700">
-                                        {{ $grid['counts'][$row['key']][$status->id] ?? 0 }}
+                                        @if ($count > 0)
+                                            <a href="{{ $this->cellUrl($section['column'], $row['key'], $status->id) }}" class="text-indigo-600 hover:underline">{{ $count }}</a>
+                                        @else
+                                            {{ $count }}
+                                        @endif
                                     </td>
                                 @endforeach
                                 <td class="px-3 py-2 text-right font-semibold text-gray-900">
-                                    {{ array_sum($grid['counts'][$row['key']] ?? []) }}
+                                    @if ($rowTotal > 0)
+                                        <a href="{{ $this->cellUrl($section['column'], $row['key'], null) }}" class="text-indigo-600 hover:underline">{{ $rowTotal }}</a>
+                                    @else
+                                        {{ $rowTotal }}
+                                    @endif
                                 </td>
                             </tr>
                         @empty
