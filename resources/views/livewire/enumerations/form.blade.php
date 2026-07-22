@@ -1,7 +1,10 @@
 <?php
 
 use App\Enums\EnumerationType;
+use App\Models\CustomField;
 use App\Models\Enumeration;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -16,6 +19,9 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $is_default = false;
 
     public bool $active = true;
+
+    /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
+    public array $customFieldValues = [];
 
     public function mount(EnumerationType $type, ?Enumeration $enumeration = null): void
     {
@@ -34,18 +40,49 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->name = $enumeration->name;
             $this->is_default = $enumeration->is_default;
             $this->active = $enumeration->active;
+
+            foreach ($enumeration->relevantCustomFields() as $field) {
+                $this->customFieldValues[$field->id] = $field->multiple
+                    ? $enumeration->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->all()
+                    : $enumeration->customValue($field);
+            }
         } else {
             $this->authorize('create', Enumeration::class);
         }
     }
 
+    /**
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function customFields(): Collection
+    {
+        return ($this->enumeration ?? new Enumeration(['type' => $this->type]))->relevantCustomFields();
+    }
+
     public function save(): void
     {
-        $data = $this->validate([
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'is_default' => ['boolean'],
             'active' => ['boolean'],
-        ]);
+        ];
+
+        foreach ($this->customFields as $field) {
+            $key = "customFieldValues.{$field->id}";
+            $presence = $field->is_required ? 'required' : 'nullable';
+
+            if ($field->multiple) {
+                $rules[$key] = [$presence, 'array'];
+                $rules["{$key}.*"] = $field->format()->validationRules($field);
+            } else {
+                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
+            }
+        }
+
+        $data = $this->validate($rules);
+        $customFieldData = $data['customFieldValues'] ?? [];
+        unset($data['customFieldValues']);
 
         $data['type'] = $this->type->value;
 
@@ -58,6 +95,8 @@ new #[Layout('components.layouts.app')] class extends Component
         if ($data['is_default']) {
             $this->enumeration->makeDefault();
         }
+
+        $this->enumeration->setCustomFieldValues($customFieldData);
 
         $this->redirect(route('enumerations.index', $this->type->value), navigate: true);
     }
@@ -84,6 +123,14 @@ new #[Layout('components.layouts.app')] class extends Component
             <input type="checkbox" wire:model="active" class="rounded border-gray-300">
             有効にする
         </label>
+
+        @if ($this->customFields->isNotEmpty())
+            <div class="space-y-4 border-t border-gray-200 pt-4">
+                @foreach ($this->customFields as $field)
+                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" />
+                @endforeach
+            </div>
+        @endif
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">

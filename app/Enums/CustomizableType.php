@@ -17,4 +17,5 @@ enum CustomizableType: string
     case Project = 'project';
     case Version = 'version';
     case Group = 'group';
+    case TimeEntryActivity = 'time_entry_activity';
 }

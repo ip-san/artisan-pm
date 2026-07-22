@@ -17,7 +17,7 @@
 1. **プロジェクト横断ビューが皆無**(マイページを除く)。Issues/TimeEntries/Activity/Calendar/Gantt/Search はすべて `/projects/{project}/...` 配下のみで、Redmine の `/issues`, `/time_entries/report`, `/activity`, `/search` 相当のグローバルビューが存在しない。`routes/web.php` を見ればプロジェクト非依存のユーザー向けルートは `/my/page` と `/profile` のみ。
 2. ~~**管理者によるユーザー管理画面が皆無**~~ → **done**(2026-07-21)。`users/{index,form}.blade.php` で一覧/作成/編集/ロック・ロック解除に対応。強制パスワードリセットは「編集画面でパスワード欄に新しい値を入力」で代替(専用の「リセットして通知」フローはまだない)。詳細は §2 参照。
 3. **アプリケーション設定が Redmine の 119 キー中わずか 6 項目**(`app_title`, `default_issues_per_page`, incoming-mail 系4項目)。表示/認証ポリシー/通知/添付ファイル制限/リポジトリ設定などのタブが丸ごと存在しない。
-4. ~~**カスタムフィールド対応が Issue と Project の2種のみ**~~ → **一部done**(2026-07-22)。Version・Group にも対応(`CustomizableType::Version`/`::Group`)。Versionはプロジェクトのロール経由で可視性を解決、Groupは管理者専用リソースのためロールフィルタ自体が不要。User/TimeEntryActivity/DocumentCategory 等(Redmine は ~10種)は引き続き未対応。
+4. ~~**カスタムフィールド対応が Issue と Project の2種のみ**~~ → **一部done**(2026-07-22)。Version・Group・TimeEntryActivity にも対応(`CustomizableType::Version`/`::Group`/`::TimeEntryActivity`)。Versionはプロジェクトのロール経由で可視性を解決、Group/TimeEntryActivityは管理者専用リソースのためロールフィルタ自体が不要。User/DocumentCategory 等(Redmine は ~10種)は引き続き未対応。
 5. **REST API が Projects と Issues の2リソースのみ**(Redmine は ~20 リソース群)。DELETE 系は皆無、ファイルアップロード API もなし。API認証も OAuth2(Passport)のみで、スクリプト用途に適した API キー方式が存在しない。
 6. ~~**Issue のサブタスク(親子)機能がモデルはあるがUIがない**。~~ → **done**(2026-07-21)。課題フォームに親課題ID欄、詳細画面に親リンク/サブタスク一覧を追加(詳細は §サブタスク・親子関係 参照)。~~関連課題(`IssueRelation`)もUIが皆無だった。~~ → **done**(2026-07-21)。課題詳細画面に追加/削除UIを実装(詳細は §Issue Relations 参照)。~~IssueCategory はモデル自体が存在しない。~~ → **done**(2026-07-21)。`IssueCategory` モデル・プロジェクト単位の管理画面・課題フォーム/一覧/フィルタ/CSV連携まで実装(詳細は §Issue Categories 参照)。
 7. ~~**添付ファイルが Issue/Version/News/Document にしか付かない**。Wiki ページ・フォーラム投稿に添付できない。サムネイル生成・説明文・ダウンロード数もない。~~ → **done**(2026-07-21〜22)。Wiki/フォーラム投稿への添付、ダウンロード数、説明文、サムネイル生成のすべてに対応済み(詳細は §添付ファイル 参照)。
@@ -222,7 +222,7 @@
 | Issue用カスタムフィールド | done | トラッカー/プロジェクト範囲、ロール可視性、必須/複数値 |
 | Project用カスタムフィールド | done | ロール可視性は `Project::relevantCustomFields()` で反映 |
 | Version用カスタムフィールド | done(2026-07-22) | `CustomizableType::Version` を追加。`Version::relevantCustomFields()` はVersion自身がロール/メンバーを持たないため所属`project`経由でロール可視性を解決。`versions/form.blade.php` で入力/保存(`projects/form.blade.php`と同一パターン) |
-| User/TimeEntryActivity/DocumentCategory用 | missing | `CustomizableType` は Issue/Project/Version/Group の4種(2026-07-22にGroupを追加)。User/TimeEntryActivity/DocumentCategoryは引き続き未対応 |
+| User/DocumentCategory用 | partial(2026-07-22) | `CustomizableType` は Issue/Project/Version/Group/TimeEntryActivityの5種。TimeEntryActivityを追加(Redmineの`TimeEntryActivityCustomField`相当) ― `Enumeration`モデルはIssuePriority/TimeEntryActivity/DocumentCategoryの3種を1テーブルで表現するため、`relevantCustomFields()`は`type`がTimeEntryActivityの時のみフィールドを返す(他2種は対象外、Groupと同様ロール可視性フィルタも不要)。`enumerations/form.blade.php`で入力/保存。User/DocumentCategoryは引き続き未対応 |
 | フィールド形式 | partial | string/text/int/float/date/bool/list の7種。user/version/enumeration/attachment/link は未対応 |
 | custom_field_enumerations(選択肢の管理された一覧) | missing | — |
 | default_value/regexp/searchable/editable・visible フラグ、「全プロジェクト対象」 | partial(2026-07-22) | 「全プロジェクト対象」は元々実装済み(対象プロジェクト未選択時は`CustomField::appliesToProject()`が全プロジェクト扱い)。今回`default_value`(新規課題作成時に自動入力、`prefillFromCopySource`の後に適用され上書きしない)・`regexp`(保存時に不正な正規表現を検証)・`searchable`をフォームに追加(モデル/カラムは既存、フォーム未配線だった)。`editable`/`visible`フラグはカラム自体が存在せず引き続き未実装 |

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\HasCustomFields;
+use App\Enums\CustomizableType;
 use App\Enums\EnumerationType;
 use Database\Factories\EnumerationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -12,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
@@ -19,7 +22,7 @@ use Spatie\EloquentSortable\SortableTrait;
 final class Enumeration extends Model implements Sortable
 {
     /** @use HasFactory<EnumerationFactory> */
-    use HasFactory, SortableTrait;
+    use HasCustomFields, HasFactory, SortableTrait;
 
     /** @var array{order_column_name: string, sort_when_creating: bool} */
     public array $sortable = [
@@ -106,5 +109,40 @@ final class Enumeration extends Model implements Sortable
         self::query()->where('type', $this->type)->where('id', '!=', $this->id)->update(['is_default' => false]);
 
         $this->update(['is_default' => true]);
+    }
+
+    /**
+     * Only meaningful for TimeEntryActivity — matches Redmine's
+     * TimeEntryActivityCustomField (IssuePriority/DocumentCategory custom
+     * fields aren't tracked as in-scope here). This model represents all
+     * three enumeration kinds in one table, so unlike Issue/Project/
+     * Version/Group there's no single static "this model's type"; treated
+     * as an implementation detail since nothing else in the app actually
+     * calls this abstract trait method today.
+     */
+    public static function customizableType(): CustomizableType
+    {
+        return CustomizableType::TimeEntryActivity;
+    }
+
+    /**
+     * Every TimeEntryActivity custom field is relevant to every
+     * TimeEntryActivity enumeration — same reasoning as Group: this is an
+     * admin-only resource (EnumerationPolicy denies everyone else) with no
+     * project/role visibility concept to filter by. Enumerations of any
+     * other type never have custom fields.
+     *
+     * @return Collection<int, CustomField>
+     */
+    public function relevantCustomFields(): Collection
+    {
+        if ($this->type !== EnumerationType::TimeEntryActivity) {
+            return collect();
+        }
+
+        return CustomField::query()
+            ->where('customized_type', CustomizableType::TimeEntryActivity)
+            ->orderBy('position')
+            ->get();
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\Document;
+use App\Models\Enumeration;
 use App\Models\Group;
 use App\Models\Issue;
 use App\Models\Message;
@@ -39,6 +40,7 @@ final class MorphMapServiceProvider extends ServiceProvider
             'wiki_page' => WikiPage::class,
             'message' => Message::class,
             'group' => Group::class,
+            'time_entry_activity' => Enumeration::class,
         ]);
     }
 }
