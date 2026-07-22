@@ -22,6 +22,7 @@
                             <a href="{{ route('issues.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">課題</a>
                             <a href="{{ route('time-entries.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">工数</a>
                             <a href="{{ route('news.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">お知らせ</a>
+                            <a href="{{ route('search.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">検索</a>
                             @can('viewAny', \App\Models\Role::class)
                                 <a href="{{ route('roles.index') }}" class="text-sm text-gray-600 hover:text-gray-900">ロール管理</a>
                             @endcan

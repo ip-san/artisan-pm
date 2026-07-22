@@ -1,0 +1,132 @@
+<?php
+
+use App\Models\Enumeration;
+use App\Models\Issue;
+use App\Models\IssueStatus;
+use App\Models\Member;
+use App\Models\News;
+use App\Models\Project;
+use App\Models\Role;
+use App\Models\Tracker;
+use App\Models\User;
+use Livewire\Livewire;
+
+function globalSearchMember(Project $project, array $permissions): User
+{
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => $permissions]);
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    return $user;
+}
+
+test('the global search finds matches across every project the user can view_issues in', function () {
+    $projectA = Project::factory()->create();
+    $projectB = Project::factory()->create();
+    $user = globalSearchMember($projectA, ['view_project', 'view_issues']);
+    Member::factory()->for($projectB)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_project', 'view_issues']])
+    );
+
+    $issueA = Issue::factory()->for($projectA)->create([
+        'tracker_id' => Tracker::factory(),
+        'status_id' => IssueStatus::factory(),
+        'priority_id' => Enumeration::factory(),
+        'author_id' => User::factory(),
+        'subject' => 'cross-project-token in A',
+    ]);
+    $issueB = Issue::factory()->for($projectB)->create([
+        'tracker_id' => Tracker::factory(),
+        'status_id' => IssueStatus::factory(),
+        'priority_id' => Enumeration::factory(),
+        'author_id' => User::factory(),
+        'subject' => 'cross-project-token in B',
+    ]);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.global-index')
+        ->set('query', 'cross-project-token')
+        ->call('search')
+        ->get('results');
+
+    expect($results->pluck('title')->join(' '))
+        ->toContain("#{$issueA->id}")
+        ->toContain("#{$issueB->id}");
+});
+
+test('the global search excludes projects the user has no access to at all', function () {
+    $visibleProject = Project::factory()->create();
+    $hiddenProject = Project::factory()->create(['is_public' => false]);
+    $user = globalSearchMember($visibleProject, ['view_project', 'view_issues']);
+
+    Issue::factory()->for($hiddenProject)->create([
+        'tracker_id' => Tracker::factory(),
+        'status_id' => IssueStatus::factory(),
+        'priority_id' => Enumeration::factory(),
+        'author_id' => User::factory(),
+        'subject' => 'hidden-project-unique-token',
+    ]);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.global-index')
+        ->set('query', 'hidden-project-unique-token')
+        ->call('search')
+        ->get('results');
+
+    expect($results)->toBeEmpty();
+});
+
+test('the global search only surfaces news from projects the user can view_news in, even if visible otherwise', function () {
+    $projectWithNewsAccess = Project::factory()->create();
+    $projectWithoutNewsAccess = Project::factory()->create();
+    $user = globalSearchMember($projectWithNewsAccess, ['view_project', 'view_news']);
+    Member::factory()->for($projectWithoutNewsAccess)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_project']])
+    );
+
+    News::factory()->for($projectWithNewsAccess)->create(['title' => 'shared-news-token here']);
+    News::factory()->for($projectWithoutNewsAccess)->create(['title' => 'shared-news-token there']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.global-index')
+        ->set('query', 'shared-news-token')
+        ->call('search')
+        ->get('results');
+
+    expect($results)->toHaveCount(1);
+});
+
+test('a #123 query on the global search jumps to that issue regardless of which project it belongs to', function () {
+    $projectA = Project::factory()->create();
+    $projectB = Project::factory()->create();
+    $user = globalSearchMember($projectA, ['view_project', 'view_issues']);
+    Member::factory()->for($projectB)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_project', 'view_issues']])
+    );
+
+    $issue = Issue::factory()->for($projectB)->create();
+
+    Livewire::actingAs($user)
+        ->test('search.global-index')
+        ->set('query', "#{$issue->id}")
+        ->call('search')
+        ->assertRedirect(route('issues.show', [$projectB, $issue]));
+});
+
+test('a #123 query on the global search falls through to a normal search when the issue is not visible', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create(['is_public' => false]);
+    $user = globalSearchMember($project, ['view_project', 'view_issues']);
+    $foreignIssue = Issue::factory()->for($otherProject)->create();
+
+    Livewire::actingAs($user)
+        ->test('search.global-index')
+        ->set('query', "#{$foreignIssue->id}")
+        ->call('search')
+        ->assertNoRedirect();
+});
+
+test('a guest is redirected to login when visiting the global search', function () {
+    $this->get(route('search.global-index'))->assertRedirect(route('login'));
+});
