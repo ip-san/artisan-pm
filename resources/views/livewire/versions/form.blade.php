@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\VersionSharing;
 use App\Enums\VersionStatus;
 use App\Models\CustomField;
 use App\Models\Project;
@@ -22,6 +23,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $status = 'open';
 
+    public string $sharing = 'none';
+
     public ?string $due_date = null;
 
     public string $wiki_page_title = '';
@@ -42,6 +45,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->name = $version->name;
             $this->description = (string) $version->description;
             $this->status = $version->status->value;
+            $this->sharing = $version->sharing->value;
             $this->due_date = $version->due_date?->toDateString();
             $this->wiki_page_title = (string) $version->wiki_page_title;
 
@@ -59,6 +63,22 @@ new #[Layout('components.layouts.app')] class extends Component
     public function wikiPages(): Collection
     {
         return $this->project->wikiPages()->orderBy('title')->get();
+    }
+
+    /**
+     * Sharing levels the current user may pick — resolved against the
+     * version being edited, or a transient version bound to this project
+     * for the new-version case so allowedSharings() can still consult the
+     * project's root.
+     *
+     * @return array<int, VersionSharing>
+     */
+    #[Computed]
+    public function allowedSharings(): array
+    {
+        $version = $this->version ?? (new Version)->setRelation('project', $this->project);
+
+        return $version->allowedSharings(auth()->user());
     }
 
     /**
@@ -80,6 +100,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ],
             'description' => ['nullable', 'string'],
             'status' => ['required', Rule::in(array_map(fn (VersionStatus $s) => $s->value, VersionStatus::cases()))],
+            'sharing' => ['required', Rule::in(array_map(fn (VersionSharing $s) => $s->value, $this->allowedSharings))],
             'due_date' => ['nullable', 'date'],
             'wiki_page_title' => ['nullable', 'string', Rule::in([...$this->wikiPages->pluck('title')->all(), ''])],
         ];
@@ -140,6 +161,17 @@ new #[Layout('components.layouts.app')] class extends Component
                 <option value="closed">クローズ</option>
             </select>
             @error('status') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">共有</label>
+            <select wire:model="sharing" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @foreach ($this->allowedSharings as $option)
+                    <option value="{{ $option->value }}">{{ $option->label() }}</option>
+                @endforeach
+            </select>
+            <p class="mt-1 text-xs text-gray-500">このバージョンを他のプロジェクトの課題にも割り当て可能にする範囲を指定します。</p>
+            @error('sharing') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
         <div>

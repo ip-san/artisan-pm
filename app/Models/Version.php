@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Concerns\HasCustomFields;
 use App\Concerns\HasThumbnails;
 use App\Enums\CustomizableType;
+use App\Enums\VersionSharing;
 use App\Enums\VersionStatus;
 use App\Support\Authorization\AuthorizationService;
 use Database\Factories\VersionFactory;
@@ -21,7 +22,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-#[Fillable(['project_id', 'name', 'description', 'status', 'due_date', 'wiki_page_title'])]
+#[Fillable(['project_id', 'name', 'description', 'status', 'sharing', 'due_date', 'wiki_page_title'])]
 final class Version extends Model implements HasMedia
 {
     /** @use HasFactory<VersionFactory> */
@@ -40,12 +41,14 @@ final class Version extends Model implements HasMedia
      */
     protected $attributes = [
         'status' => 'open',
+        'sharing' => 'none',
     ];
 
     protected function casts(): array
     {
         return [
             'status' => VersionStatus::class,
+            'sharing' => VersionSharing::class,
             'due_date' => 'date',
         ];
     }
@@ -69,6 +72,36 @@ final class Version extends Model implements HasMedia
     public static function customizableType(): CustomizableType
     {
         return CustomizableType::Version;
+    }
+
+    /**
+     * Which sharing levels $user is allowed to set on this version —
+     * matches Redmine's Version#allowed_sharings. The version's current
+     * sharing is always allowed (so an edit form never silently drops
+     * it); system-wide sharing needs admin, and hierarchy/tree need
+     * manage_versions on the root of the version's project tree (so a
+     * sub-project maintainer can't quietly widen a version's reach up
+     * the tree).
+     *
+     * @return array<int, VersionSharing>
+     */
+    public function allowedSharings(?User $user): array
+    {
+        $authorization = app(AuthorizationService::class);
+        $root = $this->project?->rootProject();
+
+        return array_values(array_filter(VersionSharing::cases(), function (VersionSharing $sharing) use ($user, $authorization, $root) {
+            if ($this->sharing === $sharing) {
+                return true;
+            }
+
+            return match ($sharing) {
+                VersionSharing::System => (bool) $user?->is_admin,
+                VersionSharing::Hierarchy, VersionSharing::Tree => $this->project === null
+                    || ($root !== null && $authorization->can($user, 'manage_versions', $root)),
+                default => true,
+            };
+        }));
     }
 
     /**

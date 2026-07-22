@@ -92,6 +92,9 @@ new #[Layout('components.layouts.app')] class extends Component
                         @if ($version->due_date)
                             <span class="ml-2 text-xs text-gray-500">期日: {{ $version->due_date->toDateString() }}</span>
                         @endif
+                        @if ($version->sharing !== \App\Enums\VersionSharing::None)
+                            <span class="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-700">{{ $version->sharing->label() }}</span>
+                        @endif
                         @if ($version->description)
                             <p class="mt-1 text-sm text-gray-600">{{ $version->description }}</p>
                         @endif

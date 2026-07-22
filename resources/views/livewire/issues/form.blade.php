@@ -295,6 +295,10 @@ new #[Layout('components.layouts.app')] class extends Component
      * otherwise this would trivially allow any submitted value, since the
      * live property always equals whatever was just set.
      *
+     * Draws from the project's shared versions (its own plus any reaching
+     * it through a sharing scope), not just its own — matching Redmine,
+     * where assignable_versions is built from project.shared_versions.
+     *
      * @return Collection<int, Version>
      */
     #[Computed]
@@ -302,8 +306,9 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $currentVersionId = $this->issue?->fixed_version_id;
 
-        return $this->project->versions
+        return $this->project->sharedVersions()
             ->filter(fn (Version $version) => $version->status === VersionStatus::Open || $version->id === $currentVersionId)
+            ->sortBy(fn (Version $version) => [$version->project->name, $version->name])
             ->values();
     }
 
@@ -675,7 +680,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                             <option value="">なし</option>
                             @foreach ($this->projectVersions as $version)
-                                <option value="{{ $version->id }}">{{ $version->name }}</option>
+                                <option value="{{ $version->id }}">{{ $version->project_id === $project->id ? $version->name : "{$version->project->name} - {$version->name}" }}</option>
                             @endforeach
                         </select>
                     </div>

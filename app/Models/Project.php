@@ -10,6 +10,7 @@ use App\Enums\CustomizableType;
 use App\Enums\EnumerationType;
 use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
+use App\Enums\VersionSharing;
 use App\Enums\VersionStatus;
 use App\Support\Authorization\AuthorizationService;
 use Database\Factories\ProjectFactory;
@@ -118,6 +119,84 @@ final class Project extends Model implements HasMedia
     public function versions(): HasMany
     {
         return $this->hasMany(Version::class);
+    }
+
+    /**
+     * The root of this project's tree (itself, if it's already a root).
+     * kalnoy/nestedset has no direct root accessor, so this walks to the
+     * topmost ancestor by `_lft`.
+     */
+    public function rootProject(): self
+    {
+        if ($this->isRoot()) {
+            return $this;
+        }
+
+        // An ancestor spans this node (_lft < this._lft AND _rgt >
+        // this._rgt); the topmost one (smallest _lft) is the tree root.
+        // Queried directly against the nested-set columns to stay on the
+        // plain Eloquent builder rather than kalnoy's query extensions.
+        return self::query()
+            ->where('_lft', '<', $this->_lft)
+            ->where('_rgt', '>', $this->_rgt)
+            ->orderBy('_lft')
+            ->first() ?? $this;
+    }
+
+    /**
+     * Every version assignable to issues in this project — its own plus
+     * any shared version whose sharing scope reaches here. Ports
+     * Redmine's Project#shared_versions, expressed against the same
+     * nested-set columns (kalnoy/nestedset's `_lft`/`_rgt`):
+     *
+     *  - the project's own versions, regardless of sharing;
+     *  - `system` versions from any non-archived project;
+     *  - `tree` versions from any project sharing this project's root;
+     *  - `descendants`/`hierarchy` versions on an ancestor of this project;
+     *  - `hierarchy` versions on a descendant of this project.
+     *
+     * A brand-new (unsaved) project has no place in the tree yet, so only
+     * `system` versions are reachable — matching Redmine's new_record?
+     * branch.
+     *
+     * @return Collection<int, Version>
+     */
+    public function sharedVersions(): Collection
+    {
+        $query = Version::query()->join('projects', 'versions.project_id', '=', 'projects.id')
+            ->with('project')
+            ->select('versions.*');
+
+        if (! $this->exists) {
+            return $query
+                ->where('projects.status', '<>', ProjectStatus::Archived->value)
+                ->where('versions.sharing', VersionSharing::System->value)
+                ->get();
+        }
+
+        $root = $this->rootProject();
+
+        return $query->where(function (Builder $outer) use ($root) {
+            $outer->where('projects.id', $this->id)
+                ->orWhere(function (Builder $shared) use ($root) {
+                    $shared->where('projects.status', '<>', ProjectStatus::Archived->value)
+                        ->where(function (Builder $scope) use ($root) {
+                            $scope->where('versions.sharing', VersionSharing::System->value)
+                                ->orWhere(fn (Builder $q) => $q
+                                    ->where('projects._lft', '>=', $root->_lft)
+                                    ->where('projects._rgt', '<=', $root->_rgt)
+                                    ->where('versions.sharing', VersionSharing::Tree->value))
+                                ->orWhere(fn (Builder $q) => $q
+                                    ->where('projects._lft', '<', $this->_lft)
+                                    ->where('projects._rgt', '>', $this->_rgt)
+                                    ->whereIn('versions.sharing', [VersionSharing::Hierarchy->value, VersionSharing::Descendants->value]))
+                                ->orWhere(fn (Builder $q) => $q
+                                    ->where('projects._lft', '>', $this->_lft)
+                                    ->where('projects._rgt', '<', $this->_rgt)
+                                    ->where('versions.sharing', VersionSharing::Hierarchy->value));
+                        });
+                });
+        })->get();
     }
 
     /**
