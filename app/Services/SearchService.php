@@ -83,6 +83,7 @@ final class SearchService
             ->merge($this->searchDocuments($projects, $viewer, $words, $allWords, $titlesOnly))
             ->merge($this->searchMessages($projects, $viewer, $words, $allWords, $titlesOnly))
             ->merge($this->searchChangesets($projects, $viewer, $words, $allWords))
+            ->merge($this->searchProjects($projects, $words, $allWords, $titlesOnly))
             ->sortByDesc('updatedAt')
             ->values();
     }
@@ -377,6 +378,41 @@ final class SearchService
                 url: route('repository.show', [$changeset->repository->project, $changeset]),
                 excerpt: $this->excerpt($changeset->comments),
                 updatedAt: $changeset->committed_on,
+            ));
+    }
+
+    /**
+     * Unlike every other type here, a project's own record needs no
+     * additional per-type permission check: $projects is already exactly
+     * "every project the viewer may search in at all" (resolved by the
+     * caller before search()/searchAcrossProjects() runs), and matches
+     * Redmine's own Project `acts_as_searchable` declaration, which
+     * likewise sets no :view_permission of its own beyond that.
+     *
+     * @param  Collection<int, Project>  $projects
+     * @param  array<int, string>  $words
+     * @return Collection<int, SearchResult>
+     */
+    private function searchProjects(Collection $projects, array $words, bool $allWords, bool $titlesOnly): Collection
+    {
+        if ($projects->isEmpty()) {
+            return collect();
+        }
+
+        return $this->whereWordsMatch(
+            Project::query()->whereIn('id', $projects->pluck('id')),
+            $titlesOnly ? ['name'] : ['name', 'identifier', 'description'],
+            $words,
+            $allWords,
+        )
+            ->take(self::RESULTS_PER_TYPE)
+            ->get()
+            ->map(fn (Project $project) => new SearchResult(
+                type: 'project',
+                title: $project->name,
+                url: route('projects.show', $project),
+                excerpt: $this->excerpt($project->description),
+                updatedAt: $project->updated_at,
             ));
     }
 

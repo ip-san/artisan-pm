@@ -79,6 +79,22 @@ test('the global search excludes projects the user has no access to at all', fun
     expect($results)->toBeEmpty();
 });
 
+test('the global search finds a project by name and excludes projects the viewer cannot see', function () {
+    $visibleProject = Project::factory()->create(['name' => 'Findable Project', 'is_public' => true]);
+    $hiddenProject = Project::factory()->create(['name' => 'Findable Hidden Project', 'is_public' => false]);
+    $user = globalSearchMember($visibleProject, ['view_project']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.global-index')
+        ->set('query', 'Findable')
+        ->call('search')
+        ->get('results');
+
+    expect($results->where('type', 'project')->pluck('title'))
+        ->toContain('Findable Project')
+        ->not->toContain('Findable Hidden Project');
+});
+
 test('the global search finds a changeset by its commit message', function () {
     $project = Project::factory()->create();
     $user = globalSearchMember($project, ['view_project', 'view_changesets']);

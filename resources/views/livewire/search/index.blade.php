@@ -90,6 +90,7 @@ new #[Layout('components.layouts.app')] class extends Component
         'document' => '文書',
         'message' => 'フォーラム',
         'changeset' => 'リポジトリ',
+        'project' => 'プロジェクト',
     ];
 }; ?>
 

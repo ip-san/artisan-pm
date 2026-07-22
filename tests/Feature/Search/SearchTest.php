@@ -176,6 +176,26 @@ test('a member without view_changesets does not see changeset results', function
     expect($results->pluck('type'))->not->toContain('changeset');
 });
 
+test('the current project itself is found by name or description', function () {
+    $project = Project::factory()->create(['name' => 'Unique Project Name', 'description' => 'unique-project-description-token']);
+    $user = searchMember($project, ['view_project']);
+
+    $byName = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', 'Unique Project Name')
+        ->call('search')
+        ->get('results');
+
+    $byDescription = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', 'unique-project-description-token')
+        ->call('search')
+        ->get('results');
+
+    expect($byName->pluck('type'))->toContain('project')
+        ->and($byDescription->pluck('type'))->toContain('project');
+});
+
 test('an issue is found by a searchable custom field value', function () {
     $project = Project::factory()->create();
     $user = searchMember($project, ['view_project', 'view_issues']);
