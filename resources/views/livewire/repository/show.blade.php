@@ -17,12 +17,21 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $newIssueReference = '';
 
+    /**
+     * Everything the related-issues list renders per issue — project
+     * included, since a linked issue may belong to another project and
+     * its link is generated against that project's URL.
+     *
+     * @var array<int, string>
+     */
+    private const RELATED_ISSUE_RELATIONS = ['issues.tracker', 'issues.status', 'issues.project'];
+
     public function mount(Project $project, Changeset $changeset): void
     {
         $this->authorize('view', $changeset->repository);
 
         $this->project = $project;
-        $this->changeset = $changeset->load(['files', 'issues.tracker', 'issues.status', 'issues.project']);
+        $this->changeset = $changeset->load(['files', ...self::RELATED_ISSUE_RELATIONS]);
     }
 
     #[Computed]
@@ -59,7 +68,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $this->changeset->issues()->attach($issue->id);
-        $this->changeset->load(['issues.tracker', 'issues.status', 'issues.project']);
+        $this->changeset->load(self::RELATED_ISSUE_RELATIONS);
         $this->reset('newIssueReference');
     }
 
@@ -68,7 +77,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('manageRelatedIssues', [Repository::class, $this->project]);
 
         $this->changeset->issues()->detach($issueId);
-        $this->changeset->load(['issues.tracker', 'issues.status', 'issues.project']);
+        $this->changeset->load(self::RELATED_ISSUE_RELATIONS);
     }
 
     /**
