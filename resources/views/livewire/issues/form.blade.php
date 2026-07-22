@@ -500,9 +500,16 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         foreach ($this->newAttachments as $file) {
-            $issue->addMedia($file->getRealPath())
+            $media = $issue->addMedia($file->getRealPath())
                 ->usingFileName($file->getClientOriginalName())
                 ->toMediaCollection('attachments');
+
+            // Only journaled when editing — attachments uploaded while
+            // creating the issue have no journal to belong to (Redmine
+            // behaves the same; creation itself is not journaled).
+            if ($this->issue !== null) {
+                app(IssueService::class)->journalizeAttachment($issue, $media, added: true, actor: auth()->user());
+            }
         }
 
         if (filled($logTimeHours)) {

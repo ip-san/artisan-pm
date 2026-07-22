@@ -117,7 +117,7 @@
 | 機能 | 状態 | 備考 |
 |---|---|---|
 | コメント追加 | done | — |
-| 属性変更の監査証跡 | partial | コア属性(category_id/parent_id含む)とカスタムフィールドは記録される(2026-07-21)。添付/関連の変更は引き続き未記録 |
+| 属性変更の監査証跡 | done(2026-07-22) | 添付/関連の変更記録を追加(Redmineの`Journal#journalize_attachment`/`#journalize_relation`相当、`IssueService::journalizeAttachment()`/`journalizeRelation()`)。添付は`property='attachment'`+`prop_key`=メディアID、追加時は`new_value`・削除時は`old_value`にファイル名(課題**作成時**の添付はRedmine同様記録しない — 作成自体がJournalを持たないため)。関連は両側の課題にそれぞれJournalを作成し、`prop_key`はその課題から見た関連タイプ(受け側はRedmineの反転名 blocked/duplicated/follows/precedes)、値は相手課題ID。履歴表示にも両プロパティの描画を追加 |
 | プライベートノート(`view_private_notes`) | done(2026-07-21) | `set_notes_private` 権限保持者がコメント投稿時に非公開フラグを立てられる(サーバー側でも権限を再チェックし、クライアント改ざんを無効化)。`view_private_notes` を持たないユーザーには非公開Journalを非表示(自分自身が書いたものは例外的に閲覧可、Redmineの`Journal#visible?`と同様)。活動フィード(`IssueJournalActivityProvider`)は既存どおり非公開Journalを丸ごと除外 |
 | 過去コメントの引用返信 | done(2026-07-21) | 各コメントの「引用」ボタンでコメント入力欄に`>`引用形式をプリフィル |
 | 個別 Journal の編集/削除 | missing | — |

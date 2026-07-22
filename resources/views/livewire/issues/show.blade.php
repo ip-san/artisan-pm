@@ -178,15 +178,18 @@ new #[Layout('components.layouts.app')] class extends Component
         // Redmine's IssueRelation, which clears it for every other type.
         $isSequential = in_array($data['relationType'], ['precedes', 'follows'], true);
 
-        IssueRelation::create([
+        $relation = IssueRelation::create([
             'issue_from_id' => $this->issue->id,
             'issue_to_id' => $otherIssue->id,
             'relation_type' => $data['relationType'],
             'delay' => $isSequential ? $data['relationDelay'] : null,
         ]);
 
+        app(IssueService::class)->journalizeRelation($relation, added: true, actor: auth()->user());
+
         $this->reset('relatedIssueId', 'relationDelay');
         $this->reloadRelations();
+        $this->issue->load('journals.user', 'journals.details');
     }
 
     public function deleteRelation(int $relationId): void
@@ -198,8 +201,10 @@ new #[Layout('components.layouts.app')] class extends Component
             ->findOrFail($relationId);
 
         $relation->delete();
+        app(IssueService::class)->journalizeRelation($relation, added: false, actor: auth()->user());
 
         $this->reloadRelations();
+        $this->issue->load('journals.user', 'journals.details');
     }
 
     private function reloadRelations(): void
@@ -224,6 +229,25 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         return $this->customFieldNames[(int) $detail->prop_key] ?? $detail->prop_key;
+    }
+
+    /**
+     * A relation journal's prop_key is the type as seen from this issue,
+     * including the reversed names Redmine uses on the receiving end
+     * (blocked/duplicated) that never appear in IssueRelationType itself.
+     */
+    public function relationJournalLabel(string $propKey): string
+    {
+        return match ($propKey) {
+            'relates' => '関連',
+            'blocks' => 'ブロックする',
+            'blocked' => 'ブロックされている',
+            'duplicates' => '重複する',
+            'duplicated' => '重複されている',
+            'precedes' => '先行',
+            'follows' => '後続',
+            default => $propKey,
+        };
     }
 
     /**
@@ -349,7 +373,15 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('update', $this->issue);
 
-        $this->issue->attachments()->firstWhere('id', $mediaId)?->delete();
+        $media = $this->issue->attachments()->firstWhere('id', $mediaId);
+
+        if ($media === null) {
+            return;
+        }
+
+        $media->delete();
+        app(IssueService::class)->journalizeAttachment($this->issue, $media, added: false, actor: auth()->user());
+        $this->issue->load('journals.user', 'journals.details');
     }
 
     /**
@@ -721,6 +753,10 @@ new #[Layout('components.layouts.app')] class extends Component
                             @if ($detail->property === 'attr' && $detail->prop_key === 'description')
                                 {{ $this->journalDetailLabel($detail) }}が更新されました
                                 <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-indigo-600 hover:underline">(差分)</a>
+                            @elseif ($detail->property === 'attachment')
+                                添付ファイル「{{ $detail->new_value ?? $detail->old_value }}」が{{ $detail->new_value !== null ? '追加' : '削除' }}されました
+                            @elseif ($detail->property === 'relation')
+                                関連「{{ $this->relationJournalLabel($detail->prop_key) }} #{{ $detail->new_value ?? $detail->old_value }}」が{{ $detail->new_value !== null ? '追加' : '削除' }}されました
                             @else
                                 {{ $this->journalDetailLabel($detail) }}: {{ $detail->old_value ?? '(未設定)' }} → {{ $detail->new_value ?? '(未設定)' }}
                             @endif

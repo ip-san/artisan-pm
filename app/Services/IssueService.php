@@ -12,12 +12,14 @@ use App\Models\CustomField;
 use App\Models\CustomFieldValue;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Journal;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * Applies changes to an Issue and records a Journal entry for the diff in
@@ -60,6 +62,70 @@ final class IssueService
         IssueCreated::dispatch($issue);
 
         return $issue;
+    }
+
+    /**
+     * Records an attachment being added to or removed from an existing
+     * issue as its own journal — Redmine's Journal#journalize_attachment
+     * (property 'attachment', prop_key = attachment id, filename in the
+     * value on add / the old value on removal). Files uploaded while
+     * creating an issue are deliberately not journaled: matching
+     * Redmine, where creation produces no journal at all.
+     */
+    public function journalizeAttachment(Issue $issue, Media $media, bool $added, User $actor): void
+    {
+        $journal = Journal::create([
+            'issue_id' => $issue->id,
+            'user_id' => $actor->id,
+            'notes' => null,
+        ]);
+
+        $journal->details()->create([
+            'property' => 'attachment',
+            'prop_key' => (string) $media->id,
+            'old_value' => $added ? null : $media->file_name,
+            'new_value' => $added ? $media->file_name : null,
+        ]);
+    }
+
+    /**
+     * Records a relation change on BOTH issues — matching Redmine's
+     * journalize_relation, each end gets its own journal whose prop_key
+     * is the relation type as seen from that issue (the reversed name
+     * on the receiving end: blocks→blocked, precedes→follows, ...) and
+     * whose value is the other issue's id.
+     */
+    public function journalizeRelation(IssueRelation $relation, bool $added, User $actor): void
+    {
+        $type = $relation->relation_type->value;
+
+        $reversedType = match ($type) {
+            'blocks' => 'blocked',
+            'duplicates' => 'duplicated',
+            'precedes' => 'follows',
+            'follows' => 'precedes',
+            default => $type,
+        };
+
+        $sides = [
+            [$relation->from, $type, $relation->issue_to_id],
+            [$relation->to, $reversedType, $relation->issue_from_id],
+        ];
+
+        foreach ($sides as [$issue, $propKey, $otherIssueId]) {
+            $journal = Journal::create([
+                'issue_id' => $issue->id,
+                'user_id' => $actor->id,
+                'notes' => null,
+            ]);
+
+            $journal->details()->create([
+                'property' => 'relation',
+                'prop_key' => $propKey,
+                'old_value' => $added ? null : (string) $otherIssueId,
+                'new_value' => $added ? (string) $otherIssueId : null,
+            ]);
+        }
     }
 
     /**

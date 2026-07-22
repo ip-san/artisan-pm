@@ -283,3 +283,53 @@ test('a circular direct blocks relation is rejected', function () {
 
     expect(IssueRelation::count())->toBe(1);
 });
+
+test('adding a relation journals both issues with the type as seen from each side', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $other = makeIssue($project);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set('relationType', 'blocks')
+        ->set('relatedIssueId', $other->id)
+        ->call('addRelation')
+        ->assertHasNoErrors();
+
+    $fromDetail = $issue->journals()->latest('id')->firstOrFail()->details()->firstOrFail();
+    expect($fromDetail->property)->toBe('relation')
+        ->and($fromDetail->prop_key)->toBe('blocks')
+        ->and($fromDetail->new_value)->toBe((string) $other->id)
+        ->and($fromDetail->old_value)->toBeNull();
+
+    $toDetail = $other->journals()->latest('id')->firstOrFail()->details()->firstOrFail();
+    expect($toDetail->prop_key)->toBe('blocked')
+        ->and($toDetail->new_value)->toBe((string) $issue->id);
+});
+
+test('removing a relation journals both issues with the old value set', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $other = makeIssue($project);
+    $relation = IssueRelation::create([
+        'issue_from_id' => $issue->id,
+        'issue_to_id' => $other->id,
+        'relation_type' => 'precedes',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->call('deleteRelation', $relation->id);
+
+    $fromDetail = $issue->journals()->latest('id')->firstOrFail()->details()->firstOrFail();
+    expect($fromDetail->property)->toBe('relation')
+        ->and($fromDetail->prop_key)->toBe('precedes')
+        ->and($fromDetail->old_value)->toBe((string) $other->id)
+        ->and($fromDetail->new_value)->toBeNull();
+
+    $toDetail = $other->journals()->latest('id')->firstOrFail()->details()->firstOrFail();
+    expect($toDetail->prop_key)->toBe('follows')
+        ->and($toDetail->old_value)->toBe((string) $issue->id);
+});

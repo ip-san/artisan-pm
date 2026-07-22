@@ -338,3 +338,84 @@ test('a guest is redirected to login when trying to download an attachment', fun
 
     $this->get(route('attachments.show', $media))->assertRedirect(route('login'));
 });
+
+test('attaching a file while editing journals the addition; creation does not', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $status = IssueStatus::factory()->create();
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id]);
+
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->set('newAttachments', [UploadedFile::fake()->create('spec.pdf', 100)])
+        ->call('save');
+
+    $media = $issue->fresh()->attachments()->first();
+    $detail = $issue->journals()->latest('id')->firstOrFail()->details()->firstOrFail();
+
+    expect($detail->property)->toBe('attachment')
+        ->and($detail->prop_key)->toBe((string) $media->id)
+        ->and($detail->new_value)->toBe('spec.pdf')
+        ->and($detail->old_value)->toBeNull();
+});
+
+test('creating an issue with attachments produces no attachment journal', function () {
+    Storage::fake('local');
+
+    Enumeration::factory()->create(['is_default' => true]);
+    IssueStatus::factory()->create();
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('issues.form', ['project' => $project])
+        ->set('tracker_id', $tracker->id)
+        ->set('subject', 'Created with a file')
+        ->set('newAttachments', [UploadedFile::fake()->create('initial.txt', 10)])
+        ->call('save');
+
+    $issue = Issue::where('subject', 'Created with a file')->firstOrFail();
+
+    expect($issue->journals()->count())->toBe(0);
+});
+
+test('deleting an attachment journals the removal with the filename as old value', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $issue->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
+
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    $media = $issue->attachments()->first();
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->call('deleteAttachment', $media->id);
+
+    $detail = $issue->journals()->latest('id')->firstOrFail()->details()->firstOrFail();
+
+    expect($detail->property)->toBe('attachment')
+        ->and($detail->prop_key)->toBe((string) $media->id)
+        ->and($detail->old_value)->toBe('notes.txt')
+        ->and($detail->new_value)->toBeNull();
+});
