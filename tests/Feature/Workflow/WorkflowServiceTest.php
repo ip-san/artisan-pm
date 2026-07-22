@@ -180,3 +180,62 @@ test('the current status always stays selectable even when the issue is blocked'
 
     expect(workflowService()->allowedTransitions($issue, $admin)->pluck('id'))->toContain($closed->id);
 });
+
+test('a subtask of a closed parent cannot transition to an open status', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $open = IssueStatus::factory()->create();
+    $anotherOpen = IssueStatus::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $parent = Issue::factory()->for($project)->create(['status_id' => $closed->id]);
+    $child = Issue::factory()->for($project)->create(['status_id' => $closed->id, 'parent_id' => $parent->id]);
+
+    expect($child->isReopenable())->toBeFalse()
+        ->and(workflowService()->allowedTransitions($child, $admin)->pluck('id'))
+        ->not->toContain($open->id)
+        ->not->toContain($anotherOpen->id);
+});
+
+test('a subtask of a closed grandparent cannot transition to an open status either', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $open = IssueStatus::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $grandparent = Issue::factory()->for($project)->create(['status_id' => $closed->id]);
+    $parent = Issue::factory()->for($project)->create(['status_id' => $open->id, 'parent_id' => $grandparent->id]);
+    $child = Issue::factory()->for($project)->create(['status_id' => $closed->id, 'parent_id' => $parent->id]);
+
+    expect($child->isReopenable())->toBeFalse()
+        ->and(workflowService()->allowedTransitions($child, $admin)->pluck('id'))->not->toContain($open->id);
+});
+
+test('once the closed parent reopens, its subtask can transition to an open status again', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $open = IssueStatus::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $parent = Issue::factory()->for($project)->create(['status_id' => $open->id]);
+    $child = Issue::factory()->for($project)->create(['status_id' => $closed->id, 'parent_id' => $parent->id]);
+
+    expect($child->isReopenable())->toBeTrue()
+        ->and(workflowService()->allowedTransitions($child, $admin)->pluck('id'))->toContain($open->id);
+});
+
+test('an issue with no parent is always reopenable', function () {
+    $project = Project::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create(['status_id' => $closed->id]);
+
+    expect($issue->isReopenable())->toBeTrue();
+});
+
+test('the current status always stays selectable even when the issue is not reopenable', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $anotherClosed = IssueStatus::factory()->closed()->create();
+    $parent = Issue::factory()->for($project)->create(['status_id' => $closed->id]);
+    $child = Issue::factory()->for($project)->create(['status_id' => $anotherClosed->id, 'parent_id' => $parent->id]);
+
+    expect(workflowService()->allowedTransitions($child, $admin)->pluck('id'))->toContain($anotherClosed->id);
+});

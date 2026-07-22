@@ -187,7 +187,7 @@
 | ワークフロー遷移・フィールドルールの管理画面 | done(2026-07-21) | `workflows/edit.blade.php`。トラッカー×ロール×適用対象(通常/作成者/担当者)ごとに遷移グリッドとフィールドルールグリッド(コアフィールド+そのトラッカーのカスタムフィールド)を編集・保存 |
 | ワークフローのコピー(トラッカー間/ロール間/一括複製) | done(2026-07-22) | Redmineの`WorkflowRule.copy`/`copy_one`相当を実装。ワークフロー管理画面に「ワークフローをコピー」欄を追加し、コピー元(単一トラッカー×単一ロール)からコピー先(複数トラッカー×複数ロールの直積、既存設定は削除して置き換え)へ`workflow_transitions`/`workflow_field_rules`を一括複製。Redmineの「トラッカー/ロールいずれかを省略すると全件対象」という省略記法は対象外とし、コピー元・コピー先とも明示選択必須というスコープを絞った実装 |
 | 「使用中ステータスのみ表示」フィルタ | done(2026-07-22) | Redmineの`WorkflowsController#find_statuses`相当。選択中トラッカーに既存の遷移(`old_status_id <> new_status_id`)があるステータスのみをデフォルトで表示するチェックボックスを追加(デフォルトON)。遷移が未定義のトラッカーは全ステータス表示にフォールバック |
-| クローズ可否のフィルタ(未完了サブタスク/ブロック関連の考慮) | done(2026-07-21) | `WorkflowService::allowedTransitions()`が`Issue::isClosable()`(未クローズの子課題、または自分をブロックする未クローズ課題があるか)で管理者含め全ユーザーのクローズ系ステータス遷移をフィルタ(Redmineの`Issue#closable?`/`new_statuses_allowed_to`と同じ規則)。現在のステータス自体は常に選択可能なまま維持。サブタスクが閉じた親を再オープンできない(`reopenable?`)側は未実装 |
+| クローズ可否のフィルタ(未完了サブタスク/ブロック関連の考慮) | done(2026-07-22) | `WorkflowService::allowedTransitions()`が`Issue::isClosable()`(未クローズの子課題、または自分をブロックする未クローズ課題があるか)で管理者含め全ユーザーのクローズ系ステータス遷移をフィルタ(Redmineの`Issue#closable?`/`new_statuses_allowed_to`と同じ規則)。現在のステータス自体は常に選択可能なまま維持。**さらに(2026-07-22)**: `Issue::isReopenable()`(祖先を`parent_id`で遡り、直近の親に限らずいずれかが未クローズでない=クローズ中なら再オープン不可、Redmineの`Issue#reopenable?`と同じ規則)+`WorkflowService::excludeUnreopenableStatuses()`(`excludeUnclosableStatuses()`と対称の実装)を追加し、閉じた親(または祖先)を持つサブタスクはオープン系ステータスへ遷移できないよう制限。現在のステータス自体は常に選択可能なまま維持(既存のクローズ側ガードと同じ保護) |
 
 ### カスタムフィールド(課題)
 

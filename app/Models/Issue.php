@@ -246,6 +246,32 @@ final class Issue extends Model implements HasMedia
     }
 
     /**
+     * Whether this issue can transition to an open status — false when
+     * any ancestor (not just the immediate parent) currently has a
+     * closed status, matching Redmine's Issue#reopenable?.
+     */
+    public function isReopenable(): bool
+    {
+        $parentId = $this->parent_id;
+
+        while ($parentId !== null) {
+            $parent = self::query()->with('status')->find($parentId);
+
+            if ($parent === null) {
+                return true;
+            }
+
+            if ($parent->status->is_closed) {
+                return false;
+            }
+
+            $parentId = $parent->parent_id;
+        }
+
+        return true;
+    }
+
+    /**
      * Issues that duplicate this one — the `from` side of any 'duplicates'
      * relation where this issue is the `to` side, matching Redmine's
      * Issue#duplicates ("issue_from duplicates issue_to").

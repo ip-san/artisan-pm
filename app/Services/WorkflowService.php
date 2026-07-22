@@ -33,7 +33,10 @@ final class WorkflowService
     public function allowedTransitions(Issue $issue, User $user): Collection
     {
         if ($user->is_admin) {
-            return $this->excludeUnclosableStatuses(IssueStatus::query()->orderBy('position')->get(), $issue);
+            return $this->excludeUnreopenableStatuses(
+                $this->excludeUnclosableStatuses(IssueStatus::query()->orderBy('position')->get(), $issue),
+                $issue,
+            );
         }
 
         $roleIds = $this->roleIdsFor($issue, $user);
@@ -52,7 +55,7 @@ final class WorkflowService
 
         $statuses = IssueStatus::query()->whereIn('id', $newStatusIds)->orderBy('position')->get();
 
-        return $this->excludeUnclosableStatuses($statuses, $issue);
+        return $this->excludeUnreopenableStatuses($this->excludeUnclosableStatuses($statuses, $issue), $issue);
     }
 
     /**
@@ -73,6 +76,27 @@ final class WorkflowService
 
         return $statuses
             ->reject(fn (IssueStatus $status) => $status->is_closed && $status->id !== $issue->status_id)
+            ->values();
+    }
+
+    /**
+     * Drops open statuses other than the issue's current one when it
+     * can't be reopened (an ancestor is currently closed) — matches
+     * Redmine's Issue#reopenable? gate on new_statuses_allowed_to. The
+     * current status stays selectable either way, same protection
+     * excludeUnclosableStatuses() gives the closed side.
+     *
+     * @param  Collection<int, IssueStatus>  $statuses
+     * @return Collection<int, IssueStatus>
+     */
+    private function excludeUnreopenableStatuses(Collection $statuses, Issue $issue): Collection
+    {
+        if ($issue->isReopenable()) {
+            return $statuses;
+        }
+
+        return $statuses
+            ->reject(fn (IssueStatus $status) => ! $status->is_closed && $status->id !== $issue->status_id)
             ->values();
     }
 
