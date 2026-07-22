@@ -34,4 +34,9 @@ final class RepositoryPolicy
     {
         return $this->authorization->can($user, 'browse_repository', $project);
     }
+
+    public function manageRelatedIssues(User $user, Project $project): bool
+    {
+        return $this->authorization->can($user, 'manage_related_issues', $project);
+    }
 }

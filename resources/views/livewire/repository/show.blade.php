@@ -1,7 +1,9 @@
 <?php
 
 use App\Models\Changeset;
+use App\Models\Issue;
 use App\Models\Project;
+use App\Models\Repository;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -13,12 +15,60 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public Changeset $changeset;
 
+    public string $newIssueReference = '';
+
     public function mount(Project $project, Changeset $changeset): void
     {
         $this->authorize('view', $changeset->repository);
 
         $this->project = $project;
-        $this->changeset = $changeset->load(['files', 'issues.tracker', 'issues.status']);
+        $this->changeset = $changeset->load(['files', 'issues.tracker', 'issues.status', 'issues.project']);
+    }
+
+    #[Computed]
+    public function canManageRelatedIssues(): bool
+    {
+        return (bool) auth()->user()?->can('manageRelatedIssues', [Repository::class, $this->project]);
+    }
+
+    /**
+     * Manually links an issue to this changeset — matches Redmine's
+     * RepositoriesController#add_related_issue: accepts "#123" or "123",
+     * requires the issue to exist, be visible to the acting user, and
+     * not already be linked. Like the commit-keyword auto-linker
+     * (RepositorySyncService), the issue isn't restricted to this
+     * project — the sync side links any referenced issue too.
+     */
+    public function addRelatedIssue(): void
+    {
+        $this->authorize('manageRelatedIssues', [Repository::class, $this->project]);
+
+        $issueId = (int) ltrim(trim($this->newIssueReference), '#');
+        $issue = $issueId > 0 ? Issue::find($issueId) : null;
+
+        if ($issue === null || auth()->user()?->cannot('view', $issue)) {
+            $this->addError('newIssueReference', '課題が見つかりません。');
+
+            return;
+        }
+
+        if ($this->changeset->issues->contains('id', $issue->id)) {
+            $this->addError('newIssueReference', 'この課題はすでに関連付けられています。');
+
+            return;
+        }
+
+        $this->changeset->issues()->attach($issue->id);
+        $this->changeset->load(['issues.tracker', 'issues.status', 'issues.project']);
+        $this->reset('newIssueReference');
+    }
+
+    public function removeRelatedIssue(int $issueId): void
+    {
+        $this->authorize('manageRelatedIssues', [Repository::class, $this->project]);
+
+        $this->changeset->issues()->detach($issueId);
+        $this->changeset->load(['issues.tracker', 'issues.status', 'issues.project']);
     }
 
     /**
@@ -49,18 +99,35 @@ new #[Layout('components.layouts.app')] class extends Component
         <p class="whitespace-pre-line text-sm text-gray-800">{{ $changeset->comments }}</p>
     </div>
 
-    @if ($changeset->issues->isNotEmpty())
+    @if ($changeset->issues->isNotEmpty() || $this->canManageRelatedIssues)
         <h2 class="text-sm font-semibold text-gray-900 mb-2">関連課題</h2>
-        <ul class="mb-4 space-y-1">
-            @foreach ($changeset->issues as $issue)
-                <li class="text-sm">
-                    <a href="{{ route('issues.show', [$project, $issue]) }}" class="text-indigo-600 hover:underline">
+        <ul class="mb-2 space-y-1">
+            @forelse ($changeset->issues as $issue)
+                <li class="text-sm" wire:key="related-issue-{{ $issue->id }}">
+                    <a href="{{ route('issues.show', [$issue->project, $issue]) }}" class="text-indigo-600 hover:underline">
                         {{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}
                     </a>
                     <span class="text-gray-500">({{ $issue->status->name }})</span>
+                    @if ($this->canManageRelatedIssues)
+                        <button wire:click="removeRelatedIssue({{ $issue->id }})" wire:confirm="この課題との関連付けを解除しますか?"
+                            class="ml-1 text-xs text-red-600 hover:underline">解除</button>
+                    @endif
                 </li>
-            @endforeach
+            @empty
+                <li class="text-sm text-gray-500">関連付けられた課題はありません。</li>
+            @endforelse
         </ul>
+
+        @if ($this->canManageRelatedIssues)
+            <form wire:submit="addRelatedIssue" class="mb-4 flex items-center gap-2">
+                <input type="text" wire:model="newIssueReference" placeholder="#123"
+                    class="w-28 rounded-md border-gray-300 text-sm shadow-sm">
+                <button type="submit" class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                    課題を関連付け
+                </button>
+                @error('newIssueReference') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+            </form>
+        @endif
     @endif
 
     <h2 class="text-sm font-semibold text-gray-900 mb-2">変更されたファイル ({{ $changeset->files->count() }})</h2>

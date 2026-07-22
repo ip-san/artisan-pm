@@ -194,7 +194,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'field_format' => $this->customField ? [] : ['required', Rule::enum(CustomFieldFormat::class)],
+            ...($this->customField ? [] : ['field_format' => ['required', Rule::enum(CustomFieldFormat::class)]]),
             'is_required' => ['boolean'],
             'multiple' => ['boolean'],
             'min_length' => ['nullable', 'integer', 'min:0'],
