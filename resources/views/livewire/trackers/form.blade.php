@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\CustomField;
 use App\Models\IssueStatus;
 use App\Models\Tracker;
 use Illuminate\Support\Collection;
@@ -22,6 +23,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public array $disabled_core_fields = [];
 
     public bool $private_by_default = false;
+
+    public ?int $copyFromTrackerId = null;
 
     public function mount(?Tracker $tracker = null): void
     {
@@ -48,6 +51,35 @@ new #[Layout('components.layouts.app')] class extends Component
         return IssueStatus::query()->orderBy('position')->get();
     }
 
+    /**
+     * @return Collection<int, Tracker>
+     */
+    #[Computed]
+    public function copySourceTrackers(): Collection
+    {
+        return Tracker::query()->orderBy('position')->get();
+    }
+
+    /**
+     * Prefills the form from the chosen tracker, matching Redmine's own
+     * "copy from" convenience on the new-tracker form. Only attributes are
+     * prefilled here; project and custom field associations are copied on
+     * save() since they need the new tracker's id to exist first.
+     */
+    public function updatedCopyFromTrackerId(): void
+    {
+        $source = $this->copyFromTrackerId !== null ? Tracker::find($this->copyFromTrackerId) : null;
+
+        if ($source === null) {
+            return;
+        }
+
+        $this->description = (string) $source->description;
+        $this->default_status_id = $source->default_status_id;
+        $this->disabled_core_fields = $source->disabled_core_fields ?? [];
+        $this->private_by_default = $source->private_by_default;
+    }
+
     public function save(): void
     {
         $data = $this->validate([
@@ -57,12 +89,27 @@ new #[Layout('components.layouts.app')] class extends Component
             'disabled_core_fields' => ['array'],
             'disabled_core_fields.*' => [Rule::in(array_keys(Tracker::DISABLABLE_CORE_FIELDS))],
             'private_by_default' => ['boolean'],
+            'copyFromTrackerId' => ['nullable', 'exists:trackers,id'],
         ]);
+
+        $copyFromTrackerId = $data['copyFromTrackerId'];
+        unset($data['copyFromTrackerId']);
 
         if ($this->tracker) {
             $this->tracker->update($data);
         } else {
-            Tracker::create($data);
+            $tracker = Tracker::create($data);
+
+            $source = $copyFromTrackerId !== null ? Tracker::find($copyFromTrackerId) : null;
+
+            if ($source !== null) {
+                $tracker->projects()->sync($source->projects()->pluck('projects.id'));
+
+                CustomField::query()
+                    ->whereHas('trackers', fn ($query) => $query->where('trackers.id', $source->id))
+                    ->get()
+                    ->each(fn (CustomField $field) => $field->trackers()->attach($tracker->id));
+            }
         }
 
         $this->redirect(route('trackers.index'), navigate: true);
@@ -75,6 +122,20 @@ new #[Layout('components.layouts.app')] class extends Component
     </h1>
 
     <form wire:submit="save" class="space-y-4">
+        @unless ($tracker)
+            <div>
+                <label class="block text-sm font-medium text-gray-700">コピー元トラッカー</label>
+                <select wire:model.live="copyFromTrackerId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">なし</option>
+                    @foreach ($this->copySourceTrackers as $source)
+                        <option value="{{ $source->id }}">{{ $source->name }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-gray-500">選択すると、説明・既定ステータス・非表示フィールド・非公開既定値をコピーします。保存時にプロジェクトへの割り当てとカスタムフィールドの紐付けもコピーされます。</p>
+                @error('copyFromTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+        @endunless
+
         <div>
             <label class="block text-sm font-medium text-gray-700">名前</label>
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">

@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\CustomFieldFormat;
+use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -37,6 +39,43 @@ test('an admin can delete an unused tracker', function () {
     Livewire::actingAs($admin)->test('trackers.index')->call('delete', $tracker->id);
 
     expect(Tracker::find($tracker->id))->toBeNull();
+});
+
+test('copying from a tracker prefills its attributes and copies project/custom field associations on save', function () {
+    $admin = User::factory()->admin()->create();
+    $status = IssueStatus::factory()->create();
+    $project = Project::factory()->create();
+
+    $source = Tracker::factory()->create([
+        'description' => 'Original description',
+        'default_status_id' => $status->id,
+        'disabled_core_fields' => ['category_id'],
+        'private_by_default' => true,
+    ]);
+    $source->projects()->attach($project);
+
+    $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::String->value]);
+    $field->trackers()->attach($source);
+
+    Livewire::actingAs($admin)
+        ->test('trackers.form')
+        ->set('copyFromTrackerId', $source->id)
+        ->assertSet('description', 'Original description')
+        ->assertSet('default_status_id', $status->id)
+        ->assertSet('disabled_core_fields', ['category_id'])
+        ->assertSet('private_by_default', true)
+        ->set('name', 'Copied Tracker')
+        ->call('save')
+        ->assertRedirect(route('trackers.index'));
+
+    $copied = Tracker::where('name', 'Copied Tracker')->firstOrFail();
+
+    expect($copied->description)->toBe('Original description')
+        ->and($copied->default_status_id)->toBe($status->id)
+        ->and($copied->disabled_core_fields)->toBe(['category_id'])
+        ->and($copied->private_by_default)->toBeTrue()
+        ->and($copied->projects->pluck('id')->all())->toBe([$project->id])
+        ->and($field->fresh()->trackers->pluck('id'))->toContain($copied->id);
 });
 
 test('a tracker in use by an issue cannot be deleted', function () {
