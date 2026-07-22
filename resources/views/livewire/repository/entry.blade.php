@@ -66,6 +66,10 @@ new #[Layout('components.layouts.app')] class extends Component
                         注釈
                     </a>
                 @endunless
+                <a href="{{ route('repository.file-history', [$project, $path]) }}"
+                    class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    履歴
+                </a>
                 <a href="{{ route('repository.raw', [$project, $path]) }}"
                     class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     ダウンロード

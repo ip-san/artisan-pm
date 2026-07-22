@@ -85,7 +85,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
         @forelse ($this->entries as $entry)
-            <li wire:key="tree-{{ $entry->path }}" class="px-4 py-2 text-sm">
+            <li wire:key="tree-{{ $entry->path }}" class="flex items-center justify-between px-4 py-2 text-sm">
                 @if ($entry->isDirectory)
                     <a href="{{ route('repository.browse', [$project, $entry->path]) }}" class="text-indigo-600 hover:underline">
                         📁 {{ $entry->name }}/
@@ -93,6 +93,9 @@ new #[Layout('components.layouts.app')] class extends Component
                 @else
                     <a href="{{ route('repository.entry', [$project, $entry->path]) }}" class="text-indigo-600 hover:underline">
                         📄 {{ $entry->name }}
+                    </a>
+                    <a href="{{ route('repository.file-history', [$project, $entry->path]) }}" class="text-xs text-gray-500 hover:underline">
+                        履歴
                     </a>
                 @endif
             </li>
