@@ -71,10 +71,22 @@ final class LinkFormat implements FormatContract
     /**
      * The href to link to for a stored value — Redmine auto-prepends
      * "http://" when the value has no scheme of its own, rather than
-     * rejecting it at validation time.
+     * rejecting it at validation time. Restricted to an allowlist of
+     * safe web schemes: since validationRules() intentionally accepts
+     * any string (matching Redmine), a value like "javascript://alert(1)"
+     * or "data:text/html,..." would otherwise pass straight through
+     * into a rendered <a href> — HTML-escaping the value doesn't
+     * neutralize that, since the danger is in the URI scheme itself,
+     * not markup. Anything outside the allowlist (including those
+     * schemes, and any value with no scheme at all) is treated as
+     * schemeless and gets the same "http://" prefix, which reduces
+     * dangerous schemes to an inert http:// URL and preserves legacy
+     * bare-domain/path values like "example.com/docs".
      */
     public static function href(string $value): string
     {
-        return preg_match('#^[a-z][a-z0-9+.-]*://#i', $value) === 1 ? $value : "http://{$value}";
+        $isSafeScheme = preg_match('#^(https?|ftp|ftps|mailto):#i', $value) === 1;
+
+        return $isSafeScheme ? $value : "http://{$value}";
     }
 }
