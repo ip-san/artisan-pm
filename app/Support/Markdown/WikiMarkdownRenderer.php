@@ -10,8 +10,10 @@ use DOMElement;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
+use League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension;
 use League\CommonMark\Extension\Mention\Mention;
 use League\CommonMark\Extension\Mention\MentionExtension;
+use League\CommonMark\Extension\TableOfContents\TableOfContentsExtension;
 use League\CommonMark\MarkdownConverter;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -22,7 +24,16 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * issue by id (via the Mention extension), and "[[Page Title]]" /
  * "[[Page Title|Display]]" links to another wiki page in the same project
  * (via WikiLinkInlineParser — see that class for why it can't also use the
- * Mention extension).
+ * Mention extension), plus the first slice of Redmine's macro engine: a
+ * `{{toc}}` line on its own is replaced with a nested list of the
+ * document's headings (league/commonmark's own TableOfContentsExtension —
+ * already a transitive dependency, no new package). It depends on
+ * HeadingPermalinkExtension for heading ids/anchors; `insert: after` is
+ * required for the permalink anchor node to actually attach to the
+ * heading tree (TableOfContentsGenerator walks that node to find its
+ * heading), so `symbol`/`title` are left empty to keep it an invisible,
+ * zero-width anchor rather than a visible permalink icon on every
+ * heading.
  *
  * Raw HTML is escaped (not passed through) since wiki/issue text is
  * arbitrary input from any project member with edit access, not trusted
@@ -72,11 +83,27 @@ final class WikiMarkdownRenderer
                     },
                 ],
             ],
+            'heading_permalink' => [
+                'html_class' => 'heading-permalink',
+                'insert' => 'after',
+                'id_prefix' => '',
+                'fragment_prefix' => '',
+                'apply_id_to_heading' => true,
+                'symbol' => '',
+                'title' => '',
+            ],
+            'table_of_contents' => [
+                'position' => 'placeholder',
+                'style' => 'bullet',
+                'placeholder' => '{{toc}}',
+            ],
         ]);
 
         $environment->addExtension(new CommonMarkCoreExtension);
         $environment->addExtension(new GithubFlavoredMarkdownExtension);
         $environment->addExtension(new MentionExtension);
+        $environment->addExtension(new HeadingPermalinkExtension);
+        $environment->addExtension(new TableOfContentsExtension);
         $environment->addInlineParser(new WikiLinkInlineParser($project), 25);
 
         $html = (new MarkdownConverter($environment))->convert($text)->getContent();
