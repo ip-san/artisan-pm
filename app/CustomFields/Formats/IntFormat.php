@@ -29,7 +29,7 @@ final class IntFormat implements FormatContract
         return $input === '' || $input === null ? null : (int) $input;
     }
 
-    public function castValue(mixed $stored): mixed
+    public function castValue(mixed $stored, CustomField $field): mixed
     {
         return $stored === null ? null : (int) $stored;
     }

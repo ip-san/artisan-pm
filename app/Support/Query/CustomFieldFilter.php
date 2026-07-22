@@ -38,7 +38,7 @@ final class CustomFieldFilter implements FilterableField
             CustomFieldFormat::Int, CustomFieldFormat::Float => FilterFieldType::Integer,
             CustomFieldFormat::Date => FilterFieldType::Date,
             CustomFieldFormat::Bool => FilterFieldType::Boolean,
-            CustomFieldFormat::List => FilterFieldType::Select,
+            CustomFieldFormat::List, CustomFieldFormat::Enumeration => FilterFieldType::Select,
             CustomFieldFormat::String, CustomFieldFormat::Text => FilterFieldType::Text,
         };
     }
@@ -55,6 +55,12 @@ final class CustomFieldFilter implements FilterableField
 
     public function options(): array
     {
+        if ($this->field->field_format === CustomFieldFormat::Enumeration) {
+            return $this->field->enumerationOptions()->where('active', true)->get()
+                ->mapWithKeys(fn ($option) => [(string) $option->id => $option->name])
+                ->all();
+        }
+
         $values = $this->field->possible_values ?? [];
 
         return array_combine($values, $values);

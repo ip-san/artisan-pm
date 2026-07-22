@@ -3,6 +3,8 @@
 use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Models\CustomField;
+use App\Models\CustomFieldEnumeration;
+use App\Models\CustomFieldValue;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Tracker;
@@ -38,6 +40,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $possibleValuesText = '';
 
+    /** @var array<int, array{id: ?int, name: string, active: bool, reassignTo: string}> */
+    public array $enumerationOptions = [];
+
     /** @var array<int> */
     public array $trackerIds = [];
 
@@ -64,6 +69,14 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->default_value = (string) $customField->default_value;
             $this->searchable = $customField->searchable;
             $this->possibleValuesText = implode("\n", $customField->possible_values ?? []);
+            $this->enumerationOptions = $customField->enumerationOptions
+                ->map(fn (CustomFieldEnumeration $option) => [
+                    'id' => $option->id,
+                    'name' => $option->name,
+                    'active' => $option->active,
+                    'reassignTo' => '',
+                ])
+                ->all();
             $this->trackerIds = $customField->trackers->pluck('id')->all();
             $this->projectIds = $customField->projects->pluck('id')->all();
             $this->roleIds = $customField->roles->pluck('id')->all();
@@ -95,6 +108,90 @@ new #[Layout('components.layouts.app')] class extends Component
     public function roles(): Collection
     {
         return Role::query()->whereNull('builtin')->orderBy('position')->get();
+    }
+
+    public function addEnumerationOption(): void
+    {
+        $this->enumerationOptions[] = ['id' => null, 'name' => '', 'active' => true, 'reassignTo' => ''];
+    }
+
+    public function removeEnumerationOption(int $index): void
+    {
+        unset($this->enumerationOptions[$index]);
+        $this->enumerationOptions = array_values($this->enumerationOptions);
+    }
+
+    /**
+     * Deletes a persisted option immediately (not deferred to save()),
+     * matching Redmine's CustomFieldEnumeration#destroy(reassign_to) —
+     * existing custom field values pointing at it are moved to the
+     * chosen replacement option, or cleared if none was chosen. Unlike
+     * Redmine (which silently leaves values pointing at a
+     * now-nonexistent id when no reassignment target is given), this
+     * always clears them, so a value can never end up referencing a
+     * deleted option.
+     */
+    public function deleteEnumerationOption(int $index): void
+    {
+        $option = $this->enumerationOptions[$index] ?? null;
+
+        if ($option === null || $option['id'] === null) {
+            $this->removeEnumerationOption($index);
+
+            return;
+        }
+
+        $enumeration = CustomFieldEnumeration::find($option['id']);
+
+        if ($enumeration === null) {
+            $this->removeEnumerationOption($index);
+
+            return;
+        }
+
+        $reassignToId = $option['reassignTo'] !== '' ? $option['reassignTo'] : null;
+
+        CustomFieldValue::query()
+            ->where('custom_field_id', $enumeration->custom_field_id)
+            ->where('value_string', (string) $enumeration->id)
+            ->update(['value_string' => $reassignToId]);
+
+        $enumeration->delete();
+
+        $this->removeEnumerationOption($index);
+    }
+
+    /**
+     * Deleting an option happens immediately via deleteEnumerationOption()
+     * above, so this only ever adds new rows or updates existing ones —
+     * name and active flag for persisted options, name/active/position
+     * for brand new ones (position is simply insertion order; reordering
+     * existing options isn't supported by this form).
+     */
+    private function saveEnumerationOptions(): void
+    {
+        assert($this->customField instanceof CustomField);
+
+        foreach ($this->enumerationOptions as $position => $option) {
+            $name = trim($option['name']);
+
+            if ($name === '') {
+                continue;
+            }
+
+            if ($option['id'] !== null) {
+                $this->customField->enumerationOptions()->where('id', $option['id'])->update([
+                    'name' => $name,
+                    'active' => (bool) $option['active'],
+                ]);
+            } else {
+                $this->customField->enumerationOptions()->create([
+                    'name' => $name,
+                    'active' => (bool) $option['active'],
+                    'position' => $position + 1,
+                ]);
+            }
+        }
     }
 
     public function save(): void
@@ -129,6 +226,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'projectIds.*' => ['exists:projects,id'],
             'roleIds' => ['array'],
             'roleIds.*' => ['exists:roles,id'],
+            'enumerationOptions.*.name' => ['nullable', 'string', 'max:60'],
         ]);
 
         $possibleValues = $this->field_format === CustomFieldFormat::List->value
@@ -153,6 +251,10 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->customField->update($attributes);
         } else {
             $this->customField = CustomField::create($attributes);
+        }
+
+        if ($data['field_format'] === CustomFieldFormat::Enumeration->value) {
+            $this->saveEnumerationOptions();
         }
 
         if ($isForIssues) {
@@ -210,6 +312,49 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">選択肢(1行に1つ)</label>
                 <textarea wire:model="possibleValuesText" rows="4"
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+            </div>
+        @endif
+
+        @if ($field_format === \App\Enums\CustomFieldFormat::Enumeration->value)
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">選択肢(管理された一覧)</label>
+                <p class="mb-2 text-xs text-gray-500">
+                    「リスト選択」と異なり、各選択肢は個別に無効化(既存の値は保持したまま新規選択肢から外す)したり、
+                    削除時に別の選択肢へ置き換えたりできます。
+                </p>
+                <div class="space-y-2">
+                    @foreach ($enumerationOptions as $index => $option)
+                        <div class="flex items-center gap-2" wire:key="cf-enum-option-{{ $option['id'] ?? 'new-'.$index }}">
+                            <input type="text" wire:model="enumerationOptions.{{ $index }}.name" placeholder="選択肢名"
+                                class="block w-36 rounded-md border-gray-300 text-sm shadow-sm">
+                            <label class="flex items-center gap-1 text-xs text-gray-600">
+                                <input type="checkbox" wire:model="enumerationOptions.{{ $index }}.active" class="rounded border-gray-300">
+                                有効
+                            </label>
+                            @if ($option['id'])
+                                <select wire:model="enumerationOptions.{{ $index }}.reassignTo"
+                                    class="block w-48 rounded-md border-gray-300 text-xs shadow-sm">
+                                    <option value="">削除時: 未設定にする</option>
+                                    @foreach ($enumerationOptions as $other)
+                                        @if (($other['id'] ?? null) !== null && $other['id'] !== $option['id'])
+                                            <option value="{{ $other['id'] }}">削除時: 「{{ $other['name'] }}」に置き換え</option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                                <button type="button" wire:click="deleteEnumerationOption({{ $index }})"
+                                    wire:confirm="この選択肢を削除しますか?"
+                                    class="shrink-0 text-xs text-red-600 hover:underline">削除</button>
+                            @else
+                                <button type="button" wire:click="removeEnumerationOption({{ $index }})"
+                                    class="shrink-0 text-xs text-gray-500 hover:underline">取消</button>
+                            @endif
+                        </div>
+                        @error("enumerationOptions.{$index}.name") <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+                    @endforeach
+                </div>
+                <button type="button" wire:click="addEnumerationOption" class="mt-2 text-xs text-indigo-600 hover:underline">
+                    + 選択肢を追加
+                </button>
             </div>
         @endif
 

@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\CustomFields\FormatRegistry;
 use App\CustomFields\Formats\BoolFormat;
 use App\CustomFields\Formats\DateFormat;
+use App\CustomFields\Formats\EnumerationFormat;
 use App\CustomFields\Formats\FloatFormat;
 use App\CustomFields\Formats\IntFormat;
 use App\CustomFields\Formats\ListFormat;
@@ -32,5 +33,6 @@ final class CustomFieldServiceProvider extends ServiceProvider
         $registry->register(new DateFormat);
         $registry->register(new BoolFormat);
         $registry->register(new ListFormat);
+        $registry->register(new EnumerationFormat);
     }
 }

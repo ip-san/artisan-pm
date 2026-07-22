@@ -30,7 +30,7 @@ final class ListFormat implements FormatContract
         return $input === '' ? null : (string) $input;
     }
 
-    public function castValue(mixed $stored): mixed
+    public function castValue(mixed $stored, CustomField $field): mixed
     {
         return $stored;
     }

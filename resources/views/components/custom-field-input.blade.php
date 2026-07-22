@@ -17,6 +17,14 @@
                 <option value="{{ $option }}">{{ $option }}</option>
             @endforeach
         </select>
+    @elseif ($field->field_format === \App\Enums\CustomFieldFormat::Enumeration)
+        <select wire:model="{{ $path }}" @disabled($disabled)
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <option value="">選択してください</option>
+            @foreach ($field->enumerationOptions()->where('active', true)->get() as $option)
+                <option value="{{ $option->id }}">{{ $option->name }}</option>
+            @endforeach
+        </select>
     @elseif ($field->field_format === \App\Enums\CustomFieldFormat::Text)
         <textarea wire:model="{{ $path }}" rows="3" @disabled($disabled)
             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>

@@ -29,7 +29,7 @@ final class DateFormat implements FormatContract
         return $input === '' ? null : $input;
     }
 
-    public function castValue(mixed $stored): mixed
+    public function castValue(mixed $stored, CustomField $field): mixed
     {
         return $stored;
     }

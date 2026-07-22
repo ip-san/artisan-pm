@@ -29,7 +29,7 @@ final class BoolFormat implements FormatContract
         return (bool) $input;
     }
 
-    public function castValue(mixed $stored): mixed
+    public function castValue(mixed $stored, CustomField $field): mixed
     {
         return $stored === null ? null : (bool) $stored;
     }

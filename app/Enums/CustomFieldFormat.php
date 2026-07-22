@@ -13,4 +13,5 @@ enum CustomFieldFormat: string
     case Date = 'date';
     case Bool = 'bool';
     case List = 'list';
+    case Enumeration = 'enumeration';
 }

@@ -7,6 +7,7 @@ namespace App\CustomFields\Formats;
 use App\Enums\CustomFieldFormat;
 use App\Models\CustomField;
 use Illuminate\Contracts\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 use Illuminate\Validation\Rules\In;
 
 /**
@@ -33,12 +34,16 @@ interface FormatContract
     public function prepareValue(mixed $input): mixed;
 
     /**
-     * Cast a stored column value back to its PHP representation for display.
+     * Cast a stored column value back to its PHP representation for
+     * display. $field is the owning custom field — most formats ignore
+     * it, but a format whose storage is an id referencing a separate
+     * options table (like EnumerationFormat) needs it to know which
+     * field's options to resolve against.
      */
-    public function castValue(mixed $stored): mixed;
+    public function castValue(mixed $stored, CustomField $field): mixed;
 
     /**
-     * @return array<int, string|Rule|In>
+     * @return array<int, string|Rule|In|Exists>
      */
     public function validationRules(CustomField $field): array;
 }

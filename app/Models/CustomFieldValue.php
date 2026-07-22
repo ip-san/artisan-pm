@@ -46,6 +46,6 @@ final class CustomFieldValue extends Model
     {
         $column = $this->customField->format()->storageColumn();
 
-        return $this->customField->format()->castValue($this->{$column});
+        return $this->customField->format()->castValue($this->{$column}, $this->customField);
     }
 }

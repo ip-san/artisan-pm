@@ -149,7 +149,7 @@ test('a plugin can register a custom field format', function () {
             return $input;
         }
 
-        public function castValue(mixed $stored): mixed
+        public function castValue(mixed $stored, CustomField $field): mixed
         {
             return $stored;
         }

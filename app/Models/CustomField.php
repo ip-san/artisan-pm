@@ -102,6 +102,14 @@ final class CustomField extends Model implements Sortable
         return $this->hasMany(CustomFieldValue::class);
     }
 
+    /**
+     * @return HasMany<CustomFieldEnumeration, $this>
+     */
+    public function enumerationOptions(): HasMany
+    {
+        return $this->hasMany(CustomFieldEnumeration::class)->orderBy('position');
+    }
+
     public function format(): FormatContract
     {
         return app(FormatRegistry::class)->get($this->field_format);
