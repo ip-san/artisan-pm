@@ -330,7 +330,7 @@
 | CRUD | done | — |
 | カテゴリ | done | `Enumeration` 経由 |
 | 添付ファイル | done | `Document implements HasMedia` |
-| カテゴリ/日付/タイトル/作成者でのグルーピング・並べ替え | missing | `->latest()` のみ |
+| カテゴリ/日付/タイトル/作成者でのグルーピング・並べ替え | partial(2026-07-22) | Redmineの`DocumentsController#index`(`sort_by`パラメータ)を移植。`documents.index`に`#[Url]`束縛の`sortBy`(既定`category`)を追加、カテゴリ別(既定・未分類は空文字キーで先頭)/更新日別(新しい日付グループが先頭)/タイトル先頭文字別にグルーピング・並べ替え。「作成者」でのグルーピング(Redmineは各文書の最新添付ファイルのアップロード者でグルーピング)は本アプリの添付ファイルがアップロード者を記録していないため対象外(記録用インフラの追加が別途必要、単独のwell-scoped項目には収まらないため見送り) |
 | カスタムフィールド | missing | — |
 
 ### Files モジュール
