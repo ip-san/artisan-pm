@@ -339,7 +339,7 @@
 | プレビュー | done(2026-07-22) | 編集フォームに「プレビュー」トグルボタンを追加、`WikiMarkdownRenderer`で本文テキストエリアの現在値を保存せずにレンダリング(Wiki表示画面と同じレンダラーを再利用)。既存ページ編集時はインライン画像参照もそのページの既存添付ファイルに対して解決(このフォーム送信で選択中だが未アップロードのファイルはまだMediaレコードが無いため対象外) |
 | PDF/HTML/TXT/ZIPエクスポート | missing | — |
 | 日付インデックス表示 | done(2026-07-22) | Redmineの`WikiController#date_index`相当。新規`wiki.date-index`ルートで、各ページの現在バージョンが書かれた日付(`currentVersion->created_at`)でグルーピングし新しい日付順に表示。Wiki一覧画面から「日付順に表示」でアクセス可能 |
-| ページのWatch | done(2026-07-21) | `WikiPage`に`watchers()`(ポリモーフィック`Watcher`)を追加、`view_wiki_pages`権限で自己Watch/Unwatch可能。他ユーザーの追加/削除UIはまだなし(Issueの`manageWatchers`相当は未実装) |
+| ページのWatch | done(2026-07-23) | `WikiPage`に`watchers()`(ポリモーフィック`Watcher`)を追加、`view_wiki_pages`権限で自己Watch/Unwatch可能。~~他ユーザーの追加/削除UIはまだなし(Issueの`manageWatchers`相当は未実装)~~ → **done**: `IssuePolicy::manageWatchers()`/`issues/show.blade.php`の実装をそのまま移植。Redmineにはウォッチャー管理専用の権限が無いため(Issueの`add_issue_watchers`のような専用権限がWiki側には存在しない)、既存の`edit_wiki_pages`権限をゲートとして採用。ウォッチャー追加候補はプロジェクトメンバーに限定(Issueと同じ`Rule::exists('members', 'user_id')`保護)。ブラウザで実際に他メンバーをウォッチャーとして追加できることを確認済み |
 | 添付ファイル | done(2026-07-21) | `WikiPage implements HasMedia`。フォームからアップロード、詳細画面で表示/削除(`update`権限) |
 
 ### フォーラム(Boards / Messages)

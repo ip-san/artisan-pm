@@ -1,11 +1,13 @@
 <?php
 
 use App\Models\Project;
+use App\Models\User;
 use App\Models\WikiPage;
 use App\Services\WikiPageService;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use App\Support\Markdown\WikiSectionEditLinkInjector;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -18,6 +20,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /** @var array<int, string> attachment media id => description input value */
     public array $attachmentDescriptions = [];
+
+    public ?int $newWatcherId = null;
 
     public function mount(Project $project, WikiPage $wikiPage): void
     {
@@ -72,6 +76,42 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $this->wikiPage->unsetRelation('watchers');
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    #[Computed]
+    public function watcherCandidates(): Collection
+    {
+        $watchingIds = $this->wikiPage->watchers->pluck('user_id');
+
+        return $this->project->users->reject(fn (User $user) => $watchingIds->contains($user->id))->values();
+    }
+
+    public function addWatcher(): void
+    {
+        $this->authorize('manageWatchers', $this->wikiPage);
+
+        $data = $this->validate([
+            'newWatcherId' => ['required', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
+        ]);
+
+        $this->wikiPage->watchers()->firstOrCreate(['user_id' => $data['newWatcherId']]);
+
+        $this->reset('newWatcherId');
+        $this->wikiPage->unsetRelation('watchers');
+        unset($this->watcherCandidates);
+    }
+
+    public function removeWatcher(int $userId): void
+    {
+        $this->authorize('manageWatchers', $this->wikiPage);
+
+        $this->wikiPage->watchers()->where('user_id', $userId)->delete();
+
+        $this->wikiPage->unsetRelation('watchers');
+        unset($this->watcherCandidates);
     }
 
     public function delete(): void
@@ -158,6 +198,39 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="prose prose-sm max-w-none rounded-md border border-gray-200 bg-white p-4">
         {!! $this->renderedContent !!}
     </div>
+
+    @if ($wikiPage->watchers->isNotEmpty() || auth()->user()?->can('manageWatchers', $wikiPage))
+        <h2 class="mt-4 text-sm font-semibold text-gray-900 mb-2">ウォッチャー ({{ $wikiPage->watchers->count() }})</h2>
+        <ul class="mb-3 flex flex-wrap gap-2">
+            @foreach ($wikiPage->watchers as $watcher)
+                <li class="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
+                    {{ $watcher->user->name }}
+                    @can('manageWatchers', $wikiPage)
+                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-gray-400 hover:text-red-600" title="ウォッチャーから削除">×</button>
+                    @endcan
+                </li>
+            @endforeach
+        </ul>
+
+        @can('manageWatchers', $wikiPage)
+            @if ($this->watcherCandidates->isNotEmpty())
+                <form wire:submit="addWatcher" class="mb-4 flex items-end gap-2">
+                    <div>
+                        <select wire:model="newWatcherId" class="block rounded-md border-gray-300 shadow-sm text-sm">
+                            <option value="">ウォッチャーを追加...</option>
+                            @foreach ($this->watcherCandidates as $candidate)
+                                <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        追加
+                    </button>
+                </form>
+                @error('newWatcherId') <p class="-mt-2 mb-4 text-sm text-red-600">{{ $message }}</p> @enderror
+            @endif
+        @endcan
+    @endif
 
     @php $attachments = $wikiPage->attachments(); @endphp
     @if ($attachments->isNotEmpty())
