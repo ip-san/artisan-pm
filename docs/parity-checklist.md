@@ -99,7 +99,7 @@
 | 編集画面からの直接工数記録 | done(2026-07-22) | Redmineの`_edit.html.erb`内`log_time`fieldset相当。`log_time`権限を持つメンバーには課題編集フォームに時間/作業分類/コメントのインライン欄を表示し、課題保存と同じ送信で`TimeEntry`を作成(時間未入力ならスキップ)。別画面(`time-entries.create`)からの記録も引き続き利用可能 |
 | `is_private`(非公開課題)フラグ | done(2026-07-21) | `issues.is_private`。`set_issues_private`権限保持者のみ作成/編集画面でON可能(サーバー側でも再チェックし、権限のない編集者が既存の非公開課題を意図せず公開化することを防止)。Journal記録・詳細画面のバッジ表示も対応 |
 | ロール別の課題閲覧範囲(全て/デフォルト/自分のみ) | done(2026-07-21) | `Role.issues_visibility`(all/default/own) + `AuthorizationService::issueVisibilityFor()`。`IssuePolicy::view`と課題一覧のクエリで3段階を正しく強制:all=無条件、default=非公開課題は作成者/担当者のみ(Redmineの`Issue.visible_condition`と同じ規則、2026-07-21に`is_private`実装と合わせて修正)、own=作成者/担当者のみ。複数ロール保持時は最も緩い設定が優先 |
-| Atom フィード / REST API 拡張(`include=`) | partial(2026-07-22) | プロジェクトの活動(activity.atom)フィードを実装(下記「グローバルアクティビティフィード」行参照)。課題一覧/ニュース等の個別Atomフィードや、REST APIの`include=`パラメータ拡張は引き続き未実装 |
+| Atom フィード / REST API 拡張(`include=`) | partial(2026-07-22) | プロジェクトの活動(activity.atom)・フォーラム(boards.atom)・**お知らせ(news.atom、2026-07-22追加)**のAtomフィードを実装。課題一覧の個別Atomフィードや、REST APIの`include=`パラメータ拡張は引き続き未実装 |
 
 ### サブタスク・親子関係
 
@@ -368,6 +368,7 @@
 | Watch・作成者自動Watch | done(2026-07-21) | `News::watchers()`+トグルボタン、作成時に作成者を自動Watch |
 | メール通知 | missing | — |
 | プロジェクト横断のNews一覧 | done(2026-07-22) | Redmineの`NewsController#index`(`project_id`無し、`News.visible`スコープ)相当。新規`/news`ルート(`news.global-index`、初のプロジェクト非スコープなグローバル画面)を追加、ヘッダーナビゲーションに「お知らせ」リンクを配置。`view_news`権限の可視性判定(プロジェクトのアーカイブ/クローズ/モジュール有効性含む)はSQLの単一WHERE句では表現できないため、`projects.index`と同じ「全件取得→`can('view', $news)`でメモリ内フィルタ→`LengthAwarePaginator`で手動ページネーション」方式を踏襲(10件/ページ、Redmineの既定値と同じ)。プロジェクト列を追加表示 |
+| Atomフィード(プロジェクト単位) | done(2026-07-22) | Redmineの`NewsController#index`(`format.atom`)相当。新規`news.atom`ルート(`GET /projects/{project}/news.atom`)+`NewsAtomController`。プロジェクト内の全お知らせを新着順に最大15件配信(`ActivityFeedController::LIMIT`共通)、`boards.atom`と同じ`ActivityEntry`DTO+共有`feeds.atom`テンプレートを流用。`news.index`画面に「Atom」リンクを追加 |
 
 ### Documents
 

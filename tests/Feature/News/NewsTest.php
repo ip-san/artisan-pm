@@ -28,6 +28,28 @@ test('a member with view_news can see the news list and an item', function () {
     Livewire::actingAs($user)->test('news.show', ['project' => $project, 'news' => $news])->assertOk();
 });
 
+test('a member with view_news can fetch the project news atom feed, newest first', function () {
+    $project = Project::factory()->create();
+    $user = newsMember($project);
+    News::factory()->for($project)->create(['title' => 'Older announcement', 'created_at' => now()->subDay()]);
+    News::factory()->for($project)->create(['title' => 'Newer announcement', 'created_at' => now()]);
+
+    $response = $this->actingAs($user)->get(route('news.atom', $project));
+
+    $response->assertOk();
+    expect($response->headers->get('Content-Type'))->toStartWith('application/atom+xml');
+    $response->assertSee('<feed', false);
+    $response->assertSee('Older announcement', false);
+    $response->assertSeeInOrder(['Newer announcement', 'Older announcement'], false);
+});
+
+test('a member without view_news cannot fetch the project news atom feed', function () {
+    $project = Project::factory()->create();
+    $user = newsMember($project, []);
+
+    $this->actingAs($user)->get(route('news.atom', $project))->assertForbidden();
+});
+
 test('the global news index only shows items from projects the user can view_news in', function () {
     $visibleProject = Project::factory()->create();
     $hiddenProject = Project::factory()->create();

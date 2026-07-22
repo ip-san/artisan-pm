@@ -31,12 +31,15 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — お知らせ</h1>
-        @can('create', [News::class, $project])
-            <a href="{{ route('news.create', $project) }}"
-                class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
-                新規お知らせ
-            </a>
-        @endcan
+        <div class="flex items-center gap-3">
+            <a href="{{ route('news.atom', $project) }}" class="text-xs text-orange-600 hover:underline">Atom</a>
+            @can('create', [News::class, $project])
+                <a href="{{ route('news.create', $project) }}"
+                    class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                    新規お知らせ
+                </a>
+            @endcan
+        </div>
     </div>
 
     <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">

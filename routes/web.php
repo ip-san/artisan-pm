@@ -4,6 +4,7 @@ use App\Http\Controllers\ActivityFeedController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AttachmentThumbnailController;
 use App\Http\Controllers\BoardAtomController;
+use App\Http\Controllers\NewsAtomController;
 use App\Http\Controllers\RepositoryRawController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -81,6 +82,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}', 'messages.show')->name('messages.show');
     Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}/edit', 'messages.form')->name('messages.edit');
 
+    Route::get('/projects/{project:identifier}/news.atom', NewsAtomController::class)->name('news.atom');
     Volt::route('/projects/{project:identifier}/news', 'news.index')->name('news.index');
     Volt::route('/projects/{project:identifier}/news/new', 'news.form')->name('news.create');
     Volt::route('/projects/{project:identifier}/news/{news}/edit', 'news.form')->name('news.edit');
