@@ -76,4 +76,13 @@ final class WikiPagePolicy
     {
         return $this->authorization->can($user, 'edit_wiki_pages', $wikiPage->project);
     }
+
+    /**
+     * Matches Redmine's export_wiki_pages permission, gating the TXT/HTML
+     * per-page download links on WikiController#show.
+     */
+    public function export(?User $user, WikiPage $wikiPage): bool
+    {
+        return $this->authorization->can($user, 'export_wiki_pages', $wikiPage->project);
+    }
 }

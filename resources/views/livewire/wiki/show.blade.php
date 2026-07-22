@@ -7,10 +7,12 @@ use App\Services\WikiPageService;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use App\Support\Markdown\WikiSectionEditLinkInjector;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
@@ -33,6 +35,63 @@ new #[Layout('components.layouts.app')] class extends Component
         foreach ($this->wikiPage->attachments() as $media) {
             $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
         }
+    }
+
+    /**
+     * The page's raw Markdown source, matching Redmine's
+     * WikiController#show format=txt (sends WikiContent#text verbatim,
+     * no rendering).
+     */
+    public function exportTxt(): StreamedResponse
+    {
+        $this->authorize('export', $this->wikiPage);
+
+        $text = $this->wikiPage->currentVersion?->text ?? '';
+
+        return response()->streamDownload(
+            fn () => print ($text),
+            $this->exportFilename('txt'),
+            ['Content-Type' => 'text/plain; charset=UTF-8'],
+        );
+    }
+
+    /**
+     * The rendered HTML, wrapped in a minimal standalone document — same
+     * "single exported page" scope as Redmine's format=html, which is
+     * distinct from the wiki-wide multi-page export (WikiController#export,
+     * PDF/ZIP included) that stays out of scope here.
+     */
+    public function exportHtml(): StreamedResponse
+    {
+        $this->authorize('export', $this->wikiPage);
+
+        $body = app(WikiMarkdownRenderer::class)->render($this->wikiPage->currentVersion?->text ?? '', $this->project, $this->wikiPage->attachments());
+        $title = e($this->wikiPage->title);
+
+        $html = <<<HTML
+            <!DOCTYPE html>
+            <html lang="ja">
+            <head>
+            <meta charset="UTF-8">
+            <title>{$title}</title>
+            </head>
+            <body>
+            <h1>{$title}</h1>
+            {$body}
+            </body>
+            </html>
+            HTML;
+
+        return response()->streamDownload(
+            fn () => print ($html),
+            $this->exportFilename('html'),
+            ['Content-Type' => 'text/html; charset=UTF-8'],
+        );
+    }
+
+    private function exportFilename(string $extension): string
+    {
+        return Str::of($this->wikiPage->title)->replace(['/', '\\'], '-')->append(".{$extension}")->toString();
     }
 
     #[Computed]
@@ -175,6 +234,14 @@ new #[Layout('components.layouts.app')] class extends Component
                 class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 履歴
             </a>
+            @can('export', $wikiPage)
+                <button wire:click="exportTxt" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    TXT
+                </button>
+                <button wire:click="exportHtml" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    HTML
+                </button>
+            @endcan
             @can('protect', $wikiPage)
                 <button wire:click="toggleProtected" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     {{ $wikiPage->is_protected ? '保護解除' : '保護' }}
