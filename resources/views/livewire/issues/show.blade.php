@@ -417,7 +417,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('delete', $this->issue);
 
-        $this->issue->delete();
+        app(IssueService::class)->delete($this->issue);
 
         $this->redirect(route('issues.index', $this->project), navigate: true);
     }

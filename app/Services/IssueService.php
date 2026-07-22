@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\EnumerationType;
 use App\Events\IssueCreated;
+use App\Events\IssueDeleted;
 use App\Events\IssueUpdated;
 use App\Exceptions\StaleIssueUpdateException;
 use App\Models\CustomField;
@@ -62,6 +63,20 @@ final class IssueService
         IssueCreated::dispatch($issue);
 
         return $issue;
+    }
+
+    /**
+     * Dispatched before the row is actually removed, so listeners (e.g.
+     * the webhook payload builder, which serializes the issue's own
+     * attributes) see a fully intact model — deleting first would still
+     * leave those attributes readable in PHP, but there's no reason to
+     * rely on that.
+     */
+    public function delete(Issue $issue): void
+    {
+        IssueDeleted::dispatch($issue);
+
+        $issue->delete();
     }
 
     /**

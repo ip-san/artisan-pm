@@ -4,12 +4,15 @@ use App\Enums\WebhookEvent;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
+use App\Models\Member;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Webhook;
 use App\Services\IssueService;
 use Illuminate\Support\Facades\Queue;
+use Livewire\Livewire;
 use Spatie\WebhookServer\CallWebhookJob;
 
 /**
@@ -101,6 +104,52 @@ test('a comment-only update (no attribute changes) still dispatches issue.update
     app(IssueService::class)->update($issue, [], $actor, 'Just a comment, nothing else changed');
 
     Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::IssueUpdated->value);
+});
+
+test('deleting an issue dispatches a webhook subscribed to issue.deleted', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    $webhook = Webhook::factory()->create(['url' => 'https://example.com/hook', 'events' => [WebhookEvent::IssueDeleted->value]]);
+    $issue = Issue::factory()->for($project)->create(webhookIssueDefaults());
+    $issueId = $issue->id;
+
+    app(IssueService::class)->delete($issue);
+
+    expect(Issue::find($issueId))->toBeNull();
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+        && $job->payload['issue']['id'] === $issueId
+        && $job->payload['event'] === WebhookEvent::IssueDeleted->value);
+});
+
+test('a webhook subscribed only to issue.created is not dispatched on delete', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::IssueCreated->value]]);
+    $issue = Issue::factory()->for($project)->create(webhookIssueDefaults());
+
+    app(IssueService::class)->delete($issue);
+
+    Queue::assertNotPushed(CallWebhookJob::class);
+});
+
+test('deleting an issue from the issue detail page dispatches issue.deleted', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::IssueDeleted->value]]);
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'delete_issues']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+    $issue = Issue::factory()->for($project)->create(webhookIssueDefaults());
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->call('deleteIssue');
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::IssueDeleted->value);
 });
 
 test('a webhook with a secret signs its request', function () {

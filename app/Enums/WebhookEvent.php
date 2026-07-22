@@ -8,4 +8,5 @@ enum WebhookEvent: string
 {
     case IssueCreated = 'issue.created';
     case IssueUpdated = 'issue.updated';
+    case IssueDeleted = 'issue.deleted';
 }

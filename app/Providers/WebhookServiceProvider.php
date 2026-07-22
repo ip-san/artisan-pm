@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Events\IssueCreated;
+use App\Events\IssueDeleted;
 use App\Events\IssueUpdated;
 use App\Listeners\DispatchWebhooksForIssueEvent;
 use Illuminate\Support\Facades\Event;
@@ -13,13 +14,13 @@ use Illuminate\Support\ServiceProvider;
 /**
  * Registered explicitly rather than relying on Laravel's event
  * auto-discovery, since DispatchWebhooksForIssueEvent::handle() takes a
- * union type (IssueCreated|IssueUpdated) that discovery's single-type
- * reflection doesn't resolve to two registrations.
+ * union type (IssueCreated|IssueUpdated|IssueDeleted) that discovery's
+ * single-type reflection doesn't resolve to multiple registrations.
  */
 final class WebhookServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        Event::listen([IssueCreated::class, IssueUpdated::class], DispatchWebhooksForIssueEvent::class);
+        Event::listen([IssueCreated::class, IssueUpdated::class, IssueDeleted::class], DispatchWebhooksForIssueEvent::class);
     }
 }

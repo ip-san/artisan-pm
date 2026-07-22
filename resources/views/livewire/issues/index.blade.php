@@ -719,7 +719,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $count = $issues->count();
 
         foreach ($issues as $issue) {
-            $issue->delete();
+            app(IssueService::class)->delete($issue);
         }
 
         $this->reset('selected');

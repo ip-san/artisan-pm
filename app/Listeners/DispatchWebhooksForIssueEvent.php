@@ -6,6 +6,7 @@ namespace App\Listeners;
 
 use App\Enums\WebhookEvent;
 use App\Events\IssueCreated;
+use App\Events\IssueDeleted;
 use App\Events\IssueUpdated;
 use App\Http\Resources\Api\V1\IssueResource;
 use App\Models\Issue;
@@ -14,9 +15,13 @@ use Spatie\WebhookServer\WebhookCall;
 
 final class DispatchWebhooksForIssueEvent
 {
-    public function handle(IssueCreated|IssueUpdated $event): void
+    public function handle(IssueCreated|IssueUpdated|IssueDeleted $event): void
     {
-        $webhookEvent = $event instanceof IssueCreated ? WebhookEvent::IssueCreated : WebhookEvent::IssueUpdated;
+        $webhookEvent = match ($event::class) {
+            IssueCreated::class => WebhookEvent::IssueCreated,
+            IssueUpdated::class => WebhookEvent::IssueUpdated,
+            IssueDeleted::class => WebhookEvent::IssueDeleted,
+        };
 
         $this->dispatchTo($event->issue, $webhookEvent);
     }
