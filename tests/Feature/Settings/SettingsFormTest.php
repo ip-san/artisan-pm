@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProjectModuleKey;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Setting;
@@ -70,6 +71,21 @@ test('an admin can configure attachment size and extension limits', function () 
 
     expect(Setting::get('attachment_max_size'))->toBe(2048)
         ->and(Setting::get('attachment_extensions_allowed'))->toBe('png, jpg');
+});
+
+test('an admin can configure default project modules and trackers', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('default_projects_modules', [ProjectModuleKey::IssueTracking->value])
+        ->set('default_projects_tracker_ids', [$tracker->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('default_projects_modules'))->toBe([ProjectModuleKey::IssueTracking->value])
+        ->and(Setting::get('default_projects_tracker_ids'))->toBe([$tracker->id]);
 });
 
 test('attachment_max_size cannot exceed the underlying media-library cap', function () {

@@ -1,10 +1,12 @@
 <?php
 
+use App\Enums\ProjectModuleKey;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\IssueStatus;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -43,6 +45,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $self_registration = 'automatic';
 
+    /** @var array<string> */
+    public array $default_projects_modules = [];
+
+    /** @var array<int> */
+    public array $default_projects_tracker_ids = [];
+
     public function mount(): void
     {
         $this->authorize('manage', Setting::class);
@@ -63,6 +71,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->attachment_max_size = Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024));
         $this->attachment_extensions_allowed = Setting::get('attachment_extensions_allowed', '');
         $this->attachment_extensions_denied = Setting::get('attachment_extensions_denied', '');
+        $this->default_projects_modules = Setting::get(
+            'default_projects_modules',
+            array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults())
+        );
+        $this->default_projects_tracker_ids = Setting::get('default_projects_tracker_ids', []);
     }
 
     #[Computed]
@@ -102,6 +115,10 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_issue_done_ratio' => ['boolean'],
             'cross_project_issue_relations' => ['boolean'],
             'self_registration' => ['required', 'in:disabled,manual,automatic'],
+            'default_projects_modules' => ['array'],
+            'default_projects_modules.*' => [Rule::in(array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::cases()))],
+            'default_projects_tracker_ids' => ['array'],
+            'default_projects_tracker_ids.*' => ['exists:trackers,id'],
         ]);
 
         foreach ($data as $key => $value) {
@@ -162,6 +179,37 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="checkbox" wire:model="cross_project_issue_relations" class="rounded border-gray-300">
                 プロジェクトをまたいだ課題関連を許可する
             </label>
+        </section>
+
+        <section class="space-y-4 border-t border-gray-200 pt-6">
+            <h2 class="text-sm font-semibold text-gray-900">プロジェクト</h2>
+            <p class="text-xs text-gray-500">新規プロジェクト作成フォームの初期値です。作成時にプロジェクトごと変更できます。</p>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700 mb-2">既定で有効なモジュール</span>
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach (\App\Enums\ProjectModuleKey::cases() as $module)
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" wire:model="default_projects_modules" value="{{ $module->value }}" class="rounded border-gray-300">
+                            {{ $module->value }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('default_projects_modules.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700 mb-2">既定で使用するトラッカー(未選択の場合は全トラッカー)</span>
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach ($this->trackers as $tracker)
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" wire:model="default_projects_tracker_ids" value="{{ $tracker->id }}" class="rounded border-gray-300">
+                            {{ $tracker->name }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('default_projects_tracker_ids.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
         </section>
 
         <section class="space-y-4 border-t border-gray-200 pt-6">

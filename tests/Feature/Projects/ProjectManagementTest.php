@@ -7,10 +7,35 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Policies\ProjectPolicy;
 use Livewire\Livewire;
+
+test('the new project form defaults modules and trackers from the admin-configured settings', function () {
+    $admin = User::factory()->admin()->create();
+    $allowedTracker = Tracker::factory()->create();
+    Tracker::factory()->create();
+
+    Setting::set('default_projects_modules', [ProjectModuleKey::IssueTracking->value, ProjectModuleKey::Wiki->value]);
+    Setting::set('default_projects_tracker_ids', [$allowedTracker->id]);
+
+    Livewire::actingAs($admin)
+        ->test('projects.form')
+        ->assertSet('modules', [ProjectModuleKey::IssueTracking->value, ProjectModuleKey::Wiki->value])
+        ->assertSet('trackerIds', [$allowedTracker->id]);
+});
+
+test('the new project form falls back to every tracker when no default tracker setting is configured', function () {
+    $admin = User::factory()->admin()->create();
+    $trackerA = Tracker::factory()->create();
+    $trackerB = Tracker::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('projects.form')
+        ->assertSet('trackerIds', [$trackerA->id, $trackerB->id]);
+});
 
 test('an admin can create a project with modules and trackers through the form', function () {
     $admin = User::factory()->admin()->create();

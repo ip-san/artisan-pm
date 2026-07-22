@@ -3,6 +3,7 @@
 use App\Enums\ProjectModuleKey;
 use App\Models\CustomField;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\Tracker;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -64,7 +65,18 @@ new #[Layout('components.layouts.app')] class extends Component
                 $this->authorize('create', Project::class);
             }
 
-            $this->modules = array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults());
+            $this->modules = Setting::get(
+                'default_projects_modules',
+                array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults())
+            );
+
+            // Empty setting (never configured, or explicitly cleared) falls
+            // back to every tracker, matching Redmine's own
+            // default_projects_tracker_ids behavior.
+            $defaultTrackerIds = Setting::get('default_projects_tracker_ids', []);
+            $this->trackerIds = $defaultTrackerIds !== []
+                ? $defaultTrackerIds
+                : Tracker::query()->pluck('id')->all();
         }
     }
 
