@@ -50,6 +50,43 @@ final class CustomField extends Model implements Sortable
         'searchable' => false,
     ];
 
+    /**
+     * Two invariants ported from Redmine's CustomField:
+     *
+     * - The field format is fixed at creation. Redmine's field_format=
+     *   setter silently ignores assignment on a saved record ("cannot
+     *   change format of a saved custom field") — values already stored
+     *   under the old format's storage column/semantics would otherwise
+     *   be misread or orphaned. Mirrored here by reverting any dirty
+     *   field_format on update; the admin form also disables the
+     *   selector, this is the backstop.
+     *
+     * - Turning `multiple` off on an existing field deletes all but the
+     *   newest (highest-id) value per customized object — Redmine's
+     *   handle_multiplicity_change.
+     */
+    protected static function booted(): void
+    {
+        self::updating(function (CustomField $field) {
+            if ($field->isDirty('field_format')) {
+                $field->field_format = $field->getOriginal('field_format');
+            }
+        });
+
+        self::updated(function (CustomField $field) {
+            if ($field->wasChanged('multiple') && ! $field->multiple) {
+                $field->values()
+                    ->whereExists(fn ($query) => $query
+                        ->from('custom_field_values as newer')
+                        ->whereColumn('newer.custom_field_id', 'custom_field_values.custom_field_id')
+                        ->whereColumn('newer.customized_type', 'custom_field_values.customized_type')
+                        ->whereColumn('newer.customized_id', 'custom_field_values.customized_id')
+                        ->whereColumn('newer.id', '>', 'custom_field_values.id'))
+                    ->delete();
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [

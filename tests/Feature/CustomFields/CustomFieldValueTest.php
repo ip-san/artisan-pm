@@ -94,3 +94,43 @@ test('setting a value for a field the issue does not apply to is ignored', funct
 
     expect($issue->customFieldValues()->count())->toBe(0);
 });
+
+test('a saved custom field silently keeps its original format on update', function () {
+    $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::String->value]);
+
+    $field->update(['field_format' => CustomFieldFormat::Int->value]);
+
+    expect($field->fresh()->field_format)->toBe(CustomFieldFormat::String);
+});
+
+test('turning multiple off keeps only the newest value per customized object', function () {
+    $tracker = Tracker::factory()->create();
+    $project = Project::factory()->create();
+    $field = CustomField::factory()->multiple()->create(['field_format' => CustomFieldFormat::String->value]);
+    $field->trackers()->attach($tracker);
+
+    $issueA = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $issueB = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $issueA->setCustomFieldValues([$field->id => ['red', 'green', 'blue']]);
+    $issueB->setCustomFieldValues([$field->id => ['small', 'large']]);
+
+    $field->update(['multiple' => false]);
+
+    expect($issueA->fresh()->customValue($field))->toBe('blue')
+        ->and($issueA->fresh()->customFieldValues()->where('custom_field_id', $field->id)->count())->toBe(1)
+        ->and($issueB->fresh()->customValue($field))->toBe('large');
+});
+
+test('an update that does not change multiple leaves existing values untouched', function () {
+    $tracker = Tracker::factory()->create();
+    $project = Project::factory()->create();
+    $field = CustomField::factory()->multiple()->create(['field_format' => CustomFieldFormat::String->value]);
+    $field->trackers()->attach($tracker);
+
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $issue->setCustomFieldValues([$field->id => ['red', 'green']]);
+
+    $field->update(['name' => 'Renamed field']);
+
+    expect($issue->fresh()->customFieldValues()->where('custom_field_id', $field->id)->count())->toBe(2);
+});

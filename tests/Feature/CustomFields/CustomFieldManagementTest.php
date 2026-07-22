@@ -112,6 +112,21 @@ test('a project custom field cannot have its type changed after creation', funct
     expect($field->refresh()->customized_type)->toBe(CustomizableType::Project);
 });
 
+test('a custom field cannot have its format changed after creation', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+    $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::String->value]);
+    $field->trackers()->attach($tracker);
+
+    Livewire::actingAs($admin)
+        ->test('custom-fields.form', ['customField' => $field])
+        ->assertSee('作成後は変更できません')
+        ->set('field_format', CustomFieldFormat::Int->value)
+        ->call('save');
+
+    expect($field->refresh()->field_format)->toBe(CustomFieldFormat::String);
+});
+
 test('an admin can set default_value, regexp, and searchable', function () {
     $admin = User::factory()->admin()->create();
     $tracker = Tracker::factory()->create();

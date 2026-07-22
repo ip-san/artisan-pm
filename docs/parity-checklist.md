@@ -151,7 +151,7 @@
 | フィールド形式のカバレッジ | partial | Redmine の~12形式に対しレジストリのサブセット |
 | regexp/min/max/default_value | partial | カラムはあるが `date_offset` 等の高度なデフォルトモードなし |
 | 検索対象(`searchable`)の実効性 | done(2026-07-21) | プロジェクト内検索でstring/textカスタムフィールド値がLIKE検索される |
-| 保存後のフォーマット変更禁止・多重度変更時のクリーンアップ | missing | — |
+| 保存後のフォーマット変更禁止・多重度変更時のクリーンアップ | done(2026-07-22) | Redmineの`CustomField#field_format=`(保存済みレコードへの代入を黙って無視)と`handle_multiplicity_change`を移植。フォーマット固定は二重防御: フォーム側は編集時にセレクタを固定表示し`save()`が既存レコードの値を使用(`customized_type`と同じパターン)、モデル側は`updating`イベントで`field_format`のダーティ変更を元値に差し戻すバックストップ。多重度クリーンアップは`updated`イベントで`multiple`がtrue→falseに変わった時のみ、対象オブジェクトごとに最新(最大id)の値だけを残して削除(RedmineのEXISTS相関サブクエリをEloquentの`whereExists`でそのまま再現) |
 | CustomFieldEnumeration(選択肢の位置/有効フラグ、削除時再割当) | done(2026-07-22) | **調査の結果判明**: Redmineの「リスト」形式は本アプリの`list`形式(単純な文字列配列`possible_values`)と同じ仕組みで、`CustomFieldEnumeration`は実際には別の独立したフィールド形式`enumeration`(`Redmine::FieldFormat::EnumerationFormat`)専用のテーブルだった。新規`enumeration`形式を追加: `custom_field_enumerations`テーブル(`custom_field_id`, `name`, `position`, `active`)+`CustomFieldEnumeration`モデル(`App\Models\Enumeration`とは別物)。値は選択肢のIDを`value_string`に保存(`FormatContract::castValue()`に`CustomField`を渡すようインターフェースを拡張し、IDから選択肢名への解決を可能に — 既存7形式は素通しの引数追加のみ)。カスタムフィールド管理フォームに選択肢の追加/改名/有効無効切替UIを追加。**削除時再割当**: 選択肢の「削除」は即時実行(フォーム保存を待たない独立アクション)、削除前に置き換え先選択肢を選べるドロップダウンを表示し、既存の`custom_field_values`を置き換え先へ一括更新(置き換え先未選択の場合はRedmineと異なり値を確実にnullへクリア — Redmine本家は置き換え先未指定だと存在しないIDを指したまま放置される)。並べ替えUI(ドラッグでの位置変更)は対象外、位置は追加順のまま |
 | 表示列・CSV列としてのカスタムフィールド | missing | 意図的に見送り済み(コード内コメントで明記) |
 

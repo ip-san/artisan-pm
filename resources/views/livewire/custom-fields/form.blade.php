@@ -183,15 +183,18 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function save(): void
     {
-        // customized_type is fixed at creation and never re-submitted from
-        // the edit form's (disabled) selector, so it's read from the
-        // existing record rather than trusted from client input.
+        // customized_type and field_format are both fixed at creation and
+        // never re-submitted from the edit form's (disabled) selectors, so
+        // they're read from the existing record rather than trusted from
+        // client input — the CustomField model additionally reverts any
+        // format change on update as a backstop.
         $customizedType = $this->customField?->customized_type->value ?? $this->customized_type;
+        $fieldFormat = $this->customField?->field_format->value ?? $this->field_format;
         $isForIssues = $customizedType === CustomizableType::Issue->value;
 
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'field_format' => ['required', Rule::enum(CustomFieldFormat::class)],
+            'field_format' => $this->customField ? [] : ['required', Rule::enum(CustomFieldFormat::class)],
             'is_required' => ['boolean'],
             'multiple' => ['boolean'],
             'min_length' => ['nullable', 'integer', 'min:0'],
@@ -216,13 +219,13 @@ new #[Layout('components.layouts.app')] class extends Component
             'enumerationOptions.*.name' => ['nullable', 'string', 'max:60'],
         ]);
 
-        $possibleValues = $this->field_format === CustomFieldFormat::List->value
+        $possibleValues = $fieldFormat === CustomFieldFormat::List->value
             ? array_values(array_filter(array_map('trim', explode("\n", $this->possibleValuesText))))
             : null;
 
         $attributes = [
             'name' => $data['name'],
-            'field_format' => $data['field_format'],
+            'field_format' => $fieldFormat,
             'customized_type' => $customizedType,
             'is_required' => $data['is_required'],
             'multiple' => $data['multiple'],
@@ -240,7 +243,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->customField = CustomField::create($attributes);
         }
 
-        if ($data['field_format'] === CustomFieldFormat::Enumeration->value) {
+        if ($fieldFormat === CustomFieldFormat::Enumeration->value) {
             $this->saveEnumerationOptions();
         }
 
@@ -285,13 +288,17 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div>
             <label class="block text-sm font-medium text-gray-700">形式</label>
-            <select wire:model.live="field_format" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                <option value="">選択してください</option>
-                @foreach (\App\Enums\CustomFieldFormat::cases() as $format)
-                    <option value="{{ $format->value }}">{{ $format->value }}</option>
-                @endforeach
-            </select>
-            @error('field_format') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @if ($customField)
+                <p class="mt-1 text-sm text-gray-900">{{ $field_format }}(作成後は変更できません)</p>
+            @else
+                <select wire:model.live="field_format" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">選択してください</option>
+                    @foreach (\App\Enums\CustomFieldFormat::cases() as $format)
+                        <option value="{{ $format->value }}">{{ $format->value }}</option>
+                    @endforeach
+                </select>
+                @error('field_format') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @endif
         </div>
 
         @if ($field_format === \App\Enums\CustomFieldFormat::List->value)
