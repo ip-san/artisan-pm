@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CustomizableType;
+use App\Models\Changeset;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
 use App\Models\Document;
@@ -81,6 +82,7 @@ final class SearchService
             ->merge($this->searchNews($projects, $viewer, $words, $allWords, $titlesOnly))
             ->merge($this->searchDocuments($projects, $viewer, $words, $allWords, $titlesOnly))
             ->merge($this->searchMessages($projects, $viewer, $words, $allWords, $titlesOnly))
+            ->merge($this->searchChangesets($projects, $viewer, $words, $allWords))
             ->sortByDesc('updatedAt')
             ->values();
     }
@@ -335,6 +337,46 @@ final class SearchService
                 url: route('messages.show', [$message->board->project, $message->board, $message->isTopic() ? $message : $message->parent_id]),
                 excerpt: $this->excerpt($message->content),
                 updatedAt: $message->updated_at,
+            ));
+    }
+
+    /**
+     * Unlike every other type here, a changeset has only one searchable
+     * column (its commit message) — matches Redmine's Changeset
+     * `acts_as_searchable :columns => 'comments'`, a single-element
+     * column list. $titlesOnly is deliberately not a parameter: Redmine's
+     * acts_as_searchable implementation handles titles_only by taking
+     * just the *first* configured column, which for a single-column type
+     * is the same column either way, so the mode has no effect here and
+     * doesn't need threading through.
+     *
+     * @param  Collection<int, Project>  $projects
+     * @param  array<int, string>  $words
+     * @return Collection<int, SearchResult>
+     */
+    private function searchChangesets(Collection $projects, ?User $viewer, array $words, bool $allWords): Collection
+    {
+        $projectIds = $this->projectIdsPermitting($projects, $viewer, 'view_changesets');
+
+        if ($projectIds->isEmpty()) {
+            return collect();
+        }
+
+        return $this->whereWordsMatch(
+            Changeset::query()->whereHas('repository', fn ($repository) => $repository->whereIn('project_id', $projectIds)),
+            ['comments'],
+            $words,
+            $allWords,
+        )
+            ->take(self::RESULTS_PER_TYPE)
+            ->get()
+            ->load('repository.project')
+            ->map(fn (Changeset $changeset) => new SearchResult(
+                type: 'changeset',
+                title: $changeset->shortRevision(),
+                url: route('repository.show', [$changeset->repository->project, $changeset]),
+                excerpt: $this->excerpt($changeset->comments),
+                updatedAt: $changeset->committed_on,
             ));
     }
 

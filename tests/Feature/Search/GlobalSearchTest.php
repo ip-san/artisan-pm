@@ -1,11 +1,13 @@
 <?php
 
+use App\Models\Changeset;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\News;
 use App\Models\Project;
+use App\Models\Repository;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
@@ -75,6 +77,22 @@ test('the global search excludes projects the user has no access to at all', fun
         ->get('results');
 
     expect($results)->toBeEmpty();
+});
+
+test('the global search finds a changeset by its commit message', function () {
+    $project = Project::factory()->create();
+    $user = globalSearchMember($project, ['view_project', 'view_changesets']);
+    $repository = Repository::factory()->for($project)->create();
+    $changeset = Changeset::factory()->for($repository)->create(['comments' => 'global-search-commit-token']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.global-index')
+        ->set('query', 'global-search-commit-token')
+        ->call('search')
+        ->get('results');
+
+    expect($results->pluck('type'))->toContain('changeset')
+        ->and($results->first()->url)->toContain((string) $changeset->id);
 });
 
 test('the global search only surfaces news from projects the user can view_news in, even if visible otherwise', function () {

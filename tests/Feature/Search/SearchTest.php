@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Board;
+use App\Models\Changeset;
 use App\Models\CustomField;
 use App\Models\Document;
 use App\Models\Enumeration;
@@ -10,6 +11,7 @@ use App\Models\Member;
 use App\Models\Message;
 use App\Models\News;
 use App\Models\Project;
+use App\Models\Repository;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
@@ -139,6 +141,39 @@ test('a reply message result links to its parent topic', function () {
         ->get('results');
 
     expect($results->first()->url)->toContain((string) $topic->id);
+});
+
+test('a changeset is found by its commit message and links to the revision', function () {
+    $project = Project::factory()->create();
+    $user = searchMember($project, ['view_project', 'view_changesets']);
+    $repository = Repository::factory()->for($project)->create();
+    $changeset = Changeset::factory()->for($repository)->create(['comments' => 'Fix unique-commit-token in the parser']);
+    Changeset::factory()->for($repository)->create(['comments' => 'Unrelated commit']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', 'unique-commit-token')
+        ->call('search')
+        ->get('results');
+
+    expect($results)->toHaveCount(1)
+        ->and($results->first()->type)->toBe('changeset')
+        ->and($results->first()->url)->toContain((string) $changeset->id);
+});
+
+test('a member without view_changesets does not see changeset results', function () {
+    $project = Project::factory()->create();
+    $user = searchMember($project, ['view_project']);
+    $repository = Repository::factory()->for($project)->create();
+    Changeset::factory()->for($repository)->create(['comments' => 'Findable commit message']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', 'Findable')
+        ->call('search')
+        ->get('results');
+
+    expect($results->pluck('type'))->not->toContain('changeset');
 });
 
 test('an issue is found by a searchable custom field value', function () {

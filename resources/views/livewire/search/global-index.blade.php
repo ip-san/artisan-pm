@@ -106,6 +106,7 @@ new #[Layout('components.layouts.app')] class extends Component
         'news' => 'お知らせ',
         'document' => '文書',
         'message' => 'フォーラム',
+        'changeset' => 'リポジトリ',
     ];
 }; ?>
 
