@@ -81,4 +81,17 @@ final class MessagePolicy
     {
         return $message->isTopic() && $this->authorization->can($user, 'view_messages', $message->board->project);
     }
+
+    /**
+     * Adding/removing *other* users as watchers — distinct from watch(),
+     * which lets anyone with view access toggle their own watch state.
+     * Redmine has no dedicated "manage forum watchers" permission, so
+     * this gates on edit_messages, mirroring WikiPagePolicy::manageWatchers()'s
+     * same reasoning for wiki pages (no add_*_watchers permission exists
+     * for either).
+     */
+    public function manageWatchers(User $user, Message $message): bool
+    {
+        return $message->isTopic() && $this->authorization->can($user, 'edit_messages', $message->board->project);
+    }
 }

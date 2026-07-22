@@ -3,6 +3,7 @@
 use App\Models\Board;
 use App\Models\Message;
 use App\Models\Project;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\Rule;
@@ -26,6 +27,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $replyContent = '';
 
     public ?int $moveToBoardId = null;
+
+    public ?int $newWatcherId = null;
 
     /** @var array<int, string> attachment media id => description input value */
     public array $attachmentDescriptions = [];
@@ -114,6 +117,42 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $this->topic->unsetRelation('watchers');
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    #[Computed]
+    public function watcherCandidates(): Collection
+    {
+        $watchingIds = $this->topic->watchers->pluck('user_id');
+
+        return $this->project->users->reject(fn (User $user) => $watchingIds->contains($user->id))->values();
+    }
+
+    public function addWatcher(): void
+    {
+        $this->authorize('manageWatchers', $this->topic);
+
+        $data = $this->validate([
+            'newWatcherId' => ['required', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
+        ]);
+
+        $this->topic->watchers()->firstOrCreate(['user_id' => $data['newWatcherId']]);
+
+        $this->reset('newWatcherId');
+        $this->topic->unsetRelation('watchers');
+        unset($this->watcherCandidates);
+    }
+
+    public function removeWatcher(int $userId): void
+    {
+        $this->authorize('manageWatchers', $this->topic);
+
+        $this->topic->watchers()->where('user_id', $userId)->delete();
+
+        $this->topic->unsetRelation('watchers');
+        unset($this->watcherCandidates);
     }
 
     /**
@@ -247,6 +286,39 @@ new #[Layout('components.layouts.app')] class extends Component
             @endcan
         </div>
     </div>
+
+    @if ($topic->watchers->isNotEmpty() || auth()->user()?->can('manageWatchers', $topic))
+        <h2 class="text-sm font-semibold text-gray-900 mb-2">ウォッチャー ({{ $topic->watchers->count() }})</h2>
+        <ul class="mb-3 flex flex-wrap gap-2">
+            @foreach ($topic->watchers as $watcher)
+                <li class="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
+                    {{ $watcher->user->name }}
+                    @can('manageWatchers', $topic)
+                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-gray-400 hover:text-red-600" title="ウォッチャーから削除">×</button>
+                    @endcan
+                </li>
+            @endforeach
+        </ul>
+
+        @can('manageWatchers', $topic)
+            @if ($this->watcherCandidates->isNotEmpty())
+                <form wire:submit="addWatcher" class="mb-4 flex items-end gap-2">
+                    <div>
+                        <select wire:model="newWatcherId" class="block rounded-md border-gray-300 shadow-sm text-sm">
+                            <option value="">ウォッチャーを追加...</option>
+                            @foreach ($this->watcherCandidates as $candidate)
+                                <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        追加
+                    </button>
+                </form>
+                @error('newWatcherId') <p class="-mt-2 mb-4 text-sm text-red-600">{{ $message }}</p> @enderror
+            @endif
+        @endcan
+    @endif
 
     @can('manageFlags', $topic)
         @if ($this->otherBoards->isNotEmpty())

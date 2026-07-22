@@ -6,6 +6,7 @@ use App\Models\Message;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Watcher;
 use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 
@@ -405,4 +406,65 @@ test('a member with view_messages can watch and unwatch a topic', function () {
         ->call('toggleWatch');
 
     expect($topic->fresh()->isWatchedBy($user))->toBeFalse();
+});
+
+test('a member with edit_messages can add another member as a watcher', function () {
+    $project = Project::factory()->create();
+    $manager = boardMember($project, ['view_messages', 'edit_messages']);
+    $target = boardMember($project, ['view_messages']);
+    $board = Board::factory()->for($project)->create();
+    $topic = Message::factory()->for($board)->create();
+
+    Livewire::actingAs($manager)
+        ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic])
+        ->set('newWatcherId', $target->id)
+        ->call('addWatcher')
+        ->assertHasNoErrors();
+
+    expect(Watcher::where('watchable_id', $topic->id)->where('user_id', $target->id)->exists())->toBeTrue();
+});
+
+test('a member without edit_messages cannot add another user as a topic watcher', function () {
+    $project = Project::factory()->create();
+    $user = boardMember($project, ['view_messages']);
+    $target = boardMember($project, ['view_messages']);
+    $board = Board::factory()->for($project)->create();
+    $topic = Message::factory()->for($board)->create();
+
+    Livewire::actingAs($user)
+        ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic])
+        ->set('newWatcherId', $target->id)
+        ->call('addWatcher')
+        ->assertForbidden();
+
+    expect(Watcher::where('watchable_id', $topic->id)->where('user_id', $target->id)->exists())->toBeFalse();
+});
+
+test('a manager can remove another watcher from a topic', function () {
+    $project = Project::factory()->create();
+    $manager = boardMember($project, ['view_messages', 'edit_messages']);
+    $watching = boardMember($project, ['view_messages']);
+    $board = Board::factory()->for($project)->create();
+    $topic = Message::factory()->for($board)->create();
+    $topic->watchers()->create(['user_id' => $watching->id]);
+
+    Livewire::actingAs($manager)
+        ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic])
+        ->call('removeWatcher', $watching->id);
+
+    expect(Watcher::where('watchable_id', $topic->id)->where('user_id', $watching->id)->exists())->toBeFalse();
+});
+
+test('a non-member of the project cannot be added as a topic watcher', function () {
+    $project = Project::factory()->create();
+    $manager = boardMember($project, ['view_messages', 'edit_messages']);
+    $outsider = User::factory()->create();
+    $board = Board::factory()->for($project)->create();
+    $topic = Message::factory()->for($board)->create();
+
+    Livewire::actingAs($manager)
+        ->test('messages.show', ['project' => $project, 'board' => $board, 'message' => $topic])
+        ->set('newWatcherId', $outsider->id)
+        ->call('addWatcher')
+        ->assertHasErrors(['newWatcherId']);
 });
