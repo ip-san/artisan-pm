@@ -260,7 +260,7 @@
 | 管理者による強制パスワードリセット | done(2026-07-22) | ユーザー編集フォームに「パスワードリセットメールを送信」ボタンを追加(Laravel/Fortify標準の`password.reset`通知フローを`Password::sendResetLink()`経由で起動)。編集フォームでパスワード欄に直接新しい値を入力する既存の方法も引き続き利用可能。LDAP連携ユーザーへの送信は拒否(ローカルパスワードを持たないため) |
 | 自分自身のロック防止 | done | 一覧画面の切替アクションは自分自身に対して403を返す(唯一の管理者が自分をロックして誰も解除できなくなる事態を防止)。編集フォーム自体は自分の`is_admin`/`status`変更を意図的に許可(Redmineと同様、誤操作ではなく意図的操作として扱う) |
 | LDAP認証ソース CRUD | done | ホスト/ポート/TLS/base_dn/direct-bind or search+bind/属性/onthefly登録/タイムアウト |
-| LDAP接続テストボタン | missing | — |
+| LDAP接続テストボタン | done(2026-07-22) | Redmineの`AuthSourceLdap#test_connection`相当を`LdapAuthenticator::testConnection()`に実装(接続を開き、検索用アカウントが設定されていればバインドも検証)。認証ソース編集フォーム(既存レコードのみ、Redmine同様保存済みの設定でテスト)に「接続をテスト」ボタン+成功/失敗メッセージを追加。新規作成フォームでは非表示(保存前にテストする対象が無いため) |
 | LDAPカスタムフィルタ/属性→カスタムフィールドマッピング | missing | login/name/mailのみ |
 | LDAPオンザフライ登録 | done | — |
 | 二要素認証(TOTP) | done | Fortify経由。管理者による強制無効化の専用ボタンはまだ画面にないが、ユーザー編集画面自体は存在する |

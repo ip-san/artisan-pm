@@ -1,6 +1,8 @@
 <?php
 
+use App\Exceptions\LdapConnectionTestException;
 use App\Models\AuthSource;
+use App\Support\Ldap\LdapAuthenticator;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -33,6 +35,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public int $timeout = 5;
 
+    public ?bool $connectionTestPassed = null;
+
+    public string $connectionTestMessage = '';
+
     public function mount(?AuthSource $authSource = null): void
     {
         if ($authSource?->exists) {
@@ -55,6 +61,29 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->timeout = $authSource->timeout;
         } else {
             $this->authorize('create', AuthSource::class);
+        }
+    }
+
+    /**
+     * Tests the persisted record — matches Redmine's own "Test" link,
+     * which likewise operates on the saved AuthSource rather than
+     * whatever's currently typed into the form. Unsaved edits need to be
+     * saved first to be reflected in the test.
+     */
+    public function testConnection(): void
+    {
+        $this->authorize('update', $this->authSource);
+
+        $source = AuthSource::findOrFail($this->authSource->id);
+
+        try {
+            app(LdapAuthenticator::class)->testConnection($source);
+
+            $this->connectionTestPassed = true;
+            $this->connectionTestMessage = '接続に成功しました。';
+        } catch (LdapConnectionTestException $e) {
+            $this->connectionTestPassed = false;
+            $this->connectionTestMessage = "接続できませんでした: {$e->getMessage()}";
         }
     }
 
@@ -174,6 +203,21 @@ new #[Layout('components.layouts.app')] class extends Component
             <input type="checkbox" wire:model="onthefly_register" class="rounded border-gray-300">
             未登録ユーザーの自動登録を許可する(初回ログイン時にアカウントを自動作成)
         </label>
+
+        @if ($authSource)
+            <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
+                <button type="button" wire:click="testConnection"
+                    class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    接続をテスト
+                </button>
+                <p class="mt-1 text-xs text-gray-500">保存済みの設定でテストします。未保存の変更はまず保存してください。</p>
+                @if ($connectionTestPassed !== null)
+                    <p class="mt-2 text-sm {{ $connectionTestPassed ? 'text-green-700' : 'text-red-600' }}">
+                        {{ $connectionTestMessage }}
+                    </p>
+                @endif
+            </div>
+        @endif
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">

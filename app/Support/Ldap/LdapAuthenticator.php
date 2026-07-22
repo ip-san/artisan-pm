@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Ldap;
 
+use App\Exceptions\LdapConnectionTestException;
 use App\Models\AuthSource;
 use LdapRecord\Connection;
 use LdapRecord\Container;
@@ -35,6 +36,33 @@ final class LdapAuthenticator
         return $source->usesSearchThenBind()
             ? $this->searchThenBind($connection, $source, $login, $password)
             : $this->directBind($connection, $source, $login, $password);
+    }
+
+    /**
+     * Opens the connection and, if a search account is configured, verifies
+     * it can actually bind — matches Redmine's AuthSourceLdap#
+     * test_connection. Only meaningful for an already-persisted AuthSource
+     * (resolveConnection() keys its cached connection by id).
+     *
+     * @throws LdapConnectionTestException
+     */
+    public function testConnection(AuthSource $source): void
+    {
+        $connection = $this->resolveConnection($source);
+
+        try {
+            $connection->connect();
+        } catch (LdapRecordException $e) {
+            throw new LdapConnectionTestException($e->getMessage(), $e);
+        }
+
+        if ($source->account === null || $source->account === '' || $source->account_password === null || $source->account_password === '') {
+            return;
+        }
+
+        if (! $connection->auth()->attempt($source->account, $source->account_password)) {
+            throw new LdapConnectionTestException('検索用アカウントでの認証に失敗しました。');
+        }
     }
 
     /**
