@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\IssueRelationType;
 use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\IssueRelation;
@@ -26,8 +25,11 @@ new #[Layout('components.layouts.app')] class extends Component
      * of the row — e.g. issue A "blocks" issue B, but viewed from B the
      * same row should read "blocked by". `relates` has no directional
      * language, and `precedes`/`follows` are already distinct storable
-     * types (picked directly by the user), so only blocks/duplicates need
-     * a computed reverse label.
+     * types (picked directly by the user), so only blocks/duplicates/
+     * copied_to need a computed reverse label. copied_to is the only
+     * direction ever stored (see IssueRelationType) — viewed from the
+     * source issue it reads "コピー先" (copy destination), viewed from
+     * the copy it reads "コピー元" (copy source).
      *
      * @var array<string, array{from: string, to: string}>
      */
@@ -37,6 +39,7 @@ new #[Layout('components.layouts.app')] class extends Component
         'duplicates' => ['from' => '重複する', 'to' => '重複されている'],
         'precedes' => ['from' => '先行', 'to' => '先行'],
         'follows' => ['from' => '後続', 'to' => '後続'],
+        'copied_to' => ['from' => 'コピー先', 'to' => 'コピー元'],
     ];
 
     /**
@@ -54,6 +57,8 @@ new #[Layout('components.layouts.app')] class extends Component
         'duplicated' => ['duplicates', 'to'],
         'precedes' => ['precedes', 'from'],
         'follows' => ['follows', 'from'],
+        'copied_to' => ['copied_to', 'from'],
+        'copied_from' => ['copied_to', 'to'],
     ];
 
     public Project $project;
@@ -184,7 +189,11 @@ new #[Layout('components.layouts.app')] class extends Component
                     }
                 },
             ],
-            'relationType' => ['required', Rule::enum(IssueRelationType::class)],
+            // copied_to is deliberately excluded from Rule::enum() here —
+            // it's system-generated only (see IssueService::copy()),
+            // matching Redmine's own "add relation" form, which never
+            // offers it as a manually selectable type either.
+            'relationType' => ['required', Rule::in(['relates', 'blocks', 'duplicates', 'precedes', 'follows'])],
             'relationDelay' => ['nullable', 'integer', 'min:0'],
         ]);
 

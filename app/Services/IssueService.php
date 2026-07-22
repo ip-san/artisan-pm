@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\EnumerationType;
+use App\Enums\IssueRelationType;
 use App\Events\IssueCreated;
 use App\Events\IssueDeleted;
 use App\Events\IssueUpdated;
@@ -119,6 +120,7 @@ final class IssueService
             'duplicates' => 'duplicated',
             'precedes' => 'follows',
             'follows' => 'precedes',
+            'copied_to' => 'copied_from',
             default => $type,
         };
 
@@ -322,8 +324,13 @@ final class IssueService
      * subset of Redmine's Issue#copy: category and fixed version are
      * project-local so they're reset (same reasoning as moveToProject),
      * and the assignee is dropped if they aren't a member of the target
-     * project. Attachments, subtasks, watchers, and a copied-from relation
-     * are NOT duplicated — out of scope for this pass.
+     * project. Attachments, subtasks, and watchers are NOT duplicated —
+     * out of scope for this pass. A copied_to relation IS created back to
+     * $source, matching Redmine's Issue#after_create_from_copy — done
+     * automatically on every copy, same as Redmine's own default. Unlike
+     * Redmine, this isn't gated by cross_project_issue_relations, since
+     * the relation records provenance rather than being a user-authored
+     * cross-project link.
      */
     public function copy(Issue $source, Project $targetProject, int $trackerId, User $actor): Issue
     {
@@ -338,7 +345,7 @@ final class IssueService
             ->filter(fn (?string $value) => $value !== null)
             ->all();
 
-        return $this->create([
+        $copy = $this->create([
             'project_id' => $targetProject->id,
             'tracker_id' => $trackerId,
             'status_id' => $source->status_id,
@@ -350,6 +357,14 @@ final class IssueService
             'due_date' => $source->due_date,
             'done_ratio' => $source->done_ratio,
         ], $actor, $customFieldData);
+
+        IssueRelation::create([
+            'issue_from_id' => $source->id,
+            'issue_to_id' => $copy->id,
+            'relation_type' => IssueRelationType::CopiedTo->value,
+        ]);
+
+        return $copy;
     }
 
     /**

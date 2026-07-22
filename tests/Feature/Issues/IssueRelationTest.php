@@ -333,3 +333,61 @@ test('removing a relation journals both issues with the old value set', function
     expect($toDetail->prop_key)->toBe('follows')
         ->and($toDetail->old_value)->toBe((string) $issue->id);
 });
+
+test('a copied_to relation cannot be manually created through the relation form', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $other = makeIssue($project);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set('relationType', 'copied_to')
+        ->set('relatedIssueId', $other->id)
+        ->call('addRelation')
+        ->assertHasErrors(['relationType']);
+
+    expect(IssueRelation::query()->where('issue_from_id', $issue->id)->exists())->toBeFalse();
+});
+
+test('a copied_to relation shows "コピー先" from the source and "コピー元" from the copy', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $source = makeIssue($project);
+    $copy = makeIssue($project);
+    IssueRelation::create([
+        'issue_from_id' => $source->id,
+        'issue_to_id' => $copy->id,
+        'relation_type' => 'copied_to',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $source])
+        ->assertSee('コピー先');
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $copy])
+        ->assertSee('コピー元');
+});
+
+test('deleting a copied_to relation journals "copied_to" on the source and "copied_from" on the copy', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $source = makeIssue($project);
+    $copy = makeIssue($project);
+    $relation = IssueRelation::create([
+        'issue_from_id' => $source->id,
+        'issue_to_id' => $copy->id,
+        'relation_type' => 'copied_to',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $source])
+        ->call('deleteRelation', $relation->id);
+
+    $fromDetail = $source->journals()->latest('id')->firstOrFail()->details()->firstOrFail();
+    expect($fromDetail->prop_key)->toBe('copied_to');
+
+    $toDetail = $copy->journals()->latest('id')->firstOrFail()->details()->firstOrFail();
+    expect($toDetail->prop_key)->toBe('copied_from');
+});

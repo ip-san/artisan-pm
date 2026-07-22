@@ -1,14 +1,17 @@
 <?php
 
+use App\Enums\IssueRelationType;
 use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Services\IssueService;
 use Livewire\Livewire;
 
 function bulkCopyMember(Project $project, array $permissions): User
@@ -58,6 +61,23 @@ test('a user with copy_issues can bulk copy selected issues to another project',
         ->and(Issue::query()->where('project_id', $target->id)->count())->toBe(2)
         ->and(Issue::query()->where('project_id', $target->id)->pluck('subject')->all())
         ->toBe(['Original subject', 'Original subject']);
+});
+
+test('copying an issue creates a copied_to relation back to the source', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $author = User::factory()->create();
+    $source = bulkCopyIssue($project, $tracker);
+
+    $copy = app(IssueService::class)->copy($source, $project, $tracker->id, $author);
+
+    $relation = IssueRelation::query()
+        ->where('issue_from_id', $source->id)
+        ->where('issue_to_id', $copy->id)
+        ->first();
+
+    expect($relation)->not->toBeNull()
+        ->and($relation->relation_type)->toBe(IssueRelationType::CopiedTo);
 });
 
 test('a user without copy_issues cannot bulk copy issues', function () {
