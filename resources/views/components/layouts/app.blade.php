@@ -19,6 +19,7 @@
                         @auth
                             <a href="{{ route('my-page.index') }}" class="text-sm text-gray-600 hover:text-gray-900">マイページ</a>
                             <a href="{{ route('projects.index') }}" class="text-sm text-gray-600 hover:text-gray-900">プロジェクト</a>
+                            <a href="{{ route('issues.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">課題</a>
                             <a href="{{ route('news.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">お知らせ</a>
                             @can('viewAny', \App\Models\Role::class)
                                 <a href="{{ route('roles.index') }}" class="text-sm text-gray-600 hover:text-gray-900">ロール管理</a>

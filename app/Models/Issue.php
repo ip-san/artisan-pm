@@ -385,6 +385,55 @@ final class Issue extends Model implements HasMedia
     }
 
     /**
+     * Cross-project variant of scopeVisibleTo() — a user can have "all
+     * issues" visibility in one project and "own issues only" in
+     * another, so $projects is bucketed by each project's own visibility
+     * tier and each bucket gets its matching WHERE, rather than applying
+     * one tier across every project. $projects is expected to already be
+     * pre-filtered to ones the user can view at all (Project policy
+     * viewAny) — this only adds the per-issue visibility tier within them.
+     *
+     * @param  Builder<Issue>  $query
+     * @param  Collection<int, Project>  $projects
+     * @return Builder<Issue>
+     */
+    public function scopeVisibleToAcrossProjects(Builder $query, ?User $user, Collection $projects): Builder
+    {
+        if ($projects->isEmpty()) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $authorization = app(AuthorizationService::class);
+        $userId = $user?->id;
+
+        $byTier = $projects->groupBy(
+            fn (Project $project) => $authorization->issueVisibilityFor($user, $project)->value
+        );
+
+        $allIds = $byTier->get(IssueVisibility::All->value, collect())->pluck('id');
+        $defaultIds = $byTier->get(IssueVisibility::Default->value, collect())->pluck('id');
+        $ownIds = $byTier->get(IssueVisibility::Own->value, collect())->pluck('id');
+
+        return $query->where(function (Builder $outer) use ($allIds, $defaultIds, $ownIds, $userId): void {
+            if ($allIds->isNotEmpty()) {
+                $outer->orWhereIn('project_id', $allIds);
+            }
+
+            if ($defaultIds->isNotEmpty()) {
+                $outer->orWhere(fn ($q) => $q->whereIn('project_id', $defaultIds)
+                    ->where(fn ($q2) => $q2->where('is_private', false)
+                        ->orWhere('author_id', $userId)
+                        ->orWhere('assigned_to_id', $userId)));
+            }
+
+            if ($ownIds->isNotEmpty()) {
+                $outer->orWhere(fn ($q) => $q->whereIn('project_id', $ownIds)
+                    ->where(fn ($q2) => $q2->where('author_id', $userId)->orWhere('assigned_to_id', $userId)));
+            }
+        });
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toSearchableArray(): array
