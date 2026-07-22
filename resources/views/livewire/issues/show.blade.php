@@ -212,8 +212,10 @@ new #[Layout('components.layouts.app')] class extends Component
         ]);
 
         app(IssueService::class)->journalizeRelation($relation, added: true, actor: auth()->user());
+        app(IssueService::class)->rescheduleFromRelation($relation, auth()->user());
 
         $this->reset('relatedIssueId', 'relationDelay');
+        $this->issue->refresh();
         $this->reloadRelations();
         $this->issue->load('journals.user', 'journals.details');
     }

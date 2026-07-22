@@ -20,6 +20,7 @@ use App\Models\Journal;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -41,6 +42,13 @@ final class IssueService
         'description', 'assigned_to_id', 'fixed_version_id', 'parent_id',
         'start_date', 'due_date', 'done_ratio', 'estimated_hours', 'is_private',
     ];
+
+    /**
+     * Bounds the precedes/follows reschedule cascade — see the
+     * $rescheduledIssueIds doc on update() for why this can't be
+     * guaranteed cycle-free by relation validation alone.
+     */
+    private const MAX_RESCHEDULE_CHAIN_LENGTH = 50;
 
     /**
      * @param  array<string, mixed>  $attributes
@@ -148,12 +156,21 @@ final class IssueService
     /**
      * @param  array<string, mixed>  $attributes
      * @param  array<int, mixed>  $customFieldData  custom_field_id => raw input
+     * @param  array<int, int>  $rescheduledIssueIds  internal — issue ids already rescheduled in this
+     *                                                cascade, so a precedes/follows chain that loops
+     *                                                back on itself (not fully caught by relation-creation
+     *                                                validation, see the checklist's "循環/プロジェクト間検証"
+     *                                                note) can't recurse forever
      *
      * @throws StaleIssueUpdateException if $expectedLockVersion is given and no longer matches — someone
      *                                   else saved a change since the caller loaded this issue
      */
-    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null, array $customFieldData = [], ?int $expectedLockVersion = null, bool $commentIsPrivate = false): Issue
+    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null, array $customFieldData = [], ?int $expectedLockVersion = null, bool $commentIsPrivate = false, array $rescheduledIssueIds = []): Issue
     {
+        if (in_array($issue->id, $rescheduledIssueIds, true) || count($rescheduledIssueIds) >= self::MAX_RESCHEDULE_CHAIN_LENGTH) {
+            return $issue;
+        }
+
         if ($expectedLockVersion !== null && $expectedLockVersion !== $issue->lock_version) {
             throw new StaleIssueUpdateException($issue);
         }
@@ -256,7 +273,105 @@ final class IssueService
             $this->recalculateAncestorAttributes($oldParentId);
         }
 
+        if (array_key_exists('start_date', $changes) || array_key_exists('due_date', $changes)) {
+            $this->rescheduleSuccessors($issue, $actor, [...$rescheduledIssueIds, $issue->id]);
+        }
+
         return $issue->refresh();
+    }
+
+    /**
+     * Matches Redmine's IssueRelation#set_issue_to_dates, called right
+     * after a precedes/follows relation is created — the successor is
+     * rescheduled immediately from the predecessor's *current* dates,
+     * rather than waiting for the predecessor to be edited again.
+     */
+    public function rescheduleFromRelation(IssueRelation $relation, User $actor): void
+    {
+        if (! in_array($relation->relation_type, [IssueRelationType::Precedes, IssueRelationType::Follows], true)) {
+            return;
+        }
+
+        $predecessor = $relation->relation_type === IssueRelationType::Precedes ? $relation->from : $relation->to;
+        $successor = $relation->relation_type === IssueRelationType::Precedes ? $relation->to : $relation->from;
+
+        if ($predecessor === null || $successor === null) {
+            return;
+        }
+
+        $this->rescheduleSuccessor($predecessor, $successor, $relation->delay ?? 0, $actor, [$predecessor->id]);
+    }
+
+    /**
+     * Matches Redmine's Issue#reschedule_following_issues: when a precedes
+     * predecessor's dates change, every successor reachable via a
+     * precedes/follows relation is pushed forward to start no earlier than
+     * the predecessor's due date (or start date, if it has no due date)
+     * plus the relation's delay — recursing through the chain via
+     * update()'s own $rescheduledIssueIds cascade.
+     *
+     * Deliberately simplified from Redmine in two ways, both documented in
+     * the parity checklist: dates shift by calendar days rather than
+     * working days (this app has no working-day calendar), and a successor
+     * with children is rescheduled directly rather than propagating down
+     * to its leaves — the same "dates are freely editable, no derivation
+     * lock" treatment this app already gives every parent issue.
+     *
+     * @param  array<int, int>  $rescheduledIssueIds
+     */
+    private function rescheduleSuccessors(Issue $predecessor, User $actor, array $rescheduledIssueIds): void
+    {
+        $relations = IssueRelation::query()
+            ->where(function (Builder $query) use ($predecessor): void {
+                $query->where('issue_from_id', $predecessor->id)->where('relation_type', IssueRelationType::Precedes->value);
+            })
+            ->orWhere(function (Builder $query) use ($predecessor): void {
+                $query->where('issue_to_id', $predecessor->id)->where('relation_type', IssueRelationType::Follows->value);
+            })
+            ->with(['from', 'to'])
+            ->get();
+
+        foreach ($relations as $relation) {
+            $successor = $relation->relation_type === IssueRelationType::Precedes ? $relation->to : $relation->from;
+
+            if ($successor === null || in_array($successor->id, $rescheduledIssueIds, true)) {
+                continue;
+            }
+
+            $this->rescheduleSuccessor($predecessor, $successor, $relation->delay ?? 0, $actor, $rescheduledIssueIds);
+        }
+    }
+
+    /**
+     * @param  array<int, int>  $rescheduledIssueIds
+     */
+    private function rescheduleSuccessor(Issue $predecessor, Issue $successor, int $delay, User $actor, array $rescheduledIssueIds): void
+    {
+        $anchor = $predecessor->due_date ?? $predecessor->start_date;
+
+        if ($anchor === null) {
+            return;
+        }
+
+        $soonestStart = $anchor->copy()->addDays(1 + $delay);
+
+        if ($successor->start_date !== null && $successor->start_date->greaterThanOrEqualTo($soonestStart)) {
+            return;
+        }
+
+        $duration = $successor->start_date !== null && $successor->due_date !== null
+            ? $successor->start_date->diffInDays($successor->due_date)
+            : 0;
+
+        $this->update(
+            $successor,
+            [
+                'start_date' => $soonestStart->toDateString(),
+                'due_date' => $soonestStart->copy()->addDays($duration)->toDateString(),
+            ],
+            $actor,
+            rescheduledIssueIds: $rescheduledIssueIds,
+        );
     }
 
     /**
