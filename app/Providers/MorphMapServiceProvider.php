@@ -11,6 +11,7 @@ use App\Models\Issue;
 use App\Models\Message;
 use App\Models\News;
 use App\Models\Project;
+use App\Models\User;
 use App\Models\Version;
 use App\Models\WikiPage;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -42,6 +43,7 @@ final class MorphMapServiceProvider extends ServiceProvider
             'group' => Group::class,
             'time_entry_activity' => Enumeration::class,
             'document_category' => Enumeration::class,
+            'user' => User::class,
         ]);
     }
 }

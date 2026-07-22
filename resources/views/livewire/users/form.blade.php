@@ -2,6 +2,7 @@
 
 use App\Enums\UserStatus;
 use App\Models\AuthSource;
+use App\Models\CustomField;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +33,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $password_confirmation = '';
 
+    /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
+    public array $customFieldValues = [];
+
     public function mount(?User $user = null): void
     {
         if ($user?->exists) {
@@ -44,6 +48,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->status = $user->status->value;
             $this->auth_source_id = $user->auth_source_id;
             $this->login = (string) $user->login;
+            $this->customFieldValues = $user->customFieldFormValues($user->relevantCustomFields());
         } else {
             $this->authorize('create', User::class);
         }
@@ -53,6 +58,15 @@ new #[Layout('components.layouts.app')] class extends Component
     public function authSources(): Collection
     {
         return AuthSource::query()->orderBy('name')->get();
+    }
+
+    /**
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function customFields(): Collection
+    {
+        return ($this->user ?? new User)->relevantCustomFields();
     }
 
     public function save(): void
@@ -72,7 +86,11 @@ new #[Layout('components.layouts.app')] class extends Component
             $rules['password'] = [$this->user ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'];
         }
 
+        $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
+
         $data = $this->validate($rules);
+        $customFieldData = $data['customFieldValues'] ?? [];
+        unset($data['customFieldValues']);
 
         // is_admin is intentionally not in User's Fillable list (it's a
         // privilege-granting column — see the model's docblock), so it's
@@ -107,6 +125,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->user->is_admin = $isAdmin;
         $this->user->save();
+
+        $this->user->setCustomFieldValues($customFieldData);
 
         $this->redirect(route('users.index'), navigate: true);
     }
@@ -202,6 +222,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     </button>
                 </div>
             @endif
+        @endif
+
+        @if ($this->customFields->isNotEmpty())
+            <div class="space-y-4 border-t border-gray-200 pt-4">
+                @foreach ($this->customFields as $field)
+                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" />
+                @endforeach
+            </div>
         @endif
 
         @if (session('status'))

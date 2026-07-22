@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\HasCustomFields;
+use App\Enums\CustomizableType;
 use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -14,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
@@ -33,7 +36,7 @@ use Laravel\Passport\HasApiTokens;
 final class User extends Authenticatable implements OAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasCustomFields, HasFactory, Notifiable, TwoFactorAuthenticatable;
 
     protected function casts(): array
     {
@@ -91,5 +94,27 @@ final class User extends Authenticatable implements OAuthenticatable
     public function isActive(): bool
     {
         return $this->status === UserStatus::Active;
+    }
+
+    public static function customizableType(): CustomizableType
+    {
+        return CustomizableType::User;
+    }
+
+    /**
+     * Unlike Issue/Project/Version, a user has no project/role to scope
+     * visibility by — user administration is a site-wide resource managed
+     * exclusively by admins (UserPolicy denies everyone else), so every
+     * User custom field is simply relevant to every user, matching
+     * Group::relevantCustomFields()'s identical reasoning.
+     *
+     * @return Collection<int, CustomField>
+     */
+    public function relevantCustomFields(): Collection
+    {
+        return CustomField::query()
+            ->where('customized_type', CustomizableType::User)
+            ->orderBy('position')
+            ->get();
     }
 }

@@ -20,4 +20,5 @@ enum CustomizableType: string
     case TimeEntryActivity = 'time_entry_activity';
     case Document = 'document';
     case DocumentCategory = 'document_category';
+    case User = 'user';
 }
