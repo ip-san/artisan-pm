@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\EnumerationType;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
@@ -30,9 +31,34 @@ use Webklex\PHPIMAP\Message;
  * A subject shaped like "[... #123]" is treated as a reply to issue
  * #123 instead — its body is added as a comment rather than creating a
  * new issue, matching Redmine's receive_issue_reply.
+ *
+ * The body is also scanned for a handful of Redmine-style keyword
+ * command lines ("Status: Closed", one per line) that override an
+ * attribute on the created/replied-to issue, matching Redmine's
+ * MailHandler#issue_attributes_from_keywords — narrowed to
+ * status/priority/assigned_to/done_ratio (this app has no i18n, so
+ * unlike Redmine the keyword label itself is a fixed English string
+ * rather than translated per Setting.default_language). tracker,
+ * category, fixed_version, start_date/due_date, estimated_hours,
+ * parent_issue, is_private, and custom-field keywords are intentionally
+ * not recognized — a deliberately narrower grammar than Redmine's, same
+ * scope-cut RepositorySyncService's commit-keyword parsing already
+ * takes for `@Nh` time logging.
  */
 final class IncomingMailService
 {
+    /**
+     * Keyword label (lowercase, spaces) => the Issue attribute it sets.
+     *
+     * @var array<string, string>
+     */
+    private const array KEYWORD_ATTRIBUTES = [
+        'status' => 'status_id',
+        'priority' => 'priority_id',
+        'assigned to' => 'assigned_to_id',
+        'done ratio' => 'done_ratio',
+    ];
+
     public function __construct(
         private readonly IssueService $issues,
         private readonly AuthorizationService $authorization,
@@ -198,6 +224,7 @@ final class IncomingMailService
         }
 
         $subject = mb_substr($this->stripProjectPrefix($mail->subject), 0, 255);
+        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $project);
 
         $issue = $this->issues->create([
             'project_id' => $project->id,
@@ -205,7 +232,8 @@ final class IncomingMailService
             'status_id' => $statusId,
             'priority_id' => $priorityId,
             'subject' => $subject !== '' ? $subject : '(no subject)',
-            'description' => $mail->body,
+            'description' => $body,
+            ...$keywordAttributes,
         ], $author);
 
         foreach ($mail->attachments as $attachment) {
@@ -250,8 +278,9 @@ final class IncomingMailService
             return null;
         }
 
-        $comment = trim($mail->body);
-        $updated = $this->issues->update($issue, [], $author, $comment !== '' ? $comment : null);
+        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $issue->project);
+        $comment = trim($body);
+        $updated = $this->issues->update($issue, $keywordAttributes, $author, $comment !== '' ? $comment : null);
 
         foreach ($mail->attachments as $attachment) {
             if ($attachment['content'] === '') {
@@ -294,5 +323,61 @@ final class IncomingMailService
     private function stripProjectPrefix(string $subject): string
     {
         return trim((string) preg_replace('/^\[([^\]]+)\]\s*/', '', $subject));
+    }
+
+    /**
+     * Scans the body line by line for a recognized "Keyword: value" line
+     * (see KEYWORD_ATTRIBUTES), resolving each value against the target
+     * project and dropping the matched line from the returned body so it
+     * isn't duplicated in the stored description/comment — matches
+     * Redmine's destructive keyword-line removal in cleaned_up_text_body.
+     * A keyword whose value can't be resolved (unknown status name, etc.)
+     * is left as plain text in the body rather than silently vanishing,
+     * so the sender can see what didn't take effect.
+     *
+     * @return array{attributes: array<string, int>, body: string}
+     */
+    private function extractKeywordAttributes(string $body, Project $project): array
+    {
+        $attributes = [];
+        $kept = [];
+
+        foreach (explode("\n", $body) as $line) {
+            if (preg_match('/^(status|priority|assigned to|done ratio)\s*:\s*(.+?)\s*$/i', $line, $matches) === 1) {
+                $keyword = mb_strtolower($matches[1]);
+                $value = $this->resolveKeywordValue($keyword, trim($matches[2]), $project);
+
+                if ($value !== null) {
+                    $attributes[self::KEYWORD_ATTRIBUTES[$keyword]] = $value;
+
+                    continue;
+                }
+            }
+
+            $kept[] = $line;
+        }
+
+        return ['attributes' => $attributes, 'body' => trim(implode("\n", $kept))];
+    }
+
+    private function resolveKeywordValue(string $keyword, string $value, Project $project): ?int
+    {
+        if ($value === '') {
+            return null;
+        }
+
+        if ($keyword === 'done ratio') {
+            return is_numeric($value) && (int) $value >= 0 && (int) $value <= 100 ? (int) $value : null;
+        }
+
+        $id = match ($keyword) {
+            'status' => IssueStatus::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($value)])->value('id'),
+            'priority' => Enumeration::query()->ofType(EnumerationType::IssuePriority)->whereRaw('LOWER(name) = ?', [mb_strtolower($value)])->value('id'),
+            'assigned to' => $project->assignableUsers()
+                ->first(fn (User $user) => strcasecmp($user->email, $value) === 0 || strcasecmp($user->name, $value) === 0)?->id,
+            default => null,
+        };
+
+        return $id !== null ? (int) $id : null;
     }
 }

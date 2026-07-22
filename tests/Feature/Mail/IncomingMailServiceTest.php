@@ -12,6 +12,15 @@ use App\Models\User;
 use App\Services\IncomingMailService;
 use App\Support\Mail\ParsedIncomingMail;
 
+function incomingMailAssignableUser(Project $project, string $name, string $email): User
+{
+    $user = User::factory()->create(['name' => $name, 'email' => $email]);
+    $role = Role::factory()->create(['permissions' => ['view_issues'], 'assignable' => true]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    return $user;
+}
+
 function configureIncomingMail(Project $project, Tracker $tracker, IssueStatus $status): void
 {
     Enumeration::factory()->create(['is_default' => true]);
@@ -310,4 +319,129 @@ test('filenameExcluded matches configured glob patterns against the attachment f
 
 test('filenameExcluded matches nothing when no pattern is configured', function () {
     expect(app(IncomingMailService::class)->filenameExcluded('anything.txt'))->toBeFalse();
+});
+
+test('a Status keyword line sets the issue status and is stripped from the description', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $closedStatus = IssueStatus::factory()->create(['name' => 'Closed']);
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(
+        subject: 'Bug report',
+        body: "It broke.\nStatus: Closed\nMore details.",
+        fromEmail: 'sender@example.com',
+    );
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->status_id)->toBe($closedStatus->id)
+        ->and($issue->description)->toBe("It broke.\nMore details.");
+});
+
+test('keyword matching is case-insensitive on both the label and the value', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $priority = Enumeration::factory()->create(['name' => 'High']);
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(
+        subject: 'Bug report',
+        body: 'priority:  high',
+        fromEmail: 'sender@example.com',
+    );
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->priority_id)->toBe($priority->id);
+});
+
+test('an Assigned to keyword line resolves by email or by full name', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+    $assignee = incomingMailAssignableUser($project, 'Alice Example', 'alice@example.com');
+
+    $byEmail = app(IncomingMailService::class)->createIssueFromMail(new ParsedIncomingMail(
+        subject: 'By email', body: 'Assigned to: alice@example.com', fromEmail: 'sender@example.com',
+    ));
+    $byName = app(IncomingMailService::class)->createIssueFromMail(new ParsedIncomingMail(
+        subject: 'By name', body: 'Assigned to: Alice Example', fromEmail: 'sender@example.com',
+    ));
+
+    expect($byEmail->assigned_to_id)->toBe($assignee->id)
+        ->and($byName->assigned_to_id)->toBe($assignee->id);
+});
+
+test('a Done ratio keyword line sets the progress percentage', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(subject: 'Progress update', body: 'Done ratio: 50', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->done_ratio)->toBe(50);
+});
+
+test('an out-of-range Done ratio value is ignored and left in the description', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(subject: 'Bad value', body: 'Done ratio: 150', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->done_ratio)->toBe(0)
+        ->and($issue->description)->toBe('Done ratio: 150');
+});
+
+test('an unrecognized keyword value is left as plain text rather than silently dropped', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(subject: 'Unknown status', body: 'Status: NoSuchStatus', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->status_id)->toBe($status->id)
+        ->and($issue->description)->toBe('Status: NoSuchStatus');
+});
+
+test('a keyword line on a reply updates the existing issue and is stripped from the comment', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $closedStatus = IssueStatus::factory()->create(['name' => 'Closed']);
+    $project->trackers()->attach($tracker);
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+    $author = incomingMailAuthor($project, ['view_issues', 'edit_issues']);
+
+    $mail = new ParsedIncomingMail(
+        subject: "[{$project->identifier} #{$issue->id}] Re: something",
+        body: "Fixed now.\nStatus: Closed",
+        fromEmail: $author->email,
+    );
+
+    $result = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($result->status_id)->toBe($closedStatus->id)
+        ->and($issue->fresh()->journals()->latest()->first()->notes)->toBe('Fixed now.');
 });
