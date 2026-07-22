@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\QueryType;
+use App\Enums\QueryVisibility;
 use App\Enums\TimeEntryVisibility;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
+use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\QueryFilterEngine;
@@ -12,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -64,7 +67,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $newQueryName = '';
 
-    public bool $newQueryIsPublic = false;
+    public string $newQueryVisibility = 'private';
+
+    /** @var array<int, int> */
+    public array $newQueryRoleIds = [];
 
     public bool $showSaveForm = false;
 
@@ -176,26 +182,50 @@ new #[Layout('components.layouts.app')] class extends Component
         }
     }
 
+    #[Computed]
+    public function canManagePublicQueries(): bool
+    {
+        return app(AuthorizationService::class)->can(auth()->user(), 'manage_public_queries', $this->project);
+    }
+
+    #[Computed]
+    public function availableRoles(): Collection
+    {
+        return Role::query()->whereNull('builtin')->orderBy('position')->get();
+    }
+
     public function saveQuery(): void
     {
         $data = $this->validate([
             'newQueryName' => ['required', 'string', 'max:255'],
-            'newQueryIsPublic' => ['boolean'],
+            'newQueryVisibility' => ['required', Rule::enum(QueryVisibility::class)],
+            'newQueryRoleIds' => $this->newQueryVisibility === QueryVisibility::Roles->value ? ['required', 'array', 'min:1'] : ['array'],
+            'newQueryRoleIds.*' => ['exists:roles,id'],
         ]);
 
-        SavedQuery::create([
+        // Only a manage_public_queries holder can make a query anything
+        // but private — matches Redmine's QueriesController#new/#create,
+        // which silently forces VISIBILITY_PRIVATE for anyone else rather
+        // than rejecting the submission outright.
+        $visibility = $this->canManagePublicQueries ? $data['newQueryVisibility'] : QueryVisibility::Private->value;
+
+        $query = SavedQuery::create([
             'name' => $data['newQueryName'],
             'type' => QueryType::TimeEntry->value,
             'user_id' => auth()->id(),
             'project_id' => $this->project->id,
-            'is_public' => $data['newQueryIsPublic'],
+            'visibility' => $visibility,
             'filters' => $this->builtFilters(),
             'column_names' => $this->columns,
             'sort_criteria' => $this->sortKey ? [[$this->sortKey, $this->sortDirection]] : [],
             'group_by' => $this->groupBy,
         ]);
 
-        $this->reset(['newQueryName', 'newQueryIsPublic', 'showSaveForm']);
+        if ($visibility === QueryVisibility::Roles->value) {
+            $query->roles()->sync($data['newQueryRoleIds']);
+        }
+
+        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'showSaveForm']);
         unset($this->savedQueries);
         session()->flash('status', 'クエリを保存しました。');
     }
@@ -225,15 +255,22 @@ new #[Layout('components.layouts.app')] class extends Component
         unset($this->timeEntries, $this->groupedTimeEntries);
     }
 
+    /**
+     * Roles-scoped visibility needs a role-intersection check that isn't
+     * a single SQL predicate, so this filters in memory after the fact —
+     * the same approach projects.index uses for its own can('view')
+     * filter, and small enough per project to not matter.
+     */
     #[Computed]
     public function savedQueries(): Collection
     {
         return SavedQuery::query()
             ->where('project_id', $this->project->id)
             ->where('type', QueryType::TimeEntry->value)
-            ->where(fn ($q) => $q->where('user_id', auth()->id())->orWhere('is_public', true))
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->filter(fn (SavedQuery $query) => $query->visibleTo(auth()->user()))
+            ->values();
     }
 
     public function columnValue(TimeEntry $entry, string $key): string
@@ -436,12 +473,31 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         @if ($showSaveForm)
-            <form wire:submit="saveQuery" class="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
+            <form wire:submit="saveQuery" class="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
                 <input type="text" wire:model="newQueryName" placeholder="クエリ名" class="rounded-md border-gray-300 text-sm">
-                <label class="flex items-center gap-1 text-sm text-gray-700">
-                    <input type="checkbox" wire:model="newQueryIsPublic" class="rounded border-gray-300">
-                    公開する
-                </label>
+
+                @if ($this->canManagePublicQueries)
+                    <select wire:model.live="newQueryVisibility" class="rounded-md border-gray-300 text-sm">
+                        <option value="private">非公開</option>
+                        <option value="roles">特定ロールに公開</option>
+                        <option value="public">全員に公開</option>
+                    </select>
+
+                    @if ($newQueryVisibility === 'roles')
+                        <span class="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                            @foreach ($this->availableRoles as $role)
+                                <label class="flex items-center gap-1">
+                                    <input type="checkbox" wire:model="newQueryRoleIds" value="{{ $role->id }}" class="rounded border-gray-300">
+                                    {{ $role->name }}
+                                </label>
+                            @endforeach
+                        </span>
+                        @error('newQueryRoleIds') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                    @endif
+                @else
+                    <span class="text-xs text-gray-500">(非公開クエリとして保存されます)</span>
+                @endif
+
                 <button type="submit" class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500">保存</button>
                 @error('newQueryName') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
             </form>

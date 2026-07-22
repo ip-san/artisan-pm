@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\QueryVisibility;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Member;
@@ -10,10 +11,10 @@ use App\Models\Setting;
 use App\Models\User;
 use Livewire\Livewire;
 
-function queryListMember(Project $project): User
+function queryListMember(Project $project, array $permissions = ['view_issues']): User
 {
     $user = User::factory()->create();
-    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    $role = Role::factory()->create(['permissions' => $permissions]);
     $member = Member::factory()->for($project)->for($user)->create();
     $member->roles()->attach($role);
 
@@ -83,7 +84,7 @@ test('grouping buckets issues by the chosen field label', function () {
 
 test('saving a query persists the current filters, columns, and sort', function () {
     $project = Project::factory()->create();
-    $user = queryListMember($project);
+    $user = queryListMember($project, ['view_issues', 'manage_public_queries']);
     $status = IssueStatus::factory()->create();
 
     Livewire::actingAs($user)
@@ -92,14 +93,59 @@ test('saving a query persists the current filters, columns, and sort', function 
         ->set('filterOperators.status_id', '=')
         ->set('filterValues.status_id.0', $status->id)
         ->set('newQueryName', 'My open bugs')
-        ->set('newQueryIsPublic', true)
+        ->set('newQueryVisibility', 'public')
         ->call('saveQuery');
 
     $saved = SavedQuery::where('name', 'My open bugs')->firstOrFail();
 
-    expect($saved->is_public)->toBeTrue()
+    expect($saved->visibility)->toBe(QueryVisibility::Public)
         ->and($saved->filters['status_id']['operator'])->toBe('=')
         ->and($saved->filters['status_id']['values'])->toBe([$status->id]);
+});
+
+test('a user without manage_public_queries cannot make a saved query public or roles-scoped', function () {
+    $project = Project::factory()->create();
+    $user = queryListMember($project);
+
+    Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('newQueryName', 'Attempted public query')
+        ->set('newQueryVisibility', 'public')
+        ->call('saveQuery');
+
+    $saved = SavedQuery::where('name', 'Attempted public query')->firstOrFail();
+
+    expect($saved->visibility)->toBe(QueryVisibility::Private);
+});
+
+test('a roles-scoped query is visible only to members holding one of the selected roles', function () {
+    $project = Project::factory()->create();
+    $manager = queryListMember($project, ['view_issues', 'manage_public_queries']);
+    $visibleRole = Role::factory()->create(['permissions' => ['view_issues']]);
+    $otherRole = Role::factory()->create(['permissions' => ['view_issues']]);
+
+    $inRoleUser = User::factory()->create();
+    Member::factory()->for($project)->for($inRoleUser)->create()->roles()->attach($visibleRole);
+
+    $outOfRoleUser = User::factory()->create();
+    Member::factory()->for($project)->for($outOfRoleUser)->create()->roles()->attach($otherRole);
+
+    Livewire::actingAs($manager)
+        ->test('issues.index', ['project' => $project])
+        ->set('newQueryName', 'Roles-scoped query')
+        ->set('newQueryVisibility', 'roles')
+        ->set('newQueryRoleIds', [$visibleRole->id])
+        ->call('saveQuery');
+
+    $saved = SavedQuery::where('name', 'Roles-scoped query')->firstOrFail();
+    expect($saved->visibility)->toBe(QueryVisibility::Roles)
+        ->and($saved->roles->pluck('id')->all())->toBe([$visibleRole->id]);
+
+    $visibleComponent = Livewire::actingAs($inRoleUser)->test('issues.index', ['project' => $project]);
+    expect($visibleComponent->get('savedQueries')->pluck('name'))->toContain('Roles-scoped query');
+
+    $hiddenComponent = Livewire::actingAs($outOfRoleUser)->test('issues.index', ['project' => $project]);
+    expect($hiddenComponent->get('savedQueries')->pluck('name'))->not->toContain('Roles-scoped query');
 });
 
 test('loading a saved query restores its filters into the component', function () {
@@ -112,7 +158,7 @@ test('loading a saved query restores its filters into the component', function (
         'type' => 'issue',
         'user_id' => $user->id,
         'project_id' => $project->id,
-        'is_public' => false,
+        'visibility' => 'private',
         'filters' => ['status_id' => ['operator' => '=', 'values' => [$status->id]]],
         'column_names' => ['subject', 'status_id'],
         'sort_criteria' => [['subject', 'desc']],
@@ -136,7 +182,7 @@ test('a private query is not visible to another project member', function () {
 
     SavedQuery::create([
         'name' => 'Private query', 'type' => 'issue', 'user_id' => $owner->id,
-        'project_id' => $project->id, 'is_public' => false,
+        'project_id' => $project->id, 'visibility' => 'private',
         'filters' => [], 'column_names' => ['subject'],
     ]);
 

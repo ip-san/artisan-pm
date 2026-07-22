@@ -33,6 +33,7 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('select_project_modules');
         $registry->register('manage_members');
         $registry->register('add_subprojects');
+        $registry->register('manage_public_queries');
 
         $registry->register('manage_versions', module: ProjectModuleKey::IssueTracking);
         $registry->register('manage_categories', module: ProjectModuleKey::IssueTracking);

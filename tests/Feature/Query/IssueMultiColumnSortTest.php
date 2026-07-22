@@ -100,7 +100,7 @@ test('loading a query with fewer sort levels clears any previously set secondary
         'type' => 'issue',
         'user_id' => $user->id,
         'project_id' => $project->id,
-        'is_public' => false,
+        'visibility' => 'private',
         'filters' => [],
         'column_names' => ['subject'],
         'sort_criteria' => [['subject', 'asc']],

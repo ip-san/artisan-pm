@@ -364,7 +364,7 @@
 | 機能 | 状態 | 備考 |
 |---|---|---|
 | 保存済みクエリ(フィルタ/列/ソート/グループ) | done | `App\Models\Query` |
-| 公開/非公開 | partial | 2値(`is_public`)のみ。Redmine は PRIVATE/ROLES/PUBLIC の3値+ロールスコープ+`manage_public_queries` 権限。誰でも公開フラグを立てられ、権限チェックがない |
+| 公開/非公開 | done(2026-07-22) | Redmineの`Query::VISIBILITY_PRIVATE/ROLES/PUBLIC`を移植。`queries.is_public`(boolean)を`visibility`(文字列enum、既存データは`true→public`/`false→private`で移行)に置き換え、`query_role`ピボットテーブルを追加。新規`manage_public_queries`権限を登録し、`saveQuery()`はこの権限を持たない場合サーバー側で強制的に`private`へフォールバック(Redmineの`QueriesController#new/#create`と同じ、クライアント側のフォーム自体も非保持者には選択肢を出さない二重の防御)。`visibleTo()`はロール判定を含めて全面書き換え(匿名ユーザーにも対応)、`savedQueries()`はロール交差判定がSQL述語1本で表現できないため`projects.index`と同じ「取得後にメモリ内フィルタ」方式に変更。課題一覧・工数一覧の両方の保存済みクエリ機能に適用 |
 | プロジェクト横断クエリ | missing | 常に `project_id` でフィルタ |
 | 列選択 | partial(課題)/partial(工数、2026-07-22) | 課題: 固定のネイティブ列のみ、カスタムフィールドは列にできず、並べ替えもできない。工数: `issues.index`と同じ`DISPLAY_COLUMNS`+チェックボックスUIパターンを移植(日付/担当者/作業分類/課題/コメント/時間の6列から選択、既定は全列表示)。表示テーブル・CSVエクスポートとも選択列に追従、保存済みクエリの`column_names`にも反映(既存の`saveQuery`/`loadQuery`が空配列を書き込んでいた不備も合わせて解消)。課題側と同様、カスタムフィールドは列として選択不可、列の並べ替え(ドラッグでの順序変更)も対象外 |
 | グルーピング | partial | 固定の短いリスト(ステータス/トラッカー/優先度/担当者)のみ。件数はSQL `GROUP BY`による全件集計(2026-07-21)。表示行自体は現在のページ内のみ(意図的、パフォーマンス上の理由)。カスタムフィールドでのグルーピング不可 |
