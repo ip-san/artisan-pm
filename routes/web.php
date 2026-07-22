@@ -18,6 +18,7 @@ Route::middleware('auth')->group(function () {
 
     Volt::route('/my/page', 'my-page.index')->name('my-page.index');
     Volt::route('/profile', 'profile.index')->name('profile.index');
+    Volt::route('/news', 'news.global-index')->name('news.global-index');
 
     Volt::route('/projects', 'projects.index')->name('projects.index');
     Volt::route('/projects/create', 'projects.form')->name('projects.create');

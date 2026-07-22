@@ -28,6 +28,35 @@ test('a member with view_news can see the news list and an item', function () {
     Livewire::actingAs($user)->test('news.show', ['project' => $project, 'news' => $news])->assertOk();
 });
 
+test('the global news index only shows items from projects the user can view_news in', function () {
+    $visibleProject = Project::factory()->create();
+    $hiddenProject = Project::factory()->create();
+    $user = newsMember($visibleProject);
+    News::factory()->for($visibleProject)->create(['title' => 'Visible announcement']);
+    News::factory()->for($hiddenProject)->create(['title' => 'Hidden announcement']);
+
+    Livewire::actingAs($user)
+        ->test('news.global-index')
+        ->assertSee('Visible announcement')
+        ->assertDontSee('Hidden announcement');
+});
+
+test('the global news index paginates at 10 items per page, newest first', function () {
+    $project = Project::factory()->create();
+    $user = newsMember($project);
+
+    for ($i = 1; $i <= 11; $i++) {
+        News::factory()->for($project)->create(['title' => "Announcement {$i}", 'created_at' => now()->addSeconds($i)]);
+    }
+
+    $page1 = Livewire::actingAs($user)->test('news.global-index')->get('newsItems');
+    expect($page1->pluck('title')->all())->toHaveCount(10)
+        ->and($page1->first()->title)->toBe('Announcement 11');
+
+    $page2 = Livewire::actingAs($user)->test('news.global-index')->call('gotoPage', 2)->get('newsItems');
+    expect($page2->pluck('title')->all())->toBe(['Announcement 1']);
+});
+
 test('only a member with manage_news can create, edit, or delete news', function () {
     $project = Project::factory()->create();
     $member = newsMember($project);

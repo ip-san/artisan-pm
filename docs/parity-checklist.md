@@ -321,7 +321,7 @@
 | 添付ファイル | done | `News implements HasMedia` |
 | Watch・作成者自動Watch | done(2026-07-21) | `News::watchers()`+トグルボタン、作成時に作成者を自動Watch |
 | メール通知 | missing | — |
-| **プロジェクト横断のNews一覧** | missing | プロジェクト配下ルートのみ |
+| プロジェクト横断のNews一覧 | done(2026-07-22) | Redmineの`NewsController#index`(`project_id`無し、`News.visible`スコープ)相当。新規`/news`ルート(`news.global-index`、初のプロジェクト非スコープなグローバル画面)を追加、ヘッダーナビゲーションに「お知らせ」リンクを配置。`view_news`権限の可視性判定(プロジェクトのアーカイブ/クローズ/モジュール有効性含む)はSQLの単一WHERE句では表現できないため、`projects.index`と同じ「全件取得→`can('view', $news)`でメモリ内フィルタ→`LengthAwarePaginator`で手動ページネーション」方式を踏襲(10件/ページ、Redmineの既定値と同じ)。プロジェクト列を追加表示 |
 
 ### Documents
 
