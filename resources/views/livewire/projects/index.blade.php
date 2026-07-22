@@ -38,14 +38,24 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * With no search or status filter active, this keeps the original
-     * root-projects-only display (children are eager-loaded but not yet
-     * rendered — a separate, larger piece of tree-UI work). Once either
-     * filter is used, subprojects need to be findable too, so the query
-     * switches to a flat, paginated list across every project regardless
-     * of depth. Pagination happens after the can('view') filter (which
+     * With no search or status filter active, this shows every project
+     * (not just roots) in nested-set tree order with each one's absolute
+     * depth exposed via withDepth() — the Blade view indents by that
+     * depth, matching Redmine's tree-style project list. Once either
+     * filter is used, subprojects need to be findable in a flat match
+     * list instead, so the query switches to plain alphabetical order
+     * across every project with no depth/indentation (searching implies
+     * wanting matches, not tree context — replicating Redmine's
+     * ancestor-expansion-under-filter is a separate, larger piece of
+     * work). Pagination happens after the can('view') filter (which
      * can't be expressed in SQL) rather than via ->paginate(), so the
      * page count reflects only what this user can actually see.
+     *
+     * Depth is absolute (from the true root), not relative to the
+     * nearest VISIBLE ancestor — a project whose parent this user can't
+     * view still renders at its real depth, so it can appear indented
+     * with no visible parent above it. This is a deliberate
+     * simplification; Redmine's own tree rendering is more involved.
      *
      * @return Collection<int, Project>|LengthAwarePaginator<int, Project>
      */
@@ -54,9 +64,11 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $filtering = $this->search !== '' || $this->statusFilter !== 'all';
 
-        $query = Project::query()->orderBy('name');
+        $query = Project::query();
 
         if ($filtering) {
+            $query->orderBy('name');
+
             if ($this->search !== '') {
                 $query->where(fn ($q) => $q->where('name', 'like', "%{$this->search}%")
                     ->orWhere('identifier', 'like', "%{$this->search}%"));
@@ -66,7 +78,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 $query->where('status', $this->statusFilter);
             }
         } else {
-            $query->whereDoesntHave('parent')->with('children');
+            $query->withDepth()->defaultOrder();
         }
 
         $visible = $query->get()
@@ -142,7 +154,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
         @forelse ($this->projects as $project)
-            <li class="flex items-start justify-between px-4 py-3">
+            <li class="flex items-start justify-between px-4 py-3" style="padding-left: {{ 16 + ($project->depth ?? 0) * 16 }}px">
                 <div>
                     <a href="{{ route('projects.show', $project) }}" class="font-medium text-indigo-600 hover:underline">
                         {{ $project->name }}

@@ -64,7 +64,7 @@ test('the project list paginates once a filter is active', function () {
         ->and($component->get('projects')->count())->toBe(25);
 });
 
-test('without any filter the list is not paginated and shows only root projects', function () {
+test('without any filter the list is not paginated and shows both root and subprojects in tree order', function () {
     $parent = Project::factory()->create(['name' => 'Root']);
     Project::factory()->create(['name' => 'Nested Child', 'parent_id' => $parent->id]);
     $user = User::factory()->create();
@@ -72,5 +72,33 @@ test('without any filter the list is not paginated and shows only root projects'
     $projects = Livewire::actingAs($user)->test('projects.index')->get('projects');
 
     expect($projects)->toBeInstanceOf(Collection::class);
-    expect($projects->pluck('name'))->toContain('Root')->not->toContain('Nested Child');
+    expect($projects->pluck('name')->all())->toBe(['Root', 'Nested Child']);
+});
+
+test('without any filter each project exposes its nested-set depth, used for indentation', function () {
+    $root = Project::factory()->create(['name' => 'Root']);
+    $child = Project::factory()->create(['name' => 'Child', 'parent_id' => $root->id]);
+    Project::factory()->create(['name' => 'Grandchild', 'parent_id' => $child->id]);
+    $user = User::factory()->create();
+
+    $projects = Livewire::actingAs($user)->test('projects.index')->get('projects');
+    $depthByName = $projects->pluck('depth', 'name');
+
+    expect($depthByName['Root'])->toBe(0)
+        ->and($depthByName['Child'])->toBe(1)
+        ->and($depthByName['Grandchild'])->toBe(2);
+});
+
+test('a filtered project list has no depth attribute and stays flat/alphabetical', function () {
+    $root = Project::factory()->create(['name' => 'Alpha Root']);
+    Project::factory()->create(['name' => 'Alpha Child', 'parent_id' => $root->id]);
+    $user = User::factory()->create();
+
+    $names = Livewire::actingAs($user)
+        ->test('projects.index')
+        ->set('search', 'Alpha')
+        ->get('projects')
+        ->pluck('name');
+
+    expect($names->all())->toBe(['Alpha Child', 'Alpha Root']);
 });
