@@ -77,7 +77,7 @@
 | 個別 Journal の編集/削除 | missing | — |
 | 変更点を含むプライベートノートの分割記録 | missing | — |
 | イベント別の通知粒度 | partial(2026-07-22) | `IssueService::update()`のJournal作成条件と`IssueUpdated`イベント発火条件が食い違っていたバグを修正: 属性変更が無くコメントのみの更新でもJournalは作成されるのに`IssueUpdated`(Webhookの`issue.updated`が購読)は発火しないという不整合があった。現在はコメント単体でも発火。メール通知システム自体は依然未実装(`IssueCreated`/`IssueUpdated`はWebhook専用) |
-| テキスト差分表示・リアクション | missing | — |
+| テキスト差分表示・リアクション | partial(2026-07-22) | テキスト差分表示を実装: Redmineの`JournalsController#diff`相当(`Redmine::Helpers::Diff`を使う点も含め、既存の`App\Support\Diff\WordDiffer`をそのまま再利用)。説明文の変更(`property='attr' AND prop_key='description'`、Redmine本家がdiffリンクを出す唯一の`attr`プロパティ)にのみ「(差分)」リンクを表示、新規`issues.journal-detail-diff`ルートで単語単位の追加/削除をハイライト。カスタムフィールド側の`change_as_diff`相当(長文形式CFの差分表示)は対象外。リアクション機能は引き続き未着手 |
 
 ### Watchers
 

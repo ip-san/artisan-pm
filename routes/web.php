@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/issues/report', 'issues.report')->name('issues.report');
     Volt::route('/projects/{project:identifier}/issues/{issue}', 'issues.show')->name('issues.show');
     Volt::route('/projects/{project:identifier}/issues/{issue}/edit', 'issues.form')->name('issues.edit');
+    Volt::route('/projects/{project:identifier}/issues/{issue}/journal-details/{journalDetail}/diff', 'issues.journal-detail-diff')->name('issues.journal-detail-diff');
 
     Volt::route('/projects/{project:identifier}/time_entries', 'time-entries.index')->name('time-entries.index');
     Volt::route('/projects/{project:identifier}/time_entries/create', 'time-entries.form')->name('time-entries.create');

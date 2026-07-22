@@ -718,7 +718,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                     @foreach ($journal->details as $detail)
                         <div class="text-gray-600 text-xs">
-                            {{ $this->journalDetailLabel($detail) }}: {{ $detail->old_value ?? '(未設定)' }} → {{ $detail->new_value ?? '(未設定)' }}
+                            @if ($detail->property === 'attr' && $detail->prop_key === 'description')
+                                {{ $this->journalDetailLabel($detail) }}が更新されました
+                                <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-indigo-600 hover:underline">(差分)</a>
+                            @else
+                                {{ $this->journalDetailLabel($detail) }}: {{ $detail->old_value ?? '(未設定)' }} → {{ $detail->new_value ?? '(未設定)' }}
+                            @endif
                         </div>
                     @endforeach
                     @if ($journal->notes)
