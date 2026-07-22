@@ -121,7 +121,7 @@
 | プライベートノート(`view_private_notes`) | done(2026-07-21) | `set_notes_private` 権限保持者がコメント投稿時に非公開フラグを立てられる(サーバー側でも権限を再チェックし、クライアント改ざんを無効化)。`view_private_notes` を持たないユーザーには非公開Journalを非表示(自分自身が書いたものは例外的に閲覧可、Redmineの`Journal#visible?`と同様)。活動フィード(`IssueJournalActivityProvider`)は既存どおり非公開Journalを丸ごと除外 |
 | 過去コメントの引用返信 | done(2026-07-21) | 各コメントの「引用」ボタンでコメント入力欄に`>`引用形式をプリフィル |
 | 個別 Journal の編集/削除 | missing | — |
-| 変更点を含むプライベートノートの分割記録 | missing | — |
+| 変更点を含むプライベートノートの分割記録 | done(2026-07-23) | Redmineの`Journal#split_private_notes`相当。これまで課題編集フォーム(`issues/form.blade.php`)には非公開メモのチェックボックスが無く、属性変更とコメントを同時に保存すると常に1つの公開Journalに混在していた(コメント単体の`issues/show.blade.php`側は既に対応済みだったため、このギャップは編集フォーム経由の保存のみ)。`IssueService::update()`に`commentIsPrivate`引数を追加し、非公開コメント+属性/カスタムフィールド変更が同時に発生した場合のみJournalを分割: 属性変更を持つ公開Journalと、ノートのみを持つ非公開Journalの2件を作成(コメントのみ、または変更点のみの場合は分割不要のため従来どおり1件)。`Issue::journals()`に`orderBy('id')`を副次ソートとして追加し、同一秒に作成される分割後の2件の表示順を安定化。フォーム側は`show.blade.php`と同じ`setNotesPrivate`権限ゲート+サーバー側再チェックのチェックボックスを追加 |
 | イベント別の通知粒度 | partial(2026-07-22) | `IssueService::update()`のJournal作成条件と`IssueUpdated`イベント発火条件が食い違っていたバグを修正: 属性変更が無くコメントのみの更新でもJournalは作成されるのに`IssueUpdated`(Webhookの`issue.updated`が購読)は発火しないという不整合があった。現在はコメント単体でも発火。メール通知システム自体は依然未実装(`IssueCreated`/`IssueUpdated`はWebhook専用) |
 | テキスト差分表示・リアクション | partial(2026-07-22) | テキスト差分表示を実装: Redmineの`JournalsController#diff`相当(`Redmine::Helpers::Diff`を使う点も含め、既存の`App\Support\Diff\WordDiffer`をそのまま再利用)。説明文の変更(`property='attr' AND prop_key='description'`、Redmine本家がdiffリンクを出す唯一の`attr`プロパティ)にのみ「(差分)」リンクを表示、新規`issues.journal-detail-diff`ルートで単語単位の追加/削除をハイライト。カスタムフィールド側の`change_as_diff`相当(長文形式CFの差分表示)は対象外。リアクション機能は引き続き未着手 |
 

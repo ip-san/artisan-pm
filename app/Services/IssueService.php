@@ -152,7 +152,7 @@ final class IssueService
      * @throws StaleIssueUpdateException if $expectedLockVersion is given and no longer matches — someone
      *                                   else saved a change since the caller loaded this issue
      */
-    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null, array $customFieldData = [], ?int $expectedLockVersion = null): Issue
+    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null, array $customFieldData = [], ?int $expectedLockVersion = null, bool $commentIsPrivate = false): Issue
     {
         if ($expectedLockVersion !== null && $expectedLockVersion !== $issue->lock_version) {
             throw new StaleIssueUpdateException($issue);
@@ -188,15 +188,26 @@ final class IssueService
         $changes = $this->diff($original, $issue->only(self::JOURNALED_ATTRIBUTES));
         $customFieldChanges = $this->diffCustomFieldSnapshots($originalCustomValues, $this->customFieldSnapshot($issue));
 
-        if ($changes !== [] || $customFieldChanges !== [] || filled($comment)) {
-            $journal = Journal::create([
+        $hasDetails = $changes !== [] || $customFieldChanges !== [];
+
+        if ($hasDetails || filled($comment)) {
+            // Matches Redmine's Journal#split_private_notes: a private note
+            // combined with attribute changes in the same save is split into
+            // two journals, so the public attribute-change record isn't
+            // hidden behind view_private_notes just because it happened to
+            // ride along with a private comment. Notes-only or details-only
+            // saves never need splitting.
+            $splitPrivateNotes = $commentIsPrivate && filled($comment) && $hasDetails;
+
+            $detailsJournal = Journal::create([
                 'issue_id' => $issue->id,
                 'user_id' => $actor->id,
-                'notes' => $comment,
+                'notes' => $splitPrivateNotes ? null : $comment,
+                'private_notes' => $splitPrivateNotes ? false : $commentIsPrivate && filled($comment),
             ]);
 
             foreach ($changes as $field => [$old, $new]) {
-                $journal->details()->create([
+                $detailsJournal->details()->create([
                     'property' => 'attr',
                     'prop_key' => $field,
                     'old_value' => $old,
@@ -205,11 +216,20 @@ final class IssueService
             }
 
             foreach ($customFieldChanges as $fieldId => [$old, $new]) {
-                $journal->details()->create([
+                $detailsJournal->details()->create([
                     'property' => 'cf',
                     'prop_key' => (string) $fieldId,
                     'old_value' => $old,
                     'new_value' => $new,
+                ]);
+            }
+
+            if ($splitPrivateNotes) {
+                Journal::create([
+                    'issue_id' => $issue->id,
+                    'user_id' => $actor->id,
+                    'notes' => $comment,
+                    'private_notes' => true,
                 ]);
             }
         }

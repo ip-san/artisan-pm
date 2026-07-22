@@ -68,6 +68,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $comment = '';
 
+    public bool $commentIsPrivate = false;
+
     public ?int $logTimeActivityId = null;
 
     public string $logTimeHours = '';
@@ -508,7 +510,17 @@ new #[Layout('components.layouts.app')] class extends Component
             }
 
             try {
-                $issue = app(IssueService::class)->update($this->issue, $data, auth()->user(), $this->comment ?: null, $customFieldData, $this->lockVersion);
+                $issue = app(IssueService::class)->update(
+                    $this->issue,
+                    $data,
+                    auth()->user(),
+                    $this->comment ?: null,
+                    $customFieldData,
+                    $this->lockVersion,
+                    // Trusts the checkbox's own gate, not the client: see
+                    // issues/show.blade.php's addComment() for the same check.
+                    $this->commentIsPrivate && auth()->user()->can('setNotesPrivate', $this->issue),
+                );
             } catch (StaleIssueUpdateException) {
                 $this->addError('lockVersion', 'この課題は他のユーザーによって更新されています。ページを再読み込みして最新の内容を確認してから、再度保存してください。');
 
@@ -776,6 +788,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 <textarea wire:model="comment" rows="3"
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"
                     placeholder="変更内容についてのコメント(任意)"></textarea>
+                @can('setNotesPrivate', $issue)
+                    <label class="mt-1 flex items-center gap-1.5 text-sm text-gray-700">
+                        <input type="checkbox" wire:model="commentIsPrivate">
+                        非公開メモにする
+                    </label>
+                @endcan
             </div>
 
             @if ($this->canLogTime)

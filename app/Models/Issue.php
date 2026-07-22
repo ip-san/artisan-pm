@@ -167,7 +167,7 @@ final class Issue extends Model implements HasMedia
      */
     public function journals(): HasMany
     {
-        return $this->hasMany(Journal::class)->orderBy('created_at');
+        return $this->hasMany(Journal::class)->orderBy('created_at')->orderBy('id');
     }
 
     /**
