@@ -3,6 +3,7 @@
 use App\Models\Project;
 use App\Models\WikiPage;
 use App\Support\Markdown\WikiMarkdownRenderer;
+use App\Support\Markdown\WikiSectionEditLinkInjector;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -32,7 +33,13 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function renderedContent(): string
     {
-        return app(WikiMarkdownRenderer::class)->render($this->wikiPage->currentVersion?->text ?? '', $this->project, $this->wikiPage->attachments());
+        $html = app(WikiMarkdownRenderer::class)->render($this->wikiPage->currentVersion?->text ?? '', $this->project, $this->wikiPage->attachments());
+
+        if (! auth()->user()?->can('update', $this->wikiPage)) {
+            return $html;
+        }
+
+        return app(WikiSectionEditLinkInjector::class)->inject($html, route('wiki.edit', [$this->project, $this->wikiPage]));
     }
 
     /**

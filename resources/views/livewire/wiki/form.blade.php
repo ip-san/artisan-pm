@@ -6,6 +6,7 @@ use App\Services\WikiPageService;
 use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Markdown\WikiMarkdownRenderer;
+use App\Support\Markdown\WikiSectionSplitter;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -32,6 +33,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $comments = '';
 
     public bool $redirectExistingLinks = true;
+
+    public ?int $sectionIndex = null;
+
+    public ?string $sectionHash = null;
 
     public bool $showPreview = false;
 
@@ -61,7 +66,23 @@ new #[Layout('components.layouts.app')] class extends Component
                 ? $wikiPage->versions()->where('version', $requestedVersion)->first()
                 : null;
 
-            $this->text = ($sourceVersion ?? $wikiPage->currentVersion)?->text ?? '';
+            $fullText = ($sourceVersion ?? $wikiPage->currentVersion)?->text ?? '';
+
+            // Section editing (via a "編集" link on a rendered heading) only
+            // applies to the current text, never to an old version being
+            // restored — the two query parameters are mutually exclusive.
+            $requestedSection = $requestedVersion === null ? (request()->integer('section') ?: null) : null;
+            $section = $requestedSection !== null
+                ? app(WikiSectionSplitter::class)->extractSections($fullText, $requestedSection)[1]
+                : '';
+
+            if ($requestedSection !== null && $section !== '') {
+                $this->sectionIndex = $requestedSection;
+                $this->sectionHash = hash('sha256', $section);
+                $this->text = $section;
+            } else {
+                $this->text = $fullText;
+            }
         } else {
             $this->authorize('create', [WikiPage::class, $project]);
 
@@ -126,6 +147,30 @@ new #[Layout('components.layouts.app')] class extends Component
         return app(WikiMarkdownRenderer::class)->render($this->text, $this->project, $this->wikiPage?->attachments());
     }
 
+    /**
+     * Splices the edited section text back into a fresh read of the full
+     * page, after checking the section hasn't changed since it was loaded
+     * into this form — matches Redmine's StaleSectionError, which refuses
+     * to silently overwrite a concurrent edit to the same section.
+     */
+    private function spliceSection(string $replacement): ?string
+    {
+        /** @var WikiPage $wikiPage */
+        $wikiPage = $this->wikiPage;
+        $currentText = $wikiPage->fresh('currentVersion')?->currentVersion?->text ?? '';
+
+        $splitter = app(WikiSectionSplitter::class);
+        $currentSection = $splitter->extractSections($currentText, $this->sectionIndex)[1];
+
+        if (hash('sha256', $currentSection) !== $this->sectionHash) {
+            $this->addError('text', 'このセクションは他のユーザーによって更新されているため保存できません。ページを再読み込みしてください。');
+
+            return null;
+        }
+
+        return $splitter->updateSection($currentText, $this->sectionIndex, $replacement)['text'];
+    }
+
     public function save(): void
     {
         $rules = [
@@ -158,6 +203,14 @@ new #[Layout('components.layouts.app')] class extends Component
         $service = app(WikiPageService::class);
 
         if ($this->wikiPage) {
+            if ($this->sectionIndex !== null) {
+                $text = $this->spliceSection($text);
+
+                if ($text === null) {
+                    return;
+                }
+            }
+
             $page = $service->update($this->wikiPage, $data, $text, auth()->user(), $comments ?: null, $this->redirectExistingLinks);
         } else {
             $page = $service->create($this->project, $data, $text, auth()->user());
@@ -177,6 +230,12 @@ new #[Layout('components.layouts.app')] class extends Component
     <h1 class="text-xl font-semibold text-gray-900 mb-6">
         {{ $wikiPage ? "「{$wikiPage->title}」を編集" : '新規Wikiページ' }}
     </h1>
+
+    @if ($sectionIndex !== null)
+        <p class="mb-4 rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-700">
+            このセクションのみを編集しています。保存すると、このセクション以外の本文はそのまま維持されます。
+        </p>
+    @endif
 
     <form wire:submit="save" class="space-y-4">
         @if ($this->canRename)

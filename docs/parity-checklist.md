@@ -86,7 +86,7 @@
 | 自分のWatch/Unwatch | done | — |
 | Watch権限ゲート | partial | `view_issues` があれば誰でも可能(`IssuePolicy::watch`) |
 | 他ユーザーをWatcherとして追加/削除 | done(2026-07-21) | 詳細画面にウォッチャー一覧+追加(プロジェクトメンバーのセレクト)+削除を配線。`add_issue_watchers`権限で保護(`IssuePolicy::manageWatchers`)。追加対象はプロジェクトメンバーに限定、単純なセレクトのみでオートコンプリートは未実装 |
-| 作成者/担当者の自動Watch・@mention・自動整理 | partial | 作成者は作成時に、担当者は割当変更のたびに自動Watch(2026-07-21、`IssueService::autoWatch()`)。@mention・自動整理は引き続き未実装 |
+| 作成者/担当者の自動Watch・@mention・自動整理 | partial | 作成者は作成時に、担当者は割当変更のたびに自動Watch(2026-07-21、`IssueService::autoWatch()`)。@mention・自動整理は引き続き未実装。**調査メモ(2026-07-22)**: Redmineの`@login`メンションは(a)メール通知トリガー専用の部分(本アプリは送信メール基盤自体が無いため無関係)と、(b)本文中の`@login`をユーザープロフィールへのリンクとして描画する部分の2つに分かれる。(b)だけなら価値はあるが、本アプリのローカルアカウントには全ユーザー必須のユニークな`login`(ユーザー名)フィールドが無く(LDAP連携アカウントのみ任意設定)、`/users/:id`相当の一般公開プロフィール画面自体も存在しない(管理者用のusers.index/formのみ)。単独のwell-scoped項目には収まらない前提整備が2つ必要と判明したため、いったん見送り |
 
 ### Issue Relations(関連課題)
 
@@ -289,7 +289,7 @@
 | デフォルト保護ページ(Sidebar等) | missing | — |
 | 開始ページ設定 | missing | — |
 | **マクロエンジン全体** | **missing** | `#123` 課題メンションと `[[ページ]]` リンクのみ。`{{toc}}`, `{{child_pages}}`, `{{include}}`, `{{collapse}}` 等すべて未実装 |
-| セクション単位編集 | missing | 全文テキストエリアのみ |
+| セクション単位編集 | done(2026-07-22) | Redmineの`Redmine::WikiFormatting::SectionHelper`(セクション分割)+`StaleSectionError`(競合検知)を移植。新規`WikiSectionSplitter`(ATX/Setext見出し・フェンスコードブロックを認識してMarkdownを前/対象セクション/後の3分割、見出し出現順の1始まりインデックス)。表示画面(`wiki/show.blade.php`)は`update`権限を持つ閲覧者にのみ、レンダリング後のHTMLの各見出しへ`WikiSectionEditLinkInjector`(DOMDocumentで見出しを文書順に走査し「編集」リンクを注入 — Volt SFCのPHPブロックに`<?xml encoding="utf-8"?>`という`?>`を含む文字列リテラルを直書きすると、そこでブロックが打ち切られてコンパイルエラーになるため独立クラスに分離)経由で`?section=N`リンクを付与。編集フォーム(`wiki/form.blade.php`)は`?section=`があれば`mount()`で該当セクションのみを本文欄にプリフィルし、読み込み時点のセクション本文のSHA-256ハッシュを保持。`save()`は保存直前に最新の全文を再取得してハッシュを再検証し、一致しなければ他ユーザーの競合編集とみなして保存を中止しエラー表示、一致すれば`WikiSectionSplitter::updateSection()`で全文へ差し戻す |
 | プレビュー | done(2026-07-22) | 編集フォームに「プレビュー」トグルボタンを追加、`WikiMarkdownRenderer`で本文テキストエリアの現在値を保存せずにレンダリング(Wiki表示画面と同じレンダラーを再利用)。既存ページ編集時はインライン画像参照もそのページの既存添付ファイルに対して解決(このフォーム送信で選択中だが未アップロードのファイルはまだMediaレコードが無いため対象外) |
 | PDF/HTML/TXT/ZIPエクスポート | missing | — |
 | 日付インデックス表示 | done(2026-07-22) | Redmineの`WikiController#date_index`相当。新規`wiki.date-index`ルートで、各ページの現在バージョンが書かれた日付(`currentVersion->created_at`)でグルーピングし新しい日付順に表示。Wiki一覧画面から「日付順に表示」でアクセス可能 |
