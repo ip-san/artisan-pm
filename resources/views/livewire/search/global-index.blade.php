@@ -31,6 +31,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public bool $openIssuesOnly = false;
 
+    #[Url]
+    public bool $myProjectsOnly = false;
+
     public function mount(): void
     {
         $this->jumpToIssueIfIdQuery();
@@ -54,13 +57,33 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * Matches Redmine's scope=my_projects (User.current.projects — every
+     * project the viewer actually holds membership in, narrower than
+     * "publicly visible"), further intersected with visibleProjects() in
+     * case membership alone wouldn't already imply visibility.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function searchableProjects(): Collection
+    {
+        if (! $this->myProjectsOnly || ! auth()->check()) {
+            return $this->visibleProjects;
+        }
+
+        $memberProjectIds = auth()->user()->projects()->pluck('projects.id');
+
+        return $this->visibleProjects->whereIn('id', $memberProjectIds)->values();
+    }
+
+    /**
      * @return Collection<int, SearchResult>
      */
     #[Computed]
     public function results(): Collection
     {
         return app(SearchService::class)->searchAcrossProjects(
-            $this->visibleProjects,
+            $this->searchableProjects,
             auth()->user(),
             $this->query,
             allWords: $this->allWords,
@@ -134,6 +157,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="flex items-center gap-1.5">
                 <input type="checkbox" wire:model="openIssuesOnly" class="rounded border-gray-300">
                 オープンな課題のみ
+            </label>
+            <label class="flex items-center gap-1.5">
+                <input type="checkbox" wire:model="myProjectsOnly" class="rounded border-gray-300">
+                自分のプロジェクトのみ
             </label>
         </div>
     </form>

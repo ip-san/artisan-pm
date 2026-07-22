@@ -373,3 +373,45 @@ test('a #123 query for a nonexistent or foreign issue falls through to a normal 
         ->call('search')
         ->assertNoRedirect();
 });
+
+test('subprojects are excluded from the search by default', function () {
+    $parent = Project::factory()->create();
+    $child = Project::factory()->create(['parent_id' => $parent->id]);
+    $user = searchMember($parent, ['view_project', 'view_issues']);
+    Member::factory()->for($child)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_project', 'view_issues']])
+    );
+
+    Issue::factory()->for($child)->create(['subject' => 'subproject-only-token']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $parent])
+        ->set('query', 'subproject-only-token')
+        ->call('search')
+        ->get('results');
+
+    expect($results)->toBeEmpty();
+});
+
+test('the include-subprojects toggle expands the search into visible descendants', function () {
+    $parent = Project::factory()->create();
+    $child = Project::factory()->create(['parent_id' => $parent->id]);
+    $hiddenChild = Project::factory()->create(['parent_id' => $parent->id, 'is_public' => false]);
+    $user = searchMember($parent, ['view_project', 'view_issues']);
+    Member::factory()->for($child)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_project', 'view_issues']])
+    );
+
+    Issue::factory()->for($child)->create(['subject' => 'visible-subproject-token']);
+    Issue::factory()->for($hiddenChild)->create(['subject' => 'hidden-subproject-token']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $parent])
+        ->set('query', 'subproject-token')
+        ->set('includeSubprojects', true)
+        ->call('search')
+        ->get('results');
+
+    expect($results->pluck('title')->join(' '))->toContain('visible-subproject-token')
+        ->and($results->pluck('title')->join(' '))->not->toContain('hidden-subproject-token');
+});

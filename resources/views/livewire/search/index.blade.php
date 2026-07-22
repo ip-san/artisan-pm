@@ -26,6 +26,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public bool $openIssuesOnly = false;
 
+    #[Url]
+    public bool $includeSubprojects = false;
+
     public function mount(Project $project): void
     {
         $this->authorize('view', $project);
@@ -36,13 +39,38 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * This project alone, or this project plus every descendant the
+     * viewer can also see (matching Redmine's scope=subprojects, which
+     * expands to @project.self_and_descendants before the per-type
+     * view_* permission narrows it further) — kept as a plain _lft/_rgt
+     * range query rather than kalnoy's nested-set query macros, matching
+     * this app's existing convention (see Project::rootProject()).
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function searchableProjects(): Collection
+    {
+        if (! $this->includeSubprojects) {
+            return collect([$this->project]);
+        }
+
+        return Project::query()
+            ->where('_lft', '>=', $this->project->_lft)
+            ->where('_rgt', '<=', $this->project->_rgt)
+            ->get()
+            ->filter(fn (Project $candidate) => auth()->user()?->can('view', $candidate))
+            ->values();
+    }
+
+    /**
      * @return Collection<int, SearchResult>
      */
     #[Computed]
     public function results(): Collection
     {
-        return app(SearchService::class)->search(
-            $this->project,
+        return app(SearchService::class)->searchAcrossProjects(
+            $this->searchableProjects,
             auth()->user(),
             $this->query,
             allWords: $this->allWords,
@@ -117,6 +145,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="flex items-center gap-1.5">
                 <input type="checkbox" wire:model="openIssuesOnly" class="rounded border-gray-300">
                 オープンな課題のみ
+            </label>
+            <label class="flex items-center gap-1.5">
+                <input type="checkbox" wire:model="includeSubprojects" class="rounded border-gray-300">
+                サブプロジェクトを含む
             </label>
         </div>
     </form>

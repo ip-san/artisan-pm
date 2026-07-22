@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\RoleBuiltin;
 use App\Models\Changeset;
 use App\Models\Enumeration;
 use App\Models\Issue;
@@ -163,4 +164,47 @@ test('a #123 query on the global search falls through to a normal search when th
 
 test('a guest is redirected to login when visiting the global search', function () {
     $this->get(route('search.global-index'))->assertRedirect(route('login'));
+});
+
+test('the my-projects-only toggle excludes publicly visible projects the user is not a member of', function () {
+    // Grants view_issues to any non-member on a public project — without
+    // this, a stranger to $publicProject wouldn't see its issues at all
+    // regardless of the toggle, which would make this test pass for the
+    // wrong reason.
+    Role::factory()->create(['builtin' => RoleBuiltin::NonMember->value, 'permissions' => ['view_project', 'view_issues']]);
+
+    $memberProject = Project::factory()->create();
+    $publicProject = Project::factory()->create();
+    $user = globalSearchMember($memberProject, ['view_project', 'view_issues']);
+
+    Issue::factory()->for($memberProject)->create(['subject' => 'member-project-token']);
+    Issue::factory()->for($publicProject)->create(['subject' => 'public-project-token']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.global-index')
+        ->set('query', 'project-token')
+        ->set('myProjectsOnly', true)
+        ->call('search')
+        ->get('results');
+
+    expect($results->pluck('title')->join(' '))->toContain('member-project-token')
+        ->not->toContain('public-project-token');
+});
+
+test('without the my-projects-only toggle, publicly visible projects are still included', function () {
+    Role::factory()->create(['builtin' => RoleBuiltin::NonMember->value, 'permissions' => ['view_project', 'view_issues']]);
+
+    $memberProject = Project::factory()->create();
+    $publicProject = Project::factory()->create();
+    $user = globalSearchMember($memberProject, ['view_project', 'view_issues']);
+
+    Issue::factory()->for($publicProject)->create(['subject' => 'public-project-token']);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.global-index')
+        ->set('query', 'public-project-token')
+        ->call('search')
+        ->get('results');
+
+    expect($results->pluck('title')->join(' '))->toContain('public-project-token');
 });
