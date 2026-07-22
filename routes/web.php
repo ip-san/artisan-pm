@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityFeedController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AttachmentThumbnailController;
+use App\Http\Controllers\RepositoryRawController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -86,6 +87,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('/projects/{project:identifier}/repository/revisions/{changeset}', 'repository.show')->name('repository.show');
     Volt::route('/projects/{project:identifier}/repository/browse/{path?}', 'repository.browse')->where('path', '.*')->name('repository.browse');
     Volt::route('/projects/{project:identifier}/repository/entry/{path}', 'repository.entry')->where('path', '.*')->name('repository.entry');
+    Route::get('/projects/{project:identifier}/repository/raw/{path}', RepositoryRawController::class)->where('path', '.*')->name('repository.raw');
 
     Volt::route('/projects/{project:identifier}/activity', 'activity.index')->name('activity.index');
     Route::get('/projects/{project:identifier}/activity.atom', ActivityFeedController::class)->name('activity.atom');

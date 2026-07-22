@@ -57,11 +57,17 @@ new #[Layout('components.layouts.app')] class extends Component
                 ファイル一覧
             </a>
         </p>
-        <h1 class="text-xl font-semibold text-gray-900 font-mono">{{ $path }}</h1>
+        <div class="flex items-center justify-between">
+            <h1 class="text-xl font-semibold text-gray-900 font-mono">{{ $path }}</h1>
+            <a href="{{ route('repository.raw', [$project, $path]) }}"
+                class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                ダウンロード
+            </a>
+        </div>
     </div>
 
     @if ($this->isBinary)
-        <p class="text-sm text-gray-500">バイナリファイルは表示できません。</p>
+        <p class="text-sm text-gray-500">バイナリファイルは表示できません。上の「ダウンロード」から取得してください。</p>
     @else
         <pre class="overflow-x-auto rounded-md border border-gray-200 bg-gray-900 p-4 text-xs text-gray-100">{{ $this->content }}</pre>
     @endif

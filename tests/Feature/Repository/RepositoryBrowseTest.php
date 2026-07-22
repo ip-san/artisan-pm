@@ -89,3 +89,40 @@ test('a binary file is not rendered as text', function () {
 
     expect($component->get('isBinary'))->toBeTrue();
 });
+
+test('a member with browse_repository can download a text file with the correct filename', function () {
+    $project = Project::factory()->create();
+    $user = browseMember($project);
+    $repository = Repository::factory()->for($project)->create(['path' => createBrowsableGitRepo()]);
+
+    $response = $this->actingAs($user)->get(route('repository.raw', [$project, 'src/app.php']));
+
+    $response->assertOk()
+        ->assertHeader('Content-Disposition', 'attachment; filename="app.php"')
+        ->assertContent("<?php\necho 'hi';\n");
+});
+
+test('a binary file can be downloaded even though it cannot be previewed inline', function () {
+    $project = Project::factory()->create();
+    $user = browseMember($project);
+    $path = createBrowsableGitRepo();
+    $binaryContent = "\xFF\xFE\x00\xFF binary content";
+    file_put_contents("{$path}/image.bin", $binaryContent);
+    Process::path($path)->run(['git', 'add', '-A'])->throw();
+    Process::path($path)->run(['git', 'commit', '-q', '-m', 'Add binary'])->throw();
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    $response = $this->actingAs($user)->get(route('repository.raw', [$project, 'image.bin']));
+
+    $response->assertOk()
+        ->assertHeader('Content-Disposition', 'attachment; filename="image.bin"')
+        ->assertContent($binaryContent);
+});
+
+test('a member without browse_repository cannot download a raw file', function () {
+    $project = Project::factory()->create();
+    $user = browseMember($project, []);
+    Repository::factory()->for($project)->create(['path' => createBrowsableGitRepo()]);
+
+    $this->actingAs($user)->get(route('repository.raw', [$project, 'README.md']))->assertForbidden();
+});

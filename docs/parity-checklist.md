@@ -287,7 +287,7 @@
 | リネーム時のリダイレクト | done(2026-07-22) | Redmineの`WikiRedirect`+`WikiPage#handle_rename_or_move`相当。新規`wiki_redirects`テーブル(`project_id`, `title`, `redirects_to`)を追加、`WikiPageService::update()`がリネーム時に旧タイトル→新タイトルのリダイレクトを作成し、旧タイトルを指していた既存のリダイレクトも新タイトルへ付け替え(多段リネームのチェーン追従)。編集フォームに「旧タイトルへのリンクをリダイレクトする」チェックボックス(既定オン、Redmineの`redirect_existing_links`相当)。本アプリはWikiリンクをタイトルではなく生成時にIDへ解決する設計(`WikiLinkInlineParser`)のため、Redmineのような実際のURLリダイレクトではなく、リンク解決時に直接一致が無ければ`wiki_redirects`にフォールバックする形で実装。ページ削除時は指しているリダイレクトも`WikiPage`の`deleting`イベントで削除 |
 | 保護ページ | done | `is_protected` + ポリシー |
 | デフォルト保護ページ(Sidebar等) | done(2026-07-22) | Redmineの`WikiPage::DEFAULT_PROTECTED_PAGES`(`%w(sidebar)`)を移植。`WikiPage`モデルの`creating`イベントで、タイトル(大文字小文字を区別しない)が`sidebar`に一致する新規ページを強制的に`is_protected = true`にする ― `protect_wiki_pages`権限を持たない作成者であってもRedmine同様に強制される(フォーム側の保護チェックボックスは同権限を持つ場合のみ表示されるが、それとは独立にモデル層で常時適用)。「Sidebar」ページの内容を全ページの実サイドバーに描画する機能(Redmineの`_sidebar.html.erb`相当)はこの行の対象外(別機能として未着手) |
-| 開始ページ設定 | missing | — |
+| 開始ページ設定 | missing | **調査メモ(2026-07-22)**: Redmineは`wikis.start_page`(プロジェクト毎のWiki設定行)を持ち、ルーティング上`GET /projects/:id/wiki`(先頭ページ本文を直接表示)と`GET /projects/:id/wiki/index`(タイトル一覧、別アクション)が明確に分離されている。本アプリは元々`wiki.index`ルート(`/projects/{project}/wiki`)自体を「ページ一覧」として実装済み(タイトル一覧側のみに相当するURL設計)で、開始ページ本文を直接表示する経路が無い。真の開始ページ機能を実装するには`wiki.index`が指すURLの意味を「一覧」から「開始ページ本文」に付け替え、現行の一覧機能を新しいルート名へ退避する必要があり、既存ナビゲーション(`projects/show.blade.php`の「Wiki」タブ等)への影響を伴う単発では収まらないルーティング再設計。単独のwell-scoped項目には収まらないため、いったん見送り |
 | **マクロエンジン全体** | **missing** | `#123` 課題メンションと `[[ページ]]` リンクのみ。`{{toc}}`, `{{child_pages}}`, `{{include}}`, `{{collapse}}` 等すべて未実装 |
 | セクション単位編集 | done(2026-07-22) | Redmineの`Redmine::WikiFormatting::SectionHelper`(セクション分割)+`StaleSectionError`(競合検知)を移植。新規`WikiSectionSplitter`(ATX/Setext見出し・フェンスコードブロックを認識してMarkdownを前/対象セクション/後の3分割、見出し出現順の1始まりインデックス)。表示画面(`wiki/show.blade.php`)は`update`権限を持つ閲覧者にのみ、レンダリング後のHTMLの各見出しへ`WikiSectionEditLinkInjector`(DOMDocumentで見出しを文書順に走査し「編集」リンクを注入 — Volt SFCのPHPブロックに`<?xml encoding="utf-8"?>`という`?>`を含む文字列リテラルを直書きすると、そこでブロックが打ち切られてコンパイルエラーになるため独立クラスに分離)経由で`?section=N`リンクを付与。編集フォーム(`wiki/form.blade.php`)は`?section=`があれば`mount()`で該当セクションのみを本文欄にプリフィルし、読み込み時点のセクション本文のSHA-256ハッシュを保持。`save()`は保存直前に最新の全文を再取得してハッシュを再検証し、一致しなければ他ユーザーの競合編集とみなして保存を中止しエラー表示、一致すれば`WikiSectionSplitter::updateSection()`で全文へ差し戻す |
 | プレビュー | done(2026-07-22) | 編集フォームに「プレビュー」トグルボタンを追加、`WikiMarkdownRenderer`で本文テキストエリアの現在値を保存せずにレンダリング(Wiki表示画面と同じレンダラーを再利用)。既存ページ編集時はインライン画像参照もそのページの既存添付ファイルに対して解決(このフォーム送信で選択中だが未アップロードのファイルはまだMediaレコードが無いため対象外) |
@@ -308,7 +308,7 @@
 | トピックの別Boardへの移動 | done(2026-07-21) | `edit_messages`保持者(`MessagePolicy::manageFlags`)がトピック詳細から別フォーラムへ移動可能。返信は独自の`board_id`を持つため、トピックと返信の両方を一括更新 |
 | トピックのWatch | done(2026-07-21) | トピックのみWatch可能(返信は対象外、`MessagePolicy::watch`)。他ユーザーの追加/削除UIはまだなし |
 | 引用返信 | done(2026-07-21) | トピック/返信それぞれに「引用」ボタン、返信入力欄に`>`引用形式をプリフィル |
-| 添付ファイル | missing | `Message` が `HasMedia` 未実装 |
+| 添付ファイル | done | **訂正(2026-07-22)**: 従来「`Message`が`HasMedia`未実装」として`missing`と報告されていたが、実際には`Message implements HasMedia`が既に存在し、トピック作成/返信フォームでのアップロード、詳細画面での一覧表示・説明文編集・削除、`BoardTest`でのテストカバレッジまで全て揃っていた(過去に別行の一括作業で実装されテスト済みだったが、この行自体の更新が漏れていた) |
 | 返信のページネーション | done(2026-07-21) | 25件/ページでページネーション。見出しの件数は`total()`で全件数を表示 |
 | Atomフィード | missing | — |
 
@@ -413,7 +413,7 @@
 | チェンジセット一覧・単体表示 | done | `RepositorySyncService`, `Changeset` |
 | Diff表示 | partial | 単一コミットのdiffのみ。任意リビジョン間・単一ファイルの履歴diffは非対応 |
 | **Annotate/Blame** | **missing** | アダプタ・画面とも未実装 |
-| 生ファイルダウンロード | partial | Blade経由の表示のみ。バイナリ対応・Content-Dispositionの適切な制御なし |
+| 生ファイルダウンロード | done(2026-07-22) | 新規`RepositoryRawController`(`GET /projects/{project}/repository/raw/{path}`)を追加。`browse_repository`権限で認可後、`ScmAdapter::fileContentAt('HEAD', $path)`の生バイト列を`finfo_buffer`によるMIMEタイプ判定+`Content-Disposition: attachment; filename="..."`付きで返却(既存の`AttachmentController`と同じ強制ダウンロード方式)。テキスト/バイナリを問わず動作(既存の`repository.entry`はUTF-8として解釈できないバイナリを一切表示できなかったが、これはバイト列をそのまま返すだけなので影響を受けない)。単一ファイル表示画面(`repository/entry.blade.php`)に「ダウンロード」リンクを追加(Redmineの`entry.html.erb`の`@raw_url`ダウンロードリンクに相当) |
 | リポジトリ統計・コミットグラフ | missing | — |
 | プロジェクトあたり複数リポジトリ | missing(要確認) | `Repository belongsTo Project` の1対1想定 |
 | 非同期チェンジセット取得 | done | `RepositorySyncJob`(ユニーク制約・タイムアウト調整済み) |
