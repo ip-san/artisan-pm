@@ -56,6 +56,10 @@ Route::middleware('auth')->group(function () {
 
     Volt::route('/projects/{project:identifier}/time_entries', 'time-entries.index')->name('time-entries.index');
     Volt::route('/projects/{project:identifier}/time_entries/create', 'time-entries.form')->name('time-entries.create');
+    // Registered before the {timeEntry} routes below so "import" isn't
+    // matched as a time-entry-id route-model-binding segment.
+    Volt::route('/projects/{project:identifier}/time_entries/import', 'time-entries.import')->name('time-entries.import');
+    Volt::route('/projects/{project:identifier}/time_entries/imports/{import}', 'time-entries.import-status')->name('time-entries.import-status');
     Volt::route('/projects/{project:identifier}/time_entries/{timeEntry}/edit', 'time-entries.form')->name('time-entries.edit');
 
     Volt::route('/projects/{project:identifier}/wiki', 'wiki.index')->name('wiki.index');

@@ -297,6 +297,10 @@ new #[Layout('components.layouts.app')] class extends Component
                 CSVエクスポート
             </button>
             @can('create', [\App\Models\TimeEntry::class, $project])
+                <a href="{{ route('time-entries.import', $project) }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    CSVインポート
+                </a>
                 <a href="{{ route('time-entries.create', $project) }}"
                     class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
                     工数を記録

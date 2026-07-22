@@ -434,7 +434,7 @@
 | **多次元工数レポート(ピボット表)** | **missing — 最大のギャップの一つ** | 単一次元のグループ化リストのみ。Redmine は最大3軸(プロジェクト/ステータス/バージョン/カテゴリ/ユーザー/トラッカー/工数種別/課題+カスタムフィールド)を期間列(年/月/週/日)と掛け合わせ、行・列・総計を算出する |
 | プロジェクト横断の工数一覧 | done(2026-07-22) | トップレベル`/time_entries`(`time-entries.global-index`)を追加(Issues側の`issues.global-index`と同じ構成)。ヘッダーナビゲーションに「工数」リンクを配置。`view_time_entries`権限を持つ全プロジェクトを`news.global-index`と同じ「取得後にメモリ内でPolicy判定」方式で解決し、`TimeEntry::scopeVisibleToAcrossProjects()`(新規)がプロジェクトをAll/Own可視性ティア(工数の可視性はIssueと異なり2段階のみ)でバケット分け。フィルタ/グループ化/列選択は既存の`QueryFilterEngine`+`InteractsWithQueryFilters`+`<x-query-filter-builder>`を再利用、`TimeEntryFilterFieldRegistry::forProjects()`(新規)がプロジェクト列と担当者/作業分類の選択肢(可視プロジェクト全体の集合)を提供。編集/削除・CSVエクスポート・保存済みクエリは意図的に対象外(いずれもプロジェクト単位の前提に依存、Issues側と同じ判断)。**注**: 直下の「多次元工数レポート(ピボット表)」行とは別物 — この行は単純な横断一覧、ピボット表自体はプロジェクト単体でも未実装のまま |
 | 工数フィルタ(ユーザー/種別/日付/時間) | done | — |
-| 工数のCSVインポート | missing | — |
+| 工数のCSVインポート | done(2026-07-22) | 課題CSVインポート(`IssueImport`/`ImportIssuesJob`)と同一パターンで`TimeEntryImport`/`ImportTimeEntriesJob`を新規実装。列マッピングは日付・時間(必須)・作業分類(名前で解決、既定の作業分類にフォールバック)・課題(`#番号`)・担当者(メールアドレス)・コメント。担当者列は`edit_time_entries`権限を持つインポート実行者のみ有効(Redmineの`TimeEntryImport#build_object`が`log_time_for_other_users`を要求する挙動を、本アプリの既存の「他人の代理記録」ゲート`edit_time_entries`(`time-entries/form.blade.php`の`canManageOthers`)で代替)。マッチしない/権限が無い場合は常にインポート実行者自身の記録になる。担当者メールは対象プロジェクトのメンバーに限定(`assigned_to`と同じスコープ保護)。ブラウザで実際にCSVアップロード→列マッピング自動検出→インポート→一覧反映まで確認済み |
 
 ### ダッシュボード横断機能
 
