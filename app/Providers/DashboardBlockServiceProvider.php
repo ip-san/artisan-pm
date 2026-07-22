@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Support\Dashboard\Blocks\ActivityBlock;
 use App\Support\Dashboard\Blocks\AssignedIssuesBlock;
+use App\Support\Dashboard\Blocks\DocumentsBlock;
 use App\Support\Dashboard\Blocks\LatestNewsBlock;
 use App\Support\Dashboard\Blocks\ReportedIssuesBlock;
 use App\Support\Dashboard\Blocks\TimeEntriesBlock;
@@ -34,5 +36,7 @@ final class DashboardBlockServiceProvider extends ServiceProvider
         $registry->register($this->app->make(WatchedIssuesBlock::class));
         $registry->register($this->app->make(LatestNewsBlock::class));
         $registry->register($this->app->make(TimeEntriesBlock::class));
+        $registry->register($this->app->make(DocumentsBlock::class));
+        $registry->register($this->app->make(ActivityBlock::class));
     }
 }

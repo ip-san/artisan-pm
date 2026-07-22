@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Document;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -103,6 +104,42 @@ test('the latest news block only includes news from projects the viewer is a mem
 
     expect($rows->pluck('title')->implode(','))->toContain('My project news')
         ->not->toContain('Other project news');
+});
+
+test('the documents block only includes documents from projects the viewer is a member of', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create();
+
+    Document::factory()->for($project)->create(['title' => 'My project doc']);
+    Document::factory()->for($otherProject)->create(['title' => 'Other project doc']);
+
+    $component = Livewire::actingAs($user)->test('my-page.index');
+    $rows = $component->instance()->blockRows('documents');
+
+    expect($rows->pluck('title')->implode(','))->toContain('My project doc')
+        ->not->toContain('Other project doc');
+});
+
+test('the activity block shows recent activity only from projects the viewer is a member of', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_issues']])
+    );
+    Member::factory()->for($otherProject)->create();
+
+    $defaults = myPageIssueDefaults();
+    $visibleIssue = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'Visible activity issue']);
+    Issue::factory()->for($otherProject)->create([...$defaults, 'subject' => 'Invisible activity issue']);
+
+    $component = Livewire::actingAs($user)->test('my-page.index');
+    $rows = $component->instance()->blockRows('activity');
+
+    expect($rows->pluck('title')->implode(','))->toContain((string) $visibleIssue->id)
+        ->not->toContain('Invisible activity issue');
 });
 
 test('a saved issue query can be added as a block and shows its filtered issues', function () {
