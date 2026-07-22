@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Issue;
+use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
@@ -157,4 +158,28 @@ test('an issue with only a start date in the month appears on that start date', 
 
     expect($matchingDay['entries']->pluck('issue.id'))->toContain($issue->id)
         ->and($matchingDay['entries']->firstWhere('issue.id', $issue->id)['marker'])->toBe('start');
+});
+
+test('an active filter restricts the calendar to matching issues', function () {
+    $project = Project::factory()->create();
+    $user = calendarMember($project);
+    $matchingStatus = IssueStatus::factory()->create();
+    $otherStatus = IssueStatus::factory()->create();
+    $day = now()->startOfMonth()->addDays(5);
+
+    $matching = Issue::factory()->for($project)->create(['status_id' => $matchingStatus->id, 'due_date' => $day->toDateString()]);
+    $excluded = Issue::factory()->for($project)->create(['status_id' => $otherStatus->id, 'due_date' => $day->toDateString()]);
+
+    $weeks = Livewire::actingAs($user)
+        ->test('calendar.index', ['project' => $project])
+        ->call('addFilter', 'status_id')
+        ->set('filterOperators.status_id', '=')
+        ->set('filterValues.status_id.0', $matchingStatus->id)
+        ->call('applyFilters')
+        ->get('weeks');
+
+    $matchingDay = collect($weeks)->flatten(1)->first(fn ($d) => $d['date']->isSameDay($day));
+    $ids = $matchingDay['entries']->pluck('issue.id');
+
+    expect($ids)->toContain($matching->id)->not->toContain($excluded->id);
 });

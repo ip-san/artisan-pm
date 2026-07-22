@@ -1,7 +1,10 @@
 <?php
 
+use App\Concerns\InteractsWithQueryFilters;
 use App\Models\Issue;
 use App\Models\Project;
+use App\Support\Query\IssueFilterFieldRegistry;
+use App\Support\Query\QueryFilterEngine;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -11,6 +14,8 @@ use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use InteractsWithQueryFilters;
+
     public Project $project;
 
     #[Url]
@@ -26,6 +31,12 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->project = $project;
         $this->year = $this->year ?: now()->year;
         $this->month = $this->month ?: now()->month;
+    }
+
+    #[Computed]
+    public function engine(): QueryFilterEngine
+    {
+        return new QueryFilterEngine(IssueFilterFieldRegistry::forProject($this->project));
     }
 
     /**
@@ -74,13 +85,14 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $range = [$from->toDateString(), $to->toDateString()];
 
-        $issues = Issue::query()
+        $query = Issue::query()
             ->where('project_id', $this->project->id)
             ->where(fn ($query) => $query
                 ->whereBetween('start_date', $range)
                 ->orWhereBetween('due_date', $range))
-            ->with(['tracker', 'status'])
-            ->get();
+            ->with(['tracker', 'status']);
+
+        $issues = $this->engine->applyFilters($query, $this->builtFilters())->get();
 
         $inRange = fn (?string $date) => $date !== null && $date >= $range[0] && $date <= $range[1];
         $entries = collect();
@@ -116,6 +128,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->month = $date->month;
         unset($this->weeks);
     }
+
+    public function applyFilters(): void
+    {
+        unset($this->weeks);
+    }
 }; ?>
 
 <div>
@@ -125,6 +142,16 @@ new #[Layout('components.layouts.app')] class extends Component
             <button wire:click="previousMonth" class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">‹</button>
             <span class="text-sm font-medium text-gray-900">{{ $year }}年{{ $month }}月</span>
             <button wire:click="nextMonth" class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">›</button>
+        </div>
+    </div>
+
+    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+        <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
+
+        <div class="mt-3">
+            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                絞り込み適用
+            </button>
         </div>
     </div>
 

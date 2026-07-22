@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Issue;
+use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
@@ -70,4 +71,28 @@ test('navigating to the next and previous month updates the displayed year and m
 
 test('a guest is redirected to login when visiting the global calendar', function () {
     $this->get(route('calendar.global-index'))->assertRedirect(route('login'));
+});
+
+test('an active filter restricts the global calendar to matching issues', function () {
+    $project = Project::factory()->create();
+    $user = globalCalendarMember($project);
+    $matchingStatus = IssueStatus::factory()->create();
+    $otherStatus = IssueStatus::factory()->create();
+    $day = now()->startOfMonth()->addDays(5);
+
+    $matching = Issue::factory()->for($project)->create(['status_id' => $matchingStatus->id, 'due_date' => $day->toDateString()]);
+    $excluded = Issue::factory()->for($project)->create(['status_id' => $otherStatus->id, 'due_date' => $day->toDateString()]);
+
+    $weeks = Livewire::actingAs($user)
+        ->test('calendar.global-index')
+        ->call('addFilter', 'status_id')
+        ->set('filterOperators.status_id', '=')
+        ->set('filterValues.status_id.0', $matchingStatus->id)
+        ->call('applyFilters')
+        ->get('weeks');
+
+    $matchingDay = collect($weeks)->flatten(1)->first(fn ($d) => $d['date']->isSameDay($day));
+    $ids = $matchingDay['entries']->pluck('issue.id');
+
+    expect($ids)->toContain($matching->id)->not->toContain($excluded->id);
 });
