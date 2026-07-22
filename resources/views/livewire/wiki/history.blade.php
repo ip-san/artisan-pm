@@ -98,6 +98,9 @@ new #[Layout('components.layouts.app')] class extends Component
                         <a href="{{ route('wiki.version', [$project, $wikiPage, $version->version]) }}" class="text-indigo-600 hover:underline">
                             v{{ $version->version }}
                         </a>
+                        <a href="{{ route('wiki.annotate', [$project, $wikiPage, $version->version]) }}" class="text-xs text-indigo-500 hover:underline">
+                            (注釈)
+                        </a>
                         <span class="text-gray-500">— {{ $version->author->name }} — {{ $version->created_at->format('Y-m-d H:i') }}</span>
                         @if ($version->comments)
                             <span class="text-gray-400">({{ $version->comments }})</span>
