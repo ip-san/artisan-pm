@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use App\Services\GanttService;
 use Livewire\Livewire;
 
@@ -184,4 +185,58 @@ test('with no filters active the full tree is returned unchanged', function () {
         ->get('rows');
 
     expect($rows)->toHaveCount(3);
+});
+
+test('a version with a due date is listed as a milestone', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+    Issue::factory()->for($project)->create([...$defaults, 'start_date' => now(), 'due_date' => now()->addDays(5)]);
+    $version = Version::factory()->for($project)->create(['name' => 'v1.0', 'due_date' => now()->addDays(10)]);
+    Version::factory()->for($project)->create(['due_date' => null]);
+
+    $versions = Livewire::actingAs($user)
+        ->test('gantt.index', ['project' => $project])
+        ->get('versions');
+
+    expect($versions->pluck('id')->all())->toBe([$version->id]);
+});
+
+test('a milestone due after every issue extends the chart range to include it', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+    Issue::factory()->for($project)->create([...$defaults, 'start_date' => now(), 'due_date' => now()->addDays(5)]);
+    Version::factory()->for($project)->create(['due_date' => now()->addDays(30)]);
+
+    $component = Livewire::actingAs($user)->test('gantt.index', ['project' => $project]);
+
+    expect($component->get('rangeEnd')->toDateString())->toBe(now()->addDays(30)->toDateString());
+});
+
+test('the milestone marker position is computed against the overall date range', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+    Issue::factory()->for($project)->create([...$defaults, 'start_date' => now()->startOfDay(), 'due_date' => now()->addDays(30)]);
+    $version = Version::factory()->for($project)->create(['due_date' => now()->addDays(15)]);
+
+    $component = Livewire::actingAs($user)->test('gantt.index', ['project' => $project]);
+
+    // Day 16 of a 31-day range starting day 1 → offset 15 days → 15/31 ≈ 48.4%
+    expect($component->instance()->versionMarkerLeftPercent($version))->toBeGreaterThan(46.0)->toBeLessThan(50.0);
+});
+
+test('a version without a due date is not shown as a milestone', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+    Issue::factory()->for($project)->create([...$defaults, 'start_date' => now(), 'due_date' => now()->addDays(5)]);
+    Version::factory()->for($project)->create(['due_date' => null]);
+
+    $versions = Livewire::actingAs($user)
+        ->test('gantt.index', ['project' => $project])
+        ->get('versions');
+
+    expect($versions)->toBeEmpty();
 });

@@ -3,6 +3,7 @@
 use App\Concerns\InteractsWithQueryFilters;
 use App\Models\Issue;
 use App\Models\Project;
+use App\Models\Version;
 use App\Services\GanttService;
 use App\Support\Gantt\GanttRow;
 use App\Support\Query\IssueFilterFieldRegistry;
@@ -59,16 +60,49 @@ new #[Layout('components.layouts.app')] class extends Component
         unset($this->rows, $this->rangeStart, $this->rangeEnd, $this->totalDays, $this->monthBands);
     }
 
+    /**
+     * This project's own versions with a due date — matches Redmine's
+     * milestone markers on the Gantt chart. Deliberately scoped to the
+     * project's own versions rather than shared versions reachable from
+     * other projects (issues.form's assignableVersions pulls those in for
+     * assignment purposes, but a cross-project version's milestone
+     * belongs on that other project's own Gantt, not this one's).
+     *
+     * @return Collection<int, Version>
+     */
+    #[Computed]
+    public function versions(): Collection
+    {
+        return $this->project->versions()->whereNotNull('due_date')->orderBy('due_date')->get();
+    }
+
     #[Computed]
     public function rangeStart(): ?Carbon
     {
         return $this->rows->pluck('startDate')->filter()->min();
     }
 
+    /**
+     * The later of the last issue due date and the last version's due
+     * date, so a milestone landing after every issue still falls inside
+     * the chart's date range instead of being positioned past 100%. Only
+     * extended when there's at least one dated issue to begin with — a
+     * project with milestones but no dated issues still shows the
+     * existing "no issues" empty state rather than a chart with nothing
+     * but milestones, a deliberate scope limitation.
+     */
     #[Computed]
     public function rangeEnd(): ?Carbon
     {
-        return $this->rows->pluck('dueDate')->filter()->max();
+        $issuesEnd = $this->rows->pluck('dueDate')->filter()->max();
+
+        if ($issuesEnd === null) {
+            return null;
+        }
+
+        $versionsEnd = $this->versions->pluck('due_date')->filter()->max();
+
+        return collect([$issuesEnd, $versionsEnd])->filter()->max();
     }
 
     #[Computed]
@@ -123,6 +157,11 @@ new #[Layout('components.layouts.app')] class extends Component
         );
     }
 
+    public function versionMarkerLeftPercent(Version $version): float
+    {
+        return $this->percentFromStart($version->due_date ?? throw new LogicException('Version is missing a due date.'));
+    }
+
     private function percentFromStart(Carbon $date): float
     {
         return $this->rangeStart->diffInDays($date) / $this->totalDays * 100;
@@ -162,6 +201,11 @@ new #[Layout('components.layouts.app')] class extends Component
                             </a>
                         </div>
                     @endforeach
+                    @foreach ($this->versions as $version)
+                        <div wire:key="version-label-{{ $version->id }}" class="flex h-8 items-center border-b border-gray-100 px-2 text-sm text-gray-700">
+                            <span class="truncate">◆ {{ $version->name }}</span>
+                        </div>
+                    @endforeach
                 </div>
 
                 <div class="relative flex-1">
@@ -183,6 +227,17 @@ new #[Layout('components.layouts.app')] class extends Component
                                     <div class="h-full rounded bg-indigo-600" style="width: {{ $row->doneRatio }}%"></div>
                                 </div>
                             @endif
+                        </div>
+                    @endforeach
+
+                    @foreach ($this->versions as $version)
+                        <div wire:key="version-row-{{ $version->id }}" class="relative h-8 border-b border-gray-100">
+                            <div class="absolute top-1 flex h-6 -translate-x-1/2 items-center gap-1 text-amber-600"
+                                style="left: {{ $this->versionMarkerLeftPercent($version) }}%"
+                                title="{{ $version->name }} ({{ $version->due_date->toDateString() }}, {{ round($version->completedPercent()) }}%)">
+                                <span class="text-lg leading-none">◆</span>
+                                <span class="text-xs text-gray-500">{{ round($version->completedPercent()) }}%</span>
+                            </div>
                         </div>
                     @endforeach
                 </div>
