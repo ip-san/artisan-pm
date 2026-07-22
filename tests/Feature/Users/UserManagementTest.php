@@ -160,6 +160,22 @@ test('an admin cannot lock their own account from the user list', function () {
     expect($admin->fresh()->status)->toBe(UserStatus::Active);
 });
 
+test('an admin can approve a user pending self-registration', function () {
+    $admin = User::factory()->admin()->create();
+    $pending = User::factory()->create(['status' => UserStatus::Registered->value]);
+
+    Livewire::actingAs($admin)->test('users.index')->call('approve', $pending->id);
+
+    expect($pending->fresh()->status)->toBe(UserStatus::Active);
+});
+
+test('approving an already-active user is rejected', function () {
+    $admin = User::factory()->admin()->create();
+    $active = User::factory()->create(['status' => UserStatus::Active->value]);
+
+    Livewire::actingAs($admin)->test('users.index')->call('approve', $active->id)->assertStatus(403);
+});
+
 test('an admin can send a password reset email to a local user', function () {
     Notification::fake();
 

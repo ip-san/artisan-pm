@@ -33,6 +33,23 @@ new #[Layout('components.layouts.app')] class extends Component
 
         unset($this->users);
     }
+
+    /**
+     * Activates a self-registered account awaiting manual approval —
+     * matches Redmine's User#activate for a Setting.self_registration
+     * 'manual' signup.
+     */
+    public function approve(int $userId): void
+    {
+        $user = User::findOrFail($userId);
+        $this->authorize('update', $user);
+
+        abort_unless($user->status === UserStatus::Registered, 403);
+
+        $user->update(['status' => UserStatus::Active->value]);
+
+        unset($this->users);
+    }
 }; ?>
 
 <div>
@@ -55,6 +72,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endif
                     @if ($user->status === \App\Enums\UserStatus::Locked)
                         <span class="ml-2 rounded bg-red-50 px-1.5 py-0.5 text-xs text-red-600">ロック中</span>
+                    @elseif ($user->status === \App\Enums\UserStatus::Registered)
+                        <span class="ml-2 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">承認待ち</span>
                     @endif
                     @if ($user->authSource)
                         <span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">LDAP: {{ $user->authSource->name }}</span>
@@ -62,6 +81,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 <div class="flex gap-3">
                     <a href="{{ route('users.edit', $user) }}" class="text-sm text-indigo-600 hover:underline">編集</a>
+                    @if ($user->status === \App\Enums\UserStatus::Registered)
+                        <button wire:click="approve({{ $user->id }})" wire:confirm="このユーザーを承認しますか?"
+                            class="text-sm text-green-600 hover:underline">
+                            承認
+                        </button>
+                    @endif
                     @unless ($user->is(auth()->user()))
                         <button wire:click="toggleLock({{ $user->id }})"
                             wire:confirm="{{ $user->status === \App\Enums\UserStatus::Locked ? 'このユーザーのロックを解除しますか?' : 'このユーザーをロックしますか?' }}"

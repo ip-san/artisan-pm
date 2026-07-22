@@ -41,10 +41,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $cross_project_issue_relations = false;
 
+    public string $self_registration = 'automatic';
+
     public function mount(): void
     {
         $this->authorize('manage', Setting::class);
 
+        $this->self_registration = Setting::get('self_registration', 'automatic');
         $this->app_title = Setting::get('app_title', config('app.name'));
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
@@ -98,6 +101,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_issue_dates' => ['boolean'],
             'parent_issue_done_ratio' => ['boolean'],
             'cross_project_issue_relations' => ['boolean'],
+            'self_registration' => ['required', 'in:disabled,manual,automatic'],
         ]);
 
         foreach ($data as $key => $value) {
@@ -158,6 +162,23 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="checkbox" wire:model="cross_project_issue_relations" class="rounded border-gray-300">
                 プロジェクトをまたいだ課題関連を許可する
             </label>
+        </section>
+
+        <section class="space-y-4 border-t border-gray-200 pt-6">
+            <h2 class="text-sm font-semibold text-gray-900">認証</h2>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">アカウント登録</label>
+                <select wire:model="self_registration" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="disabled">無効(登録ページを表示しない)</option>
+                    <option value="manual">管理者の承認が必要</option>
+                    <option value="automatic">自動的に有効化</option>
+                </select>
+                @error('self_registration') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">
+                    メール確認によるアカウント有効化(Redmineの3つ目のモード)は、本アプリに送信メール基盤が無いため未対応です。
+                </p>
+            </div>
         </section>
 
         <section class="space-y-4 border-t border-gray-200 pt-6">

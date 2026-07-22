@@ -266,7 +266,7 @@
 | 二要素認証(TOTP) | done | Fortify経由。管理者による強制無効化の専用ボタンはまだ画面にないが、ユーザー編集画面自体は存在する |
 | パスキー/WebAuthn | done(Redmineにはない機能) | — |
 | パスワードリセット | done | — |
-| 登録モード(無効/手動承認/メール確認/自動) | missing | 常時「自動」でハードコード。`emailVerification` はコメントアウト済み |
+| 登録モード(無効/手動承認/メール確認/自動) | partial(2026-07-22) | Redmineの`Setting.self_registration`相当を`self_registration`設定として実装。「無効」は`Fortify::registerView`が登録ページ自体をログインへリダイレクト(直接POSTされた場合も`CreateNewUser`側でバリデーションエラーとして拒否、二重の防御)、「手動承認」は`UserStatus::Registered`(元々定義されていたが未使用だった値)でロック状態のアカウントを作成し、ユーザー管理画面に「承認待ち」バッジ+「承認」ボタンを追加(`AuthenticateUser`は`isActive()`をすでに見ているため追加変更なしでログイン拒否済み)、「自動」は従来通り即座に有効化。メール確認によるモード(Redmineの3つ目)は送信メール基盤が本アプリに無いため意図的に対象外 |
 
 ---
 
