@@ -39,7 +39,7 @@ final class CustomFieldFilter implements FilterableField
             CustomFieldFormat::Date => FilterFieldType::Date,
             CustomFieldFormat::Bool => FilterFieldType::Boolean,
             CustomFieldFormat::List, CustomFieldFormat::Enumeration => FilterFieldType::Select,
-            CustomFieldFormat::String, CustomFieldFormat::Text => FilterFieldType::Text,
+            CustomFieldFormat::String, CustomFieldFormat::Text, CustomFieldFormat::Link => FilterFieldType::Text,
         };
     }
 

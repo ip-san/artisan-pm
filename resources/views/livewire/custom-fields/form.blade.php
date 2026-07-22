@@ -352,7 +352,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         @endif
 
-        @if ($field_format === \App\Enums\CustomFieldFormat::String->value)
+        @if (in_array($field_format, [\App\Enums\CustomFieldFormat::String->value, \App\Enums\CustomFieldFormat::Link->value], true))
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">最小文字数</label>

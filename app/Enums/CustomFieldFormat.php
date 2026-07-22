@@ -14,4 +14,5 @@ enum CustomFieldFormat: string
     case Bool = 'bool';
     case List = 'list';
     case Enumeration = 'enumeration';
+    case Link = 'link';
 }

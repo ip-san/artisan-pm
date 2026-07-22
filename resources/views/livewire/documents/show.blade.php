@@ -105,7 +105,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @foreach ($this->customFieldDisplayValues as $entry)
                 <div>
                     <span class="text-gray-500">{{ $entry['field']->name }}:</span>
-                    {{ $entry['value'] === null || $entry['value'] === '' ? '-' : $entry['value'] }}
+                    <x-custom-field-value :field="$entry['field']" :value="$entry['value']" />
                 </div>
             @endforeach
         </div>

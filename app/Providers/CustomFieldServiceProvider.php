@@ -10,6 +10,7 @@ use App\CustomFields\Formats\DateFormat;
 use App\CustomFields\Formats\EnumerationFormat;
 use App\CustomFields\Formats\FloatFormat;
 use App\CustomFields\Formats\IntFormat;
+use App\CustomFields\Formats\LinkFormat;
 use App\CustomFields\Formats\ListFormat;
 use App\CustomFields\Formats\StringFormat;
 use App\CustomFields\Formats\TextFormat;
@@ -34,5 +35,6 @@ final class CustomFieldServiceProvider extends ServiceProvider
         $registry->register(new BoolFormat);
         $registry->register(new ListFormat);
         $registry->register(new EnumerationFormat);
+        $registry->register(new LinkFormat);
     }
 }
