@@ -5,6 +5,7 @@ use App\Enums\FilterOperator;
 use App\Enums\IssueVisibility;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
+use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -36,9 +37,9 @@ new #[Layout('components.layouts.app')] class extends Component
     use WithPagination;
 
     /**
-     * Columns selectable for display/CSV export. Custom fields are already
-     * filterable (see IssueFilterFieldRegistry) but not yet offered as a
-     * display column — rendering an EAV value generically is deferred.
+     * Native columns selectable for display/CSV export. Custom fields
+     * join these in availableColumns(), keyed cf_{id} — the same key
+     * convention the filter engine uses.
      *
      * @var array<string, string>
      */
@@ -160,7 +161,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $query = Issue::query()
             ->where('project_id', $this->project->id)
-            ->with(['tracker', 'status', 'priority', 'category', 'assignedTo', 'author', 'fixedVersion']);
+            ->with(['tracker', 'status', 'priority', 'category', 'assignedTo', 'author', 'fixedVersion', 'customFieldValues.customField']);
 
         $userId = auth()->id();
 
@@ -469,8 +470,50 @@ new #[Layout('components.layouts.app')] class extends Component
         return SavedQuery::visibleIn($this->project, QueryType::Issue, auth()->user());
     }
 
+    /**
+     * Every selectable column: the native set plus one cf_{id} entry per
+     * issue custom field that applies to this project. Also the label
+     * source for table headers and CSV headers.
+     *
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function availableColumns(): array
+    {
+        $customFieldLabels = $this->projectIssueCustomFields
+            ->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => $field->name])
+            ->all();
+
+        return [...self::DISPLAY_COLUMNS, ...$customFieldLabels];
+    }
+
+    /**
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function projectIssueCustomFields(): Collection
+    {
+        return CustomField::query()
+            ->where('customized_type', \App\Enums\CustomizableType::Issue)
+            ->with('projects')
+            ->orderBy('position')
+            ->get()
+            ->filter(fn (CustomField $field) => $field->appliesToProject($this->project))
+            ->values();
+    }
+
     public function columnValue(Issue $issue, string $key): string
     {
+        if (str_starts_with($key, 'cf_')) {
+            $fieldId = (int) substr($key, 3);
+
+            return $issue->customFieldValues
+                ->where('custom_field_id', $fieldId)
+                ->map(fn ($value) => $value->value())
+                ->filter(fn ($value) => $value !== null && $value !== '')
+                ->join(', ');
+        }
+
         return match ($key) {
             'tracker_id' => $issue->tracker->name,
             'status_id' => $issue->status->name,
@@ -517,7 +560,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 fputcsv($handle, $row, $separator);
             };
 
-            $writeRow(array_map(fn ($key) => self::DISPLAY_COLUMNS[$key] ?? $key, $columns));
+            $writeRow(array_map(fn ($key) => $this->availableColumns[$key] ?? $key, $columns));
 
             $query->chunk(200, function ($chunk) use ($writeRow, $columns) {
                 foreach ($chunk as $issue) {
@@ -869,8 +912,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="flex items-center gap-2 text-sm text-gray-700">
                 表示列:
-                @foreach (self::DISPLAY_COLUMNS as $key => $label)
-                    <label class="flex items-center gap-1">
+                @foreach ($this->availableColumns as $key => $label)
+                    <label class="flex items-center gap-1" wire:key="column-option-{{ $key }}">
                         <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-gray-300">
                         {{ $label }}
                     </label>
@@ -1081,7 +1124,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @foreach ($columns as $columnKey)
                             <th wire:key="column-heading-{{ $columnKey }}" class="px-4 py-2">
                                 <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
-                                    {{ self::DISPLAY_COLUMNS[$columnKey] ?? $columnKey }}
+                                    {{ $this->availableColumns[$columnKey] ?? $columnKey }}
                                     @if ($sortKey === $columnKey)
                                         <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
                                     @endif

@@ -199,7 +199,7 @@
 | 検索対象(`searchable`)の実効性 | done(2026-07-21) | プロジェクト内検索でstring/textカスタムフィールド値がLIKE検索される |
 | 保存後のフォーマット変更禁止・多重度変更時のクリーンアップ | done(2026-07-22) | Redmineの`CustomField#field_format=`(保存済みレコードへの代入を黙って無視)と`handle_multiplicity_change`を移植。フォーマット固定は二重防御: フォーム側は編集時にセレクタを固定表示し`save()`が既存レコードの値を使用(`customized_type`と同じパターン)、モデル側は`updating`イベントで`field_format`のダーティ変更を元値に差し戻すバックストップ。多重度クリーンアップは`updated`イベントで`multiple`がtrue→falseに変わった時のみ、対象オブジェクトごとに最新(最大id)の値だけを残して削除(RedmineのEXISTS相関サブクエリをEloquentの`whereExists`でそのまま再現) |
 | CustomFieldEnumeration(選択肢の位置/有効フラグ、削除時再割当) | done(2026-07-22) | **調査の結果判明**: Redmineの「リスト」形式は本アプリの`list`形式(単純な文字列配列`possible_values`)と同じ仕組みで、`CustomFieldEnumeration`は実際には別の独立したフィールド形式`enumeration`(`Redmine::FieldFormat::EnumerationFormat`)専用のテーブルだった。新規`enumeration`形式を追加: `custom_field_enumerations`テーブル(`custom_field_id`, `name`, `position`, `active`)+`CustomFieldEnumeration`モデル(`App\Models\Enumeration`とは別物)。値は選択肢のIDを`value_string`に保存(`FormatContract::castValue()`に`CustomField`を渡すようインターフェースを拡張し、IDから選択肢名への解決を可能に — 既存7形式は素通しの引数追加のみ)。カスタムフィールド管理フォームに選択肢の追加/改名/有効無効切替UIを追加。**削除時再割当**: 選択肢の「削除」は即時実行(フォーム保存を待たない独立アクション)、削除前に置き換え先選択肢を選べるドロップダウンを表示し、既存の`custom_field_values`を置き換え先へ一括更新(置き換え先未選択の場合はRedmineと異なり値を確実にnullへクリア — Redmine本家は置き換え先未指定だと存在しないIDを指したまま放置される)。並べ替えUI(ドラッグでの位置変更)は対象外、位置は追加順のまま |
-| 表示列・CSV列としてのカスタムフィールド | missing | 意図的に見送り済み(コード内コメントで明記) |
+| 表示列・CSV列としてのカスタムフィールド | done(2026-07-22) | 長年の意図的見送りを解消。`availableColumns()`がネイティブ列+プロジェクト適用対象の課題カスタムフィールド(`cf_{id}`キー、フィルタエンジンと同じ規約)を提供し、表示列チェックボックス・テーブル表示・CSVエクスポートのすべてで選択可能に。複数値フィールドは「, 」結合で表示。`castValue()`/`options()`の基盤整備(同日実施)により実装障壁が低下していた。カスタムフィールドでの**並べ替え**は引き続き不可(`CustomFieldFilter::isSortable()=false`、列見出しクリックは無害なno-op) |
 
 ### 一括編集・インポート・エクスポート
 
@@ -412,7 +412,7 @@
 | 保存済みクエリ(フィルタ/列/ソート/グループ) | done | `App\Models\Query` |
 | 公開/非公開 | done(2026-07-22) | Redmineの`Query::VISIBILITY_PRIVATE/ROLES/PUBLIC`を移植。`queries.is_public`(boolean)を`visibility`(文字列enum、既存データは`true→public`/`false→private`で移行)に置き換え、`query_role`ピボットテーブルを追加。新規`manage_public_queries`権限を登録し、`saveQuery()`はこの権限を持たない場合サーバー側で強制的に`private`へフォールバック(Redmineの`QueriesController#new/#create`と同じ、クライアント側のフォーム自体も非保持者には選択肢を出さない二重の防御)。`visibleTo()`はロール判定を含めて全面書き換え(匿名ユーザーにも対応)、`savedQueries()`はロール交差判定がSQL述語1本で表現できないため`projects.index`と同じ「取得後にメモリ内フィルタ」方式に変更。課題一覧・工数一覧の両方の保存済みクエリ機能に適用 |
 | プロジェクト横断クエリ | missing | 常に `project_id` でフィルタ |
-| 列選択 | partial(課題)/partial(工数、2026-07-22) | 課題: 固定のネイティブ列のみ、カスタムフィールドは列にできず、並べ替えもできない。工数: `issues.index`と同じ`DISPLAY_COLUMNS`+チェックボックスUIパターンを移植(日付/担当者/作業分類/課題/コメント/時間の6列から選択、既定は全列表示)。表示テーブル・CSVエクスポートとも選択列に追従、保存済みクエリの`column_names`にも反映(既存の`saveQuery`/`loadQuery`が空配列を書き込んでいた不備も合わせて解消)。課題側と同様、カスタムフィールドは列として選択不可、列の並べ替え(ドラッグでの順序変更)も対象外 |
+| 列選択 | partial(課題、2026-07-22)/partial(工数、2026-07-22) | 課題: カスタムフィールドも列として選択可能に(上の「表示列・CSV列としてのカスタムフィールド」行参照)。CF列での並べ替えは不可。工数: `issues.index`と同じ`DISPLAY_COLUMNS`+チェックボックスUIパターンを移植(日付/担当者/作業分類/課題/コメント/時間の6列から選択、既定は全列表示)。表示テーブル・CSVエクスポートとも選択列に追従、保存済みクエリの`column_names`にも反映(既存の`saveQuery`/`loadQuery`が空配列を書き込んでいた不備も合わせて解消)。課題側と同様、カスタムフィールドは列として選択不可、列の並べ替え(ドラッグでの順序変更)も対象外 |
 | グルーピング | partial | 固定の短いリスト(ステータス/トラッカー/優先度/担当者)のみ。件数はSQL `GROUP BY`による全件集計(2026-07-21)。表示行自体は現在のページ内のみ(意図的、パフォーマンス上の理由)。カスタムフィールドでのグルーピング不可 |
 | 合計/集計 | done(2026-07-22) | 課題: 一覧に予定工数/実績工数の合計を表示(Redmineの`issue_list_default_totals`相当、両方固定表示で設定化はしない)。全体合計はフィルタ適用後の全件をSQL集計(ページ内ではない)、グループ化時は各グループ見出しに件数+予定/実績合計を表示(`groupTotals`を件数のみ→件数/予定/実績の連想配列に拡張、実績はtime_entriesをJOINしたグループ別SUM)。工数: 従来通り全体+グループ別の時間合計 |
 | 相対日付フィルタ(「過去N日以内」等) | done | — |
