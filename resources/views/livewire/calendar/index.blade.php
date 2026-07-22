@@ -29,11 +29,13 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Issues are placed on their due date only, not spanning every day
-     * between start and due date — the plan scopes the calendar to "a
-     * month grid of due dates", not a mini-Gantt per cell.
+     * Issues appear on their start date (▶) and their due date (◀) —
+     * matching Redmine's calendar helper, which marks an issue on those
+     * two days rather than spanning every day in between (the plan's
+     * "month grid, not a mini-Gantt per cell" scope). An issue starting
+     * and due the same day collapses to a single ◆ entry.
      *
-     * @return array<int, array<int, array{date: Carbon, issues: Collection<int, Issue>, isCurrentMonth: bool}>>
+     * @return array<int, array<int, array{date: Carbon, entries: Collection<int, array{issue: Issue, marker: string}>, isCurrentMonth: bool}>>
      */
     #[Computed]
     public function weeks(): array
@@ -42,7 +44,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $gridStart = $firstOfMonth->copy()->startOfWeek(Carbon::SUNDAY);
         $gridEnd = $firstOfMonth->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY);
 
-        $issuesByDate = $this->issuesDueBetween($gridStart, $gridEnd);
+        $entriesByDate = $this->issueEntriesBetween($gridStart, $gridEnd);
 
         $weeks = [];
         $cursor = $gridStart->copy();
@@ -53,7 +55,7 @@ new #[Layout('components.layouts.app')] class extends Component
             for ($i = 0; $i < 7; $i++) {
                 $week[] = [
                     'date' => $cursor->copy(),
-                    'issues' => $issuesByDate->get($cursor->toDateString(), collect()),
+                    'entries' => $entriesByDate->get($cursor->toDateString(), collect()),
                     'isCurrentMonth' => $cursor->month === $this->month,
                 ];
                 $cursor->addDay();
@@ -66,16 +68,43 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * @return Collection<string, Collection<int, Issue>>
+     * @return Collection<string, Collection<int, array{issue: Issue, marker: string}>>
      */
-    private function issuesDueBetween(Carbon $from, Carbon $to): Collection
+    private function issueEntriesBetween(Carbon $from, Carbon $to): Collection
     {
-        return Issue::query()
+        $range = [$from->toDateString(), $to->toDateString()];
+
+        $issues = Issue::query()
             ->where('project_id', $this->project->id)
-            ->whereBetween('due_date', [$from->toDateString(), $to->toDateString()])
+            ->where(fn ($query) => $query
+                ->whereBetween('start_date', $range)
+                ->orWhereBetween('due_date', $range))
             ->with(['tracker', 'status'])
-            ->get()
-            ->groupBy(fn (Issue $issue) => $issue->due_date->toDateString());
+            ->get();
+
+        $inRange = fn (?string $date) => $date !== null && $date >= $range[0] && $date <= $range[1];
+        $entries = collect();
+
+        foreach ($issues as $issue) {
+            $start = $issue->start_date?->toDateString();
+            $due = $issue->due_date?->toDateString();
+
+            if ($start === $due && $inRange($start)) {
+                $entries->push(['date' => $start, 'issue' => $issue, 'marker' => 'both']);
+
+                continue;
+            }
+
+            if ($inRange($start)) {
+                $entries->push(['date' => $start, 'issue' => $issue, 'marker' => 'start']);
+            }
+
+            if ($inRange($due)) {
+                $entries->push(['date' => $due, 'issue' => $issue, 'marker' => 'due']);
+            }
+        }
+
+        return $entries->groupBy('date');
     }
 
     public function previousMonth(): void
@@ -124,8 +153,10 @@ new #[Layout('components.layouts.app')] class extends Component
                                     {{ $day['date']->day }}
                                 </div>
                                 <ul class="mt-1 space-y-0.5">
-                                    @foreach ($day['issues'] as $issue)
-                                        <li class="truncate">
+                                    @foreach ($day['entries'] as $entry)
+                                        @php $issue = $entry['issue']; @endphp
+                                        <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-{{ $issue->id }}-{{ $entry['marker'] }}">
+                                            <span class="text-xs text-gray-400" title="{{ match ($entry['marker']) { 'start' => '開始日', 'due' => '期日', default => '開始日=期日' } }}">{{ match ($entry['marker']) { 'start' => '▶', 'due' => '◀', default => '◆' } }}</span>
                                             <a href="{{ route('issues.show', [$project, $issue]) }}"
                                                 class="text-xs text-indigo-600 hover:underline"
                                                 title="{{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}">

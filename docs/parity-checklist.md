@@ -442,7 +442,7 @@
 | マイページ(ブロック追加/削除/ドラッグ並べ替え) | partial | 動作は良好だが、固定5ブロックのカタログ(担当課題/報告課題/Watch課題/最新News/工数)。Redmine は calendar/documents/timelog/activity に加え**保存済みクエリをブロック化**(issuequery、複数配置可)できるが、artisan-pmには保存済みクエリ↔ダッシュボードの橋渡しがない |
 | グローバルアクティビティフィード | partial(2026-07-22) | 8種類のプロバイダを集約(日付範囲・種別チェックボックス)。`ActivityFeedController`+`feeds/activity-atom.blade.php`でAtomフィードを追加(直近10日/最大15件、Redmineの`activity_days_default`/`feeds_limit`既定値を踏襲、既存の`ActivityProviderRegistry`をそのまま再利用)。プロジェクト単位限定・サブプロジェクト包含は引き続き未対応 |
 | **プロジェクト横断の課題一覧** | **missing** | Redmineの主要機能の一つだが、トップレベル `/issues` が存在しない |
-| カレンダー | partial | 月グリッド、期日のみ(開始日〜期日のスパン表示なし)、クエリフィルタと連動しない固定クエリ、プロジェクト限定 |
+| カレンダー | partial(2026-07-22) | 開始日/期日マーカーを実装: Redmineのカレンダーヘルパーと同様、課題を開始日(▶)と期日(◀)の2箇所にマーク表示(期間中の全日には展開しない)。開始日=期日の課題は◆1件に集約、片方の日付のみの課題はその日付にのみ表示。クエリフィルタとの連動・プロジェクト横断は引き続き未対応(ロードマップ参照) |
 | ガント | partial | 再帰CTEツリー+進捗バー。クエリ/フィルタを一切無視(常に全ツリー表示)、バージョンのマイルストーン表示なし、関連線なし、PDF/PNGエクスポートなし、プロジェクト限定 |
 | 検索(モジュール横断) | partial | Issue/Wiki/News/Document/Message を1プロジェクト内で検索。all/my_projects/bookmarks/subprojects等のスコープ切替なし、all_words/titles_only/open_issues等のトグルなし、`#123`ジャンプなし、プロジェクト/チェンジセット/Journalは検索対象外 |
 

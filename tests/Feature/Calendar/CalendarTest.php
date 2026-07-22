@@ -47,7 +47,7 @@ test('an issue appears on the calendar cell matching its due date', function () 
     $weeks = $component->get('weeks');
     $matchingDay = collect($weeks)->flatten(1)->first(fn ($day) => $day['date']->isSameDay($dueDate));
 
-    expect($matchingDay['issues']->pluck('id'))->toContain($issue->id);
+    expect($matchingDay['entries']->pluck('issue.id'))->toContain($issue->id);
 });
 
 test('an issue due in a different month does not appear', function () {
@@ -56,7 +56,7 @@ test('an issue due in a different month does not appear', function () {
     Issue::factory()->for($project)->create(['due_date' => now()->addMonths(2)->toDateString()]);
 
     $component = Livewire::actingAs($user)->test('calendar.index', ['project' => $project]);
-    $allIssueIds = collect($component->get('weeks'))->flatten(1)->flatMap(fn ($day) => $day['issues']->pluck('id'));
+    $allIssueIds = collect($component->get('weeks'))->flatten(1)->flatMap(fn ($day) => $day['entries']->pluck('issue.id'));
 
     expect($allIssueIds)->toBeEmpty();
 });
@@ -98,4 +98,63 @@ test('days outside the current month are flagged as such', function () {
 
     $julyDay = collect($weeks)->flatten(1)->first(fn ($day) => $day['date']->day === 15 && $day['date']->month === 7);
     expect($julyDay['isCurrentMonth'])->toBeTrue();
+});
+
+test('an issue spanning several days is marked on its start date and due date only', function () {
+    $project = Project::factory()->create();
+    $user = calendarMember($project);
+    $start = now()->startOfMonth()->addDays(3);
+    $due = now()->startOfMonth()->addDays(9);
+    $issue = Issue::factory()->for($project)->create([
+        'start_date' => $start->toDateString(),
+        'due_date' => $due->toDateString(),
+    ]);
+
+    $days = collect(Livewire::actingAs($user)->test('calendar.index', ['project' => $project])->get('weeks'))->flatten(1);
+
+    $markersByDate = $days
+        ->flatMap(fn ($day) => $day['entries']->map(fn ($entry) => [
+            'date' => $day['date']->toDateString(),
+            'issue_id' => $entry['issue']->id,
+            'marker' => $entry['marker'],
+        ]))
+        ->where('issue_id', $issue->id);
+
+    expect($markersByDate)->toHaveCount(2)
+        ->and($markersByDate->firstWhere('marker', 'start')['date'])->toBe($start->toDateString())
+        ->and($markersByDate->firstWhere('marker', 'due')['date'])->toBe($due->toDateString());
+});
+
+test('an issue starting and due the same day collapses to a single combined marker', function () {
+    $project = Project::factory()->create();
+    $user = calendarMember($project);
+    $day = now()->startOfMonth()->addDays(5);
+    $issue = Issue::factory()->for($project)->create([
+        'start_date' => $day->toDateString(),
+        'due_date' => $day->toDateString(),
+    ]);
+
+    $entries = collect(Livewire::actingAs($user)->test('calendar.index', ['project' => $project])->get('weeks'))
+        ->flatten(1)
+        ->flatMap(fn ($d) => $d['entries'])
+        ->where(fn ($entry) => $entry['issue']->id === $issue->id);
+
+    expect($entries)->toHaveCount(1)
+        ->and($entries->first()['marker'])->toBe('both');
+});
+
+test('an issue with only a start date in the month appears on that start date', function () {
+    $project = Project::factory()->create();
+    $user = calendarMember($project);
+    $start = now()->startOfMonth()->addDays(7);
+    $issue = Issue::factory()->for($project)->create([
+        'start_date' => $start->toDateString(),
+        'due_date' => null,
+    ]);
+
+    $days = collect(Livewire::actingAs($user)->test('calendar.index', ['project' => $project])->get('weeks'))->flatten(1);
+    $matchingDay = $days->first(fn ($d) => $d['date']->isSameDay($start));
+
+    expect($matchingDay['entries']->pluck('issue.id'))->toContain($issue->id)
+        ->and($matchingDay['entries']->firstWhere('issue.id', $issue->id)['marker'])->toBe('start');
 });
