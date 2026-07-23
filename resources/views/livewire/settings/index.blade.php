@@ -92,6 +92,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $self_registration = 'automatic';
 
+    public int $session_timeout = 0;
+
     public string $email_domains_allowed = '';
 
     public string $email_domains_denied = '';
@@ -109,6 +111,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('manage', Setting::class);
 
         $this->self_registration = Setting::get('self_registration', 'automatic');
+        $this->session_timeout = Setting::get('session_timeout', 0);
         $this->email_domains_allowed = Setting::get('email_domains_allowed', '');
         $this->email_domains_denied = Setting::get('email_domains_denied', '');
         $this->app_title = Setting::get('app_title', config('app.name'));
@@ -200,6 +203,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'issue_list_default_columns.*' => [Rule::in(array_keys(self::ISSUE_LIST_COLUMNS))],
             'start_of_week' => ['required', Rule::in([0, 1, 6])],
             'self_registration' => ['required', 'in:disabled,manual,automatic'],
+            'session_timeout' => ['required', Rule::in([0, 60, 120, 240, 480, 720, 1440, 2880])],
             'email_domains_allowed' => ['nullable', 'string', 'max:1000'],
             'email_domains_denied' => ['nullable', 'string', 'max:1000'],
             'default_projects_public' => ['boolean'],
@@ -374,6 +378,22 @@ new #[Layout('components.layouts.app')] class extends Component
                 <p class="mt-1 text-xs text-gray-500">
                     先頭に「.」を付けると、そのドメインとサブドメインすべてに一致します(例: .example.org)。自己登録時のみ適用され、管理者による直接のユーザー作成には適用されません。
                 </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">セッションタイムアウト</label>
+                <select wire:model="session_timeout" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="0">無効</option>
+                    <option value="60">1時間</option>
+                    <option value="120">2時間</option>
+                    <option value="240">4時間</option>
+                    <option value="480">8時間</option>
+                    <option value="720">12時間</option>
+                    <option value="1440">24時間</option>
+                    <option value="2880">48時間</option>
+                </select>
+                @error('session_timeout') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">この時間操作が無かったセッションは無効になり、再ログインが必要になります。</p>
             </div>
         </section>
 

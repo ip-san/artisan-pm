@@ -223,6 +223,28 @@ test('issue_list_default_columns cannot be emptied out entirely', function () {
         ->assertHasErrors(['issue_list_default_columns']);
 });
 
+test('an admin can configure the session timeout', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('session_timeout', 120)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('session_timeout'))->toBe(120);
+});
+
+test('session_timeout only accepts one of the preset options', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('session_timeout', 90)
+        ->call('save')
+        ->assertHasErrors(['session_timeout']);
+});
+
 test('an admin can configure the calendar start of week', function () {
     $admin = User::factory()->admin()->create();
 

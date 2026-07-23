@@ -14,7 +14,7 @@ Route::get('/', function () {
     return redirect()->route('projects.index');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'session.timeout'])->group(function () {
     Route::get('/attachments/{media}', AttachmentController::class)->name('attachments.show');
     Route::get('/attachments/{media}/thumb', AttachmentThumbnailController::class)->name('attachments.thumb');
 
