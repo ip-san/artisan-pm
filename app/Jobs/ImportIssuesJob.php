@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Enums\EnumerationType;
 use App\Enums\ImportStatus;
 use App\Models\Enumeration;
+use App\Models\Issue;
 use App\Models\IssueImport;
 use App\Models\IssueStatus;
 use App\Models\Tracker;
@@ -66,6 +67,11 @@ final class ImportIssuesJob implements ShouldQueue
             'tracker' => $this->import->project->trackers()->orderBy('position')->first(),
             'status' => IssueStatus::query()->orderBy('position')->first(),
             'priority' => Enumeration::query()->ofType(EnumerationType::IssuePriority)->where('is_default', true)->first(),
+            // Computed once rather than per row — the permission doesn't
+            // vary by row, and it gates whether a mapped is_private column
+            // is honored at all (same as the manual form hiding the
+            // checkbox entirely for users who lack this permission).
+            'canSetPrivate' => $this->import->user->can('setPrivate', [Issue::class, $this->import->project]),
         ];
 
         foreach ($rows as $index => $row) {
@@ -98,7 +104,7 @@ final class ImportIssuesJob implements ShouldQueue
     /**
      * @param  array<string, mixed>  $record
      * @param  array<string, string>  $mapping
-     * @param  array<string, Tracker|IssueStatus|Enumeration|null>  $defaults
+     * @param  array<string, Tracker|IssueStatus|Enumeration|bool|null>  $defaults
      * @return array<string, mixed>
      */
     private function mapRowToAttributes(array $record, array $mapping, array $defaults): array
@@ -135,6 +141,41 @@ final class ImportIssuesJob implements ShouldQueue
                 ->first()
             : null;
 
+        // Category/version unresolved by name are left unset rather than
+        // failing the row — same leniency as assigned_to above, since
+        // neither field is required to create an issue.
+        $categoryName = $this->mapped($record, $mapping, 'category');
+        $category = $categoryName !== null
+            ? $this->import->project->issueCategories()->where('name', $categoryName)->first()
+            : null;
+
+        $versionName = $this->mapped($record, $mapping, 'fixed_version');
+        $version = $versionName !== null
+            ? $this->import->project->versions()->where('name', $versionName)->first()
+            : null;
+
+        // Unlike category/version, an explicitly mapped parent reference
+        // that can't be resolved fails the row — silently dropping it
+        // would leave what was meant to be a subtask parented incorrectly
+        // (or not at all) with no indication anything went wrong. Scoped
+        // to this project, matching the manual form's parent_id rule.
+        $parentRef = $this->mapped($record, $mapping, 'parent');
+        $parent = $parentRef !== null
+            ? Issue::query()->where('project_id', $this->import->project_id)->find((int) ltrim($parentRef, '#'))
+            : null;
+
+        if ($parentRef !== null && $parent === null) {
+            throw new RuntimeException("親課題 {$parentRef} が見つかりません。");
+        }
+
+        // Only honored when the importing user actually has permission to
+        // set issues private — a mapped column can't grant a permission
+        // the manual form wouldn't offer them either.
+        $isPrivateRaw = $this->mapped($record, $mapping, 'is_private');
+        $isPrivate = $defaults['canSetPrivate'] && $isPrivateRaw !== null
+            ? filter_var($isPrivateRaw, FILTER_VALIDATE_BOOLEAN)
+            : false;
+
         return [
             'project_id' => $this->import->project_id,
             'tracker_id' => $tracker->id,
@@ -143,6 +184,10 @@ final class ImportIssuesJob implements ShouldQueue
             'subject' => $subject,
             'description' => $this->mapped($record, $mapping, 'description'),
             'assigned_to_id' => $assignee?->id,
+            'category_id' => $category?->id,
+            'fixed_version_id' => $version?->id,
+            'parent_id' => $parent?->id,
+            'is_private' => $isPrivate,
             'start_date' => $this->mapped($record, $mapping, 'start_date') ?: null,
             'due_date' => $this->mapped($record, $mapping, 'due_date') ?: null,
             'done_ratio' => (int) ($this->mapped($record, $mapping, 'done_ratio') ?: 0),

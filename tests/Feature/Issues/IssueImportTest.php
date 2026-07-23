@@ -3,6 +3,7 @@
 use App\Enums\ImportStatus;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\IssueImport;
 use App\Models\IssueStatus;
 use App\Models\Member;
@@ -10,6 +11,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -190,4 +192,143 @@ test('an assigned_to email matching a user outside the project leaves the issue 
 
     expect($issue->assigned_to_id)->toBeNull()
         ->and($issue->assigned_to_id)->not->toBe($outsider->id);
+});
+
+test('rows resolve category and fixed_version by name, leaving them unset when the name is unknown', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    IssueStatus::factory()->create();
+    Enumeration::factory()->create(['is_default' => true]);
+    $category = IssueCategory::factory()->for($project)->create(['name' => 'Backend']);
+    $version = Version::factory()->for($project)->create(['name' => '1.0']);
+    $user = importMember($project);
+
+    $csv = "subject,category,fixed_version\nMatched,Backend,1.0\nUnmatched,Nope,Nope\n";
+
+    Livewire::actingAs($user)
+        ->test('issues.import', ['project' => $project])
+        ->set('csvFile', csvFile('issues.csv', $csv))
+        ->set('mapping.subject', 'subject')
+        ->set('mapping.category', 'category')
+        ->set('mapping.fixed_version', 'fixed_version')
+        ->call('startImport');
+
+    $matched = Issue::where('subject', 'Matched')->firstOrFail();
+    $unmatched = Issue::where('subject', 'Unmatched')->firstOrFail();
+
+    expect($matched->category_id)->toBe($category->id)
+        ->and($matched->fixed_version_id)->toBe($version->id)
+        ->and($unmatched->category_id)->toBeNull()
+        ->and($unmatched->fixed_version_id)->toBeNull();
+});
+
+test('a row referencing a parent issue by number sets parent_id, scoped to the same project', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $otherProject->trackers()->attach($tracker);
+    $status = IssueStatus::factory()->create();
+    $priority = Enumeration::factory()->create(['is_default' => true]);
+    $user = importMember($project);
+
+    $parent = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => $priority->id, 'author_id' => $user->id,
+    ]);
+    $outsideParent = Issue::factory()->for($otherProject)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => $priority->id, 'author_id' => $user->id,
+    ]);
+
+    $csv = "subject,parent\nChild,#{$parent->id}\n";
+
+    Livewire::actingAs($user)
+        ->test('issues.import', ['project' => $project])
+        ->set('csvFile', csvFile('issues.csv', $csv))
+        ->set('mapping.subject', 'subject')
+        ->set('mapping.parent', 'parent')
+        ->call('startImport');
+
+    $child = Issue::where('subject', 'Child')->firstOrFail();
+
+    expect($child->parent_id)->toBe($parent->id)
+        ->and($child->parent_id)->not->toBe($outsideParent->id);
+});
+
+test('a row referencing a parent issue that does not exist in the project is recorded as a failure', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    IssueStatus::factory()->create();
+    Enumeration::factory()->create(['is_default' => true]);
+    $user = importMember($project);
+
+    $csv = "subject,parent\nOrphan,#999999\n";
+
+    Livewire::actingAs($user)
+        ->test('issues.import', ['project' => $project])
+        ->set('csvFile', csvFile('issues.csv', $csv))
+        ->set('mapping.subject', 'subject')
+        ->set('mapping.parent', 'parent')
+        ->call('startImport');
+
+    $import = IssueImport::firstOrFail();
+
+    expect($import->imported_count)->toBe(0)
+        ->and($import->failed_count)->toBe(1)
+        ->and(Issue::where('subject', 'Orphan')->exists())->toBeFalse();
+});
+
+test('a mapped is_private column is honored when the importing user can set issues private', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    IssueStatus::factory()->create();
+    Enumeration::factory()->create(['is_default' => true]);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues', 'set_issues_private']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    $csv = "subject,is_private\nSecret,1\nOpen,0\n";
+
+    Livewire::actingAs($user)
+        ->test('issues.import', ['project' => $project])
+        ->set('csvFile', csvFile('issues.csv', $csv))
+        ->set('mapping.subject', 'subject')
+        ->set('mapping.is_private', 'is_private')
+        ->call('startImport');
+
+    expect(Issue::where('subject', 'Secret')->firstOrFail()->is_private)->toBeTrue()
+        ->and(Issue::where('subject', 'Open')->firstOrFail()->is_private)->toBeFalse();
+});
+
+test('a mapped is_private column is ignored when the importing user cannot set issues private', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    IssueStatus::factory()->create();
+    Enumeration::factory()->create(['is_default' => true]);
+    $user = importMember($project);
+
+    $csv = "subject,is_private\nAttempted secret,1\n";
+
+    Livewire::actingAs($user)
+        ->test('issues.import', ['project' => $project])
+        ->set('csvFile', csvFile('issues.csv', $csv))
+        ->set('mapping.subject', 'subject')
+        ->set('mapping.is_private', 'is_private')
+        ->call('startImport');
+
+    expect(Issue::where('subject', 'Attempted secret')->firstOrFail()->is_private)->toBeFalse();
 });
