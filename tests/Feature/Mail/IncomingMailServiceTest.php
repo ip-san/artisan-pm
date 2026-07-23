@@ -2,6 +2,7 @@
 
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
@@ -9,6 +10,7 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use App\Services\IncomingMailService;
 use App\Support\Mail\ParsedIncomingMail;
 
@@ -421,6 +423,76 @@ test('an unrecognized keyword value is left as plain text rather than silently d
 
     expect($issue->status_id)->toBe($status->id)
         ->and($issue->description)->toBe('Status: NoSuchStatus');
+});
+
+test('a Tracker keyword line resolves by name, scoped to trackers attached to the project', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $otherTracker = Tracker::factory()->create(['name' => 'Feature']);
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $unattached = app(IncomingMailService::class)->createIssueFromMail(new ParsedIncomingMail(
+        subject: 'Not attached', body: 'Tracker: Feature', fromEmail: 'sender@example.com',
+    ));
+
+    $project->trackers()->attach($otherTracker);
+
+    $attached = app(IncomingMailService::class)->createIssueFromMail(new ParsedIncomingMail(
+        subject: 'Attached', body: 'Tracker: Feature', fromEmail: 'sender@example.com',
+    ));
+
+    expect($unattached->tracker_id)->toBe($tracker->id)
+        ->and($unattached->description)->toBe('Tracker: Feature')
+        ->and($attached->tracker_id)->toBe($otherTracker->id);
+});
+
+test('a Category keyword line resolves by name within the project', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+    $category = IssueCategory::factory()->for($project)->create(['name' => 'Backend']);
+
+    $mail = new ParsedIncomingMail(subject: 'Bug report', body: 'Category: Backend', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->category_id)->toBe($category->id)
+        ->and($issue->description)->toBe('');
+});
+
+test('a Fixed version keyword line resolves by name within the project', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+    $version = Version::factory()->for($project)->create(['name' => '1.0']);
+
+    $mail = new ParsedIncomingMail(subject: 'Bug report', body: 'Fixed version: 1.0', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->fixed_version_id)->toBe($version->id)
+        ->and($issue->description)->toBe('');
+});
+
+test('an unrecognized category name is left as plain text rather than silently dropped', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(subject: 'Bug report', body: 'Category: NoSuchCategory', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->category_id)->toBeNull()
+        ->and($issue->description)->toBe('Category: NoSuchCategory');
 });
 
 test('a keyword line on a reply updates the existing issue and is stripped from the comment', function () {

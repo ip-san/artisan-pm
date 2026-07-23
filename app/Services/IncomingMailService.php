@@ -10,6 +10,7 @@ use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Setting;
+use App\Models\Tracker;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Mail\ParsedIncomingMail;
@@ -36,10 +37,10 @@ use Webklex\PHPIMAP\Message;
  * command lines ("Status: Closed", one per line) that override an
  * attribute on the created/replied-to issue, matching Redmine's
  * MailHandler#issue_attributes_from_keywords — narrowed to
- * status/priority/assigned_to/done_ratio (this app has no i18n, so
- * unlike Redmine the keyword label itself is a fixed English string
- * rather than translated per Setting.default_language). tracker,
- * category, fixed_version, start_date/due_date, estimated_hours,
+ * status/priority/assigned_to/done_ratio/tracker/category/fixed_version
+ * (this app has no i18n, so unlike Redmine the keyword label itself is
+ * a fixed English string rather than translated per
+ * Setting.default_language). start_date/due_date, estimated_hours,
  * parent_issue, is_private, and custom-field keywords are intentionally
  * not recognized — a deliberately narrower grammar than Redmine's, same
  * scope-cut RepositorySyncService's commit-keyword parsing already
@@ -57,6 +58,9 @@ final class IncomingMailService
         'priority' => 'priority_id',
         'assigned to' => 'assigned_to_id',
         'done ratio' => 'done_ratio',
+        'tracker' => 'tracker_id',
+        'category' => 'category_id',
+        'fixed version' => 'fixed_version_id',
     ];
 
     public function __construct(
@@ -343,7 +347,7 @@ final class IncomingMailService
         $kept = [];
 
         foreach (explode("\n", $body) as $line) {
-            if (preg_match('/^(status|priority|assigned to|done ratio)\s*:\s*(.+?)\s*$/i', $line, $matches) === 1) {
+            if (preg_match('/^(status|priority|assigned to|done ratio|tracker|category|fixed version)\s*:\s*(.+?)\s*$/i', $line, $matches) === 1) {
                 $keyword = mb_strtolower($matches[1]);
                 $value = $this->resolveKeywordValue($keyword, trim($matches[2]), $project);
 
@@ -375,6 +379,13 @@ final class IncomingMailService
             'priority' => Enumeration::query()->ofType(EnumerationType::IssuePriority)->whereRaw('LOWER(name) = ?', [mb_strtolower($value)])->value('id'),
             'assigned to' => $project->assignableUsers()
                 ->first(fn (User $user) => strcasecmp($user->email, $value) === 0 || strcasecmp($user->name, $value) === 0)?->id,
+            // Scoped to the project's own trackers/categories/versions —
+            // the same boundary the manual issue form enforces, so a
+            // keyword line can't assign a tracker/category/version that
+            // doesn't actually belong to this project.
+            'tracker' => $project->trackers->first(fn (Tracker $tracker) => strcasecmp($tracker->name, $value) === 0)?->id,
+            'category' => $project->issueCategories()->whereRaw('LOWER(name) = ?', [mb_strtolower($value)])->value('id'),
+            'fixed version' => $project->versions()->whereRaw('LOWER(name) = ?', [mb_strtolower($value)])->value('id'),
             default => null,
         };
 
