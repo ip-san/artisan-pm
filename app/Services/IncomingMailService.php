@@ -37,14 +37,14 @@ use Webklex\PHPIMAP\Message;
  * command lines ("Status: Closed", one per line) that override an
  * attribute on the created/replied-to issue, matching Redmine's
  * MailHandler#issue_attributes_from_keywords — narrowed to
- * status/priority/assigned_to/done_ratio/tracker/category/fixed_version
- * (this app has no i18n, so unlike Redmine the keyword label itself is
- * a fixed English string rather than translated per
- * Setting.default_language). start_date/due_date, estimated_hours,
- * parent_issue, is_private, and custom-field keywords are intentionally
- * not recognized — a deliberately narrower grammar than Redmine's, same
- * scope-cut RepositorySyncService's commit-keyword parsing already
- * takes for `@Nh` time logging.
+ * status/priority/assigned_to/done_ratio/tracker/category/fixed_version/
+ * start_date/due_date/estimated_hours/is_private (this app has no i18n,
+ * so unlike Redmine the keyword label itself is a fixed English string
+ * rather than translated per Setting.default_language). parent_issue
+ * and custom-field keywords are intentionally not recognized — a
+ * deliberately narrower grammar than Redmine's, same scope-cut
+ * RepositorySyncService's commit-keyword parsing already takes for
+ * `@Nh` time logging.
  */
 final class IncomingMailService
 {
@@ -61,6 +61,10 @@ final class IncomingMailService
         'tracker' => 'tracker_id',
         'category' => 'category_id',
         'fixed version' => 'fixed_version_id',
+        'start date' => 'start_date',
+        'due date' => 'due_date',
+        'estimated hours' => 'estimated_hours',
+        'private' => 'is_private',
     ];
 
     public function __construct(
@@ -228,7 +232,7 @@ final class IncomingMailService
         }
 
         $subject = mb_substr($this->stripProjectPrefix($mail->subject), 0, 255);
-        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $project);
+        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $project, $author);
 
         $issue = $this->issues->create([
             'project_id' => $project->id,
@@ -282,7 +286,7 @@ final class IncomingMailService
             return null;
         }
 
-        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $issue->project);
+        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $issue->project, $author);
         $comment = trim($body);
         $updated = $this->issues->update($issue, $keywordAttributes, $author, $comment !== '' ? $comment : null);
 
@@ -339,17 +343,17 @@ final class IncomingMailService
      * is left as plain text in the body rather than silently vanishing,
      * so the sender can see what didn't take effect.
      *
-     * @return array{attributes: array<string, int>, body: string}
+     * @return array{attributes: array<string, int|string|float|bool>, body: string}
      */
-    private function extractKeywordAttributes(string $body, Project $project): array
+    private function extractKeywordAttributes(string $body, Project $project, User $author): array
     {
         $attributes = [];
         $kept = [];
 
         foreach (explode("\n", $body) as $line) {
-            if (preg_match('/^(status|priority|assigned to|done ratio|tracker|category|fixed version)\s*:\s*(.+?)\s*$/i', $line, $matches) === 1) {
+            if (preg_match('/^(status|priority|assigned to|done ratio|tracker|category|fixed version|start date|due date|estimated hours|private)\s*:\s*(.+?)\s*$/i', $line, $matches) === 1) {
                 $keyword = mb_strtolower($matches[1]);
-                $value = $this->resolveKeywordValue($keyword, trim($matches[2]), $project);
+                $value = $this->resolveKeywordValue($keyword, trim($matches[2]), $project, $author);
 
                 if ($value !== null) {
                     $attributes[self::KEYWORD_ATTRIBUTES[$keyword]] = $value;
@@ -364,7 +368,7 @@ final class IncomingMailService
         return ['attributes' => $attributes, 'body' => trim(implode("\n", $kept))];
     }
 
-    private function resolveKeywordValue(string $keyword, string $value, Project $project): ?int
+    private function resolveKeywordValue(string $keyword, string $value, Project $project, User $author): int|string|float|bool|null
     {
         if ($value === '') {
             return null;
@@ -372,6 +376,33 @@ final class IncomingMailService
 
         if ($keyword === 'done ratio') {
             return is_numeric($value) && (int) $value >= 0 && (int) $value <= 100 ? (int) $value : null;
+        }
+
+        if ($keyword === 'estimated hours') {
+            return is_numeric($value) && (float) $value >= 0 && (float) $value <= 9999.99 ? (float) $value : null;
+        }
+
+        if ($keyword === 'start date' || $keyword === 'due date') {
+            // A strict round-trip through DateTime rather than Laravel's
+            // 'date' validation rule, since there's no Validator instance
+            // in play here — rejects both malformed strings and anything
+            // DateTime would otherwise silently roll over (e.g. Feb 30).
+            $date = \DateTime::createFromFormat('!Y-m-d', $value);
+
+            return $date !== false && $date->format('Y-m-d') === $value ? $value : null;
+        }
+
+        if ($keyword === 'private') {
+            // Only honored when the sender actually holds
+            // set_issues_private on the target project — same gate the
+            // manual issue form applies before ever including is_private
+            // in its own submitted data, and the same decision the CSV
+            // importer already made for its own is_private column.
+            if (! $this->authorization->can($author, 'set_issues_private', $project)) {
+                return null;
+            }
+
+            return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
         }
 
         $id = match ($keyword) {

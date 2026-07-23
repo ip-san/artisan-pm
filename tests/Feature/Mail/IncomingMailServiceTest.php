@@ -495,6 +495,98 @@ test('an unrecognized category name is left as plain text rather than silently d
         ->and($issue->description)->toBe('Category: NoSuchCategory');
 });
 
+test('Start date and Due date keyword lines set those fields', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(
+        subject: 'Bug report',
+        body: "Start date: 2026-08-01\nDue date: 2026-08-15",
+        fromEmail: 'sender@example.com',
+    );
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->start_date->toDateString())->toBe('2026-08-01')
+        ->and($issue->due_date->toDateString())->toBe('2026-08-15');
+});
+
+test('a malformed Due date value is left as plain text rather than silently dropped', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(subject: 'Bug report', body: 'Due date: not-a-date', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->due_date)->toBeNull()
+        ->and($issue->description)->toBe('Due date: not-a-date');
+});
+
+test('an Estimated hours keyword line sets the estimate', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(subject: 'Bug report', body: 'Estimated hours: 3.5', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect((float) $issue->estimated_hours)->toBe(3.5);
+});
+
+test('an out-of-range Estimated hours value is ignored and left in the description', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(subject: 'Bug report', body: 'Estimated hours: -5', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->estimated_hours)->toBeNull()
+        ->and($issue->description)->toBe('Estimated hours: -5');
+});
+
+test('a Private keyword line sets is_private when the sender holds set_issues_private', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project, ['view_issues', 'add_issues', 'set_issues_private']);
+
+    $mail = new ParsedIncomingMail(subject: 'Bug report', body: 'Private: true', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->is_private)->toBeTrue();
+});
+
+test('a Private keyword line is ignored when the sender lacks set_issues_private', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+
+    $mail = new ParsedIncomingMail(subject: 'Bug report', body: 'Private: true', fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->is_private)->toBeFalse()
+        ->and($issue->description)->toBe('Private: true');
+});
+
 test('a keyword line on a reply updates the existing issue and is stripped from the comment', function () {
     $project = Project::factory()->create();
     $tracker = Tracker::factory()->create();
