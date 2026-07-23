@@ -19,9 +19,13 @@ use DateTimeImmutable;
  * Changesets — resuming from last_synced_revision so a re-run only
  * processes what's landed since the previous sync, not the full history.
  *
- * Also honors a small set of fixing keywords (fixes/fix/closes/close) in
- * the commit message: any issue they reference gets transitioned to the
- * first closed status, same as Redmine's default keyword behavior. This
+ * Also honors a configurable set of fixing keywords (commit_fixing_keywords
+ * setting, comma-separated, defaulting to fixes/fix/closes/close) in the
+ * commit message: any issue they reference gets transitioned to the first
+ * closed status, same as Redmine's default keyword behavior. Unlike
+ * Redmine's commit_update_keywords, every keyword here drives to that same
+ * single target status — no per-keyword status_id/done_ratio/tracker
+ * scoping, since this app never had that granularity to begin with. This
  * only fires when the commit's free-text committer field resolves to a
  * real User — first via an explicit RepositoryCommitter mapping (see
  * resolveCommitter(), managed on the repository.committers admin
@@ -47,10 +51,7 @@ use DateTimeImmutable;
  */
 final class RepositorySyncService
 {
-    /**
-     * @var array<int, string>
-     */
-    private const array FIXING_KEYWORDS = ['fixes', 'fix', 'closes', 'close'];
+    private const string DEFAULT_FIXING_KEYWORDS = 'fixes, fix, closes, close';
 
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -284,8 +285,14 @@ final class RepositorySyncService
      */
     private function extractFixedIssueIds(string $message): array
     {
-        $keywords = implode('|', self::FIXING_KEYWORDS);
-        preg_match_all('/\b(?:'.$keywords.')\b\s+((?:#\d+[,\s]*)+)/i', $message, $matches);
+        $keywords = $this->fixingKeywords();
+
+        if ($keywords === []) {
+            return [];
+        }
+
+        $pattern = implode('|', array_map(preg_quote(...), $keywords));
+        preg_match_all('/\b(?:'.$pattern.')\b\s+((?:#\d+[,\s]*)+)/i', $message, $matches);
 
         $ids = [];
 
@@ -299,5 +306,15 @@ final class RepositorySyncService
         }
 
         return Issue::query()->whereIn('id', array_unique($ids))->pluck('id')->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function fixingKeywords(): array
+    {
+        $configured = (string) Setting::get('commit_fixing_keywords', self::DEFAULT_FIXING_KEYWORDS);
+
+        return array_values(array_filter(array_map(trim(...), explode(',', $configured))));
     }
 }

@@ -218,6 +218,59 @@ test('an explicit repository mapping takes precedence over the automatic email m
     expect($issue->fresh()->status_id)->not->toBe($closed->id);
 });
 
+test('a custom commit_fixing_keywords setting is honored instead of the default list', function () {
+    $project = Project::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $committerUser = User::factory()->create(['email' => 'test@example.com']);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    Member::factory()->for($project)->for($committerUser)->create()->roles()->attach($role);
+    Setting::set('commit_fixing_keywords', 'resolves, resolve');
+
+    $path = createTestGitRepo(["Resolves #{$issue->id}"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect($issue->fresh()->status_id)->toBe($closed->id);
+});
+
+test('a default keyword no longer matches once commit_fixing_keywords overrides the list', function () {
+    $project = Project::factory()->create();
+    IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $originalStatusId = $issue->status_id;
+    $committerUser = User::factory()->create(['email' => 'test@example.com']);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    Member::factory()->for($project)->for($committerUser)->create()->roles()->attach($role);
+    Setting::set('commit_fixing_keywords', 'resolves, resolve');
+
+    $path = createTestGitRepo(["Fixes #{$issue->id}"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect($issue->fresh()->status_id)->toBe($originalStatusId);
+});
+
+test('an empty commit_fixing_keywords setting disables keyword-based closing entirely', function () {
+    $project = Project::factory()->create();
+    IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $originalStatusId = $issue->status_id;
+    $committerUser = User::factory()->create(['email' => 'test@example.com']);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    Member::factory()->for($project)->for($committerUser)->create()->roles()->attach($role);
+    Setting::set('commit_fixing_keywords', '');
+
+    $path = createTestGitRepo(["Fixes #{$issue->id}"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect($issue->fresh()->status_id)->toBe($originalStatusId);
+});
+
 test('a plain "refs #N" commit links the issue without changing its status', function () {
     $project = Project::factory()->create();
     IssueStatus::factory()->closed()->create();

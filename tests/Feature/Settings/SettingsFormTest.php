@@ -135,6 +135,30 @@ test('commit_logtime_activity_id must reference a real enumeration', function ()
         ->assertHasErrors(['commit_logtime_activity_id']);
 });
 
+test('an admin can restrict enabled SCM types and edit the commit fixing keyword list', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('enabled_scm_types', ['git'])
+        ->set('commit_fixing_keywords', 'resolves, resolve')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('enabled_scm_types'))->toBe(['git'])
+        ->and(Setting::get('commit_fixing_keywords'))->toBe('resolves, resolve');
+});
+
+test('enabled_scm_types must contain at least one valid SCM type', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('enabled_scm_types', [])
+        ->call('save')
+        ->assertHasErrors(['enabled_scm_types']);
+});
+
 test('mail_handler_preferred_body_part must be plain or html', function () {
     $admin = User::factory()->admin()->create();
 

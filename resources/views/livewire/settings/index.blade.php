@@ -2,6 +2,7 @@
 
 use App\Enums\EnumerationType;
 use App\Enums\ProjectModuleKey;
+use App\Enums\RepositoryType;
 use App\Models\Enumeration;
 use App\Models\Project;
 use App\Models\Setting;
@@ -64,6 +65,11 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $commit_logtime_enabled = false;
 
     public ?int $commit_logtime_activity_id = null;
+
+    /** @var array<string> */
+    public array $enabled_scm_types = [];
+
+    public string $commit_fixing_keywords = '';
 
     public int $attachment_max_size = 10240;
 
@@ -141,6 +147,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->autofetch_changesets = Setting::get('autofetch_changesets', false);
         $this->commit_logtime_enabled = Setting::get('commit_logtime_enabled', false);
         $this->commit_logtime_activity_id = Setting::get('commit_logtime_activity_id');
+        $this->enabled_scm_types = Setting::get('enabled_scm_types', array_map(fn (RepositoryType $type) => $type->value, RepositoryType::cases()));
+        // Matches RepositorySyncService::DEFAULT_FIXING_KEYWORDS.
+        $this->commit_fixing_keywords = Setting::get('commit_fixing_keywords', 'fixes, fix, closes, close');
         $this->attachment_max_size = Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024));
         $this->attachment_extensions_allowed = Setting::get('attachment_extensions_allowed', '');
         $this->attachment_extensions_denied = Setting::get('attachment_extensions_denied', '');
@@ -192,6 +201,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'autofetch_changesets' => ['boolean'],
             'commit_logtime_enabled' => ['boolean'],
             'commit_logtime_activity_id' => ['nullable', 'exists:enumerations,id'],
+            'enabled_scm_types' => ['array', 'min:1'],
+            'enabled_scm_types.*' => [Rule::in(array_map(fn (RepositoryType $type) => $type->value, RepositoryType::cases()))],
+            'commit_fixing_keywords' => ['nullable', 'string', 'max:255'],
             'attachment_max_size' => ['required', 'integer', 'min:1', 'max:'.intdiv((int) config('media-library.max_file_size'), 1024)],
             'attachment_extensions_allowed' => ['nullable', 'string', 'max:1000'],
             'attachment_extensions_denied' => ['nullable', 'string', 'max:1000'],
@@ -522,6 +534,28 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                 </select>
                 @error('commit_logtime_activity_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700 mb-2">有効なリポジトリ種別</span>
+                <div class="flex gap-4">
+                    @foreach (\App\Enums\RepositoryType::cases() as $case)
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" wire:model="enabled_scm_types" value="{{ $case->value }}" class="rounded border-gray-300">
+                            {{ $case->value }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('enabled_scm_types') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('enabled_scm_types.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">コミットをクローズと結び付けるキーワード(カンマ区切り)</label>
+                <input type="text" wire:model="commit_fixing_keywords" placeholder="例: fixes, fix, closes, close"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">コミットメッセージ内でこれらの語の直後に <code>#123</code> がある場合、その課題を最初のクローズ済みステータスに変更します。</p>
+                @error('commit_fixing_keywords') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
         </section>
 

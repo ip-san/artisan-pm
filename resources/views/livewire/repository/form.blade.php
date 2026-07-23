@@ -3,8 +3,11 @@
 use App\Enums\RepositoryType;
 use App\Models\Project;
 use App\Models\Repository;
+use App\Models\Setting;
 use App\Rules\WithinRepositoriesRoot;
-use Illuminate\Validation\Rules\Enum;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -31,10 +34,28 @@ new #[Layout('components.layouts.app')] class extends Component
         }
     }
 
+    /**
+     * Types selectable in the form — restricted to the site-wide
+     * enabled_scm_types setting, except an existing repository's own
+     * current type always stays selectable even if since disabled, so
+     * editing its path doesn't get blocked by an unrelated later change.
+     *
+     * @return Collection<int, RepositoryType>
+     */
+    #[Computed]
+    public function enabledTypes(): Collection
+    {
+        $enabled = Setting::get('enabled_scm_types', array_map(fn (RepositoryType $type) => $type->value, RepositoryType::cases()));
+
+        return collect(RepositoryType::cases())
+            ->filter(fn (RepositoryType $case) => in_array($case->value, $enabled, true) || $case === $this->repository?->type)
+            ->values();
+    }
+
     public function save(): void
     {
         $data = $this->validate([
-            'type' => ['required', new Enum(RepositoryType::class)],
+            'type' => ['required', Rule::in($this->enabledTypes->pluck('value')->all())],
             // bail is load-bearing here, not just an optimization: the
             // closure below shells out via the adapter, and it must never
             // run against a path WithinRepositoriesRoot has already
@@ -71,7 +92,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div>
             <label class="block text-sm font-medium text-gray-700">種別</label>
             <select wire:model="type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @foreach (RepositoryType::cases() as $case)
+                @foreach ($this->enabledTypes as $case)
                     <option value="{{ $case->value }}">{{ $case->value }}</option>
                 @endforeach
             </select>
