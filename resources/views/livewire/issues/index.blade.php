@@ -249,18 +249,29 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /**
      * True per-group counts across the entire filtered result set (not
-     * just the current page), computed via a SQL GROUP BY. Only offered
-     * for the groupBy select's options (status/tracker/priority/assigned
-     * to), all plain FK columns on `issues`, so grouping directly by the
-     * raw column name is safe — $groupBy is checked against the known
-     * column whitelist before it ever reaches raw SQL.
+     * just the current page), computed via a SQL GROUP BY. Offered for the
+     * groupBy select's native options (status/tracker/priority/assigned
+     * to, all plain FK columns on `issues`) and for single-value custom
+     * fields (delegated to groupTotalsByCustomField()) — $groupBy is
+     * checked against the known column whitelist, or resolved to a real
+     * CustomField, before it ever reaches raw SQL.
      *
      * @return Collection<string, array{count: int, estimated: float, spent: float}>
      */
     #[Computed]
     public function groupTotals(): Collection
     {
-        if ($this->groupBy === null || ! array_key_exists($this->groupBy, self::DISPLAY_COLUMNS)) {
+        if ($this->groupBy === null) {
+            return collect();
+        }
+
+        if (str_starts_with($this->groupBy, 'cf_')) {
+            $field = $this->groupableCustomField();
+
+            return $field === null ? collect() : $this->groupTotalsByCustomField($field);
+        }
+
+        if (! array_key_exists($this->groupBy, self::DISPLAY_COLUMNS)) {
             return collect();
         }
 
@@ -282,6 +293,65 @@ new #[Layout('components.layouts.app')] class extends Component
             ->reorder()
             ->selectRaw("{$column} as group_key, COUNT(*) as total, COALESCE(SUM(estimated_hours), 0) as estimated")
             ->groupBy($column)
+            ->get()
+            ->mapWithKeys(fn ($row) => [
+                $resolveLabel($row->group_key) => [
+                    'count' => (int) $row->total,
+                    'estimated' => (float) $row->estimated,
+                    'spent' => (float) ($spentByGroup[$row->group_key] ?? 0),
+                ],
+            ]);
+    }
+
+    /**
+     * Resolves $groupBy to an applicable, single-value custom field.
+     * Multi-value fields (CustomField::$multiple) are excluded — a raw SQL
+     * join against custom_field_values would multiply COUNT(*) for any
+     * issue holding more than one value, so they're not offered as a
+     * groupBy option in the first place (see the groupBy <select>).
+     */
+    private function groupableCustomField(): ?CustomField
+    {
+        $fieldId = (int) substr($this->groupBy ?? '', 3);
+
+        return $this->projectIssueCustomFields
+            ->first(fn (CustomField $field) => $field->id === $fieldId && ! $field->multiple);
+    }
+
+    /**
+     * @return Collection<string, array{count: int, estimated: float, spent: float}>
+     */
+    private function groupTotalsByCustomField(CustomField $field): Collection
+    {
+        $storageColumn = $field->format()->storageColumn();
+        $options = $field->format()->options($field);
+        $resolveLabel = fn (mixed $rawKey) => ($rawKey === null || $rawKey === '')
+            ? ''
+            : ($options[$rawKey] ?? (string) $rawKey);
+
+        // A closure join (rather than a plain where()) keeps this a true
+        // LEFT JOIN: issues with no value for this field must still appear
+        // in the '' group, which a post-join where() would silently drop.
+        $issueMorphClass = (new Issue)->getMorphClass();
+        $joinValueForField = function (\Illuminate\Database\Query\JoinClause $join) use ($field, $issueMorphClass): void {
+            $join->on('custom_field_values.customized_id', '=', 'issues.id')
+                ->where('custom_field_values.customized_type', $issueMorphClass)
+                ->where('custom_field_values.custom_field_id', $field->id);
+        };
+
+        $spentByGroup = TimeEntry::query()
+            ->join('issues', 'time_entries.issue_id', '=', 'issues.id')
+            ->leftJoin('custom_field_values', $joinValueForField)
+            ->whereIn('issues.id', $this->filteredIssuesQuery()->reorder()->select('issues.id'))
+            ->selectRaw("custom_field_values.{$storageColumn} as group_key, SUM(time_entries.hours) as spent")
+            ->groupBy("custom_field_values.{$storageColumn}")
+            ->pluck('spent', 'group_key');
+
+        return $this->filteredIssuesQuery()
+            ->reorder()
+            ->leftJoin('custom_field_values', $joinValueForField)
+            ->selectRaw("custom_field_values.{$storageColumn} as group_key, COUNT(*) as total, COALESCE(SUM(issues.estimated_hours), 0) as estimated")
+            ->groupBy("custom_field_values.{$storageColumn}")
             ->get()
             ->mapWithKeys(fn ($row) => [
                 $resolveLabel($row->group_key) => [
@@ -884,6 +954,11 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="tracker_id">トラッカー</option>
                     <option value="priority_id">優先度</option>
                     <option value="assigned_to_id">担当者</option>
+                    @foreach ($this->projectIssueCustomFields as $field)
+                        @if (! $field->multiple)
+                            <option value="cf_{{ $field->id }}" wire:key="group-by-cf-{{ $field->id }}">{{ $field->name }}</option>
+                        @endif
+                    @endforeach
                 </select>
             </label>
 
