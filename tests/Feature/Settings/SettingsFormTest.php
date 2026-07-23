@@ -191,6 +191,28 @@ test('default_issue_due_date_offset can be left blank to disable the default', f
     expect(Setting::get('default_issue_due_date_offset'))->toBeNull();
 });
 
+test('an admin can configure the calendar start of week', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('start_of_week', 1)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('start_of_week'))->toBe(1);
+});
+
+test('start_of_week only accepts Sunday, Monday, or Saturday', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('start_of_week', 3)
+        ->call('save')
+        ->assertHasErrors(['start_of_week']);
+});
+
 test('an admin can configure the self-registration email domain allow/deny lists', function () {
     $admin = User::factory()->admin()->create();
 

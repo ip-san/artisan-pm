@@ -3,6 +3,7 @@
 use App\Concerns\InteractsWithQueryFilters;
 use App\Models\Issue;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Illuminate\Support\Carbon;
@@ -55,14 +56,40 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * Matches Redmine's Setting.start_of_week: 0/1/6 (Sun/Mon/Sat, Carbon's
+     * own day-of-week constants), defaulting to Sunday — this app has no
+     * locale system to fall back to Redmine's language-based default, so
+     * the prior hardcoded Sunday behavior is kept as the default here.
+     */
+    #[Computed]
+    public function startOfWeek(): int
+    {
+        return Setting::get('start_of_week', Carbon::SUNDAY);
+    }
+
+    /**
+     * The header row's day labels, rotated to start on the same day as
+     * the grid itself.
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function weekdayLabels(): array
+    {
+        $labels = ['日', '月', '火', '水', '木', '金', '土'];
+
+        return [...array_slice($labels, $this->startOfWeek), ...array_slice($labels, 0, $this->startOfWeek)];
+    }
+
+    /**
      * @return array<int, array<int, array{date: Carbon, entries: Collection<int, array{issue: Issue, marker: string}>, isCurrentMonth: bool}>>
      */
     #[Computed]
     public function weeks(): array
     {
         $firstOfMonth = Carbon::create($this->year, $this->month, 1);
-        $gridStart = $firstOfMonth->copy()->startOfWeek(Carbon::SUNDAY);
-        $gridEnd = $firstOfMonth->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY);
+        $gridStart = $firstOfMonth->copy()->startOfWeek($this->startOfWeek);
+        $gridEnd = $firstOfMonth->copy()->endOfMonth()->endOfWeek(($this->startOfWeek + 6) % 7);
 
         $entriesByDate = $this->issueEntriesBetween($gridStart, $gridEnd);
 
@@ -168,7 +195,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <table class="min-w-full table-fixed divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-50 text-xs uppercase text-gray-500">
                 <tr>
-                    @foreach (['日', '月', '火', '水', '木', '金', '土'] as $label)
+                    @foreach ($this->weekdayLabels as $label)
                         <th class="px-2 py-2 text-center">{{ $label }}</th>
                     @endforeach
                 </tr>

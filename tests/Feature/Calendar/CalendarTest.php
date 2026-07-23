@@ -5,6 +5,7 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -158,6 +159,55 @@ test('an issue with only a start date in the month appears on that start date', 
 
     expect($matchingDay['entries']->pluck('issue.id'))->toContain($issue->id)
         ->and($matchingDay['entries']->firstWhere('issue.id', $issue->id)['marker'])->toBe('start');
+});
+
+test('the calendar grid defaults to starting the week on Sunday', function () {
+    $project = Project::factory()->create();
+    $user = calendarMember($project);
+
+    $component = Livewire::actingAs($user)
+        ->test('calendar.index', ['project' => $project])
+        ->set('year', 2026)
+        ->set('month', 7);
+
+    $weeks = $component->get('weeks');
+
+    expect($weeks[0][0]['date']->dayOfWeek)->toBe(0)
+        ->and($component->get('weekdayLabels'))->toBe(['日', '月', '火', '水', '木', '金', '土']);
+});
+
+test('the start_of_week setting shifts the calendar grid to start on Monday', function () {
+    Setting::set('start_of_week', 1);
+
+    $project = Project::factory()->create();
+    $user = calendarMember($project);
+
+    $component = Livewire::actingAs($user)
+        ->test('calendar.index', ['project' => $project])
+        ->set('year', 2026)
+        ->set('month', 7);
+
+    $weeks = $component->get('weeks');
+
+    expect($weeks[0][0]['date']->dayOfWeek)->toBe(1)
+        ->and($component->get('weekdayLabels'))->toBe(['月', '火', '水', '木', '金', '土', '日']);
+});
+
+test('the start_of_week setting shifts the calendar grid to start on Saturday', function () {
+    Setting::set('start_of_week', 6);
+
+    $project = Project::factory()->create();
+    $user = calendarMember($project);
+
+    $component = Livewire::actingAs($user)
+        ->test('calendar.index', ['project' => $project])
+        ->set('year', 2026)
+        ->set('month', 7);
+
+    $weeks = $component->get('weeks');
+
+    expect($weeks[0][0]['date']->dayOfWeek)->toBe(6)
+        ->and($component->get('weekdayLabels'))->toBe(['土', '日', '月', '火', '水', '木', '金']);
 });
 
 test('an active filter restricts the calendar to matching issues', function () {

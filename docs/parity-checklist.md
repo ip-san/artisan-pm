@@ -287,7 +287,7 @@
 | Redmineのタブ | 状態 | 備考 |
 |---|---|---|
 | 全般 | partial | `app_title`, `default_issues_per_page` のみ |
-| 表示(日付/時刻形式、テーマ、週始まり、サムネイル) | missing | — |
+| 表示(日付/時刻形式、テーマ、週始まり、サムネイル) | partial(2026-07-23) | `start_of_week`(週始まり: 日/月/土)を実装、カレンダー画面(プロジェクト内`calendar.index`/全プロジェクト`calendar.global-index`)のグリッド開始曜日とヘッダーの曜日ラベル行の両方に反映(`Carbon::startOfWeek()`/`endOfWeek()`に直接渡せるようRedmineの ISO値(1/6/7)ではなくCarbonの日定数(0/1/6)で保存)。日付/時刻形式・テーマ・サムネイルサイズは本アプリにi18n/テーマ切替基盤が無いため引き続き対象外 |
 | 認証(ログイン必須、セルフ登録、パスワードポリシー、2FA必須設定、セッションタイムアウト、自動ログイン、REST API有効化) | missing | — |
 | プロジェクト(デフォルト公開設定、デフォルトモジュール、識別子連番化、新規プロジェクトの既定ロール) | partial(2026-07-22) | デフォルト公開設定(`default_projects_public`)・デフォルトモジュール(`default_projects_modules`)・デフォルトトラッカー(`default_projects_tracker_ids`)を実装(詳細は§2 Projects「プロジェクト作成」行を参照)。識別子連番化・新規プロジェクトの既定ロールは引き続き未対応 |
 | ユーザー | missing | — |

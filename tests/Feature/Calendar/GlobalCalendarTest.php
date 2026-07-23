@@ -5,6 +5,7 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -30,6 +31,23 @@ test('the global calendar shows issues from every project the user can view_cale
     $ids = $days->flatMap(fn ($day) => $day['entries'])->map(fn ($entry) => $entry['issue']->id);
 
     expect($ids)->toContain($visible->id)->not->toContain($hidden->id);
+});
+
+test('the start_of_week setting also shifts the global calendar grid', function () {
+    Setting::set('start_of_week', 1);
+
+    $project = Project::factory()->create();
+    $user = globalCalendarMember($project);
+
+    $component = Livewire::actingAs($user)
+        ->test('calendar.global-index')
+        ->set('year', 2026)
+        ->set('month', 7);
+
+    $weeks = $component->get('weeks');
+
+    expect($weeks[0][0]['date']->dayOfWeek)->toBe(1)
+        ->and($component->get('weekdayLabels'))->toBe(['月', '火', '水', '木', '金', '土', '日']);
 });
 
 test('cross-project visibility is bucketed per project: all-visibility here, own-only there', function () {

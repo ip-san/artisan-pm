@@ -59,6 +59,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $default_issue_due_date_offset = null;
 
+    public int $start_of_week = 0;
+
     public string $self_registration = 'automatic';
 
     public string $email_domains_allowed = '';
@@ -89,6 +91,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->parent_issue_done_ratio = Setting::get('parent_issue_done_ratio', true);
         $this->cross_project_issue_relations = Setting::get('cross_project_issue_relations', false);
         $this->default_issue_due_date_offset = Setting::get('default_issue_due_date_offset');
+        // 0 = Sunday (Carbon::SUNDAY), matching the calendar views' own default.
+        $this->start_of_week = Setting::get('start_of_week', 0);
         $this->incoming_mail_enabled = Setting::get('incoming_mail_enabled', false);
         $this->incoming_mail_default_project_id = Setting::get('incoming_mail_default_project_id');
         $this->incoming_mail_default_tracker_id = Setting::get('incoming_mail_default_tracker_id');
@@ -159,6 +163,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_issue_done_ratio' => ['boolean'],
             'cross_project_issue_relations' => ['boolean'],
             'default_issue_due_date_offset' => ['nullable', 'integer', 'min:0'],
+            'start_of_week' => ['required', Rule::in([0, 1, 6])],
             'self_registration' => ['required', 'in:disabled,manual,automatic'],
             'email_domains_allowed' => ['nullable', 'string', 'max:1000'],
             'email_domains_denied' => ['nullable', 'string', 'max:1000'],
@@ -235,6 +240,21 @@ new #[Layout('components.layouts.app')] class extends Component
                     class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-gray-500">空欄の場合、期日は自動設定されません。</p>
                 @error('default_issue_due_date_offset') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+        </section>
+
+        <section class="space-y-4 border-t border-gray-200 pt-6">
+            <h2 class="text-sm font-semibold text-gray-900">表示</h2>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">週の始まり</label>
+                <select wire:model="start_of_week" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="0">日曜日</option>
+                    <option value="1">月曜日</option>
+                    <option value="6">土曜日</option>
+                </select>
+                @error('start_of_week') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">カレンダー画面(プロジェクト内/全プロジェクト共通)の週始まりに反映されます。</p>
             </div>
         </section>
 
