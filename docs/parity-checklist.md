@@ -309,7 +309,7 @@
 | LDAP接続テストボタン | done(2026-07-22) | Redmineの`AuthSourceLdap#test_connection`相当を`LdapAuthenticator::testConnection()`に実装(接続を開き、検索用アカウントが設定されていればバインドも検証)。認証ソース編集フォーム(既存レコードのみ、Redmine同様保存済みの設定でテスト)に「接続をテスト」ボタン+成功/失敗メッセージを追加。新規作成フォームでは非表示(保存前にテストする対象が無いため) |
 | LDAPカスタムフィルタ/属性→カスタムフィールドマッピング | missing | login/name/mailのみ |
 | LDAPオンザフライ登録 | done | — |
-| 二要素認証(TOTP) | done | Fortify経由。管理者による強制無効化の専用ボタンはまだ画面にないが、ユーザー編集画面自体は存在する |
+| 二要素認証(TOTP) | done(2026-07-23) | Fortify経由。**管理者による強制無効化ボタンを追加(2026-07-23)**: `users.form`(ユーザー編集画面)に対象ユーザーが2FA有効時のみ表示される「二要素認証を無効にする」ボタンを追加、既存の`sendPasswordReset()`と同じ`update`権限で保護(セルフサービス版の`disableTwoFactor()`が使うパスワード再確認は他人のアカウント操作には適用されないため不使用)、Fortifyの`DisableTwoFactorAuthentication`アクションをそのまま対象ユーザーに適用 |
 | パスキー/WebAuthn | done(Redmineにはない機能) | — |
 | パスワードリセット | done | — |
 | 登録モード(無効/手動承認/メール確認/自動) | partial(2026-07-22) | Redmineの`Setting.self_registration`相当を`self_registration`設定として実装。「無効」は`Fortify::registerView`が登録ページ自体をログインへリダイレクト(直接POSTされた場合も`CreateNewUser`側でバリデーションエラーとして拒否、二重の防御)、「手動承認」は`UserStatus::Registered`(元々定義されていたが未使用だった値)でロック状態のアカウントを作成し、ユーザー管理画面に「承認待ち」バッジ+「承認」ボタンを追加(`AuthenticateUser`は`isActive()`をすでに見ているため追加変更なしでログイン拒否済み)、「自動」は従来通り即座に有効化。メール確認によるモード(Redmineの3つ目)は送信メール基盤が本アプリに無いため意図的に対象外 |

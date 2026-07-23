@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -147,6 +148,23 @@ new #[Layout('components.layouts.app')] class extends Component
 
         session()->flash('status', 'パスワードリセットメールを送信しました。');
     }
+
+    /**
+     * Force-clears a locked-out (or otherwise unreachable) user's TOTP
+     * secret and recovery codes — the admin-side counterpart to the
+     * self-service disable button on the profile page, gated on the same
+     * `update` permission as the rest of this form rather than the
+     * self-service flow's password re-confirmation, which doesn't apply
+     * when an admin is acting on someone else's account.
+     */
+    public function disableTwoFactor(): void
+    {
+        $this->authorize('update', $this->user);
+
+        app(DisableTwoFactorAuthentication::class)($this->user);
+
+        session()->flash('status', '二要素認証を無効にしました。');
+    }
 }; ?>
 
 <div class="max-w-xl">
@@ -222,6 +240,16 @@ new #[Layout('components.layouts.app')] class extends Component
                     </button>
                 </div>
             @endif
+        @endif
+
+        @if ($user && $user->hasEnabledTwoFactorAuthentication())
+            <div>
+                <button type="button" wire:click="disableTwoFactor"
+                    wire:confirm="{{ $user->email }} の二要素認証を無効にしますか?"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    二要素認証を無効にする
+                </button>
+            </div>
         @endif
 
         @if ($this->customFields->isNotEmpty())

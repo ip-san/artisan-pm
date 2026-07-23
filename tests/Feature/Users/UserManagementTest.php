@@ -6,7 +6,9 @@ use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Laravel\Fortify\Fortify;
 use Livewire\Livewire;
+use PragmaRX\Google2FA\Google2FA;
 
 test('is_admin cannot be set through plain mass assignment', function () {
     $user = User::create([
@@ -215,4 +217,52 @@ test('sending a password reset for an LDAP-linked user is rejected', function ()
         ->assertStatus(400);
 
     Notification::assertNothingSent();
+});
+
+test('an admin can force-disable a user\'s two factor authentication', function () {
+    $admin = User::factory()->admin()->create();
+    $target = User::factory()->create([
+        'two_factor_secret' => Fortify::currentEncrypter()->encrypt(app(Google2FA::class)->generateSecretKey()),
+        'two_factor_confirmed_at' => now(),
+    ]);
+
+    expect($target->hasEnabledTwoFactorAuthentication())->toBeTrue();
+
+    Livewire::actingAs($admin)
+        ->test('users.form', ['user' => $target])
+        ->call('disableTwoFactor');
+
+    expect($target->fresh()->hasEnabledTwoFactorAuthentication())->toBeFalse()
+        ->and($target->fresh()->two_factor_secret)->toBeNull();
+});
+
+test('the disable two factor button only appears for a user with it enabled', function () {
+    $admin = User::factory()->admin()->create();
+    $withoutTwoFactor = User::factory()->create();
+    $withTwoFactor = User::factory()->create([
+        'two_factor_secret' => Fortify::currentEncrypter()->encrypt(app(Google2FA::class)->generateSecretKey()),
+        'two_factor_confirmed_at' => now(),
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('users.form', ['user' => $withoutTwoFactor])
+        ->assertDontSee('二要素認証を無効にする');
+
+    Livewire::actingAs($admin)
+        ->test('users.form', ['user' => $withTwoFactor])
+        ->assertSee('二要素認証を無効にする');
+});
+
+test('a non-admin cannot force-disable another user\'s two factor authentication', function () {
+    $user = User::factory()->create();
+    $target = User::factory()->create([
+        'two_factor_secret' => Fortify::currentEncrypter()->encrypt(app(Google2FA::class)->generateSecretKey()),
+        'two_factor_confirmed_at' => now(),
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('users.form', ['user' => $target])
+        ->assertForbidden();
+
+    expect($target->fresh()->hasEnabledTwoFactorAuthentication())->toBeTrue();
 });
