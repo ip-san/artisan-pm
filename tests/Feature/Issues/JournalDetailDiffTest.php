@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\CustomFieldFormat;
+use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -129,4 +131,56 @@ test('the issue show page links to the diff for a description change', function 
     Livewire::actingAs($user)
         ->test('issues.show', ['project' => $project, 'issue' => $issue])
         ->assertSee(route('issues.journal-detail-diff', [$project, $issue, $detail]));
+});
+
+test('changing a long-text custom field is diffable and shown on the issue page', function () {
+    $project = Project::factory()->create();
+    $issue = journalDiffIssue($project);
+    $field = CustomField::factory()->create(['name' => 'Release Notes', 'field_format' => CustomFieldFormat::Text]);
+    $field->trackers()->attach($issue->tracker_id);
+    $author = journalDiffMember($project, ['view_issues', 'edit_issues']);
+
+    app(IssueService::class)->update($issue, [], $author, customFieldData: [$field->id => 'the quick fox']);
+    app(IssueService::class)->update($issue->fresh(), [], $author, customFieldData: [$field->id => 'the quick brown fox jumps']);
+
+    $detail = JournalDetail::whereHas('journal', fn ($q) => $q->where('issue_id', $issue->id))
+        ->where('property', 'cf')->where('prop_key', (string) $field->id)
+        ->latest('id')->firstOrFail();
+
+    expect($detail->old_value)->toBe('the quick fox')
+        ->and($detail->new_value)->toBe('the quick brown fox jumps');
+
+    $user = journalDiffMember($project);
+
+    $component = Livewire::actingAs($user)
+        ->test('issues.journal-detail-diff', ['project' => $project, 'issue' => $issue, 'journalDetail' => $detail]);
+
+    $component->assertOk()->assertSee('Release Notes');
+
+    $added = collect($component->get('diff'))->where('type', 'add')->pluck('text')->implode('');
+    expect($added)->toContain('brown')->toContain('jumps');
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->assertSee(route('issues.journal-detail-diff', [$project, $issue, $detail]));
+});
+
+test('a "cf" detail for a non-long-text custom field 404s', function () {
+    $project = Project::factory()->create();
+    $issue = journalDiffIssue($project);
+    $field = CustomField::factory()->create(['name' => 'Priority Score', 'field_format' => CustomFieldFormat::Int]);
+    $field->trackers()->attach($issue->tracker_id);
+    $author = journalDiffMember($project, ['view_issues', 'edit_issues']);
+
+    app(IssueService::class)->update($issue, [], $author, customFieldData: [$field->id => 1]);
+    app(IssueService::class)->update($issue->fresh(), [], $author, customFieldData: [$field->id => 2]);
+
+    $detail = JournalDetail::whereHas('journal', fn ($q) => $q->where('issue_id', $issue->id))
+        ->where('property', 'cf')->where('prop_key', (string) $field->id)->firstOrFail();
+
+    $user = journalDiffMember($project);
+
+    Livewire::actingAs($user)
+        ->test('issues.journal-detail-diff', ['project' => $project, 'issue' => $issue, 'journalDetail' => $detail])
+        ->assertStatus(404);
 });

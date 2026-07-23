@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\CustomFieldFormat;
+use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\JournalDetail;
 use App\Models\Project;
@@ -16,19 +18,30 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public JournalDetail $journalDetail;
 
+    public ?CustomField $customField = null;
+
     /**
      * Matches Redmine's JournalsController#diff: same authorization as
      * viewing the issue itself (its own visibility already covers Journal
      * visibility here), scoped down to a detail that actually belongs to
-     * this issue and is a description change — the only "attr" property
-     * Redmine itself renders a diff link for.
+     * this issue and is either a description change or a long-text
+     * custom field change — the two "attr"/"cf" property shapes Redmine
+     * itself renders a diff link for (Redmine's own change_as_diff? for
+     * custom fields is likewise limited to the "text" format).
      */
     public function mount(Project $project, Issue $issue, JournalDetail $journalDetail): void
     {
         $this->authorize('view', $issue);
 
         abort_unless($journalDetail->journal->issue_id === $issue->id, 404);
-        abort_unless($journalDetail->property === 'attr' && $journalDetail->prop_key === 'description', 404);
+
+        $isDescription = $journalDetail->property === 'attr' && $journalDetail->prop_key === 'description';
+
+        if (! $isDescription) {
+            $customField = $journalDetail->property === 'cf' ? CustomField::find((int) $journalDetail->prop_key) : null;
+            abort_unless($customField?->field_format === CustomFieldFormat::Text, 404);
+            $this->customField = $customField;
+        }
 
         $this->project = $project;
         $this->issue = $issue;
@@ -52,7 +65,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </a>
     </p>
 
-    <h1 class="text-xl font-semibold text-gray-900 mb-4">説明文の差分</h1>
+    <h1 class="text-xl font-semibold text-gray-900 mb-4">{{ $customField?->name ?? '説明文' }}の差分</h1>
 
     <div class="whitespace-pre-wrap break-words rounded-md border border-gray-200 bg-white p-4 font-mono text-sm leading-relaxed">
         @foreach ($this->diff as $chunk)

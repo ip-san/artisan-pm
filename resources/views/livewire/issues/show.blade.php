@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CustomFieldFormat;
 use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\IssueRelation;
@@ -257,6 +258,25 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         return $this->customFieldNames[(int) $detail->prop_key] ?? $detail->prop_key;
+    }
+
+    /**
+     * @return Collection<int, int>
+     */
+    #[Computed]
+    public function longTextCustomFieldIds(): Collection
+    {
+        return CustomField::query()->where('field_format', CustomFieldFormat::Text)->pluck('id');
+    }
+
+    /**
+     * Whether this journal detail is a long-text custom field change —
+     * the "cf" counterpart to the description diff, matching Redmine's
+     * own change_as_diff? being limited to the "text" field format.
+     */
+    public function isLongTextCustomFieldDetail(JournalDetail $detail): bool
+    {
+        return $detail->property === 'cf' && $this->longTextCustomFieldIds->contains((int) $detail->prop_key);
     }
 
     /**
@@ -772,6 +792,9 @@ new #[Layout('components.layouts.app')] class extends Component
                     @foreach ($journal->details as $detail)
                         <div class="text-gray-600 text-xs">
                             @if ($detail->property === 'attr' && $detail->prop_key === 'description')
+                                {{ $this->journalDetailLabel($detail) }}が更新されました
+                                <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-indigo-600 hover:underline">(差分)</a>
+                            @elseif ($this->isLongTextCustomFieldDetail($detail))
                                 {{ $this->journalDetailLabel($detail) }}が更新されました
                                 <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-indigo-600 hover:underline">(差分)</a>
                             @elseif ($detail->property === 'attachment')
