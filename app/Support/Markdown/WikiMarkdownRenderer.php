@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\WikiPage;
 use DOMDocument;
 use DOMElement;
+use DOMXPath;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
@@ -62,6 +63,23 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * own version renders two jQuery-toggled links plus a hidden div; this
  * uses a native `<details>/<summary>` element instead — no JS needed
  * for the same collapsed-by-default, click-to-expand behavior.
+ *
+ * A fourth macro, `{{include(Page Title)}}`, splices another wiki
+ * page's own rendered content inline — same pre-pass/recursive-render/
+ * DOM-splice shape as {{collapse}}, since the included page's content
+ * is itself unrendered Markdown too. Deliberately narrower than
+ * Redmine's own `{{include(project:Page)}}` cross-project form: this
+ * only ever resolves a page in the *same* project, matching the
+ * same-project scope `[[Page]]` links and {{child_pages}} already
+ * have — which conveniently also sidesteps Redmine's separate
+ * view_wiki_pages permission check on the target project, since being
+ * able to render this page at all already implies that permission on
+ * the one project in play. A page that doesn't exist (including any
+ * `project:Page` form, which never matches a real title) renders a
+ * visible inline error rather than silently vanishing, matching
+ * Redmine's own inline-macro-error behavior. Circular includes (A
+ * includes B includes A) are guarded by threading the chain of already-
+ * included page ids through the recursive render() calls.
  */
 final class WikiMarkdownRenderer
 {
@@ -85,10 +103,18 @@ final class WikiMarkdownRenderer
      *                               resolve {{child_pages}} — left as literal
      *                               text when this is null (e.g. rendering an
      *                               issue description, not a wiki page).
+     * @param  array<int, int>  $includedPageIds  internal — the chain of
+     *                                            WikiPage ids already being
+     *                                            rendered via {{include}} in
+     *                                            this call tree, so a cycle
+     *                                            can be detected. Callers
+     *                                            outside this class should
+     *                                            never pass this.
      */
-    public function render(string $text, Project $project, ?MediaCollection $attachments = null, ?WikiPage $page = null): string
+    public function render(string $text, Project $project, ?MediaCollection $attachments = null, ?WikiPage $page = null, array $includedPageIds = []): string
     {
-        [$text, $collapseBlocks] = $this->extractCollapseBlocks($text, $project, $attachments, $page);
+        [$text, $collapseBlocks] = $this->extractCollapseBlocks($text, $project, $attachments, $page, $includedPageIds);
+        [$text, $includeBlocks] = $this->extractIncludeMacros($text, $project, $includedPageIds);
 
         $environment = new Environment([
             'html_input' => 'escape',
@@ -138,6 +164,7 @@ final class WikiMarkdownRenderer
 
         $html = (new MarkdownConverter($environment))->convert($text)->getContent();
         $html = $this->replaceCollapseBlocks($html, $collapseBlocks);
+        $html = $this->replaceIncludeMacros($html, $includeBlocks);
         $html = $this->replaceChildPagesMacro($html, $page, $project);
 
         if ($attachments === null || $attachments->isEmpty()) {
@@ -170,21 +197,22 @@ final class WikiMarkdownRenderer
      * that it's left as a known limitation.
      *
      * @param  MediaCollection<int, Media>|null  $attachments
+     * @param  array<int, int>  $includedPageIds
      * @return array{0: string, 1: array<string, array{label: string, body: string}>}
      */
-    private function extractCollapseBlocks(string $text, Project $project, ?MediaCollection $attachments, ?WikiPage $page): array
+    private function extractCollapseBlocks(string $text, Project $project, ?MediaCollection $attachments, ?WikiPage $page, array $includedPageIds): array
     {
         $blocks = [];
 
         $text = preg_replace_callback(
             '/^\{\{collapse(?:\(([^)]*)\))?[ \t]*\r?\n(.*?)\r?\n\}\}[ \t]*$/ms',
-            function (array $matches) use (&$blocks, $project, $attachments, $page) {
+            function (array $matches) use (&$blocks, $project, $attachments, $page, $includedPageIds) {
                 $label = trim($matches[1]);
                 $placeholder = 'COLLAPSE-MACRO-PLACEHOLDER-'.count($blocks);
 
                 $blocks[$placeholder] = [
                     'label' => $label !== '' ? $label : '表示',
-                    'body' => $this->render($matches[2], $project, $attachments, $page),
+                    'body' => $this->render($matches[2], $project, $attachments, $page, $includedPageIds),
                 ];
 
                 return $placeholder;
@@ -219,6 +247,115 @@ final class WikiMarkdownRenderer
             )->getElementsByTagName('details')->item(0);
 
             $paragraph->parentNode->replaceChild($document->importNode($details, true), $paragraph);
+            $changed = true;
+        }
+
+        return $changed ? HtmlFragment::innerHtml($document) : $html;
+    }
+
+    /**
+     * A `{{include(Page Title)}}` line on its own is replaced with a
+     * placeholder the same way {{collapse}} is — see extractCollapseBlocks()
+     * for why a pure post-render DOM step isn't enough here.
+     *
+     * @param  array<int, int>  $includedPageIds
+     * @return array{0: string, 1: array<string, string>}
+     */
+    private function extractIncludeMacros(string $text, Project $project, array $includedPageIds): array
+    {
+        $blocks = [];
+
+        $text = preg_replace_callback(
+            '/^\{\{include\(([^)]+)\)\}\}[ \t]*$/m',
+            function (array $matches) use (&$blocks, $project, $includedPageIds) {
+                $placeholder = 'INCLUDE-MACRO-PLACEHOLDER-'.count($blocks);
+                $blocks[$placeholder] = $this->renderIncludedPage(trim($matches[1]), $project, $includedPageIds);
+
+                return $placeholder;
+            },
+            $text,
+        ) ?? $text;
+
+        return [$text, $blocks];
+    }
+
+    /**
+     * @param  array<int, int>  $includedPageIds
+     */
+    private function renderIncludedPage(string $title, Project $project, array $includedPageIds): string
+    {
+        $target = $project->wikiPages()->where('title', $title)->first();
+
+        if ($target === null) {
+            return '<p>'.e("ページ「{$title}」が見つかりません。").'</p>';
+        }
+
+        if (in_array($target->id, $includedPageIds, true)) {
+            return '<p>'.e("「{$title}」の循環インクルードが検出されました。").'</p>';
+        }
+
+        $html = $this->render(
+            $target->currentVersion === null ? '' : $target->currentVersion->text,
+            $project,
+            $target->attachments(),
+            $target,
+            [...$includedPageIds, $target->id],
+        );
+
+        // Heading ids would otherwise collide with the including page's
+        // own headings (both {{toc}} and any manual #fragment link only
+        // make sense pointing at one place) — matches Redmine's own
+        // :headings => false for included content.
+        return $this->stripHeadingIds($html);
+    }
+
+    private function stripHeadingIds(string $html): string
+    {
+        if (! str_contains($html, '<h')) {
+            return $html;
+        }
+
+        $document = HtmlFragment::load($html);
+        $headings = (new DOMXPath($document))->query('//h1|//h2|//h3|//h4|//h5|//h6');
+
+        if ($headings === false || $headings->length === 0) {
+            return $html;
+        }
+
+        foreach ($headings as $heading) {
+            /** @var DOMElement $heading */
+            $heading->removeAttribute('id');
+        }
+
+        return HtmlFragment::innerHtml($document);
+    }
+
+    /**
+     * @param  array<string, string>  $blocks
+     */
+    private function replaceIncludeMacros(string $html, array $blocks): string
+    {
+        if ($blocks === []) {
+            return $html;
+        }
+
+        $document = HtmlFragment::load($html);
+        $changed = false;
+
+        foreach (iterator_to_array($document->getElementsByTagName('p')) as $paragraph) {
+            $placeholder = trim($paragraph->textContent);
+
+            if (! isset($blocks[$placeholder])) {
+                continue;
+            }
+
+            $wrapper = HtmlFragment::load($blocks[$placeholder])->getElementsByTagName('div')->item(0);
+
+            foreach (iterator_to_array($wrapper->childNodes) as $child) {
+                $paragraph->parentNode->insertBefore($document->importNode($child, true), $paragraph);
+            }
+
+            $paragraph->parentNode->removeChild($paragraph);
             $changed = true;
         }
 
