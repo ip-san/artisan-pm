@@ -313,6 +313,7 @@
 | パスキー/WebAuthn | done(Redmineにはない機能) | — |
 | パスワードリセット | done | — |
 | 登録モード(無効/手動承認/メール確認/自動) | partial(2026-07-22) | Redmineの`Setting.self_registration`相当を`self_registration`設定として実装。「無効」は`Fortify::registerView`が登録ページ自体をログインへリダイレクト(直接POSTされた場合も`CreateNewUser`側でバリデーションエラーとして拒否、二重の防御)、「手動承認」は`UserStatus::Registered`(元々定義されていたが未使用だった値)でロック状態のアカウントを作成し、ユーザー管理画面に「承認待ち」バッジ+「承認」ボタンを追加(`AuthenticateUser`は`isActive()`をすでに見ているため追加変更なしでログイン拒否済み)、「自動」は従来通り即座に有効化。メール確認によるモード(Redmineの3つ目)は送信メール基盤が本アプリに無いため意図的に対象外 |
+| 自己登録メールドメイン許可/拒否リスト | done(2026-07-23) | Redmineの`EmailAddress.valid_domain?`/`Setting.email_domains_allowed`/`email_domains_denied`相当。設定画面に`email_domains_allowed`/`email_domains_denied`(カンマ区切り、先頭`.`でサブドメイン一致)を追加、`CreateNewUser`アクションに拒否リスト優先→許可リストがあればホワイトリストとして機能、の判定ロジックを実装(`attachment_extensions_allowed`/`_denied`と同じカンマ区切りリストのパターンを踏襲)。**注**: Redmine本体はこの検証を`EmailAddress`モデル経由で全ユーザーのメール変更(管理者による作成/編集含む)に適用するが、本アプリでは自己登録時のみに意図的に縮小(`users/form.blade.php`側の管理者用ユーザー作成/編集フォームには未適用) |
 
 ---
 

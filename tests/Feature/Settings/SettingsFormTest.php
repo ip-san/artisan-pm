@@ -190,3 +190,17 @@ test('default_issue_due_date_offset can be left blank to disable the default', f
 
     expect(Setting::get('default_issue_due_date_offset'))->toBeNull();
 });
+
+test('an admin can configure the self-registration email domain allow/deny lists', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('email_domains_allowed', 'example.com, .example.org')
+        ->set('email_domains_denied', 'blocked.example.com')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('email_domains_allowed'))->toBe('example.com, .example.org')
+        ->and(Setting::get('email_domains_denied'))->toBe('blocked.example.com');
+});

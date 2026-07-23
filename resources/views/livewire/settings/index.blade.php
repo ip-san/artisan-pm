@@ -61,6 +61,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $self_registration = 'automatic';
 
+    public string $email_domains_allowed = '';
+
+    public string $email_domains_denied = '';
+
     public bool $default_projects_public = true;
 
     /** @var array<string> */
@@ -74,6 +78,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('manage', Setting::class);
 
         $this->self_registration = Setting::get('self_registration', 'automatic');
+        $this->email_domains_allowed = Setting::get('email_domains_allowed', '');
+        $this->email_domains_denied = Setting::get('email_domains_denied', '');
         $this->app_title = Setting::get('app_title', config('app.name'));
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
@@ -154,6 +160,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'cross_project_issue_relations' => ['boolean'],
             'default_issue_due_date_offset' => ['nullable', 'integer', 'min:0'],
             'self_registration' => ['required', 'in:disabled,manual,automatic'],
+            'email_domains_allowed' => ['nullable', 'string', 'max:1000'],
+            'email_domains_denied' => ['nullable', 'string', 'max:1000'],
             'default_projects_public' => ['boolean'],
             'default_projects_modules' => ['array'],
             'default_projects_modules.*' => [Rule::in(array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::cases()))],
@@ -279,6 +287,23 @@ new #[Layout('components.layouts.app')] class extends Component
                 @error('self_registration') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-gray-500">
                     メール確認によるアカウント有効化(Redmineの3つ目のモード)は、本アプリに送信メール基盤が無いため未対応です。
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">登録を許可するメールドメイン(カンマ区切り、空欄は制限なし)</label>
+                <input type="text" wire:model="email_domains_allowed" placeholder="例: example.com, .example.org"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('email_domains_allowed') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">登録を拒否するメールドメイン(カンマ区切り、許可リストより優先)</label>
+                <input type="text" wire:model="email_domains_denied" placeholder="例: example.com, .example.org"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('email_domains_denied') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">
+                    先頭に「.」を付けると、そのドメインとサブドメインすべてに一致します(例: .example.org)。自己登録時のみ適用され、管理者による直接のユーザー作成には適用されません。
                 </p>
             </div>
         </section>
