@@ -1,6 +1,7 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
+use App\Enums\IssueRelationType;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Version;
@@ -162,6 +163,48 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->percentFromStart($version->due_date ?? throw new LogicException('Version is missing a due date.'));
     }
 
+    /**
+     * Every issue row is a fixed 32px tall (Tailwind's h-8) — matches the
+     * label/timeline columns' own row markup below.
+     */
+    private const int ROW_HEIGHT_PX = 32;
+
+    /**
+     * Connector lines between related issues currently visible on this
+     * chart — matches Redmine's Gantt#relations (only precedes/blocks are
+     * drawn, Redmine's own DRAW_TYPES; a line is skipped if either end
+     * has no date range, since there's no bar edge to anchor it to).
+     *
+     * @return array<int, array{x1: float, y1: float, x2: float, y2: float, color: string}>
+     */
+    #[Computed]
+    public function relationLines(): array
+    {
+        $rowsById = $this->rows->keyBy('id');
+        $indexById = $this->rows->values()->map(fn (GanttRow $row) => $row->id)->flip();
+
+        $lines = [];
+
+        foreach (app(GanttService::class)->relationsWithin($this->rows->pluck('id')) as $relation) {
+            $from = $rowsById->get($relation->issue_from_id);
+            $to = $rowsById->get($relation->issue_to_id);
+
+            if ($from === null || $to === null || ! $from->hasDateRange() || ! $to->hasDateRange()) {
+                continue;
+            }
+
+            $lines[] = [
+                'x1' => $this->barLeftPercent($from) + $this->barWidthPercent($from),
+                'y1' => ($indexById[$from->id] + 0.5) * self::ROW_HEIGHT_PX,
+                'x2' => $this->barLeftPercent($to),
+                'y2' => ($indexById[$to->id] + 0.5) * self::ROW_HEIGHT_PX,
+                'color' => $relation->relation_type === IssueRelationType::Blocks ? '#fa5252' : '#228be6',
+            ];
+        }
+
+        return $lines;
+    }
+
     private function percentFromStart(Carbon $date): float
     {
         return $this->rangeStart->diffInDays($date) / $this->totalDays * 100;
@@ -229,6 +272,17 @@ new #[Layout('components.layouts.app')] class extends Component
                             @endif
                         </div>
                     @endforeach
+
+                    @if ($this->relationLines !== [])
+                        <svg class="pointer-events-none absolute left-0" style="top: 32px; width: 100%; height: {{ count($this->rows) * 32 }}px">
+                            @foreach ($this->relationLines as $line)
+                                <line wire:key="relation-line-{{ $loop->index }}"
+                                    x1="{{ $line['x1'] }}%" y1="{{ $line['y1'] }}"
+                                    x2="{{ $line['x2'] }}%" y2="{{ $line['y2'] }}"
+                                    stroke="{{ $line['color'] }}" stroke-width="1.5" />
+                            @endforeach
+                        </svg>
+                    @endif
 
                     @foreach ($this->versions as $version)
                         <div wire:key="version-row-{{ $version->id }}" class="relative h-8 border-b border-gray-100">

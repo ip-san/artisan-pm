@@ -2,6 +2,7 @@
 
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
@@ -239,4 +240,85 @@ test('a version without a due date is not shown as a milestone', function () {
         ->get('versions');
 
     expect($versions)->toBeEmpty();
+});
+
+test('a precedes relation between two dated issues draws a connector line', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+
+    $predecessor = Issue::factory()->for($project)->create([...$defaults, 'start_date' => '2026-01-01', 'due_date' => '2026-01-10']);
+    $successor = Issue::factory()->for($project)->create([...$defaults, 'start_date' => '2026-01-12', 'due_date' => '2026-01-20']);
+    IssueRelation::create(['issue_from_id' => $predecessor->id, 'issue_to_id' => $successor->id, 'relation_type' => 'precedes']);
+
+    $lines = Livewire::actingAs($user)->test('gantt.index', ['project' => $project])->get('relationLines');
+
+    expect($lines)->toHaveCount(1)
+        ->and($lines[0]['color'])->toBe('#228be6')
+        ->and($lines[0]['x1'])->toBeLessThan($lines[0]['x2']);
+});
+
+test('a blocks relation draws a connector line in a distinct color from precedes', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+
+    $blocker = Issue::factory()->for($project)->create([...$defaults, 'start_date' => '2026-02-01', 'due_date' => '2026-02-05']);
+    $blocked = Issue::factory()->for($project)->create([...$defaults, 'start_date' => '2026-02-10', 'due_date' => '2026-02-15']);
+    IssueRelation::create(['issue_from_id' => $blocker->id, 'issue_to_id' => $blocked->id, 'relation_type' => 'blocks']);
+
+    $lines = Livewire::actingAs($user)->test('gantt.index', ['project' => $project])->get('relationLines');
+
+    expect($lines)->toHaveCount(1)
+        ->and($lines[0]['color'])->toBe('#fa5252');
+});
+
+test('a relates relation (not precedes/blocks) does not draw a connector line', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+
+    $a = Issue::factory()->for($project)->create([...$defaults, 'start_date' => '2026-03-01', 'due_date' => '2026-03-05']);
+    $b = Issue::factory()->for($project)->create([...$defaults, 'start_date' => '2026-03-10', 'due_date' => '2026-03-15']);
+    IssueRelation::create(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => 'relates']);
+
+    $lines = Livewire::actingAs($user)->test('gantt.index', ['project' => $project])->get('relationLines');
+
+    expect($lines)->toBeEmpty();
+});
+
+test('a relation to an issue outside the current filtered view draws no line', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+    $matchingStatus = IssueStatus::factory()->create();
+    $otherStatus = IssueStatus::factory()->create();
+
+    $predecessor = Issue::factory()->for($project)->create([...$defaults, 'status_id' => $matchingStatus->id, 'start_date' => '2026-04-01', 'due_date' => '2026-04-05']);
+    $successor = Issue::factory()->for($project)->create([...$defaults, 'status_id' => $otherStatus->id, 'start_date' => '2026-04-10', 'due_date' => '2026-04-15']);
+    IssueRelation::create(['issue_from_id' => $predecessor->id, 'issue_to_id' => $successor->id, 'relation_type' => 'precedes']);
+
+    $lines = Livewire::actingAs($user)
+        ->test('gantt.index', ['project' => $project])
+        ->call('addFilter', 'status_id')
+        ->set('filterOperators.status_id', '=')
+        ->set('filterValues.status_id.0', $matchingStatus->id)
+        ->call('applyFilters')
+        ->get('relationLines');
+
+    expect($lines)->toBeEmpty();
+});
+
+test('a relation where one issue has no date range draws no line', function () {
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $defaults = ganttIssueDefaults();
+
+    $predecessor = Issue::factory()->for($project)->create([...$defaults, 'start_date' => '2026-05-01', 'due_date' => '2026-05-05']);
+    $successor = Issue::factory()->for($project)->create([...$defaults, 'start_date' => null, 'due_date' => null]);
+    IssueRelation::create(['issue_from_id' => $predecessor->id, 'issue_to_id' => $successor->id, 'relation_type' => 'precedes']);
+
+    $lines = Livewire::actingAs($user)->test('gantt.index', ['project' => $project])->get('relationLines');
+
+    expect($lines)->toBeEmpty();
 });

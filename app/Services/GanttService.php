@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\IssueRelationType;
 use App\Models\Issue;
+use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Tracker;
@@ -85,5 +87,27 @@ final class GanttService
         }
 
         return $tree->filter(fn (GanttRow $row) => isset($keep[$row->id]))->values();
+    }
+
+    /**
+     * precedes/blocks relations where both ends are currently visible on
+     * the chart — matches Redmine's Gantt#relations (lib/redmine/helpers/
+     * gantt.rb), which only draws these two relation types (Redmine's own
+     * DRAW_TYPES), each ends only drawn once both issues are rendered.
+     *
+     * @param  Collection<int, int>  $visibleIssueIds
+     * @return Collection<int, IssueRelation>
+     */
+    public function relationsWithin(Collection $visibleIssueIds): Collection
+    {
+        if ($visibleIssueIds->isEmpty()) {
+            return collect();
+        }
+
+        return IssueRelation::query()
+            ->whereIn('relation_type', [IssueRelationType::Precedes->value, IssueRelationType::Blocks->value])
+            ->whereIn('issue_from_id', $visibleIssueIds)
+            ->whereIn('issue_to_id', $visibleIssueIds)
+            ->get();
     }
 }
