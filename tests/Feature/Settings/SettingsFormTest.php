@@ -191,6 +191,38 @@ test('default_issue_due_date_offset can be left blank to disable the default', f
     expect(Setting::get('default_issue_due_date_offset'))->toBeNull();
 });
 
+test('an admin can configure the issue list default columns', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('issue_list_default_columns', ['status_id', 'subject', 'due_date'])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('issue_list_default_columns'))->toBe(['status_id', 'subject', 'due_date']);
+});
+
+test('issue_list_default_columns rejects an unknown column key', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('issue_list_default_columns', ['not_a_real_column'])
+        ->call('save')
+        ->assertHasErrors(['issue_list_default_columns.*']);
+});
+
+test('issue_list_default_columns cannot be emptied out entirely', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('issue_list_default_columns', [])
+        ->call('save')
+        ->assertHasErrors(['issue_list_default_columns']);
+});
+
 test('an admin can configure the calendar start of week', function () {
     $admin = User::factory()->admin()->create();
 

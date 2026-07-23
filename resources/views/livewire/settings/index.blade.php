@@ -15,6 +15,32 @@ use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    /**
+     * Native columns selectable as the issue list's default display
+     * columns — matches issues/index.blade.php's own DISPLAY_COLUMNS
+     * (kept as a separate copy here rather than shared, the same way
+     * issues/global-index.blade.php already keeps its own independent
+     * copy). Custom fields are deliberately excluded from this setting,
+     * unlike Redmine's own issue_list_default_columns which allows them
+     * — they're per-tracker and not a stable install-wide default.
+     *
+     * @var array<string, string>
+     */
+    public const array ISSUE_LIST_COLUMNS = [
+        'tracker_id' => 'トラッカー',
+        'status_id' => 'ステータス',
+        'priority_id' => '優先度',
+        'subject' => '題名',
+        'category_id' => 'カテゴリ',
+        'assigned_to_id' => '担当者',
+        'author_id' => '作成者',
+        'fixed_version_id' => '対象バージョン',
+        'start_date' => '開始日',
+        'due_date' => '期日',
+        'created_at' => '作成日',
+        'done_ratio' => '進捗率',
+    ];
+
     public string $app_title = '';
 
     public int $default_issues_per_page = 25;
@@ -59,6 +85,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $default_issue_due_date_offset = null;
 
+    /** @var array<int, string> */
+    public array $issue_list_default_columns = [];
+
     public int $start_of_week = 0;
 
     public string $self_registration = 'automatic';
@@ -91,6 +120,10 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->parent_issue_done_ratio = Setting::get('parent_issue_done_ratio', true);
         $this->cross_project_issue_relations = Setting::get('cross_project_issue_relations', false);
         $this->default_issue_due_date_offset = Setting::get('default_issue_due_date_offset');
+        $this->issue_list_default_columns = Setting::get(
+            'issue_list_default_columns',
+            ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']
+        );
         // 0 = Sunday (Carbon::SUNDAY), matching the calendar views' own default.
         $this->start_of_week = Setting::get('start_of_week', 0);
         $this->incoming_mail_enabled = Setting::get('incoming_mail_enabled', false);
@@ -163,6 +196,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_issue_done_ratio' => ['boolean'],
             'cross_project_issue_relations' => ['boolean'],
             'default_issue_due_date_offset' => ['nullable', 'integer', 'min:0'],
+            'issue_list_default_columns' => ['array', 'min:1'],
+            'issue_list_default_columns.*' => [Rule::in(array_keys(self::ISSUE_LIST_COLUMNS))],
             'start_of_week' => ['required', Rule::in([0, 1, 6])],
             'self_registration' => ['required', 'in:disabled,manual,automatic'],
             'email_domains_allowed' => ['nullable', 'string', 'max:1000'],
@@ -240,6 +275,20 @@ new #[Layout('components.layouts.app')] class extends Component
                     class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-gray-500">空欄の場合、期日は自動設定されません。</p>
                 @error('default_issue_due_date_offset') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700 mb-2">課題一覧の既定表示列</span>
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach (self::ISSUE_LIST_COLUMNS as $key => $label)
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" wire:model="issue_list_default_columns" value="{{ $key }}" class="rounded border-gray-300">
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('issue_list_default_columns') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('issue_list_default_columns.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
         </section>
 

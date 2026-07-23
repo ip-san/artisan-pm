@@ -7,6 +7,7 @@ use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -61,7 +62,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /** @var array<int, string> */
     #[Url]
-    public array $columns = ['project_id', 'tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id'];
+    public array $columns = [];
 
     #[Url]
     public ?string $sortKey = null;
@@ -77,6 +78,23 @@ new #[Layout('components.layouts.app')] class extends Component
     public array $newQueryRoleIds = [];
 
     public bool $showSaveForm = false;
+
+    public function mount(): void
+    {
+        // Only applied when the URL didn't already supply columns.
+        // Matches Redmine's IssueQuery#default_columns_names: the
+        // cross-project list prepends "project" to the same configured
+        // default column set used by the project-scoped list, rather than
+        // having its own separate setting.
+        if ($this->columns === []) {
+            $default = Setting::get(
+                'issue_list_default_columns',
+                ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']
+            );
+
+            $this->columns = in_array('project_id', $default, true) ? $default : ['project_id', ...$default];
+        }
+    }
 
     /**
      * Every project the current user can view issues in at all —

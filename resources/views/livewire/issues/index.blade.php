@@ -66,7 +66,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /** @var array<int, string> */
     #[Url]
-    public array $columns = ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id'];
+    public array $columns = [];
 
     public string $csvEncoding = 'UTF-8';
 
@@ -141,6 +141,16 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('viewAny', [Issue::class, $project]);
 
         $this->project = $project;
+
+        // Only applied when the URL didn't already supply columns (a fresh
+        // visit, no saved query loaded) — matches Redmine's
+        // Setting.issue_list_default_columns.
+        if ($this->columns === []) {
+            $this->columns = Setting::get(
+                'issue_list_default_columns',
+                ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']
+            );
+        }
     }
 
     #[Computed]
