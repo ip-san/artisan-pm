@@ -57,6 +57,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $cross_project_issue_relations = false;
 
+    public ?int $default_issue_due_date_offset = null;
+
     public string $self_registration = 'automatic';
 
     public bool $default_projects_public = true;
@@ -80,6 +82,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->parent_issue_dates = Setting::get('parent_issue_dates', true);
         $this->parent_issue_done_ratio = Setting::get('parent_issue_done_ratio', true);
         $this->cross_project_issue_relations = Setting::get('cross_project_issue_relations', false);
+        $this->default_issue_due_date_offset = Setting::get('default_issue_due_date_offset');
         $this->incoming_mail_enabled = Setting::get('incoming_mail_enabled', false);
         $this->incoming_mail_default_project_id = Setting::get('incoming_mail_default_project_id');
         $this->incoming_mail_default_tracker_id = Setting::get('incoming_mail_default_tracker_id');
@@ -149,6 +152,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_issue_dates' => ['boolean'],
             'parent_issue_done_ratio' => ['boolean'],
             'cross_project_issue_relations' => ['boolean'],
+            'default_issue_due_date_offset' => ['nullable', 'integer', 'min:0'],
             'self_registration' => ['required', 'in:disabled,manual,automatic'],
             'default_projects_public' => ['boolean'],
             'default_projects_modules' => ['array'],
@@ -215,6 +219,15 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="checkbox" wire:model="cross_project_issue_relations" class="rounded border-gray-300">
                 プロジェクトをまたいだ課題関連を許可する
             </label>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">新規課題の期日の既定値(作成日からの日数)</label>
+                <input type="number" min="0" wire:model="default_issue_due_date_offset"
+                    placeholder="未設定(既定値なし)"
+                    class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">空欄の場合、期日は自動設定されません。</p>
+                @error('default_issue_due_date_offset') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
         </section>
 
         <section class="space-y-4 border-t border-gray-200 pt-6">

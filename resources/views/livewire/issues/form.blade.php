@@ -136,6 +136,11 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->prefillFromCopySource($project);
             $this->applyCustomFieldDefaults();
 
+            // Matches Redmine's build_new_issue_from_params, which applies
+            // this default (via ||=) after copy_from handling — a copied
+            // issue's own due date always wins over the offset default.
+            $this->due_date ??= $this->defaultDueDate();
+
             // Resolved after the copy-from prefill (which may itself change
             // tracker_id) so the default status matches whichever tracker
             // actually ends up selected, not the project's first one.
@@ -219,6 +224,23 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->due_date = $source->due_date?->toDateString();
 
         $this->customFieldValues = $source->customFieldFormValues($source->relevantCustomFields());
+    }
+
+    /**
+     * Matches Redmine's Setting.default_issue_due_date_offset_in_days: a
+     * non-negative integer number of days from today, or null when the
+     * setting is blank/invalid (Redmine's own default — no due date is
+     * set unless an admin configures this).
+     */
+    private function defaultDueDate(): ?string
+    {
+        $offset = Setting::get('default_issue_due_date_offset');
+
+        if (! is_numeric($offset) || (int) $offset < 0) {
+            return null;
+        }
+
+        return now()->addDays((int) $offset)->toDateString();
     }
 
     /**

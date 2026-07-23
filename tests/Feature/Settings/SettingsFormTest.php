@@ -155,3 +155,38 @@ test('attachment_max_size cannot exceed the underlying media-library cap', funct
         ->call('save')
         ->assertHasErrors(['attachment_max_size']);
 });
+
+test('an admin can configure the default issue due date offset', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('default_issue_due_date_offset', 14)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('default_issue_due_date_offset'))->toBe(14);
+});
+
+test('default_issue_due_date_offset rejects a negative number of days', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('default_issue_due_date_offset', -1)
+        ->call('save')
+        ->assertHasErrors(['default_issue_due_date_offset']);
+});
+
+test('default_issue_due_date_offset can be left blank to disable the default', function () {
+    $admin = User::factory()->admin()->create();
+    Setting::set('default_issue_due_date_offset', 7);
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('default_issue_due_date_offset', null)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('default_issue_due_date_offset'))->toBeNull();
+});
