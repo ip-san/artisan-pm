@@ -11,10 +11,10 @@ use App\Models\IssueCategory;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Setting;
-use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\Version;
 use App\Services\IssueService;
+use App\Services\TimeEntryService;
 use App\Services\WorkflowService;
 use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Authorization\AuthorizationService;
@@ -568,7 +568,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if (filled($logTimeHours)) {
-            TimeEntry::create([
+            app(TimeEntryService::class)->create([
                 'project_id' => $this->project->id,
                 'issue_id' => $issue->id,
                 'user_id' => auth()->id(),

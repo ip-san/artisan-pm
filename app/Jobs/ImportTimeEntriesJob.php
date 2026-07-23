@@ -7,9 +7,9 @@ namespace App\Jobs;
 use App\Enums\ImportStatus;
 use App\Models\Enumeration;
 use App\Models\Issue;
-use App\Models\TimeEntry;
 use App\Models\TimeEntryImport;
 use App\Models\User;
+use App\Services\TimeEntryService;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -37,7 +37,7 @@ final class ImportTimeEntriesJob implements ShouldQueue
         private readonly TimeEntryImport $import,
     ) {}
 
-    public function handle(AuthorizationService $authorization): void
+    public function handle(AuthorizationService $authorization, TimeEntryService $timeEntries): void
     {
         $this->import->update(['status' => ImportStatus::Processing]);
 
@@ -75,7 +75,7 @@ final class ImportTimeEntriesJob implements ShouldQueue
             try {
                 $record = array_combine($header, array_pad($row, count($header), null));
 
-                TimeEntry::create($this->mapRowToAttributes($record, $mapping, $defaultActivity, $canLogForOthers));
+                $timeEntries->create($this->mapRowToAttributes($record, $mapping, $defaultActivity, $canLogForOthers));
 
                 $imported++;
             } catch (Throwable $e) {

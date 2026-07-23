@@ -2,6 +2,7 @@
 
 use App\Models\Project;
 use App\Models\TimeEntry;
+use App\Services\TimeEntryService;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -127,10 +128,10 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if ($this->timeEntry) {
-            $this->timeEntry->update($data);
+            app(TimeEntryService::class)->update($this->timeEntry, $data);
         } else {
             $data['project_id'] = $this->project->id;
-            TimeEntry::create($data);
+            app(TimeEntryService::class)->create($data);
         }
 
         $this->redirect(route('time-entries.index', $this->project), navigate: true);

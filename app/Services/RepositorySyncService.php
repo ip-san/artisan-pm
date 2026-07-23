@@ -10,7 +10,6 @@ use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Repository;
 use App\Models\Setting;
-use App\Models\TimeEntry;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
 use DateTimeImmutable;
@@ -53,6 +52,7 @@ final class RepositorySyncService
 
     public function __construct(
         private readonly AuthorizationService $authorization,
+        private readonly TimeEntryService $timeEntries,
     ) {}
 
     /**
@@ -175,7 +175,7 @@ final class RepositorySyncService
                 continue;
             }
 
-            TimeEntry::create([
+            $this->timeEntries->create([
                 'project_id' => $issue->project_id,
                 'issue_id' => $issue->id,
                 'user_id' => $actor->id,

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\EnumerationType;
 use App\Enums\WebhookEvent;
 use App\Models\Enumeration;
 use App\Models\Issue;
@@ -7,11 +8,13 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Webhook;
 use App\Models\WikiPage;
 use App\Services\IssueService;
+use App\Services\TimeEntryService;
 use App\Services\WikiPageService;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
@@ -225,6 +228,113 @@ test('deleting a wiki page from the wiki show page dispatches wiki_page.deleted'
         ->call('delete');
 
     Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::WikiPageDeleted->value);
+});
+
+test('creating a time entry dispatches a webhook subscribed to time_entry.created', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    $webhook = Webhook::factory()->create(['url' => 'https://example.com/hook', 'events' => [WebhookEvent::TimeEntryCreated->value]]);
+    $activity = Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value]);
+    $user = User::factory()->create();
+
+    $timeEntry = app(TimeEntryService::class)->create([
+        'project_id' => $project->id,
+        'user_id' => $user->id,
+        'activity_id' => $activity->id,
+        'hours' => 2.5,
+        'spent_on' => now()->toDateString(),
+    ]);
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+        && $job->payload['time_entry']['id'] === $timeEntry->id
+        && $job->payload['event'] === WebhookEvent::TimeEntryCreated->value);
+});
+
+test('a webhook not subscribed to time_entry.created is not dispatched when a time entry is made', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::TimeEntryUpdated->value]]);
+    $activity = Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value]);
+    $user = User::factory()->create();
+
+    app(TimeEntryService::class)->create([
+        'project_id' => $project->id,
+        'user_id' => $user->id,
+        'activity_id' => $activity->id,
+        'hours' => 2.5,
+        'spent_on' => now()->toDateString(),
+    ]);
+
+    Queue::assertNotPushed(CallWebhookJob::class);
+});
+
+test('updating a time entry dispatches a webhook subscribed to time_entry.updated', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::TimeEntryUpdated->value]]);
+    $timeEntry = TimeEntry::factory()->for($project)->create();
+
+    app(TimeEntryService::class)->update($timeEntry, ['hours' => 4]);
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['time_entry']['id'] === $timeEntry->id
+        && $job->payload['event'] === WebhookEvent::TimeEntryUpdated->value);
+});
+
+test('deleting a time entry dispatches a webhook subscribed to time_entry.deleted', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    $webhook = Webhook::factory()->create(['url' => 'https://example.com/hook', 'events' => [WebhookEvent::TimeEntryDeleted->value]]);
+    $timeEntry = TimeEntry::factory()->for($project)->create();
+    $timeEntryId = $timeEntry->id;
+
+    app(TimeEntryService::class)->delete($timeEntry);
+
+    expect(TimeEntry::find($timeEntryId))->toBeNull();
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+        && $job->payload['time_entry']['id'] === $timeEntryId
+        && $job->payload['event'] === WebhookEvent::TimeEntryDeleted->value);
+});
+
+test('a webhook scoped to a different project is not dispatched for a time entry', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    Webhook::factory()->create(['project_id' => $otherProject->id, 'events' => [WebhookEvent::TimeEntryCreated->value]]);
+    $activity = Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value]);
+    $user = User::factory()->create();
+
+    app(TimeEntryService::class)->create([
+        'project_id' => $project->id,
+        'user_id' => $user->id,
+        'activity_id' => $activity->id,
+        'hours' => 2.5,
+        'spent_on' => now()->toDateString(),
+    ]);
+
+    Queue::assertNotPushed(CallWebhookJob::class);
+});
+
+test('deleting a time entry from the time entries list dispatches time_entry.deleted', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::TimeEntryDeleted->value]]);
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_time_entries', 'edit_time_entries']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+    $timeEntry = TimeEntry::factory()->for($project)->create();
+
+    Livewire::actingAs($user)
+        ->test('time-entries.index', ['project' => $project])
+        ->call('deleteEntry', $timeEntry->id);
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::TimeEntryDeleted->value);
 });
 
 test('a webhook with a secret signs its request', function () {

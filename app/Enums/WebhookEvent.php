@@ -12,4 +12,7 @@ enum WebhookEvent: string
     case WikiPageCreated = 'wiki_page.created';
     case WikiPageUpdated = 'wiki_page.updated';
     case WikiPageDeleted = 'wiki_page.deleted';
+    case TimeEntryCreated = 'time_entry.created';
+    case TimeEntryUpdated = 'time_entry.updated';
+    case TimeEntryDeleted = 'time_entry.deleted';
 }

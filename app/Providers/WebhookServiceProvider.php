@@ -7,10 +7,14 @@ namespace App\Providers;
 use App\Events\IssueCreated;
 use App\Events\IssueDeleted;
 use App\Events\IssueUpdated;
+use App\Events\TimeEntryCreated;
+use App\Events\TimeEntryDeleted;
+use App\Events\TimeEntryUpdated;
 use App\Events\WikiPageCreated;
 use App\Events\WikiPageDeleted;
 use App\Events\WikiPageUpdated;
 use App\Listeners\DispatchWebhooksForIssueEvent;
+use App\Listeners\DispatchWebhooksForTimeEntryEvent;
 use App\Listeners\DispatchWebhooksForWikiPageEvent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -27,5 +31,6 @@ final class WebhookServiceProvider extends ServiceProvider
     {
         Event::listen([IssueCreated::class, IssueUpdated::class, IssueDeleted::class], DispatchWebhooksForIssueEvent::class);
         Event::listen([WikiPageCreated::class, WikiPageUpdated::class, WikiPageDeleted::class], DispatchWebhooksForWikiPageEvent::class);
+        Event::listen([TimeEntryCreated::class, TimeEntryUpdated::class, TimeEntryDeleted::class], DispatchWebhooksForTimeEntryEvent::class);
     }
 }

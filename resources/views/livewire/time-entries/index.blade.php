@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Role;
 use App\Models\TimeEntry;
+use App\Services\TimeEntryService;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
@@ -272,7 +273,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->authorize('delete', $entry);
 
-        $entry->delete();
+        app(TimeEntryService::class)->delete($entry);
 
         unset($this->timeEntries, $this->groupedTimeEntries);
     }
@@ -325,8 +326,10 @@ new #[Layout('components.layouts.app')] class extends Component
             'comments' => $data['bulkComments'] !== '' ? $data['bulkComments'] : null,
         ], fn ($value) => $value !== null);
 
+        $timeEntryService = app(TimeEntryService::class);
+
         foreach ($entries as $entry) {
-            $entry->update($changes);
+            $timeEntryService->update($entry, $changes);
         }
 
         $count = $entries->count();
@@ -348,9 +351,10 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $count = $entries->count();
+        $timeEntryService = app(TimeEntryService::class);
 
         foreach ($entries as $entry) {
-            $entry->delete();
+            $timeEntryService->delete($entry);
         }
 
         $this->reset('selected');
