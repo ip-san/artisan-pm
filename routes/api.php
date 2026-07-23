@@ -17,4 +17,5 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/projects/{project}/issues', [IssueController::class, 'store'])->name('api.issues.store');
     Route::get('/issues/{issue}', [IssueController::class, 'show'])->name('api.issues.show');
     Route::put('/issues/{issue}', [IssueController::class, 'update'])->name('api.issues.update');
+    Route::delete('/issues/{issue}', [IssueController::class, 'destroy'])->name('api.issues.destroy');
 });

@@ -121,3 +121,27 @@ test('a non-member cannot view an issue in a private project via the api', funct
 
     $this->getJson("/api/v1/issues/{$issue->id}")->assertForbidden();
 });
+
+test('a member with delete_issues can delete an issue via the api', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'delete_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+
+    Passport::actingAs($user);
+
+    $this->deleteJson("/api/v1/issues/{$issue->id}")->assertNoContent();
+
+    expect(Issue::find($issue->id))->toBeNull();
+});
+
+test('deleting an issue via the api requires delete_issues permission', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'edit_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+
+    Passport::actingAs($user);
+
+    $this->deleteJson("/api/v1/issues/{$issue->id}")->assertForbidden();
+
+    expect(Issue::find($issue->id))->not->toBeNull();
+});

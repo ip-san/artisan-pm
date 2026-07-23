@@ -85,6 +85,15 @@ final class IssueController extends Controller
         return new IssueResource($issue);
     }
 
+    public function destroy(Issue $issue): JsonResponse
+    {
+        Gate::authorize('delete', $issue);
+
+        app(IssueService::class)->delete($issue);
+
+        return response()->json(status: 204);
+    }
+
     private function defaultStatusId(): int
     {
         return IssueStatus::query()->orderBy('position')->value('id');
