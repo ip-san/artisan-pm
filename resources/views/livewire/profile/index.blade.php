@@ -119,6 +119,24 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * Matches Redmine's my/account "Reset" link for the API key — the key
+     * itself is only ever shown right after being (re)generated, same as
+     * the recovery codes above, rather than persisted anywhere readable
+     * client-side across requests.
+     */
+    public function regenerateApiKey(): void
+    {
+        if (! $this->requirePasswordConfirmation()) {
+            return;
+        }
+
+        auth()->user()->regenerateApiKey();
+
+        unset($this->apiKey);
+        session()->flash('status', 'APIキーを再生成しました。');
+    }
+
+    /**
      * Mirrors Illuminate\Auth\Middleware\RequirePassword's own freshness
      * check — Fortify's 2FA HTTP routes are gated by that middleware, but
      * these actions are invoked directly from Livewire rather than through
@@ -164,6 +182,12 @@ new #[Layout('components.layouts.app')] class extends Component
     public function recoveryCodes(): array
     {
         return $this->twoFactorEnabled ? auth()->user()->recoveryCodes() : [];
+    }
+
+    #[Computed]
+    public function apiKey(): ?string
+    {
+        return auth()->user()->api_key;
     }
 }; ?>
 
@@ -273,5 +297,24 @@ new #[Layout('components.layouts.app')] class extends Component
                 有効にする
             </button>
         @endif
+    </section>
+
+    <section class="rounded-md border border-gray-200 bg-white p-4">
+        <h2 class="mb-4 text-sm font-semibold text-gray-900">APIキー</h2>
+        <p class="mb-4 text-sm text-gray-600">
+            スクリプトやcronジョブなど、OAuth2の認可コードフローを使わずにREST APIを呼び出したい場合に使用します。
+            <code>X-Redmine-API-Key</code>ヘッダー、<code>key</code>クエリパラメータ、またはHTTP Basic認証のユーザー名として指定できます。
+        </p>
+
+        @if ($this->apiKey)
+            <p class="mb-2 break-all rounded-md bg-gray-50 p-3 font-mono text-sm text-gray-800">{{ $this->apiKey }}</p>
+        @else
+            <p class="mb-2 text-sm text-gray-500">APIキーはまだ生成されていません。</p>
+        @endif
+
+        <button wire:click="regenerateApiKey" wire:confirm="APIキーを再生成しますか?古いキーは無効になります。"
+            class="text-sm text-indigo-600 hover:underline">
+            {{ $this->apiKey ? '再生成' : '生成' }}
+        </button>
     </section>
 </div>

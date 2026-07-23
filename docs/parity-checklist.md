@@ -18,7 +18,7 @@
 2. ~~**管理者によるユーザー管理画面が皆無**~~ → **done**(2026-07-21)。`users/{index,form}.blade.php` で一覧/作成/編集/ロック・ロック解除に対応。強制パスワードリセットは「編集画面でパスワード欄に新しい値を入力」で代替(専用の「リセットして通知」フローはまだない)。詳細は §2 参照。
 3. **アプリケーション設定が Redmine の 119 キー中わずか 6 項目**(`app_title`, `default_issues_per_page`, incoming-mail 系4項目)。表示/認証ポリシー/通知/添付ファイル制限/リポジトリ設定などのタブが丸ごと存在しない。
 4. ~~**カスタムフィールド対応が Issue と Project の2種のみ**~~ → **一部done**(2026-07-22〜23)。Version・Group・TimeEntryActivity・Document・DocumentCategory・**User**にも対応(`CustomizableType::Version`/`::Group`/`::TimeEntryActivity`/`::Document`/`::DocumentCategory`/`::User`)。Version/Documentはプロジェクトのロール経由で可視性を解決、Group/TimeEntryActivity/DocumentCategory/Userは管理者専用リソースのためロールフィルタ自体が不要。Redmineの残り ~2種(主にプラグイン向けの拡張ポイント)は引き続き未対応。
-5. **REST API が Projects と Issues の2リソースのみ**(Redmine は ~20 リソース群)。DELETE 系は皆無、ファイルアップロード API もなし。API認証も OAuth2(Passport)のみで、スクリプト用途に適した API キー方式が存在しない。
+5. **REST API が Projects と Issues の2リソースのみ**(Redmine は ~20 リソース群)。ファイルアップロード API もなし。~~API認証も OAuth2(Passport)のみで、スクリプト用途に適した API キー方式が存在しない。~~ → **API キー認証をdone**(2026-07-24、詳細は §API認証 参照)。Issues の DELETE は実装済み(詳細は §Issues REST API 参照)。
 6. ~~**Issue のサブタスク(親子)機能がモデルはあるがUIがない**。~~ → **done**(2026-07-21)。課題フォームに親課題ID欄、詳細画面に親リンク/サブタスク一覧を追加(詳細は §サブタスク・親子関係 参照)。~~関連課題(`IssueRelation`)もUIが皆無だった。~~ → **done**(2026-07-21)。課題詳細画面に追加/削除UIを実装(詳細は §Issue Relations 参照)。~~IssueCategory はモデル自体が存在しない。~~ → **done**(2026-07-21)。`IssueCategory` モデル・プロジェクト単位の管理画面・課題フォーム/一覧/フィルタ/CSV連携まで実装(詳細は §Issue Categories 参照)。
 7. ~~**添付ファイルが Issue/Version/News/Document にしか付かない**。Wiki ページ・フォーラム投稿に添付できない。サムネイル生成・説明文・ダウンロード数もない。~~ → **done**(2026-07-21〜22)。Wiki/フォーラム投稿への添付、ダウンロード数、説明文、サムネイル生成のすべてに対応済み(詳細は §添付ファイル 参照)。
 8. ~~**Wiki の差分表示・リダイレクト・マクロエンジンが丸ごと未実装**。~~ → **done**(2026-07-21〜24)。差分表示・リダイレクトは既に完了(詳細は §Wiki 参照)。マクロエンジンは当初のスコープであった`{{toc}}`/`{{child_pages}}`/`{{collapse}}`/`{{include}}`をすべて実装(詳細は §マクロエンジン全体 参照)。Redmine本家にはこれ以外にも多数のマクロ(`{{macro_list}}`等)があるが、それらは当初スコープ外のまま。
@@ -500,7 +500,7 @@
 | Search | missing | — |
 | My account | missing | — |
 
-**API認証**: OAuth2(Passport)のみ。Redmineの `X-Redmine-API-Key` ヘッダー方式やHTTP Basic(APIキーをユーザー名として使用)に相当する、スクリプト/自動化向けの軽量な認証手段が存在しない。cronジョブ等でOAuth2の認可コードフローを要求するのは実用上の後退。
+**API認証**: ~~OAuth2(Passport)のみ~~ → **done**(2026-07-24)。Redmineの3つの受付経路(`key=`クエリパラメータ、`X-Redmine-API-Key`ヘッダー、HTTP Basic認証のユーザー名欄にAPIキーを指定)すべてに対応する軽量な代替認証手段を追加。実装は`users.api_key`列(nullable、unique、40桁16進文字列 = Redmineの`Redmine::Utils.random_hex(20)`と同じ形式)+ `Auth::viaRequest('api-key', ...)`で登録した新規`api-key`ガード(`AppServiceProvider::registerApiKeyGuard()`)。`routes/api.php`の各ルートは`auth:api,api-key`でPassport/APIキーの両ガードを併用(Laravelの`Authenticate`ミドルウェアが先に解決した方を採用)。キーの表示/再生成はアカウント設定画面(`profile.index`)の新セクションから、2FAのリカバリーコード再生成と同じ`requirePasswordConfirmation()`ゲート・`wire:confirm`パターンを踏襲。Redmine本家のような`Token`モデル経由の`secure_compare`ではなく、単純なユニークインデックス検索(このアプリの他の認証情報検索と同じ簡略化、160ビットの鍵空間に対するタイミング攻撃は現実的でないため)。`rest_api_enabled`設定(本家にはあるがこのアプリのAPIには元々存在しない)による有効/無効切り替えは対象外のまま。
 
 ### 拡張性(プラグイン/フック/Webhook/受信メール)
 

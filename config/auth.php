@@ -47,6 +47,17 @@ return [
             'driver' => 'passport',
             'provider' => 'users',
         ],
+
+        // Lightweight alternative to the 'api' (Passport/OAuth2) guard —
+        // see AppServiceProvider::boot()'s Auth::viaRequest('api-key', ...)
+        // for the actual credential check. routes/api.php applies both
+        // guards together ('auth:api,api-key'); Laravel's Authenticate
+        // middleware tries each in order and accepts the first that
+        // resolves a user.
+        'api-key' => [
+            'driver' => 'api-key',
+            'provider' => 'users',
+        ],
     ],
 
     /*

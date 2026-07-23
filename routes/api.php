@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
-})->middleware('auth:api');
+})->middleware('auth:api,api-key');
 
-Route::middleware('auth:api')->group(function () {
+Route::middleware('auth:api,api-key')->group(function () {
     Route::get('/projects', [ProjectController::class, 'index'])->name('api.projects.index');
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('api.projects.show');
 

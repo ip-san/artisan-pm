@@ -32,7 +32,7 @@ use Laravel\Passport\HasApiTokens;
  * direct property assignment instead.
  */
 #[Fillable(['name', 'email', 'password', 'language', 'auth_source_id', 'login', 'status'])]
-#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'api_key'])]
 final class User extends Authenticatable implements OAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -94,6 +94,21 @@ final class User extends Authenticatable implements OAuthenticatable
     public function isActive(): bool
     {
         return $this->status === UserStatus::Active;
+    }
+
+    /**
+     * A lightweight alternative to Passport's OAuth2 authorization-code
+     * flow for scripts/cron — matches Redmine's own 40-hex-char REST API
+     * key (Redmine::Utils.random_hex(20)). Not mass-assignable (see
+     * is_admin's doc-comment above for the same reasoning); only ever set
+     * here, from the account settings page.
+     */
+    public function regenerateApiKey(): string
+    {
+        $this->api_key = bin2hex(random_bytes(20));
+        $this->save();
+
+        return $this->api_key;
     }
 
     public static function customizableType(): CustomizableType
