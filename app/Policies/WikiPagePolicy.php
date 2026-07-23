@@ -48,6 +48,18 @@ final class WikiPagePolicy
         return $this->authorization->can($user, 'rename_wiki_pages', $wikiPage->project);
     }
 
+    /**
+     * Whether a page could be moved INTO $targetProject — checked against
+     * the destination separately from rename()'s check against the
+     * source project, matching Redmine's WikiPage#safe_attributes=, which
+     * requires rename_wiki_pages on both the source and target project
+     * for a cross-wiki move.
+     */
+    public function moveTo(User $user, Project $targetProject): bool
+    {
+        return $this->authorization->can($user, 'rename_wiki_pages', $targetProject);
+    }
+
     public function protect(User $user, WikiPage $wikiPage): bool
     {
         return $this->authorization->can($user, 'protect_wiki_pages', $wikiPage->project);

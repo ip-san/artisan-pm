@@ -58,7 +58,19 @@ final class WikiPage extends Model implements HasMedia
         });
 
         self::deleting(function (WikiPage $page) {
-            $page->project->wikiRedirects()->where('redirects_to', $page->title)->delete();
+            // Matches same-project redirects (redirects_to_project_id
+            // null, implicitly this page's own project) as well as
+            // cross-project redirects left behind by a move — both would
+            // otherwise resolve to a 404 now that the target is gone.
+            WikiRedirect::query()
+                ->where('redirects_to', $page->title)
+                ->where(function ($query) use ($page) {
+                    $query->where('redirects_to_project_id', $page->project_id)
+                        ->orWhere(function ($query) use ($page) {
+                            $query->whereNull('redirects_to_project_id')->where('project_id', $page->project_id);
+                        });
+                })
+                ->delete();
         });
     }
 

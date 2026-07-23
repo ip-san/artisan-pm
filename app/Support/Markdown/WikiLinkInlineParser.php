@@ -47,26 +47,32 @@ final class WikiLinkInlineParser implements InlineParserInterface
             ->where('title', $title)
             ->first();
 
-        // A page renamed away from this title still resolves, via the
-        // redirect WikiPageService::update() leaves behind — matches
-        // Redmine's Wiki#find_page, which falls back to WikiRedirect the
-        // same way when no page matches the title directly.
+        // A page renamed (or moved to another project) away from this
+        // title still resolves, via the redirect WikiPageService leaves
+        // behind — matches Redmine's Wiki#find_page, which falls back to
+        // WikiRedirect the same way when no page matches the title
+        // directly.
+        $linkProject = $this->project;
+
         if ($page === null) {
-            $redirectsTo = WikiRedirect::query()
+            $redirect = WikiRedirect::query()
                 ->where('project_id', $this->project->id)
                 ->where('title', $title)
-                ->value('redirects_to');
+                ->first();
 
-            if ($redirectsTo !== null) {
-                $page = WikiPage::query()
-                    ->where('project_id', $this->project->id)
-                    ->where('title', $redirectsTo)
-                    ->first();
+            if ($redirect !== null) {
+                $linkProject = $redirect->redirects_to_project_id !== null
+                    ? $redirect->redirectsToProject
+                    : $this->project;
+
+                $page = $linkProject !== null
+                    ? WikiPage::query()->where('project_id', $linkProject->id)->where('title', $redirect->redirects_to)->first()
+                    : null;
             }
         }
 
         $url = $page !== null
-            ? route('wiki.show', [$this->project, $page])
+            ? route('wiki.show', [$linkProject, $page])
             : route('wiki.create', $this->project).'?'.http_build_query(['title' => $title]);
 
         $inlineContext->getCursor()->advanceBy($inlineContext->getFullMatchLength());

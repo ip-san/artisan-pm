@@ -61,7 +61,7 @@ final class WikiPageService
             $page->save();
 
             if (isset($attributes['title']) && $attributes['title'] !== $oldTitle) {
-                $this->handleRename($page, $oldTitle, $attributes['title'], $redirectExistingLinks);
+                $this->handleRename($page, $page->project, $oldTitle, $page->project, $attributes['title'], $redirectExistingLinks);
             }
 
             if ($text !== $page->currentVersion?->text) {
@@ -98,33 +98,77 @@ final class WikiPageService
     }
 
     /**
-     * Keeps "[[Old Title]]" links resolvable after a rename — matches
-     * Redmine's WikiPage#handle_rename_or_move. WikiLinkInlineParser is
-     * where the actual lookup fallback lives; this only maintains the
-     * redirect chain data.
+     * Moves a page to a different project's wiki — matches Redmine's
+     * WikiPage#wiki_id safe_attribute (handled through the same
+     * handle_rename_or_move callback as a title change there). The page's
+     * own parent is always cleared, since a parent from the old project
+     * essentially never also exists in the new one — mirrors Redmine's
+     * implicit `self.parent_id = nil` when `parent.wiki_id != wiki_id`.
+     * Unlike Redmine's handle_children_move, this page's own children are
+     * NOT cascaded into the new project — they're detached to the top
+     * level instead, the same deliberate scope cut already established by
+     * IssueService::moveToProject() for issue subtasks.
      */
-    private function handleRename(WikiPage $page, string $oldTitle, string $newTitle, bool $redirectExistingLinks): void
+    public function moveToProject(WikiPage $page, Project $targetProject, bool $redirectExistingLinks = true): WikiPage
     {
-        // Existing redirects that pointed at the old title now chain
-        // forward to the new one — unless that would make a redirect
-        // point at itself, in which case it's just removed.
-        $page->project->wikiRedirects()
-            ->where('redirects_to', $oldTitle)
-            ->where('title', $newTitle)
-            ->delete();
+        $oldProject = $page->project;
+        $title = $page->title;
 
-        $page->project->wikiRedirects()
-            ->where('redirects_to', $oldTitle)
-            ->update(['redirects_to' => $newTitle]);
+        $page = DB::transaction(function () use ($page, $oldProject, $targetProject, $title, $redirectExistingLinks) {
+            $page->project()->associate($targetProject);
+            $page->parent_id = null;
+            $page->save();
 
-        // The new title is now a live page, not a redirect source.
-        $page->project->wikiRedirects()->where('title', $newTitle)->delete();
+            $this->handleRename($page, $oldProject, $title, $targetProject, $title, $redirectExistingLinks);
+
+            WikiPage::query()->where('parent_id', $page->id)->update(['parent_id' => null]);
+
+            return $page->refresh();
+        });
+
+        WikiPageUpdated::dispatch($page);
+
+        return $page;
+    }
+
+    /**
+     * Keeps "[[Old Title]]" links resolvable after a rename and/or a move
+     * to another project — matches Redmine's WikiPage#handle_rename_or_move,
+     * which runs the same redirect-chain maintenance for both. When the
+     * project changes, `redirects_to_project_id` is set so the redirect can
+     * point across projects; for a same-project rename it stays null and
+     * resolves implicitly against the redirect's own project. See
+     * WikiLinkInlineParser for the actual lookup fallback.
+     */
+    private function handleRename(WikiPage $page, Project $oldProject, string $oldTitle, Project $newProject, string $newTitle, bool $redirectExistingLinks): void
+    {
+        $movingProject = ! $oldProject->is($newProject);
+        $redirectsToProjectId = $movingProject ? $newProject->id : null;
+
+        $chainedRedirects = $oldProject->wikiRedirects()
+            ->where('redirects_to', $oldTitle)
+            ->where(function ($query) use ($oldProject) {
+                $query->whereNull('redirects_to_project_id')->orWhere('redirects_to_project_id', $oldProject->id);
+            });
+
+        if (! $movingProject) {
+            // A redirect that would become self-referential after
+            // repointing is removed instead of updated.
+            (clone $chainedRedirects)->where('title', $newTitle)->delete();
+        }
+
+        $chainedRedirects->update(['redirects_to' => $newTitle, 'redirects_to_project_id' => $redirectsToProjectId]);
+
+        // The new title is now a live page in the destination project,
+        // not a redirect source.
+        $newProject->wikiRedirects()->where('title', $newTitle)->delete();
 
         if ($redirectExistingLinks) {
             WikiRedirect::create([
-                'project_id' => $page->project_id,
+                'project_id' => $oldProject->id,
                 'title' => $oldTitle,
                 'redirects_to' => $newTitle,
+                'redirects_to_project_id' => $redirectsToProjectId,
             ]);
         }
     }

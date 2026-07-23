@@ -25,6 +25,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $newWatcherId = null;
 
+    public ?int $moveToProjectId = null;
+
     public function mount(Project $project, WikiPage $wikiPage): void
     {
         $this->authorize('view', $wikiPage);
@@ -182,6 +184,38 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->redirect(route('wiki.index', $this->project), navigate: true);
     }
 
+    /**
+     * Other projects this page could be moved into — must hold
+     * rename_wiki_pages there too, matching Redmine's requirement that a
+     * cross-wiki move needs the permission on both ends.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function moveTargetProjects(): Collection
+    {
+        return Project::query()
+            ->where('id', '!=', $this->project->id)
+            ->get()
+            ->filter(fn (Project $candidate) => auth()->user()?->can('moveTo', [WikiPage::class, $candidate]))
+            ->values();
+    }
+
+    public function moveToProject(): void
+    {
+        $this->authorize('rename', $this->wikiPage);
+
+        $data = $this->validate([
+            'moveToProjectId' => ['required', Rule::in($this->moveTargetProjects->pluck('id')->all())],
+        ]);
+
+        $targetProject = Project::findOrFail($data['moveToProjectId']);
+
+        $page = app(WikiPageService::class)->moveToProject($this->wikiPage, $targetProject);
+
+        $this->redirect(route('wiki.show', [$targetProject, $page]), navigate: true);
+    }
+
     public function deleteAttachment(int $mediaId): void
     {
         $this->authorize('update', $this->wikiPage);
@@ -261,6 +295,27 @@ new #[Layout('components.layouts.app')] class extends Component
             @endcan
         </div>
     </div>
+
+    @can('rename', $wikiPage)
+        @if ($this->moveTargetProjects->isNotEmpty())
+            <form wire:submit="moveToProject" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-white p-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">別のプロジェクトへ移動</label>
+                    <select wire:model="moveToProjectId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                        <option value="">選択してください</option>
+                        @foreach ($this->moveTargetProjects as $candidate)
+                            <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('moveToProjectId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <button type="submit" wire:confirm="移動すると親ページ・子ページとの関係は解除されます。よろしいですか?"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    移動
+                </button>
+            </form>
+        @endif
+    @endcan
 
     <div class="prose prose-sm max-w-none rounded-md border border-gray-200 bg-white p-4">
         {!! $this->renderedContent !!}
