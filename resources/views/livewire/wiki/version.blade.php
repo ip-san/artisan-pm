@@ -28,7 +28,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function renderedContent(): string
     {
-        return app(WikiMarkdownRenderer::class)->render($this->wikiPageVersion->text, $this->project, $this->wikiPage->attachments());
+        return app(WikiMarkdownRenderer::class)->render($this->wikiPageVersion->text, $this->project, $this->wikiPage->attachments(), $this->wikiPage);
     }
 }; ?>
 

@@ -19,7 +19,7 @@
 @if ($sidebarPage?->currentVersion?->text)
     <aside class="w-64 shrink-0">
         <div class="prose prose-sm max-w-none rounded-md border border-gray-200 bg-white p-4">
-            {!! app(\App\Support\Markdown\WikiMarkdownRenderer::class)->render($sidebarPage->currentVersion->text, $project) !!}
+            {!! app(\App\Support\Markdown\WikiMarkdownRenderer::class)->render($sidebarPage->currentVersion->text, $project, page: $sidebarPage) !!}
         </div>
     </aside>
 @endif

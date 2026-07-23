@@ -65,7 +65,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('export', $this->wikiPage);
 
-        $body = app(WikiMarkdownRenderer::class)->render($this->wikiPage->currentVersion?->text ?? '', $this->project, $this->wikiPage->attachments());
+        $body = app(WikiMarkdownRenderer::class)->render($this->wikiPage->currentVersion?->text ?? '', $this->project, $this->wikiPage->attachments(), $this->wikiPage);
         $title = e($this->wikiPage->title);
 
         $html = <<<HTML
@@ -97,7 +97,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function renderedContent(): string
     {
-        $html = app(WikiMarkdownRenderer::class)->render($this->wikiPage->currentVersion?->text ?? '', $this->project, $this->wikiPage->attachments());
+        $html = app(WikiMarkdownRenderer::class)->render($this->wikiPage->currentVersion?->text ?? '', $this->project, $this->wikiPage->attachments(), $this->wikiPage);
 
         if (! auth()->user()?->can('update', $this->wikiPage)) {
             return $html;

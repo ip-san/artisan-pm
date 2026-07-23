@@ -75,7 +75,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $title = e($page->title);
-        $body = app(WikiMarkdownRenderer::class)->render($page->currentVersion?->text ?? '', $this->project, $page->attachments());
+        $body = app(WikiMarkdownRenderer::class)->render($page->currentVersion?->text ?? '', $this->project, $page->attachments(), $page);
 
         return <<<HTML
             <!DOCTYPE html>
