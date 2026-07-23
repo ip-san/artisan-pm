@@ -103,6 +103,7 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
 
     Volt::route('/projects/{project:identifier}/repository', 'repository.index')->name('repository.index');
     Volt::route('/projects/{project:identifier}/repository/edit', 'repository.form')->name('repository.edit');
+    Volt::route('/projects/{project:identifier}/repository/committers', 'repository.committers')->name('repository.committers');
     Volt::route('/projects/{project:identifier}/repository/stats', 'repository.stats')->name('repository.stats');
     Volt::route('/projects/{project:identifier}/repository/compare', 'repository.compare')->name('repository.compare');
     Volt::route('/projects/{project:identifier}/repository/revisions/{changeset}', 'repository.show')->name('repository.show');

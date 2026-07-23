@@ -35,14 +35,22 @@ function repositoryMember(Project $project, array $permissions = ['view_changese
  */
 function createTestGitRepo(array $commitMessages): string
 {
+    return createTestGitRepoWithCommitter('Test Committer', 'test@example.com', $commitMessages);
+}
+
+/**
+ * @param  array<int, string>  $commitMessages
+ */
+function createTestGitRepoWithCommitter(string $committerName, string $committerEmail, array $commitMessages): string
+{
     $path = sys_get_temp_dir().'/scm-test-'.uniqid();
     mkdir($path);
 
     $run = fn (array $command) => Process::path($path)->timeout(10)->run($command)->throw();
 
     $run(['git', 'init', '-q']);
-    $run(['git', 'config', 'user.email', 'test@example.com']);
-    $run(['git', 'config', 'user.name', 'Test Committer']);
+    $run(['git', 'config', 'user.email', $committerEmail]);
+    $run(['git', 'config', 'user.name', $committerName]);
 
     foreach ($commitMessages as $i => $message) {
         file_put_contents("{$path}/file{$i}.txt", "content {$i}\n");
@@ -150,6 +158,64 @@ test('a "fixes #N" commit does not change status when the committer matches no u
     app(RepositorySyncService::class)->sync($repository);
 
     expect($issue->fresh()->status_id)->toBe($originalStatusId);
+});
+
+test('a "fixes #N" commit closes the issue when the committer matches via an explicit repository mapping', function () {
+    $project = Project::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $mappedUser = User::factory()->create(['email' => 'jane@example.com']);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    Member::factory()->for($project)->for($mappedUser)->create()->roles()->attach($role);
+
+    $path = createTestGitRepoWithCommitter('Jane Doe', 'jane@old-corp.com', ["Fixes #{$issue->id}"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+    $repository->committers()->create(['committer' => 'Jane Doe <jane@old-corp.com>', 'user_id' => $mappedUser->id]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect($issue->fresh()->status_id)->toBe($closed->id);
+});
+
+test('a repository mapping still requires the mapped user to hold the relevant permission', function () {
+    $project = Project::factory()->create();
+    IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $originalStatusId = $issue->status_id;
+    $mappedUser = User::factory()->create();
+
+    $path = createTestGitRepoWithCommitter('Jane Doe', 'jane@old-corp.com', ["Fixes #{$issue->id}"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+    $repository->committers()->create(['committer' => 'Jane Doe <jane@old-corp.com>', 'user_id' => $mappedUser->id]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect($issue->fresh()->status_id)->toBe($originalStatusId);
+});
+
+test('an explicit repository mapping takes precedence over the automatic email match', function () {
+    $project = Project::factory()->create();
+    $closed = IssueStatus::factory()->closed()->create();
+    $issue = Issue::factory()->for($project)->create();
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+
+    // A user whose email happens to match the raw committer string via
+    // the automatic fallback, and who does have permission...
+    $autoMatchUser = User::factory()->create(['email' => 'jane@old-corp.com']);
+    Member::factory()->for($project)->for($autoMatchUser)->create()->roles()->attach($role);
+
+    // ...but the explicit mapping points somewhere else, and that mapped
+    // user lacks permission — proving the mapping is what actually gets
+    // consulted, not the auto-match.
+    $mappedUser = User::factory()->create();
+
+    $path = createTestGitRepoWithCommitter('Jane Doe', 'jane@old-corp.com', ["Fixes #{$issue->id}"]);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+    $repository->committers()->create(['committer' => 'Jane Doe <jane@old-corp.com>', 'user_id' => $mappedUser->id]);
+
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect($issue->fresh()->status_id)->not->toBe($closed->id);
 });
 
 test('a plain "refs #N" commit links the issue without changing its status', function () {

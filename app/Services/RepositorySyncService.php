@@ -22,11 +22,13 @@ use DateTimeImmutable;
  * Also honors a small set of fixing keywords (fixes/fix/closes/close) in
  * the commit message: any issue they reference gets transitioned to the
  * first closed status, same as Redmine's default keyword behavior. This
- * only fires when the commit's free-text committer field happens to match
- * a real User's email or login exactly — there's no dedicated committer-
- * to-user mapping UI yet (a separate, larger gap), so unmatched commits
- * still link the issue (via extractIssueIds) but don't change its status,
- * since there'd be no real user to attribute the journal entry to.
+ * only fires when the commit's free-text committer field resolves to a
+ * real User — first via an explicit RepositoryCommitter mapping (see
+ * resolveCommitter(), managed on the repository.committers admin
+ * screen), falling back to matching the committer's email/login
+ * automatically. Unmatched commits still link the issue (via
+ * extractIssueIds) but don't change its status, since there'd be no
+ * real user to attribute the journal entry to.
  *
  * Separately, an `@Nh`-style token right after an issue reference (e.g.
  * `refs #123 @2h30m`) logs time against that issue, gated by the
@@ -83,8 +85,8 @@ final class RepositorySyncService
                 $changeset->issues()->sync($issueIds);
             }
 
-            $this->applyFixingKeywords($entry->message, $entry->committer);
-            $this->applyLoggedTime($entry->message, $entry->committer, $entry->committedOn);
+            $this->applyFixingKeywords($repository, $entry->message, $entry->committer);
+            $this->applyLoggedTime($repository, $entry->message, $entry->committer, $entry->committedOn);
 
             $repository->update(['last_synced_revision' => $entry->revision]);
         }
@@ -106,7 +108,7 @@ final class RepositorySyncService
         return Issue::query()->whereIn('id', array_unique($matches[1]))->pluck('id')->all();
     }
 
-    private function applyFixingKeywords(string $message, string $committer): void
+    private function applyFixingKeywords(Repository $repository, string $message, string $committer): void
     {
         $fixedIds = $this->extractFixedIssueIds($message);
 
@@ -114,7 +116,7 @@ final class RepositorySyncService
             return;
         }
 
-        $actor = $this->resolveCommitter($committer);
+        $actor = $this->resolveCommitter($repository, $committer);
 
         if ($actor === null) {
             return;
@@ -142,7 +144,7 @@ final class RepositorySyncService
         }
     }
 
-    private function applyLoggedTime(string $message, string $committer, DateTimeImmutable $committedOn): void
+    private function applyLoggedTime(Repository $repository, string $message, string $committer, DateTimeImmutable $committedOn): void
     {
         if (Setting::get('commit_logtime_enabled', false) !== true) {
             return;
@@ -154,7 +156,7 @@ final class RepositorySyncService
             return;
         }
 
-        $actor = $this->resolveCommitter($committer);
+        $actor = $this->resolveCommitter($repository, $committer);
 
         if ($actor === null) {
             return;
@@ -254,12 +256,24 @@ final class RepositorySyncService
     }
 
     /**
-     * $committer is the SCM's raw "Name <email>" string (Git) or a bare
-     * username (Subversion) — extracts the email when present, falling
-     * back to matching the whole string against email/login otherwise.
+     * An explicit mapping (see RepositoryCommitter, managed on the
+     * repository.committers admin screen) is checked first, against the
+     * exact raw committer string — the same one an admin would see on an
+     * unmatched changeset, so what they type there is what matches here.
+     * Only when there's no mapping does this fall back to the automatic
+     * heuristic: $committer is the SCM's raw "Name <email>" string (Git)
+     * or a bare username (Subversion) — extracts the email when present,
+     * falling back to matching the whole string against email/login
+     * otherwise.
      */
-    private function resolveCommitter(string $committer): ?User
+    private function resolveCommitter(Repository $repository, string $committer): ?User
     {
+        $mapped = $repository->committers()->where('committer', $committer)->first()?->user;
+
+        if ($mapped !== null) {
+            return $mapped;
+        }
+
         $email = preg_match('/<([^>]+)>/', $committer, $matches) === 1 ? $matches[1] : $committer;
 
         return User::query()->where('email', $email)->orWhere('login', $email)->first();

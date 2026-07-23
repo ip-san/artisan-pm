@@ -96,6 +96,10 @@ new #[Layout('components.layouts.app')] class extends Component
                     設定
                 </a>
                 @if ($repository)
+                    <a href="{{ route('repository.committers', $project) }}"
+                        class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        コミッター設定
+                    </a>
                     <button wire:click="sync" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
                         同期
                     </button>

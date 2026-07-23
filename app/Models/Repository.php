@@ -44,6 +44,14 @@ final class Repository extends Model
         return $this->hasMany(Changeset::class)->orderByDesc('committed_on');
     }
 
+    /**
+     * @return HasMany<RepositoryCommitter, $this>
+     */
+    public function committers(): HasMany
+    {
+        return $this->hasMany(RepositoryCommitter::class);
+    }
+
     public function adapter(): ScmAdapter
     {
         return match ($this->type) {
