@@ -2,7 +2,9 @@
 
 use App\Enums\CustomizableType;
 use App\Models\CustomField;
+use App\Models\Member;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
 use Livewire\Livewire;
@@ -55,6 +57,30 @@ test('editing a project preloads and updates its existing custom field value', f
     $component->set("customFieldValues.{$field->id}", 'updated')->call('save')->assertRedirect();
 
     expect($project->fresh()->customValue($field))->toBe('updated');
+});
+
+test('a non-editable custom field renders disabled for a non-admin but enabled for an admin', function () {
+    $field = CustomField::factory()->create([
+        'name' => 'Locked field',
+        'customized_type' => CustomizableType::Project->value,
+        'editable' => false,
+    ]);
+    $project = Project::factory()->create();
+    $project->trackers()->attach(Tracker::factory()->create());
+
+    $member = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['edit_project']]);
+    Member::factory()->for($project)->for($member)->create()->roles()->attach($role);
+
+    Livewire::actingAs($member)
+        ->test('projects.form', ['project' => $project])
+        ->assertSeeHtml("wire:model=\"customFieldValues.{$field->id}\" disabled");
+
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('projects.form', ['project' => $project])
+        ->assertDontSeeHtml("wire:model=\"customFieldValues.{$field->id}\" disabled");
 });
 
 test('an issue custom field is neither rendered nor saved on a project form', function () {

@@ -37,6 +37,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $searchable = false;
 
+    public bool $editable = true;
+
     public string $possibleValuesText = '';
 
     /** @var array<int, array{id: ?int, name: string, active: bool, reassignTo: string}> */
@@ -67,6 +69,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->regexp = (string) $customField->regexp;
             $this->default_value = (string) $customField->default_value;
             $this->searchable = $customField->searchable;
+            $this->editable = $customField->editable;
             $this->possibleValuesText = implode("\n", $customField->possible_values ?? []);
             $this->enumerationOptions = $customField->enumerationOptions
                 ->map(fn (CustomFieldEnumeration $option) => [
@@ -210,6 +213,7 @@ new #[Layout('components.layouts.app')] class extends Component
             }],
             'default_value' => ['nullable', 'string'],
             'searchable' => ['boolean'],
+            'editable' => ['boolean'],
             'trackerIds' => $isForIssues ? ['required', 'array', 'min:1'] : ['array'],
             'trackerIds.*' => ['exists:trackers,id'],
             'projectIds' => ['array'],
@@ -234,6 +238,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'regexp' => $data['regexp'] !== '' ? $data['regexp'] : null,
             'default_value' => $data['default_value'] !== '' ? $data['default_value'] : null,
             'searchable' => $data['searchable'],
+            'editable' => $data['editable'],
             'possible_values' => $possibleValues,
         ];
 
@@ -390,6 +395,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" wire:model="searchable" class="rounded border-gray-300">
                 検索対象にする
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="editable" class="rounded border-gray-300">
+                編集可能にする(管理者は常に編集可能)
             </label>
         </div>
 

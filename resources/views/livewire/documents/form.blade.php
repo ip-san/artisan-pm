@@ -78,7 +78,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
 
         $data = $this->validate($rules);
-        $customFieldData = $data['customFieldValues'] ?? [];
+        $customFieldData = CustomField::filterEditableValues($this->customFields, $data['customFieldValues'] ?? [], auth()->user());
         unset($data['newAttachments'], $data['customFieldValues']);
 
         if ($this->document) {
@@ -133,7 +133,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->customFields->isNotEmpty())
             <div class="space-y-4 border-t border-gray-200 pt-4">
                 @foreach ($this->customFields as $field)
-                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" />
+                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" />
                 @endforeach
             </div>
         @endif

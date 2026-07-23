@@ -508,7 +508,7 @@ new #[Layout('components.layouts.app')] class extends Component
         )];
 
         $data = $this->validate($rules);
-        $customFieldData = $data['customFieldValues'] ?? [];
+        $customFieldData = CustomField::filterEditableValues($this->customFields, $data['customFieldValues'] ?? [], auth()->user());
         $logTimeHours = $data['logTimeHours'] ?? null;
         $logTimeActivityId = $data['logTimeActivityId'] ?? null;
         $logTimeComments = $data['logTimeComments'] ?? '';
@@ -770,7 +770,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @foreach ($this->customFields as $field)
                     <x-custom-field-input :field="$field" wire-model="customFieldValues"
                         :required="$field->is_required || $this->isRequired('cf_'.$field->id)"
-                        :disabled="$this->isReadOnly('cf_'.$field->id)" />
+                        :disabled="$this->isReadOnly('cf_'.$field->id) || ! $field->editableBy(auth()->user())" />
                 @endforeach
             </div>
         @endif

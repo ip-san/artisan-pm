@@ -21,7 +21,7 @@ use Spatie\EloquentSortable\SortableTrait;
 
 #[Fillable([
     'name', 'field_format', 'customized_type', 'is_required', 'multiple',
-    'searchable', 'default_value', 'min_length', 'max_length', 'regexp',
+    'searchable', 'editable', 'default_value', 'min_length', 'max_length', 'regexp',
     'possible_values', 'position',
 ])]
 final class CustomField extends Model implements Sortable
@@ -48,6 +48,7 @@ final class CustomField extends Model implements Sortable
         'is_required' => false,
         'multiple' => false,
         'searchable' => false,
+        'editable' => true,
     ];
 
     /**
@@ -95,6 +96,7 @@ final class CustomField extends Model implements Sortable
             'is_required' => 'boolean',
             'multiple' => 'boolean',
             'searchable' => 'boolean',
+            'editable' => 'boolean',
             'possible_values' => 'array',
         ];
     }
@@ -183,6 +185,25 @@ final class CustomField extends Model implements Sortable
         return $rules;
     }
 
+    /**
+     * Strips values for fields $user isn't allowed to edit — the
+     * server-side backstop for the disabled state x-custom-field-input
+     * renders client-side. A disabled HTML attribute is a rendering hint
+     * only; it doesn't stop a hand-crafted Livewire request from setting
+     * the property directly, so every save() path filters through this
+     * right before persisting.
+     *
+     * @param  Collection<int, CustomField>  $fields
+     * @param  array<int|string, mixed>  $values
+     * @return array<int|string, mixed>
+     */
+    public static function filterEditableValues(Collection $fields, array $values, ?User $user): array
+    {
+        $editableIds = $fields->filter(fn (CustomField $field) => $field->editableBy($user))->pluck('id');
+
+        return collect($values)->only($editableIds)->all();
+    }
+
     public function appliesToTracker(Tracker $tracker): bool
     {
         return $this->trackers->contains('id', $tracker->id);
@@ -204,5 +225,15 @@ final class CustomField extends Model implements Sortable
     public function visibleToRoles(Collection $userRoles): bool
     {
         return $this->roles->isEmpty() || $this->roles->pluck('id')->intersect($userRoles->pluck('id'))->isNotEmpty();
+    }
+
+    /**
+     * Matches Redmine's CustomField#editable? gate: a non-editable field
+     * can still be seen (subject to visibleToRoles()) but not changed by
+     * anyone other than an admin, who always bypasses it.
+     */
+    public function editableBy(?User $user): bool
+    {
+        return $this->editable || $user?->is_admin;
     }
 }
