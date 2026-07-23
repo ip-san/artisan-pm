@@ -481,7 +481,7 @@
 | Projects | partial | GETのみ。POST/PUT/DELETE・アーカイブ操作なし |
 | Users | missing | — |
 | Time entries | missing | — |
-| Versions | missing | — |
+| Versions | done(2026-07-24) | GET(一覧/単体)/POST/PUT/DELETE。`VersionController`+`Store`/`UpdateVersionRequest`は既存の`IssueController`と同じ形(FormRequestで認可+バリデーション、`VersionService`委譲、201/204ステータス)。`VersionResource`はWebhookペイロード用に既に実装済みのものをそのまま流用。`sharing`のバリデーションは`Version::allowedSharings()`(管理者以外は`system`共有を選択不可などの既存ルール)をWebフォームと共通で適用 |
 | News | missing | — |
 | Memberships | missing | — |
 | Groups | missing | — |

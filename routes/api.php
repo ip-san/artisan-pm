@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\ProjectController;
+use App\Http\Controllers\Api\V1\VersionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -18,4 +19,10 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::get('/issues/{issue}', [IssueController::class, 'show'])->name('api.issues.show');
     Route::put('/issues/{issue}', [IssueController::class, 'update'])->name('api.issues.update');
     Route::delete('/issues/{issue}', [IssueController::class, 'destroy'])->name('api.issues.destroy');
+
+    Route::get('/projects/{project}/versions', [VersionController::class, 'index'])->name('api.versions.index');
+    Route::post('/projects/{project}/versions', [VersionController::class, 'store'])->name('api.versions.store');
+    Route::get('/versions/{version}', [VersionController::class, 'show'])->name('api.versions.show');
+    Route::put('/versions/{version}', [VersionController::class, 'update'])->name('api.versions.update');
+    Route::delete('/versions/{version}', [VersionController::class, 'destroy'])->name('api.versions.destroy');
 });
