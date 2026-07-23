@@ -99,7 +99,7 @@
 | 編集画面からの直接工数記録 | done(2026-07-22) | Redmineの`_edit.html.erb`内`log_time`fieldset相当。`log_time`権限を持つメンバーには課題編集フォームに時間/作業分類/コメントのインライン欄を表示し、課題保存と同じ送信で`TimeEntry`を作成(時間未入力ならスキップ)。別画面(`time-entries.create`)からの記録も引き続き利用可能 |
 | `is_private`(非公開課題)フラグ | done(2026-07-21) | `issues.is_private`。`set_issues_private`権限保持者のみ作成/編集画面でON可能(サーバー側でも再チェックし、権限のない編集者が既存の非公開課題を意図せず公開化することを防止)。Journal記録・詳細画面のバッジ表示も対応 |
 | ロール別の課題閲覧範囲(全て/デフォルト/自分のみ) | done(2026-07-21) | `Role.issues_visibility`(all/default/own) + `AuthorizationService::issueVisibilityFor()`。`IssuePolicy::view`と課題一覧のクエリで3段階を正しく強制:all=無条件、default=非公開課題は作成者/担当者のみ(Redmineの`Issue.visible_condition`と同じ規則、2026-07-21に`is_private`実装と合わせて修正)、own=作成者/担当者のみ。複数ロール保持時は最も緩い設定が優先 |
-| Atom フィード / REST API 拡張(`include=`) | partial(2026-07-22) | プロジェクトの活動(activity.atom)・フォーラム(boards.atom)・お知らせ(news.atom)・**課題一覧(issues.atom、2026-07-22追加)**のAtomフィードを実装。課題一覧のフィードは`Issue::scopeVisibleTo()`+未クローズのみという固定条件(HTML版一覧の既定状態と同じ)で配信し、現在の絞り込み/ソート/グループ化状態は反映しない(Redmine本家は反映するが、News/Boardの各フィードも同様に「最新N件」の非フィルタ版であるため、一貫した意図的なスコープ限定)。REST APIの`include=`パラメータ拡張は引き続き未実装 |
+| Atom フィード / REST API 拡張(`include=`) | partial(2026-07-24) | プロジェクトの活動(activity.atom)・フォーラム(boards.atom)・お知らせ(news.atom)・課題一覧(issues.atom、2026-07-22追加)のAtomフィードを実装。課題一覧のフィードは`Issue::scopeVisibleTo()`+未クローズのみという固定条件(HTML版一覧の既定状態と同じ)で配信し、現在の絞り込み/ソート/グループ化状態は反映しない(Redmine本家は反映するが、News/Boardの各フィードも同様に「最新N件」の非フィルタ版であるため、一貫した意図的なスコープ限定)。**REST APIの`include=`パラメータをIssues show/indexに追加(2026-07-24)**: 詳細は下の「Issues」行を参照 |
 
 ### サブタスク・親子関係
 
@@ -477,7 +477,7 @@
 
 | Redmine APIリソース | 状態 | 備考 |
 |---|---|---|
-| Issues | partial | GET/POST/PUTのみ。DELETEなし、`include=`(journals/watchers/relations/attachments/children)なし |
+| Issues | partial(2026-07-24) | GET/POST/PUTのみ、DELETEなしは引き続き未対応。**`include=`パラメータを追加(2026-07-24)**: `show`(`GET /issues/{id}`)は`journals`/`relations`/`attachments`/`children`/`watchers`の5種、`index`(`GET /projects/{id}/issues`)は`relations`のみに対応(Redmine自体もindexでは`relations`しか対応しないため、その挙動に合わせた)。`allowed_statuses`(ワークフローエンジンが必要)・`changesets`(SCM連携が必要)は対象外。`journals`は非公開ノートを`view_private_notes`権限または本人のみに絞り込み(`issues/show.blade.php`の`visibleJournals()`と同じロジック)。`relations`は双方向(`relationsFrom`/`relationsTo`)を統合し、相手課題を閲覧できない場合はその関係自体を除外(Redmineの`other_issue.visible?`相当、非公開プロジェクトの課題の存在をリレーション経由で推測されないようにする)。`watchers`はRedmineが要求する`view_issue_watchers`権限が本アプリに存在しないため、既存のWeb UI(`issues/show.blade.php`)がウォッチャー一覧を課題の閲覧権限のみで表示している実際の挙動に合わせ、新規権限は追加せず課題の閲覧権限のみで判定(Web/APIで一貫)。`children`はRedmine本家の無限再帰と異なり直下の1階層のみ(このリソースの他フィールドが常にフラットなFK形式である既存の設計と一貫させるための意図的なスコープ限定) |
 | Projects | partial | GETのみ。POST/PUT/DELETE・アーカイブ操作なし |
 | Users | missing | — |
 | Time entries | missing | — |
