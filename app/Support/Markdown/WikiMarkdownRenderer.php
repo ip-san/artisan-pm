@@ -49,6 +49,19 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * raw-text pre-pass: html_input=escape means any HTML injected into
  * $text before CommonMark runs would just come back out re-escaped as
  * visible text, not real markup.
+ *
+ * A third macro, `{{collapse}}` / `{{collapse(Label)}}`, wraps a
+ * multi-line block of its own Markdown in a collapsible section —
+ * unlike {{toc}}/{{child_pages}}, its body is itself unrendered
+ * Markdown, so it can't be resolved as a pure HTML post-process; it's
+ * extracted from $text before CommonMark ever sees it, replaced with a
+ * plain-text placeholder paragraph, and swapped back in afterward the
+ * same DOM-post-process way (rendering the extracted body recursively
+ * through render() itself, so nested macros/attachments/links inside a
+ * collapsed block work exactly as they would anywhere else). Redmine's
+ * own version renders two jQuery-toggled links plus a hidden div; this
+ * uses a native `<details>/<summary>` element instead — no JS needed
+ * for the same collapsed-by-default, click-to-expand behavior.
  */
 final class WikiMarkdownRenderer
 {
@@ -75,6 +88,8 @@ final class WikiMarkdownRenderer
      */
     public function render(string $text, Project $project, ?MediaCollection $attachments = null, ?WikiPage $page = null): string
     {
+        [$text, $collapseBlocks] = $this->extractCollapseBlocks($text, $project, $attachments, $page);
+
         $environment = new Environment([
             'html_input' => 'escape',
             'allow_unsafe_links' => false,
@@ -122,6 +137,7 @@ final class WikiMarkdownRenderer
         $environment->addInlineParser(new WikiLinkInlineParser($project), 25);
 
         $html = (new MarkdownConverter($environment))->convert($text)->getContent();
+        $html = $this->replaceCollapseBlocks($html, $collapseBlocks);
         $html = $this->replaceChildPagesMacro($html, $page, $project);
 
         if ($attachments === null || $attachments->isEmpty()) {
@@ -129,6 +145,84 @@ final class WikiMarkdownRenderer
         }
 
         return $this->resolveInlineAttachmentImages($html, $attachments);
+    }
+
+    /**
+     * Finds every `{{collapse}}` / `{{collapse(Label)}}` block — the
+     * macro name and optional parenthesized label on their own line,
+     * followed by the body, closed by a `}}` on its own line — and
+     * replaces each one with a plain-text placeholder paragraph that
+     * survives the CommonMark pass unmangled (an HTML placeholder would
+     * just come back out re-escaped, same reasoning as {{child_pages}}).
+     * The body is rendered recursively through render() itself right
+     * here, not deferred to the post-process step, since by the time
+     * replaceCollapseBlocks() runs the body's own Markdown needs to
+     * already be HTML.
+     *
+     * A collapse block nested inside another isn't correctly supported:
+     * the non-greedy body match stops at the first `}}` it finds, which
+     * for nested blocks is the inner one's closing marker, not the
+     * outer's — a regex can't balance same-name nested delimiters in one
+     * pass. This degrades safely (the inner open tag is left as literal
+     * text rather than crashing or mangling the rest of the page) rather
+     * than nesting correctly; a real fix would need a proper scanner,
+     * not a regex, and nested collapse blocks are enough of an edge case
+     * that it's left as a known limitation.
+     *
+     * @param  MediaCollection<int, Media>|null  $attachments
+     * @return array{0: string, 1: array<string, array{label: string, body: string}>}
+     */
+    private function extractCollapseBlocks(string $text, Project $project, ?MediaCollection $attachments, ?WikiPage $page): array
+    {
+        $blocks = [];
+
+        $text = preg_replace_callback(
+            '/^\{\{collapse(?:\(([^)]*)\))?[ \t]*\r?\n(.*?)\r?\n\}\}[ \t]*$/ms',
+            function (array $matches) use (&$blocks, $project, $attachments, $page) {
+                $label = trim($matches[1]);
+                $placeholder = 'COLLAPSE-MACRO-PLACEHOLDER-'.count($blocks);
+
+                $blocks[$placeholder] = [
+                    'label' => $label !== '' ? $label : '表示',
+                    'body' => $this->render($matches[2], $project, $attachments, $page),
+                ];
+
+                return $placeholder;
+            },
+            $text,
+        ) ?? $text;
+
+        return [$text, $blocks];
+    }
+
+    /**
+     * @param  array<string, array{label: string, body: string}>  $blocks
+     */
+    private function replaceCollapseBlocks(string $html, array $blocks): string
+    {
+        if ($blocks === []) {
+            return $html;
+        }
+
+        $document = HtmlFragment::load($html);
+        $changed = false;
+
+        foreach (iterator_to_array($document->getElementsByTagName('p')) as $paragraph) {
+            $placeholder = trim($paragraph->textContent);
+
+            if (! isset($blocks[$placeholder])) {
+                continue;
+            }
+
+            $details = HtmlFragment::load(
+                '<details><summary>'.e($blocks[$placeholder]['label']).'</summary>'.$blocks[$placeholder]['body'].'</details>'
+            )->getElementsByTagName('details')->item(0);
+
+            $paragraph->parentNode->replaceChild($document->importNode($details, true), $paragraph);
+            $changed = true;
+        }
+
+        return $changed ? HtmlFragment::innerHtml($document) : $html;
     }
 
     /**
