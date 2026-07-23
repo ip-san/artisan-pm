@@ -393,6 +393,26 @@ test('changeset files record their action', function () {
         ->and($changeset->files->first()->path)->toBe('file0.txt');
 });
 
+test('a git rename records the source path on the new file\'s ChangesetFile row', function () {
+    $project = Project::factory()->create();
+    $path = createTestGitRepo(['Initial commit']);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+    app(RepositorySyncService::class)->sync($repository);
+
+    Process::path($path)->run(['git', 'mv', 'file0.txt', 'renamed.txt'])->throw();
+    Process::path($path)->run(['git', 'commit', '-q', '-m', 'Rename file0'])->throw();
+
+    app(RepositorySyncService::class)->sync($repository->fresh());
+
+    $changeset = $repository->changesets()->where('comments', 'Rename file0')->firstOrFail();
+    expect($changeset->files)->toHaveCount(1);
+
+    $file = $changeset->files->first();
+    expect($file->action)->toBe('R')
+        ->and($file->path)->toBe('renamed.txt')
+        ->and($file->from_path)->toBe('file0.txt');
+});
+
 test('a member with view_changesets can see the repository log', function () {
     $project = Project::factory()->create();
     $user = repositoryMember($project);

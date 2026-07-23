@@ -77,6 +77,7 @@ final class RepositorySyncService
                 $changeset->files()->create([
                     'path' => $file->path,
                     'action' => $file->action,
+                    'from_path' => $file->fromPath,
                 ]);
             }
 

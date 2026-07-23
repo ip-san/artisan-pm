@@ -55,7 +55,11 @@ final readonly class GitAdapter implements ScmAdapter
         $format = self::RECORD_START.'%H'.self::FIELD_SEP.'%an <%ae>'.self::FIELD_SEP.'%aI'.self::FIELD_SEP.'%B'.self::RECORD_END;
         $range = $sinceRevision !== null ? "{$sinceRevision}..HEAD" : 'HEAD';
 
-        $result = $this->git(['log', '--reverse', '--name-status', "--pretty=format:{$format}", $range], 60);
+        // -M turns on rename detection for --name-status, so a rename
+        // reports as a single "R<similarity>\told\tnew" line instead of an
+        // unrelated D+A pair — parseFiles() below reads the old path back
+        // out of that third column.
+        $result = $this->git(['log', '--reverse', '-M', '--name-status', "--pretty=format:{$format}", $range], 60);
 
         if (! $result->successful()) {
             // An empty repository (no commits yet) or an unreachable range
@@ -187,8 +191,11 @@ final readonly class GitAdapter implements ScmAdapter
             $parts = explode("\t", $line);
             $action = substr($parts[0], 0, 1);
             $path = $parts[count($parts) - 1];
+            // A detected rename/copy line has 3 columns: status, old path,
+            // new path — anything else (plain A/M/D) only ever has 2.
+            $fromPath = $action === 'R' && count($parts) === 3 ? $parts[1] : null;
 
-            $files[] = new ScmFileChange(path: $path, action: $action);
+            $files[] = new ScmFileChange(path: $path, action: $action, fromPath: $fromPath);
         }
 
         return $files;

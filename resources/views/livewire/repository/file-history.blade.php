@@ -1,9 +1,8 @@
 <?php
 
-use App\Models\Changeset;
 use App\Models\Project;
 use App\Models\Repository;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -29,23 +28,42 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Every changeset that touched this exact path, newest first — matches
-     * Redmine's RepositoriesController#changes (@repository.latest_changesets
-     * "path" filter), reading from the already-synced ChangesetFile rows
-     * rather than shelling out to the VCS again. Renames/moves aren't
-     * followed across paths (Redmine's own "history" doesn't need adapter
-     * support for that here either — `git log --follow` isn't used by the
-     * sync job), a documented simplification for the same reason the sync
-     * job doesn't track renames as a single logical file.
+     * Every changeset that touched this file, newest first, following
+     * rename/move chains back through the file's earlier paths — matches
+     * Redmine's RepositoriesController#changes combined with `git log
+     * --follow`-style rename tracking. Walks changesets newest-first (the
+     * only direction that works: a rename's ChangesetFile only records
+     * *where the file came from*, not where it goes next), switching to
+     * the pre-rename path as soon as a changeset's matching file row
+     * carries a from_path, so earlier changesets are then matched against
+     * that older path instead. Reads from the already-synced
+     * ChangesetFile rows rather than shelling out to the VCS again.
      *
-     * @return Collection<int, Changeset>
+     * @return Collection<int, array{changeset: \App\Models\Changeset, path: string}>
      */
     #[Computed]
     public function changesets(): Collection
     {
-        return $this->repository->changesets()
-            ->whereHas('files', fn ($query) => $query->where('path', $this->path))
-            ->get();
+        $currentPath = $this->path;
+        $matches = collect();
+
+        $changesets = $this->repository->changesets()->with('files')->orderByDesc('id')->get();
+
+        foreach ($changesets as $changeset) {
+            $file = $changeset->files->firstWhere('path', $currentPath);
+
+            if ($file === null) {
+                continue;
+            }
+
+            $matches->push(['changeset' => $changeset, 'path' => $currentPath]);
+
+            if ($file->from_path !== null) {
+                $currentPath = $file->from_path;
+            }
+        }
+
+        return $matches;
     }
 }; ?>
 
@@ -65,13 +83,17 @@ new #[Layout('components.layouts.app')] class extends Component
         <p class="text-sm text-gray-500">このファイルの変更履歴が見つかりませんでした。</p>
     @else
         <ul class="space-y-2">
-            @foreach ($this->changesets as $changeset)
+            @foreach ($this->changesets as $match)
+                @php $changeset = $match['changeset']; @endphp
                 <li wire:key="file-history-{{ $changeset->id }}" class="rounded-md border border-gray-200 bg-white p-3">
                     <div class="flex items-center gap-2">
-                        <a href="{{ route('repository.show', [$project, $changeset, 'path' => $this->path]) }}" class="font-mono text-sm text-indigo-600 hover:underline">
+                        <a href="{{ route('repository.show', [$project, $changeset, 'path' => $match['path']]) }}" class="font-mono text-sm text-indigo-600 hover:underline">
                             {{ $changeset->shortRevision() }}
                         </a>
                         <span class="text-xs text-gray-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</span>
+                        @if ($match['path'] !== $this->path)
+                            <span class="text-xs text-gray-400 font-mono">({{ $match['path'] }})</span>
+                        @endif
                     </div>
                     <p class="mt-1 whitespace-pre-line text-sm text-gray-800">{{ $changeset->comments }}</p>
                 </li>

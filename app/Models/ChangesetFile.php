@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['changeset_id', 'path', 'action'])]
+#[Fillable(['changeset_id', 'path', 'action', 'from_path'])]
 final class ChangesetFile extends Model
 {
     /** @use HasFactory<ChangesetFileFactory> */

@@ -141,9 +141,15 @@ final readonly class SvnAdapter implements ScmAdapter
             $files = [];
 
             foreach ($logEntry->paths->path ?? [] as $path) {
+                // SVN represents a rename as a delete of the old path plus
+                // an add of the new path carrying copyfrom-path/-rev — the
+                // add side is what links the two together.
+                $copyFromPath = (string) ($path['copyfrom-path'] ?? '');
+
                 $files[] = new ScmFileChange(
                     path: ltrim((string) $path, '/'),
                     action: (string) $path['action'],
+                    fromPath: $copyFromPath !== '' ? ltrim($copyFromPath, '/') : null,
                 );
             }
 

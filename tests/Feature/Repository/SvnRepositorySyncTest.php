@@ -110,6 +110,29 @@ test('svn changeset files record their action', function () {
         ->and($changeset->files->first()->path)->toBe('file0.txt');
 });
 
+test('an svn move records the source path on the new file\'s ChangesetFile row', function () {
+    $project = Project::factory()->create();
+    $path = createTestSvnRepo(['Initial commit']);
+    $repository = Repository::factory()->for($project)->create(['type' => RepositoryType::Svn, 'path' => $path]);
+    app(RepositorySyncService::class)->sync($repository);
+
+    $wcPath = sys_get_temp_dir().'/svn-test-wc-move-'.uniqid();
+    Process::path(sys_get_temp_dir())->run(['svn', 'checkout', "file://{$path}", $wcPath, '-q'])->throw();
+    Process::path($wcPath)->run(['svn', 'move', 'file0.txt', 'renamed.txt'])->throw();
+    Process::path($wcPath)->run(['svn', 'commit', '-m', 'Rename file0 to renamed', '-q', '--username', 'tester'])->throw();
+
+    app(RepositorySyncService::class)->sync($repository->fresh());
+
+    $renameChangeset = $repository->changesets()->where('comments', 'Rename file0 to renamed')->firstOrFail();
+    $newFile = $renameChangeset->files->firstWhere('path', 'renamed.txt');
+    $deletedFile = $renameChangeset->files->firstWhere('path', 'file0.txt');
+
+    expect($newFile->action)->toBe('A')
+        ->and($newFile->from_path)->toBe('file0.txt')
+        ->and($deletedFile->action)->toBe('D')
+        ->and($deletedFile->from_path)->toBeNull();
+});
+
 test('the repository form accepts svn as a repository type', function () {
     $project = Project::factory()->create();
     $manager = svnRepositoryMember($project, ['view_changesets', 'manage_repository']);

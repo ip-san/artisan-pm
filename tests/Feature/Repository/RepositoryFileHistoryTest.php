@@ -46,6 +46,36 @@ function createFileHistoryGitRepo(): string
     return $path;
 }
 
+function createFileHistoryGitRepoWithRename(): string
+{
+    $path = config('scm.repositories_root').'/file-history-test-'.uniqid();
+    mkdir($path);
+
+    $run = fn (array $command) => Process::path($path)->timeout(10)->run($command)->throw();
+
+    $run(['git', 'init', '-q']);
+    $run(['git', 'config', 'user.email', 'test@example.com']);
+    $run(['git', 'config', 'user.name', 'Test Committer']);
+
+    file_put_contents("{$path}/README.md", "first version\n");
+    $run(['git', 'add', '-A']);
+    $run(['git', 'commit', '-q', '-m', 'Initial commit']);
+
+    file_put_contents("{$path}/README.md", "second version\n");
+    $run(['git', 'add', '-A']);
+    $run(['git', 'commit', '-q', '-m', 'Update README']);
+
+    mkdir("{$path}/docs");
+    $run(['git', 'mv', 'README.md', 'docs/README.md']);
+    $run(['git', 'commit', '-q', '-m', 'Move README into docs']);
+
+    file_put_contents("{$path}/docs/README.md", "third version\n");
+    $run(['git', 'add', '-A']);
+    $run(['git', 'commit', '-q', '-m', 'Update README after move']);
+
+    return $path;
+}
+
 afterEach(function () {
     Process::path(config('scm.repositories_root'))->run(['find', '.', '-maxdepth', '1', '-name', 'file-history-test-*', '-exec', 'rm', '-rf', '{}', ';']);
 });
@@ -59,7 +89,7 @@ test('a member with browse_repository sees every changeset that touched a given 
     $comments = Livewire::actingAs($user)
         ->test('repository.file-history', ['project' => $project, 'path' => 'README.md'])
         ->get('changesets')
-        ->pluck('comments');
+        ->pluck('changeset.comments');
 
     expect($comments)->toContain('Initial commit', 'Update README')
         ->not->toContain('Touch unrelated file only');
@@ -159,4 +189,49 @@ test('the diff pane has no link back to the full diff when not scoped to a file'
     Livewire::actingAs($user)
         ->test('repository.show', ['project' => $project, 'changeset' => $initialCommit])
         ->assertDontSee('全体の差分を見る');
+});
+
+test('file history for the new path after a rename includes the pre-rename changesets too', function () {
+    $project = Project::factory()->create();
+    $user = fileHistoryMember($project);
+    $repository = Repository::factory()->for($project)->create(['path' => createFileHistoryGitRepoWithRename()]);
+    app(RepositorySyncService::class)->sync($repository);
+
+    $comments = Livewire::actingAs($user)
+        ->test('repository.file-history', ['project' => $project, 'path' => 'docs/README.md'])
+        ->get('changesets')
+        ->pluck('changeset.comments');
+
+    expect($comments)->toContain('Initial commit', 'Update README', 'Move README into docs', 'Update README after move');
+});
+
+test('file history for the old path only shows changesets up to the rename', function () {
+    $project = Project::factory()->create();
+    $user = fileHistoryMember($project);
+    $repository = Repository::factory()->for($project)->create(['path' => createFileHistoryGitRepoWithRename()]);
+    app(RepositorySyncService::class)->sync($repository);
+
+    $comments = Livewire::actingAs($user)
+        ->test('repository.file-history', ['project' => $project, 'path' => 'README.md'])
+        ->get('changesets')
+        ->pluck('changeset.comments');
+
+    expect($comments)->toContain('Initial commit', 'Update README')
+        ->not->toContain('Move README into docs', 'Update README after move');
+});
+
+test('each entry in a renamed file\'s history links to a diff scoped to its path at that point', function () {
+    $project = Project::factory()->create();
+    $user = fileHistoryMember($project);
+    $repository = Repository::factory()->for($project)->create(['path' => createFileHistoryGitRepoWithRename()]);
+    app(RepositorySyncService::class)->sync($repository);
+
+    $matches = Livewire::actingAs($user)
+        ->test('repository.file-history', ['project' => $project, 'path' => 'docs/README.md'])
+        ->get('changesets');
+
+    $pathFor = fn (string $comment) => $matches->firstWhere('changeset.comments', $comment)['path'];
+
+    expect($pathFor('Initial commit'))->toBe('README.md')
+        ->and($pathFor('Update README after move'))->toBe('docs/README.md');
 });
