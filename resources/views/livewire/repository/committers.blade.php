@@ -47,12 +47,19 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function addMapping(): void
     {
+        $this->authorize('manage', [Repository::class, $this->project]);
+
+        // Scoped to project members, not any user in the system — the
+        // dropdown only ever offers members, and a crafted request must
+        // not be able to map a committer to an arbitrary account outside
+        // that set just because Rule::exists('users', 'id') alone would
+        // accept any valid id.
         $data = $this->validate([
             'committer' => [
                 'required', 'string', 'max:255',
                 Rule::unique('repository_committers', 'committer')->where('repository_id', $this->repository->id),
             ],
-            'userId' => ['required', Rule::exists('users', 'id')],
+            'userId' => ['required', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
         ]);
 
         $this->repository->committers()->create([
@@ -66,6 +73,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function deleteMapping(int $mappingId): void
     {
+        $this->authorize('manage', [Repository::class, $this->project]);
+
         $this->repository->committers()->where('id', $mappingId)->delete();
 
         unset($this->mappings);

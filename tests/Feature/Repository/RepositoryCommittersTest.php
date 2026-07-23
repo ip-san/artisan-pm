@@ -48,6 +48,22 @@ test('a manager can add a new committer mapping', function () {
         ->toBe($targetUser->id);
 });
 
+test('a committer cannot be mapped to a user who is not a project member', function () {
+    $project = Project::factory()->create();
+    $manager = repositoryCommitterManager($project);
+    Repository::factory()->for($project)->create();
+    $outsider = User::factory()->create();
+
+    Livewire::actingAs($manager)
+        ->test('repository.committers', ['project' => $project])
+        ->set('committer', 'Jane Doe <jane@old-corp.com>')
+        ->set('userId', $outsider->id)
+        ->call('addMapping')
+        ->assertHasErrors(['userId']);
+
+    expect(RepositoryCommitter::where('committer', 'Jane Doe <jane@old-corp.com>')->exists())->toBeFalse();
+});
+
 test('the same committer string cannot be mapped twice on one repository', function () {
     $project = Project::factory()->create();
     $manager = repositoryCommitterManager($project);
