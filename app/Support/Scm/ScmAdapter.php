@@ -25,9 +25,10 @@ interface ScmAdapter
     /**
      * Unified diff text: a single revision against its parent, or —
      * when $fromRevision is given — the full change between the two
-     * revisions' snapshots.
+     * revisions' snapshots. Pass $path to scope the diff to just that
+     * file instead of the whole revision/range.
      */
-    public function diff(string $revision, ?string $fromRevision = null): string;
+    public function diff(string $revision, ?string $fromRevision = null, ?string $path = null): string;
 
     /**
      * Immediate children of $path (a directory) at $revision — not

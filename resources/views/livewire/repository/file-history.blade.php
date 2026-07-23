@@ -68,7 +68,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @foreach ($this->changesets as $changeset)
                 <li wire:key="file-history-{{ $changeset->id }}" class="rounded-md border border-gray-200 bg-white p-3">
                     <div class="flex items-center gap-2">
-                        <a href="{{ route('repository.show', [$project, $changeset]) }}" class="font-mono text-sm text-indigo-600 hover:underline">
+                        <a href="{{ route('repository.show', [$project, $changeset, 'path' => $this->path]) }}" class="font-mono text-sm text-indigo-600 hover:underline">
                             {{ $changeset->shortRevision() }}
                         </a>
                         <span class="text-xs text-gray-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</span>

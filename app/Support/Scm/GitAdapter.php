@@ -66,11 +66,13 @@ final readonly class GitAdapter implements ScmAdapter
         return $this->parseLog($result->output());
     }
 
-    public function diff(string $revision, ?string $fromRevision = null): string
+    public function diff(string $revision, ?string $fromRevision = null, ?string $path = null): string
     {
+        $pathArgs = $path !== null ? ['--', $path] : [];
+
         $result = $fromRevision === null
-            ? $this->git(['show', '--format=', $revision], 30)
-            : $this->git(['diff', $fromRevision, $revision], 30);
+            ? $this->git(['show', '--format=', $revision, ...$pathArgs], 30)
+            : $this->git(['diff', $fromRevision, $revision, ...$pathArgs], 30);
 
         return $result->successful() ? $result->output() : '';
     }

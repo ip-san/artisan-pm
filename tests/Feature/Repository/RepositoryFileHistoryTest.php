@@ -86,3 +86,77 @@ test('a file with no history shows an empty state', function () {
         ->test('repository.file-history', ['project' => $project, 'path' => 'never-existed.txt'])
         ->assertSee('見つかりませんでした');
 });
+
+test('the file history page links to a diff scoped to that file', function () {
+    $project = Project::factory()->create();
+    $user = fileHistoryMember($project);
+    $repository = Repository::factory()->for($project)->create(['path' => createFileHistoryGitRepo()]);
+    app(RepositorySyncService::class)->sync($repository);
+
+    $changeset = $repository->changesets()->where('comments', 'Update README')->firstOrFail();
+
+    Livewire::actingAs($user)
+        ->test('repository.file-history', ['project' => $project, 'path' => 'README.md'])
+        ->assertSeeHtml(route('repository.show', [$project, $changeset, 'path' => 'README.md']));
+});
+
+test('repository.show scopes the diff to a single file when a path query param is set', function () {
+    $project = Project::factory()->create();
+    $user = fileHistoryMember($project, ['browse_repository', 'view_changesets']);
+    $repository = Repository::factory()->for($project)->create(['path' => createFileHistoryGitRepo()]);
+    app(RepositorySyncService::class)->sync($repository);
+
+    $initialCommit = $repository->changesets()->where('comments', 'Initial commit')->firstOrFail();
+
+    $scoped = Livewire::actingAs($user)
+        ->withQueryParams(['path' => 'README.md'])
+        ->test('repository.show', ['project' => $project, 'changeset' => $initialCommit])
+        ->get('diff');
+
+    expect($scoped)->toContain('first version')
+        ->not->toContain('unrelated');
+});
+
+test('repository.show shows the full commit diff when no path is set', function () {
+    $project = Project::factory()->create();
+    $user = fileHistoryMember($project, ['browse_repository', 'view_changesets']);
+    $repository = Repository::factory()->for($project)->create(['path' => createFileHistoryGitRepo()]);
+    app(RepositorySyncService::class)->sync($repository);
+
+    $initialCommit = $repository->changesets()->where('comments', 'Initial commit')->firstOrFail();
+
+    $full = Livewire::actingAs($user)
+        ->test('repository.show', ['project' => $project, 'changeset' => $initialCommit])
+        ->get('diff');
+
+    expect($full)->toContain('first version')
+        ->toContain('unrelated');
+});
+
+test('the diff pane shows a link back to the full commit diff when scoped to a file', function () {
+    $project = Project::factory()->create();
+    $user = fileHistoryMember($project, ['browse_repository', 'view_changesets']);
+    $repository = Repository::factory()->for($project)->create(['path' => createFileHistoryGitRepo()]);
+    app(RepositorySyncService::class)->sync($repository);
+
+    $initialCommit = $repository->changesets()->where('comments', 'Initial commit')->firstOrFail();
+
+    Livewire::actingAs($user)
+        ->withQueryParams(['path' => 'README.md'])
+        ->test('repository.show', ['project' => $project, 'changeset' => $initialCommit])
+        ->assertSee('全体の差分を見る')
+        ->assertSeeHtml(route('repository.show', [$project, $initialCommit]));
+});
+
+test('the diff pane has no link back to the full diff when not scoped to a file', function () {
+    $project = Project::factory()->create();
+    $user = fileHistoryMember($project, ['browse_repository', 'view_changesets']);
+    $repository = Repository::factory()->for($project)->create(['path' => createFileHistoryGitRepo()]);
+    app(RepositorySyncService::class)->sync($repository);
+
+    $initialCommit = $repository->changesets()->where('comments', 'Initial commit')->firstOrFail();
+
+    Livewire::actingAs($user)
+        ->test('repository.show', ['project' => $project, 'changeset' => $initialCommit])
+        ->assertDontSee('全体の差分を見る');
+});

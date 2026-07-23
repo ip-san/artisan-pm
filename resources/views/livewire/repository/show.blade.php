@@ -7,6 +7,7 @@ use App\Models\Repository;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
@@ -16,6 +17,15 @@ new #[Layout('components.layouts.app')] class extends Component
     public Changeset $changeset;
 
     public string $newIssueReference = '';
+
+    /**
+     * Set via a ?path= query param (see file-history.blade.php's links) to
+     * scope the diff below to just that one file instead of the whole
+     * revision — everything else on this page (comment, related issues,
+     * changed-files list) still describes the full changeset regardless.
+     */
+    #[Url]
+    public string $path = '';
 
     /**
      * Everything the related-issues list renders per issue — project
@@ -89,9 +99,14 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function diff(): string
     {
+        $path = $this->path !== '' ? $this->path : null;
+        $cacheKey = $path !== null
+            ? "changeset:{$this->changeset->id}:diff:{$path}"
+            : "changeset:{$this->changeset->id}:diff";
+
         return Cache::rememberForever(
-            "changeset:{$this->changeset->id}:diff",
-            fn () => $this->changeset->repository->adapter()->diff($this->changeset->revision),
+            $cacheKey,
+            fn () => $this->changeset->repository->adapter()->diff($this->changeset->revision, path: $path),
         );
     }
 }; ?>
@@ -149,6 +164,14 @@ new #[Layout('components.layouts.app')] class extends Component
         @endforeach
     </ul>
 
-    <h2 class="text-sm font-semibold text-gray-900 mb-2">差分</h2>
+    <h2 class="text-sm font-semibold text-gray-900 mb-2">
+        差分
+        @if ($path !== '')
+            <span class="font-mono font-normal text-gray-500">({{ $path }})</span>
+            <a href="{{ route('repository.show', [$project, $changeset]) }}" class="ml-1 text-xs font-normal text-indigo-600 hover:underline">
+                全体の差分を見る
+            </a>
+        @endif
+    </h2>
     <pre class="overflow-x-auto rounded-md border border-gray-200 bg-gray-900 p-4 text-xs text-gray-100">{{ $this->diff }}</pre>
 </div>

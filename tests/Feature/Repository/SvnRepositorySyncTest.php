@@ -168,3 +168,20 @@ test('the svn adapter produces a range diff between two revisions', function () 
         ->toContain('+content 1')
         ->not->toContain('file0.txt');
 });
+
+test('the svn adapter scopes the diff to a single path when given one', function () {
+    $path = createTestSvnRepo(['Initial commit']);
+    $wcPath = sys_get_temp_dir().'/svn-test-wc-path-'.uniqid();
+    Process::path(sys_get_temp_dir())->run(['svn', 'checkout', "file://{$path}", $wcPath, '-q'])->throw();
+
+    file_put_contents("{$wcPath}/other.txt", "other content\n");
+    Process::path($wcPath)->run(['svn', 'add', 'other.txt'])->throw();
+    file_put_contents("{$wcPath}/file0.txt", "content 0\nmodified\n");
+    Process::path($wcPath)->run(['svn', 'commit', '-m', 'Touch two files', '-q', '--username', 'tester'])->throw();
+
+    $diff = (new SvnAdapter($path))->diff('2', path: 'file0.txt');
+
+    expect($diff)->toContain('file0.txt')
+        ->toContain('+modified')
+        ->not->toContain('other.txt');
+});
