@@ -8,10 +8,12 @@ use App\Enums\EnumerationType;
 use App\Enums\ImportStatus;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\IssueImport;
 use App\Models\IssueStatus;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use App\Services\IssueService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -72,6 +74,15 @@ final class ImportIssuesJob implements ShouldQueue
             // is honored at all (same as the manual form hiding the
             // checkbox entirely for users who lack this permission).
             'canSetPrivate' => $this->import->user->can('setPrivate', [Issue::class, $this->import->project]),
+            // Same reasoning, gating whether an unmatched category/version
+            // name gets auto-created rather than left unset — matches
+            // Redmine's IssueImport#create_categories?/#create_versions?,
+            // which likewise require both the opt-in checkbox AND the
+            // permission, not either alone.
+            'createCategories' => ($this->import->column_mapping['create_categories'] ?? false)
+                && $this->import->user->can('create', [IssueCategory::class, $this->import->project]),
+            'createVersions' => ($this->import->column_mapping['create_versions'] ?? false)
+                && $this->import->user->can('create', [Version::class, $this->import->project]),
         ];
 
         foreach ($rows as $index => $row) {
@@ -141,18 +152,28 @@ final class ImportIssuesJob implements ShouldQueue
                 ->first()
             : null;
 
-        // Category/version unresolved by name are left unset rather than
-        // failing the row — same leniency as assigned_to above, since
-        // neither field is required to create an issue.
+        // A category/version name that matches nothing is auto-created
+        // when the importing user opted in (and holds the permission a
+        // manual creation would also require — see $defaults above); the
+        // row is otherwise never failed over this, since neither field is
+        // required to create an issue.
         $categoryName = $this->mapped($record, $mapping, 'category');
         $category = $categoryName !== null
             ? $this->import->project->issueCategories()->where('name', $categoryName)->first()
             : null;
 
+        if ($category === null && $categoryName !== null && $defaults['createCategories']) {
+            $category = $this->import->project->issueCategories()->create(['name' => $categoryName]);
+        }
+
         $versionName = $this->mapped($record, $mapping, 'fixed_version');
         $version = $versionName !== null
             ? $this->import->project->versions()->where('name', $versionName)->first()
             : null;
+
+        if ($version === null && $versionName !== null && $defaults['createVersions']) {
+            $version = $this->import->project->versions()->create(['name' => $versionName]);
+        }
 
         // Unlike category/version, an explicitly mapped parent reference
         // that can't be resolved fails the row — silently dropping it

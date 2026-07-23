@@ -2,9 +2,12 @@
 
 use App\Jobs\ImportIssuesJob;
 use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\IssueImport;
 use App\Models\Project;
+use App\Models\Version;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithFileUploads;
@@ -44,11 +47,27 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<string, string> */
     public array $mapping = [];
 
+    public bool $createCategories = false;
+
+    public bool $createVersions = false;
+
     public function mount(Project $project): void
     {
         $this->authorize('create', [Issue::class, $project]);
 
         $this->project = $project;
+    }
+
+    #[Computed]
+    public function canManageCategories(): bool
+    {
+        return auth()->user()?->can('create', [IssueCategory::class, $this->project]) ?? false;
+    }
+
+    #[Computed]
+    public function canManageVersions(): bool
+    {
+        return auth()->user()?->can('create', [Version::class, $this->project]) ?? false;
     }
 
     public function updatedCsvFile(): void
@@ -87,7 +106,11 @@ new #[Layout('components.layouts.app')] class extends Component
             'user_id' => auth()->id(),
             'original_filename' => $this->csvFile->getClientOriginalName(),
             'file_path' => $path,
-            'column_mapping' => array_filter($this->mapping),
+            'column_mapping' => [
+                ...array_filter($this->mapping),
+                'create_categories' => $this->canManageCategories && $this->createCategories,
+                'create_versions' => $this->canManageVersions && $this->createVersions,
+            ],
         ]);
 
         ImportIssuesJob::dispatch($import);
@@ -124,6 +147,20 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                 </div>
                 @error('mapping.subject') <p class="mt-2 text-sm text-red-600">{{ $message }}</p> @enderror
+
+                @if (($mapping['category'] ?? '') !== '' && $this->canManageCategories)
+                    <label class="mt-3 flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" wire:model="createCategories" class="rounded border-gray-300">
+                        存在しないカテゴリ名は自動的に作成する
+                    </label>
+                @endif
+
+                @if (($mapping['fixed_version'] ?? '') !== '' && $this->canManageVersions)
+                    <label class="mt-3 flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" wire:model="createVersions" class="rounded border-gray-300">
+                        存在しない対象バージョン名は自動的に作成する
+                    </label>
+                @endif
             </div>
 
             <div class="flex gap-3">

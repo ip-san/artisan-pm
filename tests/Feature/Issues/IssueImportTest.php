@@ -225,6 +225,84 @@ test('rows resolve category and fixed_version by name, leaving them unset when t
         ->and($unmatched->fixed_version_id)->toBeNull();
 });
 
+test('an unknown category/version is auto-created when the user opts in and holds the manage permission', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    IssueStatus::factory()->create();
+    Enumeration::factory()->create(['is_default' => true]);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues', 'manage_categories', 'manage_versions']]);
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    $csv = "subject,category,fixed_version\nNew stuff,Frontend,2.0\n";
+
+    Livewire::actingAs($user)
+        ->test('issues.import', ['project' => $project])
+        ->set('csvFile', csvFile('issues.csv', $csv))
+        ->set('mapping.subject', 'subject')
+        ->set('mapping.category', 'category')
+        ->set('mapping.fixed_version', 'fixed_version')
+        ->set('createCategories', true)
+        ->set('createVersions', true)
+        ->call('startImport');
+
+    $issue = Issue::where('subject', 'New stuff')->firstOrFail();
+    $category = IssueCategory::where('project_id', $project->id)->where('name', 'Frontend')->firstOrFail();
+    $version = Version::where('project_id', $project->id)->where('name', '2.0')->firstOrFail();
+
+    expect($issue->category_id)->toBe($category->id)
+        ->and($issue->fixed_version_id)->toBe($version->id);
+});
+
+test('the auto-create checkbox has no effect for a user without manage_categories/manage_versions', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    IssueStatus::factory()->create();
+    Enumeration::factory()->create(['is_default' => true]);
+    $user = importMember($project);
+
+    $csv = "subject,category,fixed_version\nNew stuff,Frontend,2.0\n";
+
+    Livewire::actingAs($user)
+        ->test('issues.import', ['project' => $project])
+        ->set('csvFile', csvFile('issues.csv', $csv))
+        ->set('mapping.subject', 'subject')
+        ->set('mapping.category', 'category')
+        ->set('mapping.fixed_version', 'fixed_version')
+        ->set('createCategories', true)
+        ->set('createVersions', true)
+        ->call('startImport');
+
+    $issue = Issue::where('subject', 'New stuff')->firstOrFail();
+
+    expect($issue->category_id)->toBeNull()
+        ->and($issue->fixed_version_id)->toBeNull()
+        ->and(IssueCategory::where('project_id', $project->id)->where('name', 'Frontend')->exists())->toBeFalse()
+        ->and(Version::where('project_id', $project->id)->where('name', '2.0')->exists())->toBeFalse();
+});
+
+test('the auto-create checkboxes are hidden from a user without manage_categories/manage_versions', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $user = importMember($project);
+
+    $csv = "subject,category,fixed_version\nRow,Frontend,2.0\n";
+
+    Livewire::actingAs($user)
+        ->test('issues.import', ['project' => $project])
+        ->set('csvFile', csvFile('issues.csv', $csv))
+        ->set('mapping.category', 'category')
+        ->set('mapping.fixed_version', 'fixed_version')
+        ->assertDontSee('自動的に作成する');
+});
+
 test('a row referencing a parent issue by number sets parent_id, scoped to the same project', function () {
     Storage::fake('local');
 
