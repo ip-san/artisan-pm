@@ -488,7 +488,7 @@
 | Roles | missing | — |
 | Trackers | missing | — |
 | Issue statuses | missing | — |
-| Issue categories | missing | — |
+| Issue categories | done(2026-07-24) | GET(一覧/単体)/POST/PUT/DELETE。直前に実装した`VersionController`と全く同じ形(FormRequestで認可+バリデーション)だが、`IssueCategory`には対応するServiceクラスがない(既存のWeb側`issue-categories/form.blade.php`も`IssueCategory::create()`/`->update()`を直接呼ぶのみ)ため、コントローラも同様にモデルを直接操作。単一の`manage_categories`権限のみで一覧/詳細/作成/更新/削除すべてを制御(Versionのような`view_files`/`manage_versions`の分離はない) |
 | Issue relations | missing | — |
 | Enumerations | missing | — |
 | Custom fields | missing | — |
