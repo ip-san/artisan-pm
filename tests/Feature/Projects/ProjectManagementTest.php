@@ -170,3 +170,76 @@ test('an unused tracker can still be removed from a project', function () {
 
     expect($project->trackers()->pluck('trackers.id'))->not->toContain($tracker->id);
 });
+
+test('Project::nextIdentifier increments the most recently created project\'s trailing digits', function () {
+    Project::factory()->create(['identifier' => 'alpha']);
+    Project::factory()->create(['identifier' => 'project9']);
+
+    expect(Project::nextIdentifier())->toBe('project10');
+});
+
+test('Project::nextIdentifier zero-pads within the original digit width unless it overflows', function () {
+    Project::factory()->create(['identifier' => 'project08']);
+    expect(Project::nextIdentifier())->toBe('project09');
+
+    Project::factory()->create(['identifier' => 'project99']);
+    expect(Project::nextIdentifier())->toBe('project100');
+});
+
+test('Project::nextIdentifier appends "1" when the identifier has no trailing digits', function () {
+    Project::factory()->create(['identifier' => 'alpha']);
+
+    expect(Project::nextIdentifier())->toBe('alpha1');
+});
+
+test('Project::nextIdentifier returns null when there are no projects yet', function () {
+    expect(Project::nextIdentifier())->toBeNull();
+});
+
+test('leaving the identifier blank auto-numbers it when sequential_project_identifiers is enabled', function () {
+    Setting::set('sequential_project_identifiers', true);
+    Project::factory()->create(['identifier' => 'project1']);
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('projects.form')
+        ->set('name', 'Auto Numbered')
+        ->set('identifier', '')
+        ->set('trackerIds', [$tracker->id])
+        ->call('save')
+        ->assertRedirect();
+
+    expect(Project::where('identifier', 'project2')->exists())->toBeTrue();
+});
+
+test('sequential_project_identifiers does not override an identifier the user actually supplied', function () {
+    Setting::set('sequential_project_identifiers', true);
+    Project::factory()->create(['identifier' => 'project1']);
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('projects.form')
+        ->set('name', 'Manual Identifier')
+        ->set('identifier', 'my-own-identifier')
+        ->set('trackerIds', [$tracker->id])
+        ->call('save')
+        ->assertRedirect();
+
+    expect(Project::where('identifier', 'my-own-identifier')->exists())->toBeTrue()
+        ->and(Project::where('identifier', 'project2')->exists())->toBeFalse();
+});
+
+test('leaving the identifier blank without sequential_project_identifiers enabled fails validation as usual', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('projects.form')
+        ->set('name', 'No Auto Number')
+        ->set('identifier', '')
+        ->set('trackerIds', [$tracker->id])
+        ->call('save')
+        ->assertHasErrors(['identifier']);
+});

@@ -149,6 +149,16 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         }
 
+        // Matches Redmine's Project#set_default_values, applied at save
+        // time rather than prefilled on the form (Redmine itself leaves
+        // the field blank on the "new project" page — the browser's own
+        // name-to-identifier auto-slugify, mirrored by updatedName()
+        // above, is what usually fills it before submission; this only
+        // ever kicks in when the identifier is still genuinely blank).
+        if ($this->project === null && $this->identifier === '' && Setting::get('sequential_project_identifiers', false)) {
+            $this->identifier = Project::nextIdentifier() ?? '';
+        }
+
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'identifier' => [

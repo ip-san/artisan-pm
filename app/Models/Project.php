@@ -385,6 +385,41 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * Matches Redmine's Project.next_identifier — the most recently
+     * created project's identifier (by id, not alphabetically), advanced
+     * by one. Redmine itself does this via Ruby's generic String#succ,
+     * which increments the rightmost run of digits (carrying into more
+     * digits on overflow, e.g. "project9" -> "project10") or, for a
+     * string with no trailing digits, increments the last letter
+     * (e.g. "projectz" -> "projectaa"). Only the digit-suffix case is
+     * replicated here — the far rarer letter-carry case falls back to
+     * appending "1", a simpler but still-sensible next value; a
+     * deliberately scoped simplification since this only matters for
+     * unusually-named projects to begin with.
+     */
+    public static function nextIdentifier(): ?string
+    {
+        $last = self::query()->orderByDesc('id')->first();
+
+        if ($last === null) {
+            return null;
+        }
+
+        if (preg_match('/^(.*?)(\d+)$/', $last->identifier, $matches) !== 1) {
+            return $last->identifier.'1';
+        }
+
+        [, $prefix, $digits] = $matches;
+        $incremented = (string) ((int) $digits + 1);
+
+        if (strlen($incremented) < strlen($digits)) {
+            $incremented = str_pad($incremented, strlen($digits), '0', STR_PAD_LEFT);
+        }
+
+        return $prefix.$incremented;
+    }
+
+    /**
      * All project-type custom fields, filtered to the ones visible to the
      * viewing user's role(s) in this project — admins see everything, and
      * a field with no role restriction is visible to anyone. There's no

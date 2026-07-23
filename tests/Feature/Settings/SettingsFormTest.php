@@ -267,6 +267,18 @@ test('start_of_week only accepts Sunday, Monday, or Saturday', function () {
         ->assertHasErrors(['start_of_week']);
 });
 
+test('an admin can enable sequential project identifiers', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('sequential_project_identifiers', true)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('sequential_project_identifiers'))->toBeTrue();
+});
+
 test('an admin can configure the self-registration email domain allow/deny lists', function () {
     $admin = User::factory()->admin()->create();
 

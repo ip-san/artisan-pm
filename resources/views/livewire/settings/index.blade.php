@@ -106,6 +106,8 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int> */
     public array $default_projects_tracker_ids = [];
 
+    public bool $sequential_project_identifiers = false;
+
     public function mount(): void
     {
         $this->authorize('manage', Setting::class);
@@ -148,6 +150,7 @@ new #[Layout('components.layouts.app')] class extends Component
             array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults())
         );
         $this->default_projects_tracker_ids = Setting::get('default_projects_tracker_ids', []);
+        $this->sequential_project_identifiers = Setting::get('sequential_project_identifiers', false);
     }
 
     #[Computed]
@@ -211,6 +214,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_projects_modules.*' => [Rule::in(array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::cases()))],
             'default_projects_tracker_ids' => ['array'],
             'default_projects_tracker_ids.*' => ['exists:trackers,id'],
+            'sequential_project_identifiers' => ['boolean'],
         ]);
 
         foreach ($data as $key => $value) {
@@ -345,6 +349,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @error('default_projects_tracker_ids.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="sequential_project_identifiers" class="rounded border-gray-300">
+                識別子を自動的に連番採番する(識別子を空欄のまま保存した場合のみ)
+            </label>
         </section>
 
         <section class="space-y-4 border-t border-gray-200 pt-6">
