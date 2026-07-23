@@ -2,6 +2,7 @@
 
 use App\Models\Project;
 use App\Models\Version;
+use App\Services\VersionService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Livewire\Attributes\Computed;
@@ -36,7 +37,7 @@ new #[Layout('components.layouts.app')] class extends Component
             return;
         }
 
-        $version->delete();
+        app(VersionService::class)->delete($version);
 
         unset($this->versions);
     }

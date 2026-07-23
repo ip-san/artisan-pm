@@ -12,6 +12,7 @@ use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
 use App\Enums\VersionSharing;
 use App\Enums\VersionStatus;
+use App\Services\VersionService;
 use App\Support\Authorization\AuthorizationService;
 use Database\Factories\ProjectFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -213,7 +214,7 @@ final class Project extends Model implements HasMedia
             ->get()
             ->each(function (Version $version) {
                 if ($version->isCompleted()) {
-                    $version->update(['status' => VersionStatus::Closed]);
+                    app(VersionService::class)->update($version, ['status' => VersionStatus::Closed]);
                 }
             });
     }

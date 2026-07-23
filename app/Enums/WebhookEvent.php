@@ -15,4 +15,7 @@ enum WebhookEvent: string
     case TimeEntryCreated = 'time_entry.created';
     case TimeEntryUpdated = 'time_entry.updated';
     case TimeEntryDeleted = 'time_entry.deleted';
+    case VersionCreated = 'version.created';
+    case VersionUpdated = 'version.updated';
+    case VersionDeleted = 'version.deleted';
 }

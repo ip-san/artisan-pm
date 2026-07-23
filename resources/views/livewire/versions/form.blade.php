@@ -5,6 +5,7 @@ use App\Enums\VersionStatus;
 use App\Models\CustomField;
 use App\Models\Project;
 use App\Models\Version;
+use App\Services\VersionService;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -111,9 +112,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $data['project_id'] = $this->project->id;
 
         if ($this->version) {
-            $this->version->update($data);
+            app(VersionService::class)->update($this->version, $data);
         } else {
-            $this->version = Version::create($data);
+            $this->version = app(VersionService::class)->create($data);
         }
 
         $this->version->setCustomFieldValues($customFieldData);

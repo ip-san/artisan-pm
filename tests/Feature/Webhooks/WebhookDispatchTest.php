@@ -11,10 +11,12 @@ use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use App\Models\Webhook;
 use App\Models\WikiPage;
 use App\Services\IssueService;
 use App\Services\TimeEntryService;
+use App\Services\VersionService;
 use App\Services\WikiPageService;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
@@ -335,6 +337,91 @@ test('deleting a time entry from the time entries list dispatches time_entry.del
         ->call('deleteEntry', $timeEntry->id);
 
     Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::TimeEntryDeleted->value);
+});
+
+test('creating a version dispatches a webhook subscribed to version.created', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    $webhook = Webhook::factory()->create(['url' => 'https://example.com/hook', 'events' => [WebhookEvent::VersionCreated->value]]);
+
+    $version = app(VersionService::class)->create(['project_id' => $project->id, 'name' => '1.0']);
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+        && $job->payload['version']['id'] === $version->id
+        && $job->payload['event'] === WebhookEvent::VersionCreated->value);
+});
+
+test('a webhook not subscribed to version.created is not dispatched when a version is made', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::VersionUpdated->value]]);
+
+    app(VersionService::class)->create(['project_id' => $project->id, 'name' => '1.0']);
+
+    Queue::assertNotPushed(CallWebhookJob::class);
+});
+
+test('updating a version dispatches a webhook subscribed to version.updated', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::VersionUpdated->value]]);
+    $version = Version::factory()->for($project)->create();
+
+    app(VersionService::class)->update($version, ['description' => 'Updated']);
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['version']['id'] === $version->id
+        && $job->payload['event'] === WebhookEvent::VersionUpdated->value);
+});
+
+test('deleting a version dispatches a webhook subscribed to version.deleted', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    $webhook = Webhook::factory()->create(['url' => 'https://example.com/hook', 'events' => [WebhookEvent::VersionDeleted->value]]);
+    $version = Version::factory()->for($project)->create();
+    $versionId = $version->id;
+
+    app(VersionService::class)->delete($version);
+
+    expect(Version::find($versionId))->toBeNull();
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+        && $job->payload['version']['id'] === $versionId
+        && $job->payload['event'] === WebhookEvent::VersionDeleted->value);
+});
+
+test('a webhook scoped to a different project is not dispatched for a version', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    Webhook::factory()->create(['project_id' => $otherProject->id, 'events' => [WebhookEvent::VersionCreated->value]]);
+
+    app(VersionService::class)->create(['project_id' => $project->id, 'name' => '1.0']);
+
+    Queue::assertNotPushed(CallWebhookJob::class);
+});
+
+test('closing completed versions dispatches version.updated for each one closed', function () {
+    Queue::fake();
+
+    $project = Project::factory()->create();
+    Webhook::factory()->create(['events' => [WebhookEvent::VersionUpdated->value]]);
+    $completed = Version::factory()->for($project)->create(['due_date' => now()->subDay()->toDateString()]);
+
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['manage_versions']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('versions.index', ['project' => $project])
+        ->call('closeCompleted');
+
+    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['version']['id'] === $completed->id
+        && $job->payload['event'] === WebhookEvent::VersionUpdated->value);
 });
 
 test('a webhook with a secret signs its request', function () {
