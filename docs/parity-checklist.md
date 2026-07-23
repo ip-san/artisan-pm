@@ -366,7 +366,7 @@
 | CRUD・概要/本文 | done | — |
 | コメント | done | `NewsComment` |
 | 添付ファイル | done | `News implements HasMedia` |
-| Watch・作成者自動Watch | done(2026-07-21) | `News::watchers()`+トグルボタン、作成時に作成者を自動Watch |
+| Watch・作成者自動Watch | done(2026-07-21〜24) | `News::watchers()`+トグルボタン、作成時に作成者を自動Watch。**他ユーザーのWatcher管理UIを追加(2026-07-24)**: Wiki(`WikiPagePolicy::manageWatchers()`)/フォーラム(`MessagePolicy::manageWatchers()`)と同一パターンで、`NewsPolicy::manageWatchers()`(`manage_news`権限でゲート、Redmineに専用の権限が無いため`update`/`delete`と同じ権限を再利用)+ プロジェクトメンバーからの追加・削除UIを実装 |
 | メール通知 | missing | — |
 | プロジェクト横断のNews一覧 | done(2026-07-22) | Redmineの`NewsController#index`(`project_id`無し、`News.visible`スコープ)相当。新規`/news`ルート(`news.global-index`、初のプロジェクト非スコープなグローバル画面)を追加、ヘッダーナビゲーションに「お知らせ」リンクを配置。`view_news`権限の可視性判定(プロジェクトのアーカイブ/クローズ/モジュール有効性含む)はSQLの単一WHERE句では表現できないため、`projects.index`と同じ「全件取得→`can('view', $news)`でメモリ内フィルタ→`LengthAwarePaginator`で手動ページネーション」方式を踏襲(10件/ページ、Redmineの既定値と同じ)。プロジェクト列を追加表示 |
 | Atomフィード(プロジェクト単位) | done(2026-07-22) | Redmineの`NewsController#index`(`format.atom`)相当。新規`news.atom`ルート(`GET /projects/{project}/news.atom`)+`NewsAtomController`。プロジェクト内の全お知らせを新着順に最大15件配信(`ActivityFeedController::LIMIT`共通)、`boards.atom`と同じ`ActivityEntry`DTO+共有`feeds.atom`テンプレートを流用。`news.index`画面に「Atom」リンクを追加 |

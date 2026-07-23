@@ -49,4 +49,16 @@ final class NewsPolicy
     {
         return $this->authorization->can($user, 'view_news', $news->project);
     }
+
+    /**
+     * Adding/removing *other* users as watchers — distinct from watch(),
+     * which lets anyone with view access toggle their own watch state.
+     * Redmine has no dedicated "manage news watchers" permission, so this
+     * gates on manage_news, mirroring WikiPagePolicy::manageWatchers()'s
+     * same reasoning (no add_*_watchers permission exists for news either).
+     */
+    public function manageWatchers(User $user, News $news): bool
+    {
+        return $this->authorization->can($user, 'manage_news', $news->project);
+    }
 }
