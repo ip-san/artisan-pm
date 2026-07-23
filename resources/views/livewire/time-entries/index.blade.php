@@ -58,6 +58,10 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public array $columns = ['spent_on', 'user_id', 'activity_id', 'issue_id', 'comments', 'hours'];
 
+    public string $csvEncoding = 'UTF-8';
+
+    public string $csvSeparator = ',';
+
     /** @var array<int, int> */
     public array $selected = [];
 
@@ -361,14 +365,34 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $query = $this->filteredTimeEntriesQuery();
         $columns = $this->columns;
+        // Re-validated against the allowlist here rather than trusted from
+        // the live property, since these drive raw file-writing behavior.
+        $encoding = in_array($this->csvEncoding, ['UTF-8', 'SJIS-win'], true) ? $this->csvEncoding : 'UTF-8';
+        $separator = in_array($this->csvSeparator, [',', ';', "\t"], true) ? $this->csvSeparator : ',';
 
-        return response()->streamDownload(function () use ($query, $columns) {
+        return response()->streamDownload(function () use ($query, $columns, $encoding, $separator) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, array_map(fn (string $key) => self::DISPLAY_COLUMNS[$key] ?? $key, $columns));
 
-            $query->chunk(200, function ($chunk) use ($handle, $columns) {
+            // A UTF-8 BOM lets Excel auto-detect the encoding instead of
+            // mis-rendering non-ASCII text as mojibake — matches Redmine's
+            // Redmine::Export::CSV, which does the same for UTF-8 exports.
+            if ($encoding === 'UTF-8') {
+                fwrite($handle, "\xEF\xBB\xBF");
+            }
+
+            $writeRow = function (array $row) use ($handle, $separator, $encoding): void {
+                if ($encoding !== 'UTF-8') {
+                    $row = array_map(fn (string $value) => mb_convert_encoding($value, $encoding, 'UTF-8'), $row);
+                }
+
+                fputcsv($handle, $row, $separator);
+            };
+
+            $writeRow(array_map(fn (string $key) => self::DISPLAY_COLUMNS[$key] ?? $key, $columns));
+
+            $query->chunk(200, function ($chunk) use ($writeRow, $columns) {
                 foreach ($chunk as $entry) {
-                    fputcsv($handle, array_map(fn (string $key) => $this->columnValue($entry, $key), $columns));
+                    $writeRow(array_map(fn (string $key) => $this->columnValue($entry, $key), $columns));
                 }
             });
 
@@ -383,7 +407,16 @@ new #[Layout('components.layouts.app')] class extends Component
             <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — 工数</h1>
             <p class="mt-1 text-sm text-gray-500">合計: {{ $this->totalHours }} 時間</p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex items-center gap-2">
+            <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-gray-300 text-xs">
+                <option value="UTF-8">UTF-8</option>
+                <option value="SJIS-win">Shift_JIS</option>
+            </select>
+            <select wire:model="csvSeparator" title="区切り文字" class="rounded-md border-gray-300 text-xs">
+                <option value=",">カンマ</option>
+                <option value=";">セミコロン</option>
+                <option value="{{ "\t" }}">タブ</option>
+            </select>
             <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 CSVエクスポート
             </button>

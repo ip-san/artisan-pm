@@ -243,7 +243,7 @@ test('the selected display columns control what appears in the csv export', func
         ->call('exportCsv')
         ->assertFileDownloaded(
             "{$project->identifier}-time_entries.csv",
-            csvRow(['日付', '時間']).csvRow(['2026-01-15', '3.50'])
+            "\xEF\xBB\xBF".csvRow(['日付', '時間']).csvRow(['2026-01-15', '3.50'])
         );
 });
 
