@@ -2,7 +2,9 @@
 
 use App\Models\Project;
 use App\Models\WikiPage;
+use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -34,6 +36,61 @@ new #[Layout('components.layouts.app')] class extends Component
             ->orderBy('title')
             ->get();
     }
+
+    /**
+     * Every page in the wiki as one .txt or .html file per page, zipped
+     * together — Redmine's WikiController#export, minus the PDF option
+     * (would need a new rendering dependency, out of scope here). Page
+     * titles are unique per project (see wiki_pages' unique index), so
+     * there's no filename collision risk inside the archive.
+     */
+    public function exportZip(string $format): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $this->authorize('exportAll', [WikiPage::class, $this->project]);
+
+        abort_unless(in_array($format, ['txt', 'html'], true), 404);
+
+        $pages = $this->project->wikiPages()->with('currentVersion')->orderBy('title')->get();
+
+        $path = tempnam(sys_get_temp_dir(), 'wiki-export');
+        $zip = new \ZipArchive;
+        $zip->open($path, \ZipArchive::OVERWRITE);
+
+        foreach ($pages as $page) {
+            $filename = Str::of($page->title)->replace(['/', '\\'], '-')->append(".{$format}")->toString();
+            $zip->addFromString($filename, $this->exportedPageContent($page, $format));
+        }
+
+        $zip->close();
+
+        return response()
+            ->download($path, "{$this->project->identifier}-wiki-{$format}.zip")
+            ->deleteFileAfterSend(true);
+    }
+
+    private function exportedPageContent(WikiPage $page, string $format): string
+    {
+        if ($format === 'txt') {
+            return $page->currentVersion?->text ?? '';
+        }
+
+        $title = e($page->title);
+        $body = app(WikiMarkdownRenderer::class)->render($page->currentVersion?->text ?? '', $this->project, $page->attachments());
+
+        return <<<HTML
+            <!DOCTYPE html>
+            <html lang="ja">
+            <head>
+            <meta charset="UTF-8">
+            <title>{$title}</title>
+            </head>
+            <body>
+            <h1>{$title}</h1>
+            {$body}
+            </body>
+            </html>
+            HTML;
+    }
 }; ?>
 
 <div class="flex items-start gap-6">
@@ -44,6 +101,14 @@ new #[Layout('components.layouts.app')] class extends Component
             <a href="{{ route('wiki.date-index', $project) }}" class="text-sm text-indigo-600 hover:underline">
                 日付順に表示
             </a>
+            @can('exportAll', [WikiPage::class, $project])
+                <button wire:click="exportZip('txt')" class="text-sm text-indigo-600 hover:underline">
+                    ZIP(TXT)
+                </button>
+                <button wire:click="exportZip('html')" class="text-sm text-indigo-600 hover:underline">
+                    ZIP(HTML)
+                </button>
+            @endcan
             @can('create', [WikiPage::class, $project])
                 <a href="{{ route('wiki.create', $project) }}"
                     class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">

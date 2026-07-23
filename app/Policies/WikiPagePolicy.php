@@ -85,4 +85,14 @@ final class WikiPagePolicy
     {
         return $this->authorization->can($user, 'export_wiki_pages', $wikiPage->project);
     }
+
+    /**
+     * The wiki-wide ZIP export (all pages at once) — same permission as
+     * the per-page export() above, just checked against the project
+     * directly since there's no single WikiPage in scope.
+     */
+    public function exportAll(?User $user, Project $project): bool
+    {
+        return $this->authorization->can($user, 'export_wiki_pages', $project);
+    }
 }
