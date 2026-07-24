@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\IssueRelationController;
 use App\Http\Controllers\Api\V1\IssueStatusController;
 use App\Http\Controllers\Api\V1\MembershipController;
+use App\Http\Controllers\Api\V1\MyAccountController;
 use App\Http\Controllers\Api\V1\NewsController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\QueryController;
@@ -104,4 +105,7 @@ Route::middleware('auth:api,api-key')->group(function () {
 
     Route::get('/users', [UserController::class, 'index'])->name('api.users.index');
     Route::get('/users/{user}', [UserController::class, 'show'])->name('api.users.show');
+
+    Route::get('/my/account', [MyAccountController::class, 'show'])->name('api.my_account.show');
+    Route::put('/my/account', [MyAccountController::class, 'update'])->name('api.my_account.update');
 });

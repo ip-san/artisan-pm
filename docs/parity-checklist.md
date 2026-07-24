@@ -473,7 +473,7 @@
 
 ### REST API
 
-**現状(2026-07-24): Issues/Versions/Groups/Roles/Trackers/Issue statuses/Issue categories/Issue relations/Enumerations/Memberships/Time entries/Custom fields/Wiki pages/News/Queries/Watchers/添付アップロードが実装済み、Projects/Usersはindex/showのみ**。Redmineは ~20 リソース群を公開、残りはJournals/Search/My accountが未実装。
+**現状(2026-07-24): Issues/Versions/Groups/Roles/Trackers/Issue statuses/Issue categories/Issue relations/Enumerations/Memberships/Time entries/Custom fields/Wiki pages/News/Queries/My account/Watchers/添付アップロードが実装済み、Projects/Usersはindex/showのみ**。Redmineは ~20 リソース群を公開、残りはJournals/Searchが未実装(Journalsは対象外項目)。
 
 | Redmine APIリソース | 状態 | 備考 |
 |---|---|---|
@@ -498,7 +498,7 @@
 | Journals | missing | — |
 | Watchers | done(2026-07-24) | `POST /issues/{issue}/watchers`(`user_id`をボディで指定)・`DELETE /issues/{issue}/watchers/{user}`。Redmine本家の`WatchersController#create`/`#destroy`と同じ「CRUDリソースではないアクション専用エンドポイント」形(レスポンスは本家の`render_api_ok`と同じ204 No Content、ボディなし)。追加/削除とも既存の`IssuePolicy::manageWatchers()`(`add_issue_watchers`権限)で認可 — 本家は`add_issue_watchers`/`delete_issue_watchers`を動的に使い分けるが、本アプリの`IssuePolicy`は元々1つの権限を両方に再利用する設計(既存のWeb UIの`addWatcher()`/`removeWatcher()`と同じ)のため、本家にしかない権限を新設せず踏襲。追加対象はプロジェクトメンバーに限定(`Rule::exists('members', 'user_id')`、Web UIと同じ検証) |
 | Search | missing | — |
-| My account | missing | — |
+| My account | partial(2026-07-24) | `GET/PUT /my/account`(Redmine本家の`MyController#account`相当、`require_login`のみでゲート、対象は常に自分自身)。`UserResource`をそのまま流用(`UserController`のような管理者限定ゲートは適用せず — 自分自身のレコード閲覧/編集に管理者権限は不要)。**Redmine本家との差分**: 本家はPUTにsudo mode要求・OAuthセッションでの変更禁止という追加制約を持つが、本アプリにはsudo mode/OAuth区別の仕組みがWeb側にも存在しないため対象外。フィールドは既存Web UI(`profile/index.blade.php`の`updateProfile()`)と同じくname/emailのみ(パスワード変更・2FA・通知設定・カスタムフィールドは対象外)。バリデーションは他の`Update*Request`と同じく`sometimes`による部分更新に対応(既存Web UIフォームの`required`とは異なるが、本アプリの他のUpdate系APIエンドポイントの確立された規約に合わせた)。`is_admin`はモデルの`#[Fillable]`から除外済みのため、ペイロードに含めても無視される(実機検証で確認済み)。既存の`GET /user`(生のモデルダンプ、認証疎通確認用の最小ルート、`ApiKeyAuthTest`が依存)とは別物として維持 |
 
 **API認証**: ~~OAuth2(Passport)のみ~~ → **done**(2026-07-24)。Redmineの3つの受付経路(`key=`クエリパラメータ、`X-Redmine-API-Key`ヘッダー、HTTP Basic認証のユーザー名欄にAPIキーを指定)すべてに対応する軽量な代替認証手段を追加。実装は`users.api_key`列(nullable、unique、40桁16進文字列 = Redmineの`Redmine::Utils.random_hex(20)`と同じ形式)+ `Auth::viaRequest('api-key', ...)`で登録した新規`api-key`ガード(`AppServiceProvider::registerApiKeyGuard()`)。`routes/api.php`の各ルートは`auth:api,api-key`でPassport/APIキーの両ガードを併用(Laravelの`Authenticate`ミドルウェアが先に解決した方を採用)。キーの表示/再生成はアカウント設定画面(`profile.index`)の新セクションから、2FAのリカバリーコード再生成と同じ`requirePasswordConfirmation()`ゲート・`wire:confirm`パターンを踏襲。Redmine本家のような`Token`モデル経由の`secure_compare`ではなく、単純なユニークインデックス検索(このアプリの他の認証情報検索と同じ簡略化、160ビットの鍵空間に対するタイミング攻撃は現実的でないため)。`rest_api_enabled`設定(本家にはあるがこのアプリのAPIには元々存在しない)による有効/無効切り替えは対象外のまま。
 
