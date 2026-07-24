@@ -38,13 +38,16 @@ use Webklex\PHPIMAP\Message;
  * attribute on the created/replied-to issue, matching Redmine's
  * MailHandler#issue_attributes_from_keywords — narrowed to
  * status/priority/assigned_to/done_ratio/tracker/category/fixed_version/
- * start_date/due_date/estimated_hours/is_private (this app has no i18n,
- * so unlike Redmine the keyword label itself is a fixed English string
- * rather than translated per Setting.default_language). parent_issue
- * and custom-field keywords are intentionally not recognized — a
- * deliberately narrower grammar than Redmine's, same scope-cut
- * RepositorySyncService's commit-keyword parsing already takes for
- * `@Nh` time logging.
+ * start_date/due_date/estimated_hours/is_private/parent_issue (this app
+ * has no i18n, so unlike Redmine the keyword label itself is a fixed
+ * English string rather than translated per Setting.default_language —
+ * "parent issue" is chosen to match this app's own attribute name rather
+ * than Redmine's own English UI label "Parent task", which none of this
+ * app's other keyword labels track literally either, e.g. "done ratio"
+ * vs Redmine's "% Done"). Custom-field keywords are intentionally not
+ * recognized — a deliberately narrower grammar than Redmine's, same
+ * scope-cut RepositorySyncService's commit-keyword parsing already takes
+ * for `@Nh` time logging.
  */
 final class IncomingMailService
 {
@@ -65,6 +68,7 @@ final class IncomingMailService
         'due date' => 'due_date',
         'estimated hours' => 'estimated_hours',
         'private' => 'is_private',
+        'parent issue' => 'parent_id',
     ];
 
     public function __construct(
@@ -286,7 +290,7 @@ final class IncomingMailService
             return null;
         }
 
-        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $issue->project, $author);
+        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $issue->project, $author, $issue);
         $comment = trim($body);
         $updated = $this->issues->update($issue, $keywordAttributes, $author, $comment !== '' ? $comment : null);
 
@@ -345,15 +349,15 @@ final class IncomingMailService
      *
      * @return array{attributes: array<string, int|string|float|bool>, body: string}
      */
-    private function extractKeywordAttributes(string $body, Project $project, User $author): array
+    private function extractKeywordAttributes(string $body, Project $project, User $author, ?Issue $issue = null): array
     {
         $attributes = [];
         $kept = [];
 
         foreach (explode("\n", $body) as $line) {
-            if (preg_match('/^(status|priority|assigned to|done ratio|tracker|category|fixed version|start date|due date|estimated hours|private)\s*:\s*(.+?)\s*$/i', $line, $matches) === 1) {
+            if (preg_match('/^(status|priority|assigned to|done ratio|tracker|category|fixed version|start date|due date|estimated hours|private|parent issue)\s*:\s*(.+?)\s*$/i', $line, $matches) === 1) {
                 $keyword = mb_strtolower($matches[1]);
-                $value = $this->resolveKeywordValue($keyword, trim($matches[2]), $project, $author);
+                $value = $this->resolveKeywordValue($keyword, trim($matches[2]), $project, $author, $issue);
 
                 if ($value !== null) {
                     $attributes[self::KEYWORD_ATTRIBUTES[$keyword]] = $value;
@@ -368,10 +372,14 @@ final class IncomingMailService
         return ['attributes' => $attributes, 'body' => trim(implode("\n", $kept))];
     }
 
-    private function resolveKeywordValue(string $keyword, string $value, Project $project, User $author): int|string|float|bool|null
+    private function resolveKeywordValue(string $keyword, string $value, Project $project, User $author, ?Issue $issue = null): int|string|float|bool|null
     {
         if ($value === '') {
             return null;
+        }
+
+        if ($keyword === 'parent issue') {
+            return $this->resolveParentIssueKeyword($value, $project, $issue);
         }
 
         if ($keyword === 'done ratio') {
@@ -421,5 +429,39 @@ final class IncomingMailService
         };
 
         return $id !== null ? (int) $id : null;
+    }
+
+    /**
+     * Accepts a bare issue number or a "#123"-style reference, matching
+     * how every other issue-id reference in this app's mail/commit
+     * parsing is written. Scoped to the same project as the manual issue
+     * form's own parent_id rule, and rejects self/descendant cycles via
+     * Issue::descendantIds() the same way the form does (its own inline
+     * ancestor-walk closure isn't reusable from a service class, so this
+     * uses the already-shared descendantIds() the issue-relation
+     * cycle/ancestor checks also rely on, rather than duplicating that
+     * walk a third time). $issue is null when creating a brand new
+     * issue, which can never already have descendants, so no cycle check
+     * is needed there.
+     */
+    private function resolveParentIssueKeyword(string $value, Project $project, ?Issue $issue): ?int
+    {
+        $parentId = (int) preg_replace('/\D/', '', $value);
+
+        if ($parentId === 0 || ($issue !== null && $parentId === $issue->id)) {
+            return null;
+        }
+
+        $parent = Issue::query()->where('id', $parentId)->where('project_id', $project->id)->first();
+
+        if ($parent === null) {
+            return null;
+        }
+
+        if ($issue !== null && $issue->descendantIds()->contains($parent->id)) {
+            return null;
+        }
+
+        return $parent->id;
     }
 }

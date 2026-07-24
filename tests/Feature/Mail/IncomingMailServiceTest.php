@@ -609,3 +609,128 @@ test('a keyword line on a reply updates the existing issue and is stripped from 
     expect($result->status_id)->toBe($closedStatus->id)
         ->and($issue->fresh()->journals()->latest()->first()->notes)->toBe('Fixed now.');
 });
+
+test('a Parent issue keyword line sets parent_id on a newly created issue', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+    $parent = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+
+    $mail = new ParsedIncomingMail(subject: 'Bug report', body: "Parent issue: #{$parent->id}", fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->parent_id)->toBe($parent->id)
+        ->and($issue->description)->toBe('');
+});
+
+test('a Parent issue keyword line accepts a bare issue number without a # prefix', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+    $parent = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+
+    $mail = new ParsedIncomingMail(subject: 'Bug report', body: "Parent issue: {$parent->id}", fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->parent_id)->toBe($parent->id);
+});
+
+test('a Parent issue keyword referencing an issue in another project is ignored', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    configureIncomingMail($project, $tracker, $status);
+    incomingMailAuthor($project);
+    $otherProject->trackers()->attach($tracker);
+    $foreignIssue = Issue::factory()->for($otherProject)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+
+    $mail = new ParsedIncomingMail(subject: 'Bug report', body: "Parent issue: #{$foreignIssue->id}", fromEmail: 'sender@example.com');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->parent_id)->toBeNull()
+        ->and($issue->description)->toBe("Parent issue: #{$foreignIssue->id}");
+});
+
+test('a Parent issue keyword on a reply updates the existing issue\'s parent', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $project->trackers()->attach($tracker);
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+    $parent = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+    $author = incomingMailAuthor($project, ['view_issues', 'edit_issues']);
+
+    $mail = new ParsedIncomingMail(
+        subject: "[{$project->identifier} #{$issue->id}] Re: something",
+        body: "Parent issue: #{$parent->id}",
+        fromEmail: $author->email,
+    );
+
+    $result = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($result->parent_id)->toBe($parent->id);
+});
+
+test('a Parent issue keyword attempting to set an issue as its own parent is ignored', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $project->trackers()->attach($tracker);
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+    $author = incomingMailAuthor($project, ['view_issues', 'edit_issues']);
+
+    $mail = new ParsedIncomingMail(
+        subject: "[{$project->identifier} #{$issue->id}] Re: something",
+        body: "Parent issue: #{$issue->id}",
+        fromEmail: $author->email,
+    );
+
+    app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->fresh()->parent_id)->toBeNull();
+});
+
+test('a Parent issue keyword attempting to set a descendant as the parent is ignored', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $project->trackers()->attach($tracker);
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+    $child = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => Enumeration::factory()->create()->id,
+        'parent_id' => $issue->id,
+    ]);
+    $author = incomingMailAuthor($project, ['view_issues', 'edit_issues']);
+
+    $mail = new ParsedIncomingMail(
+        subject: "[{$project->identifier} #{$issue->id}] Re: something",
+        body: "Parent issue: #{$child->id}",
+        fromEmail: $author->email,
+    );
+
+    app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($issue->fresh()->parent_id)->toBeNull();
+});
