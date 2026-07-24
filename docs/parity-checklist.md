@@ -18,7 +18,7 @@
 2. ~~**管理者によるユーザー管理画面が皆無**~~ → **done**(2026-07-21)。`users/{index,form}.blade.php` で一覧/作成/編集/ロック・ロック解除に対応。強制パスワードリセットは「編集画面でパスワード欄に新しい値を入力」で代替(専用の「リセットして通知」フローはまだない)。詳細は §2 参照。
 3. **アプリケーション設定が Redmine の 119 キー中わずか 6 項目**(`app_title`, `default_issues_per_page`, incoming-mail 系4項目)。表示/認証ポリシー/通知/添付ファイル制限/リポジトリ設定などのタブが丸ごと存在しない。
 4. ~~**カスタムフィールド対応が Issue と Project の2種のみ**~~ → **一部done**(2026-07-22〜23)。Version・Group・TimeEntryActivity・Document・DocumentCategory・**User**にも対応(`CustomizableType::Version`/`::Group`/`::TimeEntryActivity`/`::Document`/`::DocumentCategory`/`::User`)。Version/Documentはプロジェクトのロール経由で可視性を解決、Group/TimeEntryActivity/DocumentCategory/Userは管理者専用リソースのためロールフィルタ自体が不要。Redmineの残り ~2種(主にプラグイン向けの拡張ポイント)は引き続き未対応。
-5. **REST API が Projects と Issues の2リソースのみ**(Redmine は ~20 リソース群)。ファイルアップロード API もなし。~~API認証も OAuth2(Passport)のみで、スクリプト用途に適した API キー方式が存在しない。~~ → **API キー認証をdone**(2026-07-24、詳細は §API認証 参照)。Issues の DELETE は実装済み(詳細は §Issues REST API 参照)。
+5. **REST API が Projects・Issues・Versions・Issue categories のみ**(Redmine は ~20 リソース群)。~~ファイルアップロード API もなし。~~ → **done**(2026-07-24、詳細は §添付ファイル(アップロードAPI) 参照)。~~API認証も OAuth2(Passport)のみで、スクリプト用途に適した API キー方式が存在しない。~~ → **API キー認証をdone**(2026-07-24、詳細は §API認証 参照)。Issues の DELETE は実装済み(詳細は §Issues REST API 参照)。
 6. ~~**Issue のサブタスク(親子)機能がモデルはあるがUIがない**。~~ → **done**(2026-07-21)。課題フォームに親課題ID欄、詳細画面に親リンク/サブタスク一覧を追加(詳細は §サブタスク・親子関係 参照)。~~関連課題(`IssueRelation`)もUIが皆無だった。~~ → **done**(2026-07-21)。課題詳細画面に追加/削除UIを実装(詳細は §Issue Relations 参照)。~~IssueCategory はモデル自体が存在しない。~~ → **done**(2026-07-21)。`IssueCategory` モデル・プロジェクト単位の管理画面・課題フォーム/一覧/フィルタ/CSV連携まで実装(詳細は §Issue Categories 参照)。
 7. ~~**添付ファイルが Issue/Version/News/Document にしか付かない**。Wiki ページ・フォーラム投稿に添付できない。サムネイル生成・説明文・ダウンロード数もない。~~ → **done**(2026-07-21〜22)。Wiki/フォーラム投稿への添付、ダウンロード数、説明文、サムネイル生成のすべてに対応済み(詳細は §添付ファイル 参照)。
 8. ~~**Wiki の差分表示・リダイレクト・マクロエンジンが丸ごと未実装**。~~ → **done**(2026-07-21〜24)。差分表示・リダイレクトは既に完了(詳細は §Wiki 参照)。マクロエンジンは当初のスコープであった`{{toc}}`/`{{child_pages}}`/`{{collapse}}`/`{{include}}`をすべて実装(詳細は §マクロエンジン全体 参照)。Redmine本家にはこれ以外にも多数のマクロ(`{{macro_list}}`等)があるが、それらは当初スコープ外のまま。
@@ -492,7 +492,7 @@
 | Issue relations | missing | — |
 | Enumerations | missing | — |
 | Custom fields | missing | — |
-| 添付ファイル(アップロードAPI) | missing | ファイルアップロード用のAPIエンドポイントが皆無 |
+| 添付ファイル(アップロードAPI) | done(2026-07-24) | Redmineの`POST /uploads.json`相当を実装: 生のオクテットストリームボディを送信すると`{upload: {id, token}}`を返し、そのトークンを課題作成/更新APIの`uploads: [{token, filename?, description?}]`配列に含めることで添付ファイルとして紐付けられる(Redmineの`Issue#save_attachments`と同じ二段階フロー)。**アーキテクチャ上の制約**: Spatie MediaLibraryの`media`テーブルは`model_type`/`model_id`が非nullのため、Redmineの`Attachment#container`のように「所有者なしで一時保存」ができない。新規`PendingUpload`モデル(`HasMedia`実装、`pending`コレクション)を一時的な入れ物として用意し、トークン(`{id}.{uuid}`、`uuid`列はSpatieが自動生成する既存の列を流用、Redmineの`id.digest`と同じ「id単体では推測不可能」という性質を持つ)を経由して`Media::move()`で実際の対象モデルへ物理ファイルを再割り当て(コピーではなく移動)。未消費のまま残ったペンディングアップロードは新規`PruneExpiredPendingUploadsJob`(`routes/console.php`に`hourly()`で登録)が1時間経過後に削除。トークンが不明/失効している場合はRedmine本家と同様にその添付だけをスキップしリクエスト全体は失敗させない。認可はRedmineの`authorize_global`相当(ログインのみ要求、プロジェクト権限は課題作成/更新時点の`add_issues`/`edit_issues`で別途担保) |
 | Wiki pages | missing | — |
 | Queries | missing | — |
 | Journals | missing | — |

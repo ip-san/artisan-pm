@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\IssueCategoryController;
 use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\ProjectController;
+use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\VersionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -32,4 +33,6 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::get('/issue_categories/{issue_category}', [IssueCategoryController::class, 'show'])->name('api.issue_categories.show');
     Route::put('/issue_categories/{issue_category}', [IssueCategoryController::class, 'update'])->name('api.issue_categories.update');
     Route::delete('/issue_categories/{issue_category}', [IssueCategoryController::class, 'destroy'])->name('api.issue_categories.destroy');
+
+    Route::post('/uploads', [UploadController::class, 'store'])->name('api.uploads.store');
 });

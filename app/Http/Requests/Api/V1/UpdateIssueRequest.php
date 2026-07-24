@@ -37,6 +37,10 @@ final class UpdateIssueRequest extends FormRequest
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
             'done_ratio' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'uploads' => ['array'],
+            'uploads.*.token' => ['required', 'string'],
+            'uploads.*.filename' => ['nullable', 'string', 'max:255'],
+            'uploads.*.description' => ['nullable', 'string', 'max:1000'],
         ];
     }
 }

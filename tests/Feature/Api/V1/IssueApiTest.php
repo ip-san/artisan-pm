@@ -145,3 +145,77 @@ test('deleting an issue via the api requires delete_issues permission', function
 
     expect(Issue::find($issue->id))->not->toBeNull();
 });
+
+test('creating an issue via the api attaches an uploaded file by token', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'add_issues']);
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $priority = Enumeration::factory()->create(['is_default' => true]);
+    IssueStatus::factory()->create();
+
+    Passport::actingAs($user);
+
+    $uploadResponse = $this->call('POST', '/api/v1/uploads?filename=notes.txt', [], [], [], [
+        'HTTP_ACCEPT' => 'application/json',
+        'CONTENT_TYPE' => 'application/octet-stream',
+    ], 'hello world');
+    $token = $uploadResponse->json('upload.token');
+
+    $response = $this->postJson("/api/v1/projects/{$project->id}/issues", [
+        'tracker_id' => $tracker->id,
+        'priority_id' => $priority->id,
+        'subject' => 'With attachment',
+        'uploads' => [['token' => $token, 'filename' => 'renamed.txt']],
+    ]);
+
+    $response->assertCreated();
+
+    $issue = Issue::where('subject', 'With attachment')->firstOrFail();
+    expect($issue->attachments())->toHaveCount(1)
+        ->and($issue->attachments()->first()->file_name)->toBe('renamed.txt');
+});
+
+test('updating an issue via the api attaches an uploaded file by token and journals it', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'edit_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+
+    Passport::actingAs($user);
+
+    $uploadResponse = $this->call('POST', '/api/v1/uploads?filename=notes.txt', [], [], [], [
+        'HTTP_ACCEPT' => 'application/json',
+        'CONTENT_TYPE' => 'application/octet-stream',
+    ], 'hello world');
+    $token = $uploadResponse->json('upload.token');
+
+    $this->putJson("/api/v1/issues/{$issue->id}", [
+        'uploads' => [['token' => $token]],
+    ])->assertOk();
+
+    expect($issue->attachments())->toHaveCount(1)
+        ->and($issue->journals()->whereHas('details', fn ($q) => $q->where('property', 'attachment'))->exists())->toBeTrue();
+});
+
+test('an unknown upload token is silently ignored rather than failing the request', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'add_issues']);
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $priority = Enumeration::factory()->create(['is_default' => true]);
+    IssueStatus::factory()->create();
+
+    Passport::actingAs($user);
+
+    $response = $this->postJson("/api/v1/projects/{$project->id}/issues", [
+        'tracker_id' => $tracker->id,
+        'priority_id' => $priority->id,
+        'subject' => 'With bad token',
+        'uploads' => [['token' => '999999.not-a-real-uuid']],
+    ]);
+
+    $response->assertCreated();
+
+    $issue = Issue::where('subject', 'With bad token')->firstOrFail();
+    expect($issue->attachments())->toHaveCount(0);
+});

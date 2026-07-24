@@ -10,6 +10,7 @@ use App\Models\Group;
 use App\Models\Issue;
 use App\Models\Message;
 use App\Models\News;
+use App\Models\PendingUpload;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\Version;
@@ -44,6 +45,7 @@ final class MorphMapServiceProvider extends ServiceProvider
             'time_entry_activity' => Enumeration::class,
             'document_category' => Enumeration::class,
             'user' => User::class,
+            'pending_upload' => PendingUpload::class,
         ]);
     }
 }

@@ -10,8 +10,11 @@ use App\Http\Requests\Api\V1\UpdateIssueRequest;
 use App\Http\Resources\Api\V1\IssueResource;
 use App\Models\Issue;
 use App\Models\IssueStatus;
+use App\Models\PendingUpload;
 use App\Models\Project;
+use App\Models\User;
 use App\Services\IssueService;
+use App\Support\Attachments\PendingUploadToken;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -64,10 +67,19 @@ final class IssueController extends Controller
 
     public function store(StoreIssueRequest $request, Project $project): JsonResponse
     {
+        $data = $request->validated();
+        $uploads = $data['uploads'] ?? [];
+        unset($data['uploads']);
+
         $issue = app(IssueService::class)->create(
-            [...$request->validated(), 'project_id' => $project->id, 'status_id' => $this->defaultStatusId()],
+            [...$data, 'project_id' => $project->id, 'status_id' => $this->defaultStatusId()],
             $request->user(),
         );
+
+        // Not journaled — an issue's creation itself isn't journaled
+        // either, matching the web form's own reasoning for uploads
+        // attached while creating vs. editing an issue.
+        $this->attachUploads($issue, $uploads, journalize: false, actor: $request->user());
 
         return (new IssueResource($issue))->response()->setStatusCode(201);
     }
@@ -75,12 +87,16 @@ final class IssueController extends Controller
     public function update(UpdateIssueRequest $request, Issue $issue): IssueResource
     {
         $data = $request->validated();
+        $uploads = $data['uploads'] ?? [];
+        unset($data['uploads']);
 
         if (isset($data['status_id']) && $data['status_id'] !== $issue->status_id) {
             Gate::authorize('transitionTo', [$issue, IssueStatus::findOrFail($data['status_id'])]);
         }
 
         $issue = app(IssueService::class)->update($issue, $data, $request->user());
+
+        $this->attachUploads($issue, $uploads, journalize: true, actor: $request->user());
 
         return new IssueResource($issue);
     }
@@ -97,6 +113,46 @@ final class IssueController extends Controller
     private function defaultStatusId(): int
     {
         return IssueStatus::query()->orderBy('position')->value('id');
+    }
+
+    /**
+     * Redeems each {token, filename?, description?} entry against
+     * PendingUploadToken, moving the underlying Media onto this issue —
+     * matches Redmine's Issue#save_attachments. An unknown/already-claimed
+     * token is silently skipped rather than failing the whole request,
+     * same as Redmine's own tolerant handling there.
+     *
+     * @param  array<int, array{token?: string, filename?: string, description?: string}>  $uploads
+     */
+    private function attachUploads(Issue $issue, array $uploads, bool $journalize, User $actor): void
+    {
+        foreach ($uploads as $upload) {
+            $media = PendingUploadToken::resolve((string) ($upload['token'] ?? ''));
+
+            if ($media === null) {
+                continue;
+            }
+
+            $pendingUploadId = $media->model_id;
+            $filename = trim((string) ($upload['filename'] ?? ''));
+            $description = trim((string) ($upload['description'] ?? ''));
+
+            // Custom properties carry over through move() (it's a
+            // copy+delete under the hood — see Media::copy()), so the
+            // description has to be set on the pre-move instance.
+            if ($description !== '') {
+                $media->setCustomProperty('description', $description);
+                $media->save();
+            }
+
+            $media = $media->move($issue, 'attachments', '', $filename);
+
+            PendingUpload::query()->whereKey($pendingUploadId)->delete();
+
+            if ($journalize) {
+                app(IssueService::class)->journalizeAttachment($issue, $media, added: true, actor: $actor);
+            }
+        }
     }
 
     /**

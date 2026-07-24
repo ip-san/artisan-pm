@@ -39,6 +39,14 @@ final class StoreIssueRequest extends FormRequest
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
             'done_ratio' => ['integer', 'min:0', 'max:100'],
+            // A token that doesn't resolve (unknown/already-claimed) is
+            // silently skipped by the controller rather than rejected
+            // here — matches Redmine's own tolerant save_attachments,
+            // which only warns rather than failing the whole request.
+            'uploads' => ['array'],
+            'uploads.*.token' => ['required', 'string'],
+            'uploads.*.filename' => ['nullable', 'string', 'max:255'],
+            'uploads.*.description' => ['nullable', 'string', 'max:1000'],
         ];
     }
 }

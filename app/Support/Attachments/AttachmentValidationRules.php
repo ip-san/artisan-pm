@@ -27,6 +27,28 @@ final class AttachmentValidationRules
         return ['file', "max:{$maxKb}", self::extensionRule()];
     }
 
+    public static function maxSizeInBytes(): int
+    {
+        return (int) Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024)) * 1024;
+    }
+
+    /**
+     * Shared by the closure-based file-upload rule above and by the REST
+     * API's raw-octet-stream upload endpoint, which has no UploadedFile to
+     * run through Laravel's validator.
+     */
+    public static function isExtensionAllowed(string $extension): bool
+    {
+        $extension = strtolower($extension);
+        $allowed = self::extensionList('attachment_extensions_allowed');
+
+        if ($allowed !== []) {
+            return in_array($extension, $allowed, true);
+        }
+
+        return ! in_array($extension, self::extensionList('attachment_extensions_denied'), true);
+    }
+
     private static function extensionRule(): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail): void {
@@ -34,20 +56,7 @@ final class AttachmentValidationRules
                 return;
             }
 
-            $extension = strtolower($value->getClientOriginalExtension());
-            $allowed = self::extensionList('attachment_extensions_allowed');
-
-            if ($allowed !== []) {
-                if (! in_array($extension, $allowed, true)) {
-                    $fail('このファイル形式は許可されていません。');
-                }
-
-                return;
-            }
-
-            $denied = self::extensionList('attachment_extensions_denied');
-
-            if (in_array($extension, $denied, true)) {
+            if (! self::isExtensionAllowed($value->getClientOriginalExtension())) {
                 $fail('このファイル形式は許可されていません。');
             }
         };
