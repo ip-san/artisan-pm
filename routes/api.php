@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\TrackerController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\VersionController;
 use App\Http\Controllers\Api\V1\WatcherController;
+use App\Http\Controllers\Api\V1\WikiPageController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -83,4 +84,10 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::get('/time_entries/{time_entry}', [TimeEntryController::class, 'show'])->name('api.time_entries.show');
     Route::put('/time_entries/{time_entry}', [TimeEntryController::class, 'update'])->name('api.time_entries.update');
     Route::delete('/time_entries/{time_entry}', [TimeEntryController::class, 'destroy'])->name('api.time_entries.destroy');
+
+    Route::get('/projects/{project}/wiki', [WikiPageController::class, 'index'])->name('api.wiki_pages.index');
+    Route::post('/projects/{project}/wiki', [WikiPageController::class, 'store'])->name('api.wiki_pages.store');
+    Route::get('/wiki/{wiki_page}', [WikiPageController::class, 'show'])->name('api.wiki_pages.show');
+    Route::put('/wiki/{wiki_page}', [WikiPageController::class, 'update'])->name('api.wiki_pages.update');
+    Route::delete('/wiki/{wiki_page}', [WikiPageController::class, 'destroy'])->name('api.wiki_pages.destroy');
 });
