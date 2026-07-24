@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\IssueStatusController;
 use App\Http\Controllers\Api\V1\MembershipController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\TimeEntryController;
 use App\Http\Controllers\Api\V1\TrackerController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\VersionController;
@@ -73,4 +74,10 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::get('/memberships/{membership}', [MembershipController::class, 'show'])->name('api.memberships.show');
     Route::put('/memberships/{membership}', [MembershipController::class, 'update'])->name('api.memberships.update');
     Route::delete('/memberships/{membership}', [MembershipController::class, 'destroy'])->name('api.memberships.destroy');
+
+    Route::get('/projects/{project}/time_entries', [TimeEntryController::class, 'index'])->name('api.time_entries.index');
+    Route::post('/projects/{project}/time_entries', [TimeEntryController::class, 'store'])->name('api.time_entries.store');
+    Route::get('/time_entries/{time_entry}', [TimeEntryController::class, 'show'])->name('api.time_entries.show');
+    Route::put('/time_entries/{time_entry}', [TimeEntryController::class, 'update'])->name('api.time_entries.update');
+    Route::delete('/time_entries/{time_entry}', [TimeEntryController::class, 'destroy'])->name('api.time_entries.destroy');
 });
