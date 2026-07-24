@@ -3,6 +3,7 @@
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use Livewire\Livewire;
@@ -155,4 +156,71 @@ test('editing other fields on an existing subproject does not require createSubp
     expect($project->refresh())
         ->name->toBe('Updated name')
         ->parent_id->toBe($parent->id);
+});
+
+test('a non-admin subproject creator is auto-added as a member with the configured default role', function () {
+    $parent = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $user = User::factory()->create();
+    $creatorRole = Role::factory()->create(['permissions' => ['add_subprojects', 'view_project']]);
+    Member::factory()->for($parent)->for($user)->create()->roles()->attach($creatorRole);
+    $defaultRole = Role::factory()->create(['name' => 'Contributor']);
+    Setting::set('new_project_user_role_id', $defaultRole->id);
+
+    Livewire::actingAs($user)
+        ->withQueryParams(['parent_id' => $parent->id])
+        ->test('projects.form')
+        ->set('name', 'New Child')
+        ->set('identifier', 'new-child')
+        ->set('trackerIds', [$tracker->id])
+        ->call('save')
+        ->assertRedirect();
+
+    $child = Project::where('identifier', 'new-child')->firstOrFail();
+    $member = Member::where('project_id', $child->id)->where('user_id', $user->id)->first();
+
+    expect($member)->not->toBeNull()
+        ->and($member->roles->pluck('id')->all())->toBe([$defaultRole->id]);
+});
+
+test('a non-admin subproject creator falls back to the first givable role when no default is configured', function () {
+    $parent = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $user = User::factory()->create();
+    $creatorRole = Role::factory()->create(['permissions' => ['add_subprojects', 'view_project']]);
+    Member::factory()->for($parent)->for($user)->create()->roles()->attach($creatorRole);
+
+    Livewire::actingAs($user)
+        ->withQueryParams(['parent_id' => $parent->id])
+        ->test('projects.form')
+        ->set('name', 'Fallback Child')
+        ->set('identifier', 'fallback-child')
+        ->set('trackerIds', [$tracker->id])
+        ->call('save')
+        ->assertRedirect();
+
+    $child = Project::where('identifier', 'fallback-child')->firstOrFail();
+    $member = Member::where('project_id', $child->id)->where('user_id', $user->id)->first();
+
+    expect($member)->not->toBeNull()
+        ->and($member->roles)->not->toBeEmpty();
+});
+
+test('an admin subproject creator is not auto-added as a member', function () {
+    $parent = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('projects.form')
+        ->set('name', 'Admin Created')
+        ->set('identifier', 'admin-created')
+        ->set('parent_id', $parent->id)
+        ->set('trackerIds', [$tracker->id])
+        ->call('save')
+        ->assertRedirect();
+
+    $created = Project::where('identifier', 'admin-created')->firstOrFail();
+
+    expect(Member::where('project_id', $created->id)->where('user_id', $admin->id)->exists())->toBeFalse();
 });

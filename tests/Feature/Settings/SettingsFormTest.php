@@ -5,6 +5,7 @@ use App\Enums\ProjectModuleKey;
 use App\Models\Enumeration;
 use App\Models\IssueStatus;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
@@ -341,6 +342,29 @@ test('an admin can enable sequential project identifiers', function () {
         ->assertHasNoErrors();
 
     expect(Setting::get('sequential_project_identifiers'))->toBeTrue();
+});
+
+test('an admin can configure the default role for new projects', function () {
+    $admin = User::factory()->admin()->create();
+    $role = Role::factory()->create(['name' => 'Contributor']);
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('new_project_user_role_id', $role->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('new_project_user_role_id'))->toBe($role->id);
+});
+
+test('new_project_user_role_id must reference an existing role', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('new_project_user_role_id', 999999)
+        ->call('save')
+        ->assertHasErrors(['new_project_user_role_id']);
 });
 
 test('an admin can configure the self-registration email domain allow/deny lists', function () {

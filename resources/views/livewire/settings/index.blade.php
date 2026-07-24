@@ -5,6 +5,7 @@ use App\Enums\ProjectModuleKey;
 use App\Enums\RepositoryType;
 use App\Models\Enumeration;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\IssueStatus;
@@ -115,6 +116,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $sequential_project_identifiers = false;
 
+    public ?int $new_project_user_role_id = null;
+
     public function mount(): void
     {
         $this->authorize('manage', Setting::class);
@@ -170,6 +173,7 @@ new #[Layout('components.layouts.app')] class extends Component
         );
         $this->default_projects_tracker_ids = Setting::get('default_projects_tracker_ids', []);
         $this->sequential_project_identifiers = Setting::get('sequential_project_identifiers', false);
+        $this->new_project_user_role_id = Setting::get('new_project_user_role_id');
     }
 
     #[Computed]
@@ -194,6 +198,12 @@ new #[Layout('components.layouts.app')] class extends Component
     public function activities(): Collection
     {
         return Enumeration::query()->ofType(EnumerationType::TimeEntryActivity)->orderBy('position')->get();
+    }
+
+    #[Computed]
+    public function roles(): Collection
+    {
+        return Role::query()->givable()->get();
     }
 
     public function addFixingKeywordRule(): void
@@ -250,6 +260,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_projects_tracker_ids' => ['array'],
             'default_projects_tracker_ids.*' => ['exists:trackers,id'],
             'sequential_project_identifiers' => ['boolean'],
+            'new_project_user_role_id' => ['nullable', 'exists:roles,id'],
         ]);
 
         // Blank rows (no keywords typed) are dropped rather than saved and
@@ -401,6 +412,18 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="checkbox" wire:model="sequential_project_identifiers" class="rounded border-gray-300">
                 識別子を自動的に連番採番する(識別子を空欄のまま保存した場合のみ)
             </label>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">新規プロジェクトの既定ロール</label>
+                <p class="text-xs text-gray-500">管理者以外がプロジェクト(サブプロジェクト)を作成した際に、作成者へ自動的に付与されるロールです。</p>
+                <select wire:model="new_project_user_role_id" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">---</option>
+                    @foreach ($this->roles as $role)
+                        <option value="{{ $role->id }}">{{ $role->name }}</option>
+                    @endforeach
+                </select>
+                @error('new_project_user_role_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
         </section>
 
         <section class="space-y-4 border-t border-gray-200 pt-6">

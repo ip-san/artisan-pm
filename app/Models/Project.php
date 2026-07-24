@@ -421,6 +421,43 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * The role auto-granted to a non-admin project creator — matches
+     * Redmine's Project.default_member_role, resolved from the
+     * new_project_user_role_id setting and falling back to the first
+     * givable role (same fallback Redmine itself applies) so this is
+     * never silently a no-op as long as at least one givable role exists.
+     */
+    public static function defaultMemberRole(): ?Role
+    {
+        $roleId = Setting::get('new_project_user_role_id');
+
+        return Role::query()->givable()->find($roleId) ?? Role::query()->givable()->first();
+    }
+
+    /**
+     * Matches Redmine's Project#add_default_member, called only for
+     * non-admin creators (an admin already sees every project regardless
+     * of membership). No-op when there is no givable role to grant at
+     * all — an extremely unlikely empty-installation edge case, but a
+     * memberless Member row with zero roles isn't a state this app's
+     * membership model otherwise allows.
+     */
+    public function addDefaultMember(User $user): ?Member
+    {
+        $role = self::defaultMemberRole();
+
+        if ($role === null) {
+            return null;
+        }
+
+        $member = new Member(['project_id' => $this->id, 'user_id' => $user->id]);
+        $member->save();
+        $member->roles()->attach($role);
+
+        return $member;
+    }
+
+    /**
      * All project-type custom fields, filtered to the ones visible to the
      * viewing user's role(s) in this project — admins see everything, and
      * a field with no role restriction is visible to anyone. There's no

@@ -203,6 +203,15 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->project->update($data);
         } else {
             $this->project = Project::create($data);
+
+            // Matches Redmine's ProjectsController#create, which only
+            // auto-adds the creator as a member for non-admins — an admin
+            // already sees every project regardless of membership, so
+            // granting them a role here would be a meaningless no-op at
+            // best and a confusing extra role at worst.
+            if (! auth()->user()->is_admin) {
+                $this->project->addDefaultMember(auth()->user());
+            }
         }
 
         $this->project->syncModules(
