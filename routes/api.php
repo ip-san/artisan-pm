@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\CustomFieldController;
 use App\Http\Controllers\Api\V1\EnumerationController;
 use App\Http\Controllers\Api\V1\GroupController;
 use App\Http\Controllers\Api\V1\IssueCategoryController;
@@ -62,6 +63,8 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::get('/enumerations/issue_priorities', [EnumerationController::class, 'issuePriorities'])->name('api.enumerations.issue_priorities');
     Route::get('/enumerations/time_entry_activities', [EnumerationController::class, 'timeEntryActivities'])->name('api.enumerations.time_entry_activities');
     Route::get('/enumerations/document_categories', [EnumerationController::class, 'documentCategories'])->name('api.enumerations.document_categories');
+
+    Route::get('/custom_fields', [CustomFieldController::class, 'index'])->name('api.custom_fields.index');
 
     Route::get('/groups', [GroupController::class, 'index'])->name('api.groups.index');
     Route::post('/groups', [GroupController::class, 'store'])->name('api.groups.store');
