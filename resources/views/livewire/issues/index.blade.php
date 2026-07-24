@@ -8,6 +8,7 @@ use App\Enums\QueryVisibility;
 use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
@@ -15,6 +16,7 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
+use App\Models\Watcher;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
@@ -57,6 +59,26 @@ new #[Layout('components.layouts.app')] class extends Component
         'due_date' => '期日',
         'created_at' => '作成日',
         'done_ratio' => '進捗率',
+        'relations' => '関連するチケット',
+        'attachments' => '添付ファイル',
+        'watchers' => 'ウォッチャー',
+    ];
+
+    /**
+     * Matches issues/show.blade.php's RELATION_LABELS wording exactly —
+     * duplicated rather than extracted, since that copy also needs the
+     * reversed-journal-key mapping this one doesn't (a different use
+     * case: rendering journal history vs. a flat CSV/column cell).
+     *
+     * @var array<string, array{from: string, to: string}>
+     */
+    private const array RELATION_LABELS = [
+        'relates' => ['from' => '関連', 'to' => '関連'],
+        'blocks' => ['from' => 'ブロックする', 'to' => 'ブロックされている'],
+        'duplicates' => ['from' => '重複する', 'to' => '重複されている'],
+        'precedes' => ['from' => '先行', 'to' => '先行'],
+        'follows' => ['from' => '後続', 'to' => '後続'],
+        'copied_to' => ['from' => 'コピー先', 'to' => 'コピー元'],
     ];
 
     public Project $project;
@@ -171,7 +193,10 @@ new #[Layout('components.layouts.app')] class extends Component
             ->when(
                 collect($this->columns)->contains(fn (string $column) => str_starts_with($column, 'cf_')),
                 fn (Builder $q) => $q->with('customFieldValues.customField')
-            );
+            )
+            ->when(in_array('relations', $this->columns, true), fn (Builder $q) => $q->with(['relationsFrom', 'relationsTo']))
+            ->when(in_array('attachments', $this->columns, true), fn (Builder $q) => $q->with('media'))
+            ->when(in_array('watchers', $this->columns, true), fn (Builder $q) => $q->with('watchers.user'));
 
         if ($this->statusFilter !== 'all') {
             $isClosed = $this->statusFilter === 'closed';
@@ -567,6 +592,21 @@ new #[Layout('components.layouts.app')] class extends Component
             'due_date' => $issue->due_date?->toDateString() ?? '',
             'created_at' => $issue->created_at->toDateString(),
             'done_ratio' => "{$issue->done_ratio}%",
+            // Relations join with ", " (Redmine's own IssueRelation#to_s
+            // list separator); attachments/watchers join with "\n" (one
+            // per line within the cell) — matches Redmine's own
+            // inconsistency between csv_value's relations vs
+            // attachments/watcher_users handling, ported as-is rather
+            // than unified, so a diff against a real Redmine export
+            // looks the same.
+            'relations' => $issue->relationsFrom
+                ->map(fn (IssueRelation $relation) => self::RELATION_LABELS[$relation->relation_type->value]['from']." #{$relation->issue_to_id}")
+                ->concat($issue->relationsTo->map(
+                    fn (IssueRelation $relation) => self::RELATION_LABELS[$relation->relation_type->value]['to']." #{$relation->issue_from_id}"
+                ))
+                ->join(', '),
+            'attachments' => $issue->attachments()->map(fn ($media) => $media->file_name)->join("\n"),
+            'watchers' => $issue->watchers->map(fn (Watcher $watcher) => $watcher->user->name)->join("\n"),
             default => '',
         };
     }
