@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\IssueCategoryController;
 use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\IssueRelationController;
 use App\Http\Controllers\Api\V1\IssueStatusController;
+use App\Http\Controllers\Api\V1\MembershipController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\TrackerController;
@@ -66,4 +67,10 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::get('/groups/{group}', [GroupController::class, 'show'])->name('api.groups.show');
     Route::put('/groups/{group}', [GroupController::class, 'update'])->name('api.groups.update');
     Route::delete('/groups/{group}', [GroupController::class, 'destroy'])->name('api.groups.destroy');
+
+    Route::get('/projects/{project}/memberships', [MembershipController::class, 'index'])->name('api.memberships.index');
+    Route::post('/projects/{project}/memberships', [MembershipController::class, 'store'])->name('api.memberships.store');
+    Route::get('/memberships/{membership}', [MembershipController::class, 'show'])->name('api.memberships.show');
+    Route::put('/memberships/{membership}', [MembershipController::class, 'update'])->name('api.memberships.update');
+    Route::delete('/memberships/{membership}', [MembershipController::class, 'destroy'])->name('api.memberships.destroy');
 });
