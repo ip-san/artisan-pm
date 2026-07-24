@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\EnumerationController;
 use App\Http\Controllers\Api\V1\GroupController;
 use App\Http\Controllers\Api\V1\IssueCategoryController;
 use App\Http\Controllers\Api\V1\IssueController;
@@ -55,6 +56,10 @@ Route::middleware('auth:api,api-key')->group(function () {
 
     Route::get('/roles', [RoleController::class, 'index'])->name('api.roles.index');
     Route::get('/roles/{role}', [RoleController::class, 'show'])->name('api.roles.show');
+
+    Route::get('/enumerations/issue_priorities', [EnumerationController::class, 'issuePriorities'])->name('api.enumerations.issue_priorities');
+    Route::get('/enumerations/time_entry_activities', [EnumerationController::class, 'timeEntryActivities'])->name('api.enumerations.time_entry_activities');
+    Route::get('/enumerations/document_categories', [EnumerationController::class, 'documentCategories'])->name('api.enumerations.document_categories');
 
     Route::get('/groups', [GroupController::class, 'index'])->name('api.groups.index');
     Route::post('/groups', [GroupController::class, 'store'])->name('api.groups.store');
