@@ -151,12 +151,53 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->removeEnumerationOption($index);
     }
 
+    public function moveEnumerationOptionUp(int $index): void
+    {
+        $this->swapEnumerationOptions($index, $index - 1);
+    }
+
+    public function moveEnumerationOptionDown(int $index): void
+    {
+        $this->swapEnumerationOptions($index, $index + 1);
+    }
+
+    /**
+     * Persists immediately via Sortable's swapOrderWithModel() (like
+     * deleteEnumerationOption() above, not deferred to save()), then
+     * mirrors the swap into the in-memory array so the row order the
+     * form displays stays in sync without a full reload. Only ever
+     * called with adjacent indexes from the up/down buttons, which only
+     * render for persisted options — an unsaved new row (id === null)
+     * has no position of its own to swap.
+     */
+    private function swapEnumerationOptions(int $index, int $targetIndex): void
+    {
+        $option = $this->enumerationOptions[$index] ?? null;
+        $target = $this->enumerationOptions[$targetIndex] ?? null;
+
+        if ($option === null || $target === null || $option['id'] === null || $target['id'] === null) {
+            return;
+        }
+
+        $enumeration = CustomFieldEnumeration::find($option['id']);
+        $targetEnumeration = CustomFieldEnumeration::find($target['id']);
+
+        if ($enumeration === null || $targetEnumeration === null) {
+            return;
+        }
+
+        $enumeration->swapOrderWithModel($targetEnumeration);
+
+        [$this->enumerationOptions[$index], $this->enumerationOptions[$targetIndex]] = [$target, $option];
+    }
+
     /**
      * Deleting an option happens immediately via deleteEnumerationOption()
+     * above, and reordering happens immediately via the move methods
      * above, so this only ever adds new rows or updates existing ones —
      * name and active flag for persisted options, name/active/position
-     * for brand new ones (position is simply insertion order; reordering
-     * existing options isn't supported by this form).
+     * for brand new ones (position is simply insertion order, appended
+     * after whatever's already there).
      */
     private function saveEnumerationOptions(): void
     {
@@ -324,6 +365,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div class="space-y-2">
                     @foreach ($enumerationOptions as $index => $option)
                         <div class="flex items-center gap-2" wire:key="cf-enum-option-{{ $option['id'] ?? 'new-'.$index }}">
+                            @if ($option['id'])
+                                <div class="flex flex-col">
+                                    <button type="button" wire:click="moveEnumerationOptionUp({{ $index }})"
+                                        @if ($index === 0) disabled @endif
+                                        class="text-xs text-gray-500 hover:text-gray-800 disabled:opacity-30 disabled:hover:text-gray-500">▲</button>
+                                    <button type="button" wire:click="moveEnumerationOptionDown({{ $index }})"
+                                        @if (! isset($enumerationOptions[$index + 1]) || $enumerationOptions[$index + 1]['id'] === null) disabled @endif
+                                        class="text-xs text-gray-500 hover:text-gray-800 disabled:opacity-30 disabled:hover:text-gray-500">▼</button>
+                                </div>
+                            @endif
                             <input type="text" wire:model="enumerationOptions.{{ $index }}.name" placeholder="選択肢名"
                                 class="block w-36 rounded-md border-gray-300 text-sm shadow-sm">
                             <label class="flex items-center gap-1 text-xs text-gray-600">

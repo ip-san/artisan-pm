@@ -151,3 +151,61 @@ test('submitting an inactive option id for an enumeration custom field fails val
         ->call('save')
         ->assertHasErrors(["customFieldValues.{$field->id}"]);
 });
+
+test('moving an option up swaps its position with the previous option', function () {
+    $admin = User::factory()->admin()->create();
+    $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::Enumeration->value]);
+    $first = CustomFieldEnumeration::factory()->for($field, 'customField')->create(['name' => 'First', 'position' => 1]);
+    $second = CustomFieldEnumeration::factory()->for($field, 'customField')->create(['name' => 'Second', 'position' => 2]);
+
+    Livewire::actingAs($admin)
+        ->test('custom-fields.form', ['customField' => $field])
+        ->call('moveEnumerationOptionUp', 1);
+
+    expect($first->fresh()->position)->toBe(2)
+        ->and($second->fresh()->position)->toBe(1)
+        ->and($field->enumerationOptions()->pluck('name')->all())->toBe(['Second', 'First']);
+});
+
+test('moving an option down swaps its position with the next option', function () {
+    $admin = User::factory()->admin()->create();
+    $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::Enumeration->value]);
+    $first = CustomFieldEnumeration::factory()->for($field, 'customField')->create(['name' => 'First', 'position' => 1]);
+    $second = CustomFieldEnumeration::factory()->for($field, 'customField')->create(['name' => 'Second', 'position' => 2]);
+
+    Livewire::actingAs($admin)
+        ->test('custom-fields.form', ['customField' => $field])
+        ->call('moveEnumerationOptionDown', 0);
+
+    expect($first->fresh()->position)->toBe(2)
+        ->and($second->fresh()->position)->toBe(1)
+        ->and($field->enumerationOptions()->pluck('name')->all())->toBe(['Second', 'First']);
+});
+
+test('moving the first option up does nothing', function () {
+    $admin = User::factory()->admin()->create();
+    $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::Enumeration->value]);
+    $first = CustomFieldEnumeration::factory()->for($field, 'customField')->create(['name' => 'First', 'position' => 1]);
+    CustomFieldEnumeration::factory()->for($field, 'customField')->create(['name' => 'Second', 'position' => 2]);
+
+    Livewire::actingAs($admin)
+        ->test('custom-fields.form', ['customField' => $field])
+        ->call('moveEnumerationOptionUp', 0);
+
+    expect($first->fresh()->position)->toBe(1);
+});
+
+test('moving the last persisted option down does nothing even with an unsaved new row appended', function () {
+    $admin = User::factory()->admin()->create();
+    $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::Enumeration->value]);
+    $first = CustomFieldEnumeration::factory()->for($field, 'customField')->create(['name' => 'First', 'position' => 1]);
+    $second = CustomFieldEnumeration::factory()->for($field, 'customField')->create(['name' => 'Second', 'position' => 2]);
+
+    Livewire::actingAs($admin)
+        ->test('custom-fields.form', ['customField' => $field])
+        ->call('addEnumerationOption')
+        ->call('moveEnumerationOptionDown', 1);
+
+    expect($first->fresh()->position)->toBe(1)
+        ->and($second->fresh()->position)->toBe(2);
+});
