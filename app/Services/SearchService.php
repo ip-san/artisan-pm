@@ -142,8 +142,15 @@ final class SearchService
             $matchedIds = $matchedIds->merge($this->issueIdsMatchingSearchableCustomFields($projectIds, $words, $allWords))->unique();
         }
 
+        // Word-matching above only narrows by project_id, not by whether
+        // the viewer may actually see each matched issue (issues_visibility
+        // Own/Default tiers, is_private) — applying visibleToAcrossProjects()
+        // here, on the query that actually builds the returned results, is
+        // enough to close that gap: any id a viewer shouldn't see is simply
+        // dropped, regardless of which of the two searches above found it.
         return Issue::query()
             ->whereIn('id', $matchedIds)
+            ->visibleToAcrossProjects($viewer, $projects->whereIn('id', $projectIds))
             ->when($openIssuesOnly, fn (Builder $query) => $query->whereHas('status', fn ($status) => $status->where('is_closed', false)))
             ->with('project')
             ->take(self::RESULTS_PER_TYPE)

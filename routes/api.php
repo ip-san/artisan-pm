@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\NewsController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\QueryController;
 use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\SearchController;
 use App\Http\Controllers\Api\V1\TimeEntryController;
 use App\Http\Controllers\Api\V1\TrackerController;
 use App\Http\Controllers\Api\V1\UploadController;
@@ -108,4 +109,7 @@ Route::middleware('auth:api,api-key')->group(function () {
 
     Route::get('/my/account', [MyAccountController::class, 'show'])->name('api.my_account.show');
     Route::put('/my/account', [MyAccountController::class, 'update'])->name('api.my_account.update');
+
+    Route::get('/search', [SearchController::class, 'index'])->name('api.search.index');
+    Route::get('/projects/{project}/search', [SearchController::class, 'forProject'])->name('api.search.for_project');
 });
