@@ -19,14 +19,23 @@ use DateTimeImmutable;
  * Changesets — resuming from last_synced_revision so a re-run only
  * processes what's landed since the previous sync, not the full history.
  *
- * Also honors a configurable set of fixing keywords (commit_fixing_keywords
- * setting, comma-separated, defaulting to fixes/fix/closes/close) in the
- * commit message: any issue they reference gets transitioned to the first
- * closed status, same as Redmine's default keyword behavior. Unlike
- * Redmine's commit_update_keywords, every keyword here drives to that same
- * single target status — no per-keyword status_id/done_ratio/tracker
- * scoping, since this app never had that granularity to begin with. This
- * only fires when the commit's free-text committer field resolves to a
+ * Also honors a configurable list of fixing-keyword rules
+ * (commit_fixing_keyword_rules setting: an array of {keywords, status_id}
+ * pairs) in the commit message: whichever rule's keyword list contains the
+ * SPECIFIC keyword used in that commit determines the target status for
+ * the issues it references — matches Redmine's Changeset#fix_issue, which
+ * likewise looks up `Setting.commit_update_keywords_array.detect` by the
+ * matched keyword rather than applying one global target. If no rules are
+ * configured at all, falls back to the classic default (fixes/fix/closes/
+ * close → the first closed status). Unlike Redmine's commit_update_keywords,
+ * a rule has no if_tracker_id/done_ratio scoping — only keywords and a
+ * target status_id — since this app never had that granularity to begin
+ * with and it isn't exposed anywhere else (workflow field rules are the
+ * closest analog, but those are a different, tracker/role-scoped system).
+ * An issue already closed is left alone, matching Redmine's own
+ * `return if issue.closed?` guard, rather than only skipping issues
+ * already at that exact target status. This only fires when the commit's
+ * free-text committer field resolves to a
  * real User — first via an explicit RepositoryCommitter mapping (see
  * resolveCommitter(), managed on the repository.committers admin
  * screen), falling back to matching the committer's email/login
@@ -112,9 +121,9 @@ final class RepositorySyncService
 
     private function applyFixingKeywords(Repository $repository, string $message, string $committer): void
     {
-        $fixedIds = $this->extractFixedIssueIds($message);
+        $matches = $this->matchFixingKeywords($message);
 
-        if ($fixedIds === []) {
+        if ($matches === []) {
             return;
         }
 
@@ -124,24 +133,24 @@ final class RepositorySyncService
             return;
         }
 
-        $closedStatusId = IssueStatus::query()->where('is_closed', true)->orderBy('position')->value('id');
+        $issues = Issue::query()->with('status')->whereIn('id', array_column($matches, 'issueId'))->get()->keyBy('id');
 
-        if ($closedStatusId === null) {
-            return;
-        }
+        foreach ($matches as $match) {
+            $issue = $issues->get($match['issueId']);
 
-        $issues = Issue::query()->whereIn('id', $fixedIds)->where('status_id', '!=', $closedStatusId)->get();
+            if ($issue === null || $issue->status->is_closed) {
+                continue;
+            }
 
-        foreach ($issues as $issue) {
             if (! $this->authorization->can($actor, 'edit_issues', $issue->project)) {
                 continue;
             }
 
             app(IssueService::class)->update(
                 $issue,
-                ['status_id' => $closedStatusId],
+                ['status_id' => $match['statusId']],
                 $actor,
-                'コミットメッセージのキーワードにより自動的にクローズされました。',
+                'コミットメッセージのキーワードにより自動的にステータスが変更されました。',
             );
         }
     }
@@ -282,40 +291,114 @@ final class RepositorySyncService
     }
 
     /**
-     * @return array<int, int>
+     * Every #id referenced right after a fixing keyword, paired with the
+     * target status of whichever rule that specific keyword belongs to —
+     * a later occurrence of the same issue id (possibly under a different
+     * keyword/rule) overwrites the earlier one, so the last mention in the
+     * message wins for a given issue, same as a plain last-write-wins
+     * array merge would naturally produce.
+     *
+     * @return array<int, array{issueId: int, statusId: int}>
      */
-    private function extractFixedIssueIds(string $message): array
+    private function matchFixingKeywords(string $message): array
     {
-        $keywords = $this->fixingKeywords();
+        $keywordToStatusId = $this->keywordToStatusIdMap();
 
-        if ($keywords === []) {
+        if ($keywordToStatusId === []) {
             return [];
         }
 
-        $pattern = implode('|', array_map(preg_quote(...), $keywords));
-        preg_match_all('/\b(?:'.$pattern.')\b\s+((?:#\d+[,\s]*)+)/i', $message, $matches);
+        $pattern = implode('|', array_map(preg_quote(...), array_keys($keywordToStatusId)));
+        preg_match_all('/\b('.$pattern.')\b\s+((?:#\d+[,\s]*)+)/i', $message, $matches, PREG_SET_ORDER);
 
-        $ids = [];
+        $results = [];
 
-        foreach ($matches[1] as $group) {
-            preg_match_all('/#(\d+)/', $group, $idMatches);
-            $ids = array_merge($ids, $idMatches[1]);
+        foreach ($matches as $match) {
+            $statusId = $keywordToStatusId[mb_strtolower($match[1])] ?? null;
+
+            if ($statusId === null) {
+                continue;
+            }
+
+            preg_match_all('/#(\d+)/', $match[2], $idMatches);
+
+            foreach ($idMatches[1] as $id) {
+                $results[(int) $id] = ['issueId' => (int) $id, 'statusId' => $statusId];
+            }
         }
 
-        if ($ids === []) {
+        if ($results === []) {
             return [];
         }
 
-        return Issue::query()->whereIn('id', array_unique($ids))->pluck('id')->all();
+        $validIds = Issue::query()->whereIn('id', array_keys($results))->pluck('id')->all();
+
+        return array_values(array_intersect_key($results, array_flip($validIds)));
+    }
+
+    /**
+     * Flattens the configured rules into a single keyword(lowercased) =>
+     * status_id lookup — when the same keyword appears in more than one
+     * rule, the first rule wins (array declaration order), matching
+     * Redmine's Array#detect returning the first matching rule.
+     *
+     * @return array<string, int>
+     */
+    private function keywordToStatusIdMap(): array
+    {
+        $rules = $this->fixingKeywordRules();
+        $map = [];
+
+        foreach ($rules as $rule) {
+            foreach ($rule['keywords'] as $keyword) {
+                $map[$keyword] ??= $rule['statusId'];
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * @return array<int, array{keywords: array<int, string>, statusId: int}>
+     */
+    private function fixingKeywordRules(): array
+    {
+        $configured = Setting::get('commit_fixing_keyword_rules');
+
+        if ($configured === null) {
+            $closedStatusId = IssueStatus::query()->where('is_closed', true)->orderBy('position')->value('id');
+
+            if ($closedStatusId === null) {
+                return [];
+            }
+
+            return [['keywords' => $this->splitKeywords(self::DEFAULT_FIXING_KEYWORDS), 'statusId' => $closedStatusId]];
+        }
+
+        $rules = [];
+
+        foreach ($configured as $rule) {
+            $keywords = $this->splitKeywords((string) ($rule['keywords'] ?? ''));
+            $statusId = $rule['status_id'] ?? null;
+
+            if ($keywords === [] || $statusId === null) {
+                continue;
+            }
+
+            $rules[] = ['keywords' => $keywords, 'statusId' => (int) $statusId];
+        }
+
+        return $rules;
     }
 
     /**
      * @return array<int, string>
      */
-    private function fixingKeywords(): array
+    private function splitKeywords(string $raw): array
     {
-        $configured = (string) Setting::get('commit_fixing_keywords', self::DEFAULT_FIXING_KEYWORDS);
-
-        return array_values(array_filter(array_map(trim(...), explode(',', $configured))));
+        return array_values(array_unique(array_filter(array_map(
+            fn (string $keyword) => mb_strtolower(trim($keyword)),
+            explode(',', $raw),
+        ))));
     }
 }

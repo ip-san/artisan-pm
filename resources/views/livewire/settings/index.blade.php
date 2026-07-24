@@ -69,7 +69,8 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<string> */
     public array $enabled_scm_types = [];
 
-    public string $commit_fixing_keywords = '';
+    /** @var array<int, array{keywords: string, status_id: ?int}> */
+    public array $commit_fixing_keyword_rules = [];
 
     public int $attachment_max_size = 10240;
 
@@ -148,8 +149,17 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->commit_logtime_enabled = Setting::get('commit_logtime_enabled', false);
         $this->commit_logtime_activity_id = Setting::get('commit_logtime_activity_id');
         $this->enabled_scm_types = Setting::get('enabled_scm_types', array_map(fn (RepositoryType $type) => $type->value, RepositoryType::cases()));
-        // Matches RepositorySyncService::DEFAULT_FIXING_KEYWORDS.
-        $this->commit_fixing_keywords = Setting::get('commit_fixing_keywords', 'fixes, fix, closes, close');
+        // Unconfigured default: a single rule covering the classic keyword
+        // list, targeting the first closed status — matches
+        // RepositorySyncService's own fallback when no rules are stored,
+        // so the UI's initial suggestion mirrors the actual runtime
+        // default. Only offered when a closed status actually exists;
+        // otherwise there's nothing sensible to pre-select and the row
+        // would just fail validation the moment the form is saved as-is.
+        $defaultFixingStatusId = IssueStatus::query()->where('is_closed', true)->orderBy('position')->value('id');
+        $this->commit_fixing_keyword_rules = Setting::get('commit_fixing_keyword_rules', $defaultFixingStatusId !== null
+            ? [['keywords' => 'fixes, fix, closes, close', 'status_id' => $defaultFixingStatusId]]
+            : []);
         $this->attachment_max_size = Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024));
         $this->attachment_extensions_allowed = Setting::get('attachment_extensions_allowed', '');
         $this->attachment_extensions_denied = Setting::get('attachment_extensions_denied', '');
@@ -186,6 +196,17 @@ new #[Layout('components.layouts.app')] class extends Component
         return Enumeration::query()->ofType(EnumerationType::TimeEntryActivity)->orderBy('position')->get();
     }
 
+    public function addFixingKeywordRule(): void
+    {
+        $this->commit_fixing_keyword_rules[] = ['keywords' => '', 'status_id' => null];
+    }
+
+    public function removeFixingKeywordRule(int $index): void
+    {
+        unset($this->commit_fixing_keyword_rules[$index]);
+        $this->commit_fixing_keyword_rules = array_values($this->commit_fixing_keyword_rules);
+    }
+
     public function save(): void
     {
         $data = $this->validate([
@@ -203,7 +224,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'commit_logtime_activity_id' => ['nullable', 'exists:enumerations,id'],
             'enabled_scm_types' => ['array', 'min:1'],
             'enabled_scm_types.*' => [Rule::in(array_map(fn (RepositoryType $type) => $type->value, RepositoryType::cases()))],
-            'commit_fixing_keywords' => ['nullable', 'string', 'max:255'],
+            'commit_fixing_keyword_rules' => ['array'],
+            'commit_fixing_keyword_rules.*.keywords' => ['nullable', 'string', 'max:255'],
+            'commit_fixing_keyword_rules.*.status_id' => ['nullable', 'required_with:commit_fixing_keyword_rules.*.keywords', 'exists:issue_statuses,id'],
             'attachment_max_size' => ['required', 'integer', 'min:1', 'max:'.intdiv((int) config('media-library.max_file_size'), 1024)],
             'attachment_extensions_allowed' => ['nullable', 'string', 'max:1000'],
             'attachment_extensions_denied' => ['nullable', 'string', 'max:1000'],
@@ -229,9 +252,21 @@ new #[Layout('components.layouts.app')] class extends Component
             'sequential_project_identifiers' => ['boolean'],
         ]);
 
+        // Blank rows (no keywords typed) are dropped rather than saved and
+        // silently ignored forever — matches Redmine's own
+        // commit_update_keywords_array, which strips rules with no
+        // keywords before storing.
+        $data['commit_fixing_keyword_rules'] = collect($data['commit_fixing_keyword_rules'])
+            ->filter(fn (array $rule) => trim((string) ($rule['keywords'] ?? '')) !== '')
+            ->map(fn (array $rule) => ['keywords' => trim($rule['keywords']), 'status_id' => (int) $rule['status_id']])
+            ->values()
+            ->all();
+
         foreach ($data as $key => $value) {
             Setting::set($key, $value);
         }
+
+        $this->commit_fixing_keyword_rules = $data['commit_fixing_keyword_rules'];
 
         session()->flash('status', '設定を保存しました。');
     }
@@ -551,11 +586,36 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">コミットをクローズと結び付けるキーワード(カンマ区切り)</label>
-                <input type="text" wire:model="commit_fixing_keywords" placeholder="例: fixes, fix, closes, close"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-gray-500">コミットメッセージ内でこれらの語の直後に <code>#123</code> がある場合、その課題を最初のクローズ済みステータスに変更します。</p>
-                @error('commit_fixing_keywords') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <span class="block text-sm font-medium text-gray-700 mb-1">コミットをステータス変更と結び付けるキーワード</span>
+                <p class="mb-2 text-xs text-gray-500">
+                    各行はキーワード(カンマ区切りで複数指定可)と、コミットメッセージ内でその語の直後に<code>#123</code>があった場合の変更先ステータスの組です。行を削除するとそのキーワードは無効になります。
+                </p>
+                <div class="space-y-2">
+                    @foreach ($commit_fixing_keyword_rules as $index => $rule)
+                        <div class="flex items-start gap-2" wire:key="fixing-keyword-rule-{{ $index }}">
+                            <div class="flex-1">
+                                <input type="text" wire:model="commit_fixing_keyword_rules.{{ $index }}.keywords" placeholder="例: fixes, fix, closes, close"
+                                    class="block w-full rounded-md border-gray-300 text-sm shadow-sm">
+                                @error("commit_fixing_keyword_rules.{$index}.keywords") <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="w-48">
+                                <select wire:model="commit_fixing_keyword_rules.{{ $index }}.status_id" class="block w-full rounded-md border-gray-300 text-sm shadow-sm">
+                                    <option value="">変更先ステータス</option>
+                                    @foreach ($this->statuses as $status)
+                                        <option value="{{ $status->id }}">{{ $status->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error("commit_fixing_keyword_rules.{$index}.status_id") <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                            <button type="button" wire:click="removeFixingKeywordRule({{ $index }})" class="mt-1.5 shrink-0 text-sm text-red-600 hover:underline">
+                                削除
+                            </button>
+                        </div>
+                    @endforeach
+                </div>
+                <button type="button" wire:click="addFixingKeywordRule" class="mt-2 text-sm text-indigo-600 hover:underline">
+                    + 行を追加
+                </button>
             </div>
         </section>
 

@@ -135,18 +135,58 @@ test('commit_logtime_activity_id must reference a real enumeration', function ()
         ->assertHasErrors(['commit_logtime_activity_id']);
 });
 
-test('an admin can restrict enabled SCM types and edit the commit fixing keyword list', function () {
+test('an admin can restrict enabled SCM types and edit the commit fixing keyword rules', function () {
     $admin = User::factory()->admin()->create();
+    $status = IssueStatus::factory()->closed()->create();
 
     Livewire::actingAs($admin)
         ->test('settings.index')
         ->set('enabled_scm_types', ['git'])
-        ->set('commit_fixing_keywords', 'resolves, resolve')
+        ->set('commit_fixing_keyword_rules', [['keywords' => 'resolves, resolve', 'status_id' => $status->id]])
         ->call('save')
         ->assertHasNoErrors();
 
     expect(Setting::get('enabled_scm_types'))->toBe(['git'])
-        ->and(Setting::get('commit_fixing_keywords'))->toBe('resolves, resolve');
+        ->and(Setting::get('commit_fixing_keyword_rules'))->toBe([['keywords' => 'resolves, resolve', 'status_id' => $status->id]]);
+});
+
+test('a commit fixing keyword rule with keywords requires a status', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('commit_fixing_keyword_rules', [['keywords' => 'resolves', 'status_id' => null]])
+        ->call('save')
+        ->assertHasErrors(['commit_fixing_keyword_rules.0.status_id']);
+});
+
+test('a commit fixing keyword rule with blank keywords is dropped rather than saved', function () {
+    $admin = User::factory()->admin()->create();
+    $status = IssueStatus::factory()->closed()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('commit_fixing_keyword_rules', [
+            ['keywords' => 'resolves', 'status_id' => $status->id],
+            ['keywords' => '', 'status_id' => null],
+        ])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('commit_fixing_keyword_rules'))->toBe([['keywords' => 'resolves', 'status_id' => $status->id]]);
+});
+
+test('addFixingKeywordRule appends an empty row and removeFixingKeywordRule removes it', function () {
+    $admin = User::factory()->admin()->create();
+
+    $component = Livewire::actingAs($admin)->test('settings.index');
+    $initialCount = count($component->get('commit_fixing_keyword_rules'));
+
+    $component->call('addFixingKeywordRule');
+    expect($component->get('commit_fixing_keyword_rules'))->toHaveCount($initialCount + 1);
+
+    $component->call('removeFixingKeywordRule', $initialCount);
+    expect($component->get('commit_fixing_keyword_rules'))->toHaveCount($initialCount);
 });
 
 test('enabled_scm_types must contain at least one valid SCM type', function () {
