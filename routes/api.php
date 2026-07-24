@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\IssueRelationController;
 use App\Http\Controllers\Api\V1\IssueStatusController;
 use App\Http\Controllers\Api\V1\ProjectController;
+use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\TrackerController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\VersionController;
@@ -51,6 +52,9 @@ Route::middleware('auth:api,api-key')->group(function () {
 
     Route::get('/issue_statuses', [IssueStatusController::class, 'index'])->name('api.issue_statuses.index');
     Route::get('/issue_statuses/{issue_status}', [IssueStatusController::class, 'show'])->name('api.issue_statuses.show');
+
+    Route::get('/roles', [RoleController::class, 'index'])->name('api.roles.index');
+    Route::get('/roles/{role}', [RoleController::class, 'show'])->name('api.roles.show');
 
     Route::get('/groups', [GroupController::class, 'index'])->name('api.groups.index');
     Route::post('/groups', [GroupController::class, 'store'])->name('api.groups.store');
