@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\IssueCategoryController;
 use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\ProjectController;
+use App\Http\Controllers\Api\V1\TrackerController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\VersionController;
 use Illuminate\Http\Request;
@@ -35,4 +36,7 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::delete('/issue_categories/{issue_category}', [IssueCategoryController::class, 'destroy'])->name('api.issue_categories.destroy');
 
     Route::post('/uploads', [UploadController::class, 'store'])->name('api.uploads.store');
+
+    Route::get('/trackers', [TrackerController::class, 'index'])->name('api.trackers.index');
+    Route::get('/trackers/{tracker}', [TrackerController::class, 'show'])->name('api.trackers.show');
 });

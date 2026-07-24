@@ -486,7 +486,7 @@
 | Memberships | missing | — |
 | Groups | missing | — |
 | Roles | missing | — |
-| Trackers | missing | — |
+| Trackers | done(2026-07-24) | GET(一覧/単体)のみ(Redmine本家もPOST/PUT/DELETEなし、トラッカーは管理画面専用)。本家の`TrackersController`は`index`のみ`require_admin_or_api_request`(APIリクエストなら管理者でなくてもアクセス可、Web UIは管理者限定)という特殊な認可を持つため、既存の管理者限定`TrackerPolicy`(Web CRUD用)は使わず、ルートの`auth:api,api-key`ミドルウェア(認証のみ)だけをゲートとして実装。プロジェクトによる絞り込みなし、ページネーションなし(本家の`Tracker.sorted.to_a`と同じ、全件返却) |
 | Issue statuses | missing | — |
 | Issue categories | done(2026-07-24) | GET(一覧/単体)/POST/PUT/DELETE。直前に実装した`VersionController`と全く同じ形(FormRequestで認可+バリデーション)だが、`IssueCategory`には対応するServiceクラスがない(既存のWeb側`issue-categories/form.blade.php`も`IssueCategory::create()`/`->update()`を直接呼ぶのみ)ため、コントローラも同様にモデルを直接操作。単一の`manage_categories`権限のみで一覧/詳細/作成/更新/削除すべてを制御(Versionのような`view_files`/`manage_versions`の分離はない) |
 | Issue relations | missing | — |
