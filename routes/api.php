@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\IssueRelationController;
 use App\Http\Controllers\Api\V1\IssueStatusController;
 use App\Http\Controllers\Api\V1\MembershipController;
+use App\Http\Controllers\Api\V1\NewsController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\TimeEntryController;
@@ -90,4 +91,10 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::get('/wiki/{wiki_page}', [WikiPageController::class, 'show'])->name('api.wiki_pages.show');
     Route::put('/wiki/{wiki_page}', [WikiPageController::class, 'update'])->name('api.wiki_pages.update');
     Route::delete('/wiki/{wiki_page}', [WikiPageController::class, 'destroy'])->name('api.wiki_pages.destroy');
+
+    Route::get('/projects/{project}/news', [NewsController::class, 'index'])->name('api.news.index');
+    Route::post('/projects/{project}/news', [NewsController::class, 'store'])->name('api.news.store');
+    Route::get('/news/{news}', [NewsController::class, 'show'])->name('api.news.show');
+    Route::put('/news/{news}', [NewsController::class, 'update'])->name('api.news.update');
+    Route::delete('/news/{news}', [NewsController::class, 'destroy'])->name('api.news.destroy');
 });
