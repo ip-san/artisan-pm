@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\TimeEntryController;
 use App\Http\Controllers\Api\V1\TrackerController;
 use App\Http\Controllers\Api\V1\UploadController;
+use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\VersionController;
 use App\Http\Controllers\Api\V1\WatcherController;
 use App\Http\Controllers\Api\V1\WikiPageController;
@@ -100,4 +101,7 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::delete('/news/{news}', [NewsController::class, 'destroy'])->name('api.news.destroy');
 
     Route::get('/queries', [QueryController::class, 'index'])->name('api.queries.index');
+
+    Route::get('/users', [UserController::class, 'index'])->name('api.users.index');
+    Route::get('/users/{user}', [UserController::class, 'show'])->name('api.users.show');
 });
