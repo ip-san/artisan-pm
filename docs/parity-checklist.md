@@ -487,7 +487,7 @@
 | Groups | done(2026-07-24) | GET(一覧/単体)/POST/PUT/DELETE。`GroupPolicy`が全操作を拒否しGate::before管理者バイパスのみで許可する設計のため、`viewAny`/`view`含む全アクションを明示的に認可(`TrackerController`の「index無条件公開」とは異なる)。`user_ids`配列で所属メンバーを作成/更新時に一括同期(Redmine本家の`safe_attributes=`(`user_ids=`)と同じ完全置き換え方式、本家が別途持つ`POST /groups/:id/users`のような追加専用のネストエンドポイントは対象外 — 既存コントローラにネスト型メンバーシップの前例がないため)。カスタムフィールド値の公開は他のAPIリソース(Issue/Version/IssueCategory)と同様に対象外 |
 | Roles | missing | — |
 | Trackers | done(2026-07-24) | GET(一覧/単体)のみ(Redmine本家もPOST/PUT/DELETEなし、トラッカーは管理画面専用)。本家の`TrackersController`は`index`のみ`require_admin_or_api_request`(APIリクエストなら管理者でなくてもアクセス可、Web UIは管理者限定)という特殊な認可を持つため、既存の管理者限定`TrackerPolicy`(Web CRUD用)は使わず、ルートの`auth:api,api-key`ミドルウェア(認証のみ)だけをゲートとして実装。プロジェクトによる絞り込みなし、ページネーションなし(本家の`Tracker.sorted.to_a`と同じ、全件返却) |
-| Issue statuses | missing | — |
+| Issue statuses | done(2026-07-24) | GET(一覧/単体)のみ、`TrackerController`と全く同じ形(認証のみをゲートとし、管理者限定の`IssueStatusPolicy`はバイパス — Redmine本家の`IssueStatusesController`も`index`だけ`require_admin_or_api_request`で誰でもAPI経由アクセス可、書き込み系APIは本家にも存在しない)。本家は`show`アクション自体が存在しないが、`TrackerController`が既に確立した「本家より一歩踏み込んでshowも提供する」前例を踏襲 |
 | Issue categories | done(2026-07-24) | GET(一覧/単体)/POST/PUT/DELETE。直前に実装した`VersionController`と全く同じ形(FormRequestで認可+バリデーション)だが、`IssueCategory`には対応するServiceクラスがない(既存のWeb側`issue-categories/form.blade.php`も`IssueCategory::create()`/`->update()`を直接呼ぶのみ)ため、コントローラも同様にモデルを直接操作。単一の`manage_categories`権限のみで一覧/詳細/作成/更新/削除すべてを制御(Versionのような`view_files`/`manage_versions`の分離はない) |
 | Issue relations | missing | — |
 | Enumerations | missing | — |
