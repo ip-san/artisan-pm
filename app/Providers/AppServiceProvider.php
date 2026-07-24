@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\Setting;
 use App\Models\User;
 use App\Policies\CalendarPolicy;
 use App\Policies\GanttPolicy;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 final class AppServiceProvider extends ServiceProvider
 {
@@ -29,6 +31,11 @@ final class AppServiceProvider extends ServiceProvider
         Gate::define('viewGantt', [GanttPolicy::class, 'view']);
 
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
+
+        // Matches Redmine's password_min_length setting — re-read from
+        // Setting (cached, so this is cheap) on every call rather than
+        // once at boot, so an admin's change takes effect immediately.
+        Password::defaults(fn () => Password::min((int) Setting::get('password_min_length', 8)));
     }
 
     /**

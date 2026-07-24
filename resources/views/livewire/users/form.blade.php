@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -84,7 +85,7 @@ new #[Layout('components.layouts.app')] class extends Component
         ];
 
         if (! $isLdapLinked) {
-            $rules['password'] = [$this->user ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'];
+            $rules['password'] = [$this->user ? 'nullable' : 'required', 'string', PasswordRule::default(), 'confirmed'];
         }
 
         $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];

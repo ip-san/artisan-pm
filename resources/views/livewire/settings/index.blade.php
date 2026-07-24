@@ -106,6 +106,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $email_domains_denied = '';
 
+    public int $password_min_length = 8;
+
     public bool $default_projects_public = true;
 
     /** @var array<string> */
@@ -126,6 +128,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->session_timeout = Setting::get('session_timeout', 0);
         $this->email_domains_allowed = Setting::get('email_domains_allowed', '');
         $this->email_domains_denied = Setting::get('email_domains_denied', '');
+        $this->password_min_length = Setting::get('password_min_length', 8);
         $this->app_title = Setting::get('app_title', config('app.name'));
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
@@ -254,6 +257,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'session_timeout' => ['required', Rule::in([0, 60, 120, 240, 480, 720, 1440, 2880])],
             'email_domains_allowed' => ['nullable', 'string', 'max:1000'],
             'email_domains_denied' => ['nullable', 'string', 'max:1000'],
+            'password_min_length' => ['required', 'integer', 'min:1', 'max:255'],
             'default_projects_public' => ['boolean'],
             'default_projects_modules' => ['array'],
             'default_projects_modules.*' => [Rule::in(array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::cases()))],
@@ -473,6 +477,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('session_timeout') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-gray-500">この時間操作が無かったセッションは無効になり、再ログインが必要になります。</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">パスワードの最小文字数</label>
+                <input type="number" wire:model="password_min_length" min="1" max="255"
+                    class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('password_min_length') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">
+                    新規登録・管理者によるユーザー作成・パスワード変更のすべてに適用されます(Redmine本家の文字種別必須設定・パスワード有効期限は、それぞれ本アプリのバリデーションルールでは表現できない/専用の運用基盤が必要なため対象外です)。
+                </p>
             </div>
         </section>
 

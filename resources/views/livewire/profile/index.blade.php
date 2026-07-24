@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Actions\ConfirmTwoFactorAuthentication;
 use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
@@ -53,7 +54,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data = $this->validate([
             'current_password' => ['required', 'current_password:web'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', Password::default(), 'confirmed'],
         ]);
 
         $user->forceFill(['password' => Hash::make($data['password'])])->save();
