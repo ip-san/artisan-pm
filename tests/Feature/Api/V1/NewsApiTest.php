@@ -42,6 +42,15 @@ test('a member without view_news cannot list news', function () {
     $this->getJson("/api/v1/projects/{$project->id}/news")->assertForbidden();
 });
 
+test('a non-member cannot list news in a private project', function () {
+    $project = Project::factory()->private()->create();
+    $user = User::factory()->create();
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/projects/{$project->id}/news")->assertForbidden();
+});
+
 test('a member with view_news can show a single news item including its comment count', function () {
     $project = Project::factory()->create();
     $user = apiNewsMember($project, ['view_news']);
@@ -97,6 +106,18 @@ test('a member without manage_news cannot create a news item', function () {
     ])->assertForbidden();
 });
 
+test('a non-member cannot create a news item in a private project', function () {
+    $project = Project::factory()->private()->create();
+    $user = User::factory()->create();
+
+    Passport::actingAs($user);
+
+    $this->postJson("/api/v1/projects/{$project->id}/news", [
+        'title' => 'New release',
+        'description' => 'Full changelog goes here.',
+    ])->assertForbidden();
+});
+
 test('creating a news item without a title is rejected', function () {
     $project = Project::factory()->create();
     $user = apiNewsMember($project, ['manage_news']);
@@ -130,6 +151,16 @@ test('a member without manage_news cannot update a news item', function () {
     $this->putJson("/api/v1/news/{$news->id}", ['title' => 'Hacked'])->assertForbidden();
 });
 
+test('a non-member cannot update a news item in a private project', function () {
+    $project = Project::factory()->private()->create();
+    $news = News::factory()->for($project)->create();
+    $user = User::factory()->create();
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/news/{$news->id}", ['title' => 'Hacked'])->assertForbidden();
+});
+
 test('a member with manage_news can delete a news item', function () {
     $project = Project::factory()->create();
     $user = apiNewsMember($project, ['manage_news']);
@@ -146,6 +177,18 @@ test('a member without manage_news cannot delete a news item', function () {
     $project = Project::factory()->create();
     $user = apiNewsMember($project, ['view_news']);
     $news = News::factory()->for($project)->create();
+
+    Passport::actingAs($user);
+
+    $this->deleteJson("/api/v1/news/{$news->id}")->assertForbidden();
+
+    expect(News::find($news->id))->not->toBeNull();
+});
+
+test('a non-member cannot delete a news item in a private project', function () {
+    $project = Project::factory()->private()->create();
+    $news = News::factory()->for($project)->create();
+    $user = User::factory()->create();
 
     Passport::actingAs($user);
 

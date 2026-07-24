@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\IssueStatusController;
 use App\Http\Controllers\Api\V1\MembershipController;
 use App\Http\Controllers\Api\V1\NewsController;
 use App\Http\Controllers\Api\V1\ProjectController;
+use App\Http\Controllers\Api\V1\QueryController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\TimeEntryController;
 use App\Http\Controllers\Api\V1\TrackerController;
@@ -97,4 +98,6 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::get('/news/{news}', [NewsController::class, 'show'])->name('api.news.show');
     Route::put('/news/{news}', [NewsController::class, 'update'])->name('api.news.update');
     Route::delete('/news/{news}', [NewsController::class, 'destroy'])->name('api.news.destroy');
+
+    Route::get('/queries', [QueryController::class, 'index'])->name('api.queries.index');
 });
