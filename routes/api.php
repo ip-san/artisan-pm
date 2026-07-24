@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\GroupController;
 use App\Http\Controllers\Api\V1\IssueCategoryController;
 use App\Http\Controllers\Api\V1\IssueController;
+use App\Http\Controllers\Api\V1\IssueRelationController;
 use App\Http\Controllers\Api\V1\IssueStatusController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\TrackerController;
@@ -27,6 +28,9 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::delete('/issues/{issue}', [IssueController::class, 'destroy'])->name('api.issues.destroy');
     Route::post('/issues/{issue}/watchers', [WatcherController::class, 'store'])->name('api.issues.watchers.store');
     Route::delete('/issues/{issue}/watchers/{user}', [WatcherController::class, 'destroy'])->name('api.issues.watchers.destroy');
+    Route::get('/issues/{issue}/relations', [IssueRelationController::class, 'index'])->name('api.issues.relations.index');
+    Route::post('/issues/{issue}/relations', [IssueRelationController::class, 'store'])->name('api.issues.relations.store');
+    Route::delete('/relations/{relation}', [IssueRelationController::class, 'destroy'])->name('api.relations.destroy');
 
     Route::get('/projects/{project}/versions', [VersionController::class, 'index'])->name('api.versions.index');
     Route::post('/projects/{project}/versions', [VersionController::class, 'store'])->name('api.versions.store');

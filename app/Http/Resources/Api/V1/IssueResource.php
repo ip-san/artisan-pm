@@ -95,9 +95,14 @@ final class IssueResource extends JsonResource
      * a relation can't be used to infer the existence/subject of an issue
      * in a project the caller has no access to.
      *
+     * Bumped to public (rather than the other embed helpers, kept
+     * private) so IssueRelationController can reuse this exact same
+     * filter for the dedicated relations endpoint instead of
+     * reimplementing it.
+     *
      * @return array<int, array<string, mixed>>
      */
-    private function visibleRelations(Issue $issue, Request $request): array
+    public function visibleRelations(Issue $issue, Request $request): array
     {
         $user = $request->user();
 
