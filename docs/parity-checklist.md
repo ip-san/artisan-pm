@@ -496,7 +496,7 @@
 | Wiki pages | missing | — |
 | Queries | missing | — |
 | Journals | missing | — |
-| Watchers | missing | — |
+| Watchers | done(2026-07-24) | `POST /issues/{issue}/watchers`(`user_id`をボディで指定)・`DELETE /issues/{issue}/watchers/{user}`。Redmine本家の`WatchersController#create`/`#destroy`と同じ「CRUDリソースではないアクション専用エンドポイント」形(レスポンスは本家の`render_api_ok`と同じ204 No Content、ボディなし)。追加/削除とも既存の`IssuePolicy::manageWatchers()`(`add_issue_watchers`権限)で認可 — 本家は`add_issue_watchers`/`delete_issue_watchers`を動的に使い分けるが、本アプリの`IssuePolicy`は元々1つの権限を両方に再利用する設計(既存のWeb UIの`addWatcher()`/`removeWatcher()`と同じ)のため、本家にしかない権限を新設せず踏襲。追加対象はプロジェクトメンバーに限定(`Rule::exists('members', 'user_id')`、Web UIと同じ検証) |
 | Search | missing | — |
 | My account | missing | — |
 

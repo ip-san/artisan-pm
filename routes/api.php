@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\TrackerController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\VersionController;
+use App\Http\Controllers\Api\V1\WatcherController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +25,8 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::get('/issues/{issue}', [IssueController::class, 'show'])->name('api.issues.show');
     Route::put('/issues/{issue}', [IssueController::class, 'update'])->name('api.issues.update');
     Route::delete('/issues/{issue}', [IssueController::class, 'destroy'])->name('api.issues.destroy');
+    Route::post('/issues/{issue}/watchers', [WatcherController::class, 'store'])->name('api.issues.watchers.store');
+    Route::delete('/issues/{issue}/watchers/{user}', [WatcherController::class, 'destroy'])->name('api.issues.watchers.destroy');
 
     Route::get('/projects/{project}/versions', [VersionController::class, 'index'])->name('api.versions.index');
     Route::post('/projects/{project}/versions', [VersionController::class, 'store'])->name('api.versions.store');
