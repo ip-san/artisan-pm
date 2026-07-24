@@ -188,6 +188,14 @@ new #[Layout('components.layouts.app')] class extends Component
                             $fail('循環したブロック関係は作成できません。');
                         }
                     }
+
+                    if ($this->relationType === 'precedes' && IssueRelation::wouldCreateCycle($this->issue, $other)) {
+                        $fail('先行関係が循環しています。');
+                    }
+
+                    if ($this->relationType === 'follows' && IssueRelation::wouldCreateCycle($other, $this->issue)) {
+                        $fail('先行関係が循環しています。');
+                    }
                 },
             ],
             // copied_to is deliberately excluded from Rule::enum() here —

@@ -284,6 +284,81 @@ test('a circular direct blocks relation is rejected', function () {
     expect(IssueRelation::count())->toBe(1);
 });
 
+test('a direct circular precedes relation is rejected', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $other = makeIssue($project);
+    IssueRelation::create(['issue_from_id' => $issue->id, 'issue_to_id' => $other->id, 'relation_type' => 'precedes']);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $other])
+        ->set('relationType', 'precedes')
+        ->set('relatedIssueId', $issue->id)
+        ->call('addRelation')
+        ->assertHasErrors(['relatedIssueId']);
+
+    expect(IssueRelation::count())->toBe(1);
+});
+
+test('a chained circular precedes relation across three issues is rejected', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $a = makeIssue($project);
+    $b = makeIssue($project);
+    $c = makeIssue($project);
+    IssueRelation::create(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => 'precedes']);
+    IssueRelation::create(['issue_from_id' => $b->id, 'issue_to_id' => $c->id, 'relation_type' => 'precedes']);
+
+    // C already (transitively) follows A via B, so C precedes A would close the loop.
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $c])
+        ->set('relationType', 'precedes')
+        ->set('relatedIssueId', $a->id)
+        ->call('addRelation')
+        ->assertHasErrors(['relatedIssueId']);
+
+    expect(IssueRelation::count())->toBe(2);
+});
+
+test('a chained circular follows relation across three issues is rejected', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $a = makeIssue($project);
+    $b = makeIssue($project);
+    $c = makeIssue($project);
+    IssueRelation::create(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => 'precedes']);
+    IssueRelation::create(['issue_from_id' => $b->id, 'issue_to_id' => $c->id, 'relation_type' => 'precedes']);
+
+    // A already precedes C via B, so A follows C would close the loop.
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $a])
+        ->set('relationType', 'follows')
+        ->set('relatedIssueId', $c->id)
+        ->call('addRelation')
+        ->assertHasErrors(['relatedIssueId']);
+
+    expect(IssueRelation::count())->toBe(2);
+});
+
+test('a non-circular precedes relation extending an existing chain is accepted', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $a = makeIssue($project);
+    $b = makeIssue($project);
+    $c = makeIssue($project);
+    IssueRelation::create(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => 'precedes']);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $b])
+        ->set('relationType', 'precedes')
+        ->set('relatedIssueId', $c->id)
+        ->call('addRelation')
+        ->assertHasNoErrors();
+
+    expect(IssueRelation::count())->toBe(2);
+});
+
 test('adding a relation journals both issues with the type as seen from each side', function () {
     $project = Project::factory()->create();
     $user = relationProjectMember($project);

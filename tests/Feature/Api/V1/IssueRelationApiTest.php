@@ -184,6 +184,64 @@ test('a circular direct blocks relation is rejected', function () {
     ])->assertUnprocessable()->assertJsonValidationErrors(['issue_to_id']);
 });
 
+test('a chained circular precedes relation across three issues is rejected', function () {
+    $project = Project::factory()->create();
+    $user = apiRelationMember($project);
+    $a = apiRelationIssue($project);
+    $b = apiRelationIssue($project);
+    $c = apiRelationIssue($project);
+    IssueRelation::create(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => 'precedes']);
+    IssueRelation::create(['issue_from_id' => $b->id, 'issue_to_id' => $c->id, 'relation_type' => 'precedes']);
+
+    Passport::actingAs($user);
+
+    // C already (transitively) follows A via B, so C precedes A would close the loop.
+    $this->postJson("/api/v1/issues/{$c->id}/relations", [
+        'issue_to_id' => $a->id,
+        'relation_type' => 'precedes',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['issue_to_id']);
+
+    expect(IssueRelation::count())->toBe(2);
+});
+
+test('a chained circular follows relation across three issues is rejected', function () {
+    $project = Project::factory()->create();
+    $user = apiRelationMember($project);
+    $a = apiRelationIssue($project);
+    $b = apiRelationIssue($project);
+    $c = apiRelationIssue($project);
+    IssueRelation::create(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => 'precedes']);
+    IssueRelation::create(['issue_from_id' => $b->id, 'issue_to_id' => $c->id, 'relation_type' => 'precedes']);
+
+    Passport::actingAs($user);
+
+    // A already precedes C via B, so A follows C would close the loop.
+    $this->postJson("/api/v1/issues/{$a->id}/relations", [
+        'issue_to_id' => $c->id,
+        'relation_type' => 'follows',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['issue_to_id']);
+
+    expect(IssueRelation::count())->toBe(2);
+});
+
+test('a non-circular precedes relation extending an existing chain is accepted', function () {
+    $project = Project::factory()->create();
+    $user = apiRelationMember($project);
+    $a = apiRelationIssue($project);
+    $b = apiRelationIssue($project);
+    $c = apiRelationIssue($project);
+    IssueRelation::create(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => 'precedes']);
+
+    Passport::actingAs($user);
+
+    $this->postJson("/api/v1/issues/{$b->id}/relations", [
+        'issue_to_id' => $c->id,
+        'relation_type' => 'precedes',
+    ])->assertCreated();
+
+    expect(IssueRelation::count())->toBe(2);
+});
+
 test('a delay is recorded on a precedes relation but discarded for other types', function () {
     $project = Project::factory()->create();
     $user = apiRelationMember($project);

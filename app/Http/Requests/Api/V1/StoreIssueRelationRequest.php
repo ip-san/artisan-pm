@@ -91,6 +91,14 @@ final class StoreIssueRelationRequest extends FormRequest
                             $fail('循環したブロック関係は作成できません。');
                         }
                     }
+
+                    if ($relationType === 'precedes' && IssueRelation::wouldCreateCycle($issue, $other)) {
+                        $fail('先行関係が循環しています。');
+                    }
+
+                    if ($relationType === 'follows' && IssueRelation::wouldCreateCycle($other, $issue)) {
+                        $fail('先行関係が循環しています。');
+                    }
                 },
             ],
             // copied_to is deliberately excluded — system-generated only
