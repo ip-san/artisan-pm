@@ -14,6 +14,7 @@ use App\Models\PendingUpload;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\IssueService;
+use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Attachments\PendingUploadToken;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -136,6 +137,16 @@ final class IssueController extends Controller
             $pendingUploadId = $media->model_id;
             $filename = trim((string) ($upload['filename'] ?? ''));
             $description = trim((string) ($upload['description'] ?? ''));
+
+            // The original filename already passed the extension allow/deny
+            // list at upload time — a rename-on-attach override must be
+            // re-checked too, or it'd let a client upload as "notes.txt"
+            // (allowed) and relabel it "malware.exe" (denied) right here,
+            // bypassing the check entirely. Falls back to the original,
+            // already-validated name rather than dropping the attachment.
+            if ($filename !== '' && ! AttachmentValidationRules::isExtensionAllowed(pathinfo($filename, PATHINFO_EXTENSION))) {
+                $filename = '';
+            }
 
             // Custom properties carry over through move() (it's a
             // copy+delete under the hood — see Media::copy()), so the

@@ -6,6 +6,7 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use Laravel\Passport\Passport;
@@ -218,4 +219,40 @@ test('an unknown upload token is silently ignored rather than failing the reques
 
     $issue = Issue::where('subject', 'With bad token')->firstOrFail();
     expect($issue->attachments())->toHaveCount(0);
+});
+
+test('a filename override at attach time cannot bypass the extension deny list', function () {
+    Setting::set('attachment_extensions_denied', 'exe');
+
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'add_issues']);
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $priority = Enumeration::factory()->create(['is_default' => true]);
+    IssueStatus::factory()->create();
+
+    Passport::actingAs($user);
+
+    // The upload itself is fine — "notes.txt" isn't denied — so the
+    // extension check at upload time has nothing to catch here.
+    $uploadResponse = test()->call('POST', '/api/v1/uploads?filename=notes.txt', [], [], [], [
+        'HTTP_ACCEPT' => 'application/json',
+        'CONTENT_TYPE' => 'application/octet-stream',
+    ], 'hello world');
+    $token = $uploadResponse->json('upload.token');
+
+    $response = $this->postJson("/api/v1/projects/{$project->id}/issues", [
+        'tracker_id' => $tracker->id,
+        'priority_id' => $priority->id,
+        'subject' => 'Rename bypass attempt',
+        'uploads' => [['token' => $token, 'filename' => 'malware.exe']],
+    ]);
+
+    $response->assertCreated();
+
+    $issue = Issue::where('subject', 'Rename bypass attempt')->firstOrFail();
+    $attachment = $issue->attachments()->first();
+
+    expect($attachment)->not->toBeNull()
+        ->and($attachment->file_name)->toBe('notes.txt');
 });
