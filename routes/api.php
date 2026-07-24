@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\GroupController;
 use App\Http\Controllers\Api\V1\IssueCategoryController;
 use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\ProjectController;
@@ -39,4 +40,10 @@ Route::middleware('auth:api,api-key')->group(function () {
 
     Route::get('/trackers', [TrackerController::class, 'index'])->name('api.trackers.index');
     Route::get('/trackers/{tracker}', [TrackerController::class, 'show'])->name('api.trackers.show');
+
+    Route::get('/groups', [GroupController::class, 'index'])->name('api.groups.index');
+    Route::post('/groups', [GroupController::class, 'store'])->name('api.groups.store');
+    Route::get('/groups/{group}', [GroupController::class, 'show'])->name('api.groups.show');
+    Route::put('/groups/{group}', [GroupController::class, 'update'])->name('api.groups.update');
+    Route::delete('/groups/{group}', [GroupController::class, 'destroy'])->name('api.groups.destroy');
 });

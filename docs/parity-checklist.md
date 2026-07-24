@@ -484,7 +484,7 @@
 | Versions | done(2026-07-24) | GET(一覧/単体)/POST/PUT/DELETE。`VersionController`+`Store`/`UpdateVersionRequest`は既存の`IssueController`と同じ形(FormRequestで認可+バリデーション、`VersionService`委譲、201/204ステータス)。`VersionResource`はWebhookペイロード用に既に実装済みのものをそのまま流用。`sharing`のバリデーションは`Version::allowedSharings()`(管理者以外は`system`共有を選択不可などの既存ルール)をWebフォームと共通で適用 |
 | News | missing | — |
 | Memberships | missing | — |
-| Groups | missing | — |
+| Groups | done(2026-07-24) | GET(一覧/単体)/POST/PUT/DELETE。`GroupPolicy`が全操作を拒否しGate::before管理者バイパスのみで許可する設計のため、`viewAny`/`view`含む全アクションを明示的に認可(`TrackerController`の「index無条件公開」とは異なる)。`user_ids`配列で所属メンバーを作成/更新時に一括同期(Redmine本家の`safe_attributes=`(`user_ids=`)と同じ完全置き換え方式、本家が別途持つ`POST /groups/:id/users`のような追加専用のネストエンドポイントは対象外 — 既存コントローラにネスト型メンバーシップの前例がないため)。カスタムフィールド値の公開は他のAPIリソース(Issue/Version/IssueCategory)と同様に対象外 |
 | Roles | missing | — |
 | Trackers | done(2026-07-24) | GET(一覧/単体)のみ(Redmine本家もPOST/PUT/DELETEなし、トラッカーは管理画面専用)。本家の`TrackersController`は`index`のみ`require_admin_or_api_request`(APIリクエストなら管理者でなくてもアクセス可、Web UIは管理者限定)という特殊な認可を持つため、既存の管理者限定`TrackerPolicy`(Web CRUD用)は使わず、ルートの`auth:api,api-key`ミドルウェア(認証のみ)だけをゲートとして実装。プロジェクトによる絞り込みなし、ページネーションなし(本家の`Tracker.sorted.to_a`と同じ、全件返却) |
 | Issue statuses | missing | — |
