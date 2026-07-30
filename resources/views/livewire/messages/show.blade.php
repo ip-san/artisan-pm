@@ -46,7 +46,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->project = $project;
         $this->board = $board;
-        $this->topic = $message->load('author');
+        $this->topic = $message->load('author', 'reactions');
 
         // Every reply (not just the current pagination page) is queried
         // here so attachmentDescriptions is pre-filled regardless of which
@@ -66,7 +66,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function replies(): LengthAwarePaginator
     {
-        return $this->topic->replies()->with('author')->paginate(self::REPLIES_PER_PAGE);
+        return $this->topic->replies()->with(['author', 'reactions', 'board.project'])->paginate(self::REPLIES_PER_PAGE);
     }
 
     public function quote(int $messageId): void

@@ -91,7 +91,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $issue);
 
         $this->project = $project;
-        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user']);
+        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'journals.reactions', 'journals.issue.project', 'reactions', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user']);
 
         foreach ($this->issue->attachments() as $media) {
             $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
@@ -227,7 +227,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->reset('relatedIssueId', 'relationDelay');
         $this->issue->refresh();
         $this->reloadRelations();
-        $this->issue->load('journals.user', 'journals.details');
+        $this->reloadJournals();
     }
 
     public function deleteRelation(int $relationId): void
@@ -242,13 +242,18 @@ new #[Layout('components.layouts.app')] class extends Component
         app(IssueService::class)->journalizeRelation($relation, added: false, actor: auth()->user());
 
         $this->reloadRelations();
-        $this->issue->load('journals.user', 'journals.details');
+        $this->reloadJournals();
     }
 
     private function reloadRelations(): void
     {
         $this->issue->load(['relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project']);
         unset($this->relations);
+    }
+
+    private function reloadJournals(): void
+    {
+        $this->issue->load('journals.user', 'journals.details', 'journals.reactions', 'journals.issue.project');
     }
 
     /**
@@ -370,7 +375,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $journal->update(['notes' => $data['editingJournalNotes'] ?? '']);
 
         $this->reset('editingJournalId', 'editingJournalNotes');
-        $this->issue->load('journals.user', 'journals.details');
+        $this->reloadJournals();
     }
 
     public function addComment(): void
@@ -390,7 +395,7 @@ new #[Layout('components.layouts.app')] class extends Component
         ]);
 
         $this->reset('comment', 'commentIsPrivate');
-        $this->issue->load('journals.user', 'journals.details');
+        $this->reloadJournals();
     }
 
     /**
@@ -494,7 +499,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $media->delete();
         app(IssueService::class)->journalizeAttachment($this->issue, $media, added: false, actor: auth()->user());
-        $this->issue->load('journals.user', 'journals.details');
+        $this->reloadJournals();
     }
 
     /**

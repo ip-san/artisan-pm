@@ -17,6 +17,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Services\ReactionService;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 function reactionProjectMember(Project $project, array $permissions): User
@@ -198,4 +199,59 @@ test('the database uniquely constrains one reaction per user per object', functi
 
     expect(fn () => $issue->reactions()->create(['user_id' => $user->id]))
         ->toThrow(QueryException::class);
+});
+
+function countQueriesByTable(callable $callback, array $tables): array
+{
+    $counts = array_fill_keys($tables, 0);
+    $listener = function ($query) use (&$counts, $tables): void {
+        foreach ($tables as $table) {
+            if (str_contains($query->sql, '"'.$table.'"')) {
+                $counts[$table]++;
+            }
+        }
+    };
+
+    DB::listen($listener);
+    $callback();
+
+    return $counts;
+}
+
+test('rendering an issue with several journals does not issue one reactions/issues/projects query per journal', function () {
+    // Two issues with a different journal count each: if either query
+    // family scaled per-journal (rather than being resolved by the
+    // mount()-time eager load), the 5-journal issue would show strictly
+    // more queries than the 1-journal issue. Asserting equality this way
+    // is robust to unrelated baseline queries (route binding, the empty
+    // children/relations eager loads, etc.) that a fixed magic number
+    // would have to hardcode and would break on the next unrelated change.
+    $project = Project::factory()->create();
+    $user = reactionProjectMember($project, ['view_issues']);
+
+    $lightIssue = reactableIssue($project);
+    Journal::create(['issue_id' => $lightIssue->id, 'user_id' => $user->id, 'notes' => 'note']);
+
+    $heavyIssue = reactableIssue($project);
+    $journals = collect(range(1, 5))->map(fn () => Journal::create([
+        'issue_id' => $heavyIssue->id,
+        'user_id' => $user->id,
+        'notes' => 'note',
+    ]));
+    $heavyIssue->reactions()->create(['user_id' => $user->id]);
+    $journals->first()->reactions()->create(['user_id' => $user->id]);
+
+    $tables = ['reactions', 'issues', 'projects'];
+
+    $lightCounts = countQueriesByTable(
+        fn () => Livewire::actingAs($user)->test('issues.show', ['project' => $project, 'issue' => $lightIssue->fresh()]),
+        $tables,
+    );
+
+    $heavyCounts = countQueriesByTable(
+        fn () => Livewire::actingAs($user)->test('issues.show', ['project' => $project, 'issue' => $heavyIssue->fresh()]),
+        $tables,
+    );
+
+    expect($heavyCounts)->toBe($lightCounts);
 });

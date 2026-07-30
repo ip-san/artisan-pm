@@ -30,7 +30,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $news);
 
         $this->project = $project;
-        $this->news = $news->load('author');
+        $this->news = $news->load('author', 'reactions');
 
         foreach ($this->news->attachments() as $media) {
             $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
@@ -43,7 +43,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function comments(): Collection
     {
-        return $this->news->comments()->with('author')->get();
+        return $this->news->comments()->with(['author', 'reactions', 'news.project'])->get();
     }
 
     public function addComment(): void
