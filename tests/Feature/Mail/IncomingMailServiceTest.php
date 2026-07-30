@@ -610,6 +610,29 @@ test('a keyword line on a reply updates the existing issue and is stripped from 
         ->and($issue->fresh()->journals()->latest()->first()->notes)->toBe('Fixed now.');
 });
 
+test('a Status keyword line on a reply reopens a closed issue', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $closedStatus = IssueStatus::factory()->create(['name' => 'Closed', 'is_closed' => true]);
+    $openStatus = IssueStatus::factory()->create(['name' => 'Reopened', 'is_closed' => false]);
+    $project->trackers()->attach($tracker);
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => $closedStatus->id, 'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+    $author = incomingMailAuthor($project, ['view_issues', 'edit_issues']);
+
+    $mail = new ParsedIncomingMail(
+        subject: "[{$project->identifier} #{$issue->id}] Re: something",
+        body: "Still happening.\nStatus: Reopened",
+        fromEmail: $author->email,
+    );
+
+    $result = app(IncomingMailService::class)->createIssueFromMail($mail);
+
+    expect($result->status_id)->toBe($openStatus->id)
+        ->and($result->status->is_closed)->toBeFalse();
+});
+
 test('a Parent issue keyword line sets parent_id on a newly created issue', function () {
     $project = Project::factory()->create();
     $tracker = Tracker::factory()->create();

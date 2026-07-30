@@ -5,6 +5,7 @@ use App\Providers\AppServiceProvider;
 use App\Providers\CustomFieldServiceProvider;
 use App\Providers\DashboardBlockServiceProvider;
 use App\Providers\FortifyServiceProvider;
+use App\Providers\MailNotificationServiceProvider;
 use App\Providers\MorphMapServiceProvider;
 use App\Providers\PermissionServiceProvider;
 use App\Providers\PluginServiceProvider;
@@ -17,6 +18,7 @@ return [
     CustomFieldServiceProvider::class,
     DashboardBlockServiceProvider::class,
     FortifyServiceProvider::class,
+    MailNotificationServiceProvider::class,
     MorphMapServiceProvider::class,
     PermissionServiceProvider::class,
     PluginServiceProvider::class,

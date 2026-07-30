@@ -9,12 +9,14 @@ use App\Services\GanttService;
 use App\Support\Gantt\GanttRow;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
@@ -214,10 +216,64 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         return (($from->diffInDays($to) + 1) / $this->totalDays) * 100;
     }
+
+    /**
+     * Matches Redmine's GanttsController#show format.pdf. Same
+     * dompdf-over-a-print-styled-Blade-view approach as the issue/wiki PDF
+     * exports; see resources/views/components/pdf/cjk-font.blade.php for why a
+     * bundled CJK font is required. The relation-line overlay the HTML
+     * chart draws via inline SVG is intentionally left out here — dompdf's
+     * SVG support is inconsistent enough that verifying it renders
+     * correctly (the same empirical bar the CJK font work was held to)
+     * wasn't practical within this slice; bars, month bands, and
+     * milestones (the chart's primary information) are unaffected.
+     */
+    public function exportPdf(): StreamedResponse
+    {
+        $this->authorize('viewGantt', $this->project);
+
+        if ($this->rangeStart === null) {
+            abort(404);
+        }
+
+        $barPositions = $this->rows->mapWithKeys(fn (GanttRow $row) => [
+            $row->id => $row->hasDateRange()
+                ? ['left' => $this->barLeftPercent($row), 'width' => $this->barWidthPercent($row)]
+                : null,
+        ])->filter();
+
+        $versionPositions = $this->versions->mapWithKeys(fn (Version $version) => [
+            $version->id => $this->versionMarkerLeftPercent($version),
+        ]);
+
+        $html = view('pdf.gantt', [
+            'project' => $this->project,
+            'rows' => $this->rows,
+            'versions' => $this->versions,
+            'monthBands' => $this->monthBands,
+            'barPositions' => $barPositions,
+            'versionPositions' => $versionPositions,
+        ])->render();
+
+        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape')->output();
+
+        return response()->streamDownload(
+            fn () => print ($pdf),
+            "{$this->project->identifier}-gantt.pdf",
+            ['Content-Type' => 'application/pdf'],
+        );
+    }
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">{{ $project->name }} — ガントチャート</h1>
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — ガントチャート</h1>
+        @if ($this->rangeStart !== null)
+            <button wire:click="exportPdf" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                PDF
+            </button>
+        @endif
+    </div>
 
     <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />

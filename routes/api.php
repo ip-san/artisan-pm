@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\IssueCategoryController;
 use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\IssueRelationController;
 use App\Http\Controllers\Api\V1\IssueStatusController;
+use App\Http\Controllers\Api\V1\JournalController;
 use App\Http\Controllers\Api\V1\MembershipController;
 use App\Http\Controllers\Api\V1\MyAccountController;
 use App\Http\Controllers\Api\V1\NewsController;
@@ -26,11 +27,18 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
-})->middleware('auth:api,api-key');
+})->middleware(['rest-api.enabled', 'auth:api,api-key']);
 
-Route::middleware('auth:api,api-key')->group(function () {
+Route::middleware(['rest-api.enabled', 'auth:api,api-key'])->group(function () {
     Route::get('/projects', [ProjectController::class, 'index'])->name('api.projects.index');
+    Route::post('/projects', [ProjectController::class, 'store'])->name('api.projects.store');
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('api.projects.show');
+    Route::put('/projects/{project}', [ProjectController::class, 'update'])->name('api.projects.update');
+    Route::post('/projects/{project}/close', [ProjectController::class, 'close'])->name('api.projects.close');
+    Route::post('/projects/{project}/reopen', [ProjectController::class, 'reopen'])->name('api.projects.reopen');
+    Route::post('/projects/{project}/archive', [ProjectController::class, 'archive'])->name('api.projects.archive');
+    Route::post('/projects/{project}/unarchive', [ProjectController::class, 'unarchive'])->name('api.projects.unarchive');
+    Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->name('api.projects.destroy');
 
     Route::get('/projects/{project}/issues', [IssueController::class, 'index'])->name('api.issues.index');
     Route::post('/projects/{project}/issues', [IssueController::class, 'store'])->name('api.issues.store');
@@ -42,6 +50,7 @@ Route::middleware('auth:api,api-key')->group(function () {
     Route::get('/issues/{issue}/relations', [IssueRelationController::class, 'index'])->name('api.issues.relations.index');
     Route::post('/issues/{issue}/relations', [IssueRelationController::class, 'store'])->name('api.issues.relations.store');
     Route::delete('/relations/{relation}', [IssueRelationController::class, 'destroy'])->name('api.relations.destroy');
+    Route::put('/journals/{journal}', [JournalController::class, 'update'])->name('api.journals.update');
 
     Route::get('/projects/{project}/versions', [VersionController::class, 'index'])->name('api.versions.index');
     Route::post('/projects/{project}/versions', [VersionController::class, 'store'])->name('api.versions.store');

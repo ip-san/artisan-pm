@@ -21,3 +21,8 @@ parameters:
             # PHP with template syntax phpstan can't parse).
             message: '#^Trait App\\Concerns\\InteractsWithQueryFilters is used zero times#'
             path: app/Concerns/InteractsWithQueryFilters.php
+        -
+            # Same reasoning as InteractsWithQueryFilters above — only used
+            # by Volt single-file components under resources/views.
+            message: '#^Trait App\\Support\\Auth\\RequiresPasswordConfirmation is used zero times#'
+            path: app/Support/Auth/RequiresPasswordConfirmation.php

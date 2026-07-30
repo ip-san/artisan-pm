@@ -23,6 +23,7 @@
                             <a href="{{ route('time-entries.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">工数</a>
                             <a href="{{ route('news.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">お知らせ</a>
                             <a href="{{ route('calendar.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">カレンダー</a>
+                            <a href="{{ route('activity.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">活動</a>
                             <a href="{{ route('search.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">検索</a>
                             @can('viewAny', \App\Models\Role::class)
                                 <a href="{{ route('roles.index') }}" class="text-sm text-gray-600 hover:text-gray-900">ロール管理</a>
@@ -35,6 +36,7 @@
                             @endcan
                             @can('manage', \App\Models\Setting::class)
                                 <a href="{{ route('settings.index') }}" class="text-sm text-gray-600 hover:text-gray-900">設定</a>
+                                <a href="{{ route('plugins.index') }}" class="text-sm text-gray-600 hover:text-gray-900">プラグイン</a>
                             @endcan
                             @can('viewAny', \App\Models\AuthSource::class)
                                 <a href="{{ route('auth-sources.index') }}" class="text-sm text-gray-600 hover:text-gray-900">LDAP認証</a>

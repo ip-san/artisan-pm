@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\EnumerationType;
+use App\Enums\MailNotificationOption;
 use App\Enums\ProjectModuleKey;
 use App\Enums\RepositoryType;
 use App\Models\Enumeration;
@@ -9,6 +10,7 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\IssueStatus;
+use App\Support\Mail\NotificationRecipients;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -43,9 +45,42 @@ new #[Layout('components.layouts.app')] class extends Component
         'done_ratio' => '進捗率',
     ];
 
+    /**
+     * Matches App\Support\Mail\NotificationRecipients::defaultNotifiedEvents()
+     * — only the two event keys actually wired to a mail-sending listener
+     * today. Redmine also has issue_note_added/news_added/wiki_content_*,
+     * but this app's IssueService only ever dispatches a single
+     * "issue_updated" event for any update (comment-only included, so a
+     * separate issue_note_added toggle would be a no-op), and News/Wiki
+     * have no notification listener yet at all — offering their toggles
+     * here would violate this checklist's own §0.5 principle #1 (no
+     * settings row without the matching feature in the same commit).
+     * Add a key here in the same commit that wires its listener.
+     *
+     * @var array<string, string>
+     */
+    public const array NOTIFIED_EVENTS = [
+        'issue_added' => '課題が作成されたとき',
+        'issue_updated' => '課題が更新されたとき',
+        'wiki_content_added' => 'Wikiページが追加されたとき',
+        'wiki_content_updated' => 'Wikiページが更新されたとき',
+        'news_added' => 'お知らせが投稿されたとき',
+        'news_comment_added' => 'お知らせにコメントが投稿されたとき',
+    ];
+
     public string $app_title = '';
 
+    public string $welcome_text = '';
+
     public int $default_issues_per_page = 25;
+
+    // Redmine's own default is 10 — kept at 7 here to match this app's
+    // pre-existing hardcoded activity-feed window (activity/index.blade.php,
+    // activity/global-index.blade.php), so introducing this setting doesn't
+    // silently change the default view for existing installs.
+    public int $activity_days_default = 7;
+
+    public bool $reactions_enabled = true;
 
     public bool $incoming_mail_enabled = false;
 
@@ -100,6 +135,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $self_registration = 'automatic';
 
+    public bool $unsubscribe = true;
+
     public int $session_timeout = 0;
 
     public string $email_domains_allowed = '';
@@ -107,6 +144,14 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $email_domains_denied = '';
 
     public int $password_min_length = 8;
+
+    public bool $autologin = false;
+
+    public bool $rest_api_enabled = false;
+
+    public bool $login_required = true;
+
+    public string $twofa = '0';
 
     public bool $default_projects_public = true;
 
@@ -120,17 +165,38 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $new_project_user_role_id = null;
 
+    /** @var array<string> */
+    public array $notified_events = [];
+
+    public string $mail_from = '';
+
+    public bool $plain_text_mail = false;
+
+    public bool $default_users_no_self_notified = true;
+
+    public string $default_notification_option = 'only_assigned';
+
+    public string $emails_footer = '';
+
     public function mount(): void
     {
         $this->authorize('manage', Setting::class);
 
         $this->self_registration = Setting::get('self_registration', 'automatic');
+        $this->unsubscribe = Setting::get('unsubscribe', true);
         $this->session_timeout = Setting::get('session_timeout', 0);
         $this->email_domains_allowed = Setting::get('email_domains_allowed', '');
         $this->email_domains_denied = Setting::get('email_domains_denied', '');
         $this->password_min_length = Setting::get('password_min_length', 8);
+        $this->autologin = Setting::get('autologin', false);
+        $this->rest_api_enabled = Setting::get('rest_api_enabled', false);
+        $this->login_required = Setting::get('login_required', true);
+        $this->twofa = Setting::get('twofa', '0');
         $this->app_title = Setting::get('app_title', config('app.name'));
+        $this->welcome_text = Setting::get('welcome_text', '');
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
+        $this->activity_days_default = Setting::get('activity_days_default', 7);
+        $this->reactions_enabled = Setting::get('reactions_enabled', true);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
         $this->close_duplicate_issues = Setting::get('close_duplicate_issues', true);
         $this->parent_issue_priority = Setting::get('parent_issue_priority', true);
@@ -177,6 +243,12 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->default_projects_tracker_ids = Setting::get('default_projects_tracker_ids', []);
         $this->sequential_project_identifiers = Setting::get('sequential_project_identifiers', false);
         $this->new_project_user_role_id = Setting::get('new_project_user_role_id');
+        $this->notified_events = Setting::get('notified_events', NotificationRecipients::defaultNotifiedEvents());
+        $this->mail_from = Setting::get('mail_from', '');
+        $this->plain_text_mail = Setting::get('plain_text_mail', false);
+        $this->default_users_no_self_notified = Setting::get('default_users_no_self_notified', true);
+        $this->default_notification_option = Setting::get('default_notification_option', 'only_assigned');
+        $this->emails_footer = Setting::get('emails_footer', '');
     }
 
     #[Computed]
@@ -224,7 +296,10 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $data = $this->validate([
             'app_title' => ['required', 'string', 'max:255'],
+            'welcome_text' => ['nullable', 'string', 'max:5000'],
             'default_issues_per_page' => ['required', 'integer', 'min:5', 'max:200'],
+            'activity_days_default' => ['required', 'integer', 'min:1', 'max:365'],
+            'reactions_enabled' => ['boolean'],
             'incoming_mail_enabled' => ['boolean'],
             'incoming_mail_default_project_id' => ['nullable', 'exists:projects,id'],
             'incoming_mail_default_tracker_id' => ['nullable', 'exists:trackers,id'],
@@ -253,11 +328,16 @@ new #[Layout('components.layouts.app')] class extends Component
             'issue_list_default_columns' => ['array', 'min:1'],
             'issue_list_default_columns.*' => [Rule::in(array_keys(self::ISSUE_LIST_COLUMNS))],
             'start_of_week' => ['required', Rule::in([0, 1, 6])],
-            'self_registration' => ['required', 'in:disabled,manual,automatic'],
+            'self_registration' => ['required', 'in:disabled,manual,email,automatic'],
+            'unsubscribe' => ['boolean'],
             'session_timeout' => ['required', Rule::in([0, 60, 120, 240, 480, 720, 1440, 2880])],
             'email_domains_allowed' => ['nullable', 'string', 'max:1000'],
             'email_domains_denied' => ['nullable', 'string', 'max:1000'],
             'password_min_length' => ['required', 'integer', 'min:1', 'max:255'],
+            'autologin' => ['boolean'],
+            'rest_api_enabled' => ['boolean'],
+            'login_required' => ['boolean'],
+            'twofa' => ['required', 'in:0,1,2,3'],
             'default_projects_public' => ['boolean'],
             'default_projects_modules' => ['array'],
             'default_projects_modules.*' => [Rule::in(array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::cases()))],
@@ -265,6 +345,13 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_projects_tracker_ids.*' => ['exists:trackers,id'],
             'sequential_project_identifiers' => ['boolean'],
             'new_project_user_role_id' => ['nullable', 'exists:roles,id'],
+            'notified_events' => ['array'],
+            'notified_events.*' => [Rule::in(array_keys(self::NOTIFIED_EVENTS))],
+            'mail_from' => ['nullable', 'email', 'max:255'],
+            'plain_text_mail' => ['boolean'],
+            'default_users_no_self_notified' => ['boolean'],
+            'default_notification_option' => ['required', Rule::in(array_map(fn (MailNotificationOption $o) => $o->value, MailNotificationOption::cases()))],
+            'emails_footer' => ['nullable', 'string', 'max:2000'],
         ]);
 
         // Blank rows (no keywords typed) are dropped rather than saved and
@@ -299,9 +386,23 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
+                <label class="block text-sm font-medium text-gray-700">ウェルカムメッセージ</label>
+                <textarea wire:model="welcome_text" rows="5"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+                <p class="mt-1 text-xs text-gray-500">プロジェクト一覧(ホーム)画面の先頭に表示されます。Markdown記法が使えます。空欄の場合は何も表示されません。</p>
+                @error('welcome_text') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
                 <label class="block text-sm font-medium text-gray-700">課題一覧の1ページあたりの件数</label>
                 <input type="number" wire:model="default_issues_per_page" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('default_issues_per_page') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">活動画面の既定の表示期間(日数)</label>
+                <input type="number" min="1" max="365" wire:model="activity_days_default" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('activity_days_default') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>
@@ -336,6 +437,11 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" wire:model="cross_project_issue_relations" class="rounded border-gray-300">
                 プロジェクトをまたいだ課題関連を許可する
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="reactions_enabled" class="rounded border-gray-300">
+                リアクション(いいね)機能を有効にする
             </label>
 
             <div>
@@ -438,12 +544,18 @@ new #[Layout('components.layouts.app')] class extends Component
                 <select wire:model="self_registration" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                     <option value="disabled">無効(登録ページを表示しない)</option>
                     <option value="manual">管理者の承認が必要</option>
+                    <option value="email">メールでの確認が必要</option>
                     <option value="automatic">自動的に有効化</option>
                 </select>
                 @error('self_registration') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                <p class="mt-1 text-xs text-gray-500">
-                    メール確認によるアカウント有効化(Redmineの3つ目のモード)は、本アプリに送信メール基盤が無いため未対応です。
-                </p>
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="unsubscribe" class="rounded border-gray-300">
+                    ユーザーが自分自身でアカウントを削除できるようにする
+                </label>
+                @error('unsubscribe') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>
@@ -487,6 +599,109 @@ new #[Layout('components.layouts.app')] class extends Component
                 <p class="mt-1 text-xs text-gray-500">
                     新規登録・管理者によるユーザー作成・パスワード変更のすべてに適用されます(Redmine本家の文字種別必須設定・パスワード有効期限は、それぞれ本アプリのバリデーションルールでは表現できない/専用の運用基盤が必要なため対象外です)。
                 </p>
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="autologin" class="rounded border-gray-300">
+                    ログインページに「ログイン状態を保持」チェックボックスを表示する
+                </label>
+                <p class="mt-1 text-xs text-gray-500">無効の場合、チェックボックス自体が表示されず、ログインは常にセッションクッキー(ブラウザを閉じると失効)のみになります。</p>
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="rest_api_enabled" class="rounded border-gray-300">
+                    REST APIを有効にする
+                </label>
+                <p class="mt-1 text-xs text-gray-500">無効の場合、APIキー/OAuth2による認証を試みる前にすべてのAPIリクエストを拒否します(既定は無効、Redmine本家と同じ)。</p>
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="login_required" class="rounded border-gray-300">
+                    全ページにログインを必要とする
+                </label>
+                <p class="mt-1 text-xs text-gray-500">
+                    無効にすると、未ログインのユーザーでも公開プロジェクトの課題一覧・課題詳細・Wikiページ・添付ファイルを閲覧できるようになります(それ以外の操作・非公開プロジェクトは引き続きログインが必要です)。既定は有効(本アプリの従来の挙動を維持)。
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">二要素認証</label>
+                <select wire:model="twofa" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="0">無効</option>
+                    <option value="1">任意(ユーザーが選択可能)</option>
+                    <option value="2">全ユーザーに必須</option>
+                    <option value="3">管理者のみ必須</option>
+                </select>
+                @error('twofa') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">
+                    「必須」に設定すると、対象ユーザーは二要素認証を設定するまでアカウント設定ページ以外にアクセスできなくなります(Redmine本家のグループ単位の必須設定は、本アプリにグループ側の対応する属性が無いため対象外です)。
+                </p>
+            </div>
+        </section>
+
+        <section class="space-y-4 border-t border-gray-200 pt-6">
+            <h2 class="text-sm font-semibold text-gray-900">メール通知</h2>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">通知するイベント</label>
+                <div class="mt-1 space-y-1">
+                    @foreach (self::NOTIFIED_EVENTS as $key => $label)
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" value="{{ $key }}" wire:model="notified_events" class="rounded border-gray-300">
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('notified_events') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">
+                    ここで無効にしたイベントは、各ユーザーの通知設定に関わらず一切メール送信されません。お知らせ/Wikiのメール通知は今後の対応予定です。
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">送信元メールアドレス(空欄で環境設定の既定値を使用)</label>
+                <input type="email" wire:model="mail_from" placeholder="{{ config('mail.from.address') }}"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('mail_from') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="plain_text_mail" class="rounded border-gray-300">
+                    テキスト形式のみで送信する(HTML形式を含めない)
+                </label>
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="default_users_no_self_notified" class="rounded border-gray-300">
+                    新規ユーザーの既定で、自分自身が行った変更については通知メールを送信しない
+                </label>
+                <p class="mt-1 text-xs text-gray-500">
+                    ここでの設定は新規ユーザー作成時の初期値です。各ユーザーはプロフィール画面で個別に変更できます。
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">新規ユーザーの既定のメール通知</label>
+                <select wire:model="default_notification_option" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach (MailNotificationOption::cases() as $option)
+                        <option value="{{ $option->value }}">{{ $option->label() }}</option>
+                    @endforeach
+                </select>
+                @error('default_notification_option') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">
+                    ここでの設定は新規ユーザー作成時の初期値です。各ユーザーはプロフィール画面で個別に変更できます。
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">通知メールの署名</label>
+                <textarea wire:model="emails_footer" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+                @error('emails_footer') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
         </section>
 

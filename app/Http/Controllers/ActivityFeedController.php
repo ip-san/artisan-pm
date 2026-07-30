@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Setting;
 use App\Support\Activity\ActivityProviderRegistry;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
@@ -12,15 +13,14 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Renders the same aggregated activity this project's activity page shows
  * (see resources/views/livewire/activity/index.blade.php) as an Atom feed —
- * matches Redmine's project activity.atom. Defaults mirror Redmine's own
- * activity_days_default/feeds_limit settings (10 days, 15 entries) rather
- * than exposing them as configurable Settings, to keep this endpoint
- * simple; a query string could reasonably add that later.
+ * matches Redmine's project activity.atom, and now shares the same
+ * Setting::activity_days_default (added 2026-07-30) the HTML view reads,
+ * so an admin's configured window applies consistently to both. LIMIT
+ * remains a hardcoded stand-in for Redmine's Setting.feeds_limit, which
+ * this app doesn't expose as a setting yet.
  */
 final class ActivityFeedController extends Controller
 {
-    private const DAYS = 10;
-
     /**
      * Public so other feed endpoints (BoardAtomController) share the
      * same cap — the stand-in for Redmine's Setting.feeds_limit.
@@ -31,7 +31,7 @@ final class ActivityFeedController extends Controller
     {
         Gate::authorize('view', $project);
 
-        $from = now()->subDays(self::DAYS)->startOfDay();
+        $from = now()->subDays(Setting::get('activity_days_default', 7))->startOfDay();
         $to = now()->endOfDay();
 
         $entries = app(ActivityProviderRegistry::class)->all()

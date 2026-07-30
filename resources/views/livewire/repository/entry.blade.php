@@ -14,11 +14,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $path;
 
-    public function mount(Project $project, string $path): void
+    public function mount(Project $project, string $path, ?string $repositoryParam = null): void
     {
         $this->authorize('browse', [Repository::class, $project]);
 
-        $repository = $project->repository;
+        $repository = $project->resolveRepository($repositoryParam);
         abort_if($repository === null, 404);
 
         $this->project = $project;
@@ -51,9 +51,9 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="mb-6">
         <p class="text-sm text-gray-500">
-            <a href="{{ route('repository.index', $project) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
             /
-            <a href="{{ route('repository.browse', [$project, $this->directoryPath]) }}" class="text-indigo-600 hover:underline">
+            <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $this->directoryPath])) }}" class="text-indigo-600 hover:underline">
                 ファイル一覧
             </a>
         </p>
@@ -61,16 +61,16 @@ new #[Layout('components.layouts.app')] class extends Component
             <h1 class="text-xl font-semibold text-gray-900 font-mono">{{ $path }}</h1>
             <div class="flex gap-2">
                 @unless ($this->isBinary)
-                    <a href="{{ route('repository.annotate', [$project, $path]) }}"
+                    <a href="{{ route($repository->routeName('repository.annotate'), $repository->routeParameters(['path' => $path])) }}"
                         class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
                         注釈
                     </a>
                 @endunless
-                <a href="{{ route('repository.file-history', [$project, $path]) }}"
+                <a href="{{ route($repository->routeName('repository.file-history'), $repository->routeParameters(['path' => $path])) }}"
                     class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     履歴
                 </a>
-                <a href="{{ route('repository.raw', [$project, $path]) }}"
+                <a href="{{ route($repository->routeName('repository.raw'), $repository->routeParameters(['path' => $path])) }}"
                     class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     ダウンロード
                 </a>

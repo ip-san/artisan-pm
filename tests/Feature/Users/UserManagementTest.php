@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\MailNotificationOption;
 use App\Enums\UserStatus;
 use App\Models\AuthSource;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +15,7 @@ use PragmaRX\Google2FA\Google2FA;
 test('is_admin cannot be set through plain mass assignment', function () {
     $user = User::create([
         'name' => 'Mass Assignment Attempt',
+        'login' => 'mass-assign-attempt',
         'email' => 'mass-assign@example.com',
         'password' => 'irrelevant-password',
         'is_admin' => true,
@@ -31,6 +34,7 @@ test('an admin can create a local user with a password', function () {
     Livewire::actingAs($admin)
         ->test('users.form')
         ->set('name', 'New User')
+        ->set('login', 'new-user')
         ->set('email', 'new-user@example.com')
         ->set('password', 'a-strong-password')
         ->set('password_confirmation', 'a-strong-password')
@@ -42,6 +46,43 @@ test('an admin can create a local user with a password', function () {
     expect(Hash::check('a-strong-password', $user->password))->toBeTrue()
         ->and($user->status)->toBe(UserStatus::Active)
         ->and($user->is_admin)->toBeFalse();
+});
+
+test('an admin-created user is seeded from the default_users_no_self_notified setting', function () {
+    Setting::set('default_users_no_self_notified', false);
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('users.form')
+        ->set('name', 'New User')
+        ->set('login', 'new-user')
+        ->set('email', 'new-user@example.com')
+        ->set('password', 'a-strong-password')
+        ->set('password_confirmation', 'a-strong-password')
+        ->call('save')
+        ->assertRedirect(route('users.index'));
+
+    $user = User::where('email', 'new-user@example.com')->firstOrFail();
+    expect($user->no_self_notified)->toBeFalse();
+});
+
+test('a newly created user is seeded from the default_notification_option setting', function () {
+    Setting::set('default_notification_option', 'none');
+
+    // Goes through the real creation path (Eloquent's creating() hook on
+    // User, not a direct format/enum call) so this actually exercises
+    // User::booted()'s seeding logic rather than just the enum itself.
+    $user = User::factory()->create();
+
+    expect($user->mail_notification)->toBe(MailNotificationOption::None);
+});
+
+test('an explicitly passed mail_notification is not overridden by the default_notification_option setting', function () {
+    Setting::set('default_notification_option', 'none');
+
+    $user = User::factory()->create(['mail_notification' => 'all']);
+
+    expect($user->mail_notification)->toBe(MailNotificationOption::All);
 });
 
 test('creating a local user without a password fails validation', function () {

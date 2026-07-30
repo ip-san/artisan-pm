@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\HasReactions;
 use Database\Factories\NewsCommentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 final class NewsComment extends Model
 {
     /** @use HasFactory<NewsCommentFactory> */
-    use HasFactory;
+    use HasFactory, HasReactions;
 
     /**
      * @return BelongsTo<News, $this>

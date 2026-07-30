@@ -8,8 +8,10 @@ use App\Models\Document;
 use App\Models\Enumeration;
 use App\Models\Group;
 use App\Models\Issue;
+use App\Models\Journal;
 use App\Models\Message;
 use App\Models\News;
+use App\Models\NewsComment;
 use App\Models\PendingUpload;
 use App\Models\Project;
 use App\Models\User;
@@ -41,6 +43,8 @@ final class MorphMapServiceProvider extends ServiceProvider
             'project' => Project::class,
             'wiki_page' => WikiPage::class,
             'message' => Message::class,
+            'journal' => Journal::class,
+            'news_comment' => NewsComment::class,
             'group' => Group::class,
             'time_entry_activity' => Enumeration::class,
             'document_category' => Enumeration::class,

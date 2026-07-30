@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CustomFieldDefaultValueMode;
 use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Models\CustomField;
@@ -35,6 +36,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $default_value = '';
 
+    public string $default_value_mode = 'fixed_date';
+
     public bool $searchable = false;
 
     public bool $editable = true;
@@ -68,6 +71,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->max_length = $customField->max_length;
             $this->regexp = (string) $customField->regexp;
             $this->default_value = (string) $customField->default_value;
+            $this->default_value_mode = $customField->default_value_mode?->value ?? 'fixed_date';
             $this->searchable = $customField->searchable;
             $this->editable = $customField->editable;
             $this->possibleValuesText = implode("\n", $customField->possible_values ?? []);
@@ -252,7 +256,19 @@ new #[Layout('components.layouts.app')] class extends Component
                     $fail('正規表現の形式が正しくありません。');
                 }
             }],
-            'default_value' => ['nullable', 'string'],
+            'default_value_mode' => [Rule::in(array_map(fn (CustomFieldDefaultValueMode $m) => $m->value, CustomFieldDefaultValueMode::cases()))],
+            // Matches Redmine's own branching (custom_field.rb's validate
+            // callback): a date_offset default is a signed integer day
+            // count, while a fixed_date (or any non-date format) default
+            // goes through the field's own format validation — for date
+            // that's an actual date string, so switching a field from
+            // date_offset back to fixed_date can't leave a stale "7" in
+            // default_value silently passing validation as a date.
+            'default_value' => match (true) {
+                $fieldFormat !== CustomFieldFormat::Date->value => ['nullable', 'string'],
+                $this->default_value_mode === CustomFieldDefaultValueMode::DateOffset->value => ['nullable', 'integer'],
+                default => ['nullable', 'date'],
+            },
             'searchable' => ['boolean'],
             'editable' => ['boolean'],
             'trackerIds' => $isForIssues ? ['required', 'array', 'min:1'] : ['array'],
@@ -277,7 +293,14 @@ new #[Layout('components.layouts.app')] class extends Component
             'min_length' => $data['min_length'],
             'max_length' => $data['max_length'],
             'regexp' => $data['regexp'] !== '' ? $data['regexp'] : null,
-            'default_value' => $data['default_value'] !== '' ? $data['default_value'] : null,
+            'default_value' => $data['default_value'] !== '' && $data['default_value'] !== null ? (string) $data['default_value'] : null,
+            // Only meaningful for a date field — matches Redmine's own
+            // CustomField#default_value_mode being read only when
+            // field_format == 'date' (CustomField::defaultValue()).
+            // Persisting null for every other format keeps stale mode
+            // values from lingering if a field's format could ever change
+            // (it can't today, but this avoids relying on that).
+            'default_value_mode' => $fieldFormat === CustomFieldFormat::Date->value ? $data['default_value_mode'] : null,
             'searchable' => $data['searchable'],
             'editable' => $data['editable'],
             'possible_values' => $possibleValues,
@@ -340,7 +363,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <select wire:model.live="field_format" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                     <option value="">選択してください</option>
                     @foreach (\App\Enums\CustomFieldFormat::cases() as $format)
-                        <option value="{{ $format->value }}">{{ $format->value }}</option>
+                        <option value="{{ $format->value }}">{{ app(\App\CustomFields\FormatRegistry::class)->get($format)->label() }}</option>
                     @endforeach
                 </select>
                 @error('field_format') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
@@ -430,8 +453,27 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div>
             <label class="block text-sm font-medium text-gray-700">既定値(任意、新規課題作成時に自動入力)</label>
-            <input type="text" wire:model="default_value" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+
+            @if ($field_format === \App\Enums\CustomFieldFormat::Date->value)
+                <select wire:model.live="default_value_mode" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Enums\CustomFieldDefaultValueMode::cases() as $mode)
+                        <option value="{{ $mode->value }}">{{ $mode->label() }}</option>
+                    @endforeach
+                </select>
+
+                @if ($default_value_mode === \App\Enums\CustomFieldDefaultValueMode::DateOffset->value)
+                    <input type="number" wire:model="default_value" placeholder="例: 7(7日後)、-3(3日前)"
+                        class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">課題作成日を基準にした日数(負数で過去の日付)。</p>
+                @else
+                    <input type="date" wire:model="default_value" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @endif
+            @else
+                <input type="text" wire:model="default_value" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            @endif
+
             @error('default_value') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('default_value_mode') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
         <div class="flex gap-6">

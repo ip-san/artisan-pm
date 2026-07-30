@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CustomFieldDefaultValueMode;
 use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Models\CustomField;
@@ -218,4 +219,119 @@ test('a custom field with no default_value leaves the new issue input blank', fu
         ->set('tracker_id', $tracker->id);
 
     expect($component->get('customFieldValues'))->not->toHaveKey($field->id);
+});
+
+test('an admin can set a date field default value to a relative day offset', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('custom-fields.form')
+        ->set('name', 'Review by')
+        ->set('field_format', CustomFieldFormat::Date->value)
+        ->set('default_value_mode', CustomFieldDefaultValueMode::DateOffset->value)
+        ->set('default_value', '7')
+        ->set('trackerIds', [$tracker->id])
+        ->call('save')
+        ->assertRedirect(route('custom-fields.index'));
+
+    $field = CustomField::where('name', 'Review by')->firstOrFail();
+
+    expect($field->default_value_mode)->toBe(CustomFieldDefaultValueMode::DateOffset)
+        ->and($field->default_value)->toBe('7');
+});
+
+test('switching a date field back to a fixed date rejects a leftover offset value', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+    $field = CustomField::factory()->create([
+        'name' => 'Review by',
+        'field_format' => CustomFieldFormat::Date,
+        'default_value' => '7',
+        'default_value_mode' => CustomFieldDefaultValueMode::DateOffset,
+    ]);
+    $field->trackers()->attach($tracker);
+
+    Livewire::actingAs($admin)
+        ->test('custom-fields.form', ['customField' => $field])
+        ->set('default_value_mode', CustomFieldDefaultValueMode::FixedDate->value)
+        // Simulates a client that didn't clear the field's stale text
+        // when the mode dropdown switched away from date_offset.
+        ->set('default_value', '7')
+        ->call('save')
+        ->assertHasErrors('default_value');
+
+    expect($field->fresh()->default_value)->toBe('7');
+});
+
+test('default_value_mode is not persisted for a non-date field', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('custom-fields.form')
+        ->set('name', 'Client email')
+        ->set('field_format', CustomFieldFormat::String->value)
+        ->set('default_value_mode', CustomFieldDefaultValueMode::DateOffset->value)
+        ->set('default_value', 'unknown@example.com')
+        ->set('trackerIds', [$tracker->id])
+        ->call('save');
+
+    $field = CustomField::where('name', 'Client email')->firstOrFail();
+
+    expect($field->default_value_mode)->toBeNull();
+});
+
+test('CustomField::defaultValue() resolves a date_offset default relative to today', function () {
+    $field = CustomField::factory()->create([
+        'field_format' => CustomFieldFormat::Date,
+        'default_value' => '7',
+        'default_value_mode' => CustomFieldDefaultValueMode::DateOffset,
+    ]);
+
+    expect($field->defaultValue())->toBe(now()->addDays(7)->toDateString());
+});
+
+test('CustomField::defaultValue() resolves a negative date_offset to a past date', function () {
+    $field = CustomField::factory()->create([
+        'field_format' => CustomFieldFormat::Date,
+        'default_value' => '-3',
+        'default_value_mode' => CustomFieldDefaultValueMode::DateOffset,
+    ]);
+
+    expect($field->defaultValue())->toBe(now()->subDays(3)->toDateString());
+});
+
+test('CustomField::defaultValue() returns the raw value for a fixed_date default', function () {
+    $field = CustomField::factory()->create([
+        'field_format' => CustomFieldFormat::Date,
+        'default_value' => '2026-08-01',
+        'default_value_mode' => CustomFieldDefaultValueMode::FixedDate,
+    ]);
+
+    expect($field->defaultValue())->toBe('2026-08-01');
+});
+
+test('a new issue is prefilled with a date field\'s resolved date_offset default', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create(['default_status_id' => IssueStatus::factory()->create()->id]);
+    $project->trackers()->attach($tracker);
+    $field = CustomField::factory()->create([
+        'name' => 'Review by',
+        'field_format' => CustomFieldFormat::Date,
+        'default_value' => '7',
+        'default_value_mode' => CustomFieldDefaultValueMode::DateOffset,
+    ]);
+    $field->trackers()->attach($tracker);
+
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
+    );
+
+    $component = Livewire::actingAs($user)
+        ->test('issues.form', ['project' => $project])
+        ->set('tracker_id', $tracker->id);
+
+    expect($component->get('customFieldValues')[$field->id])->toBe(now()->addDays(7)->toDateString());
 });

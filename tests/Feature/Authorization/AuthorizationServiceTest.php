@@ -136,3 +136,90 @@ test('a non-member on a public project gets All issue visibility', function () {
 
     expect(authService()->issueVisibilityFor($user, $project))->toBe(IssueVisibility::All);
 });
+
+test('hasSiteWideUserVisibility is always true for admins', function () {
+    $admin = User::factory()->admin()->create();
+
+    expect(authService()->hasSiteWideUserVisibility($admin))->toBeTrue();
+});
+
+test('hasSiteWideUserVisibility for a guest (null user) consults the Anonymous builtin role', function () {
+    Role::factory()->create(['builtin' => RoleBuiltin::Anonymous->value, 'users_visibility' => 'all']);
+
+    expect(authService()->hasSiteWideUserVisibility(null))->toBeTrue();
+});
+
+test('hasSiteWideUserVisibility for a user with no membership anywhere consults the NonMember builtin role', function () {
+    Role::factory()->create(['builtin' => RoleBuiltin::NonMember->value, 'users_visibility' => 'members_of_visible_projects']);
+    $user = User::factory()->create();
+
+    expect(authService()->hasSiteWideUserVisibility($user))->toBeFalse();
+});
+
+test('hasSiteWideUserVisibility is true when any of the user\'s roles anywhere grants all', function () {
+    $project = Project::factory()->create();
+    $restrictedProject = Project::factory()->create();
+    $restrictedRole = Role::factory()->create(['users_visibility' => 'members_of_visible_projects']);
+    $allRole = Role::factory()->create(['users_visibility' => 'all']);
+    $user = User::factory()->create();
+    Member::factory()->for($restrictedProject)->for($user)->create()->roles()->attach($restrictedRole);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($allRole);
+
+    expect(authService()->hasSiteWideUserVisibility($user))->toBeTrue();
+});
+
+test('hasSiteWideUserVisibility is false when every one of the user\'s roles is restricted', function () {
+    $project = Project::factory()->create();
+    $restrictedRole = Role::factory()->create(['users_visibility' => 'members_of_visible_projects']);
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($restrictedRole);
+
+    expect(authService()->hasSiteWideUserVisibility($user))->toBeFalse();
+});
+
+test('hasSiteWideUserVisibility resolves through group membership, not just direct membership', function () {
+    $project = Project::factory()->create();
+    $allRole = Role::factory()->create(['users_visibility' => 'all']);
+    $user = User::factory()->create();
+    $group = Group::factory()->create();
+    $group->users()->attach($user);
+    Member::factory()->for($project)->create(['user_id' => null, 'group_id' => $group->id])->roles()->attach($allRole);
+
+    expect(authService()->hasSiteWideUserVisibility($user))->toBeTrue();
+});
+
+test('visibleProjectIds for an admin includes every project', function () {
+    $admin = User::factory()->admin()->create();
+    $public = Project::factory()->create(['is_public' => true]);
+    $private = Project::factory()->private()->create();
+
+    $ids = authService()->visibleProjectIds($admin);
+
+    expect($ids)->toContain($public->id, $private->id);
+});
+
+test('visibleProjectIds for a non-member includes public projects but excludes private ones', function () {
+    $user = User::factory()->create();
+    $public = Project::factory()->create(['is_public' => true]);
+    $private = Project::factory()->private()->create();
+
+    $ids = authService()->visibleProjectIds($user);
+
+    expect($ids)->toContain($public->id)
+        ->not->toContain($private->id);
+});
+
+test('visibleProjectIds for a member of a private project includes it', function () {
+    $user = User::factory()->create();
+    $private = Project::factory()->private()->create();
+    Member::factory()->for($private)->for($user)->create();
+
+    expect(authService()->visibleProjectIds($user))->toContain($private->id);
+});
+
+test('visibleProjectIds excludes archived projects even when public', function () {
+    $user = User::factory()->create();
+    $archived = Project::factory()->create(['is_public' => true, 'status' => 'archived']);
+
+    expect(authService()->visibleProjectIds($user))->not->toContain($archived->id);
+});

@@ -8,6 +8,7 @@ use App\CustomFields\FormatRegistry;
 use App\CustomFields\Formats\FormatContract;
 use App\Enums\PermissionRequirement;
 use App\Enums\ProjectModuleKey;
+use App\Models\Setting;
 use App\Support\Activity\ActivityProvider;
 use App\Support\Activity\ActivityProviderRegistry;
 use App\Support\Dashboard\DashboardBlock;
@@ -39,6 +40,12 @@ final class PluginManager
 
     /** @var array<string, array<int, callable>> */
     private array $viewHooks = [];
+
+    /** @var array<string, Plugin> keyed by Plugin::$id */
+    private array $plugins = [];
+
+    /** @var array<string, array<string, mixed>> keyed by Plugin::$id */
+    private array $settingsDefaults = [];
 
     public function __construct(
         private readonly PermissionRegistry $permissions,
@@ -110,5 +117,87 @@ final class PluginManager
         return collect($this->viewHooks[$name] ?? [])
             ->map(fn (callable $renderer) => (string) $renderer($data))
             ->implode('');
+    }
+
+    /**
+     * Matches Redmine::Plugin.register's single-call registration
+     * (name/author/version + an optional `settings` block) — a plugin
+     * calls this once from boot() rather than the app needing a separate
+     * discovery pass. $settingsDefaults is empty for a plugin with no
+     * configurable settings, in which case it never appears on the admin
+     * settings screen (matching Redmine's own "no settings block, no
+     * Configure link" behavior), only on the installed-plugins list.
+     *
+     * @param  array<string, mixed>  $settingsDefaults
+     *
+     * @throws PluginRequirementException if the running core version is
+     *                                    older than $plugin->requiresCoreVersion — matches Redmine's
+     *                                    Plugin.requires_redmine(version_or_higher: '...') raising
+     *                                    PluginRequirementError, a hard failure rather than a
+     *                                    silently-skipped registration.
+     */
+    public function registerPlugin(Plugin $plugin, array $settingsDefaults = []): void
+    {
+        $coreVersion = (string) config('plugins.core_version');
+
+        if (version_compare($coreVersion, $plugin->requiresCoreVersion, '<')) {
+            throw new PluginRequirementException(
+                "Plugin \"{$plugin->id}\" requires core version {$plugin->requiresCoreVersion} or higher, but the running core version is {$coreVersion}."
+            );
+        }
+
+        $this->plugins[$plugin->id] = $plugin;
+
+        if ($settingsDefaults !== []) {
+            $this->settingsDefaults[$plugin->id] = $settingsDefaults;
+        }
+    }
+
+    /**
+     * @return array<int, Plugin>
+     */
+    public function plugins(): array
+    {
+        return array_values($this->plugins);
+    }
+
+    public function plugin(string $id): ?Plugin
+    {
+        return $this->plugins[$id] ?? null;
+    }
+
+    public function hasSettings(string $id): bool
+    {
+        return array_key_exists($id, $this->settingsDefaults);
+    }
+
+    /**
+     * The stored value only ever overrides keys the plugin still declares
+     * a default for — a key a plugin removed in a later version can't
+     * resurrect itself from stale stored data.
+     *
+     * @return array<string, mixed>
+     */
+    public function settings(string $id): array
+    {
+        $defaults = $this->settingsDefaults[$id] ?? [];
+        $stored = Setting::get(self::settingsKey($id), []);
+
+        return [...$defaults, ...array_intersect_key($stored, $defaults)];
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     */
+    public function saveSettings(string $id, array $values): void
+    {
+        $defaults = $this->settingsDefaults[$id] ?? [];
+
+        Setting::set(self::settingsKey($id), array_intersect_key($values, $defaults));
+    }
+
+    private static function settingsKey(string $id): string
+    {
+        return "plugin_{$id}";
     }
 }

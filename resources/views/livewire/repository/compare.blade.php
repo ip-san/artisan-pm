@@ -30,11 +30,11 @@ new #[Layout('components.layouts.app')] class extends Component
      * changeset regardless of which radio the user picked first — the
      * same convention the wiki version diff uses.
      */
-    public function mount(Project $project): void
+    public function mount(Project $project, ?string $repositoryParam = null): void
     {
         $this->authorize('viewAny', [Repository::class, $project]);
 
-        $repository = $project->repository;
+        $repository = $project->resolveRepository($repositoryParam);
         abort_if($repository === null, 404);
 
         $this->project = $project;
@@ -68,17 +68,17 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-4xl">
     <p class="mb-2 text-sm text-gray-500">
-        <a href="{{ route('repository.index', $project) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+        <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
     </p>
 
     <h1 class="mb-1 text-xl font-semibold text-gray-900 font-mono">
         {{ $fromChangeset->shortRevision() }} 〜 {{ $toChangeset->shortRevision() }}
     </h1>
     <p class="mb-4 text-sm text-gray-500">
-        <a href="{{ route('repository.show', [$project, $fromChangeset]) }}" class="text-indigo-600 hover:underline">{{ $fromChangeset->shortRevision() }}</a>
+        <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $fromChangeset])) }}" class="text-indigo-600 hover:underline">{{ $fromChangeset->shortRevision() }}</a>
         ({{ $fromChangeset->committed_on->format('Y-m-d H:i') }})
         から
-        <a href="{{ route('repository.show', [$project, $toChangeset]) }}" class="text-indigo-600 hover:underline">{{ $toChangeset->shortRevision() }}</a>
+        <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $toChangeset])) }}" class="text-indigo-600 hover:underline">{{ $toChangeset->shortRevision() }}</a>
         ({{ $toChangeset->committed_on->format('Y-m-d H:i') }})
         までの差分
     </p>

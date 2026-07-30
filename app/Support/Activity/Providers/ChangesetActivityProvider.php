@@ -39,11 +39,12 @@ final class ChangesetActivityProvider implements ActivityProvider
         return Changeset::query()
             ->whereHas('repository', fn ($query) => $query->where('project_id', $project->id))
             ->whereBetween('committed_on', [$from, $to])
+            ->with('repository.project')
             ->get()
             ->map(fn (Changeset $changeset) => new ActivityEntry(
                 type: $this->type(),
                 title: "{$changeset->shortRevision()}: ".Str::of((string) $changeset->comments)->trim()->limit(80),
-                url: route('repository.show', [$project, $changeset]),
+                url: route($changeset->repository->routeName('repository.show'), $changeset->repository->routeParameters(['changeset' => $changeset])),
                 authorName: $changeset->committer,
                 occurredAt: $changeset->committed_on,
             ));

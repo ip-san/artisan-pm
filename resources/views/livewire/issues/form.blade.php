@@ -258,11 +258,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 continue;
             }
 
-            if ($field->default_value === null || $field->default_value === '') {
+            $defaultValue = $field->defaultValue();
+
+            if ($defaultValue === null || $defaultValue === '') {
                 continue;
             }
 
-            $this->customFieldValues[$field->id] = $field->multiple ? [$field->default_value] : $field->default_value;
+            $this->customFieldValues[$field->id] = $field->multiple ? [$defaultValue] : $defaultValue;
         }
     }
 

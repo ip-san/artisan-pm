@@ -6,6 +6,7 @@ use App\Models\WikiPage;
 use App\Services\WikiPageService;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use App\Support\Markdown\WikiSectionEditLinkInjector;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -88,6 +89,39 @@ new #[Layout('components.layouts.app')] class extends Component
             fn () => print ($html),
             $this->exportFilename('html'),
             ['Content-Type' => 'text/html; charset=UTF-8'],
+        );
+    }
+
+    /**
+     * Matches Redmine's WikiController#show format=pdf (a single page, as
+     * opposed to the project-wide multi-page PDF export from
+     * WikiController#export — still out of scope, see the class doc above
+     * exportHtml()). Same dompdf-over-a-print-styled-Blade-view approach as
+     * IssuePdfController; see resources/views/components/pdf/cjk-font.blade.php for
+     * why a bundled CJK font is required.
+     */
+    public function exportPdf(): StreamedResponse
+    {
+        $this->authorize('export', $this->wikiPage);
+
+        $contentHtml = app(WikiMarkdownRenderer::class)->render($this->wikiPage->currentVersion?->text ?? '', $this->project, $this->wikiPage->attachments(), $this->wikiPage);
+
+        $html = view('pdf.wiki', [
+            'wikiPage' => $this->wikiPage,
+            'contentHtml' => $contentHtml,
+        ])->render();
+
+        // A raw dompdf ->download() Response's binary body breaks Livewire's
+        // own AJAX response serialization ("Malformed UTF-8 characters" —
+        // confirmed empirically) the same way exportTxt/exportHtml above
+        // already avoid it: streamDownload() is the form Livewire actions
+        // can actually return a file from.
+        $pdf = Pdf::loadHTML($html)->output();
+
+        return response()->streamDownload(
+            fn () => print ($pdf),
+            $this->exportFilename('pdf'),
+            ['Content-Type' => 'application/pdf'],
         );
     }
 
@@ -181,7 +215,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         app(WikiPageService::class)->delete($this->wikiPage);
 
-        $this->redirect(route('wiki.index', $this->project), navigate: true);
+        $this->redirect(route('wiki.pages', $this->project), navigate: true);
     }
 
     /**
@@ -274,6 +308,9 @@ new #[Layout('components.layouts.app')] class extends Component
                 </button>
                 <button wire:click="exportHtml" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     HTML
+                </button>
+                <button wire:click="exportPdf" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    PDF
                 </button>
             @endcan
             @can('protect', $wikiPage)

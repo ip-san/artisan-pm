@@ -384,7 +384,28 @@ test('various @Nh token formats parse to the expected hours', function (string $
     ['1:30', 1.5],
     ['2.5', 2.5],
     ['2,5', 2.5],
+    ['2.5h', 2.5],
+    ['2hours', 2.0],
+    ['2hour', 2.0],
+    ['2hours30min', 2.5],
+    ['30min', 0.5],
 ]);
+
+test('the word-form hour/minute tokens are captured in full, not truncated to their h/m prefix', function () {
+    // The resulting *hours* value can't distinguish a truncated "2h"
+    // capture from a full "2hours" one — both parse to the same 2.0 (m is
+    // a prefix of min, h is a prefix of hours, and parseHoursToken() only
+    // ever divides whatever digit groups it finds by 60). A regression in
+    // the extraction regex's alternation order would slip past the
+    // parametrized test above completely silently, so this asserts on
+    // the actual captured substring using the real, production
+    // LOGGED_TIME_TOKEN_PATTERN constant rather than re-deriving the
+    // expected hours value.
+    preg_match_all(RepositorySyncService::LOGGED_TIME_TOKEN_PATTERN, 'Refs #123 @2hours', $matches, PREG_SET_ORDER);
+
+    expect($matches)->toHaveCount(1)
+        ->and($matches[0][2])->toBe('2hours');
+});
 
 test('time is not logged when the committer lacks log_time on the project', function () {
     Setting::set('commit_logtime_enabled', true);

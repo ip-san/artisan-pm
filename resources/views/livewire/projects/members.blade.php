@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserStatus;
 use App\Models\Group;
 use App\Models\Member;
 use App\Models\Project;
@@ -71,7 +72,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function selectUser(int $userId): void
     {
-        $user = User::query()->findOrFail($userId);
+        // visibleTo() re-scopes this the same way userCandidates() does —
+        // a client can call this action directly with any id regardless
+        // of what the dropdown actually showed, so the dropdown's own
+        // filtering alone doesn't stop a name/email disclosure here.
+        $user = User::query()->visibleTo(auth()->user())->find($userId);
+
+        abort_if($user === null, 404);
 
         $this->selectedUserId = $user->id;
         $this->userSearch = "{$user->name} ({$user->email})";
@@ -82,6 +89,15 @@ new #[Layout('components.layouts.app')] class extends Component
      * Name/email substring matches, excluding users already a member of
      * this project — matches Redmine's autocomplete_for_user (used by the
      * project members form) which likewise excludes existing members.
+     *
+     * Also matches Redmine's Principal.visible restriction on the same
+     * autocomplete (members_helper.rb: `Principal.active.visible.sorted
+     * .not_member_of(project).like(params[:q])`): unless the searching
+     * user holds a role (anywhere) with users_visibility === 'all', the
+     * candidate pool is narrowed to themselves plus users who are members
+     * of a project visible to them — otherwise a non-admin project
+     * manager could use this box to enumerate the entire site's user base
+     * regardless of Role.users_visibility.
      *
      * @return Collection<int, User>
      */
@@ -98,7 +114,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
         return User::query()
             ->whereNotIn('id', $existingUserIds)
+            ->where('status', UserStatus::Active->value)
             ->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
+            ->visibleTo(auth()->user())
             ->orderBy('name')
             ->limit(10)
             ->get();
@@ -158,6 +176,15 @@ new #[Layout('components.layouts.app')] class extends Component
                 'roleIds' => ['array'],
                 'roleIds.*' => [Rule::in($managedRoleIds)],
             ]);
+
+            // selectedUserId is client-set — a direct ->set() call could
+            // skip selectUser() (and its own visibleTo() check) entirely,
+            // so this needs the same re-check rather than trusting that
+            // the id only ever got here through the dropdown.
+            abort_unless(
+                User::query()->visibleTo(auth()->user())->whereKey($data['selectedUserId'])->exists(),
+                404
+            );
 
             $member = Member::query()
                 ->firstOrCreate(['project_id' => $this->project->id, 'user_id' => $data['selectedUserId']]);
@@ -282,7 +309,13 @@ new #[Layout('components.layouts.app')] class extends Component
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
                     <span class="font-medium text-gray-900">
-                        {{ $member->isForGroup() ? $member->group->name.'(グループ)' : $member->user->name }}
+                        @if ($member->isForGroup())
+                            {{ $member->group->name }}(グループ)
+                        @elseif ($member->user->isVisibleTo(auth()->user()))
+                            <a href="{{ route('users.show', $member->user) }}" class="hover:underline">{{ $member->user->name }}</a>
+                        @else
+                            {{ $member->user->name }}
+                        @endif
                     </span>
                     <span class="ml-2 text-xs text-gray-500">
                         {{ $member->roles->pluck('name')->join(', ') }}

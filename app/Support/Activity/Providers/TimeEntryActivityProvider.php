@@ -46,6 +46,7 @@ final class TimeEntryActivityProvider implements ActivityProvider
                 url: $entry->issue ? route('issues.show', [$project, $entry->issue]) : route('time-entries.index', $project),
                 authorName: $entry->user->name,
                 occurredAt: $entry->spent_on,
+                authorId: $entry->user_id,
             ));
     }
 }

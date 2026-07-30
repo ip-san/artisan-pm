@@ -127,7 +127,7 @@ test('the file history page links to a diff scoped to that file', function () {
 
     Livewire::actingAs($user)
         ->test('repository.file-history', ['project' => $project, 'path' => 'README.md'])
-        ->assertSeeHtml(route('repository.show', [$project, $changeset, 'path' => 'README.md']));
+        ->assertSeeHtml(route('repository.show', ['project' => $project, 'changeset' => $changeset, 'path' => 'README.md']));
 });
 
 test('repository.show scopes the diff to a single file when a path query param is set', function () {
@@ -175,7 +175,7 @@ test('the diff pane shows a link back to the full commit diff when scoped to a f
         ->withQueryParams(['path' => 'README.md'])
         ->test('repository.show', ['project' => $project, 'changeset' => $initialCommit])
         ->assertSee('全体の差分を見る')
-        ->assertSeeHtml(route('repository.show', [$project, $initialCommit]));
+        ->assertSeeHtml(route('repository.show', ['project' => $project, 'changeset' => $initialCommit]));
 });
 
 test('the diff pane has no link back to the full diff when not scoped to a file', function () {

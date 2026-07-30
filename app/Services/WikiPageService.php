@@ -11,6 +11,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\WikiPage;
 use App\Models\WikiRedirect;
+use App\Support\Mail\MentionParser;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -41,7 +42,7 @@ final class WikiPageService
             return $page->refresh();
         });
 
-        WikiPageCreated::dispatch($page);
+        WikiPageCreated::dispatch($page, MentionParser::extractLogins($text));
 
         return $page;
     }
@@ -54,7 +55,10 @@ final class WikiPageService
      */
     public function update(WikiPage $page, array $attributes, string $text, User $author, ?string $comment = null, bool $redirectExistingLinks = true): WikiPage
     {
-        $page = DB::transaction(function () use ($page, $attributes, $text, $author, $comment, $redirectExistingLinks) {
+        $oldText = $page->currentVersion?->text;
+        $textChanged = $text !== $oldText;
+
+        $page = DB::transaction(function () use ($page, $attributes, $text, $author, $comment, $redirectExistingLinks, $textChanged) {
             $oldTitle = $page->title;
 
             $page->fill($attributes);
@@ -64,7 +68,7 @@ final class WikiPageService
                 $this->handleRename($page, $page->project, $oldTitle, $page->project, $attributes['title'], $redirectExistingLinks);
             }
 
-            if ($text !== $page->currentVersion?->text) {
+            if ($textChanged) {
                 $nextVersion = ($page->versions()->max('version') ?? 0) + 1;
 
                 $page->versions()->create([
@@ -80,7 +84,9 @@ final class WikiPageService
             return $page->refresh();
         });
 
-        WikiPageUpdated::dispatch($page);
+        $mentionedLogins = $textChanged ? MentionParser::newlyMentionedLogins($oldText, $text) : [];
+
+        WikiPageUpdated::dispatch($page, $textChanged, $mentionedLogins);
 
         return $page;
     }
@@ -126,7 +132,7 @@ final class WikiPageService
             return $page->refresh();
         });
 
-        WikiPageUpdated::dispatch($page);
+        WikiPageUpdated::dispatch($page, textChanged: false);
 
         return $page;
     }

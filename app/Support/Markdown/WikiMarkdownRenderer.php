@@ -99,6 +99,13 @@ final class WikiMarkdownRenderer
      *                                                         Redmine's `attachment:file.png` inline-image convention
      *                                                         (InlineAttachmentsScrubber), which resolves against the same
      *                                                         object's own attachments rather than a global namespace.
+     * @param  Project|null  $project  the project $text is scoped to, needed
+     *                                 to resolve [[Page]] links and
+     *                                 {{include}}/{{child_pages}} macros —
+     *                                 left as literal text when this is null
+     *                                 (e.g. rendering the site-wide
+     *                                 welcome_text setting, which isn't
+     *                                 scoped to any single project).
      * @param  WikiPage|null  $page  the page $text belongs to, needed only to
      *                               resolve {{child_pages}} — left as literal
      *                               text when this is null (e.g. rendering an
@@ -111,7 +118,7 @@ final class WikiMarkdownRenderer
      *                                            outside this class should
      *                                            never pass this.
      */
-    public function render(string $text, Project $project, ?MediaCollection $attachments = null, ?WikiPage $page = null, array $includedPageIds = []): string
+    public function render(string $text, ?Project $project = null, ?MediaCollection $attachments = null, ?WikiPage $page = null, array $includedPageIds = []): string
     {
         [$text, $collapseBlocks] = $this->extractCollapseBlocks($text, $project, $attachments, $page, $includedPageIds);
         [$text, $includeBlocks] = $this->extractIncludeMacros($text, $project, $includedPageIds);
@@ -160,12 +167,19 @@ final class WikiMarkdownRenderer
         $environment->addExtension(new MentionExtension);
         $environment->addExtension(new HeadingPermalinkExtension);
         $environment->addExtension(new TableOfContentsExtension);
-        $environment->addInlineParser(new WikiLinkInlineParser($project), 25);
+
+        // Left unregistered when there's no project to resolve [[Page]]
+        // against — matches the {{child_pages}}/{{include}} macros' own
+        // "left as literal text" fallback below, rather than pointing the
+        // link somewhere arbitrary.
+        if ($project !== null) {
+            $environment->addInlineParser(new WikiLinkInlineParser($project), 25);
+        }
 
         $html = (new MarkdownConverter($environment))->convert($text)->getContent();
         $html = $this->replaceCollapseBlocks($html, $collapseBlocks);
         $html = $this->replaceIncludeMacros($html, $includeBlocks);
-        $html = $this->replaceChildPagesMacro($html, $page, $project);
+        $html = $project !== null ? $this->replaceChildPagesMacro($html, $page, $project) : $html;
 
         if ($attachments === null || $attachments->isEmpty()) {
             return $html;
@@ -200,7 +214,7 @@ final class WikiMarkdownRenderer
      * @param  array<int, int>  $includedPageIds
      * @return array{0: string, 1: array<string, array{label: string, body: string}>}
      */
-    private function extractCollapseBlocks(string $text, Project $project, ?MediaCollection $attachments, ?WikiPage $page, array $includedPageIds): array
+    private function extractCollapseBlocks(string $text, ?Project $project, ?MediaCollection $attachments, ?WikiPage $page, array $includedPageIds): array
     {
         $blocks = [];
 
@@ -256,13 +270,19 @@ final class WikiMarkdownRenderer
     /**
      * A `{{include(Page Title)}}` line on its own is replaced with a
      * placeholder the same way {{collapse}} is — see extractCollapseBlocks()
-     * for why a pure post-render DOM step isn't enough here.
+     * for why a pure post-render DOM step isn't enough here. Left as
+     * literal text when there's no $project to resolve it against (e.g.
+     * rendering the site-wide welcome_text setting).
      *
      * @param  array<int, int>  $includedPageIds
      * @return array{0: string, 1: array<string, string>}
      */
-    private function extractIncludeMacros(string $text, Project $project, array $includedPageIds): array
+    private function extractIncludeMacros(string $text, ?Project $project, array $includedPageIds): array
     {
+        if ($project === null) {
+            return [$text, []];
+        }
+
         $blocks = [];
 
         $text = preg_replace_callback(

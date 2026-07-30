@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Project;
+use App\Models\Setting;
+use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -59,6 +61,21 @@ new #[Layout('components.layouts.app')] class extends Component
      *
      * @return Collection<int, Project>|LengthAwarePaginator<int, Project>
      */
+    /**
+     * Matches Redmine's Setting.welcome_text, shown on the home/project-list
+     * page — rendered through the same Markdown pipeline as wiki pages, but
+     * with no $project (this page isn't scoped to one), so [[Page]] links
+     * and the {{include}}/{{child_pages}} macros are left as literal text
+     * rather than resolved against an arbitrary project.
+     */
+    #[Computed]
+    public function renderedWelcomeText(): string
+    {
+        $text = Setting::get('welcome_text', '');
+
+        return $text === '' ? '' : app(WikiMarkdownRenderer::class)->render($text);
+    }
+
     #[Computed]
     public function projects(): Collection|LengthAwarePaginator
     {
@@ -120,6 +137,12 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
+    @if ($this->renderedWelcomeText !== '')
+        <div class="prose prose-sm max-w-none mb-6 rounded-md border border-gray-200 bg-white p-4">
+            {!! $this->renderedWelcomeText !!}
+        </div>
+    @endif
+
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-gray-900">プロジェクト</h1>
         @can('create', \App\Models\Project::class)

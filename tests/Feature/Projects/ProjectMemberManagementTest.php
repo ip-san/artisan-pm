@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\RoleBuiltin;
 use App\Models\Group;
 use App\Models\Member;
 use App\Models\Project;
@@ -41,6 +42,100 @@ test('typing a name or email narrows the user search dropdown to matching, not-y
     expect($candidates->pluck('id'))->toContain($matching->id)
         ->not->toContain($nonMatching->id)
         ->not->toContain($existingMember->id);
+});
+
+test('the user search dropdown excludes locked, pending, and deleted users', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $active = User::factory()->create(['name' => 'Findable Active']);
+    $locked = User::factory()->create(['name' => 'Findable Locked', 'status' => 'locked']);
+    $registered = User::factory()->create(['name' => 'Findable Registered', 'status' => 'registered']);
+    $deleted = User::factory()->create(['name' => 'Findable Deleted', 'status' => 'deleted']);
+
+    $candidates = Livewire::actingAs($admin)
+        ->test('projects.members', ['project' => $project])
+        ->set('userSearch', 'Findable')
+        ->get('userCandidates');
+
+    expect($candidates->pluck('id'))->toContain($active->id)
+        ->not->toContain($locked->id)
+        ->not->toContain($registered->id)
+        ->not->toContain($deleted->id);
+});
+
+test('a role with the default users_visibility (all) can find any active user regardless of project membership', function () {
+    $project = Project::factory()->create();
+    $managerRole = Role::factory()->withPermissions(['manage_members'])->create(['users_visibility' => 'all']);
+    $manager = User::factory()->create();
+    Member::factory()->for($project)->for($manager)->create()->roles()->attach($managerRole);
+
+    $strangerElsewhere = User::factory()->create(['name' => 'Unrelated Stranger']);
+
+    $candidates = Livewire::actingAs($manager)
+        ->test('projects.members', ['project' => $project])
+        ->set('userSearch', 'Unrelated')
+        ->get('userCandidates');
+
+    expect($candidates->pluck('id'))->toContain($strangerElsewhere->id);
+});
+
+test('a role restricted to members_of_visible_projects cannot find a user with no shared or public project', function () {
+    $project = Project::factory()->create();
+    $managerRole = Role::factory()->withPermissions(['manage_members'])->create(['users_visibility' => 'members_of_visible_projects']);
+    $manager = User::factory()->create();
+    Member::factory()->for($project)->for($manager)->create()->roles()->attach($managerRole);
+
+    $otherProject = Project::factory()->create(['is_public' => false]);
+    $strangerElsewhere = User::factory()->create(['name' => 'Unrelated Stranger']);
+    Member::factory()->for($otherProject)->for($strangerElsewhere)->create();
+
+    $candidates = Livewire::actingAs($manager)
+        ->test('projects.members', ['project' => $project])
+        ->set('userSearch', 'Unrelated')
+        ->get('userCandidates');
+
+    expect($candidates->pluck('id'))->not->toContain($strangerElsewhere->id);
+});
+
+test('a role restricted to members_of_visible_projects can still find a user who is a member of a public project', function () {
+    $project = Project::factory()->create();
+    $managerRole = Role::factory()->withPermissions(['manage_members'])->create(['users_visibility' => 'members_of_visible_projects']);
+    $manager = User::factory()->create();
+    Member::factory()->for($project)->for($manager)->create()->roles()->attach($managerRole);
+
+    $publicProject = Project::factory()->create(['is_public' => true]);
+    $memberOfPublicProject = User::factory()->create(['name' => 'Public Project Member']);
+    Member::factory()->for($publicProject)->for($memberOfPublicProject)->create();
+
+    $candidates = Livewire::actingAs($manager)
+        ->test('projects.members', ['project' => $project])
+        ->set('userSearch', 'Public Project')
+        ->get('userCandidates');
+
+    expect($candidates->pluck('id'))->toContain($memberOfPublicProject->id);
+});
+
+test('a role restricted to members_of_visible_projects can always find the searching user themselves', function () {
+    // The manager reaches a *different* public project's members screen
+    // via the builtin NonMember role (no explicit Member row of their own
+    // there) — this isolates the self-inclusion branch of the query from
+    // the "already an existing member is excluded" filter, which would
+    // otherwise hide them from their own home project's candidate list
+    // regardless of whether the self-branch works.
+    $homeProject = Project::factory()->create();
+    $managerRole = Role::factory()->create(['users_visibility' => 'members_of_visible_projects']);
+    $manager = User::factory()->create(['name' => 'Searching Self']);
+    Member::factory()->for($homeProject)->for($manager)->create()->roles()->attach($managerRole);
+
+    Role::factory()->create(['builtin' => RoleBuiltin::NonMember->value, 'permissions' => ['manage_members']]);
+    $publicProject = Project::factory()->create(['is_public' => true]);
+
+    $candidates = Livewire::actingAs($manager)
+        ->test('projects.members', ['project' => $publicProject])
+        ->set('userSearch', 'Searching Self')
+        ->get('userCandidates');
+
+    expect($candidates->pluck('id'))->toContain($manager->id);
 });
 
 test('editing an existing member prefills the form and updates roles on submit', function () {
@@ -120,4 +215,40 @@ test('a user in a project-member group inherits the group role', function () {
     $member->roles()->attach($role);
 
     expect(app(AuthorizationService::class)->can($user, 'view_issues', $project))->toBeTrue();
+});
+
+test('selectUser cannot echo back the name or email of a user outside the visible set', function () {
+    $project = Project::factory()->create();
+    $restrictedRole = Role::factory()->withPermissions(['manage_members'])->create(['users_visibility' => 'members_of_visible_projects']);
+    $manager = User::factory()->create();
+    Member::factory()->for($project)->for($manager)->create()->roles()->attach($restrictedRole);
+
+    $unrelatedProject = Project::factory()->private()->create();
+    $hiddenUser = User::factory()->create(['name' => 'Hidden Name', 'email' => 'hidden@example.com']);
+    Member::factory()->for($unrelatedProject)->for($hiddenUser)->create();
+
+    Livewire::actingAs($manager)
+        ->test('projects.members', ['project' => $project])
+        ->call('selectUser', $hiddenUser->id)
+        ->assertStatus(404);
+});
+
+test('addMember rejects a directly-set selectedUserId outside the visible set even without going through selectUser', function () {
+    $project = Project::factory()->create();
+    $restrictedRole = Role::factory()->withPermissions(['manage_members'])->create(['users_visibility' => 'members_of_visible_projects']);
+    $manager = User::factory()->create();
+    Member::factory()->for($project)->for($manager)->create()->roles()->attach($restrictedRole);
+
+    $unrelatedProject = Project::factory()->private()->create();
+    $hiddenUser = User::factory()->create();
+    Member::factory()->for($unrelatedProject)->for($hiddenUser)->create();
+
+    Livewire::actingAs($manager)
+        ->test('projects.members', ['project' => $project])
+        ->set('selectedUserId', $hiddenUser->id)
+        ->set('roleIds', [$restrictedRole->id])
+        ->call('addMember')
+        ->assertStatus(404);
+
+    expect(Member::where('project_id', $project->id)->where('user_id', $hiddenUser->id)->exists())->toBeFalse();
 });

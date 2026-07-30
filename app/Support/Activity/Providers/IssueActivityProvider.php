@@ -47,6 +47,7 @@ final class IssueActivityProvider implements ActivityProvider
                 url: route('issues.show', [$project, $issue]),
                 authorName: $issue->author->name,
                 occurredAt: $issue->created_at ?? throw new LogicException('Issue is missing created_at.'),
+                authorId: $issue->author_id,
             ));
     }
 }

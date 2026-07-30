@@ -12,7 +12,12 @@ final class WikiPageCreated
 {
     use Dispatchable, SerializesModels;
 
+    /**
+     * @param  array<int, string>  $mentionedLogins  see MentionParser —
+     *                                               every `@login` found in the page's initial text.
+     */
     public function __construct(
         public readonly WikiPage $wikiPage,
+        public readonly array $mentionedLogins = [],
     ) {}
 }

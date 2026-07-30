@@ -52,9 +52,17 @@ final class ProjectPolicy
         return false;
     }
 
+    /**
+     * Matches Redmine's Project#deletable?: an admin may delete a project
+     * (and, per kalnoy/nestedset's NodeTrait::deleteDescendants(), its
+     * whole subtree) regardless of children — handled by Gate::before's
+     * admin bypass before this method is even reached. A non-admin with
+     * delete_project may only delete a leaf project, to avoid a single
+     * member action silently taking out subprojects they may not manage.
+     */
     public function delete(User $user, Project $project): bool
     {
-        return $this->authorization->can($user, 'delete_project', $project);
+        return $this->authorization->can($user, 'delete_project', $project) && $project->isLeaf();
     }
 
     public function selectModules(User $user, Project $project): bool

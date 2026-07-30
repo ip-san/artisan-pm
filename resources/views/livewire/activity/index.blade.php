@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Project;
+use App\Models\Setting;
 use App\Support\Activity\ActivityProviderRegistry;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -23,6 +24,13 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public array $activeTypes = [];
 
+    // Matches Redmine's with_subprojects param on ActivitiesController#index
+    // (its default there is Setting.display_subprojects_issues?, a setting
+    // this app doesn't have — see §4「プロジェクト横断の課題一覧」row — so
+    // this simply defaults to off).
+    #[Url]
+    public bool $withSubprojects = false;
+
     public function mount(Project $project): void
     {
         $this->authorize('view', $project);
@@ -30,7 +38,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->project = $project;
 
         if ($this->from === '') {
-            $this->from = now()->subDays(7)->toDateString();
+            $this->from = now()->subDays(Setting::get('activity_days_default', 7))->toDateString();
         }
 
         if ($this->to === '') {
@@ -46,6 +54,29 @@ new #[Layout('components.layouts.app')] class extends Component
     public function providers(): Collection
     {
         return app(ActivityProviderRegistry::class)->all();
+    }
+
+    /**
+     * This project alone, or this project plus every descendant the viewer
+     * can also see — same _lft/_rgt range query search/index.blade.php's
+     * own searchableProjects() already uses for its "include subprojects"
+     * toggle.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function scopedProjects(): Collection
+    {
+        if (! $this->withSubprojects) {
+            return collect([$this->project]);
+        }
+
+        return Project::query()
+            ->where('_lft', '>=', $this->project->_lft)
+            ->where('_rgt', '<=', $this->project->_rgt)
+            ->get()
+            ->filter(fn (Project $candidate) => auth()->user()?->can('view', $candidate))
+            ->values();
     }
 
     /**
@@ -66,9 +97,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $from = Carbon::parse($this->from)->startOfDay();
         $to = Carbon::parse($this->to)->endOfDay();
 
-        return $this->providers
-            ->filter(fn ($provider) => in_array($provider->type(), $this->activeTypes, true))
-            ->flatMap(fn ($provider) => $provider->entries($this->project, auth()->user(), $from, $to))
+        $activeProviders = $this->providers->filter(fn ($provider) => in_array($provider->type(), $this->activeTypes, true));
+
+        return $this->scopedProjects
+            ->flatMap(fn (Project $project) => $activeProviders
+                ->flatMap(fn ($provider) => $provider->entries($project, auth()->user(), $from, $to)))
             ->sortByDesc('occurredAt')
             ->values();
     }
@@ -84,7 +117,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function applyFilters(): void
     {
-        unset($this->entries, $this->groupedEntries);
+        unset($this->scopedProjects, $this->entries, $this->groupedEntries);
     }
 }; ?>
 
@@ -111,6 +144,10 @@ new #[Layout('components.layouts.app')] class extends Component
                 </label>
             @endforeach
         </div>
+        <label class="flex items-center gap-1 text-sm text-gray-700">
+            <input type="checkbox" wire:model="withSubprojects" class="rounded border-gray-300">
+            サブプロジェクトを含む
+        </label>
         <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
             適用
         </button>

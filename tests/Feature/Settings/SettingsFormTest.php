@@ -25,6 +25,74 @@ test('an admin can update settings', function () {
         ->and(Setting::get('default_issues_per_page'))->toBe(50);
 });
 
+test('an admin can configure the welcome_text setting', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('welcome_text', 'ようこそ')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('welcome_text'))->toBe('ようこそ');
+});
+
+test('an admin can configure the activity_days_default setting', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('activity_days_default', 14)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('activity_days_default'))->toBe(14);
+});
+
+test('activity_days_default rejects a non-positive value', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('activity_days_default', 0)
+        ->call('save')
+        ->assertHasErrors(['activity_days_default']);
+});
+
+test('an admin can configure the default_users_no_self_notified setting', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('default_users_no_self_notified', false)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('default_users_no_self_notified'))->toBeFalse();
+});
+
+test('an admin can configure the default_notification_option setting', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('default_notification_option', 'none')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('default_notification_option'))->toBe('none');
+});
+
+test('default_notification_option only accepts a known mail notification tier', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('default_notification_option', 'not-a-real-tier')
+        ->call('save')
+        ->assertHasErrors(['default_notification_option']);
+});
+
 test('a non-admin cannot access the settings form', function () {
     $user = User::factory()->create();
 
@@ -379,4 +447,62 @@ test('an admin can configure the self-registration email domain allow/deny lists
 
     expect(Setting::get('email_domains_allowed'))->toBe('example.com, .example.org')
         ->and(Setting::get('email_domains_denied'))->toBe('blocked.example.com');
+});
+
+test('an admin can enable autologin', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('autologin', true)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('autologin'))->toBeTrue();
+});
+
+test('an admin can toggle rest_api_enabled', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('rest_api_enabled', false)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('rest_api_enabled'))->toBeFalse();
+});
+
+test('an admin can disable login_required', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('login_required', false)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('login_required'))->toBeFalse();
+});
+
+test('an admin can set the twofa requirement tier', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('twofa', '2')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('twofa'))->toBe('2');
+});
+
+test('an invalid twofa value is rejected', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('twofa', '9')
+        ->call('save')
+        ->assertHasErrors(['twofa']);
 });

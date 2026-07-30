@@ -141,7 +141,7 @@ test('a member with export_wiki_pages can export the whole wiki as a zip of txt 
     $second->versions()->create(['author_id' => $user->id, 'text' => 'Second content', 'version' => 2]);
 
     $component = Livewire::actingAs($user)
-        ->test('wiki.index', ['project' => $project])
+        ->test('wiki.pages', ['project' => $project])
         ->call('exportZip', 'txt')
         ->assertFileDownloaded("{$project->identifier}-wiki-txt.zip");
 
@@ -162,7 +162,7 @@ test('a member with export_wiki_pages can export the whole wiki as a zip of html
     $renderedBody = app(WikiMarkdownRenderer::class)->render('Some **markdown** text.', $project, $page->attachments());
 
     $component = Livewire::actingAs($user)
-        ->test('wiki.index', ['project' => $project])
+        ->test('wiki.pages', ['project' => $project])
         ->call('exportZip', 'html')
         ->assertFileDownloaded("{$project->identifier}-wiki-html.zip");
 
@@ -191,7 +191,7 @@ test('a member without export_wiki_pages cannot export the whole wiki and does n
     WikiPage::factory()->for($project)->create();
 
     Livewire::actingAs($user)
-        ->test('wiki.index', ['project' => $project])
+        ->test('wiki.pages', ['project' => $project])
         ->assertDontSee('ZIP(TXT)')
         ->assertDontSee('ZIP(HTML)')
         ->call('exportZip', 'txt')
@@ -203,7 +203,7 @@ test('exportZip rejects an unrecognized format', function () {
     $user = wikiExportMember($project);
 
     Livewire::actingAs($user)
-        ->test('wiki.index', ['project' => $project])
+        ->test('wiki.pages', ['project' => $project])
         ->call('exportZip', 'pdf')
         ->assertNotFound();
 });

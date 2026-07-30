@@ -14,10 +14,19 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('viewAny', User::class);
     }
 
+    /**
+     * Excludes self-deleted accounts (UserStatus::Deleted) — Redmine
+     * hard-deletes the row on account deletion, so it simply vanishes from
+     * this list; this app anonymizes the row in place instead (see
+     * App\Services\AccountDeletionService), so the same "gone from the
+     * admin list" outcome needs an explicit filter here.
+     */
     #[Computed]
     public function users(): Collection
     {
-        return User::query()->with('authSource')->orderBy('name')->get();
+        return User::query()->with('authSource')
+            ->where('status', '!=', UserStatus::Deleted)
+            ->orderBy('name')->get();
     }
 
     public function toggleLock(int $userId): void
@@ -65,7 +74,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @foreach ($this->users as $user)
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
-                    <span class="font-medium text-gray-900">{{ $user->name }}</span>
+                    <a href="{{ route('users.show', $user) }}" class="font-medium text-gray-900 hover:underline">{{ $user->name }}</a>
                     <span class="ml-2 text-xs text-gray-500">{{ $user->email }}</span>
                     @if ($user->is_admin)
                         <span class="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-700">管理者</span>

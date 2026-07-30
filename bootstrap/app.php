@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Middleware\EnforceLoginRequiredSetting;
+use App\Http\Middleware\EnforceRestApiEnabledSetting;
 use App\Http\Middleware\EnforceSessionTimeout;
+use App\Http\Middleware\EnforceTwofaRequired;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->throttleApi();
         $middleware->alias([
             'session.timeout' => EnforceSessionTimeout::class,
+            'rest-api.enabled' => EnforceRestApiEnabledSetting::class,
+            'twofa.required' => EnforceTwofaRequired::class,
+            'login.required' => EnforceLoginRequiredSetting::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

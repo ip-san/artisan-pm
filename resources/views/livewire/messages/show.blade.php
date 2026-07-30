@@ -4,6 +4,7 @@ use App\Models\Board;
 use App\Models\Message;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\ReactionService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\Rule;
@@ -187,6 +188,20 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->redirect(route('messages.show', [$this->project, $newBoard, $this->topic]), navigate: true);
     }
 
+    public function toggleReaction(string $type, int $id): void
+    {
+        abort_unless($type === 'message', 404);
+
+        $reactable = $this->messageInBoard($id);
+        $user = auth()->user();
+
+        if (! app(ReactionService::class)->canReact($user, $reactable)) {
+            abort(403);
+        }
+
+        app(ReactionService::class)->toggle($reactable, $user);
+    }
+
     public function deleteAttachment(int $messageId, int $mediaId): void
     {
         $message = $this->messageInBoard($messageId);
@@ -342,9 +357,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <div class="rounded-md border border-gray-200 bg-white p-4 mb-2">
         <p class="whitespace-pre-line text-sm text-gray-800">{{ $topic->content }}</p>
-        @can('reply', $topic)
-            <button wire:click="quote({{ $topic->id }})" class="mt-1 text-xs text-indigo-600 hover:underline">引用</button>
-        @endcan
+        <div class="mt-1 flex items-center gap-2">
+            @can('reply', $topic)
+                <button wire:click="quote({{ $topic->id }})" class="text-xs text-indigo-600 hover:underline">引用</button>
+            @endcan
+            <x-reaction-button :reactable="$topic" type="message" />
+        </div>
     </div>
     @if ($topic->attachments()->isNotEmpty())
         <ul class="mb-2 space-y-1">
@@ -426,7 +444,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endif
                 <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
                     <span>{{ $reply->author->name }} — {{ $reply->created_at->format('Y-m-d H:i') }}</span>
-                    <span class="flex gap-2">
+                    <span class="flex items-center gap-2">
+                        <x-reaction-button :reactable="$reply" type="message" />
                         @can('update', $reply)
                             <a href="{{ route('messages.edit', [$project, $board, $reply]) }}" class="text-indigo-600 hover:underline">編集</a>
                         @endcan

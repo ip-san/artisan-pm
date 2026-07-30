@@ -6,6 +6,7 @@ namespace App\Actions\Fortify;
 
 use App\Enums\UserStatus;
 use App\Models\AuthSource;
+use App\Models\Setting;
 use App\Models\User;
 use App\Support\Ldap\LdapAuthenticator;
 use Illuminate\Http\Request;
@@ -91,6 +92,16 @@ final class AuthenticateUser
 
     private function provisionFromDirectory(string $login, string $password): ?User
     {
+        // Matches Redmine's on-the-fly provisioning implicitly failing when
+        // the directory-supplied login can't pass User's own validation:
+        // this is the raw text typed into the login form, not sanitized by
+        // any form request, so it must be checked against the same
+        // format/length constraint the two user-facing forms enforce
+        // before it's trusted as a new account's login.
+        if (strlen($login) > User::LOGIN_LENGTH_LIMIT || preg_match(User::LOGIN_FORMAT_REGEX, $login) !== 1) {
+            return null;
+        }
+
         foreach (AuthSource::query()->where('onthefly_register', true)->get() as $source) {
             $attributes = $this->ldap->attempt($source, $login, $password);
 
@@ -108,6 +119,15 @@ final class AuthenticateUser
                 // NOT NULL column with an unguessable, unused value.
                 'password' => Hash::make(Str::random(40)),
                 'status' => UserStatus::Active->value,
+                // Every User::create() call site seeds this from the admin
+                // default explicitly (Redmine's UserPreference seeds it
+                // lazily on first access instead, but this app has no
+                // preference object to defer to) — on-the-fly LDAP
+                // provisioning is a real account-creation path just like
+                // self-registration and admin creation, so it needs the
+                // same seed or it would silently fall back to the model's
+                // hardcoded $attributes default instead.
+                'no_self_notified' => Setting::get('default_users_no_self_notified', true),
             ]);
         }
 

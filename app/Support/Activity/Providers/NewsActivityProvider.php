@@ -47,6 +47,7 @@ final class NewsActivityProvider implements ActivityProvider
                 url: route('news.show', [$project, $news]),
                 authorName: $news->author->name,
                 occurredAt: $news->created_at ?? throw new LogicException('News is missing created_at.'),
+                authorId: $news->author_id,
             ));
     }
 }

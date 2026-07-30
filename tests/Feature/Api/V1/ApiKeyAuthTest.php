@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Setting;
 use App\Models\User;
+use Laravel\Passport\Passport;
 
 test('a request with no credentials at all is rejected', function () {
     $this->getJson('/api/v1/projects')->assertUnauthorized();
@@ -79,4 +81,35 @@ test('the api_key column never appears in a serialized user response', function 
     $response = $this->withHeaders(['X-Redmine-API-Key' => $key])->getJson('/api/v1/user');
 
     $response->assertOk()->assertJsonMissing(['api_key' => $key]);
+});
+
+test('rest_api_enabled off rejects an otherwise-valid API key before authentication is even attempted', function () {
+    Setting::set('rest_api_enabled', false);
+    $user = User::factory()->create();
+    $key = $user->regenerateApiKey();
+
+    $this->withHeaders(['X-Redmine-API-Key' => $key])
+        ->getJson('/api/v1/projects')
+        ->assertForbidden();
+});
+
+test('rest_api_enabled off rejects a request even with an authenticated Passport session', function () {
+    // Passport::actingAs() short-circuits token verification and injects the
+    // user straight into the guard; the point here is that the middleware
+    // runs ahead of ALL auth mechanisms (api-key and Passport alike), not
+    // that a specific token gets rejected.
+    Setting::set('rest_api_enabled', false);
+    $user = User::factory()->create();
+    Passport::actingAs($user);
+
+    $this->getJson('/api/v1/projects')->assertForbidden();
+});
+
+test('rest_api_enabled on (the default in this test suite) accepts a valid request as before', function () {
+    $user = User::factory()->create();
+    $key = $user->regenerateApiKey();
+
+    $this->withHeaders(['X-Redmine-API-Key' => $key])
+        ->getJson('/api/v1/projects')
+        ->assertOk();
 });

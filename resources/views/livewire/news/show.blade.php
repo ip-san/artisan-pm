@@ -1,9 +1,11 @@
 <?php
 
+use App\Events\NewsCommentCreated;
 use App\Models\News;
 use App\Models\NewsComment;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\ReactionService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -52,11 +54,13 @@ new #[Layout('components.layouts.app')] class extends Component
             'commentContent' => ['required', 'string'],
         ]);
 
-        NewsComment::create([
+        $comment = NewsComment::create([
             'news_id' => $this->news->id,
             'author_id' => auth()->id(),
             'content' => $data['commentContent'],
         ]);
+
+        NewsCommentCreated::dispatch($comment);
 
         $this->reset('commentContent');
         unset($this->comments);
@@ -132,6 +136,23 @@ new #[Layout('components.layouts.app')] class extends Component
         unset($this->watcherCandidates);
     }
 
+    public function toggleReaction(string $type, int $id): void
+    {
+        $reactable = match ($type) {
+            'news' => News::query()->findOrFail($id),
+            'news_comment' => NewsComment::query()->findOrFail($id),
+            default => abort(404),
+        };
+
+        $user = auth()->user();
+
+        if (! app(ReactionService::class)->canReact($user, $reactable)) {
+            abort(403);
+        }
+
+        app(ReactionService::class)->toggle($reactable, $user);
+    }
+
     /**
      * Matches Redmine's Attachment#description — see the same feature on
      * issues.show for the reasoning behind reading from the bound array
@@ -178,6 +199,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <div class="rounded-md border border-gray-200 bg-white p-4 mb-4">
         <p class="whitespace-pre-line text-sm text-gray-800">{{ $news->description }}</p>
+    </div>
+
+    <div class="mb-4">
+        <x-reaction-button :reactable="$news" type="news" />
     </div>
 
     @if ($news->watchers->isNotEmpty() || auth()->user()?->can('manageWatchers', $news))
@@ -249,9 +274,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 <p class="whitespace-pre-line text-sm text-gray-800">{{ $comment->content }}</p>
                 <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
                     <span>{{ $comment->author->name }} — {{ $comment->created_at->format('Y-m-d H:i') }}</span>
-                    @can('delete', $comment)
-                        <button wire:click="deleteComment({{ $comment->id }})" wire:confirm="このコメントを削除しますか?" class="text-red-600 hover:underline">削除</button>
-                    @endcan
+                    <div class="flex items-center gap-2">
+                        <x-reaction-button :reactable="$comment" type="news_comment" />
+                        @can('delete', $comment)
+                            <button wire:click="deleteComment({{ $comment->id }})" wire:confirm="このコメントを削除しますか?" class="text-red-600 hover:underline">削除</button>
+                        @endcan
+                    </div>
                 </div>
             </li>
         @endforeach

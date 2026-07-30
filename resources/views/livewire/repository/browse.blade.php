@@ -22,16 +22,16 @@ new #[Layout('components.layouts.app')] class extends Component
      * commits are synced, so it isn't cached here to avoid needing
      * separate invalidation plumbing for a moving target.
      */
-    public function mount(Project $project, string $path = ''): void
+    public function mount(Project $project, ?string $path = null, ?string $repositoryParam = null): void
     {
         $this->authorize('browse', [Repository::class, $project]);
 
-        $repository = $project->repository;
+        $repository = $project->resolveRepository($repositoryParam);
         abort_if($repository === null, 404);
 
         $this->project = $project;
         $this->repository = $repository;
-        $this->path = trim($path, '/');
+        $this->path = trim($path ?? '', '/');
     }
 
     /**
@@ -68,16 +68,16 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="mb-6">
         <p class="text-sm text-gray-500">
-            <a href="{{ route('repository.index', $project) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
         </p>
         <h1 class="text-xl font-semibold text-gray-900">ファイル一覧 (HEAD)</h1>
     </div>
 
     <nav class="mb-4 text-sm text-gray-600">
-        <a href="{{ route('repository.browse', $project) }}" class="text-indigo-600 hover:underline">root</a>
+        <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">root</a>
         @foreach ($this->breadcrumbs as $crumb)
             /
-            <a href="{{ route('repository.browse', [$project, $crumb['path']]) }}" class="text-indigo-600 hover:underline">
+            <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $crumb['path']])) }}" class="text-indigo-600 hover:underline">
                 {{ $crumb['name'] }}
             </a>
         @endforeach
@@ -87,14 +87,14 @@ new #[Layout('components.layouts.app')] class extends Component
         @forelse ($this->entries as $entry)
             <li wire:key="tree-{{ $entry->path }}" class="flex items-center justify-between px-4 py-2 text-sm">
                 @if ($entry->isDirectory)
-                    <a href="{{ route('repository.browse', [$project, $entry->path]) }}" class="text-indigo-600 hover:underline">
+                    <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-indigo-600 hover:underline">
                         📁 {{ $entry->name }}/
                     </a>
                 @else
-                    <a href="{{ route('repository.entry', [$project, $entry->path]) }}" class="text-indigo-600 hover:underline">
+                    <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-indigo-600 hover:underline">
                         📄 {{ $entry->name }}
                     </a>
-                    <a href="{{ route('repository.file-history', [$project, $entry->path]) }}" class="text-xs text-gray-500 hover:underline">
+                    <a href="{{ route($repository->routeName('repository.file-history'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-xs text-gray-500 hover:underline">
                         履歴
                     </a>
                 @endif

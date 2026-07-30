@@ -31,6 +31,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $attr_mail = 'mail';
 
+    public string $filter = '';
+
     public bool $onthefly_register = false;
 
     public int $timeout = 5;
@@ -57,6 +59,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->attr_login = $authSource->attr_login;
             $this->attr_name = $authSource->attr_name;
             $this->attr_mail = $authSource->attr_mail;
+            $this->filter = (string) $authSource->filter;
             $this->onthefly_register = $authSource->onthefly_register;
             $this->timeout = $authSource->timeout;
         } else {
@@ -102,11 +105,21 @@ new #[Layout('components.layouts.app')] class extends Component
             'attr_login' => ['required', 'string', 'max:255'],
             'attr_name' => ['required', 'string', 'max:255'],
             'attr_mail' => ['required', 'string', 'max:255'],
+            'filter' => ['nullable', 'string', 'max:1000', function (string $attribute, mixed $value, \Closure $fail): void {
+                if ($value === '' || $value === null) {
+                    return;
+                }
+
+                if (! str_starts_with($value, '(') || ! str_ends_with($value, ')') || substr_count($value, '(') !== substr_count($value, ')')) {
+                    $fail('LDAPフィルタの構文が正しくありません(例: (memberOf=cn=staff,dc=example,dc=com))。');
+                }
+            }],
             'onthefly_register' => ['boolean'],
             'timeout' => ['required', 'integer', 'min:1', 'max:60'],
         ]);
 
         $data['account'] = $data['account'] !== '' ? $data['account'] : null;
+        $data['filter'] = $data['filter'] !== '' ? $data['filter'] : null;
 
         if ($data['account_password'] === '') {
             unset($data['account_password']);
@@ -193,6 +206,15 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="text" wire:model="attr_mail" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('attr_mail') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">検索フィルタ(任意)</label>
+            <input type="text" wire:model="filter" placeholder="(memberOf=cn=staff,dc=example,dc=com)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm font-mono">
+            @error('filter') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <p class="mt-1 text-xs text-gray-500">
+                指定すると、ログイン時のディレクトリ検索にこのLDAPフィルタが常にAND条件として付加されます(例: 特定グループのメンバーのみログインを許可)。
+            </p>
         </div>
 
         <div>

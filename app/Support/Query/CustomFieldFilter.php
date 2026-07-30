@@ -35,7 +35,7 @@ final class CustomFieldFilter implements FilterableField
     public function type(): FilterFieldType
     {
         return match ($this->field->field_format) {
-            CustomFieldFormat::Int, CustomFieldFormat::Float => FilterFieldType::Integer,
+            CustomFieldFormat::Int, CustomFieldFormat::Float, CustomFieldFormat::Progressbar => FilterFieldType::Integer,
             CustomFieldFormat::Date => FilterFieldType::Date,
             CustomFieldFormat::Bool => FilterFieldType::Boolean,
             CustomFieldFormat::List, CustomFieldFormat::Enumeration => FilterFieldType::Select,

@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Services\IssueService;
+use App\Services\ReactionService;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
@@ -328,6 +329,50 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->comment = "{$journal->user->name} wrote:\n{$quoted}\n\n";
     }
 
+    public ?int $editingJournalId = null;
+
+    public string $editingJournalNotes = '';
+
+    public function startEditingJournal(int $journalId): void
+    {
+        $journal = $this->issue->journals->firstWhere('id', $journalId);
+
+        if ($journal === null) {
+            return;
+        }
+
+        $this->authorize('update', $journal);
+
+        $this->editingJournalId = $journalId;
+        $this->editingJournalNotes = (string) $journal->notes;
+    }
+
+    public function cancelEditingJournal(): void
+    {
+        $this->reset('editingJournalId', 'editingJournalNotes');
+    }
+
+    /**
+     * Blank notes are allowed on purpose — matching Redmine, which has no
+     * dedicated "delete comment" action at all (JournalsController only
+     * routes :edit/:update). Clearing the text is how a comment is
+     * removed; any attribute changes recorded in the same journal stay
+     * visible (Journal#isEmpty() only hides the row when both notes and
+     * details are empty).
+     */
+    public function saveJournalEdit(): void
+    {
+        $journal = Journal::query()->findOrFail($this->editingJournalId);
+        $this->authorize('update', $journal);
+
+        $data = $this->validate(['editingJournalNotes' => ['nullable', 'string']]);
+
+        $journal->update(['notes' => $data['editingJournalNotes'] ?? '']);
+
+        $this->reset('editingJournalId', 'editingJournalNotes');
+        $this->issue->load('journals.user', 'journals.details');
+    }
+
     public function addComment(): void
     {
         $this->authorize('update', $this->issue);
@@ -356,14 +401,16 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $user = auth()->user();
 
-        if ($user->can('viewPrivateNotes', $this->issue)) {
+        if ($user !== null && $user->can('viewPrivateNotes', $this->issue)) {
             return $this->issue->journals;
         }
 
         // A user can always see their own private notes, even without
-        // view_private_notes — matching Redmine's Journal#visible?.
+        // view_private_notes — matching Redmine's Journal#visible?. A guest
+        // (null $user) never has a "own" notes, so they only ever see
+        // non-private journals.
         return $this->issue->journals
-            ->filter(fn (Journal $journal) => ! $journal->private_notes || $journal->user_id === $user->id)
+            ->filter(fn (Journal $journal) => ! $journal->private_notes || ($user !== null && $journal->user_id === $user->id))
             ->values();
     }
 
@@ -380,6 +427,23 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $this->issue->unsetRelation('watchers');
+    }
+
+    public function toggleReaction(string $type, int $id): void
+    {
+        $reactable = match ($type) {
+            'issue' => Issue::query()->findOrFail($id),
+            'journal' => Journal::query()->findOrFail($id),
+            default => abort(404),
+        };
+
+        $user = auth()->user();
+
+        if (! app(ReactionService::class)->canReact($user, $reactable)) {
+            abort(403);
+        }
+
+        app(ReactionService::class)->toggle($reactable, $user);
     }
 
     /**
@@ -530,15 +594,21 @@ new #[Layout('components.layouts.app')] class extends Component
             </h1>
         </div>
         <div class="flex gap-2">
-            <button wire:click="toggleWatch" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                {{ $issue->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
-            </button>
+            @can('watch', $issue)
+                <button wire:click="toggleWatch" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    {{ $issue->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
+                </button>
+            @endcan
             @can('create', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.create', $project) }}?issue_id={{ $issue->id }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     工数を記録
                 </a>
             @endcan
+            <a href="{{ route('issues.pdf', [$project, $issue]) }}"
+                class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                PDF
+            </a>
             @can('create', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.create', $project) }}?copy_from={{ $issue->id }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -617,6 +687,10 @@ new #[Layout('components.layouts.app')] class extends Component
             {!! $this->renderedDescription !!}
         </div>
     @endif
+
+    <div class="mb-6">
+        <x-reaction-button :reactable="$issue" type="issue" />
+    </div>
 
     @if ($this->customFieldDisplayValues->isNotEmpty())
         <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-gray-200 bg-white p-4 text-sm mb-6">
@@ -790,11 +864,14 @@ new #[Layout('components.layouts.app')] class extends Component
     <ul class="space-y-3 mb-6">
         @forelse ($this->visibleJournals as $journal)
             @unless ($journal->isEmpty())
-                <li class="rounded-md border border-gray-200 bg-white p-3 text-sm">
+                <li wire:key="journal-{{ $journal->id }}" class="rounded-md border border-gray-200 bg-white p-3 text-sm">
                     <div class="text-gray-500 text-xs mb-1">
                         {{ $journal->user->name }} — {{ $journal->created_at->format('Y-m-d H:i') }}
                         @if ($journal->private_notes)
                             <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-amber-700">非公開</span>
+                        @endif
+                        @if ($journal->notes && ! $journal->updated_at->equalTo($journal->created_at))
+                            <span class="ml-1 italic">(編集済み)</span>
                         @endif
                     </div>
                     @foreach ($journal->details as $detail)
@@ -815,10 +892,27 @@ new #[Layout('components.layouts.app')] class extends Component
                         </div>
                     @endforeach
                     @if ($journal->notes)
-                        <div class="prose prose-sm max-w-none mt-1 text-gray-800">{!! $this->renderedNotes($journal) !!}</div>
-                        @can('update', $issue)
-                            <button wire:click="quote({{ $journal->id }})" class="mt-1 text-xs text-indigo-600 hover:underline">引用</button>
-                        @endcan
+                        @if ($editingJournalId === $journal->id)
+                            <div class="mt-1 space-y-1">
+                                <textarea wire:model="editingJournalNotes" rows="3" class="block w-full rounded-md border-gray-300 text-sm shadow-sm"></textarea>
+                                @error('editingJournalNotes') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                                <div class="flex gap-2">
+                                    <button wire:click="saveJournalEdit" class="text-xs text-indigo-600 hover:underline">保存</button>
+                                    <button wire:click="cancelEditingJournal" class="text-xs text-gray-500 hover:underline">キャンセル</button>
+                                </div>
+                            </div>
+                        @else
+                            <div class="prose prose-sm max-w-none mt-1 text-gray-800">{!! $this->renderedNotes($journal) !!}</div>
+                            <div class="mt-1 flex items-center gap-2">
+                                @can('update', $issue)
+                                    <button wire:click="quote({{ $journal->id }})" class="text-xs text-indigo-600 hover:underline">引用</button>
+                                @endcan
+                                @can('update', $journal)
+                                    <button wire:click="startEditingJournal({{ $journal->id }})" class="text-xs text-indigo-600 hover:underline">編集</button>
+                                @endcan
+                                <x-reaction-button :reactable="$journal" type="journal" />
+                            </div>
+                        @endif
                     @endif
                 </li>
             @endunless

@@ -16,8 +16,14 @@
             @csrf
 
             <div>
+                <label for="login" class="block text-sm font-medium text-gray-700">ログインID</label>
+                <input id="login" name="login" type="text" value="{{ old('login') }}" required autofocus
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            </div>
+
+            <div>
                 <label for="name" class="block text-sm font-medium text-gray-700">氏名</label>
-                <input id="name" name="name" type="text" value="{{ old('name') }}" required autofocus
+                <input id="name" name="name" type="text" value="{{ old('name') }}" required
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
             </div>
 

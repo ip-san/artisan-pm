@@ -41,7 +41,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $changeset->repository);
 
         $this->project = $project;
-        $this->changeset = $changeset->load(['files', ...self::RELATED_ISSUE_RELATIONS]);
+        $this->changeset = $changeset->load(['files', 'repository.project', ...self::RELATED_ISSUE_RELATIONS]);
     }
 
     #[Computed]
@@ -113,7 +113,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-4xl">
     <p class="mb-2 text-sm text-gray-500">
-        <a href="{{ route('repository.index', $project) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+        <a href="{{ route($changeset->repository->routeName('repository.index'), $changeset->repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
     </p>
 
     <h1 class="mb-1 text-xl font-semibold text-gray-900 font-mono">{{ $changeset->shortRevision() }}</h1>
@@ -168,7 +168,7 @@ new #[Layout('components.layouts.app')] class extends Component
         差分
         @if ($path !== '')
             <span class="font-mono font-normal text-gray-500">({{ $path }})</span>
-            <a href="{{ route('repository.show', [$project, $changeset]) }}" class="ml-1 text-xs font-normal text-indigo-600 hover:underline">
+            <a href="{{ route($changeset->repository->routeName('repository.show'), $changeset->repository->routeParameters(['changeset' => $changeset])) }}" class="ml-1 text-xs font-normal text-indigo-600 hover:underline">
                 全体の差分を見る
             </a>
         @endif

@@ -60,6 +60,7 @@ final class IssueJournalActivityProvider implements ActivityProvider
                 url: route('issues.show', [$project, $journal->issue]),
                 authorName: $journal->user->name,
                 occurredAt: $journal->created_at ?? throw new LogicException('Journal is missing created_at.'),
+                authorId: $journal->user_id,
             ))
             ->values();
     }

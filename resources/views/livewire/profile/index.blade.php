@@ -1,5 +1,9 @@
 <?php
 
+use App\Enums\MailNotificationOption;
+use App\Services\AccountDeletionService;
+use App\Support\Auth\RequiresPasswordConfirmation;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -14,6 +18,8 @@ use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use RequiresPasswordConfirmation;
+
     public string $name = '';
 
     public string $email = '';
@@ -26,10 +32,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $code = '';
 
+    public string $mail_notification = '';
+
+    public bool $no_self_notified = false;
+
     public function mount(): void
     {
         $this->name = auth()->user()->name;
         $this->email = auth()->user()->email;
+        $this->mail_notification = auth()->user()->mail_notification->value;
+        $this->no_self_notified = auth()->user()->no_self_notified;
     }
 
     public function updateProfile(): void
@@ -39,6 +51,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'mail_notification' => ['required', Rule::in(array_map(fn (MailNotificationOption $o) => $o->value, MailNotificationOption::cases()))],
+            'no_self_notified' => ['boolean'],
         ]);
 
         $user->update($data);
@@ -138,22 +152,36 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Mirrors Illuminate\Auth\Middleware\RequirePassword's own freshness
-     * check — Fortify's 2FA HTTP routes are gated by that middleware, but
-     * these actions are invoked directly from Livewire rather than through
-     * those routes, so the same check is replicated here.
+     * Matches Redmine's MyController#destroy, which is gated by both
+     * require_sudo_mode and User#own_account_deletable? (my_controller.rb:
+     * 30-31, 78-89) — the sudo-mode reconfirmation happens via
+     * requirePasswordConfirmation() below, own_account_deletable? via
+     * User::deletable() (the `unsubscribe` setting + last-active-admin
+     * check re-run here rather than trusted from a stale computed value,
+     * since this is a client-tamperable Livewire action).
      */
-    private function requirePasswordConfirmation(): bool
+    public function deleteAccount(): void
     {
-        $confirmedAt = (int) session('auth.password_confirmed_at', 0);
-
-        if (now()->unix() - $confirmedAt > (int) config('auth.password_timeout', 10800)) {
-            $this->redirect(route('password.confirm'));
-
-            return false;
+        if (! $this->requirePasswordConfirmation()) {
+            return;
         }
 
-        return true;
+        $user = auth()->user();
+        abort_unless($user->deletable(), 403);
+
+        app(AccountDeletionService::class)->delete($user);
+
+        Auth::guard('web')->logout();
+        session()->invalidate();
+        session()->regenerateToken();
+
+        $this->redirect(route('login'), navigate: false);
+    }
+
+    #[Computed]
+    public function accountDeletable(): bool
+    {
+        return auth()->user()->deletable();
     }
 
     #[Computed]
@@ -209,6 +237,23 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">メールアドレス</label>
                 <input type="email" wire:model="email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">メール通知</label>
+                <select wire:model="mail_notification" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Enums\MailNotificationOption::cases() as $option)
+                        <option value="{{ $option->value }}">{{ $option->label() }}</option>
+                    @endforeach
+                </select>
+                @error('mail_notification') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="no_self_notified" class="rounded border-gray-300">
+                    自分自身が行った変更については通知メールを送信しない
+                </label>
             </div>
 
             <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
@@ -318,4 +363,20 @@ new #[Layout('components.layouts.app')] class extends Component
             {{ $this->apiKey ? '再生成' : '生成' }}
         </button>
     </section>
+
+    @if ($this->accountDeletable)
+        <section class="rounded-md border border-red-300 bg-red-50 p-4">
+            <h2 class="mb-2 text-sm font-semibold text-red-900">アカウントの削除</h2>
+            <p class="mb-4 text-sm text-red-700">
+                アカウントを削除すると、二度と元に戻せません。参加していたすべてのプロジェクトから外れ、
+                個人のウォッチ・非公開のカスタムクエリは削除されます。作成した課題・コメント・Wikiページ等はそのまま残ります。
+            </p>
+
+            <button wire:click="deleteAccount"
+                wire:confirm="本当にアカウントを削除しますか?この操作は元に戻せません。"
+                class="rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
+                アカウントを削除する
+            </button>
+        </section>
+    @endif
 </div>

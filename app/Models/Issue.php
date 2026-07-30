@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Concerns\HasCustomFields;
+use App\Concerns\HasReactions;
 use App\Concerns\HasThumbnails;
 use App\Enums\CustomizableType;
 use App\Enums\IssueRelationType;
@@ -35,7 +36,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 final class Issue extends Model implements HasMedia
 {
     /** @use HasFactory<IssueFactory> */
-    use HasCustomFields, HasFactory, HasThumbnails, InteractsWithMedia, Searchable {
+    use HasCustomFields, HasFactory, HasReactions, HasThumbnails, InteractsWithMedia, Searchable {
         HasThumbnails::registerMediaConversions insteadof InteractsWithMedia;
     }
 

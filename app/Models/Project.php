@@ -37,6 +37,21 @@ final class Project extends Model implements HasMedia
         HasThumbnails::registerMediaConversions insteadof InteractsWithMedia;
     }
 
+    /**
+     * Eloquent doesn't read back server-side column defaults on a freshly
+     * created (unrefreshed) model — same issue Tracker/User's own
+     * $attributes already work around — so a just-created Project's
+     * in-memory status would otherwise be null even though the
+     * `projects` table default is 'active'. Latent until the REST API's
+     * store() returned the in-memory model directly; the web form never
+     * hit this because it redirects to a fresh page load afterward.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => 'active',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -279,6 +294,28 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * @return HasOne<Wiki, $this>
+     */
+    public function wiki(): HasOne
+    {
+        return $this->hasOne(Wiki::class);
+    }
+
+    /**
+     * Matches Redmine's Wiki.create_default — this app doesn't have a
+     * single "module enabled" hook to eagerly create the row at, so it's
+     * created lazily here instead, the first time something (currently
+     * only wiki.index's start-page redirect) actually needs it.
+     */
+    public function wikiOrCreate(): Wiki
+    {
+        return $this->wiki ?? tap(
+            Wiki::query()->create(['project_id' => $this->id]),
+            fn (Wiki $wiki) => $this->setRelation('wiki', $wiki),
+        );
+    }
+
+    /**
      * @return HasMany<WikiRedirect, $this>
      */
     public function wikiRedirects(): HasMany
@@ -311,11 +348,43 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * The project's default repository (Redmine's Project#repository,
+     * project.rb: `has_one :repository, -> { where(is_default: true) }`).
+     * Every project with at least one repository has exactly one default
+     * one — enforced by Repository's saving/saved hooks, not here.
+     *
      * @return HasOne<Repository, $this>
      */
     public function repository(): HasOne
     {
-        return $this->hasOne(Repository::class);
+        return $this->hasOne(Repository::class)->where('is_default', true);
+    }
+
+    /**
+     * @return HasMany<Repository, $this>
+     */
+    public function repositories(): HasMany
+    {
+        return $this->hasMany(Repository::class);
+    }
+
+    /**
+     * Matches Redmine's RepositoriesController#find_project_repository:
+     * an explicit identifier/id param resolves via
+     * Repository::whereIdentifierParam(), an absent one falls back to the
+     * project's default repository, then (for a project whose default
+     * repository was somehow never set) its first repository — the same
+     * two-step fallback repository routes used before slice 2 existed,
+     * just expressed as one method instead of duplicated inline per
+     * screen.
+     */
+    public function resolveRepository(?string $repositoryIdentifier): ?Repository
+    {
+        if ($repositoryIdentifier !== null) {
+            return $this->repositories()->whereIdentifierParam($repositoryIdentifier)->first();
+        }
+
+        return $this->repository ?? $this->repositories()->first();
     }
 
     public function hasModule(ProjectModuleKey $module): bool

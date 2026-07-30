@@ -19,11 +19,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $userId = null;
 
-    public function mount(Project $project): void
+    public function mount(Project $project, ?string $repositoryParam = null): void
     {
         $this->authorize('manage', [Repository::class, $project]);
 
-        $repository = $project->repository;
+        $repository = $project->resolveRepository($repositoryParam);
         abort_if($repository === null, 404);
 
         $this->project = $project;
@@ -83,7 +83,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-2xl">
     <p class="mb-2 text-sm text-gray-500">
-        <a href="{{ route('repository.index', $project) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+        <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
     </p>
     <h1 class="text-xl font-semibold text-gray-900 mb-2">コミッターのマッピング</h1>
     <p class="mb-6 text-sm text-gray-500">

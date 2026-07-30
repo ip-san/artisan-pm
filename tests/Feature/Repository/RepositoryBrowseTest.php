@@ -95,7 +95,7 @@ test('a member with browse_repository can download a text file with the correct 
     $user = browseMember($project);
     $repository = Repository::factory()->for($project)->create(['path' => createBrowsableGitRepo()]);
 
-    $response = $this->actingAs($user)->get(route('repository.raw', [$project, 'src/app.php']));
+    $response = $this->actingAs($user)->get(route('repository.raw', ['project' => $project, 'path' => 'src/app.php']));
 
     $response->assertOk()
         ->assertHeader('Content-Disposition', 'attachment; filename="app.php"')
@@ -112,7 +112,7 @@ test('a binary file can be downloaded even though it cannot be previewed inline'
     Process::path($path)->run(['git', 'commit', '-q', '-m', 'Add binary'])->throw();
     $repository = Repository::factory()->for($project)->create(['path' => $path]);
 
-    $response = $this->actingAs($user)->get(route('repository.raw', [$project, 'image.bin']));
+    $response = $this->actingAs($user)->get(route('repository.raw', ['project' => $project, 'path' => 'image.bin']));
 
     $response->assertOk()
         ->assertHeader('Content-Disposition', 'attachment; filename="image.bin"')
@@ -152,5 +152,5 @@ test('a member without browse_repository cannot download a raw file', function (
     $user = browseMember($project, []);
     Repository::factory()->for($project)->create(['path' => createBrowsableGitRepo()]);
 
-    $this->actingAs($user)->get(route('repository.raw', [$project, 'README.md']))->assertForbidden();
+    $this->actingAs($user)->get(route('repository.raw', ['project' => $project, 'path' => 'README.md']))->assertForbidden();
 });

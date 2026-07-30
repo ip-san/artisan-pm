@@ -382,7 +382,7 @@ final class SearchService
             ->map(fn (Changeset $changeset) => new SearchResult(
                 type: 'changeset',
                 title: $changeset->shortRevision(),
-                url: route('repository.show', [$changeset->repository->project, $changeset]),
+                url: route($changeset->repository->routeName('repository.show'), $changeset->repository->routeParameters(['changeset' => $changeset])),
                 excerpt: $this->excerpt($changeset->comments),
                 updatedAt: $changeset->committed_on,
             ));

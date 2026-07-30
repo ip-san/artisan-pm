@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Support\Authorization;
 
 use App\Enums\IssueVisibility;
+use App\Enums\ProjectStatus;
 use App\Enums\RoleBuiltin;
 use App\Enums\TimeEntryVisibility;
+use App\Enums\UsersVisibility;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
@@ -201,6 +203,85 @@ final class AuthorizationService
             })
             ->whereHas('roles', fn ($query) => $query->whereIn('roles.id', $roleIds))
             ->exists();
+    }
+
+    /**
+     * Matches Redmine's Principal.visible scope (principal.rb): a user
+     * whose *any* project membership carries a role with
+     * users_visibility == 'all' — or, if they hold no membership
+     * anywhere, whose builtin NonMember role does — can search/see every
+     * active user site-wide (e.g. the "add member" autocomplete). Anyone
+     * else is restricted to visibleProjectIds()'s members. Admins and
+     * (for the null/guest case) the Anonymous builtin role are checked
+     * the same way Redmine checks `user.admin?` and an anonymous
+     * Principal.visible caller.
+     */
+    public function hasSiteWideUserVisibility(?User $user): bool
+    {
+        if ($user === null) {
+            return Role::query()->where('builtin', RoleBuiltin::Anonymous)->value('users_visibility') === UsersVisibility::All;
+        }
+
+        if ($user->is_admin) {
+            return true;
+        }
+
+        $groupIds = $user->groups()->pluck('groups.id');
+
+        $hasAnyMembership = Member::query()
+            ->where(function ($member) use ($user, $groupIds) {
+                $member->where('user_id', $user->id)->orWhereIn('group_id', $groupIds);
+            })
+            ->exists();
+
+        if (! $hasAnyMembership) {
+            return Role::query()->where('builtin', RoleBuiltin::NonMember)->value('users_visibility') === UsersVisibility::All;
+        }
+
+        return Role::query()
+            ->whereHas('members', function ($query) use ($user, $groupIds) {
+                $query->where(function ($member) use ($user, $groupIds) {
+                    $member->where('user_id', $user->id)->orWhereIn('group_id', $groupIds);
+                });
+            })
+            ->where('users_visibility', UsersVisibility::All->value)
+            ->exists();
+    }
+
+    /**
+     * Non-archived projects this user can see the existence of: public
+     * projects, plus any (private or public) project they're a member of
+     * directly or via a group. Used to restrict who counts as "visible"
+     * under users_visibility === members_of_visible_projects, matching
+     * Redmine's User#visible_project_ids (Project.visible(self).pluck
+     * (:id)) — this is a pragmatic approximation of Project.visible (the
+     * same is_public-or-member simplification ProjectPolicy::view already
+     * makes) rather than a full per-project policy check, since re-running
+     * Gate::allows('view', ...) per project here would be a per-row policy
+     * call for every project in the system.
+     *
+     * @return Collection<int, int>
+     */
+    public function visibleProjectIds(?User $user): Collection
+    {
+        if ($user?->is_admin) {
+            return Project::query()->pluck('id');
+        }
+
+        $groupIds = $user === null ? collect() : $user->groups()->pluck('groups.id');
+
+        return Project::query()
+            ->where('status', '!=', ProjectStatus::Archived->value)
+            ->where(function ($query) use ($user, $groupIds) {
+                $query->where('is_public', true);
+
+                if ($user !== null) {
+                    $query->orWhereHas('members', function ($member) use ($user, $groupIds) {
+                        $member->where('user_id', $user->id)->orWhereIn('group_id', $groupIds);
+                    });
+                }
+            })
+            ->pluck('id');
     }
 
     /**

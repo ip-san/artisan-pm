@@ -22,6 +22,7 @@ use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Watcher;
+use App\Support\Mail\MentionParser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -71,7 +72,7 @@ final class IssueService
 
         $this->recalculateAncestorAttributes($issue->parent_id);
 
-        IssueCreated::dispatch($issue);
+        IssueCreated::dispatch($issue, MentionParser::extractLogins($issue->description));
 
         return $issue;
     }
@@ -208,6 +209,7 @@ final class IssueService
         $customFieldChanges = $this->diffCustomFieldSnapshots($originalCustomValues, $this->customFieldSnapshot($issue));
 
         $hasDetails = $changes !== [] || $customFieldChanges !== [];
+        $detailsJournal = null;
 
         if ($hasDetails || filled($comment)) {
             // Matches Redmine's Journal#split_private_notes: a private note
@@ -260,7 +262,12 @@ final class IssueService
         // configured for "issue updated" silently never saw plain
         // comments.
         if ($changes !== [] || $customFieldChanges !== [] || filled($comment)) {
-            IssueUpdated::dispatch($issue);
+            $mentionedLogins = array_unique([
+                ...MentionParser::newlyMentionedLogins($original['description'] ?? null, $issue->description),
+                ...MentionParser::extractLogins($comment),
+            ]);
+
+            IssueUpdated::dispatch($issue, $actor, $detailsJournal, $mentionedLogins);
         }
 
         if ($this->isClosingTransition($original, $issue)) {

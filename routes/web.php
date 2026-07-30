@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\AccountActivationController;
 use App\Http\Controllers\ActivityFeedController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AttachmentThumbnailController;
 use App\Http\Controllers\BoardAtomController;
 use App\Http\Controllers\IssueAtomController;
+use App\Http\Controllers\IssuePdfController;
 use App\Http\Controllers\NewsAtomController;
 use App\Http\Controllers\RepositoryRawController;
 use Illuminate\Support\Facades\Route;
@@ -14,9 +16,26 @@ Route::get('/', function () {
     return redirect()->route('projects.index');
 });
 
-Route::middleware(['auth', 'session.timeout'])->group(function () {
-    Route::get('/attachments/{media}', AttachmentController::class)->name('attachments.show');
-    Route::get('/attachments/{media}/thumb', AttachmentThumbnailController::class)->name('attachments.thumb');
+Route::get('/account/activate/{user}', AccountActivationController::class)
+    ->middleware('signed')
+    ->name('account.activate');
+
+// Guest-reachable-when-Setting::get('login_required')-is-off routes are
+// marked individually below with ->withoutMiddleware('auth')->middleware
+// ('login.required'), rather than pulled into a separate group, so file
+// order — and therefore route-matching precedence between a literal
+// segment (e.g. "issues/create") and a wildcard sibling registered nearby
+// (e.g. "issues/{issue}") — stays exactly as it already was. 'login.required'
+// still blocks a guest here exactly as 'auth' would when the setting is on
+// (the default); when it's off, each route's own policy
+// (ProjectPolicy/IssuePolicy/WikiPagePolicy) decides whether the specific
+// project/model is visible to a guest — matching Redmine's own narrow
+// guest-visible surface (public projects' issues and wiki only).
+Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function () {
+    Route::get('/attachments/{media}', AttachmentController::class)->name('attachments.show')
+        ->withoutMiddleware('auth')->middleware('login.required');
+    Route::get('/attachments/{media}/thumb', AttachmentThumbnailController::class)->name('attachments.thumb')
+        ->withoutMiddleware('auth')->middleware('login.required');
 
     Volt::route('/my/page', 'my-page.index')->name('my-page.index');
     Volt::route('/profile', 'profile.index')->name('profile.index');
@@ -25,6 +44,7 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
     Volt::route('/time_entries', 'time-entries.global-index')->name('time-entries.global-index');
     Volt::route('/search', 'search.global-index')->name('search.global-index');
     Volt::route('/issues/calendar', 'calendar.global-index')->name('calendar.global-index');
+    Volt::route('/activity', 'activity.global-index')->name('activity.global-index');
 
     Volt::route('/projects', 'projects.index')->name('projects.index');
     Volt::route('/projects/create', 'projects.form')->name('projects.create');
@@ -43,31 +63,49 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
     Volt::route('/projects/{project:identifier}/versions/{version}/edit', 'versions.form')->name('versions.edit');
 
     Route::get('/projects/{project:identifier}/issues.atom', IssueAtomController::class)->name('issues.atom');
-    Volt::route('/projects/{project:identifier}/issues', 'issues.index')->name('issues.index');
+    Volt::route('/projects/{project:identifier}/issues', 'issues.index')->name('issues.index')
+        ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/projects/{project:identifier}/issues/create', 'issues.form')->name('issues.create');
     // Registered before the {issue} routes below so "import" isn't matched
     // as an issue-id route-model-binding segment.
     Volt::route('/projects/{project:identifier}/issues/import', 'issues.import')->name('issues.import');
     Volt::route('/projects/{project:identifier}/issues/imports/{import}', 'issues.import-status')->name('issues.import-status');
     Volt::route('/projects/{project:identifier}/issues/report', 'issues.report')->name('issues.report');
-    Volt::route('/projects/{project:identifier}/issues/{issue}', 'issues.show')->name('issues.show');
+    Volt::route('/projects/{project:identifier}/issues/{issue}', 'issues.show')->name('issues.show')
+        ->withoutMiddleware('auth')->middleware('login.required');
+    // Gated by the exact same IssuePolicy::view Gate::authorize() call as
+    // issues.show itself, so it's opened to guests the same way — a guest
+    // who can already read a public issue on the page shouldn't hit an
+    // unexpected login wall by clicking its own "PDF" link.
+    Route::get('/projects/{project:identifier}/issues/{issue}/pdf', IssuePdfController::class)->name('issues.pdf')
+        ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/projects/{project:identifier}/issues/{issue}/edit', 'issues.form')->name('issues.edit');
     Volt::route('/projects/{project:identifier}/issues/{issue}/journal-details/{journalDetail}/diff', 'issues.journal-detail-diff')->name('issues.journal-detail-diff');
 
     Volt::route('/projects/{project:identifier}/time_entries', 'time-entries.index')->name('time-entries.index');
     Volt::route('/projects/{project:identifier}/time_entries/create', 'time-entries.form')->name('time-entries.create');
-    // Registered before the {timeEntry} routes below so "import" isn't
-    // matched as a time-entry-id route-model-binding segment.
+    // Registered before the {timeEntry} routes below so "import"/"report"
+    // aren't matched as a time-entry-id route-model-binding segment.
+    Volt::route('/projects/{project:identifier}/time_entries/report', 'time-entries.report')->name('time-entries.report');
     Volt::route('/projects/{project:identifier}/time_entries/import', 'time-entries.import')->name('time-entries.import');
     Volt::route('/projects/{project:identifier}/time_entries/imports/{import}', 'time-entries.import-status')->name('time-entries.import-status');
     Volt::route('/projects/{project:identifier}/time_entries/{timeEntry}/edit', 'time-entries.form')->name('time-entries.edit');
 
-    Volt::route('/projects/{project:identifier}/wiki', 'wiki.index')->name('wiki.index');
-    // Registered before the {wikiPage} routes below so "new" isn't matched
-    // as a wiki-page-id route-model-binding segment.
+    // Bare "/wiki" — redirects to the wiki's start page (or its creation
+    // form), matching Redmine's WikiController#show with no :id. The page
+    // LISTING lives at wiki.pages below, matching Redmine's own separate
+    // "/wiki/index" URL.
+    Volt::route('/projects/{project:identifier}/wiki', 'wiki.index')->name('wiki.index')
+        ->withoutMiddleware('auth')->middleware('login.required');
+    // Registered before the {wikiPage} routes below so "new"/"pages" aren't
+    // matched as a wiki-page-id route-model-binding segment.
     Volt::route('/projects/{project:identifier}/wiki/new', 'wiki.form')->name('wiki.create');
-    Volt::route('/projects/{project:identifier}/wiki/date-index', 'wiki.date-index')->name('wiki.date-index');
-    Volt::route('/projects/{project:identifier}/wiki/{wikiPage}', 'wiki.show')->name('wiki.show');
+    Volt::route('/projects/{project:identifier}/wiki/pages', 'wiki.pages')->name('wiki.pages')
+        ->withoutMiddleware('auth')->middleware('login.required');
+    Volt::route('/projects/{project:identifier}/wiki/date-index', 'wiki.date-index')->name('wiki.date-index')
+        ->withoutMiddleware('auth')->middleware('login.required');
+    Volt::route('/projects/{project:identifier}/wiki/{wikiPage}', 'wiki.show')->name('wiki.show')
+        ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/edit', 'wiki.form')->name('wiki.edit');
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/history', 'wiki.history')->name('wiki.history');
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/versions/{version}', 'wiki.version')->name('wiki.version');
@@ -101,7 +139,20 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
 
     Volt::route('/projects/{project:identifier}/files', 'files.index')->name('files.index');
 
+    // Laravel route parameters are only genuinely optional when they're
+    // the LAST segment of the URI. A mid-path `{repositoryParam?}` (e.g.
+    // before a literal verb like "/browse") compiles to a REQUIRED capture
+    // group regardless of the `?`, confirmed empirically via the route's
+    // compiled regex (`(?P<repositoryParam>[^/]++)` — no optional
+    // wrapping) rather than assumed. Multi-repository routing (slice 2b)
+    // instead registers a second, distinctly-named route per action (e.g.
+    // `repository.browse` for the identifier-less URL, `repository.browse.repo`
+    // for the identifier-bearing one below), both pointing at the same
+    // Volt component (each mount() already accepts an optional
+    // `?string $repositoryParam` and resolves it via
+    // `Project::resolveRepository()`).
     Volt::route('/projects/{project:identifier}/repository', 'repository.index')->name('repository.index');
+    Volt::route('/projects/{project:identifier}/repository/new', 'repository.form')->name('repository.create')->defaults('isNew', true);
     Volt::route('/projects/{project:identifier}/repository/edit', 'repository.form')->name('repository.edit');
     Volt::route('/projects/{project:identifier}/repository/committers', 'repository.committers')->name('repository.committers');
     Volt::route('/projects/{project:identifier}/repository/stats', 'repository.stats')->name('repository.stats');
@@ -112,6 +163,36 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
     Volt::route('/projects/{project:identifier}/repository/annotate/{path}', 'repository.annotate')->where('path', '.*')->name('repository.annotate');
     Volt::route('/projects/{project:identifier}/repository/history/{path}', 'repository.file-history')->where('path', '.*')->name('repository.file-history');
     Route::get('/projects/{project:identifier}/repository/raw/{path}', RepositoryRawController::class)->where('path', '.*')->name('repository.raw');
+
+    // Identifier-bearing siblings (slice 2b latter half) — registered
+    // AFTER every identifier-less route above so a literal action segment
+    // (e.g. "edit", "committers") is always matched by its own dedicated
+    // route first. `repository.index.repo`'s pattern
+    // (`/repository/{repositoryParam}`, exactly one segment) is placed
+    // last in this block too, on the same "specific before generic"
+    // principle, even though none of the sibling patterns below actually
+    // collide with it (they all require two or more segments after
+    // "/repository/", since `{repositoryParam}` only matches within a
+    // single path segment).
+    //
+    // Every literal segment registered below (plus "new" from the create
+    // route above) is duplicated as
+    // `RepositoryForm::RESERVED_IDENTIFIERS` (resources/views/livewire/repository/form.blade.php)
+    // — an identifier equal to one of these would make its own .repo URL
+    // collide with that route's identifier-less sibling. Adding a segment
+    // here without updating that list would silently reopen the gap the
+    // reserved-word validation exists to close.
+    Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/edit', 'repository.form')->name('repository.edit.repo');
+    Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/committers', 'repository.committers')->name('repository.committers.repo');
+    Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/stats', 'repository.stats')->name('repository.stats.repo');
+    Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/compare', 'repository.compare')->name('repository.compare.repo');
+    Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/revisions/{changeset}', 'repository.show')->name('repository.show.repo');
+    Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/browse/{path?}', 'repository.browse')->where('path', '.*')->name('repository.browse.repo');
+    Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/entry/{path}', 'repository.entry')->where('path', '.*')->name('repository.entry.repo');
+    Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/annotate/{path}', 'repository.annotate')->where('path', '.*')->name('repository.annotate.repo');
+    Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/history/{path}', 'repository.file-history')->where('path', '.*')->name('repository.file-history.repo');
+    Route::get('/projects/{project:identifier}/repository/{repositoryParam}/raw/{path}', RepositoryRawController::class)->where('path', '.*')->name('repository.raw.repo');
+    Volt::route('/projects/{project:identifier}/repository/{repositoryParam}', 'repository.index')->name('repository.index.repo');
 
     Volt::route('/projects/{project:identifier}/activity', 'activity.index')->name('activity.index');
     Route::get('/projects/{project:identifier}/activity.atom', ActivityFeedController::class)->name('activity.atom');
@@ -137,6 +218,9 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
 
     Volt::route('/settings', 'settings.index')->name('settings.index');
 
+    Volt::route('/plugins', 'plugins.index')->name('plugins.index');
+    Volt::route('/plugins/{plugin}/settings', 'plugins.settings')->name('plugins.settings');
+
     Volt::route('/auth-sources', 'auth-sources.index')->name('auth-sources.index');
     Volt::route('/auth-sources/create', 'auth-sources.form')->name('auth-sources.create');
     Volt::route('/auth-sources/{authSource}/edit', 'auth-sources.form')->name('auth-sources.edit');
@@ -148,6 +232,7 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
     Volt::route('/users', 'users.index')->name('users.index');
     Volt::route('/users/create', 'users.form')->name('users.create');
     Volt::route('/users/{user}/edit', 'users.form')->name('users.edit');
+    Volt::route('/users/{user}', 'users.show')->name('users.show');
 
     Volt::route('/trackers', 'trackers.index')->name('trackers.index');
     Volt::route('/trackers/create', 'trackers.form')->name('trackers.create');

@@ -3,6 +3,7 @@
 use App\Enums\UserStatus;
 use App\Models\AuthSource;
 use App\Models\CustomField;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
@@ -81,7 +82,10 @@ new #[Layout('components.layouts.app')] class extends Component
             'is_admin' => ['boolean'],
             'status' => ['required', Rule::enum(UserStatus::class)],
             'auth_source_id' => ['nullable', 'exists:auth_sources,id'],
-            'login' => [$isLdapLinked ? 'required' : 'nullable', 'string', 'max:255', Rule::unique('users')->ignore($this->user?->id)],
+            // Always mandatory now, not just for LDAP-linked accounts —
+            // format/length constants live on User (single source of
+            // truth shared with registration and LDAP provisioning).
+            'login' => ['required', 'string', 'max:'.User::LOGIN_LENGTH_LIMIT, 'regex:'.User::LOGIN_FORMAT_REGEX, Rule::unique('users')->ignore($this->user?->id)],
         ];
 
         if (! $isLdapLinked) {
@@ -122,6 +126,10 @@ new #[Layout('components.layouts.app')] class extends Component
         if ($this->user) {
             $this->user->update($data);
         } else {
+            // Matches Redmine's UserPreference seeding: a newly created
+            // account starts from the admin-configured default rather
+            // than the User model's own bare-column default.
+            $data['no_self_notified'] = Setting::get('default_users_no_self_notified', true);
             $this->user = User::create($data);
         }
 
@@ -175,6 +183,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="save" class="space-y-4">
         <div>
+            <label class="block text-sm font-medium text-gray-700">
+                {{ $auth_source_id ? 'ログインID(ディレクトリのuid)' : 'ログインID' }}
+            </label>
+            <input type="text" wire:model="login" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            @error('login') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
             <label class="block text-sm font-medium text-gray-700">名前</label>
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
@@ -212,13 +228,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @error('auth_source_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
-        @if ($auth_source_id)
-            <div>
-                <label class="block text-sm font-medium text-gray-700">ログインID(ディレクトリのuid)</label>
-                <input type="text" wire:model="login" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('login') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-            </div>
-        @else
+        @if (! $auth_source_id)
             <div>
                 <label class="block text-sm font-medium text-gray-700">
                     パスワード{{ $user ? '(変更する場合のみ入力)' : '' }}

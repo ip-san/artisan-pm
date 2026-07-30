@@ -7,7 +7,9 @@ namespace App\Actions\Fortify;
 use App\Enums\UserStatus;
 use App\Models\Setting;
 use App\Models\User;
+use App\Notifications\ConfirmAccountRegistration;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -25,10 +27,10 @@ final class CreateNewUser implements CreatesNewUsers
      * redirect-away-if-disabled check, as defense in depth against a
      * direct POST bypassing that), 'manual' creates the account locked
      * pending admin approval (UserStatus::Registered, matching Redmine's
-     * STATUS_REGISTERED), and 'automatic' activates it immediately — the
-     * app's prior, only behavior. Redmine's third mode, email-confirmation
-     * activation, is intentionally not implemented: this app has no
-     * outbound notification email system yet.
+     * STATUS_REGISTERED), 'email' creates it the same way but sends a
+     * signed activation link instead of waiting on an admin (Redmine's
+     * '1'/register_by_email_activation), and 'automatic' activates it
+     * immediately — the app's original, only behavior.
      *
      * @param  array<string, string>  $input
      *
@@ -46,6 +48,7 @@ final class CreateNewUser implements CreatesNewUsers
 
         Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
+            'login' => ['required', 'string', 'max:'.User::LOGIN_LENGTH_LIMIT, 'regex:'.User::LOGIN_FORMAT_REGEX, Rule::unique(User::class)],
             'email' => [
                 'required',
                 'string',
@@ -61,12 +64,26 @@ final class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return User::create([
+        $user = User::create([
             'name' => $input['name'],
+            'login' => $input['login'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
-            'status' => $mode === 'manual' ? UserStatus::Registered->value : UserStatus::Active->value,
+            'status' => in_array($mode, ['manual', 'email'], true) ? UserStatus::Registered->value : UserStatus::Active->value,
+            // Matches UserPreference#set_editable_attribute seeding
+            // no_self_notified from Setting.default_users_no_self_notified
+            // whenever it isn't explicitly given at creation time.
+            'no_self_notified' => Setting::get('default_users_no_self_notified', true),
         ]);
+
+        if ($mode === 'email') {
+            // 1 day, matching Redmine's Token.validity_time default for
+            // the 'register' action (config/redmine.rb has no override).
+            $url = URL::temporarySignedRoute('account.activate', now()->addDay(), ['user' => $user->id]);
+            $user->notify(new ConfirmAccountRegistration($url));
+        }
+
+        return $user;
     }
 
     /**

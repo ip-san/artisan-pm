@@ -20,12 +20,12 @@ function wikiMember(Project $project, array $permissions = ['view_wiki_pages', '
     return $user;
 }
 
-test('a member with view_wiki_pages can see the wiki index and a page', function () {
+test('a member with view_wiki_pages can see the wiki page list and a page', function () {
     $project = Project::factory()->create();
     $user = wikiMember($project, ['view_wiki_pages']);
     $page = WikiPage::factory()->for($project)->create();
 
-    Livewire::actingAs($user)->test('wiki.index', ['project' => $project])->assertOk();
+    Livewire::actingAs($user)->test('wiki.pages', ['project' => $project])->assertOk();
     Livewire::actingAs($user)->test('wiki.show', ['project' => $project, 'wikiPage' => $page])->assertOk();
 });
 
@@ -34,7 +34,7 @@ test('a member without view_wiki_pages is forbidden from the wiki', function () 
     $user = wikiMember($project, []);
     $page = WikiPage::factory()->for($project)->create();
 
-    Livewire::actingAs($user)->test('wiki.index', ['project' => $project])->assertForbidden();
+    Livewire::actingAs($user)->test('wiki.pages', ['project' => $project])->assertForbidden();
     Livewire::actingAs($user)->test('wiki.show', ['project' => $project, 'wikiPage' => $page])->assertForbidden();
 });
 

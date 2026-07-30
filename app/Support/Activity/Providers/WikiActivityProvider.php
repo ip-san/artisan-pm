@@ -47,6 +47,7 @@ final class WikiActivityProvider implements ActivityProvider
                 url: route('wiki.show', [$project, $version->wikiPage]),
                 authorName: $version->author->name,
                 occurredAt: $version->created_at ?? throw new LogicException('WikiPageVersion is missing created_at.'),
+                authorId: $version->author_id,
             ));
     }
 }

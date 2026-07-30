@@ -31,6 +31,7 @@ test('registration rejects a password shorter than the configured minimum', func
 
     $this->post(route('register'), [
         'name' => 'New User',
+        'login' => 'short-password',
         'email' => 'short-password@example.com',
         'password' => 'short1234',
         'password_confirmation' => 'short1234',
@@ -44,6 +45,7 @@ test('registration accepts a password meeting the configured minimum', function 
 
     $this->post(route('register'), [
         'name' => 'New User',
+        'login' => 'long-enough',
         'email' => 'long-enough@example.com',
         'password' => 'correct-horse-battery-staple',
         'password_confirmation' => 'correct-horse-battery-staple',
@@ -59,6 +61,7 @@ test('an admin creating a user is bound by the configured minimum password lengt
     Livewire::actingAs($admin)
         ->test('users.form')
         ->set('name', 'New User')
+        ->set('login', 'new-user')
         ->set('email', 'new-user@example.com')
         ->set('password', 'too-short')
         ->set('password_confirmation', 'too-short')
@@ -82,6 +85,7 @@ test('a user changing their own password is bound by the configured minimum leng
 test('the default minimum of 8 applies when the setting has never been configured', function () {
     $this->post(route('register'), [
         'name' => 'New User',
+        'login' => 'default-length',
         'email' => 'default-length@example.com',
         'password' => 'short12',
         'password_confirmation' => 'short12',

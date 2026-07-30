@@ -9,6 +9,7 @@ use App\Models\AuthSource;
 use LdapRecord\Connection;
 use LdapRecord\Container;
 use LdapRecord\LdapRecordException;
+use LdapRecord\Query\Builder;
 use LdapRecord\Query\EscapedValue;
 
 /**
@@ -101,7 +102,7 @@ final class LdapAuthenticator
      */
     private function searchThenBind(Connection $connection, AuthSource $source, string $login, string $password): ?array
     {
-        $entry = $connection->query()->where($source->attr_login, '=', $login)->first();
+        $entry = $this->baseQuery($connection, $source)->where($source->attr_login, '=', $login)->first();
 
         if ($entry === null) {
             return null;
@@ -127,9 +128,25 @@ final class LdapAuthenticator
             return null;
         }
 
-        $entry = $connection->query()->where($source->attr_login, '=', $login)->first();
+        $entry = $this->baseQuery($connection, $source)->where($source->attr_login, '=', $login)->first();
 
         return $entry ? $this->extractAttributes($entry, $source) : null;
+    }
+
+    /**
+     * Matches Redmine's AuthSourceLdap#base_filter: every directory search
+     * is ANDed with the admin-configured `filter` (e.g. restricting logins
+     * to members of a particular LDAP group), when one is set.
+     */
+    private function baseQuery(Connection $connection, AuthSource $source): Builder
+    {
+        $query = $connection->query();
+
+        if ($source->filter !== null && $source->filter !== '') {
+            $query->rawFilter($source->filter);
+        }
+
+        return $query;
     }
 
     /**

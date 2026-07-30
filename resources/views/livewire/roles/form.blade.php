@@ -3,6 +3,7 @@
 use App\Enums\IssueVisibility;
 use App\Enums\RoleBuiltin;
 use App\Enums\TimeEntryVisibility;
+use App\Enums\UsersVisibility;
 use App\Models\Role;
 use App\Support\Permissions\PermissionRegistry;
 use Illuminate\Support\Collection;
@@ -24,6 +25,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $timeEntriesVisibility = 'all';
 
+    public string $usersVisibility = 'all';
+
     public bool $assignable = true;
 
     public bool $allRolesManaged = true;
@@ -41,6 +44,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->permissions = $role->permissionKeys();
             $this->issuesVisibility = $role->issues_visibility->value;
             $this->timeEntriesVisibility = $role->time_entries_visibility->value;
+            $this->usersVisibility = $role->users_visibility->value;
             $this->assignable = $role->assignable;
             $this->allRolesManaged = $role->all_roles_managed;
             $this->managedRoleIds = $role->managedRoles->pluck('id')->all();
@@ -75,6 +79,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->permissions = $source->permissionKeys();
         $this->issuesVisibility = $source->issues_visibility->value;
         $this->timeEntriesVisibility = $source->time_entries_visibility->value;
+        $this->usersVisibility = $source->users_visibility->value;
         $this->assignable = $source->assignable;
         $this->allRolesManaged = $source->all_roles_managed;
         $this->managedRoleIds = $source->managedRoles->pluck('id')->all();
@@ -116,6 +121,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->ignore($this->role?->id)],
             'issuesVisibility' => ['required', Rule::enum(IssueVisibility::class)],
             'timeEntriesVisibility' => ['required', Rule::enum(TimeEntryVisibility::class)],
+            'usersVisibility' => ['required', Rule::enum(UsersVisibility::class)],
             'managedRoleIds' => ['array'],
             'managedRoleIds.*' => [Rule::in($this->otherGivableRoles->pluck('id')->all())],
         ]);
@@ -123,9 +129,10 @@ new #[Layout('components.layouts.app')] class extends Component
         $data['permissions'] = array_values(array_intersect($this->permissions, $this->availablePermissions));
         $data['issues_visibility'] = $data['issuesVisibility'];
         $data['time_entries_visibility'] = $data['timeEntriesVisibility'];
+        $data['users_visibility'] = $data['usersVisibility'];
         $data['assignable'] = $this->assignable;
         $data['all_roles_managed'] = $this->allRolesManaged;
-        unset($data['issuesVisibility'], $data['timeEntriesVisibility'], $data['managedRoleIds']);
+        unset($data['issuesVisibility'], $data['timeEntriesVisibility'], $data['usersVisibility'], $data['managedRoleIds']);
 
         if ($this->role) {
             $this->role->update($data);
@@ -173,6 +180,18 @@ new #[Layout('components.layouts.app')] class extends Component
                 <option value="own">自分の工数のみ</option>
             </select>
             @error('timeEntriesVisibility') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">ユーザーの閲覧範囲</label>
+            <select wire:model="usersVisibility" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <option value="all">すべてのアクティブなユーザー</option>
+                <option value="members_of_visible_projects">閲覧可能なプロジェクトのメンバーのみ</option>
+            </select>
+            @error('usersVisibility') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <p class="mt-1 text-xs text-gray-500">
+                このロールを持つメンバーが、プロジェクトメンバー追加時のユーザー検索でどこまでの範囲のユーザーを検索できるかを制限します。
+            </p>
         </div>
 
         <label class="flex items-center gap-2 text-sm text-gray-700">

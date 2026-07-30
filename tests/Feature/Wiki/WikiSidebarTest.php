@@ -29,7 +29,7 @@ test('the Sidebar page content renders on the wiki show, index, and date-index v
         ->assertSee('Unique sidebar marker text');
 
     Livewire::actingAs($user)
-        ->test('wiki.index', ['project' => $project])
+        ->test('wiki.pages', ['project' => $project])
         ->assertSee('Unique sidebar marker text');
 
     Livewire::actingAs($user)

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AuthSource;
+use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use LdapRecord\Connection;
 use LdapRecord\Container;
@@ -10,6 +11,14 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    // Redmine's own rest_api_enabled default is off (config/settings.yml),
+    // matched by this app's Setting::get('rest_api_enabled', false) fallback
+    // — but the existing API test suite predates that setting and exercises
+    // the API as always-reachable, so Feature tests opt in here by default
+    // rather than needing Setting::set('rest_api_enabled', true) added to
+    // every one of them individually. Tests that specifically cover the
+    // setting's off state set it back to false themselves.
+    ->beforeEach(fn () => Setting::set('rest_api_enabled', true))
     ->in('Feature');
 
 pest()->extend(TestCase::class)

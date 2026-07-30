@@ -22,6 +22,54 @@ test('an admin can create an auth source', function () {
         ->and($source->port)->toBe(389);
 });
 
+test('an admin can save a custom LDAP search filter', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('auth-sources.form')
+        ->set('name', 'Corporate LDAP')
+        ->set('host', 'ldap.example.com')
+        ->set('base_dn', 'dc=example,dc=com')
+        ->set('filter', '(memberOf=cn=staff,dc=example,dc=com)')
+        ->call('save')
+        ->assertRedirect(route('auth-sources.index'));
+
+    $source = AuthSource::where('name', 'Corporate LDAP')->firstOrFail();
+
+    expect($source->filter)->toBe('(memberOf=cn=staff,dc=example,dc=com)');
+});
+
+test('a blank filter is stored as null, matching the other optional fields', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('auth-sources.form')
+        ->set('name', 'Corporate LDAP')
+        ->set('host', 'ldap.example.com')
+        ->set('base_dn', 'dc=example,dc=com')
+        ->set('filter', '')
+        ->call('save');
+
+    $source = AuthSource::where('name', 'Corporate LDAP')->firstOrFail();
+
+    expect($source->filter)->toBeNull();
+});
+
+test('a syntactically invalid filter is rejected', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('auth-sources.form')
+        ->set('name', 'Corporate LDAP')
+        ->set('host', 'ldap.example.com')
+        ->set('base_dn', 'dc=example,dc=com')
+        ->set('filter', 'memberOf=cn=staff')
+        ->call('save')
+        ->assertHasErrors(['filter']);
+
+    expect(AuthSource::where('name', 'Corporate LDAP')->exists())->toBeFalse();
+});
+
 test('a non-admin cannot access auth source administration', function () {
     $user = User::factory()->create();
 

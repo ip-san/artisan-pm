@@ -14,9 +14,13 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * nested {id, name} tracker/role objects. possible_values keeps Redmine's
  * own {value, label} shape since CustomField::format()->options() already
  * returns that same value=>label mapping and there's no simpler flat
- * equivalent for it. description/is_for_all/is_filter/visible/
- * default_value_mode are omitted — this app has no such columns at all,
- * not just unexposed here.
+ * equivalent for it. description/is_for_all/is_filter/visible are omitted
+ * — this app has no such columns at all, not just unexposed here.
+ * default_value_mode (2026-07-29) is exposed alongside default_value;
+ * unlike the web UI's issue form (which resolves date_offset to a
+ * concrete date via CustomField::defaultValue()), this returns the raw
+ * stored default_value so an API client can distinguish a fixed date from
+ * an offset and interpret it itself.
  *
  * @property CustomField $resource
  */
@@ -42,6 +46,7 @@ final class CustomFieldResource extends JsonResource
             'multiple' => $field->multiple,
             'editable' => $field->editable,
             'default_value' => $field->default_value,
+            'default_value_mode' => $field->default_value_mode?->value,
             'possible_values' => collect($field->format()->options($field))
                 ->map(fn ($label, $value) => ['value' => (string) $value, 'label' => $label])
                 ->values()

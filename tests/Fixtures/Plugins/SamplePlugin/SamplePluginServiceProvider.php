@@ -22,6 +22,7 @@ final class SamplePluginServiceProvider extends ServiceProvider
     public static function metadata(): Plugin
     {
         return new Plugin(
+            id: 'sample_plugin',
             name: 'Sample Plugin',
             author: 'Contract Test Fixture',
             version: '1.0.0',
@@ -32,6 +33,12 @@ final class SamplePluginServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $manager = $this->app->make(PluginManager::class);
+
+        $manager->registerPlugin(self::metadata(), settingsDefaults: [
+            'greeting' => 'Hello',
+            'enabled' => true,
+            'max_items' => 10,
+        ]);
 
         $manager->registerPermission(self::PERMISSION_KEY);
 

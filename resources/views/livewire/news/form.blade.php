@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\NewsCreated;
 use App\Models\News;
 use App\Models\Project;
 use App\Support\Attachments\AttachmentValidationRules;
@@ -58,6 +59,13 @@ new #[Layout('components.layouts.app')] class extends Component
             $data['author_id'] = auth()->id();
             $news = News::create($data);
             $news->watchers()->create(['user_id' => auth()->id()]);
+
+            // Redmine has no equivalent notification for a News *edit* —
+            // only after_create (news_added) and a comment being posted
+            // are ever mailed, matching News#after_create_commit having
+            // no after_update counterpart — so this only fires here, in
+            // the create branch.
+            NewsCreated::dispatch($news);
         }
 
         foreach ($this->newAttachments as $file) {

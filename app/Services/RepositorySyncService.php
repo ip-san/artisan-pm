@@ -47,8 +47,9 @@ use DateTimeImmutable;
  * `refs #123 @2h30m`) logs time against that issue, gated by the
  * commit_logtime_enabled setting — matches Redmine's Changeset#log_time.
  * Only a subset of Redmine's TIMELOG_RE token grammar is recognized
- * (`2h`, `2h30m`, `30m`, `1:30`, `2` or `2.5`/`2,5` as bare decimal
- * hours) — an intentional simplification, not full grammar parity.
+ * (`2h`/`2hours`, `2h30m`/`2hours30min`, `30m`/`30min`, `1:30`, `2` or
+ * `2.5`/`2,5`/`2.5h` as decimal hours) — see parseHoursToken()'s own
+ * docblock for exactly what's still unmatched.
  *
  * The committer field is attacker-controlled (anyone who can push a
  * commit can set `git config user.email` to any address), so a matched
@@ -201,11 +202,25 @@ final class RepositorySyncService
     }
 
     /**
+     * Alternation order matters here (unlike parseHoursToken()'s fully
+     * ^anchored$ patterns, where backtracking makes order irrelevant):
+     * this regex is unanchored, so PCRE accepts the first alternative
+     * that matches *some* prefix — "hours?"/"min" must precede their
+     * shorter "h"/"m" prefixes, or "2hours" would only ever capture "2h"
+     * and silently strand "ours" in the message. That particular bug is
+     * invisible to any test asserting only the final parsed hours value
+     * (both captures parse to the same 2.0), which is why this is a
+     * public, directly testable constant rather than an inline literal —
+     * see the "captured in full" test in RepositorySyncTest.
+     */
+    public const string LOGGED_TIME_TOKEN_PATTERN = '/#(\d+)\s+@(\d+(?:hours?|h)\d+(?:min|m)?|\d+(?:hours?|h|min|m)|\d+:\d+|\d+(?:[.,]\d+)?h?)/i';
+
+    /**
      * @return array<int, array{issueId: int, hours: float}>
      */
     private function extractLoggedTime(string $message): array
     {
-        preg_match_all('/#(\d+)\s+@(\d+h\d+m?|\d+h|\d+m|\d+:\d+|\d+(?:[.,]\d+)?)/i', $message, $matches, PREG_SET_ORDER);
+        preg_match_all(self::LOGGED_TIME_TOKEN_PATTERN, $message, $matches, PREG_SET_ORDER);
 
         $entries = [];
 
@@ -221,20 +236,26 @@ final class RepositorySyncService
     }
 
     /**
-     * Recognizes a subset of Redmine's TIMELOG_RE grammar: `2h`, `2h30m`,
-     * `30m`, `1:30` (hours:minutes), and a bare `2`/`2.5`/`2,5` treated as
-     * decimal hours.
+     * Recognizes a subset of Redmine's TIMELOG_RE grammar: `2h`/`2hours`,
+     * `2h30m`/`2hours30min`, `30m`/`30min`, `1:30` (hours:minutes), and a
+     * bare `2`/`2.5`/`2,5` treated as decimal hours. Redmine's grammar
+     * additionally accepts a bare trailing `h` on the decimal form
+     * (`2.5h`) and singular/plural `hour`/`hours` — both covered here too
+     * (verified against TIMELOG_RE in
+     * /Users/sesoko/Desktop/workspace/redmine/app/models/changeset.rb).
+     * Still not attempted: Redmine's `if_tracker_id`/`done_ratio` commit
+     * options, which are a separate, unrelated grammar extension.
      */
     private function parseHoursToken(string $token): ?float
     {
         $token = str_replace(',', '.', $token);
 
         return match (true) {
-            preg_match('/^(\d+)h(\d+)m?$/i', $token, $m) === 1 => (float) $m[1] + (float) $m[2] / 60,
-            preg_match('/^(\d+)h$/i', $token, $m) === 1 => (float) $m[1],
-            preg_match('/^(\d+)m$/i', $token, $m) === 1 => (float) $m[1] / 60,
+            preg_match('/^(\d+)(?:h|hours?)(\d+)(?:m|min)?$/i', $token, $m) === 1 => (float) $m[1] + (float) $m[2] / 60,
+            preg_match('/^(\d+)(?:h|hours?)$/i', $token, $m) === 1 => (float) $m[1],
+            preg_match('/^(\d+)(?:m|min)$/i', $token, $m) === 1 => (float) $m[1] / 60,
             preg_match('/^(\d+):(\d+)$/', $token, $m) === 1 => (float) $m[1] + (float) $m[2] / 60,
-            preg_match('/^\d+(?:\.\d+)?$/', $token) === 1 => (float) $token,
+            preg_match('/^(\d+(?:\.\d+)?)h?$/i', $token, $m) === 1 => (float) $m[1],
             default => null,
         };
     }

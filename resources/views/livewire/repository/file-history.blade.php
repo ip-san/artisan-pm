@@ -15,11 +15,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $path;
 
-    public function mount(Project $project, string $path): void
+    public function mount(Project $project, string $path, ?string $repositoryParam = null): void
     {
         $this->authorize('browse', [Repository::class, $project]);
 
-        $repository = $project->repository;
+        $repository = $project->resolveRepository($repositoryParam);
         abort_if($repository === null, 404);
 
         $this->project = $project;
@@ -70,9 +70,9 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="mb-6">
         <p class="text-sm text-gray-500">
-            <a href="{{ route('repository.index', $project) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
             /
-            <a href="{{ route('repository.entry', [$project, $this->path]) }}" class="text-indigo-600 hover:underline">
+            <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $this->path])) }}" class="text-indigo-600 hover:underline">
                 {{ $this->path }}
             </a>
         </p>
@@ -87,7 +87,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @php $changeset = $match['changeset']; @endphp
                 <li wire:key="file-history-{{ $changeset->id }}" class="rounded-md border border-gray-200 bg-white p-3">
                     <div class="flex items-center gap-2">
-                        <a href="{{ route('repository.show', [$project, $changeset, 'path' => $match['path']]) }}" class="font-mono text-sm text-indigo-600 hover:underline">
+                        <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $changeset, 'path' => $match['path']])) }}" class="font-mono text-sm text-indigo-600 hover:underline">
                             {{ $changeset->shortRevision() }}
                         </a>
                         <span class="text-xs text-gray-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</span>

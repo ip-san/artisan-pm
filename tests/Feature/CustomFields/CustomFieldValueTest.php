@@ -75,6 +75,47 @@ test('an int custom field casts its stored value back to an integer', function (
     expect($issue->customValue($field))->toBe(42);
 });
 
+test('a progressbar custom field casts its stored value back to an integer', function () {
+    $tracker = Tracker::factory()->create();
+    $project = Project::factory()->create();
+    $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::Progressbar->value]);
+    $field->trackers()->attach($tracker);
+
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $issue->setCustomFieldValues([$field->id => '42']);
+
+    expect($issue->customValue($field))->toBe(42);
+});
+
+test('a progressbar custom field rejects a value outside 0-100', function () {
+    $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::Progressbar->value]);
+
+    expect($field->format()->validationRules($field))->toContain('min:0')->toContain('max:100');
+});
+
+test('ProgressbarFormat::castValue() clamps an out-of-range stored value for display', function () {
+    $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::Progressbar->value]);
+
+    expect($field->format()->castValue(150, $field))->toBe(100)
+        ->and($field->format()->castValue(-10, $field))->toBe(0);
+});
+
+test('a progressbar custom field with an out-of-range stored value clamps through the real read path', function () {
+    $tracker = Tracker::factory()->create();
+    $project = Project::factory()->create();
+    $field = CustomField::factory()->create(['field_format' => CustomFieldFormat::Progressbar->value]);
+    $field->trackers()->attach($tracker);
+
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    // Bypasses setCustomFieldValues()/validation on purpose — simulates a
+    // row written before this format's 0-100 rule existed (or any other
+    // way an out-of-range value could have reached storage), which is
+    // the only way this condition can occur for a validated format.
+    $issue->customFieldValues()->create(['custom_field_id' => $field->id, 'value_int' => 150]);
+
+    expect($issue->customValue($field))->toBe(100);
+});
+
 test('a list custom field only accepts one of its possible values', function () {
     $field = CustomField::factory()->list(['Low', 'Medium', 'High'])->create();
 

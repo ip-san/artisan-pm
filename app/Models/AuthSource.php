@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'name', 'host', 'port', 'use_tls', 'base_dn', 'account', 'account_password',
-    'attr_login', 'attr_name', 'attr_mail', 'onthefly_register', 'timeout',
+    'attr_login', 'attr_name', 'attr_mail', 'filter', 'onthefly_register', 'timeout',
 ])]
 #[Hidden(['account_password'])]
 final class AuthSource extends Model

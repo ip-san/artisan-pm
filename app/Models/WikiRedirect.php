@@ -12,8 +12,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * A stale wiki page title that now points at its page's current title —
- * matches Redmine's WikiRedirect (one per Wiki there; scoped to Project
- * here, since this app has no separate Wiki model). Created whenever a
+ * matches Redmine's WikiRedirect (one per Wiki there; scoped directly to
+ * Project here rather than to the separate Wiki model added later for
+ * start_page, since a redirect's target resolution never needs anything
+ * else Wiki carries). Created whenever a
  * page is renamed, so old "[[Old Title]]" references still resolve
  * instead of rendering as a broken/create-new-page link — see
  * WikiLinkInlineParser, which is where the actual lookup fallback lives.

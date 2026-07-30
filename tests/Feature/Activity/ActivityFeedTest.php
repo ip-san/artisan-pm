@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProjectStatus;
 use App\Models\Board;
 use App\Models\Changeset;
 use App\Models\Document;
@@ -11,6 +12,7 @@ use App\Models\News;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Models\WikiPage;
@@ -50,6 +52,17 @@ test('an issue created outside the date range is excluded', function () {
         ->call('applyFilters');
 
     expect($component->get('entries'))->toHaveCount(0);
+});
+
+test('activity_days_default widens the default date range shown on mount', function () {
+    Setting::set('activity_days_default', 30);
+    $project = Project::factory()->create();
+    $user = activityMember($project, ['view_project', 'view_issues']);
+    Issue::factory()->for($project)->create(['created_at' => now()->subDays(20)]);
+
+    $component = Livewire::actingAs($user)->test('activity.index', ['project' => $project]);
+
+    expect($component->get('entries')->pluck('type'))->toContain('issue');
 });
 
 test('a private journal note is excluded from the feed', function () {
@@ -119,6 +132,71 @@ test('unchecking a type filters it out of the feed', function () {
 
     expect($types)->not->toContain('issue')
         ->and($types)->toContain('news');
+});
+
+test('with_subprojects off shows only the current project\'s entries', function () {
+    $parent = Project::factory()->create();
+    $child = Project::factory()->create(['parent_id' => $parent->id]);
+    $user = activityMember($parent, ['view_project', 'view_issues']);
+    Member::factory()->for($child)->for($user)->create()
+        ->roles()->attach(Role::factory()->create(['permissions' => ['view_project', 'view_issues']]));
+
+    Issue::factory()->for($parent)->create(['created_at' => now()->subDay()]);
+    Issue::factory()->for($child)->create(['created_at' => now()->subDay()]);
+
+    $component = Livewire::actingAs($user)->test('activity.index', ['project' => $parent]);
+
+    expect($component->get('entries'))->toHaveCount(1);
+});
+
+test('with_subprojects on merges entries from every visible descendant project', function () {
+    $parent = Project::factory()->create();
+    $child = Project::factory()->create(['parent_id' => $parent->id]);
+    $user = activityMember($parent, ['view_project', 'view_issues']);
+    Member::factory()->for($child)->for($user)->create()
+        ->roles()->attach(Role::factory()->create(['permissions' => ['view_project', 'view_issues']]));
+
+    Issue::factory()->for($parent)->create(['created_at' => now()->subDay()]);
+    Issue::factory()->for($child)->create(['created_at' => now()->subDay()]);
+
+    $component = Livewire::actingAs($user)
+        ->test('activity.index', ['project' => $parent])
+        ->set('withSubprojects', true)
+        ->call('applyFilters');
+
+    expect($component->get('entries'))->toHaveCount(2);
+});
+
+test('with_subprojects on does not leak entries from a descendant the viewer cannot see', function () {
+    $parent = Project::factory()->create();
+    $hiddenChild = Project::factory()->private()->create(['parent_id' => $parent->id]);
+    $user = activityMember($parent, ['view_project', 'view_issues']);
+
+    Issue::factory()->for($parent)->create(['created_at' => now()->subDay()]);
+    Issue::factory()->for($hiddenChild)->create(['created_at' => now()->subDay()]);
+
+    $component = Livewire::actingAs($user)
+        ->test('activity.index', ['project' => $parent])
+        ->set('withSubprojects', true)
+        ->call('applyFilters');
+
+    expect($component->get('entries'))->toHaveCount(1);
+});
+
+test('with_subprojects on does not leak entries from an archived descendant', function () {
+    $parent = Project::factory()->create();
+    $archivedChild = Project::factory()->create(['parent_id' => $parent->id, 'status' => ProjectStatus::Archived]);
+    $user = activityMember($parent, ['view_project', 'view_issues']);
+
+    Issue::factory()->for($parent)->create(['created_at' => now()->subDay()]);
+    Issue::factory()->for($archivedChild)->create(['created_at' => now()->subDay()]);
+
+    $component = Livewire::actingAs($user)
+        ->test('activity.index', ['project' => $parent])
+        ->set('withSubprojects', true)
+        ->call('applyFilters');
+
+    expect($component->get('entries'))->toHaveCount(1);
 });
 
 test('entries are grouped by date', function () {

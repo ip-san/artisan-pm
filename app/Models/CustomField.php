@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\CustomFields\FormatRegistry;
 use App\CustomFields\Formats\FormatContract;
+use App\Enums\CustomFieldDefaultValueMode;
 use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use Database\Factories\CustomFieldFactory;
@@ -21,7 +22,7 @@ use Spatie\EloquentSortable\SortableTrait;
 
 #[Fillable([
     'name', 'field_format', 'customized_type', 'is_required', 'multiple',
-    'searchable', 'editable', 'default_value', 'min_length', 'max_length', 'regexp',
+    'searchable', 'editable', 'default_value', 'default_value_mode', 'min_length', 'max_length', 'regexp',
     'possible_values', 'position',
 ])]
 final class CustomField extends Model implements Sortable
@@ -98,7 +99,29 @@ final class CustomField extends Model implements Sortable
             'searchable' => 'boolean',
             'editable' => 'boolean',
             'possible_values' => 'array',
+            'default_value_mode' => CustomFieldDefaultValueMode::class,
         ];
+    }
+
+    /**
+     * Resolves default_value the way it should actually be used to
+     * prefill a new record — matches Redmine's CustomField#default_value
+     * getter override. Only a `date` field with default_value_mode set to
+     * date_offset is special-cased: default_value is stored as a signed
+     * integer day count and resolved relative to "today" here, at read
+     * time, rather than at save time (so the offset stays correct no
+     * matter when a new issue is later created). Every other
+     * format/mode combination returns the raw stored value unchanged.
+     */
+    public function defaultValue(): ?string
+    {
+        if ($this->field_format === CustomFieldFormat::Date
+            && $this->default_value_mode === CustomFieldDefaultValueMode::DateOffset
+            && filled($this->default_value)) {
+            return now()->addDays((int) $this->default_value)->toDateString();
+        }
+
+        return $this->default_value;
     }
 
     /**

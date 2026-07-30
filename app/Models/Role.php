@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\IssueVisibility;
 use App\Enums\RoleBuiltin;
 use App\Enums\TimeEntryVisibility;
+use App\Enums\UsersVisibility;
 use Database\Factories\RoleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable(['name', 'builtin', 'permissions', 'position', 'issues_visibility', 'time_entries_visibility', 'assignable', 'all_roles_managed'])]
+#[Fillable(['name', 'builtin', 'permissions', 'position', 'issues_visibility', 'time_entries_visibility', 'users_visibility', 'assignable', 'all_roles_managed'])]
 final class Role extends Model
 {
     /** @use HasFactory<RoleFactory> */
@@ -31,6 +32,7 @@ final class Role extends Model
     protected $attributes = [
         'issues_visibility' => 'all',
         'time_entries_visibility' => 'all',
+        'users_visibility' => 'all',
         'assignable' => true,
         'all_roles_managed' => true,
     ];
@@ -42,6 +44,7 @@ final class Role extends Model
             'permissions' => 'array',
             'issues_visibility' => IssueVisibility::class,
             'time_entries_visibility' => TimeEntryVisibility::class,
+            'users_visibility' => UsersVisibility::class,
             'assignable' => 'boolean',
             'all_roles_managed' => 'boolean',
         ];

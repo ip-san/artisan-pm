@@ -28,6 +28,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $is_protected = false;
 
+    public bool $is_start_page = false;
+
     public string $text = '';
 
     public string $comments = '';
@@ -54,6 +56,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->title = $wikiPage->title;
             $this->parent_id = $wikiPage->parent_id;
             $this->is_protected = $wikiPage->is_protected;
+            $this->is_start_page = $project->wiki?->start_page === $wikiPage->title;
 
             // A `?version=` query string (arrived at via a past version's
             // "このバージョンを復元" link) prefills the editor with that
@@ -189,6 +192,9 @@ new #[Layout('components.layouts.app')] class extends Component
                 Rule::exists('wiki_pages', 'id')->where('project_id', $this->project->id),
                 Rule::in($this->availableParents->pluck('id')->push(null)->all()),
             ];
+            // Same permission gate Redmine's own is_start_page checkbox
+            // uses (it lives on the rename form there too).
+            $rules['is_start_page'] = ['boolean'];
         }
 
         if ($this->canProtect) {
@@ -198,7 +204,10 @@ new #[Layout('components.layouts.app')] class extends Component
         $data = $this->validate($rules);
         $text = $data['text'];
         $comments = $data['comments'] ?? null;
-        unset($data['text'], $data['comments'], $data['newAttachments']);
+        // Wiki::start_page, not a WikiPage column — handled separately
+        // below, once $page (and its possibly-just-renamed title) exists.
+        $isStartPage = (bool) ($data['is_start_page'] ?? false);
+        unset($data['text'], $data['comments'], $data['newAttachments'], $data['is_start_page']);
 
         $service = app(WikiPageService::class);
 
@@ -220,6 +229,13 @@ new #[Layout('components.layouts.app')] class extends Component
             $page->addMedia($file->getRealPath())
                 ->usingFileName($file->getClientOriginalName())
                 ->toMediaCollection('attachments');
+        }
+
+        // Unchecking never clears it back to nothing — matching Redmine,
+        // where the wiki always has *some* start_page value; you only
+        // ever reassign it by checking a different page's box instead.
+        if ($isStartPage) {
+            $this->project->wikiOrCreate()->update(['start_page' => $page->title]);
         }
 
         $this->redirect(route('wiki.show', [$this->project, $page]), navigate: true);
@@ -262,6 +278,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('parent_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+
+            @if ($wikiPage)
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="is_start_page" @disabled($is_start_page) class="rounded border-gray-300">
+                    このページを開始ページに設定する
+                </label>
+                @if ($is_start_page)
+                    <p class="text-xs text-gray-500">既にこのプロジェクトの開始ページです。別のページを開始ページにするには、そのページの編集画面でこのチェックボックスを使ってください。</p>
+                @endif
+            @endif
         @else
             <p class="text-sm text-gray-500">タイトル: {{ $title }}</p>
         @endif
@@ -322,7 +348,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
                 保存
             </button>
-            <a href="{{ $wikiPage ? route('wiki.show', [$project, $wikiPage]) : route('wiki.index', $project) }}"
+            <a href="{{ $wikiPage ? route('wiki.show', [$project, $wikiPage]) : route('wiki.pages', $project) }}"
                 class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 キャンセル
             </a>

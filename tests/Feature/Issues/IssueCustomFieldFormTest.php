@@ -115,3 +115,59 @@ test('a custom field from an unrelated tracker is neither rendered nor saved', f
 
     expect($issue->customFieldValues()->count())->toBe(0);
 });
+
+test('a progressbar custom field value outside 0-100 is rejected on issue save', function () {
+    Enumeration::factory()->create(['is_default' => true]);
+    IssueStatus::factory()->create();
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+
+    $field = CustomField::factory()->create(['name' => 'Completion', 'field_format' => CustomFieldFormat::Progressbar->value]);
+    $field->trackers()->attach($tracker);
+
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('issues.form', ['project' => $project])
+        ->set('tracker_id', $tracker->id)
+        ->set('subject', 'Progress test')
+        ->set("customFieldValues.{$field->id}", '150')
+        ->call('save')
+        ->assertHasErrors("customFieldValues.{$field->id}");
+
+    expect(Issue::where('subject', 'Progress test')->exists())->toBeFalse();
+});
+
+test('a progressbar custom field value within range saves successfully', function () {
+    Enumeration::factory()->create(['is_default' => true]);
+    IssueStatus::factory()->create();
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+
+    $field = CustomField::factory()->create(['name' => 'Completion', 'field_format' => CustomFieldFormat::Progressbar->value]);
+    $field->trackers()->attach($tracker);
+
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues']]);
+    $user = User::factory()->create();
+    $member = Member::factory()->for($project)->for($user)->create();
+    $member->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('issues.form', ['project' => $project])
+        ->set('tracker_id', $tracker->id)
+        ->set('subject', 'Progress test 2')
+        ->set("customFieldValues.{$field->id}", '65')
+        ->call('save')
+        ->assertRedirect();
+
+    $issue = Issue::where('subject', 'Progress test 2')->firstOrFail();
+
+    expect($issue->customValue($field))->toBe(65);
+});

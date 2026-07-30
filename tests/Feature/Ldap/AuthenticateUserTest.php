@@ -3,6 +3,7 @@
 use App\Actions\Fortify\AuthenticateUser;
 use App\Enums\UserStatus;
 use App\Models\AuthSource;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Http\Request;
 use LdapRecord\Laravel\Testing\DirectoryEmulator;
@@ -33,6 +34,7 @@ test('a local password account rejects the wrong password', function () {
 });
 
 test('an unknown login with an on-the-fly LDAP source provisions a new local account', function () {
+    Setting::set('default_users_no_self_notified', false);
     $source = AuthSource::factory()->onTheFly()->create(['attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com']);
     $fake = fakeAuthSourceDirectory($source);
 
@@ -46,7 +48,12 @@ test('an unknown login with an on-the-fly LDAP source provisions a new local acc
         ->and($result->email)->toBe('newuser@example.com')
         ->and($result->name)->toBe('New User')
         ->and($result->login)->toBe('newuser')
-        ->and($result->auth_source_id)->toBe($source->id);
+        ->and($result->auth_source_id)->toBe($source->id)
+        // On-the-fly LDAP provisioning is a real account-creation path
+        // just like self-registration and admin creation, so it must be
+        // seeded from the same admin default rather than silently falling
+        // back to the model's hardcoded column default.
+        ->and($result->no_self_notified)->toBeFalse();
 });
 
 test('an LDAP-provisioned user reauthenticates on a later login by their stored login, not their email', function () {
@@ -62,6 +69,39 @@ test('an LDAP-provisioned user reauthenticates on a later login by their stored 
 
     expect($second?->is($first))->toBeTrue()
         ->and(User::where('email', 'newuser@example.com')->count())->toBe(1);
+});
+
+test('an unknown login containing a character outside the login format is never provisioned, even if an LDAP source would accept it', function () {
+    // The typed-in login is raw request input, not sanitized by any form
+    // request on this path, so it must be checked against the same
+    // format constraint the registration/admin forms enforce before being
+    // trusted as a new account's login (User::LOGIN_FORMAT_REGEX).
+    $source = AuthSource::factory()->onTheFly()->create(['attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com']);
+    $fake = fakeAuthSourceDirectory($source);
+
+    $dn = 'uid=has space,dc=example,dc=com';
+    $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => ['has space'], 'cn' => ['Has Space'], 'mail' => ['hasspace@example.com']]);
+    $fake->actingAs($dn);
+
+    $result = app(AuthenticateUser::class)(loginRequest('has space', 'whatever-password'));
+
+    expect($result)->toBeNull()
+        ->and(User::count())->toBe(0);
+});
+
+test('an unknown login longer than the login length limit is never provisioned', function () {
+    $source = AuthSource::factory()->onTheFly()->create(['attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com']);
+    $fake = fakeAuthSourceDirectory($source);
+
+    $overLong = str_repeat('a', User::LOGIN_LENGTH_LIMIT + 1);
+    $dn = "uid={$overLong},dc=example,dc=com";
+    $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => [$overLong], 'cn' => ['Too Long'], 'mail' => ['toolong@example.com']]);
+    $fake->actingAs($dn);
+
+    $result = app(AuthenticateUser::class)(loginRequest($overLong, 'whatever-password'));
+
+    expect($result)->toBeNull()
+        ->and(User::count())->toBe(0);
 });
 
 test('a login matching no local account and no accepting LDAP source returns null', function () {
