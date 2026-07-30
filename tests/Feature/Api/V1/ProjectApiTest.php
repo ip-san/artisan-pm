@@ -166,6 +166,36 @@ test('updating a project to a parent without createSubproject is forbidden', fun
     expect($project->fresh()->parent_id)->toBeNull();
 });
 
+test('detaching an existing subproject to top-level via the api requires the global create-project permission', function () {
+    // Matches Redmine's Project#allowed_parents: nil is only offered as a
+    // valid target when the user holds add_project globally — edit_project
+    // alone isn't enough, even though it's enough to change every other
+    // field on the project.
+    $parent = Project::factory()->create();
+    $project = Project::factory()->create(['parent_id' => $parent->id]);
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_project', 'edit_project']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['parent_id' => null])->assertForbidden();
+
+    expect($project->fresh()->parent_id)->toBe($parent->id);
+});
+
+test('an admin can detach an existing subproject to top-level via the api', function () {
+    $parent = Project::factory()->create();
+    $project = Project::factory()->create(['parent_id' => $parent->id]);
+    $admin = User::factory()->admin()->create();
+
+    Passport::actingAs($admin);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['parent_id' => null])->assertOk();
+
+    expect($project->fresh()->parent_id)->toBeNull();
+});
+
 test('a project cannot be reparented under itself or a descendant via the api', function () {
     $admin = User::factory()->admin()->create();
     $parent = Project::factory()->create();

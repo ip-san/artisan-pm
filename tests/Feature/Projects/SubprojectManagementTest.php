@@ -120,6 +120,43 @@ test('clearing parent_id after mount does not escalate to top-level project crea
     expect(Project::where('identifier', 'sneaky-top-level')->exists())->toBeFalse();
 });
 
+test('detaching an existing subproject to become top-level requires the global create-project permission, not just edit_project', function () {
+    // Matches Redmine's Project#allowed_parents: nil is only offered as a
+    // valid target when the user holds add_project globally (or the
+    // project was already parentless) — edit_project alone isn't enough,
+    // even though it's enough to change every other field on the form.
+    $parent = Project::factory()->create();
+    $project = Project::factory()->create(['parent_id' => $parent->id]);
+    $project->trackers()->attach(Tracker::factory()->create());
+
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['edit_project', 'view_project']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    Livewire::actingAs($user)
+        ->test('projects.form', ['project' => $project])
+        ->set('parent_id', null)
+        ->call('save')
+        ->assertForbidden();
+
+    expect($project->refresh()->parent_id)->toBe($parent->id);
+});
+
+test('an admin can detach an existing subproject to become top-level', function () {
+    $parent = Project::factory()->create();
+    $project = Project::factory()->create(['parent_id' => $parent->id]);
+    $project->trackers()->attach(Tracker::factory()->create());
+
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('projects.form', ['project' => $project])
+        ->set('parent_id', null)
+        ->call('save');
+
+    expect($project->refresh()->parent_id)->toBeNull();
+});
+
 test('reparenting to a project without createSubproject there is rejected even with edit_project on the project itself', function () {
     $project = Project::factory()->create();
     $project->trackers()->attach(Tracker::factory()->create());

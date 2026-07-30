@@ -40,8 +40,14 @@ final class UpdateProjectRequest extends FormRequest
             return true;
         }
 
+        // Detaching an existing subproject to become top-level requires the
+        // same permission as creating a top-level project from scratch —
+        // matches Redmine's Project#allowed_parents, which only offers nil
+        // as a valid target when the user holds the global add_project
+        // permission (or the project was already parentless, the no-op
+        // case handled above).
         if ($newParentId === null) {
-            return true;
+            return $this->user()->can('create', Project::class);
         }
 
         $parent = Project::query()->find($newParentId);

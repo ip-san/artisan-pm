@@ -144,7 +144,13 @@ new #[Layout('components.layouts.app')] class extends Component
         if ($parentChanged) {
             if ($this->parent_id !== null) {
                 $this->authorize('createSubproject', Project::findOrFail($this->parent_id));
-            } elseif ($this->project === null) {
+            } else {
+                // Both "creating a brand-new top-level project" and
+                // "detaching an existing subproject to become top-level"
+                // need the same permission — matches Redmine's
+                // Project#allowed_parents, which only offers nil as a
+                // valid target when the user holds the global add_project
+                // permission (this app: ProjectPolicy::create(), admin-only).
                 $this->authorize('create', Project::class);
             }
         }
