@@ -483,15 +483,22 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $watchingIds = $this->issue->watchers->pluck('user_id');
 
-        return $this->project->users->reject(fn (User $user) => $watchingIds->contains($user->id))->values();
+        return $this->issue->project->users->reject(fn (User $user) => $watchingIds->contains($user->id))->values();
     }
 
     public function addWatcher(): void
     {
         $this->authorize('manageWatchers', $this->issue);
 
+        // Scoped to the issue's OWN project, not $this->project: the two are
+        // the same for any URL the app generates, but authorization here runs
+        // against $this->issue while the candidate list/validation would
+        // otherwise run against whatever project the URL named — so a
+        // mismatched URL could attach a non-member as a watcher. The routes
+        // scope their bindings now, making that unreachable; this keeps the
+        // component correct on its own terms rather than by routing luck.
         $data = $this->validate([
-            'newWatcherId' => ['required', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
+            'newWatcherId' => ['required', Rule::exists('members', 'user_id')->where('project_id', $this->issue->project_id)],
         ]);
 
         $this->issue->watchers()->firstOrCreate(['user_id' => $data['newWatcherId']]);

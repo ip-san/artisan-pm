@@ -86,3 +86,28 @@ test('a non-member of the project cannot be added as a watcher', function () {
         ->call('addWatcher')
         ->assertHasErrors(['newWatcherId']);
 });
+
+test('a user who only belongs to the URL project cannot be added as a watcher of another project\'s issue', function () {
+    // Defense in depth behind the route's ->scopeBindings(): even if the
+    // component is somehow handed a $project that does not own $issue, the
+    // watcher candidate list and its validation must follow the issue's own
+    // project. Before this was scoped to $this->issue, a manager on the
+    // owning project could attach any member of the unrelated URL project.
+    $owner = Project::factory()->create();
+    $manager = watcherProjectMember($owner, ['view_issues', 'add_issue_watchers']);
+    $issue = watchableIssue($owner);
+
+    $unrelated = Project::factory()->create();
+    $outsider = watcherProjectMember($unrelated, ['view_issues']);
+
+    $component = Livewire::actingAs($manager)
+        ->test('issues.show', ['project' => $unrelated, 'issue' => $issue]);
+
+    expect($component->instance()->watcherCandidates->pluck('id'))->not->toContain($outsider->id);
+
+    $component->set('newWatcherId', $outsider->id)
+        ->call('addWatcher')
+        ->assertHasErrors('newWatcherId');
+
+    expect(Watcher::where('watchable_id', $issue->id)->where('user_id', $outsider->id)->exists())->toBeFalse();
+});

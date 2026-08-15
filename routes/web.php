@@ -53,14 +53,30 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
     Volt::route('/projects/{project:identifier}/members', 'projects.members')->name('projects.members');
     Volt::route('/projects/{project:identifier}/activities', 'projects.activities')->name('projects.activities');
 
+    // ->scopeBindings() on every route below that nests a child model under
+    // {project}: without it Laravel resolves the two bindings independently,
+    // so /projects/a/issues/{an issue owned by b} renders happily with
+    // $project = a while the issue belongs to b. The page's own Gate checks
+    // stay correct (they authorize against $issue->project), but every
+    // component then validates its inputs against the URL's project — e.g.
+    // issues/show's addWatcher() accepted any member of project a as a
+    // watcher on project b's issue. Scoping makes the mismatch a 404 before
+    // any component runs, instead of relying on ~30 scattered validation
+    // rules each picking the right project.
+    //
+    // Deliberately NOT scoped, because the parent has no matching relation
+    // for Laravel to scope through (it would throw rather than 404):
+    // issues/time_entries "imports/{import}", "{issue}/journal-details/
+    // {journalDetail}", the wiki "{wikiPage}/versions|diff|annotate" routes,
+    // and the whole repository block ({repositoryParam}/{changeset}).
     Volt::route('/projects/{project:identifier}/issue_categories', 'issue-categories.index')->name('issue-categories.index');
     Volt::route('/projects/{project:identifier}/issue_categories/create', 'issue-categories.form')->name('issue-categories.create');
-    Volt::route('/projects/{project:identifier}/issue_categories/{issueCategory}/edit', 'issue-categories.form')->name('issue-categories.edit');
+    Volt::route('/projects/{project:identifier}/issue_categories/{issueCategory}/edit', 'issue-categories.form')->name('issue-categories.edit')->scopeBindings();
 
     Volt::route('/projects/{project:identifier}/roadmap', 'versions.roadmap')->name('versions.roadmap');
     Volt::route('/projects/{project:identifier}/versions', 'versions.index')->name('versions.index');
     Volt::route('/projects/{project:identifier}/versions/create', 'versions.form')->name('versions.create');
-    Volt::route('/projects/{project:identifier}/versions/{version}/edit', 'versions.form')->name('versions.edit');
+    Volt::route('/projects/{project:identifier}/versions/{version}/edit', 'versions.form')->name('versions.edit')->scopeBindings();
 
     Route::get('/projects/{project:identifier}/issues.atom', IssueAtomController::class)->name('issues.atom');
     Volt::route('/projects/{project:identifier}/issues', 'issues.index')->name('issues.index')
@@ -71,15 +87,15 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
     Volt::route('/projects/{project:identifier}/issues/import', 'issues.import')->name('issues.import');
     Volt::route('/projects/{project:identifier}/issues/imports/{import}', 'issues.import-status')->name('issues.import-status');
     Volt::route('/projects/{project:identifier}/issues/report', 'issues.report')->name('issues.report');
-    Volt::route('/projects/{project:identifier}/issues/{issue}', 'issues.show')->name('issues.show')
+    Volt::route('/projects/{project:identifier}/issues/{issue}', 'issues.show')->name('issues.show')->scopeBindings()
         ->withoutMiddleware('auth')->middleware('login.required');
     // Gated by the exact same IssuePolicy::view Gate::authorize() call as
     // issues.show itself, so it's opened to guests the same way — a guest
     // who can already read a public issue on the page shouldn't hit an
     // unexpected login wall by clicking its own "PDF" link.
-    Route::get('/projects/{project:identifier}/issues/{issue}/pdf', IssuePdfController::class)->name('issues.pdf')
+    Route::get('/projects/{project:identifier}/issues/{issue}/pdf', IssuePdfController::class)->name('issues.pdf')->scopeBindings()
         ->withoutMiddleware('auth')->middleware('login.required');
-    Volt::route('/projects/{project:identifier}/issues/{issue}/edit', 'issues.form')->name('issues.edit');
+    Volt::route('/projects/{project:identifier}/issues/{issue}/edit', 'issues.form')->name('issues.edit')->scopeBindings();
     Volt::route('/projects/{project:identifier}/issues/{issue}/journal-details/{journalDetail}/diff', 'issues.journal-detail-diff')->name('issues.journal-detail-diff');
 
     Volt::route('/projects/{project:identifier}/time_entries', 'time-entries.index')->name('time-entries.index');
@@ -89,7 +105,7 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
     Volt::route('/projects/{project:identifier}/time_entries/report', 'time-entries.report')->name('time-entries.report');
     Volt::route('/projects/{project:identifier}/time_entries/import', 'time-entries.import')->name('time-entries.import');
     Volt::route('/projects/{project:identifier}/time_entries/imports/{import}', 'time-entries.import-status')->name('time-entries.import-status');
-    Volt::route('/projects/{project:identifier}/time_entries/{timeEntry}/edit', 'time-entries.form')->name('time-entries.edit');
+    Volt::route('/projects/{project:identifier}/time_entries/{timeEntry}/edit', 'time-entries.form')->name('time-entries.edit')->scopeBindings();
 
     // Bare "/wiki" — redirects to the wiki's start page (or its creation
     // form), matching Redmine's WikiController#show with no :id. The page
@@ -104,10 +120,10 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
         ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/projects/{project:identifier}/wiki/date-index', 'wiki.date-index')->name('wiki.date-index')
         ->withoutMiddleware('auth')->middleware('login.required');
-    Volt::route('/projects/{project:identifier}/wiki/{wikiPage}', 'wiki.show')->name('wiki.show')
+    Volt::route('/projects/{project:identifier}/wiki/{wikiPage}', 'wiki.show')->name('wiki.show')->scopeBindings()
         ->withoutMiddleware('auth')->middleware('login.required');
-    Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/edit', 'wiki.form')->name('wiki.edit');
-    Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/history', 'wiki.history')->name('wiki.history');
+    Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/edit', 'wiki.form')->name('wiki.edit')->scopeBindings();
+    Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/history', 'wiki.history')->name('wiki.history')->scopeBindings();
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/versions/{version}', 'wiki.version')->name('wiki.version');
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/diff/{from}/{to}', 'wiki.diff')->name('wiki.diff');
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/annotate/{version}', 'wiki.annotate')->name('wiki.annotate');
@@ -116,26 +132,26 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
     // Registered before the {board} routes below so "new" isn't matched
     // as a board-id route-model-binding segment.
     Volt::route('/projects/{project:identifier}/boards/new', 'boards.form')->name('boards.create');
-    Volt::route('/projects/{project:identifier}/boards/{board}/edit', 'boards.form')->name('boards.edit');
-    Volt::route('/projects/{project:identifier}/boards/{board}/topics/new', 'messages.form')->name('messages.create');
+    Volt::route('/projects/{project:identifier}/boards/{board}/edit', 'boards.form')->name('boards.edit')->scopeBindings();
+    Volt::route('/projects/{project:identifier}/boards/{board}/topics/new', 'messages.form')->name('messages.create')->scopeBindings();
     // Also registered before the plain {board} route below — otherwise
     // its unconstrained parameter would swallow "5.atom" as a literal
     // board id before this route ever got a chance to match it.
-    Route::get('/projects/{project:identifier}/boards/{board}.atom', BoardAtomController::class)->whereNumber('board')->name('boards.atom');
-    Volt::route('/projects/{project:identifier}/boards/{board}', 'boards.show')->name('boards.show');
-    Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}', 'messages.show')->name('messages.show');
-    Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}/edit', 'messages.form')->name('messages.edit');
+    Route::get('/projects/{project:identifier}/boards/{board}.atom', BoardAtomController::class)->whereNumber('board')->name('boards.atom')->scopeBindings();
+    Volt::route('/projects/{project:identifier}/boards/{board}', 'boards.show')->name('boards.show')->scopeBindings();
+    Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}', 'messages.show')->name('messages.show')->scopeBindings();
+    Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}/edit', 'messages.form')->name('messages.edit')->scopeBindings();
 
     Route::get('/projects/{project:identifier}/news.atom', NewsAtomController::class)->name('news.atom');
     Volt::route('/projects/{project:identifier}/news', 'news.index')->name('news.index');
     Volt::route('/projects/{project:identifier}/news/new', 'news.form')->name('news.create');
-    Volt::route('/projects/{project:identifier}/news/{news}/edit', 'news.form')->name('news.edit');
-    Volt::route('/projects/{project:identifier}/news/{news}', 'news.show')->name('news.show');
+    Volt::route('/projects/{project:identifier}/news/{news}/edit', 'news.form')->name('news.edit')->scopeBindings();
+    Volt::route('/projects/{project:identifier}/news/{news}', 'news.show')->name('news.show')->scopeBindings();
 
     Volt::route('/projects/{project:identifier}/documents', 'documents.index')->name('documents.index');
     Volt::route('/projects/{project:identifier}/documents/new', 'documents.form')->name('documents.create');
-    Volt::route('/projects/{project:identifier}/documents/{document}/edit', 'documents.form')->name('documents.edit');
-    Volt::route('/projects/{project:identifier}/documents/{document}', 'documents.show')->name('documents.show');
+    Volt::route('/projects/{project:identifier}/documents/{document}/edit', 'documents.form')->name('documents.edit')->scopeBindings();
+    Volt::route('/projects/{project:identifier}/documents/{document}', 'documents.show')->name('documents.show')->scopeBindings();
 
     Volt::route('/projects/{project:identifier}/files', 'files.index')->name('files.index');
 
