@@ -63,6 +63,27 @@ new #[Layout('components.layouts.app')] class extends Component
         'copied_from' => ['copied_to', 'to'],
     ];
 
+    /**
+     * Everything a rendered Journal row needs: its author and detail rows,
+     * plus the reaction data <x-reaction-button> reads — the count itself
+     * and the walk back to the project that ReactionService::canReact()
+     * performs (journal -> issue -> project).
+     *
+     * Livewire re-hydrates $this->issue from the snapshot on every request
+     * after the first, which drops the relations mount() eager-loaded. So
+     * visibleJournals() re-applies this list itself instead of trusting
+     * mount(), or every follow-up request (a reaction toggle, a new
+     * comment) would lazy-load these per journal.
+     *
+     * @var list<string>
+     */
+    private const array JOURNAL_RELATIONS = [
+        'journals.user',
+        'journals.details',
+        'journals.reactions',
+        'journals.issue.project',
+    ];
+
     public Project $project;
 
     public Issue $issue;
@@ -91,7 +112,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $issue);
 
         $this->project = $project;
-        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', 'journals.user', 'journals.details', 'journals.reactions', 'journals.issue.project', 'reactions', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user']);
+        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', ...self::JOURNAL_RELATIONS, 'reactions', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user']);
 
         foreach ($this->issue->attachments() as $media) {
             $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
@@ -253,7 +274,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     private function reloadJournals(): void
     {
-        $this->issue->load('journals.user', 'journals.details', 'journals.reactions', 'journals.issue.project');
+        $this->issue->load(self::JOURNAL_RELATIONS);
+        unset($this->visibleJournals);
     }
 
     /**
@@ -404,6 +426,8 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function visibleJournals(): Collection
     {
+        $this->issue->loadMissing(self::JOURNAL_RELATIONS);
+
         $user = auth()->user();
 
         if ($user !== null && $user->can('viewPrivateNotes', $this->issue)) {

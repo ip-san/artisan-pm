@@ -203,19 +203,17 @@ test('the database uniquely constrains one reaction per user per object', functi
 
 function countQueriesByTable(callable $callback, array $tables): array
 {
-    $counts = array_fill_keys($tables, 0);
-    $listener = function ($query) use (&$counts, $tables): void {
-        foreach ($tables as $table) {
-            if (str_contains($query->sql, '"'.$table.'"')) {
-                $counts[$table]++;
-            }
-        }
-    };
-
-    DB::listen($listener);
+    DB::flushQueryLog();
+    DB::enableQueryLog();
     $callback();
+    $queries = collect(DB::getQueryLog())->pluck('query');
+    DB::disableQueryLog();
 
-    return $counts;
+    return collect($tables)
+        ->mapWithKeys(fn (string $table) => [
+            $table => $queries->filter(fn (string $sql) => str_contains($sql, '"'.$table.'"'))->count(),
+        ])
+        ->all();
 }
 
 test('rendering an issue with several journals does not issue one reactions/issues/projects query per journal', function () {
@@ -233,13 +231,9 @@ test('rendering an issue with several journals does not issue one reactions/issu
     Journal::create(['issue_id' => $lightIssue->id, 'user_id' => $user->id, 'notes' => 'note']);
 
     $heavyIssue = reactableIssue($project);
-    $journals = collect(range(1, 5))->map(fn () => Journal::create([
-        'issue_id' => $heavyIssue->id,
-        'user_id' => $user->id,
-        'notes' => 'note',
-    ]));
-    $heavyIssue->reactions()->create(['user_id' => $user->id]);
-    $journals->first()->reactions()->create(['user_id' => $user->id]);
+    for ($i = 0; $i < 5; $i++) {
+        Journal::create(['issue_id' => $heavyIssue->id, 'user_id' => $user->id, 'notes' => 'note']);
+    }
 
     $tables = ['reactions', 'issues', 'projects'];
 
@@ -253,5 +247,51 @@ test('rendering an issue with several journals does not issue one reactions/issu
         $tables,
     );
 
+    // Guards against the equality assertion passing vacuously: if
+    // countQueriesByTable() ever stopped matching (e.g. an identifier-
+    // quoting change), every count would be 0 and 0 === 0 would still
+    // "pass" while testing nothing at all.
+    expect($lightCounts['reactions'])->toBeGreaterThan(0);
+    expect($heavyCounts)->toBe($lightCounts);
+});
+
+test('a follow-up request on an issue with several journals does not re-introduce per-journal queries', function () {
+    // Livewire re-hydrates $this->issue from the snapshot on every request
+    // after the first, which drops whatever mount() eager-loaded. Measuring
+    // only the initial render (the test above) therefore cannot see a
+    // regression on the far more common path: the user clicking something.
+    // Here the mount happens outside the measurement, and only the
+    // follow-up action call is counted.
+    $project = Project::factory()->create();
+    $user = reactionProjectMember($project, ['view_issues']);
+
+    $issueWithJournals = function (int $journals) use ($project, $user): Issue {
+        $issue = reactableIssue($project);
+
+        for ($i = 0; $i < $journals; $i++) {
+            Journal::create(['issue_id' => $issue->id, 'user_id' => $user->id, 'notes' => 'note']);
+        }
+
+        return $issue;
+    };
+
+    $lightIssue = $issueWithJournals(1);
+    $heavyIssue = $issueWithJournals(5);
+
+    $tables = ['reactions', 'issues', 'projects'];
+
+    $lightComponent = Livewire::actingAs($user)->test('issues.show', ['project' => $project, 'issue' => $lightIssue->fresh()]);
+    $lightCounts = countQueriesByTable(
+        fn () => $lightComponent->call('toggleReaction', 'issue', $lightIssue->id),
+        $tables,
+    );
+
+    $heavyComponent = Livewire::actingAs($user)->test('issues.show', ['project' => $project, 'issue' => $heavyIssue->fresh()]);
+    $heavyCounts = countQueriesByTable(
+        fn () => $heavyComponent->call('toggleReaction', 'issue', $heavyIssue->id),
+        $tables,
+    );
+
+    expect($lightCounts['reactions'])->toBeGreaterThan(0);
     expect($heavyCounts)->toBe($lightCounts);
 });
