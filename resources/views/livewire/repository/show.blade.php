@@ -40,6 +40,20 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('view', $changeset->repository);
 
+        // {changeset} cannot be route-scoped under {project} (a Changeset
+        // hangs off a Repository, so Project has no relation for Laravel to
+        // scope through), so the ownership check is made explicitly, the same
+        // way issues.journal-detail-diff and the import-status pages do it.
+        // Without it the page renders with $project taken from the URL while
+        // the changeset belongs elsewhere — and manageRelatedIssues is
+        // authorized against that URL project, so a user holding
+        // manage_related_issues on any project could add or remove related
+        // issues on a changeset in a project where they only hold
+        // view_changesets. Every link the app builds goes through
+        // Repository::routeParameters(), which always passes the
+        // repository's own project, so no legitimate URL is affected.
+        abort_unless($changeset->repository->project_id === $project->id, 404);
+
         $this->project = $project;
         $this->changeset = $changeset->load(['files', 'repository.project', ...self::RELATED_ISSUE_RELATIONS]);
     }
