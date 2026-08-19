@@ -80,6 +80,8 @@ final class IssueFilterFieldRegistry
         $textOperators = self::textOperators();
         $integerOperators = self::integerOperators();
 
+        $projects->each->loadMissing(['trackers', 'issueCategories', 'users', 'versions']);
+
         $trackers = $projects->flatMap(fn (Project $project) => $project->trackers)->unique('id');
         $categories = $projects->flatMap(fn (Project $project) => $project->issueCategories)->unique('id');
         $users = $projects->flatMap(fn (Project $project) => $project->users)->unique('id');

@@ -44,6 +44,8 @@ final class CustomFieldValue extends Model
      */
     public function value(): mixed
     {
+        $this->loadMissing('customField');
+
         $column = $this->customField->format()->storageColumn();
 
         return $this->customField->format()->castValue($this->{$column}, $this->customField);

@@ -143,7 +143,7 @@ final class RepositorySyncService
                 continue;
             }
 
-            if (! $this->authorization->can($actor, 'edit_issues', $issue->project)) {
+            if (! $this->authorization->can($actor, 'edit_issues', $issue->loadMissing('project')->project)) {
                 continue;
             }
 

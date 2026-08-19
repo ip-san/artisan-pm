@@ -42,7 +42,7 @@ final class TimeEntryPolicy
     public function update(User $user, TimeEntry $timeEntry): bool
     {
         return $timeEntry->user_id === $user->id
-            || $this->authorization->can($user, 'edit_time_entries', $timeEntry->project);
+            || $this->authorization->can($user, 'edit_time_entries', $timeEntry->loadMissing('project')->project);
     }
 
     public function delete(User $user, TimeEntry $timeEntry): bool

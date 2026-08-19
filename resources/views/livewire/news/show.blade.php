@@ -33,7 +33,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $news);
 
         $this->project = $project;
-        $this->news = $news->load('author', 'reactions');
+        $this->news = $news->load('author', 'reactions', 'watchers.user');
 
         foreach ($this->news->attachments() as $media) {
             $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
@@ -88,6 +88,18 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->redirect(route('news.index', $this->project), navigate: true);
     }
 
+    /**
+     * Livewire re-hydrates $this->news from the snapshot on every request
+     * after the first, which drops whatever mount() eager-loaded. The
+     * watcher chips read $watcher->user, so without this any follow-up
+     * interaction (posting a comment, toggling a reaction) would lazy-load
+     * one query per watcher.
+     */
+    public function rendering(): void
+    {
+        $this->news->loadMissing('author', 'reactions', 'watchers.user');
+    }
+
     public function toggleWatch(): void
     {
         $this->authorize('watch', $this->news);
@@ -100,7 +112,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->news->watchers()->create(['user_id' => auth()->id()]);
         }
 
-        $this->news->unsetRelation('watchers');
+        $this->news->load('watchers.user');
     }
 
     /**
@@ -125,7 +137,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->news->watchers()->firstOrCreate(['user_id' => $data['newWatcherId']]);
 
         $this->reset('newWatcherId');
-        $this->news->unsetRelation('watchers');
+        $this->news->load('watchers.user');
         unset($this->watcherCandidates);
     }
 
@@ -135,7 +147,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->news->watchers()->where('user_id', $userId)->delete();
 
-        $this->news->unsetRelation('watchers');
+        $this->news->load('watchers.user');
         unset($this->watcherCandidates);
     }
 

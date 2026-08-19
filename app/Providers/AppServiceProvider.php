@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Policies\CalendarPolicy;
 use App\Policies\GanttPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -20,6 +21,14 @@ final class AppServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // Implicit lazy loading is an exception outside production: an N+1
+        // introduced in a Blade template or a policy is otherwise invisible
+        // until someone counts queries. Production keeps lazy loading rather
+        // than turning a missed eager load into a 500 for a user; the whole
+        // test suite runs clean under this, so anything it catches locally is
+        // new. Use loadMissing()/load() to resolve a relation explicitly.
+        Model::preventLazyLoading(! $this->app->isProduction());
+
         Gate::before(fn (User $user, string $ability) => $user->is_admin ? true : null);
 
         $this->registerApiKeyGuard();

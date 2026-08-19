@@ -143,7 +143,7 @@ final class WorkflowService
      */
     private function roleIdsFor(Issue $issue, User $user): Collection
     {
-        return $this->authorization->rolesFor($user, $issue->project)->pluck('id');
+        return $this->authorization->rolesFor($user, $issue->loadMissing('project')->project)->pluck('id');
     }
 
     private function authorRelationScope(Issue $issue, User $user): Closure

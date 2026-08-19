@@ -215,6 +215,8 @@ final class Issue extends Model implements HasMedia
 
     public function isClosed(): bool
     {
+        $this->loadMissing('status');
+
         return $this->status->is_closed;
     }
 

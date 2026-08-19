@@ -572,7 +572,8 @@ new #[Layout('components.layouts.app')] class extends Component
         if (str_starts_with($key, 'cf_')) {
             $fieldId = (int) substr($key, 3);
 
-            return $issue->customFieldValues
+            return $issue->loadMissing('customFieldValues.customField')
+                ->customFieldValues
                 ->where('custom_field_id', $fieldId)
                 ->map(fn ($value) => $value->value())
                 ->filter(fn ($value) => $value !== null && $value !== '')
@@ -799,7 +800,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $target = $this->bulkMoveTargetProjects->firstWhere('id', $this->bulkMoveToProjectId);
 
-        return $target?->trackers ?? collect();
+        return $target?->loadMissing('trackers')->trackers ?? collect();
     }
 
     public function applyBulkMove(): void
@@ -884,7 +885,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $target = $this->bulkCopyTargetProjects->firstWhere('id', $this->bulkCopyToProjectId);
 
-        return $target?->trackers ?? collect();
+        return $target?->loadMissing('trackers')->trackers ?? collect();
     }
 
     public function applyBulkCopy(): void

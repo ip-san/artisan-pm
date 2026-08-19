@@ -389,6 +389,8 @@ final class Project extends Model implements HasMedia
 
     public function hasModule(ProjectModuleKey $module): bool
     {
+        $this->loadMissing('moduleAssignments');
+
         return $this->moduleAssignments->contains('module', $module);
     }
 
