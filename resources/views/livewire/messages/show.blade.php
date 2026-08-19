@@ -36,6 +36,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount(Project $project, Board $board, Message $message): void
     {
+        // {board}/{message} are plain implicit bindings by id, independent of the {project} route segment and of each other.
+        abort_unless($board->project_id === $project->id && $message->board_id === $board->id, 404);
+
         $this->authorize('view', $message);
 
         if (! $message->isTopic()) {

@@ -50,6 +50,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->project = $project;
 
         if ($wikiPage?->exists) {
+            // {wikiPage} is a plain implicit binding by id, independent of the {project} route segment.
+            abort_unless($wikiPage->project_id === $project->id, 404);
+
             $this->authorize('update', $wikiPage);
 
             $this->wikiPage = $wikiPage;

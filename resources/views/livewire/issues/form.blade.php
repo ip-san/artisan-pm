@@ -94,6 +94,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->allowedStatuses = collect();
 
         if ($issue?->exists) {
+            // {issue} is a plain implicit binding by id, independent of the {project} route segment.
+            abort_unless($issue->project_id === $project->id, 404);
+
             $this->authorize('update', $issue);
 
             $this->issue = $issue;

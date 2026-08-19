@@ -27,6 +27,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount(Project $project, News $news): void
     {
+        // {news} is a plain implicit binding by id, independent of the {project} route segment.
+        abort_unless($news->project_id === $project->id, 404);
+
         $this->authorize('view', $news);
 
         $this->project = $project;

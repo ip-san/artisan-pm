@@ -30,6 +30,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount(Project $project, WikiPage $wikiPage): void
     {
+        // {wikiPage} is a plain implicit binding by id, independent of the {project} route segment.
+        abort_unless($wikiPage->project_id === $project->id, 404);
+
         $this->authorize('view', $wikiPage);
 
         $this->project = $project;

@@ -33,6 +33,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->project = $project;
 
         if ($timeEntry?->exists) {
+            // {timeEntry} is a plain implicit binding by id, independent of the {project} route segment.
+            abort_unless($timeEntry->project_id === $project->id, 404);
+
             $this->authorize('update', $timeEntry);
 
             $this->timeEntry = $timeEntry;
