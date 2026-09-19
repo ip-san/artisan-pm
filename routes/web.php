@@ -254,6 +254,7 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
 
     Volt::route('/settings', 'settings.index')->name('settings.index');
     Volt::route('/admin/info', 'admin.info')->name('admin.info');
+    Volt::route('/admin/default_configuration', 'admin.default-configuration')->name('admin.default-configuration');
 
     Volt::route('/plugins', 'plugins.index')->name('plugins.index');
     Volt::route('/plugins/{plugin}/settings', 'plugins.settings')->name('plugins.settings');

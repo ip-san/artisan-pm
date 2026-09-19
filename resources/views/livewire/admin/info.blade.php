@@ -25,7 +25,10 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-3xl space-y-8">
-    <h1 class="text-xl font-semibold text-gray-900">情報</h1>
+    <div class="flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-gray-900">情報</h1>
+        <a href="{{ route('admin.default-configuration') }}" class="text-sm text-indigo-600 hover:underline">デフォルト設定のロード</a>
+    </div>
 
     <section>
         <h2 class="mb-2 text-sm font-semibold text-gray-900">バージョン</h2>

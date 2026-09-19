@@ -28,12 +28,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'admin@example.com',
         ]);
 
-        $this->seedBuiltinRoles();
-        $this->seedDefaultRoles();
-        $this->seedTrackers();
-        $this->seedIssueStatuses();
-        $this->seedEnumerations();
-        $this->seedWorkflow();
+        $this->call(DefaultConfigurationSeeder::class);
         $this->seedCustomFields();
 
         // ProjectFactory::configure() already syncs the default modules via
@@ -48,135 +43,6 @@ class DatabaseSeeder extends Seeder
         $member->roles()->attach(Role::where('name', 'Manager')->first());
 
         $this->seedDemoIssues($project, $admin);
-    }
-
-    private function seedBuiltinRoles(): void
-    {
-        $builtinRoles = [
-            RoleBuiltin::Anonymous->value => ['name' => 'Anonymous', 'permissions' => ['view_project'], 'position' => 1],
-            RoleBuiltin::NonMember->value => ['name' => 'Non member', 'permissions' => ['view_project'], 'position' => 2],
-        ];
-
-        foreach ($builtinRoles as $builtin => $attributes) {
-            Role::query()->firstOrCreate(['builtin' => $builtin], $attributes);
-        }
-    }
-
-    private function seedDefaultRoles(): void
-    {
-        $roles = [
-            'Manager' => [
-                'view_project', 'edit_project', 'close_project', 'delete_project', 'select_project_modules',
-                'manage_members', 'add_subprojects', 'manage_versions', 'manage_categories',
-                'view_issues', 'add_issues', 'edit_issues', 'delete_issues', 'manage_issue_relations', 'add_issue_watchers',
-            ],
-            'Developer' => [
-                'view_project', 'manage_versions',
-                'view_issues', 'add_issues', 'edit_issues', 'add_issue_watchers',
-            ],
-            'Reporter' => [
-                'view_project', 'view_issues', 'add_issues', 'add_issue_watchers',
-            ],
-        ];
-
-        $position = 3;
-        foreach ($roles as $name => $permissions) {
-            Role::query()->updateOrCreate(
-                ['name' => $name],
-                ['permissions' => $permissions, 'position' => $position++]
-            );
-        }
-    }
-
-    private function seedTrackers(): void
-    {
-        foreach (['Bug', 'Feature', 'Support'] as $name) {
-            Tracker::query()->firstOrCreate(['name' => $name]);
-        }
-    }
-
-    private function seedIssueStatuses(): void
-    {
-        $statuses = [
-            'New' => false,
-            'In Progress' => false,
-            'Resolved' => false,
-            'Feedback' => false,
-            'Closed' => true,
-            'Rejected' => true,
-        ];
-
-        foreach ($statuses as $name => $isClosed) {
-            IssueStatus::query()->firstOrCreate(['name' => $name], ['is_closed' => $isClosed]);
-        }
-    }
-
-    private function seedEnumerations(): void
-    {
-        $priorities = ['Low', 'Normal', 'High', 'Urgent', 'Immediate'];
-        foreach ($priorities as $name) {
-            Enumeration::query()->firstOrCreate(
-                ['type' => EnumerationType::IssuePriority->value, 'name' => $name],
-                ['is_default' => $name === 'Normal']
-            );
-        }
-
-        $activities = ['Design', 'Development', 'Testing'];
-        foreach ($activities as $name) {
-            Enumeration::query()->firstOrCreate(
-                ['type' => EnumerationType::TimeEntryActivity->value, 'name' => $name],
-                ['is_default' => $name === 'Development']
-            );
-        }
-    }
-
-    /**
-     * Every tracker shares the same simple New -> In Progress -> Resolved ->
-     * Closed flow for Manager/Developer/Reporter, with Manager additionally
-     * able to reject or reopen closed issues.
-     */
-    private function seedWorkflow(): void
-    {
-        $statuses = IssueStatus::query()->pluck('id', 'name');
-        $roles = Role::query()->whereIn('name', ['Manager', 'Developer', 'Reporter'])->pluck('id', 'name');
-
-        $commonTransitions = [
-            ['New', 'In Progress'],
-            ['In Progress', 'Resolved'],
-            ['Resolved', 'In Progress'],
-            ['Resolved', 'Closed'],
-            ['Feedback', 'In Progress'],
-        ];
-
-        $managerOnlyTransitions = [
-            ['New', 'Rejected'],
-            ['In Progress', 'Rejected'],
-            ['Closed', 'New'],
-        ];
-
-        // Flatten into a single (role, from, to) list so every tracker
-        // creates its transitions through one loop instead of duplicating
-        // the firstOrCreate call for the common and manager-only cases.
-        $roleTransitions = [];
-        foreach (['Manager', 'Developer', 'Reporter'] as $roleName) {
-            foreach ($commonTransitions as [$from, $to]) {
-                $roleTransitions[] = [$roleName, $from, $to];
-            }
-        }
-        foreach ($managerOnlyTransitions as [$from, $to]) {
-            $roleTransitions[] = ['Manager', $from, $to];
-        }
-
-        foreach (Tracker::all() as $tracker) {
-            foreach ($roleTransitions as [$roleName, $from, $to]) {
-                WorkflowTransition::query()->firstOrCreate([
-                    'tracker_id' => $tracker->id,
-                    'role_id' => $roles[$roleName],
-                    'old_status_id' => $statuses[$from],
-                    'new_status_id' => $statuses[$to],
-                ]);
-            }
-        }
     }
 
     private function seedCustomFields(): void
