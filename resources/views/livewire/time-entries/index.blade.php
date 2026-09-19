@@ -276,7 +276,20 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function canManage(): bool
     {
-        return app(AuthorizationService::class)->can(auth()->user(), 'edit_time_entries', $this->project);
+        $authorization = app(AuthorizationService::class);
+
+        return $authorization->can(auth()->user(), 'edit_time_entries', $this->project)
+            || $authorization->can(auth()->user(), 'edit_own_time_entries', $this->project);
+    }
+
+    /**
+     * Whether bulk edit may reassign entries to another user — Redmine's
+     * log_time_for_other_users.
+     */
+    #[Computed]
+    public function canLogForOthers(): bool
+    {
+        return app(AuthorizationService::class)->can(auth()->user(), 'log_time_for_other_users', $this->project);
     }
 
     public function deleteEntry(int $timeEntryId): void
@@ -366,6 +379,7 @@ new #[Layout('components.layouts.app')] class extends Component
         // The project field is a dropdown of allowed targets; anything else
         // was tampered with.
         abort_if($this->bulkProjectId !== null && $this->bulkProjectId !== $target->id, 403);
+        abort_if($this->bulkUserId !== null && ! $this->canLogForOthers, 403);
 
         if ($moving) {
             $this->authorize('create', [TimeEntry::class, $target]);
@@ -522,11 +536,13 @@ new #[Layout('components.layouts.app')] class extends Component
             <a href="{{ route('time-entries.report', $project) }}" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 レポート
             </a>
-            @can('create', [\App\Models\TimeEntry::class, $project])
+            @can('import', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.import', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     CSVインポート
                 </a>
+            @endcan
+            @can('create', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.create', $project) }}"
                     class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
                     工数を記録
@@ -614,6 +630,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                     @error('bulkIssueId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
+                @if ($this->canLogForOthers)
                 <div>
                     <label class="block text-xs font-medium text-gray-700">担当者</label>
                     <select wire:model="bulkUserId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
@@ -624,6 +641,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                     @error('bulkUserId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
+                @endif
                 <div>
                     <label class="block text-xs font-medium text-gray-700">時間</label>
                     <input type="number" step="0.01" wire:model="bulkHours" placeholder="変更なし"
@@ -700,7 +718,9 @@ new #[Layout('components.layouts.app')] class extends Component
                         <tr wire:key="time-entry-{{ $entry->id }}">
                             @if ($this->canManage)
                                 <td class="px-4 py-2">
-                                    <input type="checkbox" wire:model="selected" value="{{ $entry->id }}" class="rounded border-gray-300">
+                                    @can('update', $entry)
+                                        <input type="checkbox" wire:model="selected" value="{{ $entry->id }}" class="rounded border-gray-300">
+                                    @endcan
                                 </td>
                             @endif
                             @foreach ($columns as $columnKey)
@@ -720,8 +740,10 @@ new #[Layout('components.layouts.app')] class extends Component
                             @endforeach
                             @if ($this->canManage)
                                 <td class="px-4 py-2 whitespace-nowrap">
-                                    <a href="{{ route('time-entries.edit', [$project, $entry]) }}" class="text-indigo-600 hover:underline">編集</a>
-                                    <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="この工数記録を削除しますか?" class="ml-2 text-red-600 hover:underline">削除</button>
+                                    @can('update', $entry)
+                                        <a href="{{ route('time-entries.edit', [$project, $entry]) }}" class="text-indigo-600 hover:underline">編集</a>
+                                        <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="この工数記録を削除しますか?" class="ml-2 text-red-600 hover:underline">削除</button>
+                                    @endcan
                                 </td>
                             @endif
                         </tr>

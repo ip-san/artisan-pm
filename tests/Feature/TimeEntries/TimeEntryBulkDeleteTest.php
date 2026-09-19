@@ -64,9 +64,9 @@ test('bulk delete does not touch entries outside the current project', function 
         ->and(TimeEntry::query()->whereKey($foreignEntry->id)->exists())->toBeTrue();
 });
 
-test('an owner of an entry can bulk delete it even without the project-wide edit_time_entries permission', function () {
+test('an owner of an entry can bulk delete it with edit_own_time_entries but without the project-wide edit_time_entries permission', function () {
     $project = Project::factory()->create();
-    $user = timeEntryBulkDeleteMember($project, ['view_time_entries', 'log_time']);
+    $user = timeEntryBulkDeleteMember($project, ['view_time_entries', 'log_time', 'edit_own_time_entries']);
     $entry = TimeEntry::factory()->for($project)->create(['user_id' => $user->id]);
 
     Livewire::actingAs($user)

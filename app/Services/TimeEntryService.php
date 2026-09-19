@@ -22,10 +22,15 @@ use App\Support\TimeLog\TimeLogConstraints;
 final class TimeEntryService
 {
     /**
+     * `author_id` defaults to the signed-in user, or to the entry's own user
+     * when there is none (queued imports and the like pass it explicitly).
+     *
      * @param  array<string, mixed>  $attributes
      */
     public function create(array $attributes): TimeEntry
     {
+        $attributes['author_id'] ??= auth()->id() ?? ($attributes['user_id'] ?? null);
+
         TimeLogConstraints::assertSatisfied($attributes);
 
         $timeEntry = TimeEntry::create($attributes);

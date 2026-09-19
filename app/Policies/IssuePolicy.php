@@ -42,6 +42,11 @@ final class IssuePolicy
         return $user !== null && ($issue->author_id === $user->id || $issue->assigned_to_id === $user->id);
     }
 
+    public function import(User $user, Project $project): bool
+    {
+        return $this->create($user, $project) && $this->authorization->can($user, 'import_issues', $project);
+    }
+
     public function setPrivate(User $user, Project $project): bool
     {
         return $this->authorization->can($user, 'set_issues_private', $project);

@@ -25,7 +25,7 @@ new #[Layout('components.layouts.app')] class extends Component
         'hours' => '時間(必須)',
         'activity' => '作業分類(名前)',
         'issue' => '課題(#番号)',
-        'user' => '担当者(メールアドレス、edit_time_entries権限が必要)',
+        'user' => '担当者(メールアドレス、log_time_for_other_users権限が必要)',
         'comments' => 'コメント',
     ];
 
@@ -41,7 +41,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount(Project $project): void
     {
-        $this->authorize('create', [TimeEntry::class, $project]);
+        $this->authorize('import', [TimeEntry::class, $project]);
 
         $this->project = $project;
     }
@@ -68,7 +68,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function startImport(): void
     {
-        $this->authorize('create', [TimeEntry::class, $this->project]);
+        $this->authorize('import', [TimeEntry::class, $this->project]);
 
         $this->validate([
             'csvFile' => ['required', 'file'],

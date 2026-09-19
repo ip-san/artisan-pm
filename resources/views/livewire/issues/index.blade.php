@@ -1037,11 +1037,13 @@ new #[Layout('components.layouts.app')] class extends Component
             <a href="{{ route('issues.report', $project) }}" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 レポート
             </a>
-            @can('create', [\App\Models\Issue::class, $project])
+            @can('import', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.import', $project) }}"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     CSVインポート
                 </a>
+            @endcan
+            @can('create', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.create', $project) }}"
                     class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
                     新規課題

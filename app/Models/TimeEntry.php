@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Collection;
 
-#[Fillable(['project_id', 'issue_id', 'user_id', 'activity_id', 'hours', 'spent_on', 'comments'])]
+#[Fillable(['project_id', 'issue_id', 'user_id', 'author_id', 'activity_id', 'hours', 'spent_on', 'comments'])]
 final class TimeEntry extends Model
 {
     /** @use HasFactory<TimeEntryFactory> */
@@ -50,6 +50,17 @@ final class TimeEntry extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Who logged the entry, as opposed to `user`, whose time it is — the two
+     * differ when someone logs time for another user.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'author_id');
     }
 
     /**

@@ -123,9 +123,9 @@ test('the bulk edit panel is not shown without edit_time_entries', function () {
         ->assertDontSee('一括更新');
 });
 
-test('an owner of an entry can bulk edit it even without the project-wide edit_time_entries permission', function () {
+test('an owner of an entry can bulk edit it with edit_own_time_entries but without the project-wide edit_time_entries permission', function () {
     $project = Project::factory()->create();
-    $user = timeEntryBulkEditMember($project, ['view_time_entries', 'log_time']);
+    $user = timeEntryBulkEditMember($project, ['view_time_entries', 'log_time', 'edit_own_time_entries']);
     $entry = TimeEntry::factory()->for($project)->create(['user_id' => $user->id]);
     $activity = Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value]);
 

@@ -13,7 +13,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
-function timeEntryImportMember(Project $project, array $permissions = ['view_time_entries', 'log_time']): User
+function timeEntryImportMember(Project $project, array $permissions = ['view_time_entries', 'log_time', 'import_time_entries']): User
 {
     $role = Role::factory()->create(['permissions' => $permissions]);
     $user = User::factory()->create();
@@ -144,12 +144,12 @@ test('a mapped issue column links the time entry to that issue', function () {
     expect($entry->issue_id)->toBe($issue->id);
 });
 
-test('a "user" column is ignored, entries logged as the importer, when the importer lacks edit_time_entries', function () {
+test('a "user" column is ignored, entries logged as the importer, when the importer lacks log_time_for_other_users', function () {
     Storage::fake('local');
 
     $project = Project::factory()->create();
     Enumeration::factory()->create(['type' => 'time_entry_activity', 'is_default' => true]);
-    $importer = timeEntryImportMember($project, ['view_time_entries', 'log_time']);
+    $importer = timeEntryImportMember($project, ['view_time_entries', 'log_time', 'import_time_entries']);
     $otherMember = timeEntryImportMember($project, ['view_time_entries', 'log_time']);
 
     $csv = "spent_on,hours,user\n2026-01-01,1,{$otherMember->email}\n";
@@ -166,12 +166,12 @@ test('a "user" column is ignored, entries logged as the importer, when the impor
     expect($entry->user_id)->toBe($importer->id)->not->toBe($otherMember->id);
 });
 
-test('a "user" column attributes the entry to that member when the importer holds edit_time_entries', function () {
+test('a "user" column attributes the entry to that member when the importer holds log_time_for_other_users', function () {
     Storage::fake('local');
 
     $project = Project::factory()->create();
     Enumeration::factory()->create(['type' => 'time_entry_activity', 'is_default' => true]);
-    $importer = timeEntryImportMember($project, ['view_time_entries', 'log_time', 'edit_time_entries']);
+    $importer = timeEntryImportMember($project, ['view_time_entries', 'log_time', 'import_time_entries', 'log_time_for_other_users']);
     $otherMember = timeEntryImportMember($project, ['view_time_entries', 'log_time']);
 
     $csv = "spent_on,hours,user\n2026-01-01,1,{$otherMember->email}\n";
@@ -193,7 +193,7 @@ test('a "user" email matching a user outside the project falls back to the impor
 
     $project = Project::factory()->create();
     Enumeration::factory()->create(['type' => 'time_entry_activity', 'is_default' => true]);
-    $importer = timeEntryImportMember($project, ['view_time_entries', 'log_time', 'edit_time_entries']);
+    $importer = timeEntryImportMember($project, ['view_time_entries', 'log_time', 'import_time_entries', 'log_time_for_other_users']);
     $outsider = User::factory()->create(['email' => 'outsider@example.com']);
 
     $csv = "spent_on,hours,user\n2026-01-01,1,outsider@example.com\n";

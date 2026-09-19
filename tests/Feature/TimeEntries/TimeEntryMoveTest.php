@@ -20,7 +20,7 @@ function moveScenario(array $targetPermissions = ['view_project', 'view_issues',
     $source = Project::factory()->create();
     $target = Project::factory()->create();
     $user = User::factory()->create();
-    $everything = ['view_project', 'view_issues', 'log_time', 'view_time_entries', 'edit_time_entries'];
+    $everything = ['view_project', 'view_issues', 'log_time', 'view_time_entries', 'edit_time_entries', 'log_time_for_other_users'];
     Member::factory()->for($source)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => $everything]));
     Member::factory()->for($target)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => $targetPermissions]));
     $activity = Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value]);

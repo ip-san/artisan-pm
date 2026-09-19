@@ -21,6 +21,7 @@ class TimeEntryFactory extends Factory
         return [
             'project_id' => Project::factory(),
             'user_id' => User::factory(),
+            'author_id' => fn (array $attributes) => $attributes['user_id'],
             'activity_id' => Enumeration::factory()->state(['type' => EnumerationType::TimeEntryActivity->value]),
             'hours' => fake()->randomFloat(2, 0.5, 8),
             'spent_on' => fake()->dateTimeBetween('-1 month', 'now')->format('Y-m-d'),

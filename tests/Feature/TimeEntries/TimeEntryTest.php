@@ -61,7 +61,7 @@ test('a member without log_time cannot access the time entry form', function () 
         ->assertForbidden();
 });
 
-test('a member without edit_time_entries cannot select another member as the entry owner', function () {
+test('a member without log_time_for_other_users cannot select another member as the entry owner', function () {
     $project = Project::factory()->create();
     $user = timeEntryMember($project);
     $otherMember = timeEntryMember($project);
@@ -80,9 +80,9 @@ test('a member without edit_time_entries cannot select another member as the ent
     expect($entry->user_id)->toBe($user->id);
 });
 
-test('a member with edit_time_entries can log time on behalf of another member', function () {
+test('a member with log_time_for_other_users can log time on behalf of another member', function () {
     $project = Project::factory()->create();
-    $manager = timeEntryMember($project, ['log_time', 'view_time_entries', 'edit_time_entries']);
+    $manager = timeEntryMember($project, ['log_time', 'view_time_entries', 'log_time_for_other_users']);
     $otherMember = timeEntryMember($project);
     $activity = timeEntryActivity();
 
@@ -101,7 +101,7 @@ test('a member with edit_time_entries can log time on behalf of another member',
 
 test('the entry owner can edit their own time entry', function () {
     $project = Project::factory()->create();
-    $user = timeEntryMember($project);
+    $user = timeEntryMember($project, ['log_time', 'view_time_entries', 'edit_own_time_entries']);
     $activity = timeEntryActivity();
     $entry = TimeEntry::factory()->for($project)->for($user)->create(['activity_id' => $activity->id, 'hours' => 1]);
 

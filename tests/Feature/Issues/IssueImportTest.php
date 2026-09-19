@@ -18,7 +18,7 @@ use Livewire\Livewire;
 
 function importMember(Project $project): User
 {
-    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues']]);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues', 'import_issues']]);
     $user = User::factory()->create();
     $member = Member::factory()->for($project)->for($user)->create();
     $member->roles()->attach($role);
@@ -233,7 +233,7 @@ test('an unknown category/version is auto-created when the user opts in and hold
     $project->trackers()->attach($tracker);
     IssueStatus::factory()->create();
     Enumeration::factory()->create(['is_default' => true]);
-    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues', 'manage_categories', 'manage_versions']]);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues', 'import_issues', 'manage_categories', 'manage_versions']]);
     $user = User::factory()->create();
     Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
 
@@ -371,7 +371,7 @@ test('a mapped is_private column is honored when the importing user can set issu
     $project->trackers()->attach($tracker);
     IssueStatus::factory()->create();
     Enumeration::factory()->create(['is_default' => true]);
-    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues', 'set_issues_private']]);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues', 'import_issues', 'set_issues_private']]);
     $user = User::factory()->create();
     $member = Member::factory()->for($project)->for($user)->create();
     $member->roles()->attach($role);

@@ -53,7 +53,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount(Project $project): void
     {
-        $this->authorize('create', [Issue::class, $project]);
+        $this->authorize('import', [Issue::class, $project]);
 
         $this->project = $project;
     }
@@ -92,7 +92,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function startImport(): void
     {
-        $this->authorize('create', [Issue::class, $this->project]);
+        $this->authorize('import', [Issue::class, $this->project]);
 
         $this->validate([
             'csvFile' => ['required', 'file'],

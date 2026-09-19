@@ -22,7 +22,7 @@ final class UpdateTimeEntryRequest extends FormRequest
         /** @var TimeEntry $timeEntry */
         $timeEntry = $this->route('time_entry');
 
-        if (! app(AuthorizationService::class)->can($this->user(), 'edit_time_entries', $timeEntry->project)) {
+        if (! app(AuthorizationService::class)->can($this->user(), 'log_time_for_other_users', $timeEntry->project)) {
             $this->merge(['user_id' => $timeEntry->user_id]);
         }
     }
@@ -39,7 +39,7 @@ final class UpdateTimeEntryRequest extends FormRequest
         return [
             'issue_id' => ['sometimes', 'nullable', 'integer', Rule::exists('issues', 'id')->where('project_id', $project->id)],
             // Not scoped to project membership — see StoreTimeEntryRequest
-            // for why (log_time/edit_time_entries can be held without an
+            // for why (log_time/log_time_for_other_users can be held without an
             // actual members row, via a non-member role or admin bypass).
             'user_id' => ['sometimes', 'integer', 'exists:users,id'],
             'activity_id' => ['sometimes', 'integer', Rule::in($project->activities()->pluck('id'))],

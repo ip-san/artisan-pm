@@ -117,7 +117,7 @@ test('creating a time entry with an activity not available to the project is rej
     ])->assertUnprocessable()->assertJsonValidationErrors(['activity_id']);
 });
 
-test('a member without edit_time_entries cannot log time on behalf of another user', function () {
+test('a member without log_time_for_other_users cannot log time on behalf of another user', function () {
     $project = Project::factory()->create();
     $user = apiTimeEntryMember($project, ['log_time']);
     $other = User::factory()->create();
@@ -135,9 +135,9 @@ test('a member without edit_time_entries cannot log time on behalf of another us
     $response->assertCreated()->assertJsonPath('data.user_id', $user->id);
 });
 
-test('a member with edit_time_entries can log time on behalf of another user', function () {
+test('a member with log_time_for_other_users can log time on behalf of another user', function () {
     $project = Project::factory()->create();
-    $user = apiTimeEntryMember($project, ['log_time', 'edit_time_entries']);
+    $user = apiTimeEntryMember($project, ['log_time', 'log_time_for_other_users']);
     $other = User::factory()->create();
     Member::factory()->for($project)->for($other)->create();
     $activity = Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity]);
@@ -169,7 +169,7 @@ test('comments longer than 1024 characters are rejected', function () {
 
 test('the owner can update their own time entry', function () {
     $project = Project::factory()->create();
-    $user = apiTimeEntryMember($project, ['log_time']);
+    $user = apiTimeEntryMember($project, ['log_time', 'edit_own_time_entries']);
     $entry = TimeEntry::factory()->for($project)->for($user)->create(['hours' => 1]);
 
     Passport::actingAs($user);
@@ -203,7 +203,7 @@ test('a member with edit_time_entries can update another member\'s time entry', 
 
 test('the owner can delete their own time entry', function () {
     $project = Project::factory()->create();
-    $user = apiTimeEntryMember($project, ['log_time']);
+    $user = apiTimeEntryMember($project, ['log_time', 'edit_own_time_entries']);
     $entry = TimeEntry::factory()->for($project)->for($user)->create();
 
     Passport::actingAs($user);
@@ -361,7 +361,7 @@ test('the issue route ignores a smuggled issue_id and project, and still needs l
     $this->postJson("/api/v1/issues/{$issue->id}/time_entries", $payload)->assertForbidden();
 });
 
-test('a user without edit_time_entries cannot log time for someone else through the issue route', function () {
+test('a user without log_time_for_other_users cannot log time for someone else through the issue route', function () {
     $project = Project::factory()->create();
     $user = apiTimeEntryMember($project, ['view_issues', 'log_time']);
     $someoneElse = User::factory()->create();

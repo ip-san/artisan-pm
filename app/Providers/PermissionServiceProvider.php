@@ -42,6 +42,7 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('add_issues', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::LoggedIn);
         $registry->register('edit_issues', module: ProjectModuleKey::IssueTracking);
         $registry->register('delete_issues', module: ProjectModuleKey::IssueTracking);
+        $registry->register('import_issues', module: ProjectModuleKey::IssueTracking);
         $registry->register('manage_issue_relations', module: ProjectModuleKey::IssueTracking);
         $registry->register('set_issues_private', module: ProjectModuleKey::IssueTracking);
         $registry->register('move_issues', module: ProjectModuleKey::IssueTracking);
@@ -55,6 +56,9 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('log_time', module: ProjectModuleKey::TimeTracking, requirement: PermissionRequirement::LoggedIn);
         $registry->register('view_time_entries', module: ProjectModuleKey::TimeTracking, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('edit_time_entries', module: ProjectModuleKey::TimeTracking);
+        $registry->register('edit_own_time_entries', module: ProjectModuleKey::TimeTracking, requirement: PermissionRequirement::LoggedIn);
+        $registry->register('log_time_for_other_users', module: ProjectModuleKey::TimeTracking, requirement: PermissionRequirement::Member);
+        $registry->register('import_time_entries', module: ProjectModuleKey::TimeTracking);
 
         $registry->register('view_wiki_pages', module: ProjectModuleKey::Wiki, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('edit_wiki_pages', module: ProjectModuleKey::Wiki, requirement: PermissionRequirement::LoggedIn);

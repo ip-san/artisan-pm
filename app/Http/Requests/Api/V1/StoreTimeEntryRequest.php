@@ -50,16 +50,14 @@ final class StoreTimeEntryRequest extends FormRequest
 
         // Defaults to the requester when omitted (mirrors the web form's
         // mount-time default), same as Redmine's TimeEntry.new(user:
-        // User.current, ...). A user without edit_time_entries can only
+        // User.current, ...). A user without log_time_for_other_users can only
         // ever log time for themselves — matches the web form's
-        // canManageOthers restriction, there is no Redmine-style
-        // log_time_for_other_users permission in this app's registry,
-        // edit_time_entries is reused for both.
+        // canManageOthers restriction.
         $this->merge(['user_id' => $this->input('user_id', $this->user()->id)]);
 
         $project = $this->targetProject();
 
-        if (! app(AuthorizationService::class)->can($this->user(), 'edit_time_entries', $project)) {
+        if (! app(AuthorizationService::class)->can($this->user(), 'log_time_for_other_users', $project)) {
             $this->merge(['user_id' => $this->user()->id]);
         }
     }

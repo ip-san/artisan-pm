@@ -61,12 +61,9 @@ final class ImportTimeEntriesJob implements ShouldQueue
         $errors = [];
         $imported = 0;
 
-        // Only an importer holding edit_time_entries may attribute rows to
-        // a mapped "user" column — matches this app's existing "log time
-        // for others" gate on the manual entry form (time-entries/form's
-        // canManageOthers), which stands in for Redmine's dedicated
-        // log_time_for_other_users permission (not modeled here).
-        $canLogForOthers = $authorization->can($this->import->user, 'edit_time_entries', $this->import->project);
+        // Only an importer holding log_time_for_other_users may attribute
+        // rows to a mapped "user" column, as on the manual entry form.
+        $canLogForOthers = $authorization->can($this->import->user, 'log_time_for_other_users', $this->import->project);
         $defaultActivity = $this->import->project->activities(includeInactive: true)->firstWhere('is_default', true);
 
         foreach ($rows as $index => $row) {
@@ -146,6 +143,7 @@ final class ImportTimeEntriesJob implements ShouldQueue
             'project_id' => $this->import->project_id,
             'issue_id' => $issue?->id,
             'user_id' => $user !== null ? $user->id : $this->import->user_id,
+            'author_id' => $this->import->user_id,
             'activity_id' => $activity->id,
             'hours' => (float) $hours,
             'spent_on' => $spentOn,

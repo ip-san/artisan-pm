@@ -152,14 +152,14 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Only members with edit_time_entries may log time on another member's
+     * Only members with log_time_for_other_users may log time on another member's
      * behalf — everyone else's entries are always recorded under their own
      * account, mirroring Redmine's "log time for others" permission.
      */
     #[Computed]
     public function canManageOthers(): bool
     {
-        return app(AuthorizationService::class)->can(auth()->user(), 'edit_time_entries', $this->targetProject);
+        return app(AuthorizationService::class)->can(auth()->user(), 'log_time_for_other_users', $this->targetProject);
     }
 
     public function save(): void
