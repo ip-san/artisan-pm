@@ -176,16 +176,64 @@ test('cancelling an edit resets the form', function () {
         ->assertSet('roleIds', []);
 });
 
-test('a group member cannot be opened for edit through editMember', function () {
+test('a group member can be opened for edit and its roles updated in place', function () {
     $admin = User::factory()->admin()->create();
     $project = Project::factory()->create();
-    $group = Group::factory()->create();
+    $group = Group::factory()->create(['name' => 'Backend team']);
+    $roleA = Role::factory()->create();
+    $roleB = Role::factory()->create();
     $member = Member::factory()->for($project)->create(['group_id' => $group->id, 'user_id' => null]);
+    $member->roles()->attach($roleA);
 
-    Livewire::actingAs($admin)
+    $component = Livewire::actingAs($admin)
         ->test('projects.members', ['project' => $project])
         ->call('editMember', $member->id)
-        ->assertStatus(404);
+        ->assertSet('addType', 'group')
+        ->assertSet('groupId', $group->id)
+        ->assertSet('editingMemberId', $member->id)
+        ->assertSee('Backend team');
+
+    expect($component->get('roleIds'))->toBe([$roleA->id]);
+
+    $component->set('roleIds', [$roleB->id])->call('addMember')->assertHasNoErrors();
+
+    expect(Member::where('project_id', $project->id)->where('group_id', $group->id)->count())->toBe(1)
+        ->and($member->fresh()->roles->pluck('id')->all())->toBe([$roleB->id])
+        ->and($component->get('editingMemberId'))->toBeNull();
+});
+
+test('a group member edit still needs at least one role and respects managed roles', function () {
+    $project = Project::factory()->create();
+    $group = Group::factory()->create();
+    $managed = Role::factory()->create();
+    $unmanaged = Role::factory()->create();
+    $member = Member::factory()->for($project)->create(['group_id' => $group->id, 'user_id' => null]);
+    $member->roles()->attach([$managed->id, $unmanaged->id]);
+
+    $manager = User::factory()->create();
+    $managerRole = Role::factory()->create(['permissions' => ['view_project', 'manage_members'], 'all_roles_managed' => false]);
+    $managerRole->managedRoles()->sync([$managed->id]);
+    Member::factory()->for($project)->for($manager)->create()->roles()->attach($managerRole);
+
+    $component = Livewire::actingAs($manager)
+        ->test('projects.members', ['project' => $project])
+        ->call('editMember', $member->id);
+
+    expect($component->get('roleIds'))->toBe([$managed->id]);
+
+    $component->set('roleIds', [])->call('addMember')->assertHasNoErrors();
+
+    expect($member->fresh()->roles->pluck('id')->all())->toBe([$unmanaged->id]);
+});
+
+test('a group member of another project cannot be edited through this one', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $otherMember = Member::factory()->for(Project::factory()->create())->create(['group_id' => Group::factory()->create()->id, 'user_id' => null]);
+
+    expect(fn () => Livewire::actingAs($admin)
+        ->test('projects.members', ['project' => $project])
+        ->call('editMember', $otherMember->id))->toThrow(Illuminate\Database\Eloquent\ModelNotFoundException::class);
 });
 
 test('an admin can add a group as a project member with roles', function () {

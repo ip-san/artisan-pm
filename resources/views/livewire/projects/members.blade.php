@@ -45,11 +45,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $member = Member::query()->where('project_id', $this->project->id)->findOrFail($memberId);
 
-        abort_if($member->isForGroup(), 404);
-
         $this->editingMemberId = $member->id;
-        $this->selectedUserId = $member->user_id;
-        $this->userSearch = "{$member->user->name} ({$member->user->email})";
+
+        if ($member->isForGroup()) {
+            $this->addType = 'group';
+            $this->groupId = $member->group_id;
+        } else {
+            $this->addType = 'user';
+            $this->selectedUserId = $member->user_id;
+            $this->userSearch = "{$member->user->name} ({$member->user->email})";
+        }
 
         // Only the roles that actually have a checkbox (this editor's
         // managed set) are prefilled — a role outside that set stays
@@ -255,6 +260,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('groupId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+        @elseif ($addType === 'group')
+            <div>
+                <span class="block text-sm font-medium text-gray-700">グループ</span>
+                <p class="mt-1 text-sm text-gray-900">{{ $this->members->firstWhere('id', $editingMemberId)?->group?->name }}</p>
+            </div>
         @else
             <div class="relative">
                 <label class="block text-sm font-medium text-gray-700">ユーザー</label>
@@ -322,11 +332,9 @@ new #[Layout('components.layouts.app')] class extends Component
                     </span>
                 </div>
                 <div class="flex gap-3">
-                    @unless ($member->isForGroup())
-                        <button wire:click="editMember({{ $member->id }})" class="text-sm text-indigo-600 hover:underline">
-                            編集
-                        </button>
-                    @endunless
+                    <button wire:click="editMember({{ $member->id }})" class="text-sm text-indigo-600 hover:underline">
+                        編集
+                    </button>
                     <button wire:click="removeMember({{ $member->id }})" wire:confirm="このメンバーを削除しますか?"
                         class="text-sm text-red-600 hover:underline">
                         削除
