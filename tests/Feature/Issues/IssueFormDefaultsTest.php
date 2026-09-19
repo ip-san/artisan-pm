@@ -127,3 +127,56 @@ test('the assign-to-me shortcut is not offered to a non-member', function () {
         ->test('issues.form', ['project' => $project])
         ->assertDontSee('自分に割り当てる');
 });
+
+test('a new issue has no start date when default_issue_start_date_to_creation_date is off', function () {
+    Setting::set('default_issue_start_date_to_creation_date', false);
+
+    $project = Project::factory()->create();
+    $user = defaultsProjectMember($project);
+
+    $component = Livewire::actingAs($user)->test('issues.form', ['project' => $project]);
+
+    expect($component->get('start_date'))->toBeNull();
+});
+
+test('a copied issue keeps its own start date whatever the creation date setting says', function () {
+    $project = Project::factory()->create();
+    $user = defaultsProjectMember($project);
+    $source = Issue::factory()->for($project)->create(['start_date' => '2026-01-05']);
+
+    foreach ([true, false] as $enabled) {
+        Setting::set('default_issue_start_date_to_creation_date', $enabled);
+
+        $component = Livewire::actingAs($user)
+            ->withQueryParams(['copy_from' => $source->id])
+            ->test('issues.form', ['project' => $project]);
+
+        expect($component->get('start_date'))->toBe('2026-01-05');
+    }
+});
+
+test('the creation date default applies to a copy whose source has no start date', function () {
+    Setting::set('default_issue_start_date_to_creation_date', true);
+
+    $project = Project::factory()->create();
+    $user = defaultsProjectMember($project);
+    $source = Issue::factory()->for($project)->create(['start_date' => null]);
+
+    $component = Livewire::actingAs($user)
+        ->withQueryParams(['copy_from' => $source->id])
+        ->test('issues.form', ['project' => $project]);
+
+    expect($component->get('start_date'))->toBe(Carbon::now()->toDateString());
+});
+
+test('the settings page saves the start date default', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)->test('settings.index')
+        ->assertSet('default_issue_start_date_to_creation_date', true)
+        ->set('default_issue_start_date_to_creation_date', false)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('default_issue_start_date_to_creation_date', true))->toBeFalse();
+});

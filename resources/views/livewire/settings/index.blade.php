@@ -126,6 +126,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $cross_project_issue_relations = false;
 
+    public bool $default_issue_start_date_to_creation_date = true;
+
     public ?int $default_issue_due_date_offset = null;
 
     /** @var array<int, string> */
@@ -206,6 +208,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->parent_issue_dates = Setting::get('parent_issue_dates', true);
         $this->parent_issue_done_ratio = Setting::get('parent_issue_done_ratio', true);
         $this->cross_project_issue_relations = Setting::get('cross_project_issue_relations', false);
+        $this->default_issue_start_date_to_creation_date = Setting::get('default_issue_start_date_to_creation_date', true);
         $this->default_issue_due_date_offset = Setting::get('default_issue_due_date_offset');
         $this->issue_list_default_columns = Setting::get(
             'issue_list_default_columns',
@@ -327,6 +330,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_issue_dates' => ['boolean'],
             'parent_issue_done_ratio' => ['boolean'],
             'cross_project_issue_relations' => ['boolean'],
+            'default_issue_start_date_to_creation_date' => ['boolean'],
             'default_issue_due_date_offset' => ['nullable', 'integer', 'min:0'],
             'issue_list_default_columns' => ['array', 'min:1'],
             'issue_list_default_columns.*' => [Rule::in(array_keys(self::ISSUE_LIST_COLUMNS))],
@@ -447,6 +451,14 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="checkbox" wire:model="reactions_enabled" class="rounded border-gray-300">
                 リアクション(いいね)機能を有効にする
             </label>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="default_issue_start_date_to_creation_date" class="rounded border-gray-300">
+                    新規課題の開始日を作成日にする
+                </label>
+                <p class="mt-1 text-xs text-gray-500">無効の場合、開始日は自動設定されません(コピー元の課題がある場合はその開始日を引き継ぎます)。</p>
+            </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700">新規課題の期日の既定値(作成日からの日数)</label>

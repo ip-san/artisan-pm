@@ -134,10 +134,18 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->ofType(EnumerationType::IssuePriority)
                 ->where('is_default', true)
                 ->first()?->id;
-            $this->start_date = now()->toDateString();
 
             $this->prefillFromCopySource($project);
             $this->applyCustomFieldDefaults();
+
+            // Matches Redmine's `@issue.start_date ||= today if
+            // Setting.default_issue_start_date_to_creation_date?`, applied
+            // after copy_from handling so a copied issue's own start date
+            // wins. Redmine ships this off; this app has always defaulted to
+            // today, so the setting defaults to on here.
+            if (Setting::get('default_issue_start_date_to_creation_date', true)) {
+                $this->start_date ??= now()->toDateString();
+            }
 
             // Matches Redmine's Issue#default_assign and the fixed_version
             // default in Issue#tracker=: the project's default version and

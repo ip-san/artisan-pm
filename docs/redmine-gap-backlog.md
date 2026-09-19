@@ -62,13 +62,15 @@
 | 2 | A1-23 | — | S | done(2026-09-20) |
 | 2a | A1-32 | A1-23 | S | todo |
 | 2b | A1-33 | A1-23 | S | todo |
+| A5-16b | `default_issue_start_date_to_creation_date` を REST API 課題作成(`IssuesController#build_new_issue_from_params`)と受信メール課題作成(`mail_handler.rb:216`)にも適用 | A5-16 で Web フォームのみ設定化。API/メールは開始日を補完しない | 設定オン時に両経路で `start_date ??= today` | 設定の既定がオンのため、適用すると既存 API クライアント/メールの挙動が変わる。**適用前にユーザーへ確認**(または既定オフに変更) | S | Issues本体「担当者『自分』ショートカット・既定開始/期日」 |
 | A1-33 | REST API `PUT /projects/{id}` での `default_version_id` / `default_assigned_to_id` の更新(Redmine の `safe_attributes`、`project.rb:839-841`) | A1-23 で読み取り(`default_version`/`default_assignee`)のみ実装。`UpdateProjectRequest` に規則なし | 両フィールドを追加し、Web フォームと同じ選択肢(オープンな共有バージョン/割当可能メンバー)で検証 | A1-23 完了が前提 | S | REST API「Projects」 |
 | 3 | A1-24 | (取り下げ)トラッカーの `is_in_chlog` | — | Redmine 7.0.0 で廃止済み(`db/migrate/20210728131544_drop_is_in_chlog_column.rb`、`app/` に使用箇所なし)。作業不要 | 機械照合が古いマイグレーションの `add_column` だけを見て、後続の `drop` を見落としていた | — | Trackers 節(C-18) |
 | 4 | A3-04 | — | S | done(2026-09-20) |
 | 5 | A3-10 | — | S | done(2026-09-20) |
 | 6 | A4-06 | — | S | done(2026-09-20) |
 | 7 | A4-15 | — | S | done(2026-09-20) |
-| 8 | A5-16 | — | S | todo |
+| 8 | A5-16 | — | S | done(2026-09-20) |
+| 8a | A5-16b | A5-16 | S | blocked(要承認: 既存 API/メールの挙動が変わる。設定の既定をオフにするか、適用してよいか) |
 | 9 | A5-02 / A9-05 | — | S | todo |
 | 10 | A5-03 | — | S | todo |
 | 11 | A1-09 | — | S | todo |
