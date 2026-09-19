@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Role;
 use App\Models\TimeEntry;
+use App\Services\TimeEntryService;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,19 +19,16 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Redmine's top-level TimelogController#index (no project_id) — every time
  * entry across every project the current user can view_time_entries in.
- * Unlike the project-scoped time-entries.index, this intentionally has no
- * per-entry edit/delete (those need a per-project canManage() check, not
- * one global check), no CSV export, and only a single sort level rather
- * than the project-scoped page's grouping-plus-sort combo — same scope
- * cuts issues.global-index made. The pivoted multi-axis report (Redmine's
- * TimelogController#report) is a separate, larger gap this does not
- * address. Saved queries here are always global (`project_id IS NULL`,
- * matching Redmine's `query_is_for_all` on the cross-project index) — see
- * issues.global-index for the identical pattern.
+ * Rows can be edited and deleted where the viewer may (each entry is checked
+ * against its own project), and the filtered list exports as CSV. Only a
+ * single sort level rather than the project-scoped page's grouping-plus-sort
+ * combo, as in issues.global-index. The pivoted multi-axis report is
+ * time-entries.report on /time_entries/report.
  */
 new #[Layout('components.layouts.app')] class extends Component
 {
@@ -142,6 +140,62 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->sortKey = $key;
             $this->sortDirection = 'asc';
         }
+    }
+
+    /**
+     * Deletes one entry the viewer may delete, whichever project it is in.
+     */
+    public function deleteEntry(int $timeEntryId): void
+    {
+        $entry = TimeEntry::query()
+            ->visibleToAcrossProjects(auth()->user(), $this->visibleProjects)
+            ->with('project')
+            ->find($timeEntryId);
+
+        abort_if($entry === null, 404);
+        $this->authorize('delete', $entry);
+
+        app(TimeEntryService::class)->delete($entry);
+
+        unset($this->timeEntries, $this->groupedTimeEntries);
+    }
+
+    #[Url]
+    public string $csvEncoding = 'UTF-8';
+
+    #[Url]
+    public string $csvSeparator = ',';
+
+    /**
+     * The filtered list, in the chosen columns, as CSV (UTF-8 with a byte-order
+     * mark, or Shift_JIS).
+     */
+    public function exportCsv(): StreamedResponse
+    {
+        $encoding = in_array($this->csvEncoding, ['UTF-8', 'SJIS-win'], true) ? $this->csvEncoding : 'UTF-8';
+        $separator = in_array($this->csvSeparator, [',', ';', "\t"], true) ? $this->csvSeparator : ',';
+        $columns = $this->columns;
+        $entries = $this->timeEntries;
+
+        return response()->streamDownload(function () use ($columns, $entries, $encoding, $separator): void {
+            $handle = fopen('php://output', 'w');
+
+            if ($encoding === 'UTF-8') {
+                fwrite($handle, "\xEF\xBB\xBF");
+            }
+
+            $write = function (array $row) use ($handle, $encoding, $separator): void {
+                fputcsv($handle, array_map(fn ($value) => $encoding === 'UTF-8' ? (string) $value : mb_convert_encoding((string) $value, $encoding, 'UTF-8'), $row), $separator);
+            };
+
+            $write(array_map(fn (string $key) => self::DISPLAY_COLUMNS[$key] ?? $key, $columns));
+
+            foreach ($entries as $entry) {
+                $write(array_map(fn (string $key) => $this->columnValue($entry, $key), $columns));
+            }
+
+            fclose($handle);
+        }, 'timelog.csv');
     }
 
     public function columnValue(TimeEntry $entry, string $key): string
@@ -306,6 +360,18 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
+
+            <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-gray-300 text-xs">
+                <option value="UTF-8">UTF-8</option>
+                <option value="SJIS-win">Shift_JIS</option>
+            </select>
+            <select wire:model="csvSeparator" title="区切り文字" class="rounded-md border-gray-300 text-xs">
+                <option value=",">カンマ</option>
+                <option value=";">セミコロン</option>
+                <option value="{{ "\t" }}">タブ</option>
+            </select>
+            <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">CSVエクスポート</button>
+            <a href="{{ route('time-entries.global-report') }}" class="text-sm text-indigo-600 hover:underline">レポート</a>
         </div>
 
         @if ($showSaveForm)
@@ -338,6 +404,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 </button>
                             </th>
                         @endforeach
+                        <th class="px-4 py-2"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -358,10 +425,18 @@ new #[Layout('components.layouts.app')] class extends Component
                                     @endif
                                 </td>
                             @endforeach
+                            <td class="px-4 py-2 whitespace-nowrap">
+                                @can('update', $entry)
+                                    <a href="{{ route('time-entries.edit', [$entry->project, $entry]) }}" class="text-indigo-600 hover:underline">編集</a>
+                                @endcan
+                                @can('delete', $entry)
+                                    <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="この工数記録を削除しますか?" class="ml-2 text-red-600 hover:underline">削除</button>
+                                @endcan
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ count($columns) }}" class="px-4 py-6 text-center text-gray-500">工数記録がありません。</td>
+                            <td colspan="{{ count($columns) + 1 }}" class="px-4 py-6 text-center text-gray-500">工数記録がありません。</td>
                         </tr>
                     @endforelse
                 </tbody>
