@@ -84,7 +84,7 @@
 | 15 | A7-13 | — | S | done(2026-09-20) |
 | 16 | A7-02 | — | S | done(2026-09-20) |
 | 17 | A7-03 | — | S | done(2026-09-20) |
-| 18 | A7-04 | — | S | todo |
+| 18 | A7-04 | (実装済み→是正)Wiki 個別バージョンの削除(`wiki#destroy_version`) | 履歴画面の `deleteVersion()` は既に存在した(バックログ作成時に「未実装」と誤認)。ただし権限が `edit_wiki_pages`、最新版と最後の1版は削除不可だった | `delete_wiki_pages`+`editable?` に是正、最新版の削除で前の版へ戻す、最後の1版の削除でページ削除(2026-09-20 実装済み) | — | S | Wiki「バージョン単体の削除」(C-19) |
 | 19 | A1-26 | — | S | todo |
 | 20 | A1-21 | — | S | todo |
 | 21 | A3-08 | — | S | todo |
@@ -516,6 +516,7 @@
 | C-16 | §0 項目 2 | 「専用の『リセットして通知』フローはまだない」 | `users/form.blade.php:150` の `sendPasswordReset()` がパスワード再設定リンクをメール送信(2026-07-22 の行で `done`) | 文言を打ち消し線に |
 | C-17 | (取り下げ) 工数管理「TimeEntry CRUD」 | 「編集対象は作業分類/日付/コメントの3項目のみ」 | **記載は正しい**。この文は`time-entries/index.blade.php`の**一括編集**(`bulkActivityId`/`bulkSpentOn`/`bulkComments`)の説明で、単体編集フォームの話ではない。Redmine の一括編集は時間・課題・プロジェクト・ユーザーも変更できる | 訂正不要。不足は A8-01 に記載 |
 | C-18 | (バックログ自身の訂正)A1-24 `is_in_chlog` | 付録の機械照合で「スキーマ列の欠落」として列挙 | Redmine 7.0.0 は 2021 年に列を廃止済み。**教訓**: マイグレーションの `add_column` だけでなく、`app/` での使用箇所と後続の `drop` を確認する。他の列(`inherit_members`/`homepage`/`default_time_entry_activity_id`/`updated_by_id`/`passwd_changed_on`/`must_change_passwd`/`members.mail_notification`/`is_filter`/`twofa_required` 等)は `app/` に使用箇所があり現役と確認済み(2026-09-20) | 反映済み |
+| C-19 | (バックログ自身の訂正)A7-04 | 「Wiki 個別バージョンの削除は未実装」 | 実装済みだった。実際の差分は権限(`edit_wiki_pages` ↔ Redmine の `delete_wiki_pages`)と最新版/最後の1版の扱い | 反映済み(A7-04) |
 
 ---
 

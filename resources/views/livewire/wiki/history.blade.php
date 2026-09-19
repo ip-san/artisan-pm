@@ -3,6 +3,7 @@
 use App\Models\Project;
 use App\Models\WikiPage;
 use App\Models\WikiPageVersion;
+use App\Services\WikiPageService;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -40,24 +41,40 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Deletes one historical snapshot. The current (highest-numbered)
-     * version can't be deleted — unlike Redmine, where WikiContent holds
-     * the live text separately from its version history, this app's
-     * "current" version *is* the highest-numbered history row, so removing
-     * it would silently change the page's live content as a side effect
-     * of what looks like a routine history cleanup action. Deletion is
-     * also blocked once only one version remains, matching Redmine's own
-     * `@version_count > 1` guard (a page must always have some history).
+     * Whether the viewer may delete history at all: Redmine's
+     * wiki#destroy_version needs delete_wiki_pages plus `editable?` (an
+     * unprotected page, or protect_wiki_pages).
+     */
+    #[Computed]
+    public function canDeleteVersions(): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null
+            && $user->can('delete', $this->wikiPage)
+            && (! $this->wikiPage->is_protected || $user->can('protect', $this->wikiPage));
+    }
+
+    /**
+     * Deletes one snapshot, like Redmine's wiki#destroy_version: any
+     * version can go. Removing the current (highest-numbered) one simply
+     * leaves the previous version as current, and removing the last
+     * remaining one removes the whole page, since a page can't exist
+     * without content.
      */
     public function deleteVersion(int $versionId): void
     {
-        $this->authorize('update', $this->wikiPage);
+        abort_unless($this->canDeleteVersions, 403);
 
         $version = $this->wikiPage->versions()->findOrFail($versionId);
-        $currentVersionNumber = $this->wikiPage->versions()->max('version');
 
-        abort_if($version->version === $currentVersionNumber, 403);
-        abort_if($this->wikiPage->versions()->count() <= 1, 403);
+        if ($this->wikiPage->versions()->count() <= 1) {
+            app(WikiPageService::class)->delete($this->wikiPage);
+
+            $this->redirect(route('wiki.index', $this->project), navigate: true);
+
+            return;
+        }
 
         $version->delete();
 
@@ -107,14 +124,13 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endif
                     </div>
                 </div>
-                @can('update', $wikiPage)
-                    @if ($version->version !== $maxVersion && $versionCount > 1)
-                        <button wire:click="deleteVersion({{ $version->id }})" wire:confirm="このバージョンを削除しますか?"
-                            class="shrink-0 text-xs font-medium text-red-600 hover:underline">
-                            削除
-                        </button>
-                    @endif
-                @endcan
+                @if ($this->canDeleteVersions)
+                    <button wire:click="deleteVersion({{ $version->id }})"
+                        wire:confirm="{{ $versionCount <= 1 ? 'これが最後のバージョンです。削除するとページ自体が削除されます。よろしいですか?' : ($version->version === $maxVersion ? '最新バージョンを削除すると、ひとつ前のバージョンが最新になります。よろしいですか?' : 'このバージョンを削除しますか?') }}"
+                        class="shrink-0 text-xs font-medium text-red-600 hover:underline">
+                        削除
+                    </button>
+                @endif
             </li>
         @endforeach
     </ul>
