@@ -28,6 +28,7 @@ new #[Layout('components.layouts.app')] class extends Component
         'password' => 'パスワード(認証方式が無い場合は必須)',
         'language' => '言語',
         'admin' => '管理者(1/yes/はい)',
+        'must_change_passwd' => '次回ログイン時にパスワード変更を要求(1/yes/はい)',
         'auth_source' => '認証方式(名前)',
         'status' => 'ステータス(有効/承認待ち/ロック中)',
     ];

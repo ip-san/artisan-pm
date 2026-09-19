@@ -263,6 +263,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public int $password_min_length = 8;
 
+    public int $password_max_age = 0;
+
     /** @var array<int, string> */
     public array $password_required_char_classes = [];
 
@@ -317,6 +319,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->session_lifetime = Setting::get('session_lifetime', 0);
         $this->email_domains_allowed = Setting::get('email_domains_allowed', '');
         $this->email_domains_denied = Setting::get('email_domains_denied', '');
+        $this->password_max_age = (int) Setting::get('password_max_age', 0);
         $this->max_additional_emails = (int) Setting::get('max_additional_emails', 5);
         $this->password_min_length = Setting::get('password_min_length', 8);
         $this->password_required_char_classes = RequiredPasswordCharacterClasses::required();
@@ -596,6 +599,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'email_domains_allowed' => ['nullable', 'string', 'max:1000'],
             'email_domains_denied' => ['nullable', 'string', 'max:1000'],
             'max_additional_emails' => ['required', 'integer', 'min:0', 'max:50'],
+            'password_max_age' => ['required', 'integer', Rule::in([0, 7, 30, 60, 90, 180, 365])],
             'password_min_length' => ['required', 'integer', 'min:1', 'max:255'],
             'password_required_char_classes' => ['array'],
             'password_required_char_classes.*' => [Rule::in(array_keys(RequiredPasswordCharacterClasses::CLASSES))],
@@ -1144,8 +1148,20 @@ new #[Layout('components.layouts.app')] class extends Component
                     class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('password_min_length') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-gray-500">
-                    新規登録・管理者によるユーザー作成・パスワード変更のすべてに適用されます(パスワード有効期限は専用の運用基盤が必要なため対象外です)。
+                    新規登録・管理者によるユーザー作成・パスワード変更のすべてに適用されます。
                 </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">パスワードの有効期限</label>
+                <select wire:model="password_max_age" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="0">無効</option>
+                    @foreach ([7, 30, 60, 90, 180, 365] as $days)
+                        <option value="{{ $days }}">{{ $days }}日</option>
+                    @endforeach
+                </select>
+                @error('password_max_age') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">最後にパスワードを変更してからこの日数が過ぎたローカルアカウントは、パスワードを変更するまでプロフィール以外のページを開けません。LDAPなど外部認証のアカウントは対象外です。</p>
             </div>
 
             <div>

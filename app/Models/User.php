@@ -70,6 +70,7 @@ final class User extends Authenticatable implements OAuthenticatable
      */
     protected $attributes = [
         'no_self_notified' => true,
+        'must_change_passwd' => false,
     ];
 
     /**
@@ -83,6 +84,13 @@ final class User extends Authenticatable implements OAuthenticatable
      */
     protected static function booted(): void
     {
+        // Redmine's salt_password: any change of the password starts its age.
+        self::saving(function (User $user): void {
+            if ($user->isDirty('password')) {
+                $user->passwd_changed_on = now();
+            }
+        });
+
         self::creating(function (User $user): void {
             if (! array_key_exists('mail_notification', $user->getAttributes())) {
                 $user->mail_notification = Setting::get('default_notification_option', 'only_assigned');
@@ -100,6 +108,8 @@ final class User extends Authenticatable implements OAuthenticatable
             'status' => UserStatus::class,
             'mail_notification' => MailNotificationOption::class,
             'no_self_notified' => 'boolean',
+            'passwd_changed_on' => 'datetime',
+            'must_change_passwd' => 'boolean',
             'preferences' => 'array',
         ];
     }
@@ -301,6 +311,30 @@ final class User extends Authenticatable implements OAuthenticatable
             ->where('is_admin', true)
             ->whereKeyNot($this->getKey())
             ->exists();
+    }
+
+    /**
+     * Redmine's User#password_expired?: the site's password_max_age (days, 0
+     * = never) has passed since the password last changed.
+     */
+    public function passwordExpired(): bool
+    {
+        $days = (int) Setting::get('password_max_age', 0);
+
+        if ($days <= 0) {
+            return false;
+        }
+
+        return ($this->passwd_changed_on ?? now()->setTimestamp(0))->lt(now()->subDays($days));
+    }
+
+    /**
+     * Redmine's User#must_change_password?: flagged by an administrator, or
+     * expired — and only for accounts whose password this app manages.
+     */
+    public function mustChangePassword(): bool
+    {
+        return $this->auth_source_id === null && ($this->must_change_passwd || $this->passwordExpired());
     }
 
     /**

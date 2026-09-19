@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AuthenticateWithAtomKey;
 use App\Http\Middleware\EnforceLoginRequiredSetting;
+use App\Http\Middleware\EnforcePasswordChange;
 use App\Http\Middleware\EnforceRestApiEnabledSetting;
 use App\Http\Middleware\EnforceSessionTimeout;
 use App\Http\Middleware\EnforceSysApiKey;
@@ -35,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'session.timeout' => EnforceSessionTimeout::class,
             'rest-api.enabled' => EnforceRestApiEnabledSetting::class,
             'twofa.required' => EnforceTwofaRequired::class,
+            'password.change' => EnforcePasswordChange::class,
             'login.required' => EnforceLoginRequiredSetting::class,
             'sys.key' => EnforceSysApiKey::class,
             'atom.key' => AuthenticateWithAtomKey::class,

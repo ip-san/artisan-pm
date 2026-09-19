@@ -31,6 +31,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $is_admin = false;
 
+    public bool $must_change_passwd = false;
+
     public string $status = 'active';
 
     public ?int $auth_source_id = null;
@@ -53,6 +55,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->name = $user->name;
             $this->email = $user->email;
             $this->is_admin = $user->is_admin;
+            $this->must_change_passwd = $user->must_change_passwd;
             $this->status = $user->status->value;
             $this->auth_source_id = $user->auth_source_id;
             $this->login = (string) $user->login;
@@ -95,6 +98,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', new UniqueUserValueIgnoringCase('email', $this->user?->id), new AllowedEmailDomain($this->user?->email)],
             'is_admin' => ['boolean'],
+            'must_change_passwd' => ['boolean'],
             'status' => ['required', Rule::enum(UserStatus::class)],
             'auth_source_id' => ['nullable', 'exists:auth_sources,id'],
             // Always mandatory now, not just for LDAP-linked accounts —
@@ -118,7 +122,8 @@ new #[Layout('components.layouts.app')] class extends Component
         // never part of $data and is set below via direct property
         // assignment instead of mass assignment.
         $isAdmin = $data['is_admin'] ?? false;
-        unset($data['is_admin']);
+        $mustChangePasswd = $data['must_change_passwd'] ?? false;
+        unset($data['is_admin'], $data['must_change_passwd']);
 
         if ($isLdapLinked) {
             // Never settable through this form for an LDAP-linked account —
@@ -149,6 +154,8 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $this->user->is_admin = $isAdmin;
+        // Meaningless for a directory-backed account, whose password is not kept here.
+        $this->user->must_change_passwd = ! $isLdapLinked && $mustChangePasswd;
         $this->user->save();
 
         $this->user->setCustomFieldValues($customFieldData);
@@ -256,6 +263,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">パスワード(確認)</label>
                 <input type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="must_change_passwd" class="rounded border-gray-300">
+                次回ログイン時にパスワードの変更を要求する
+            </label>
 
             @if ($user)
                 <div>

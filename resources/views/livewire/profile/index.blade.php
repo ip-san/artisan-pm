@@ -241,7 +241,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'password' => ['required', 'string', Password::default(), 'confirmed'],
         ]);
 
-        $user->forceFill(['password' => Hash::make($data['password'])])->save();
+        $user->forceFill(['password' => Hash::make($data['password']), 'must_change_passwd' => false])->save();
 
         $this->reset('current_password', 'password', 'password_confirmation');
         session()->flash('status', 'パスワードを変更しました。');

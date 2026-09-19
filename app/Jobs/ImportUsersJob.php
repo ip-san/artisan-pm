@@ -185,6 +185,7 @@ final class ImportUsersJob implements ShouldQueue
         ]);
         // is_admin is deliberately not mass-assignable — see User's docblock.
         $user->is_admin = $isAdmin;
+        $user->must_change_passwd = $authSource === null && self::isYes($this->mapped($record, $mapping, 'must_change_passwd'));
         $user->save();
 
         $user->setCustomFieldValues($customFields->filter(fn (CustomField $field) => array_key_exists($field->id, $customFieldInput))->mapWithKeys(fn (CustomField $field) => [$field->id => $validated['customFieldValues'][$field->id] ?? null])->all());
