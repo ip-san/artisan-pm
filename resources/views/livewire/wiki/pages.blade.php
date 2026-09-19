@@ -2,6 +2,7 @@
 
 use App\Models\Project;
 use App\Models\WikiPage;
+use App\Services\WikiPageService;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
@@ -37,6 +38,28 @@ new #[Layout('components.layouts.app')] class extends Component
             ->with('children')
             ->orderBy('title')
             ->get();
+    }
+
+    /**
+     * Deletes every page of this project's wiki, with its versions,
+     * attachments and watchers — Redmine's WikisController#destroy. Each
+     * page goes through the normal delete path so webhooks fire for it.
+     */
+    public function deleteWiki(): void
+    {
+        $this->authorize('destroyWiki', [WikiPage::class, $this->project]);
+
+        $service = app(WikiPageService::class);
+
+        // Children are detached when their parent goes, so this walks one
+        // page at a time until none is left.
+        while (($page = $this->project->wikiPages()->first()) !== null) {
+            $service->delete($page);
+        }
+
+        session()->flash('status', 'Wikiを削除しました。');
+
+        $this->redirect(route('projects.show', $this->project), navigate: true);
     }
 
     /**
@@ -181,6 +204,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 </button>
                 <button wire:click="exportPdf" class="text-sm text-indigo-600 hover:underline">
                     PDF
+                </button>
+            @endcan
+            @can('destroyWiki', [WikiPage::class, $project])
+                <button wire:click="deleteWiki" wire:confirm="このプロジェクトのWikiを、すべてのページ・履歴・添付ファイルごと削除します。この操作は取り消せません。よろしいですか?"
+                    class="text-sm text-red-600 hover:underline">
+                    Wikiを削除
                 </button>
             @endcan
             @can('create', [WikiPage::class, $project])

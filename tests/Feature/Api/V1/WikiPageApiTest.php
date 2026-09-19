@@ -59,7 +59,7 @@ test('a member with view_wiki_pages can show a page including its text', functio
 
 test('requesting a specific version returns that version\'s text', function () {
     $project = Project::factory()->create();
-    $user = apiWikiPageMember($project, ['view_wiki_pages']);
+    $user = apiWikiPageMember($project, ['view_wiki_pages', 'view_wiki_edits']);
     $page = WikiPage::factory()->for($project)->create();
     $originalText = $page->currentVersion->text;
     $page->versions()->create(['author_id' => $user->id, 'text' => 'Updated text', 'version' => 2]);
@@ -74,7 +74,7 @@ test('requesting a specific version returns that version\'s text', function () {
 
 test('requesting a nonexistent version returns 404', function () {
     $project = Project::factory()->create();
-    $user = apiWikiPageMember($project, ['view_wiki_pages']);
+    $user = apiWikiPageMember($project, ['view_wiki_pages', 'view_wiki_edits']);
     $page = WikiPage::factory()->for($project)->create();
 
     Passport::actingAs($user);

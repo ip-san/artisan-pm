@@ -8,7 +8,7 @@ use App\Services\WikiPageService;
 use App\Support\Wiki\WikiAnnotator;
 use Livewire\Livewire;
 
-function wikiAnnotateMember(Project $project, array $permissions = ['view_wiki_pages']): User
+function wikiAnnotateMember(Project $project, array $permissions = ['view_wiki_pages', 'view_wiki_edits']): User
 {
     $user = User::factory()->create();
     Member::factory()->for($project)->for($user)->create()->roles()->attach(

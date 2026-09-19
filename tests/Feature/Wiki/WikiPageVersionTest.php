@@ -8,7 +8,7 @@ use App\Models\WikiPage;
 use App\Services\WikiPageService;
 use Livewire\Livewire;
 
-function wikiVersionMember(Project $project, array $permissions = ['view_wiki_pages', 'edit_wiki_pages']): User
+function wikiVersionMember(Project $project, array $permissions = ['view_wiki_pages', 'view_wiki_edits', 'edit_wiki_pages']): User
 {
     $user = User::factory()->create();
     Member::factory()->for($project)->for($user)->create()->roles()->attach(
@@ -32,7 +32,7 @@ test('an old version link is shown to editors on the version view', function () 
 test('a viewer without edit_wiki_pages does not see the restore link', function () {
     $project = Project::factory()->create();
     $editor = wikiVersionMember($project);
-    $viewer = wikiVersionMember($project, ['view_wiki_pages']);
+    $viewer = wikiVersionMember($project, ['view_wiki_pages', 'view_wiki_edits']);
     $page = WikiPage::factory()->for($project)->create();
     app(WikiPageService::class)->update($page, [], 'second version text', $editor);
 
@@ -77,7 +77,7 @@ test('a nonexistent ?version= falls back to the current text', function () {
 
 function wikiVersionDeleter(Project $project): User
 {
-    return wikiVersionMember($project, ['view_wiki_pages', 'edit_wiki_pages', 'delete_wiki_pages']);
+    return wikiVersionMember($project, ['view_wiki_pages', 'view_wiki_edits', 'edit_wiki_pages', 'delete_wiki_pages']);
 }
 
 test('a member with delete_wiki_pages can delete an old, non-current version', function () {
@@ -145,7 +145,7 @@ test('editing rights alone do not allow deleting a version', function () {
 test('a protected page needs protect_wiki_pages as well to lose a version', function () {
     $project = Project::factory()->create();
     $deleter = wikiVersionDeleter($project);
-    $protector = wikiVersionMember($project, ['view_wiki_pages', 'edit_wiki_pages', 'delete_wiki_pages', 'protect_wiki_pages']);
+    $protector = wikiVersionMember($project, ['view_wiki_pages', 'view_wiki_edits', 'edit_wiki_pages', 'delete_wiki_pages', 'protect_wiki_pages']);
     $page = WikiPage::factory()->for($project)->create(['is_protected' => true]);
     app(WikiPageService::class)->update($page, [], 'second version text', $protector);
     $oldVersion = $page->versions()->where('version', 1)->firstOrFail();
@@ -183,7 +183,7 @@ test('a version of another page cannot be deleted through this page', function (
 test('a viewer cannot delete a version', function () {
     $project = Project::factory()->create();
     $editor = wikiVersionMember($project);
-    $viewer = wikiVersionMember($project, ['view_wiki_pages']);
+    $viewer = wikiVersionMember($project, ['view_wiki_pages', 'view_wiki_edits']);
     $page = WikiPage::factory()->for($project)->create();
     app(WikiPageService::class)->update($page, [], 'second version text', $editor);
 

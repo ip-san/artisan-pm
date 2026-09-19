@@ -9,7 +9,7 @@ use App\Services\WikiPageService;
 use App\Support\Diff\WordDiffer;
 use Livewire\Livewire;
 
-function wikiDiffMember(Project $project, array $permissions = ['view_wiki_pages']): User
+function wikiDiffMember(Project $project, array $permissions = ['view_wiki_pages', 'view_wiki_edits']): User
 {
     $user = User::factory()->create();
     Member::factory()->for($project)->for($user)->create()->roles()->attach(

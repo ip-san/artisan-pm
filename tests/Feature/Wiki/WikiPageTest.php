@@ -273,7 +273,7 @@ test('wiki page content renders issue and wiki-link references', function () {
 
 test('history lists all versions and an old version can be viewed read-only', function () {
     $project = Project::factory()->create();
-    $user = wikiMember($project);
+    $user = wikiMember($project, ['view_wiki_pages', 'view_wiki_edits', 'edit_wiki_pages']);
     $page = WikiPage::factory()->for($project)->create();
     app(WikiPageService::class)->update($page, [], 'second version text', $user);
 
@@ -289,9 +289,9 @@ test('history lists all versions and an old version can be viewed read-only', fu
     expect($component->get('wikiPageVersion')->version)->toBe(1);
 });
 
-test('a member with edit_wiki_pages can attach and delete a file on a wiki page', function () {
+test('a member with edit_wiki_pages and delete_wiki_pages_attachments can attach and delete a file on a wiki page', function () {
     $project = Project::factory()->create();
-    $user = wikiMember($project);
+    $user = wikiMember($project, ['view_wiki_pages', 'edit_wiki_pages', 'delete_wiki_pages_attachments']);
     $page = WikiPage::factory()->for($project)->create();
 
     Livewire::actingAs($user)

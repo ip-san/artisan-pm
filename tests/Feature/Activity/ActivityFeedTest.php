@@ -92,7 +92,7 @@ test('a member without view_issues sees no issue entries, but still sees news', 
 test('wiki edits, forum messages, documents, changesets, and time entries all appear', function () {
     $project = Project::factory()->create();
     $user = activityMember($project, [
-        'view_project', 'view_wiki_pages', 'view_messages', 'view_documents', 'view_changesets', 'view_time_entries',
+        'view_project', 'view_wiki_pages', 'view_wiki_edits', 'view_messages', 'view_documents', 'view_changesets', 'view_time_entries',
     ]);
 
     $wikiPage = WikiPage::factory()->for($project)->create();

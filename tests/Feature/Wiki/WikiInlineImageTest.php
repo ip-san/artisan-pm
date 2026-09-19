@@ -12,7 +12,7 @@ function wikiInlineImageMember(Project $project): User
 {
     $user = User::factory()->create();
     Member::factory()->for($project)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_wiki_pages']])
+        Role::factory()->create(['permissions' => ['view_wiki_pages', 'view_wiki_edits']])
     );
 
     return $user;

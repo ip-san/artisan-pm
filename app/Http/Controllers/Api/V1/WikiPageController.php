@@ -48,10 +48,9 @@ final class WikiPageController extends Controller
         $version = null;
 
         if ($request->filled('version')) {
-            // Redmine本家は?version=閲覧に別途view_wiki_edits権限を要求するが、
-            // 本アプリのWikiPagePolicyにはWiki編集履歴専用の権限が存在しない
-            // ため、通常の閲覧権限(view_wiki_pages、上のview判定と同じ)のみで
-            // 判定する。
+            // Redmine本家と同じく、?version=(過去版)の閲覧にはview_wiki_edits権限が必要。
+            Gate::authorize('viewHistory', $wikiPage);
+
             $version = $wikiPage->versions()->where('version', $request->integer('version'))->firstOrFail();
         }
 

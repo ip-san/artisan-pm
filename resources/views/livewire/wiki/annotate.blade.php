@@ -19,7 +19,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount(Project $project, WikiPage $wikiPage, int $version): void
     {
-        $this->authorize('view', $wikiPage);
+        $this->authorize('viewHistory', $wikiPage);
 
         $resolvedVersion = $wikiPage->versions()->where('version', $version)->with('author')->first();
 

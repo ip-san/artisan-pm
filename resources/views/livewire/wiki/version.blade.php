@@ -18,7 +18,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount(Project $project, WikiPage $wikiPage, int $version): void
     {
-        $this->authorize('view', $wikiPage);
+        $this->authorize('viewHistory', $wikiPage);
 
         $this->project = $project;
         $this->wikiPage = $wikiPage;

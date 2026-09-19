@@ -255,7 +255,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function deleteAttachment(int $mediaId): void
     {
-        $this->authorize('update', $this->wikiPage);
+        $this->authorize('deleteAttachment', $this->wikiPage);
 
         $this->wikiPage->attachments()->firstWhere('id', $mediaId)?->delete();
     }
@@ -301,10 +301,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ $wikiPage->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
                 </button>
             @endcan
-            <a href="{{ route('wiki.history', [$project, $wikiPage]) }}"
-                class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                履歴
-            </a>
+            @can('viewHistory', $wikiPage)
+                <a href="{{ route('wiki.history', [$project, $wikiPage]) }}"
+                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    履歴
+                </a>
+            @endcan
             @can('export', $wikiPage)
                 <button wire:click="exportTxt" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     TXT
@@ -410,7 +412,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         <span class="flex items-center gap-2">
                             <span class="text-gray-500">{{ $media->human_readable_size }}</span>
                             <x-download-count :media="$media" />
-                            @can('update', $wikiPage)
+                            @can('deleteAttachment', $wikiPage)
                                 <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
                                     class="text-red-600 hover:underline">削除</button>
                             @endcan

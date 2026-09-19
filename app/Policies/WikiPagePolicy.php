@@ -65,6 +65,29 @@ final class WikiPagePolicy
         return $this->authorization->can($user, 'protect_wiki_pages', $wikiPage->project);
     }
 
+    /**
+     * Redmine's view_wiki_edits: a page's history, older versions, diffs and
+     * annotate view — separate from reading the current page.
+     */
+    public function viewHistory(?User $user, WikiPage $wikiPage): bool
+    {
+        return $this->view($user, $wikiPage)
+            && $this->authorization->can($user, 'view_wiki_edits', $wikiPage->project);
+    }
+
+    public function deleteAttachment(User $user, WikiPage $wikiPage): bool
+    {
+        return $this->authorization->can($user, 'delete_wiki_pages_attachments', $wikiPage->project);
+    }
+
+    /**
+     * Deleting the whole wiki (every page) — Redmine's WikisController#destroy.
+     */
+    public function destroyWiki(User $user, Project $project): bool
+    {
+        return $this->authorization->can($user, 'manage_wiki', $project);
+    }
+
     public function delete(User $user, WikiPage $wikiPage): bool
     {
         return $this->authorization->can($user, 'delete_wiki_pages', $wikiPage->project);

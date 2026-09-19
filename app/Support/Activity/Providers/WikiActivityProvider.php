@@ -33,7 +33,7 @@ final class WikiActivityProvider implements ActivityProvider, OffByDefault
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection
     {
-        if (! $this->authorization->can($viewer, 'view_wiki_pages', $project)) {
+        if (! $this->authorization->can($viewer, 'view_wiki_edits', $project)) {
             return collect();
         }
 
