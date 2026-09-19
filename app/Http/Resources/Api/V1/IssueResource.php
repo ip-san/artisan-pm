@@ -10,6 +10,7 @@ use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Journal;
 use App\Models\Watcher;
+use App\Support\Attachments\AttachmentUploader;
 use App\Services\WorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -137,15 +138,12 @@ final class IssueResource extends JsonResource
      */
     private function attachments(Issue $issue): array
     {
-        return $issue->getMedia('attachments')->map(fn (Media $media) => [
-            'id' => $media->id,
-            'filename' => $media->file_name,
-            'filesize' => $media->size,
-            'content_type' => $media->mime_type,
-            'description' => $media->getCustomProperty('description'),
-            'content_url' => route('attachments.show', $media),
-            'created_at' => $media->created_at->toIso8601String(),
-        ])->values()->all();
+        $medias = $issue->getMedia('attachments');
+
+        // One lookup for every uploader instead of one per attachment.
+        request()->attributes->set('attachment_uploaders', AttachmentUploader::usersFor($medias));
+
+        return $medias->map(fn (Media $media) => (new AttachmentResource($media))->resolve(request()))->values()->all();
     }
 
     private function includes(Request $request, string $key): bool

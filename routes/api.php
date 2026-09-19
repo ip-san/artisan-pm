@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SearchController;
 use App\Http\Controllers\Api\V1\TimeEntryController;
 use App\Http\Controllers\Api\V1\TrackerController;
+use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\VersionController;
@@ -66,6 +67,10 @@ Route::middleware(['rest-api.enabled', 'auth:api,api-key'])->group(function () {
     Route::delete('/issue_categories/{issue_category}', [IssueCategoryController::class, 'destroy'])->name('api.issue_categories.destroy');
 
     Route::post('/uploads', [UploadController::class, 'store'])->name('api.uploads.store');
+    Route::get('/attachments/{media}', [AttachmentController::class, 'show'])->name('api.attachments.show');
+    Route::get('/attachments/{media}/download', [AttachmentController::class, 'download'])->name('api.attachments.download');
+    Route::match(['put', 'patch'], '/attachments/{media}', [AttachmentController::class, 'update'])->name('api.attachments.update');
+    Route::delete('/attachments/{media}', [AttachmentController::class, 'destroy'])->name('api.attachments.destroy');
 
     Route::get('/trackers', [TrackerController::class, 'index'])->name('api.trackers.index');
     Route::get('/trackers/{tracker}', [TrackerController::class, 'show'])->name('api.trackers.show');
