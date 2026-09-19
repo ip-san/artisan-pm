@@ -8,6 +8,7 @@ use App\Models\Enumeration;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Support\Issues\RelatedIssueColumns;
 use App\Models\Tracker;
 use App\Models\IssueStatus;
 use App\Support\Mail\NotificationRecipients;
@@ -137,6 +138,11 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int, string> */
     public array $issue_list_default_columns = [];
 
+    /** @var array<int, string> */
+    public array $related_issues_default_columns = [];
+
+    public bool $display_related_issues_table_headers = false;
+
     public int $start_of_week = 0;
 
     public string $self_registration = 'automatic';
@@ -216,6 +222,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->cross_project_issue_relations = Setting::get('cross_project_issue_relations', false);
         $this->default_issue_start_date_to_creation_date = Setting::get('default_issue_start_date_to_creation_date', true);
         $this->default_issue_due_date_offset = Setting::get('default_issue_due_date_offset');
+        $this->related_issues_default_columns = array_keys(RelatedIssueColumns::selected());
+        $this->display_related_issues_table_headers = RelatedIssueColumns::showHeaders();
         $this->issue_list_default_columns = Setting::get(
             'issue_list_default_columns',
             ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']
@@ -340,6 +348,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'cross_project_issue_relations' => ['boolean'],
             'default_issue_start_date_to_creation_date' => ['boolean'],
             'default_issue_due_date_offset' => ['nullable', 'integer', 'min:0'],
+            'related_issues_default_columns' => ['array'],
+            'related_issues_default_columns.*' => [Rule::in(array_keys(RelatedIssueColumns::AVAILABLE))],
+            'display_related_issues_table_headers' => ['boolean'],
             'issue_list_default_columns' => ['array', 'min:1'],
             'issue_list_default_columns.*' => [Rule::in(array_keys(self::ISSUE_LIST_COLUMNS))],
             'start_of_week' => ['required', Rule::in([0, 1, 6])],
@@ -504,6 +515,24 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @error('issue_list_default_columns') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 @error('issue_list_default_columns.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700 mb-2">関連課題・サブタスクの表示列</span>
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach (RelatedIssueColumns::AVAILABLE as $key => $label)
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" wire:model="related_issues_default_columns" value="{{ $key }}" class="rounded border-gray-300">
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+                <p class="mt-1 text-xs text-gray-500">課題の詳細画面で、サブタスクと関連課題の表に題名と一緒に表示する列です。</p>
+                @error('related_issues_default_columns.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="display_related_issues_table_headers" class="rounded border-gray-300">
+                    表に見出し行を表示する
+                </label>
             </div>
         </section>
 

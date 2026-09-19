@@ -13,6 +13,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Services\IssueService;
 use App\Services\ReactionService;
+use App\Support\Issues\RelatedIssueColumns;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
@@ -143,6 +144,12 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function relations(): Collection
     {
+        $with = RelatedIssueColumns::relationsFor(array_keys($this->relatedColumns));
+
+        (new \Illuminate\Database\Eloquent\Collection(
+            $this->issue->relationsFrom->pluck('to')->concat($this->issue->relationsTo->pluck('from'))->all()
+        ))->loadMissing($with);
+
         $from = $this->issue->relationsFrom->map(fn (IssueRelation $relation) => [
             'relation' => $relation,
             'other' => $relation->to,
@@ -156,6 +163,29 @@ new #[Layout('components.layouts.app')] class extends Component
         ]);
 
         return $from->concat($to)->sortBy(fn (array $entry) => $entry['relation']->id);
+    }
+
+    /**
+     * The extra columns of the subtask and related-issue tables (Redmine's
+     * related_issues_default_columns).
+     *
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function relatedColumns(): array
+    {
+        return RelatedIssueColumns::selected();
+    }
+
+    /**
+     * Direct subtasks with what the selected columns need already loaded.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Issue>
+     */
+    #[Computed]
+    public function subtasks(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->issue->children->loadMissing(RelatedIssueColumns::relationsFor(array_keys($this->relatedColumns)));
     }
 
     public function addRelation(): void
@@ -843,16 +873,34 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($issue->children->isNotEmpty())
         <h2 class="text-sm font-semibold text-gray-900 mb-2">サブタスク</h2>
-        <ul class="mb-6 space-y-1">
-            @foreach ($issue->children as $child)
-                <li class="flex items-center justify-between text-sm rounded-md border border-gray-200 bg-white px-3 py-2">
-                    <a href="{{ route('issues.show', [$project, $child]) }}" class="text-indigo-600 hover:underline">
-                        {{ $child->tracker->name }} #{{ $child->id }} — {{ $child->subject }}
-                    </a>
-                    <span class="text-gray-500">{{ $child->status->name }}</span>
-                </li>
-            @endforeach
-        </ul>
+        <div class="mb-6 overflow-x-auto rounded-md border border-gray-200 bg-white">
+            <table class="min-w-full text-sm" data-related-issues="subtasks">
+                @if (\App\Support\Issues\RelatedIssueColumns::showHeaders())
+                    <thead class="bg-gray-50 text-left text-xs text-gray-500">
+                        <tr>
+                            <th class="px-3 py-2 font-medium">題名</th>
+                            @foreach ($this->relatedColumns as $label)
+                                <th class="px-3 py-2 font-medium">{{ $label }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                @endif
+                <tbody class="divide-y divide-gray-100">
+                    @foreach ($this->subtasks as $child)
+                        <tr wire:key="subtask-{{ $child->id }}">
+                            <td class="px-3 py-2">
+                                <a href="{{ route('issues.show', [$project, $child]) }}" class="text-indigo-600 hover:underline">
+                                    {{ $child->tracker->name }} #{{ $child->id }} — {{ $child->subject }}
+                                </a>
+                            </td>
+                            @foreach ($this->relatedColumns as $key => $label)
+                                <td class="px-3 py-2 text-gray-500">{{ \App\Support\Issues\RelatedIssueColumns::value($child, $key) }}</td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
     @endif
 
     @php $attachments = $issue->attachments(); @endphp
@@ -892,25 +940,50 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($this->relations->isNotEmpty() || auth()->user()?->can('manageRelations', $issue))
         <h2 class="text-sm font-semibold text-gray-900 mb-2">関連課題</h2>
-        <ul class="mb-4 space-y-1">
-            @foreach ($this->relations as $entry)
-                <li class="flex items-center justify-between text-sm rounded-md border border-gray-200 bg-white px-3 py-2">
-                    <span>
-                        <span class="text-gray-500">{{ $entry['label'] }}:</span>
-                        <a href="{{ route('issues.show', [$entry['other']->project, $entry['other']]) }}" class="text-indigo-600 hover:underline">
-                            {{ $entry['other']->tracker->name }} #{{ $entry['other']->id }} — {{ $entry['other']->subject }}
-                        </a>
-                        @if ($entry['relation']->delay)
-                            <span class="text-gray-500">({{ $entry['relation']->delay }}日後)</span>
-                        @endif
-                    </span>
-                    @can('manageRelations', $issue)
-                        <button wire:click="deleteRelation({{ $entry['relation']->id }})" wire:confirm="この関連を削除しますか?"
-                            class="text-red-600 hover:underline">削除</button>
-                    @endcan
-                </li>
-            @endforeach
-        </ul>
+        @if ($this->relations->isNotEmpty())
+            <div class="mb-4 overflow-x-auto rounded-md border border-gray-200 bg-white">
+                <table class="min-w-full text-sm" data-related-issues="relations">
+                    @if (\App\Support\Issues\RelatedIssueColumns::showHeaders())
+                        <thead class="bg-gray-50 text-left text-xs text-gray-500">
+                            <tr>
+                                <th class="px-3 py-2 font-medium">関連</th>
+                                <th class="px-3 py-2 font-medium">題名</th>
+                                @foreach ($this->relatedColumns as $label)
+                                    <th class="px-3 py-2 font-medium">{{ $label }}</th>
+                                @endforeach
+                                <th></th>
+                            </tr>
+                        </thead>
+                    @endif
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach ($this->relations as $entry)
+                            <tr wire:key="relation-{{ $entry['relation']->id }}">
+                                <td class="whitespace-nowrap px-3 py-2 text-gray-500">
+                                    {{ $entry['label'] }}
+                                    @if ($entry['relation']->delay)
+                                        <span>({{ $entry['relation']->delay }}日後)</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2">
+                                    <a href="{{ route('issues.show', [$entry['other']->project, $entry['other']]) }}" class="text-indigo-600 hover:underline">
+                                        {{ $entry['other']->tracker->name }} #{{ $entry['other']->id }} — {{ $entry['other']->subject }}
+                                    </a>
+                                </td>
+                                @foreach ($this->relatedColumns as $key => $label)
+                                    <td class="px-3 py-2 text-gray-500">{{ \App\Support\Issues\RelatedIssueColumns::value($entry['other'], $key) }}</td>
+                                @endforeach
+                                <td class="px-3 py-2 text-right">
+                                    @can('manageRelations', $issue)
+                                        <button wire:click="deleteRelation({{ $entry['relation']->id }})" wire:confirm="この関連を削除しますか?"
+                                            class="text-red-600 hover:underline">削除</button>
+                                    @endcan
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
 
         @can('manageRelations', $issue)
             <form wire:submit="addRelation" class="mb-6 flex items-end gap-2">
