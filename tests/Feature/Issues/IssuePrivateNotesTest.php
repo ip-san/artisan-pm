@@ -35,7 +35,7 @@ function privateNotesIssue(Project $project): Issue
 
 test('a user with set_notes_private can post a private note', function () {
     $project = Project::factory()->create();
-    $user = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'set_notes_private']);
+    $user = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'add_issue_notes', 'set_notes_private']);
     $issue = privateNotesIssue($project);
 
     Livewire::actingAs($user)
@@ -50,7 +50,7 @@ test('a user with set_notes_private can post a private note', function () {
 
 test('a user without set_notes_private cannot force a note private', function () {
     $project = Project::factory()->create();
-    $user = privateNotesProjectMember($project, ['view_issues', 'edit_issues']);
+    $user = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'add_issue_notes']);
     $issue = privateNotesIssue($project);
 
     Livewire::actingAs($user)
@@ -65,7 +65,7 @@ test('a user without set_notes_private cannot force a note private', function ()
 
 test('a private note is hidden from a user without view_private_notes', function () {
     $project = Project::factory()->create();
-    $author = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'set_notes_private']);
+    $author = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'add_issue_notes', 'set_notes_private']);
     $viewer = privateNotesProjectMember($project, ['view_issues']);
     $issue = privateNotesIssue($project);
     Journal::create(['issue_id' => $issue->id, 'user_id' => $author->id, 'notes' => 'secret', 'private_notes' => true]);
@@ -77,7 +77,7 @@ test('a private note is hidden from a user without view_private_notes', function
 
 test('a private note is visible to its own author even without view_private_notes', function () {
     $project = Project::factory()->create();
-    $author = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'set_notes_private']);
+    $author = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'add_issue_notes', 'set_notes_private']);
     $issue = privateNotesIssue($project);
     Journal::create(['issue_id' => $issue->id, 'user_id' => $author->id, 'notes' => 'secret', 'private_notes' => true]);
 
@@ -88,7 +88,7 @@ test('a private note is visible to its own author even without view_private_note
 
 test('a private note is visible to a user with view_private_notes', function () {
     $project = Project::factory()->create();
-    $author = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'set_notes_private']);
+    $author = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'add_issue_notes', 'set_notes_private']);
     $manager = privateNotesProjectMember($project, ['view_issues', 'view_private_notes']);
     $issue = privateNotesIssue($project);
     Journal::create(['issue_id' => $issue->id, 'user_id' => $author->id, 'notes' => 'secret', 'private_notes' => true]);
@@ -100,7 +100,7 @@ test('a private note is visible to a user with view_private_notes', function () 
 
 test('editing an issue with a private comment and attribute changes together splits into a public details journal and a private notes journal', function () {
     $project = Project::factory()->create();
-    $user = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'set_notes_private']);
+    $user = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'add_issue_notes', 'set_notes_private']);
     $priority = Enumeration::factory()->create();
     $issue = privateNotesIssue($project);
 
@@ -130,7 +130,7 @@ test('editing an issue with a private comment and attribute changes together spl
 
 test('editing an issue with a private comment but no attribute changes does not split the journal', function () {
     $project = Project::factory()->create();
-    $user = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'set_notes_private']);
+    $user = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'add_issue_notes', 'set_notes_private']);
     $issue = privateNotesIssue($project);
 
     Livewire::actingAs($user)
@@ -148,7 +148,7 @@ test('editing an issue with a private comment but no attribute changes does not 
 
 test('editing an issue with a public comment and attribute changes together still records a single journal', function () {
     $project = Project::factory()->create();
-    $user = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'set_notes_private']);
+    $user = privateNotesProjectMember($project, ['view_issues', 'edit_issues', 'add_issue_notes', 'set_notes_private']);
     $priority = Enumeration::factory()->create();
     $issue = privateNotesIssue($project);
 

@@ -41,10 +41,14 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('view_issues', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('add_issues', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::LoggedIn);
         $registry->register('edit_issues', module: ProjectModuleKey::IssueTracking);
+        $registry->register('edit_own_issues', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::LoggedIn);
+        $registry->register('add_issue_notes', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::LoggedIn);
+        $registry->register('manage_subtasks', module: ProjectModuleKey::IssueTracking);
         $registry->register('delete_issues', module: ProjectModuleKey::IssueTracking);
         $registry->register('import_issues', module: ProjectModuleKey::IssueTracking);
         $registry->register('manage_issue_relations', module: ProjectModuleKey::IssueTracking);
         $registry->register('set_issues_private', module: ProjectModuleKey::IssueTracking);
+        $registry->register('set_own_issues_private', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::LoggedIn);
         $registry->register('move_issues', module: ProjectModuleKey::IssueTracking);
         $registry->register('copy_issues', module: ProjectModuleKey::IssueTracking);
         $registry->register('view_issue_watchers', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::None, readOnly: true);

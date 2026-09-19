@@ -182,7 +182,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private function applyPrivateByDefault(?int $trackerId): void
     {
-        if ($trackerId === null || ! auth()->user()->can('setPrivate', [Issue::class, $this->project])) {
+        if ($trackerId === null || ! $this->canSetPrivate()) {
             return;
         }
 
@@ -410,6 +410,28 @@ new #[Layout('components.layouts.app')] class extends Component
      * a core field from the issue form entirely, distinct from the
      * per-workflow read_only/required rules above.
      */
+    /**
+     * Whether the private flag may be set: on a new issue either
+     * set_issues_private or set_own_issues_private, on an existing one the
+     * per-issue rule (own issues only for the latter).
+     */
+    public function canSetPrivate(): bool
+    {
+        $user = auth()->user();
+
+        return $this->issue !== null
+            ? $user->can('setPrivateOn', $this->issue)
+            : $user->can('setPrivate', [Issue::class, $this->project]);
+    }
+
+    /**
+     * Redmine's manage_subtasks: only such a user sees or changes the parent.
+     */
+    public function canManageSubtasks(): bool
+    {
+        return auth()->user()->can('manageSubtasks', [Issue::class, $this->project]);
+    }
+
     public function isCoreFieldDisabled(string $field): bool
     {
         return $this->currentTracker?->isCoreFieldDisabled($field) ?? false;
@@ -559,6 +581,12 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         }
 
+        // Without manage_subtasks the parent stays as it was: unset on a new
+        // issue, untouched on an edit.
+        if (! $this->canManageSubtasks()) {
+            unset($data['parent_id']);
+        }
+
         // An empty text input means "no estimate", not zero — store null
         // rather than letting the decimal cast coerce '' to 0.00.
         $data['estimated_hours'] = $data['estimated_hours'] !== '' ? $data['estimated_hours'] : null;
@@ -567,7 +595,7 @@ new #[Layout('components.layouts.app')] class extends Component
         // set_issues_private — otherwise leave the key out entirely so an
         // unrelated save by a lower-permission editor can't silently flip
         // an already-private issue back to public.
-        if (auth()->user()->can('setPrivate', [Issue::class, $this->project])) {
+        if ($this->canSetPrivate()) {
             $data['is_private'] = $this->is_private;
         }
 
@@ -797,21 +825,21 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         @endif
 
-        @unless ($this->isCoreFieldDisabled('parent_id'))
+        @if ($this->canManageSubtasks() && ! $this->isCoreFieldDisabled('parent_id'))
             <div>
                 <label class="block text-sm font-medium text-gray-700">親課題ID</label>
                 <input type="number" wire:model="parent_id" placeholder="例: 123"
                     class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('parent_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
-        @endunless
+        @endif
 
-        @can('setPrivate', [\App\Models\Issue::class, $project])
+        @if ($this->canSetPrivate())
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" wire:model="is_private" class="rounded border-gray-300">
                 非公開課題にする(作成者・担当者と、閲覧範囲が「すべて」のロールのみ閲覧可能)
             </label>
-        @endcan
+        @endif
 
         @if ($this->customFields->isNotEmpty())
             <div class="space-y-4 border-t border-gray-200 pt-4">

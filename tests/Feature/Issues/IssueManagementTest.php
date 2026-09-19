@@ -178,7 +178,7 @@ test('a user can watch and unwatch an issue', function () {
 
 test('quoting a comment prefills the reply textarea with a blockquote', function () {
     $project = Project::factory()->create();
-    $user = projectMemberWithPermissions($project, ['view_issues', 'edit_issues']);
+    $user = projectMemberWithPermissions($project, ['view_issues', 'edit_issues', 'add_issue_notes']);
     $issue = Issue::factory()->for($project)->create();
     $author = User::factory()->create(['name' => 'Alice']);
     $journal = Journal::create(['issue_id' => $issue->id, 'user_id' => $author->id, 'notes' => "line one\nline two"]);

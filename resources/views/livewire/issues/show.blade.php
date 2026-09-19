@@ -374,7 +374,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function quote(int $journalId): void
     {
-        $this->authorize('update', $this->issue);
+        $this->authorize('addNotes', $this->issue);
 
         $journal = $this->visibleJournals->firstWhere('id', $journalId);
 
@@ -433,7 +433,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function addComment(): void
     {
-        $this->authorize('update', $this->issue);
+        $this->authorize('addNotes', $this->issue);
 
         $data = $this->validate(['comment' => ['required', 'string']]);
 
@@ -1092,7 +1092,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @else
                             <div class="prose prose-sm max-w-none mt-1 text-gray-800">{!! $this->renderedNotes($journal) !!}</div>
                             <div class="mt-1 flex items-center gap-2">
-                                @can('update', $issue)
+                                @can('addNotes', $issue)
                                     <button wire:click="quote({{ $journal->id }})" class="text-xs text-indigo-600 hover:underline">引用</button>
                                 @endcan
                                 @can('update', $journal)
@@ -1109,7 +1109,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endforelse
     </ul>
 
-    @can('update', $issue)
+    @can('addNotes', $issue)
         <form wire:submit="addComment" class="space-y-2">
             <textarea wire:model="comment" rows="3" placeholder="コメントを追加"
                 class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>

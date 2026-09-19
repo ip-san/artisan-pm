@@ -10,7 +10,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use Livewire\Livewire;
 
-function subtaskProjectMember(Project $project, array $permissions = ['view_issues', 'edit_issues', 'add_issues']): User
+function subtaskProjectMember(Project $project, array $permissions = ['view_issues', 'edit_issues', 'add_issues', 'manage_subtasks']): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create(['permissions' => $permissions]);

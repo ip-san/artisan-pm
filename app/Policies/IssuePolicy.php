@@ -47,9 +47,36 @@ final class IssuePolicy
         return $this->create($user, $project) && $this->authorization->can($user, 'import_issues', $project);
     }
 
+    /**
+     * Whether the private flag is offered on a new issue, or in general: the
+     * creator is the author, so holding either set_issues_private or
+     * set_own_issues_private is enough. For an existing issue see
+     * setPrivateOn().
+     */
     public function setPrivate(User $user, Project $project): bool
     {
-        return $this->authorization->can($user, 'set_issues_private', $project);
+        return $this->authorization->can($user, 'set_issues_private', $project)
+            || $this->authorization->can($user, 'set_own_issues_private', $project);
+    }
+
+    /**
+     * Redmine's Issue#safe_attributes is_private rule: set_issues_private for
+     * any issue, set_own_issues_private for one you authored.
+     */
+    public function setPrivateOn(User $user, Issue $issue): bool
+    {
+        $project = $this->projectOf($issue);
+
+        return $this->authorization->can($user, 'set_issues_private', $project)
+            || ($issue->author_id === $user->id && $this->authorization->can($user, 'set_own_issues_private', $project));
+    }
+
+    /**
+     * Redmine's manage_subtasks: setting or changing an issue's parent.
+     */
+    public function manageSubtasks(User $user, Project $project): bool
+    {
+        return $this->authorization->can($user, 'manage_subtasks', $project);
     }
 
     public function create(User $user, Project $project): bool
@@ -57,9 +84,25 @@ final class IssuePolicy
         return $this->authorization->can($user, 'add_issues', $project);
     }
 
+    /**
+     * Redmine's Issue#attributes_editable?: edit_issues for any issue, or
+     * edit_own_issues for one you authored.
+     */
     public function update(User $user, Issue $issue): bool
     {
-        return $this->authorization->can($user, 'edit_issues', $this->projectOf($issue));
+        $project = $this->projectOf($issue);
+
+        return $this->authorization->can($user, 'edit_issues', $project)
+            || ($issue->author_id === $user->id && $this->authorization->can($user, 'edit_own_issues', $project));
+    }
+
+    /**
+     * Redmine's add_issue_notes: commenting on an issue, with or without the
+     * right to change its fields.
+     */
+    public function addNotes(User $user, Issue $issue): bool
+    {
+        return $this->authorization->can($user, 'add_issue_notes', $this->projectOf($issue));
     }
 
     public function delete(User $user, Issue $issue): bool
