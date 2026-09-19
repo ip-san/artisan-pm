@@ -4,6 +4,7 @@ use App\Models\Project;
 use App\Models\WikiPage;
 use App\Services\WikiPageService;
 use App\Support\Markdown\WikiMarkdownRenderer;
+use App\Support\Wiki\WikiExportFilename;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -66,9 +67,9 @@ new #[Layout('components.layouts.app')] class extends Component
      * Every page in the wiki as one .txt or .html file per page, zipped
      * together — Redmine's WikiController#export, minus the PDF option
      * (a combined multi-page PDF isn't a zip of per-page files, so it's
-     * exportPdf() below instead, not a third format here). Page titles
-     * are unique per project (see wiki_pages' unique index), so there's
-     * no filename collision risk inside the archive.
+     * exportPdf() below instead, not a third format here). Titles are
+     * unique per project, but two can still map to the same file name
+     * once sanitized, so those get a (1), (2)… suffix like Redmine's.
      */
     public function exportZip(string $format): \Symfony\Component\HttpFoundation\BinaryFileResponse
     {
@@ -82,8 +83,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $zip = new \ZipArchive;
         $zip->open($path, \ZipArchive::OVERWRITE);
 
+        $usedNames = [];
+
         foreach ($pages as $page) {
-            $filename = Str::of($page->title)->replace(['/', '\\'], '-')->append(".{$format}")->toString();
+            $filename = WikiExportFilename::for($page->title, $format, $usedNames);
+            $usedNames[] = $filename;
             $zip->addFromString($filename, $this->exportedPageContent($page, $format));
         }
 

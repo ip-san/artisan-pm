@@ -207,3 +207,41 @@ test('exportZip rejects an unrecognized format', function () {
         ->call('exportZip', 'pdf')
         ->assertNotFound();
 });
+
+test('the export file name follows Redmine\'s sanitizing and numbers collisions', function () {
+    expect(App\Support\Wiki\WikiExportFilename::for('Plain title', 'txt', []))->toBe('Plain title.txt')
+        ->and(App\Support\Wiki\WikiExportFilename::for('a/b', 'txt', []))->toBe('a_b.txt')
+        ->and(App\Support\Wiki\WikiExportFilename::for('back\\slash', 'txt', []))->toBe('back_slash.txt')
+        ->and(App\Support\Wiki\WikiExportFilename::for('why?*:|"\'<>', 'html', []))->toBe('why_.html')
+        ->and(App\Support\Wiki\WikiExportFilename::for("line\nbreak", 'txt', []))->toBe('line_break.txt')
+        ->and(App\Support\Wiki\WikiExportFilename::for('日本語/ページ', 'txt', []))->toBe('日本語_ページ.txt')
+        ->and(App\Support\Wiki\WikiExportFilename::for('a/b', 'txt', ['a_b.txt']))->toBe('a_b(1).txt')
+        ->and(App\Support\Wiki\WikiExportFilename::for('a/b', 'txt', ['a_b.txt', 'a_b(1).txt']))->toBe('a_b(2).txt');
+});
+
+test('titles that sanitize to the same name both end up in the zip', function () {
+    $project = Project::factory()->create();
+    $user = wikiExportMember($project);
+    WikiPage::factory()->for($project)->create(['title' => 'a/b']);
+    WikiPage::factory()->for($project)->create(['title' => 'a_b']);
+
+    $response = Livewire::actingAs($user)->test('wiki.pages', ['project' => $project])->call('exportZip', 'txt');
+
+    $response->assertFileDownloaded();
+    $zipPath = tempnam(sys_get_temp_dir(), 'wiki-zip-test');
+    $download = $response->effects['download'] ?? null;
+    expect($download)->not->toBeNull();
+    file_put_contents($zipPath, base64_decode($download['content']));
+    $zip = new ZipArchive;
+    $zip->open($zipPath);
+    $names = [];
+
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $names[] = $zip->getNameIndex($i);
+    }
+
+    $zip->close();
+    unlink($zipPath);
+
+    expect($names)->toEqualCanonicalizing(['a_b.txt', 'a_b(1).txt']);
+});
