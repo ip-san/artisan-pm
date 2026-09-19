@@ -59,6 +59,23 @@ final class PluginManager
         $this->permissions->register($key, $module, $requirement);
     }
 
+    /**
+     * Subscribes $listener to a lifecycle hook (see LifecycleHooks::catalog()
+     * for the names). The listener receives the Laravel event object the
+     * service fired — a notification after the change, not a way to veto it.
+     *
+     * @param  callable(object): mixed  $listener
+     *
+     * @throws \InvalidArgumentException for an unknown hook name
+     */
+    public function onLifecycle(string $hook, callable $listener): void
+    {
+        $event = LifecycleHooks::eventFor($hook)
+            ?? throw new \InvalidArgumentException("Unknown lifecycle hook [{$hook}]. Known hooks: ".implode(', ', array_keys(LifecycleHooks::catalog())));
+
+        \Illuminate\Support\Facades\Event::listen($event, $listener);
+    }
+
     public function registerActivityProvider(ActivityProvider $provider): void
     {
         $this->activityProviders->register($provider);
