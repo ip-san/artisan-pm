@@ -64,23 +64,73 @@ test('moving a page to another project updates its project and clears its parent
         ->and($page->parent_id)->toBeNull();
 });
 
-test('moving a page detaches its own children rather than cascading the move', function () {
+function wikiMoveSetup(): array
+{
     $project = Project::factory()->create();
     $target = Project::factory()->create();
     $user = wikiMoveMember($project, ['view_wiki_pages', 'rename_wiki_pages']);
     Member::factory()->for($target)->for($user)->create()->roles()->attach(
         Role::factory()->create(['permissions' => ['rename_wiki_pages']])
     );
-    $page = WikiPage::factory()->for($project)->create();
-    $child = WikiPage::factory()->for($project)->create(['parent_id' => $page->id]);
 
+    return [$project, $target, $user];
+}
+
+function wikiMoveTo(User $user, Project $project, WikiPage $page, Project $target): void
+{
     Livewire::actingAs($user)
         ->test('wiki.show', ['project' => $project, 'wikiPage' => $page])
         ->set('moveToProjectId', $target->id)
-        ->call('moveToProject');
+        ->call('moveToProject')
+        ->assertHasNoErrors();
+}
 
-    expect($child->fresh()->project_id)->toBe($project->id)
-        ->and($child->fresh()->parent_id)->toBeNull();
+test('moving a page carries its children and grandchildren along, keeping the hierarchy', function () {
+    [$project, $target, $user] = wikiMoveSetup();
+    $page = WikiPage::factory()->for($project)->create(['title' => 'Top']);
+    $child = WikiPage::factory()->for($project)->create(['title' => 'Child', 'parent_id' => $page->id]);
+    $grandchild = WikiPage::factory()->for($project)->create(['title' => 'Grandchild', 'parent_id' => $child->id]);
+    $unrelated = WikiPage::factory()->for($project)->create(['title' => 'Unrelated']);
+
+    wikiMoveTo($user, $project, $page, $target);
+
+    expect($page->fresh()->project_id)->toBe($target->id)
+        ->and($child->fresh()->project_id)->toBe($target->id)
+        ->and($child->fresh()->parent_id)->toBe($page->id)
+        ->and($grandchild->fresh()->project_id)->toBe($target->id)
+        ->and($grandchild->fresh()->parent_id)->toBe($child->id)
+        ->and($unrelated->fresh()->project_id)->toBe($project->id);
+});
+
+test('every moved child leaves a redirect behind at its old title', function () {
+    [$project, $target, $user] = wikiMoveSetup();
+    $page = WikiPage::factory()->for($project)->create(['title' => 'Top']);
+    WikiPage::factory()->for($project)->create(['title' => 'Child', 'parent_id' => $page->id]);
+
+    wikiMoveTo($user, $project, $page, $target);
+
+    $redirects = WikiRedirect::query()->where('project_id', $project->id)->pluck('redirects_to_project_id', 'title');
+
+    expect($redirects)->toHaveCount(2)
+        ->and($redirects->get('Top'))->toBe($target->id)
+        ->and($redirects->get('Child'))->toBe($target->id);
+});
+
+test('a child whose title exists in the destination stays behind as a top-level page with its subtree', function () {
+    [$project, $target, $user] = wikiMoveSetup();
+    WikiPage::factory()->for($target)->create(['title' => 'CHILD']);
+    $page = WikiPage::factory()->for($project)->create(['title' => 'Top']);
+    $blocked = WikiPage::factory()->for($project)->create(['title' => 'child', 'parent_id' => $page->id]);
+    $underBlocked = WikiPage::factory()->for($project)->create(['title' => 'Under blocked', 'parent_id' => $blocked->id]);
+    $free = WikiPage::factory()->for($project)->create(['title' => 'Free child', 'parent_id' => $page->id]);
+
+    wikiMoveTo($user, $project, $page, $target);
+
+    expect($free->fresh()->project_id)->toBe($target->id)
+        ->and($blocked->fresh()->project_id)->toBe($project->id)
+        ->and($blocked->fresh()->parent_id)->toBeNull()
+        ->and($underBlocked->fresh()->project_id)->toBe($project->id)
+        ->and($underBlocked->fresh()->parent_id)->toBe($blocked->id);
 });
 
 test('a member without rename_wiki_pages in the destination cannot move a page there', function () {

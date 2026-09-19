@@ -110,10 +110,12 @@ final class WikiPageService
      * own parent is always cleared, since a parent from the old project
      * essentially never also exists in the new one — mirrors Redmine's
      * implicit `self.parent_id = nil` when `parent.wiki_id != wiki_id`.
-     * Unlike Redmine's handle_children_move, this page's own children are
-     * NOT cascaded into the new project — they're detached to the top
-     * level instead, the same deliberate scope cut already established by
-     * IssueService::moveToProject() for issue subtasks.
+     * Child pages travel with it, recursively, like Redmine's
+     * handle_children_move — each keeps its parent link (now pointing at
+     * the moved page in the new project) and gets its own redirect. A child
+     * whose title is already taken in the destination cannot move: it stays
+     * in the old project, detached to the top level, which is what Redmine
+     * does when the child's save fails validation.
      */
     public function moveToProject(WikiPage $page, Project $targetProject, bool $redirectExistingLinks = true): WikiPage
     {
@@ -127,7 +129,7 @@ final class WikiPageService
 
             $this->handleRename($page, $oldProject, $title, $targetProject, $title, $redirectExistingLinks);
 
-            WikiPage::query()->where('parent_id', $page->id)->update(['parent_id' => null]);
+            $this->moveChildren($page, $oldProject, $targetProject, $redirectExistingLinks);
 
             return $page->refresh();
         });
@@ -135,6 +137,37 @@ final class WikiPageService
         WikiPageUpdated::dispatch($page, textChanged: false);
 
         return $page;
+    }
+
+    /**
+     * Moves $parent's children (and theirs) after $parent itself has moved.
+     * The check is case-insensitive like Redmine's title uniqueness
+     * validation; a colliding child, and with it its whole subtree, is left
+     * behind in the old project as a top-level page.
+     */
+    private function moveChildren(WikiPage $parent, Project $oldProject, Project $targetProject, bool $redirectExistingLinks): void
+    {
+        foreach (WikiPage::query()->where('parent_id', $parent->id)->orderBy('id')->get() as $child) {
+            $titleTaken = WikiPage::query()
+                ->where('project_id', $targetProject->id)
+                ->whereRaw('lower(title) = ?', [mb_strtolower($child->title)])
+                ->exists();
+
+            if ($titleTaken) {
+                $child->update(['parent_id' => null]);
+
+                continue;
+            }
+
+            $childTitle = $child->title;
+
+            $child->project()->associate($targetProject);
+            $child->save();
+
+            $this->handleRename($child, $oldProject, $childTitle, $targetProject, $childTitle, $redirectExistingLinks);
+
+            $this->moveChildren($child, $oldProject, $targetProject, $redirectExistingLinks);
+        }
     }
 
     /**
