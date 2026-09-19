@@ -23,6 +23,7 @@ use App\Support\Scm\DisplayLimits;
 use App\Support\TimeLog\TimeLogConstraints;
 use App\Rules\RequiredPasswordCharacterClasses;
 use App\Support\Calendar\WorkingDays;
+use App\Support\Export\ExportLimit;
 use App\Support\Issues\CopyOptions;
 use App\Support\Issues\DoneRatioSteps;
 use App\Support\Issues\RelatedIssueColumns;
@@ -100,6 +101,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public int $activity_days_default = 7;
 
     public int $feeds_limit = 15;
+
+    public int $issues_export_limit = 500;
 
     public string $per_page_options = '25,50,100';
 
@@ -325,6 +328,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
         $this->activity_days_default = Setting::get('activity_days_default', 7);
         $this->feeds_limit = Setting::get('feeds_limit', 15);
+        $this->issues_export_limit = ExportLimit::issues();
         $this->per_page_options = Setting::get('per_page_options', PageSize::DEFAULT_OPTIONS);
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
@@ -502,6 +506,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_issues_per_page' => ['required', 'integer', 'min:5', 'max:200'],
             'activity_days_default' => ['required', 'integer', 'min:1', 'max:365'],
             'feeds_limit' => ['required', 'integer', 'min:1', 'max:500'],
+            'issues_export_limit' => ['required', 'integer', 'min:1', 'max:'.ExportLimit::MAXIMUM],
             'per_page_options' => ['required', 'string', 'max:100', 'regex:/^\s*[1-9]\d{0,3}([\s,]+[1-9]\d{0,3})*\s*$/'],
             'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
@@ -719,6 +724,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="number" min="1" max="500" wire:model="feeds_limit" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-gray-500">活動・課題・お知らせ・フォーラムの各Atomフィードに共通で適用されます。</p>
                 @error('feeds_limit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">課題一覧のエクスポート件数の上限</label>
+                <input type="number" min="1" max="{{ ExportLimit::MAXIMUM }}" wire:model="issues_export_limit" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">課題一覧のCSV・PDFエクスポートに含める最大件数です(上限{{ ExportLimit::MAXIMUM }})。</p>
+                @error('issues_export_limit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

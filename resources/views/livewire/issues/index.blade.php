@@ -26,6 +26,7 @@ use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\ListQueryString;
+use App\Support\Export\ExportLimit;
 use App\Support\Issues\CopyOptions;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\CustomFieldFilter;
@@ -795,13 +796,13 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('viewAny', [Issue::class, $this->project]);
 
         $columns = $this->columns;
-        $query = $this->filteredIssuesQuery();
+        $issues = $this->exportedIssues();
         // Re-validated against the allowlist here rather than trusted from
         // the live property, since these drive raw file-writing behavior.
         $encoding = in_array($this->csvEncoding, ['UTF-8', 'SJIS-win'], true) ? $this->csvEncoding : 'UTF-8';
         $separator = in_array($this->csvSeparator, [',', ';', "\t"], true) ? $this->csvSeparator : ',';
 
-        return response()->streamDownload(function () use ($columns, $query, $encoding, $separator) {
+        return response()->streamDownload(function () use ($columns, $issues, $encoding, $separator) {
             $handle = fopen('php://output', 'w');
 
             // A UTF-8 BOM lets Excel auto-detect the encoding instead of
@@ -821,14 +822,60 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $writeRow(array_map(fn ($key) => $this->availableColumns[$key] ?? $key, $columns));
 
-            $query->chunk(200, function ($chunk) use ($writeRow, $columns) {
-                foreach ($chunk as $issue) {
-                    $writeRow(array_map(fn ($key) => $this->columnValue($issue, $key), $columns));
-                }
-            });
+            foreach ($issues as $issue) {
+                $writeRow(array_map(fn ($key) => $this->columnValue($issue, $key), $columns));
+            }
 
             fclose($handle);
         }, "{$this->project->identifier}-issues.csv");
+    }
+
+    /**
+     * The issues an export contains: the list's current filters and sort,
+     * cut off at issues_export_limit (Redmine's `@query.issues(:limit => …)`).
+     *
+     * @return EloquentCollection<int, Issue>
+     */
+    private function exportedIssues(): EloquentCollection
+    {
+        return $this->filteredIssuesQuery()->limit(ExportLimit::issues())->get();
+    }
+
+    /**
+     * Redmine's IssuesController#index format.pdf: the list as a table with
+     * the chosen columns. Same dompdf-over-a-print-styled-Blade-view approach
+     * as the other PDFs, returned through streamDownload() because a binary
+     * Response from a Livewire action would break its serialization.
+     */
+    public function exportPdf(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $this->authorize('viewAny', [Issue::class, $this->project]);
+
+        $columns = array_diff($this->columns, self::BLOCK_COLUMNS);
+        $blockColumns = array_values(array_intersect(self::BLOCK_COLUMNS, $this->columns));
+        $issues = $this->exportedIssues();
+
+        $html = view('pdf.issues', [
+            'project' => $this->project,
+            'headings' => array_map(fn ($key) => $this->availableColumns[$key] ?? $key, $columns),
+            'rows' => $issues->map(fn (Issue $issue) => [
+                'id' => $issue->id,
+                'cells' => array_map(fn ($key) => $this->columnValue($issue, $key), $columns),
+                'blocks' => collect($blockColumns)
+                    ->mapWithKeys(fn ($key) => [$this->availableColumns[$key] => \Illuminate\Support\Str::limit($this->columnValue($issue, $key), 600)])
+                    ->filter(fn ($value) => filled($value))
+                    ->all(),
+            ]),
+            'total' => $this->issues->total(),
+        ])->render();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('a4', 'landscape')->output();
+
+        return response()->streamDownload(
+            fn () => print ($pdf),
+            "{$this->project->identifier}-issues.pdf",
+            ['Content-Type' => 'application/pdf'],
+        );
     }
 
     #[Computed]
@@ -1375,6 +1422,12 @@ new #[Layout('components.layouts.app')] class extends Component
             <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 CSVエクスポート
             </button>
+            <button wire:click="exportPdf" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                PDFエクスポート
+            </button>
+            @if ($this->issues->total() > ExportLimit::issues())
+                <span class="text-xs text-amber-700" data-export-limit-warning>エクスポートは先頭の{{ ExportLimit::issues() }}件までです</span>
+            @endif
             <a href="{{ route('issues.report', $project) }}" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 レポート
             </a>
