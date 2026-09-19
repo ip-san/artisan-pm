@@ -1,11 +1,9 @@
 <?php
 
-use App\Enums\EnumerationType;
-use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
-use App\Models\User;
+use App\Support\Reports\IssueReport;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -28,90 +26,62 @@ new #[Layout('components.layouts.app')] class extends Component
         return IssueStatus::query()->orderBy('position')->get();
     }
 
-    /**
-     * Raw (dimension_value, status_id) => count for every issue in this
-     * project, grouped by the given column — matches Redmine's
-     * Issue.count_and_group_by. Fetched once per dimension and pivoted in
-     * PHP rather than joining in SQL, since the "row" side (tracker,
-     * priority, category, ...) comes from a different table per dimension.
-     *
-     * @return array<int|string, array<int, int>> dimension value (or 'none') => status_id => count
-     */
-    private function countsByColumn(string $column): array
+    #[Computed]
+    public function report(): IssueReport
     {
-        $rows = Issue::query()
-            ->where('project_id', $this->project->id)
-            ->selectRaw("{$column} as dimension_value, status_id, COUNT(*) as total")
-            ->groupBy($column, 'status_id')
-            ->get();
-
-        $pivoted = [];
-
-        foreach ($rows as $row) {
-            $key = $row->dimension_value ?? 'none';
-            $pivoted[$key][$row->status_id] = (int) $row->total;
-        }
-
-        return $pivoted;
+        return new IssueReport($this->project, auth()->user());
     }
 
     /**
-     * @param  Collection<int, object{id: int, name: string}>  $rows
-     * @param  array<int|string, array<int, int>>  $counts
      * @return array{rows: array<int, array{key: int|string, label: string}>, counts: array<int|string, array<int, int>>}
      */
-    private function buildGrid(Collection $rows, array $counts, bool $withNoneRow): array
+    private function grid(string $dimension): array
     {
-        $gridRows = $rows->map(fn ($row) => ['key' => $row->id, 'label' => $row->name])->all();
+        $counts = $this->report->counts($dimension);
 
-        if ($withNoneRow && array_key_exists('none', $counts)) {
-            $gridRows[] = ['key' => 'none', 'label' => 'なし'];
-        }
-
-        return ['rows' => $gridRows, 'counts' => $counts];
+        return ['rows' => $this->report->gridRows($dimension, $counts), 'counts' => $counts];
     }
 
     #[Computed]
     public function trackerGrid(): array
     {
-        return $this->buildGrid($this->project->trackers, $this->countsByColumn('tracker_id'), false);
+        return $this->grid('tracker');
     }
 
     #[Computed]
     public function priorityGrid(): array
     {
-        $priorities = Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->get();
-
-        return $this->buildGrid($priorities, $this->countsByColumn('priority_id'), false);
+        return $this->grid('priority');
     }
 
     #[Computed]
     public function categoryGrid(): array
     {
-        return $this->buildGrid($this->project->issueCategories, $this->countsByColumn('category_id'), true);
+        return $this->grid('category');
     }
 
     #[Computed]
     public function versionGrid(): array
     {
-        return $this->buildGrid($this->project->versions, $this->countsByColumn('fixed_version_id'), true);
+        return $this->grid('version');
     }
 
     #[Computed]
     public function assigneeGrid(): array
     {
-        $assignees = $this->project->assignableUsers();
-
-        return $this->buildGrid($assignees, $this->countsByColumn('assigned_to_id'), true);
+        return $this->grid('assigned_to');
     }
 
     #[Computed]
     public function authorGrid(): array
     {
-        /** @var Collection<int, User> $authors */
-        $authors = $this->project->users;
+        return $this->grid('author');
+    }
 
-        return $this->buildGrid($authors, $this->countsByColumn('author_id'), false);
+    #[Computed]
+    public function subprojectGrid(): array
+    {
+        return $this->grid('subproject');
     }
 
     /**
@@ -123,6 +93,20 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private function cellUrl(string $column, int|string $rowKey, ?int $statusId): string
     {
+        // A subproject row opens that subproject's own list; the rows are
+        // projects, not values of a filter on this project's list.
+        if ($column === 'project_id') {
+            return route('issues.index', [
+                Project::query()->findOrFail($rowKey),
+                'statusFilter' => 'all',
+                ...($statusId !== null ? [
+                    'activeFilterKeys' => ['status_id'],
+                    'filterOperators' => ['status_id' => '='],
+                    'filterValues' => ['status_id' => [$statusId]],
+                ] : []),
+            ]);
+        }
+
         $activeFilterKeys = [$column];
         $filterOperators = [$column => $rowKey === 'none' ? 'empty' : '='];
         $filterValues = [$column => $rowKey === 'none' ? [] : [$rowKey]];
@@ -154,14 +138,19 @@ new #[Layout('components.layouts.app')] class extends Component
             ['title' => '対象バージョン別', 'column' => 'fixed_version_id', 'grid' => $this->versionGrid],
             ['title' => '担当者別', 'column' => 'assigned_to_id', 'grid' => $this->assigneeGrid],
             ['title' => '作成者別', 'column' => 'author_id', 'grid' => $this->authorGrid],
+            ...(in_array('subproject', $this->report->dimensions(), true) ? [['title' => 'サブプロジェクト別', 'column' => 'project_id', 'grid' => $this->subprojectGrid]] : []),
         ];
+        $detailKeys = ['tracker_id' => 'tracker', 'priority_id' => 'priority', 'category_id' => 'category', 'version' => 'version', 'fixed_version_id' => 'version', 'assigned_to_id' => 'assigned_to', 'author_id' => 'author', 'project_id' => 'subproject'];
     @endphp
 
     <div class="space-y-8">
         @foreach ($sections as $section)
             @php $grid = $section['grid']; @endphp
             <div class="overflow-x-auto">
-                <h2 class="mb-2 text-sm font-semibold text-gray-900">{{ $section['title'] }}</h2>
+                <h2 class="mb-2 text-sm font-semibold text-gray-900">
+                    {{ $section['title'] }}
+                    <a href="{{ route('issues.report-details', [$project, $detailKeys[$section['column']]]) }}" class="ml-2 text-xs font-normal text-indigo-600 hover:underline">詳細</a>
+                </h2>
                 <table class="min-w-full border border-gray-200 bg-white text-sm">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50">

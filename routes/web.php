@@ -110,6 +110,7 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
     Volt::route('/projects/{project:identifier}/issues/import', 'issues.import')->name('issues.import');
     Volt::route('/projects/{project:identifier}/issues/imports/{import}', 'issues.import-status')->name('issues.import-status');
     Volt::route('/projects/{project:identifier}/issues/report', 'issues.report')->name('issues.report');
+    Volt::route('/projects/{project:identifier}/issues/report/{detail}', 'issues.report-details')->name('issues.report-details');
     Volt::route('/projects/{project:identifier}/issues/{issue}', 'issues.show')->name('issues.show')->scopeBindings()
         ->withoutMiddleware('auth')->middleware('login.required');
     // Gated by the exact same IssuePolicy::view Gate::authorize() call as
