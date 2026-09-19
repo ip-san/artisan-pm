@@ -6,10 +6,12 @@ namespace App\Providers;
 
 use App\Support\Dashboard\Blocks\ActivityBlock;
 use App\Support\Dashboard\Blocks\AssignedIssuesBlock;
+use App\Support\Dashboard\Blocks\CalendarBlock;
 use App\Support\Dashboard\Blocks\DocumentsBlock;
 use App\Support\Dashboard\Blocks\LatestNewsBlock;
 use App\Support\Dashboard\Blocks\ReportedIssuesBlock;
 use App\Support\Dashboard\Blocks\TimeEntriesBlock;
+use App\Support\Dashboard\Blocks\UpdatedByMeBlock;
 use App\Support\Dashboard\Blocks\WatchedIssuesBlock;
 use App\Support\Dashboard\DashboardBlockRegistry;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +34,8 @@ final class DashboardBlockServiceProvider extends ServiceProvider
         $registry = $this->app->make(DashboardBlockRegistry::class);
 
         $registry->register($this->app->make(AssignedIssuesBlock::class));
+        $registry->register($this->app->make(UpdatedByMeBlock::class));
+        $registry->register($this->app->make(CalendarBlock::class));
         $registry->register($this->app->make(ReportedIssuesBlock::class));
         $registry->register($this->app->make(WatchedIssuesBlock::class));
         $registry->register($this->app->make(LatestNewsBlock::class));
