@@ -812,8 +812,8 @@ new #[Layout('components.layouts.app')] class extends Component
         <div><span class="text-gray-500">ステータス:</span> {{ $issue->status->name }}</div>
         <div><span class="text-gray-500">優先度:</span> {{ $issue->priority->name }}</div>
         <div><span class="text-gray-500">カテゴリ:</span> {{ $issue->category?->name ?? 'なし' }}</div>
-        <div><span class="text-gray-500">作成者:</span> {{ $issue->author->name }}</div>
-        <div><span class="text-gray-500">担当者:</span> {{ $issue->assignedTo?->name ?? '未割当' }}</div>
+        <div><span class="text-gray-500">作成者:</span> <x-avatar :user="$issue->author" :size="18" /> {{ $issue->author->name }}</div>
+        <div><span class="text-gray-500">担当者:</span> <x-avatar :user="$issue->assignedTo" :size="18" /> {{ $issue->assignedTo?->name ?? '未割当' }}</div>
         <div><span class="text-gray-500">対象バージョン:</span> {{ $issue->fixedVersion?->name ?? 'なし' }}</div>
         <div><span class="text-gray-500">進捗率:</span> {{ $issue->done_ratio }}%</div>
         <div><span class="text-gray-500">開始日:</span> {{ $issue->start_date?->toDateString() ?? '-' }}</div>
@@ -1060,6 +1060,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @unless ($journal->isEmpty())
                 <li wire:key="journal-{{ $journal->id }}" class="rounded-md border border-gray-200 bg-white p-3 text-sm">
                     <div class="text-gray-500 text-xs mb-1">
+                        <x-avatar :user="$journal->user" :size="20" class="mr-1" />
                         {{ $journal->user->name }} — {{ $journal->created_at->format('Y-m-d H:i') }}
                         @if ($journal->private_notes)
                             <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-amber-700">非公開</span>

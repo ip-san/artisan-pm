@@ -318,6 +318,9 @@ new #[Layout('components.layouts.app')] class extends Component
         @forelse ($this->members as $member)
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
+                    @unless ($member->isForGroup())
+                        <x-avatar :user="$member->user" :size="24" class="mr-2" />
+                    @endunless
                     <span class="font-medium text-gray-900">
                         @if ($member->isForGroup())
                             {{ $member->group->name }}(グループ)

@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Support\Attachments\AttachmentArchive;
+use App\Support\Avatar\UserAvatar;
 use App\Support\Mail\PublicUrl;
 use App\Support\Pagination\PageSize;
 use App\Support\Scm\CodesetConverter;
@@ -99,6 +100,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $cache_formatted_text = false;
 
     public string $new_item_menu_tab = '2';
+
+    public bool $gravatar_enabled = false;
+
+    public string $gravatar_default = 'identicon';
 
     public string $host_name = '';
 
@@ -287,6 +292,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
         $this->new_item_menu_tab = (string) Setting::get('new_item_menu_tab', '2');
+        $this->gravatar_enabled = UserAvatar::gravatarEnabled();
+        $this->gravatar_default = UserAvatar::defaultStyle();
         $this->host_name = (string) Setting::get('host_name', '');
         $this->protocol = (string) Setting::get('protocol', PublicUrl::DEFAULT_PROTOCOL);
         $this->gantt_items_limit = Setting::get('gantt_items_limit', 500);
@@ -451,6 +458,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
             'new_item_menu_tab' => ['required', Rule::in(['0', '1', '2'])],
+            'gravatar_enabled' => ['boolean'],
+            'gravatar_default' => ['nullable', Rule::in(array_keys(UserAvatar::DEFAULT_STYLES))],
             'host_name' => ['nullable', 'string', 'max:255', 'regex:'.PublicUrl::HOST_PATTERN],
             'protocol' => ['required', Rule::in(['http', 'https'])],
             'gantt_items_limit' => ['required', 'integer', 'min:0', 'max:100000'],
@@ -558,6 +567,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data['commit_ref_keywords'] = trim((string) ($data['commit_ref_keywords'] ?? ''));
         $data['host_name'] = trim((string) ($data['host_name'] ?? ''), " \t\n\r\0\x0B/");
+        $data['gravatar_default'] = (string) ($data['gravatar_default'] ?? '');
         $data['sys_api_key'] = trim((string) ($data['sys_api_key'] ?? ''));
         $data['repositories_encodings'] = trim((string) ($data['repositories_encodings'] ?? ''));
 
@@ -770,6 +780,20 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="2">「+」ドロップダウン(課題・バージョン・お知らせなど)</option>
                 </select>
                 @error('new_item_menu_tab') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="gravatar_enabled" class="rounded border-gray-300">
+                    Gravatarを使う
+                </label>
+                <p class="mt-1 text-xs text-gray-500">有効にすると、ユーザーのメールアドレスのハッシュが gravatar.com に送られ、閲覧者のブラウザが画像を直接取得します。無効のときはイニシャルのアイコンを表示します。</p>
+                <select wire:model="gravatar_default" class="mt-2 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Support\Avatar\UserAvatar::DEFAULT_STYLES as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('gravatar_default') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div class="grid grid-cols-2 gap-4">
