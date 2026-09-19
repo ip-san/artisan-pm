@@ -109,6 +109,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $cache_formatted_text = false;
 
+    public bool $wiki_tablesort_enabled = false;
+
     public string $new_item_menu_tab = '2';
 
     public bool $display_subprojects_issues = false;
@@ -349,6 +351,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->per_page_options = Setting::get('per_page_options', PageSize::DEFAULT_OPTIONS);
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
+        $this->wiki_tablesort_enabled = (bool) Setting::get('wiki_tablesort_enabled', false);
         $this->new_item_menu_tab = (string) Setting::get('new_item_menu_tab', '2');
         $this->display_subprojects_issues = SubprojectScope::enabled();
         $this->default_issue_query = filled(Setting::get('default_issue_query')) ? (int) Setting::get('default_issue_query') : null;
@@ -537,6 +540,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'per_page_options' => ['required', 'string', 'max:100', 'regex:/^\s*[1-9]\d{0,3}([\s,]+[1-9]\d{0,3})*\s*$/'],
             'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
+            'wiki_tablesort_enabled' => ['boolean'],
             'new_item_menu_tab' => ['required', Rule::in(['0', '1', '2'])],
             'display_subprojects_issues' => ['boolean'],
             'default_issue_query' => ['nullable', Rule::exists('queries', 'id')->where('type', QueryType::Issue->value)->where('visibility', QueryVisibility::Public->value)->whereNull('project_id')],
@@ -772,6 +776,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 <p class="mt-1 text-xs text-gray-500">課題一覧のCSV・PDFエクスポートに含める最大件数です(上限{{ ExportLimit::MAXIMUM }})。</p>
                 @error('issues_export_limit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="wiki_tablesort_enabled" class="rounded border-gray-300">
+                Wikiの表(見出し行と2行以上の本体を持つもの)を、見出しのクリックで並べ替えられるようにする
+            </label>
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-gray-700">

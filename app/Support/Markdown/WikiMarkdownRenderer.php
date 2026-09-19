@@ -166,6 +166,7 @@ final class WikiMarkdownRenderer
         return 'formatted_text:'.hash('sha256', implode('|', [
             $project?->id ?? 0,
             $page?->id ?? 0,
+            (int) Setting::get('wiki_tablesort_enabled', false),
             $attachmentSignature,
             $text,
         ]));
@@ -240,6 +241,7 @@ final class WikiMarkdownRenderer
         $html = $this->replaceCollapseBlocks($html, $collapseBlocks);
         $html = $this->replaceIncludeMacros($html, $includeBlocks);
         $html = WikiMacros::replaceIn($html, $project, $page, $attachments);
+        $html = $this->markSortableTables($html);
 
         if ($attachments === null || $attachments->isEmpty()) {
             return $html;
@@ -506,6 +508,37 @@ final class WikiMarkdownRenderer
             }
 
             $paragraph->parentNode->removeChild($paragraph);
+            $changed = true;
+        }
+
+        return $changed ? HtmlFragment::innerHtml($document) : $html;
+    }
+
+    /**
+     * Redmine's wiki_tablesort_enabled (Redmine::WikiFormatting::
+     * TablesortScrubber): with the setting on, a table that has a header row
+     * and at least two body rows is marked `data-tablesort`, which the page's
+     * script turns into click-to-sort headings. Smaller tables, and tables
+     * without a header, are left alone.
+     */
+    private function markSortableTables(string $html): string
+    {
+        if (! Setting::get('wiki_tablesort_enabled', false) || ! str_contains($html, '<table')) {
+            return $html;
+        }
+
+        $document = HtmlFragment::load($html);
+        $changed = false;
+
+        foreach (iterator_to_array($document->getElementsByTagName('table')) as $table) {
+            /** @var DOMElement $table */
+            $rows = $table->getElementsByTagName('tr');
+
+            if ($rows->length < 3 || $rows->item(0)->getElementsByTagName('th')->length === 0) {
+                continue;
+            }
+
+            $table->setAttribute('data-tablesort', '1');
             $changed = true;
         }
 
