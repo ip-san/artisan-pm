@@ -370,6 +370,37 @@ new #[Layout('components.layouts.app')] class extends Component
             ->get();
     }
 
+    /**
+     * Right-click on a row: an unselected entry becomes the only selection,
+     * a selected one keeps the whole selection. Only entries the user may
+     * edit can be picked, like the row checkboxes.
+     */
+    public function openContextMenu(int $timeEntryId): void
+    {
+        $entry = TimeEntry::query()->where('project_id', $this->project->id)->find($timeEntryId);
+
+        abort_if($entry === null, 404);
+        $this->authorize('update', $entry);
+
+        if (! in_array($entry->id, array_map('intval', $this->selected), true)) {
+            $this->selected = [(string) $entry->id];
+        }
+
+        unset($this->selectedTimeEntries);
+    }
+
+    /**
+     * The one quick change the context menu offers (the activity), applied
+     * through the bulk edit's validation and authorization.
+     */
+    public function contextUpdateActivity(int $activityId): void
+    {
+        $this->reset(['bulkProjectId', 'bulkIssueId', 'bulkUserId', 'bulkHours', 'bulkSpentOn', 'bulkComments']);
+        $this->bulkActivityId = $activityId;
+
+        $this->applyBulkEdit();
+    }
+
     public function applyBulkEdit(): void
     {
         $entries = $this->selectedTimeEntries;
@@ -521,7 +552,33 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 }; ?>
 
-<div>
+<div x-data="{ menu: { open: false, x: 0, y: 0 }, showMenu(event, entryId) { const x = event.clientX, y = event.clientY; $wire.openContextMenu(entryId).then(() => { this.menu = { open: true, x: Math.min(x, window.innerWidth - 220), y: Math.min(y, window.innerHeight - 200) }; }); } }"
+    x-on:click.window="menu.open = false" x-on:keydown.escape.window="menu.open = false">
+    @if ($this->canManage && count($selected) > 0)
+        @php $menuEntries = $this->selectedTimeEntries; @endphp
+        <div x-show="menu.open" x-cloak x-on:click.stop x-bind:style="`left:${menu.x}px;top:${menu.y}px`" data-context-menu
+            class="fixed z-50 w-52 rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg">
+            @if ($menuEntries->count() === 1)
+                <a href="{{ route('time-entries.edit', [$project, $menuEntries->first()]) }}" class="block px-3 py-1.5 text-gray-700 hover:bg-gray-100">編集</a>
+            @else
+                <a href="#bulk-edit-form" x-on:click="menu.open = false" class="block px-3 py-1.5 text-gray-700 hover:bg-gray-100">一括編集</a>
+            @endif
+            @if ($this->project->activities(includeInactive: false)->isNotEmpty())
+                <div class="group relative">
+                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-gray-700 group-hover:bg-gray-100">作業分類 <span class="text-gray-400">›</span></span>
+                    <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg group-hover:block">
+                        @foreach ($this->project->activities(includeInactive: false) as $activity)
+                            <button type="button" wire:key="context-activity-{{ $activity->id }}" wire:click="contextUpdateActivity({{ $activity->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">{{ $activity->name }}</button>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+            @if ($menuEntries->every(fn ($entry) => auth()->user()?->can('delete', $entry)))
+                <button type="button" wire:click="applyBulkDelete" wire:confirm="選択した{{ count($selected) }}件の工数記録を削除します。この操作は取り消せません。よろしいですか?" x-on:click="menu.open = false" class="block w-full border-t border-gray-100 px-3 py-1.5 text-left text-red-700 hover:bg-red-50">削除</button>
+            @endif
+        </div>
+    @endif
+
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — 工数</h1>
@@ -615,7 +672,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($this->canManage && count($selected) > 0)
-        <form wire:submit="applyBulkEdit" class="mb-4 space-y-3 rounded-md border border-indigo-200 bg-indigo-50 p-4">
+        <form id="bulk-edit-form" wire:submit="applyBulkEdit" class="mb-4 space-y-3 rounded-md border border-indigo-200 bg-indigo-50 p-4">
             <p class="text-sm font-medium text-gray-900">{{ count($selected) }}件を選択中 — 変更する項目だけ設定してください</p>
 
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -724,7 +781,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($groupEntries as $entry)
-                        <tr wire:key="time-entry-{{ $entry->id }}">
+                        <tr wire:key="time-entry-{{ $entry->id }}" @can('update', $entry) x-on:contextmenu.prevent="showMenu($event, {{ $entry->id }})" @endcan class="{{ in_array((string) $entry->id, array_map('strval', $selected), true) ? 'bg-indigo-50' : '' }}">
                             @if ($this->canManage)
                                 <td class="px-4 py-2">
                                     @can('update', $entry)
