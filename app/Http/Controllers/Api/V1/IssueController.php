@@ -12,12 +12,10 @@ use App\Http\Requests\Api\V1\UpdateIssueRequest;
 use App\Http\Resources\Api\V1\IssueResource;
 use App\Models\Issue;
 use App\Models\IssueStatus;
-use App\Models\PendingUpload;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\IssueService;
-use App\Support\Attachments\AttachmentValidationRules;
-use App\Support\Attachments\PendingUploadToken;
+use App\Support\Attachments\PendingUploadAttacher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
@@ -261,39 +259,11 @@ final class IssueController extends Controller
         $attached = [];
 
         foreach ($uploads as $upload) {
-            $media = PendingUploadToken::resolve((string) ($upload['token'] ?? ''));
+            $media = PendingUploadAttacher::attach($upload, $issue, 'attachments');
 
-            if ($media === null) {
-                continue;
+            if ($media !== null) {
+                $attached[] = $media;
             }
-
-            $pendingUploadId = $media->model_id;
-            $filename = trim((string) ($upload['filename'] ?? ''));
-            $description = trim((string) ($upload['description'] ?? ''));
-
-            // The original filename already passed the extension allow/deny
-            // list at upload time — a rename-on-attach override must be
-            // re-checked too, or it'd let a client upload as "notes.txt"
-            // (allowed) and relabel it "malware.exe" (denied) right here,
-            // bypassing the check entirely. Falls back to the original,
-            // already-validated name rather than dropping the attachment.
-            if ($filename !== '' && ! AttachmentValidationRules::isExtensionAllowed(pathinfo($filename, PATHINFO_EXTENSION))) {
-                $filename = '';
-            }
-
-            // Custom properties carry over through move() (it's a
-            // copy+delete under the hood — see Media::copy()), so the
-            // description has to be set on the pre-move instance.
-            if ($description !== '') {
-                $media->setCustomProperty('description', $description);
-                $media->save();
-            }
-
-            $media = $media->move($issue, 'attachments', '', $filename);
-
-            PendingUpload::query()->whereKey($pendingUploadId)->delete();
-
-            $attached[] = $media;
         }
 
         // One journal — and one mail — for every file attached in this call.

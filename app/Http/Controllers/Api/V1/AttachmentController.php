@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\AttachmentResource;
 use App\Models\Issue;
+use App\Models\Project;
+use App\Models\Version;
 use App\Services\IssueService;
 use App\Support\Attachments\AttachmentValidationRules;
 use Illuminate\Http\JsonResponse;
@@ -102,6 +104,19 @@ final class AttachmentController extends Controller
         $owner = $media->model;
 
         abort_if($owner === null, 404);
+
+        // A Files-module file hangs on a project or one of its versions, but
+        // is governed by view_files / manage_files rather than by the
+        // permission to see the project or the version.
+        if ($media->collection_name === 'files' && ($owner instanceof Project || $owner instanceof Version)) {
+            $project = $owner instanceof Version ? $owner->project : $owner;
+
+            $ability === 'view'
+                ? Gate::authorize('viewAny', [Version::class, $project])
+                : Gate::authorize('manageFiles', $owner);
+
+            return;
+        }
 
         Gate::authorize($ability, $owner);
     }

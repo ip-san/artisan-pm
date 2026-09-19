@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\CustomFieldController;
 use App\Http\Controllers\Api\V1\EnumerationController;
+use App\Http\Controllers\Api\V1\FileController;
 use App\Http\Controllers\Api\V1\GroupController;
 use App\Http\Controllers\Api\V1\IssueCategoryController;
 use App\Http\Controllers\Api\V1\IssueController;
@@ -54,6 +55,8 @@ Route::middleware(['rest-api.enabled', 'auth:api,api-key'])->group(function () {
     Route::delete('/relations/{relation}', [IssueRelationController::class, 'destroy'])->name('api.relations.destroy');
     Route::put('/journals/{journal}', [JournalController::class, 'update'])->name('api.journals.update');
 
+    Route::get('/projects/{project}/files', [FileController::class, 'index'])->name('api.files.index');
+    Route::post('/projects/{project}/files', [FileController::class, 'store'])->name('api.files.store');
     Route::get('/projects/{project}/versions', [VersionController::class, 'index'])->name('api.versions.index');
     Route::post('/projects/{project}/versions', [VersionController::class, 'store'])->name('api.versions.store');
     Route::get('/versions/{version}', [VersionController::class, 'show'])->name('api.versions.show');
