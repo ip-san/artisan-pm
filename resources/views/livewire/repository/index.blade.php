@@ -3,6 +3,7 @@
 use App\Jobs\RepositorySyncJob;
 use App\Models\Project;
 use App\Models\Repository;
+use App\Support\Pagination\PageSize;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -80,7 +81,7 @@ new #[Layout('components.layouts.app')] class extends Component
             return new Collection;
         }
 
-        return $this->repository->changesets()->limit(100)->get();
+        return $this->repository->changesets()->with('repository.project')->limit(PageSize::repositoryLogLimit())->get();
     }
 
     #[Computed]
@@ -245,7 +246,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                     {{ $changeset->shortRevision() }}
                                 </a>
                             </td>
-                            <td class="px-4 py-2">{{ Str::of($changeset->comments)->trim()->limit(80) }}</td>
+                            <td class="px-4 py-2">{{ $changeset->commentsHtml(firstLineOnly: true) }}</td>
                             <td class="px-4 py-2 text-gray-500">{{ $changeset->committer }}</td>
                             <td class="px-4 py-2 text-gray-500">{{ $changeset->committed_on->format('Y-m-d H:i') }}</td>
                         </tr>

@@ -67,7 +67,7 @@ final readonly class GitAdapter implements ScmAdapter
             return [];
         }
 
-        return $this->parseLog($result->output());
+        return $this->parseLog(CodesetConverter::logToUtf8($result->output()));
     }
 
     public function diff(string $revision, ?string $fromRevision = null, ?string $path = null): string
@@ -78,7 +78,7 @@ final readonly class GitAdapter implements ScmAdapter
             ? $this->git(['show', '--format=', $revision, ...$pathArgs], 30)
             : $this->git(['diff', $fromRevision, $revision, ...$pathArgs], 30);
 
-        return $result->successful() ? $result->output() : '';
+        return $result->successful() ? CodesetConverter::toUtf8($result->output()) : '';
     }
 
     public function tree(string $revision, string $path = ''): array
@@ -94,7 +94,7 @@ final readonly class GitAdapter implements ScmAdapter
 
         $entries = [];
 
-        foreach (explode("\n", trim($result->output())) as $line) {
+        foreach (explode("\n", trim(CodesetConverter::toUtf8($result->output()))) as $line) {
             if ($line === '') {
                 continue;
             }
@@ -127,7 +127,7 @@ final readonly class GitAdapter implements ScmAdapter
             return [];
         }
 
-        return $this->parseBlame($result->output());
+        return $this->parseBlame(CodesetConverter::toUtf8($result->output()));
     }
 
     /**

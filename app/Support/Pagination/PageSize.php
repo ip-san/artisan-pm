@@ -18,6 +18,8 @@ final class PageSize
 
     public const int DEFAULT_SEARCH_RESULTS = 10;
 
+    public const int DEFAULT_REPOSITORY_LOG_LIMIT = 100;
+
     /**
      * Space- or comma-separated positive integers, ascending — the parsing
      * of Setting.per_page_options_array. Unparseable input yields no options
@@ -75,6 +77,17 @@ final class PageSize
         }
 
         return $options;
+    }
+
+    /**
+     * Redmine's repository_log_display_limit: how many revisions the
+     * repository history lists.
+     */
+    public static function repositoryLogLimit(): int
+    {
+        $value = (int) Setting::get('repository_log_display_limit', self::DEFAULT_REPOSITORY_LOG_LIMIT);
+
+        return $value > 0 ? $value : self::DEFAULT_REPOSITORY_LOG_LIMIT;
     }
 
     public static function searchResults(): int

@@ -134,7 +134,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <p class="mb-4 text-sm text-gray-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</p>
 
     <div class="rounded-md border border-gray-200 bg-white p-4 mb-4">
-        <p class="whitespace-pre-line text-sm text-gray-800">{{ $changeset->comments }}</p>
+        <div class="prose prose-sm max-w-none text-gray-800">{{ $changeset->commentsHtml() }}</div>
     </div>
 
     @if ($changeset->issues->isNotEmpty() || $this->canManageRelatedIssues)

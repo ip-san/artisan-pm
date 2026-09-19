@@ -55,7 +55,7 @@ final readonly class SvnAdapter implements ScmAdapter
             ? $this->svn(['diff', '-c', $revision, $target], 30)
             : $this->svn(['diff', '-r', "{$fromRevision}:{$revision}", $target], 30);
 
-        return $result->successful() ? $result->output() : '';
+        return $result->successful() ? CodesetConverter::toUtf8($result->output()) : '';
     }
 
     public function tree(string $revision, string $path = ''): array

@@ -2,6 +2,7 @@
 
 use App\Models\Project;
 use App\Models\Repository;
+use App\Support\Scm\CodesetConverter;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -29,7 +30,11 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function content(): string
     {
-        return $this->repository->adapter()->fileContentAt('HEAD', $this->path);
+        $raw = $this->repository->adapter()->fileContentAt('HEAD', $this->path);
+
+        // A file in a legacy encoding listed in repositories_encodings shows
+        // as text; anything else that is not UTF-8 stays raw and reads as binary.
+        return CodesetConverter::convertStrictly($raw) ?? $raw;
     }
 
     #[Computed]

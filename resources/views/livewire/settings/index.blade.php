@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Support\Pagination\PageSize;
+use App\Support\Scm\CodesetConverter;
 use App\Support\TimeLog\TimeLogConstraints;
 use App\Rules\RequiredPasswordCharacterClasses;
 use App\Support\Issues\DoneRatioSteps;
@@ -110,6 +111,14 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $mail_handler_preferred_body_part = 'plain';
 
     public bool $autofetch_changesets = false;
+
+    public int $repository_log_display_limit = 100;
+
+    public string $repositories_encodings = '';
+
+    public string $commit_logs_encoding = 'UTF-8';
+
+    public bool $commit_logs_formatting = true;
 
     public string $commit_ref_keywords = '*';
 
@@ -277,6 +286,10 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->mail_handler_excluded_filenames = Setting::get('mail_handler_excluded_filenames', '');
         $this->mail_handler_preferred_body_part = Setting::get('mail_handler_preferred_body_part', 'plain');
         $this->autofetch_changesets = Setting::get('autofetch_changesets', false);
+        $this->repository_log_display_limit = Setting::get('repository_log_display_limit', PageSize::DEFAULT_REPOSITORY_LOG_LIMIT);
+        $this->repositories_encodings = Setting::get('repositories_encodings', '');
+        $this->commit_logs_encoding = Setting::get('commit_logs_encoding', 'UTF-8');
+        $this->commit_logs_formatting = Setting::get('commit_logs_formatting', true);
         $this->commit_ref_keywords = Setting::get('commit_ref_keywords', '*');
         $this->commit_cross_project_ref = Setting::get('commit_cross_project_ref', true);
         $this->commit_logtime_enabled = Setting::get('commit_logtime_enabled', false);
@@ -372,6 +385,16 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         }
 
+        $isKnownEncoding = CodesetConverter::isKnownEncoding(...);
+        $encodingName = fn (string $attribute, mixed $value, \Closure $fail) => $isKnownEncoding((string) $value) ? null : $fail("「{$value}」は未対応のエンコーディングです。");
+        $encodingList = function (string $attribute, mixed $value, \Closure $fail) use ($isKnownEncoding): void {
+            foreach (array_filter(array_map('trim', explode(',', (string) $value))) as $name) {
+                if (! $isKnownEncoding($name)) {
+                    $fail("「{$name}」は未対応のエンコーディングです。");
+                }
+            }
+        };
+
         $data = $this->validate([
             ...$ruleChangeRules,
             'app_title' => ['required', 'string', 'max:255'],
@@ -401,6 +424,10 @@ new #[Layout('components.layouts.app')] class extends Component
             'commit_fixing_keyword_rules.*.done_ratio' => ['nullable', 'integer', 'min:0', 'max:100'],
             'commit_fixing_keyword_rules.*.if_tracker_id' => ['nullable', 'exists:trackers,id'],
             'commit_ref_keywords' => ['nullable', 'string', 'max:255'],
+            'repository_log_display_limit' => ['required', 'integer', 'min:1', 'max:1000'],
+            'repositories_encodings' => ['nullable', 'string', 'max:255', $encodingList],
+            'commit_logs_encoding' => ['required', 'string', 'max:50', $encodingName],
+            'commit_logs_formatting' => ['boolean'],
             'commit_cross_project_ref' => ['boolean'],
             'timelog_required_fields' => ['array'],
             'timelog_required_fields.*' => [Rule::in(array_keys(TimeLogConstraints::REQUIRABLE_FIELDS))],
@@ -474,6 +501,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->all();
 
         $data['commit_ref_keywords'] = trim((string) ($data['commit_ref_keywords'] ?? ''));
+        $data['repositories_encodings'] = trim((string) ($data['repositories_encodings'] ?? ''));
 
         foreach ($data as $key => $value) {
             Setting::set($key, $value);
@@ -1099,6 +1127,31 @@ new #[Layout('components.layouts.app')] class extends Component
                 @error('enabled_scm_types') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 @error('enabled_scm_types.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">履歴に表示するリビジョン数</label>
+                <input type="number" min="1" max="1000" wire:model="repository_log_display_limit" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('repository_log_display_limit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">ファイル内容のエンコーディング候補(カンマ区切り)</label>
+                <input type="text" wire:model="repositories_encodings" placeholder="例: SJIS-win, EUC-JP"
+                    class="mt-1 block w-full max-w-md rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">UTF-8でないファイルやログを、ここに並べた順に試してUTF-8へ変換して表示します。</p>
+                @error('repositories_encodings') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">コミットログのエンコーディング</label>
+                <input type="text" wire:model="commit_logs_encoding" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('commit_logs_encoding') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="commit_logs_formatting" class="rounded border-gray-300">
+                コミットログをMarkdownで整形して表示する
+            </label>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700">課題を参照するキーワード(カンマ区切り)</label>

@@ -95,7 +95,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             <span class="text-xs text-gray-400 font-mono">({{ $match['path'] }})</span>
                         @endif
                     </div>
-                    <p class="mt-1 whitespace-pre-line text-sm text-gray-800">{{ $changeset->comments }}</p>
+                    <div class="prose prose-sm mt-1 max-w-none text-gray-800">{{ $changeset->commentsHtml() }}</div>
                 </li>
             @endforeach
         </ul>
