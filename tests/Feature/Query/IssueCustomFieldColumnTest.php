@@ -92,3 +92,50 @@ test('csv export includes the custom field column header and value', function ()
             "\xEF\xBB\xBF".csvRow(['題名', 'Severity']).csvRow(['CSV issue', 'High'])
         );
 });
+
+test('a link custom field column renders as an anchor in the list while CSV keeps the plain text', function () {
+    $project = Project::factory()->create();
+    $user = cfColumnMember($project);
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+
+    $link = CustomField::factory()->create(['name' => 'Docs', 'field_format' => CustomFieldFormat::Link->value]);
+    $link->trackers()->attach($tracker);
+
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $issue->setCustomFieldValues([$link->id => 'example.com/docs']);
+
+    $component = Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('statusFilter', 'all')
+        ->set('columns', ['subject', "cf_{$link->id}"]);
+
+    $component->assertSeeHtml('href="http://example.com/docs"')
+        ->assertSeeHtml('rel="noopener noreferrer"');
+
+    $loaded = $component->get('issues')->getCollection()->firstWhere('id', $issue->id);
+    expect($component->instance()->columnValue($loaded, "cf_{$link->id}"))->toBe('example.com/docs');
+});
+
+test('a dangerous link value is neutralised and a multiple link field stays plain text in the list', function () {
+    $project = Project::factory()->create();
+    $user = cfColumnMember($project);
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+
+    $unsafe = CustomField::factory()->create(['name' => 'Unsafe', 'field_format' => CustomFieldFormat::Link->value]);
+    $unsafe->trackers()->attach($tracker);
+    $multi = CustomField::factory()->multiple()->create(['name' => 'Many', 'field_format' => CustomFieldFormat::Link->value]);
+    $multi->trackers()->attach($tracker);
+
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $issue->setCustomFieldValues([$unsafe->id => 'javascript:alert(1)', $multi->id => ['a.example', 'b.example']]);
+
+    Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('statusFilter', 'all')
+        ->set('columns', ['subject', "cf_{$unsafe->id}", "cf_{$multi->id}"])
+        ->assertSeeHtml('href="http://javascript:alert(1)"')
+        ->assertDontSeeHtml('href="javascript:')
+        ->assertDontSeeHtml('href="http://a.example"');
+});

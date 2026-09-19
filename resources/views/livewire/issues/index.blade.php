@@ -577,17 +577,29 @@ new #[Layout('components.layouts.app')] class extends Component
             ->values();
     }
 
+    /**
+     * The non-empty values of one custom field column for an issue, each
+     * with its field so the cell can render a Link-format value as an
+     * anchor (the same <x-custom-field-value> the show pages use).
+     *
+     * @return Collection<int, array{field: CustomField, value: string}>
+     */
+    public function customFieldCellValues(Issue $issue, string $key): Collection
+    {
+        $fieldId = (int) substr($key, 3);
+
+        return $issue->loadMissing('customFieldValues.customField')
+            ->customFieldValues
+            ->where('custom_field_id', $fieldId)
+            ->map(fn ($value) => ['field' => $value->customField, 'value' => $value->value()])
+            ->filter(fn (array $cell) => $cell['value'] !== null && $cell['value'] !== '')
+            ->values();
+    }
+
     public function columnValue(Issue $issue, string $key): string
     {
         if (str_starts_with($key, 'cf_')) {
-            $fieldId = (int) substr($key, 3);
-
-            return $issue->loadMissing('customFieldValues.customField')
-                ->customFieldValues
-                ->where('custom_field_id', $fieldId)
-                ->map(fn ($value) => $value->value())
-                ->filter(fn ($value) => $value !== null && $value !== '')
-                ->join(', ');
+            return $this->customFieldCellValues($issue, $key)->pluck('value')->join(', ');
         }
 
         return match ($key) {
@@ -1259,6 +1271,10 @@ new #[Layout('components.layouts.app')] class extends Component
                                         <a href="{{ route('issues.show', [$project, $issue]) }}" class="text-indigo-600 hover:underline">
                                             {{ $issue->subject }}
                                         </a>
+                                    @elseif (str_starts_with($columnKey, 'cf_'))
+                                        @foreach ($this->customFieldCellValues($issue, $columnKey) as $cell)
+                                            <x-custom-field-value :field="$cell['field']" :value="$cell['value']" />@if (! $loop->last), @endif
+                                        @endforeach
                                     @else
                                         {{ $this->columnValue($issue, $columnKey) }}
                                     @endif
