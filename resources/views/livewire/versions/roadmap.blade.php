@@ -89,7 +89,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 $closedPercent = $version->closedPercent($counts);
                 $completedPercent = $version->completedPercent($this->roadmapTrackerIds);
             @endphp
-            <article wire:key="roadmap-version-{{ $version->id }}" class="rounded-md border border-gray-200 bg-white p-4">
+            <article id="roadmap-version-{{ $version->id }}" wire:key="roadmap-version-{{ $version->id }}" class="rounded-md border border-gray-200 bg-white p-4">
                 <div class="flex items-center justify-between">
                     <h2 class="text-base font-semibold text-gray-900">
                         <a href="{{ route('versions.edit', [$project, $version]) }}" class="hover:underline">{{ $version->name }}</a>

@@ -4,6 +4,7 @@ use App\Concerns\InteractsWithQueryFilters;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Setting;
+use App\Models\Version;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Illuminate\Support\Carbon;
@@ -138,12 +139,25 @@ new #[Layout('components.layouts.app')] class extends Component
             $due = $issue->due_date?->toDateString();
 
             if ($inRange($start)) {
-                $entries->push(['date' => $start, 'issue' => $issue, 'marker' => $start === $due ? 'both' : 'start']);
+                $entries->push(['date' => $start, 'issue' => $issue, 'version' => null, 'marker' => $start === $due ? 'both' : 'start']);
             }
 
             if ($inRange($due) && $due !== $start) {
-                $entries->push(['date' => $due, 'issue' => $issue, 'marker' => 'due']);
+                $entries->push(['date' => $due, 'issue' => $issue, 'version' => null, 'marker' => 'due']);
             }
+        }
+
+        // Versions of every project the viewer can view issues in (the same
+        // set the issues above come from), on their due date.
+        $versions = Version::query()
+            ->whereIn('project_id', $this->visibleProjects->pluck('id'))
+            ->whereBetween('due_date', $range)
+            ->with('project')
+            ->orderBy('name')
+            ->get();
+
+        foreach ($versions as $version) {
+            $entries->push(['date' => $version->due_date->toDateString(), 'issue' => null, 'version' => $version, 'marker' => 'version']);
         }
 
         return $entries->groupBy('date');
@@ -211,6 +225,17 @@ new #[Layout('components.layouts.app')] class extends Component
                                 </div>
                                 <ul class="mt-1 space-y-0.5">
                                     @foreach ($day['entries'] as $entry)
+                                        @if ($entry['marker'] === 'version')
+                                            <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-version-{{ $entry['version']->id }}">
+                                                <span class="text-xs text-gray-400" title="バージョンの期日">📦</span>
+                                                <a href="{{ route('versions.roadmap', $entry['version']->project) }}#roadmap-version-{{ $entry['version']->id }}"
+                                                    class="text-xs text-indigo-600 hover:underline"
+                                                    title="{{ $entry['version']->project->name }} — バージョン: {{ $entry['version']->name }}">
+                                                    {{ $entry['version']->project->identifier }} {{ $entry['version']->name }}
+                                                </a>
+                                            </li>
+                                            @continue
+                                        @endif
                                         @php $issue = $entry['issue']; @endphp
                                         <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-{{ $issue->id }}-{{ $entry['marker'] }}">
                                             @php [$markerLabel, $markerSymbol] = match ($entry['marker']) { 'start' => ['開始日', '▶'], 'due' => ['期日', '◀'], default => ['開始日=期日', '◆'] }; @endphp

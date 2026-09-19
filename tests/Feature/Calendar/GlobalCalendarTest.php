@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\Version;
 use Livewire\Livewire;
 
 function globalCalendarMember(Project $project, array $permissions = ['view_calendar']): User
@@ -113,4 +114,21 @@ test('an active filter restricts the global calendar to matching issues', functi
     $ids = $matchingDay['entries']->pluck('issue.id');
 
     expect($ids)->toContain($matching->id)->not->toContain($excluded->id);
+});
+
+test('the global calendar shows versions of projects the user can view_calendar in, on their due date', function () {
+    $visibleProject = Project::factory()->create();
+    $hiddenProject = Project::factory()->create();
+    $user = globalCalendarMember($visibleProject);
+    $due = now()->startOfMonth()->addDays(9);
+    $visible = Version::factory()->for($visibleProject)->create(['name' => 'Visible release', 'due_date' => $due]);
+    Version::factory()->for($hiddenProject)->create(['name' => 'Hidden release', 'due_date' => $due]);
+
+    $component = Livewire::actingAs($user)->test('calendar.global-index');
+
+    $versionIds = collect($component->get('weeks'))->flatten(1)
+        ->flatMap(fn ($day) => $day['entries'])->where('marker', 'version')->pluck('version.id')->all();
+
+    expect($versionIds)->toBe([$visible->id]);
+    $component->assertSee('Visible release')->assertDontSee('Hidden release');
 });

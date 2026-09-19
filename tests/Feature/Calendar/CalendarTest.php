@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\Version;
 use Livewire\Livewire;
 
 function calendarMember(Project $project, array $permissions = ['view_calendar']): User
@@ -232,4 +233,29 @@ test('an active filter restricts the calendar to matching issues', function () {
     $ids = $matchingDay['entries']->pluck('issue.id');
 
     expect($ids)->toContain($matching->id)->not->toContain($excluded->id);
+});
+
+test('the project calendar shows a version on its due date', function () {
+    $project = Project::factory()->create();
+    $user = calendarMember($project);
+    $due = now()->startOfMonth()->addDays(9);
+    $version = Version::factory()->for($project)->create(['name' => 'Release 1.0', 'due_date' => $due]);
+    Version::factory()->for($project)->create(['name' => 'Undated']);
+    Version::factory()->for(Project::factory()->create())->create(['name' => 'Other project', 'due_date' => $due]);
+
+    $component = Livewire::actingAs($user)->test('calendar.index', ['project' => $project]);
+
+    $entries = collect($component->get('weeks'))->flatten(1)->flatMap(fn ($day) => $day['entries']);
+    $versionEntries = $entries->where('marker', 'version');
+
+    expect($versionEntries->pluck('version.id')->all())->toBe([$version->id]);
+    $component->assertSee('Release 1.0')->assertDontSee('Undated')->assertDontSee('Other project');
+});
+
+test('a version due outside the visible grid is not shown', function () {
+    $project = Project::factory()->create();
+    $user = calendarMember($project);
+    Version::factory()->for($project)->create(['name' => 'Far future', 'due_date' => now()->addMonths(6)]);
+
+    Livewire::actingAs($user)->test('calendar.index', ['project' => $project])->assertDontSee('Far future');
 });
