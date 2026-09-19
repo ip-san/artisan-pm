@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -185,6 +186,27 @@ final class Issue extends Model implements HasMedia
     public function watchers(): MorphMany
     {
         return $this->morphMany(Watcher::class, 'watchable');
+    }
+
+    /**
+     * The newest journal, for the "last updated by" column.
+     *
+     * @return HasOne<Journal, $this>
+     */
+    public function lastJournal(): HasOne
+    {
+        return $this->hasOne(Journal::class)->latestOfMany();
+    }
+
+    /**
+     * The newest public journal that has notes, for the "last notes" column
+     * (private notes are never offered).
+     *
+     * @return HasOne<Journal, $this>
+     */
+    public function lastNotesJournal(): HasOne
+    {
+        return $this->hasOne(Journal::class)->ofMany(['id' => 'max'], fn ($query) => $query->where('private_notes', false)->whereNotNull('notes')->where('notes', '<>', ''));
     }
 
     /**

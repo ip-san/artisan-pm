@@ -45,6 +45,8 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('start_date', '開始日', 'start_date', FilterFieldType::Date, $dateOperators),
             new NativeColumnFilter('due_date', '期日', 'due_date', FilterFieldType::Date, $dateOperators),
             new NativeColumnFilter('created_at', '作成日', 'created_at', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('updated_at', '更新日', 'updated_at', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('closed_on', '終了日', 'closed_on', FilterFieldType::Date, $dateOperators),
             new NativeColumnFilter('done_ratio', '進捗率', 'done_ratio', FilterFieldType::Integer, $integerOperators),
         ];
 

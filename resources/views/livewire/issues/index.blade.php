@@ -77,7 +77,22 @@ new #[Layout('components.layouts.app')] class extends Component
         'estimated_remaining_hours' => '残り工数',
         'spent_hours' => '作業時間',
         'total_spent_hours' => '合計作業時間',
+        'parent_id' => '親課題',
+        'updated_at' => '更新日',
+        'closed_on' => '終了日',
+        'last_updated_by' => '最終更新者',
+        'is_private' => '非公開',
+        'description' => '説明',
+        'last_notes' => '最新のコメント',
     ];
+
+    /**
+     * Columns shown on a row of their own under the issue (Redmine's
+     * `inline: false`): long text does not belong in a table cell.
+     *
+     * @var array<int, string>
+     */
+    public const array BLOCK_COLUMNS = ['description', 'last_notes'];
 
     /**
      * The hour columns computed from other data rather than stored on the
@@ -86,7 +101,7 @@ new #[Layout('components.layouts.app')] class extends Component
      *
      * @var array<int, string>
      */
-    public const array COMPUTED_HOUR_COLUMNS = ['total_estimated_hours', 'estimated_remaining_hours', 'spent_hours', 'total_spent_hours'];
+    public const array COMPUTED_HOUR_COLUMNS = ['total_estimated_hours', 'estimated_remaining_hours', 'spent_hours', 'total_spent_hours', 'parent_id', 'last_updated_by', 'is_private', 'description', 'last_notes'];
 
     /**
      * Matches issues/show.blade.php's RELATION_LABELS wording exactly —
@@ -223,6 +238,8 @@ new #[Layout('components.layouts.app')] class extends Component
             ->when(in_array('relations', $this->columns, true), fn (Builder $q) => $q->with(['relationsFrom', 'relationsTo']))
             ->when(in_array('attachments', $this->columns, true), fn (Builder $q) => $q->with('media'))
             ->when(in_array('watchers', $this->columns, true), fn (Builder $q) => $q->with('watchers.user'))
+            ->when(in_array('last_updated_by', $this->columns, true), fn (Builder $q) => $q->with('lastJournal.user'))
+            ->when(in_array('last_notes', $this->columns, true), fn (Builder $q) => $q->with('lastNotesJournal'))
             ->when(array_intersect(['spent_hours', 'total_spent_hours', 'total_estimated_hours'], $this->columns) !== [], fn (Builder $q) => $q->withCount('children'))
             ->when(array_intersect(['spent_hours', 'total_spent_hours'], $this->columns) !== [], fn (Builder $q) => $q->withSum('timeEntries', 'hours'));
 
@@ -684,6 +701,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->join(', '),
             'attachments' => $issue->attachments()->map(fn ($media) => $media->file_name)->join("\n"),
             'watchers' => $issue->watchers->map(fn (Watcher $watcher) => $watcher->user->name)->join("\n"),
+            'parent_id' => $issue->parent_id !== null ? "#{$issue->parent_id}" : '',
+            'updated_at' => $issue->updated_at?->format('Y-m-d H:i') ?? '',
+            'closed_on' => $issue->closed_on?->format('Y-m-d H:i') ?? '',
+            'last_updated_by' => ($issue->lastJournal?->user ?? $issue->author)->name,
+            'is_private' => $issue->is_private ? 'はい' : 'いいえ',
+            'description' => (string) $issue->description,
+            'last_notes' => (string) $issue->lastNotesJournal?->notes,
             'estimated_hours' => $issue->estimated_hours !== null ? \App\Support\Format\Hours::format((float) $issue->estimated_hours, false) : '',
             'total_estimated_hours' => $issue->estimated_hours !== null || ! $issue->isLeaf() ? \App\Support\Format\Hours::format($issue->totalEstimatedHours(), false) : '',
             'estimated_remaining_hours' => $issue->estimated_hours !== null ? \App\Support\Format\Hours::format($issue->estimatedRemainingHours(), false) : '',
@@ -1410,7 +1434,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             <th class="px-4 py-2"></th>
                         @endif
                         <th class="px-4 py-2">#</th>
-                        @foreach ($columns as $columnKey)
+                        @foreach (array_diff($columns, self::BLOCK_COLUMNS) as $columnKey)
                             <th wire:key="column-heading-{{ $columnKey }}" class="px-4 py-2">
                                 @if (in_array($columnKey, self::COMPUTED_HOUR_COLUMNS, true))
                                     {{ $this->availableColumns[$columnKey] ?? $columnKey }}
@@ -1435,7 +1459,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 </td>
                             @endif
                             <td class="px-4 py-2 text-gray-500">{{ $issue->id }}</td>
-                            @foreach ($columns as $columnKey)
+                            @foreach (array_diff($columns, self::BLOCK_COLUMNS) as $columnKey)
                                 <td wire:key="issue-{{ $issue->id }}-column-{{ $columnKey }}" class="px-4 py-2">
                                     @if ($columnKey === 'subject')
                                         <a href="{{ route('issues.show', [$project, $issue]) }}" class="text-indigo-600 hover:underline">
@@ -1451,6 +1475,16 @@ new #[Layout('components.layouts.app')] class extends Component
                                 </td>
                             @endforeach
                         </tr>
+                        @foreach (array_intersect(self::BLOCK_COLUMNS, $columns) as $blockKey)
+                            @if (filled($this->columnValue($issue, $blockKey)))
+                                <tr wire:key="issue-{{ $issue->id }}-block-{{ $blockKey }}" class="bg-gray-50" data-block-column="{{ $blockKey }}">
+                                    <td colspan="{{ count($columns) + 2 }}" class="px-4 py-2 text-xs text-gray-600">
+                                        <span class="font-medium text-gray-500">{{ $this->availableColumns[$blockKey] }}:</span>
+                                        <span class="whitespace-pre-line">{{ \Illuminate\Support\Str::limit($this->columnValue($issue, $blockKey), 600) }}</span>
+                                    </td>
+                                </tr>
+                            @endif
+                        @endforeach
                     @empty
                         <tr>
                             <td colspan="{{ count($columns) + 2 }}" class="px-4 py-6 text-center text-gray-500">課題がありません。</td>
