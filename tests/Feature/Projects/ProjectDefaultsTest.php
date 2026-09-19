@@ -144,3 +144,81 @@ test('deleting the default version clears the default', function () {
 
     expect($project->fresh()->default_version_id)->toBeNull();
 });
+
+function defaultVersionManager(Project $project): User
+{
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_issues', 'manage_versions']])
+    );
+
+    return $user;
+}
+
+test('ticking the default box on a new version makes it the project default', function () {
+    $project = Project::factory()->create();
+    $manager = defaultVersionManager($project);
+
+    Livewire::actingAs($manager)->test('versions.form', ['project' => $project])
+        ->set('name', '2.0')
+        ->set('defaultProjectVersion', true)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $version = Version::query()->where('name', '2.0')->firstOrFail();
+    expect($project->fresh()->default_version_id)->toBe($version->id);
+});
+
+test('an existing default version opens with the box ticked and unticking it leaves the default alone', function () {
+    $project = Project::factory()->create();
+    $manager = defaultVersionManager($project);
+    $version = Version::factory()->for($project)->create();
+    $project->update(['default_version_id' => $version->id]);
+
+    Livewire::actingAs($manager)->test('versions.form', ['project' => $project->fresh(), 'version' => $version])
+        ->assertSet('defaultProjectVersion', true)
+        ->set('defaultProjectVersion', false)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($project->fresh()->default_version_id)->toBe($version->id);
+});
+
+test('ticking the box on another version moves the default and a plain save changes nothing', function () {
+    $project = Project::factory()->create();
+    $manager = defaultVersionManager($project);
+    $first = Version::factory()->for($project)->create();
+    $second = Version::factory()->for($project)->create();
+    $project->update(['default_version_id' => $first->id]);
+
+    Livewire::actingAs($manager)->test('versions.form', ['project' => $project->fresh(), 'version' => $second])
+        ->assertSet('defaultProjectVersion', false)
+        ->call('save');
+
+    expect($project->fresh()->default_version_id)->toBe($first->id);
+
+    Livewire::actingAs($manager)->test('versions.form', ['project' => $project->fresh(), 'version' => $second])
+        ->set('defaultProjectVersion', true)
+        ->call('save');
+
+    expect($project->fresh()->default_version_id)->toBe($second->id);
+});
+
+test('the versions list marks the default version', function () {
+    $project = Project::factory()->create();
+    $manager = defaultVersionManager($project);
+    $default = Version::factory()->for($project)->create(['name' => 'Chosen']);
+    Version::factory()->for($project)->create(['name' => 'Other']);
+    $project->update(['default_version_id' => $default->id]);
+
+    Livewire::actingAs($manager)->test('versions.index', ['project' => $project->fresh()])
+        ->assertSeeInOrder(['Chosen', '既定', 'Other']);
+});
+
+test('the default box needs manage_versions like the rest of the form', function () {
+    $project = Project::factory()->create();
+    $viewer = User::factory()->create();
+    Member::factory()->for($project)->for($viewer)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+
+    Livewire::actingAs($viewer)->test('versions.form', ['project' => $project])->assertForbidden();
+});

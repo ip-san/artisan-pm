@@ -60,7 +60,7 @@
 | **段 1: 独立した S 項目** | | | | |
 | 1 | A11-12 | — | S | done(2026-09-20) |
 | 2 | A1-23 | — | S | done(2026-09-20) |
-| 2a | A1-32 | A1-23 | S | todo |
+| 2a | A1-32 | A1-23 | S | done(2026-09-20) |
 | 2b | A1-33 | A1-23 | S | todo |
 | A5-16b | `default_issue_start_date_to_creation_date` を REST API 課題作成(`IssuesController#build_new_issue_from_params`)と受信メール課題作成(`mail_handler.rb:216`)にも適用 | A5-16 で Web フォームのみ設定化。API/メールは開始日を補完しない | 設定オン時に両経路で `start_date ??= today` | 設定の既定がオンのため、適用すると既存 API クライアント/メールの挙動が変わる。**適用前にユーザーへ確認**(または既定オフに変更) | S | Issues本体「担当者『自分』ショートカット・既定開始/期日」 |
 | A1-34 | 親課題を削除すると子孫も削除される(Redmine: `acts_as_nested_set :dependent => :destroy`、`issues_controller.rb:434` の `self_and_descendants`。工数の確認対象も子孫を含む) | 本アプリは子課題を `parent_id` NULL 化して最上位に残す(`IssueDeletionTest` 'orphans its children'、チェックリスト「課題削除」に意図的とある) | 削除時に子孫を再帰削除し、工数の合計/付替対象を子孫分まで含める。削除確認に「N 件のサブタスクも削除されます」を表示 | **データ削除の意味が変わる**ため要承認。既存テストの期待値を反転する | S〜M | Issues本体「課題削除」 |

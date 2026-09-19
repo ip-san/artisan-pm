@@ -30,6 +30,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $wiki_page_title = '';
 
+    public bool $defaultProjectVersion = false;
+
     /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
     public array $customFieldValues = [];
 
@@ -49,6 +51,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->sharing = $version->sharing->value;
             $this->due_date = $version->due_date?->toDateString();
             $this->wiki_page_title = (string) $version->wiki_page_title;
+            $this->defaultProjectVersion = $project->default_version_id === $version->id;
 
             $this->customFieldValues = $version->customFieldFormValues($version->relevantCustomFields());
         } else {
@@ -100,13 +103,14 @@ new #[Layout('components.layouts.app')] class extends Component
             'sharing' => ['required', Rule::in(array_map(fn (VersionSharing $s) => $s->value, $this->allowedSharings))],
             'due_date' => ['nullable', 'date'],
             'wiki_page_title' => ['nullable', 'string', Rule::in([...$this->wikiPages->pluck('title')->all(), ''])],
+            'defaultProjectVersion' => ['boolean'],
         ];
 
         $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
 
         $data = $this->validate($rules);
         $customFieldData = CustomField::filterEditableValues($this->customFields, $data['customFieldValues'] ?? [], auth()->user());
-        unset($data['customFieldValues']);
+        unset($data['customFieldValues'], $data['defaultProjectVersion']);
 
         $data['wiki_page_title'] = $data['wiki_page_title'] !== '' ? $data['wiki_page_title'] : null;
         $data['project_id'] = $this->project->id;
@@ -118,6 +122,13 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $this->version->setCustomFieldValues($customFieldData);
+
+        // Redmine's Version#update_default_project_version only ever sets
+        // the default (a ticked box); clearing it is done from the project
+        // settings, so an unticked box leaves an existing default alone.
+        if ($this->defaultProjectVersion) {
+            $this->project->update(['default_version_id' => $this->version->id]);
+        }
 
         $this->redirect(route('versions.index', $this->project), navigate: true);
     }
@@ -166,6 +177,11 @@ new #[Layout('components.layouts.app')] class extends Component
             <input type="date" wire:model="due_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('due_date') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
+
+        <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" wire:model="defaultProjectVersion" class="rounded border-gray-300">
+            このバージョンをプロジェクトの既定の対象バージョンにする
+        </label>
 
         <div>
             <label class="block text-sm font-medium text-gray-700">関連Wikiページ</label>

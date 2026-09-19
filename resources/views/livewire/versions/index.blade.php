@@ -90,6 +90,9 @@ new #[Layout('components.layouts.app')] class extends Component
                                 \App\Enums\VersionStatus::Closed => 'クローズ',
                             } }}
                         </span>
+                        @if ($project->default_version_id === $version->id)
+                            <span class="ml-2 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">既定</span>
+                        @endif
                         @if ($version->due_date)
                             <span class="ml-2 text-xs text-gray-500">期日: {{ $version->due_date->toDateString() }}</span>
                         @endif
