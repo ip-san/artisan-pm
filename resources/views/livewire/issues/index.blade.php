@@ -26,6 +26,7 @@ use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\ListQueryString;
+use App\Support\Issues\CopyOptions;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\DefaultIssueQuery;
 use App\Support\Query\ListDefaults;
@@ -221,6 +222,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $bulkCopyWatchers = true;
 
     public bool $bulkCopySubtasks = true;
+
+    public bool $bulkCopyLink = true;
 
     public function mount(Project $project): void
     {
@@ -1227,15 +1230,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 $targetProject,
                 $data['bulkCopyToTrackerId'],
                 auth()->user(),
-                copyAttachments: $this->bulkCopyAttachments,
+                copyAttachments: CopyOptions::resolve(CopyOptions::attachmentsMode(), $this->bulkCopyAttachments),
                 copyWatchers: $this->bulkCopyWatchers,
                 copySubtasks: $this->bulkCopySubtasks,
+                linkCopy: CopyOptions::resolve(CopyOptions::linkMode(), $this->bulkCopyLink),
             );
         }
 
         $count = $issues->count();
 
-        $this->reset(['selected', 'bulkCopyToProjectId', 'bulkCopyToTrackerId', 'bulkCopyAttachments', 'bulkCopyWatchers', 'bulkCopySubtasks']);
+        $this->reset(['selected', 'bulkCopyToProjectId', 'bulkCopyToTrackerId', 'bulkCopyAttachments', 'bulkCopyWatchers', 'bulkCopySubtasks', 'bulkCopyLink']);
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
@@ -1604,10 +1608,18 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                     @error('bulkCopyToTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
-                <label class="flex items-center gap-1.5 text-xs text-gray-700">
-                    <input type="checkbox" wire:model="bulkCopyAttachments" class="rounded border-gray-300">
-                    添付ファイルも複製
-                </label>
+                @if (CopyOptions::attachmentsMode() === 'ask')
+                    <label class="flex items-center gap-1.5 text-xs text-gray-700">
+                        <input type="checkbox" wire:model="bulkCopyAttachments" class="rounded border-gray-300">
+                        添付ファイルも複製
+                    </label>
+                @endif
+                @if (CopyOptions::linkMode() === 'ask')
+                    <label class="flex items-center gap-1.5 text-xs text-gray-700">
+                        <input type="checkbox" wire:model="bulkCopyLink" class="rounded border-gray-300">
+                        コピー元との関連を作る
+                    </label>
+                @endif
                 <label class="flex items-center gap-1.5 text-xs text-gray-700">
                     <input type="checkbox" wire:model="bulkCopyWatchers" class="rounded border-gray-300">
                     ウォッチャーも複製

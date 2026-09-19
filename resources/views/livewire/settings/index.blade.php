@@ -22,6 +22,7 @@ use App\Support\Scm\CodesetConverter;
 use App\Support\Scm\DisplayLimits;
 use App\Support\TimeLog\TimeLogConstraints;
 use App\Rules\RequiredPasswordCharacterClasses;
+use App\Support\Issues\CopyOptions;
 use App\Support\Issues\DoneRatioSteps;
 use App\Support\Issues\RelatedIssueColumns;
 use App\Models\Tracker;
@@ -221,6 +222,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $cross_project_issue_relations = false;
 
+    public string $link_copied_issue = 'ask';
+
+    public string $copy_attachments_on_issue_copy = 'ask';
+
     public bool $default_issue_start_date_to_creation_date = true;
 
     public ?int $default_issue_due_date_offset = null;
@@ -342,6 +347,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->parent_issue_dates = Setting::get('parent_issue_dates', true);
         $this->parent_issue_done_ratio = Setting::get('parent_issue_done_ratio', true);
         $this->cross_project_issue_relations = Setting::get('cross_project_issue_relations', false);
+        $this->link_copied_issue = CopyOptions::linkMode();
+        $this->copy_attachments_on_issue_copy = CopyOptions::attachmentsMode();
         $this->default_issue_start_date_to_creation_date = Setting::get('default_issue_start_date_to_creation_date', true);
         $this->default_issue_due_date_offset = Setting::get('default_issue_due_date_offset');
         $this->related_issues_default_columns = array_keys(RelatedIssueColumns::selected());
@@ -557,6 +564,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_issue_dates' => ['boolean'],
             'parent_issue_done_ratio' => ['boolean'],
             'cross_project_issue_relations' => ['boolean'],
+            'link_copied_issue' => ['required', 'in:yes,no,ask'],
+            'copy_attachments_on_issue_copy' => ['required', 'in:yes,no,ask'],
             'default_issue_start_date_to_creation_date' => ['boolean'],
             'default_issue_due_date_offset' => ['nullable', 'integer', 'min:0'],
             'related_issues_default_columns' => ['array'],
@@ -757,6 +766,27 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="checkbox" wire:model="cross_project_issue_relations" class="rounded border-gray-300">
                 プロジェクトをまたいだ課題関連を許可する
             </label>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">課題をコピーしたとき、コピー元との関連(コピー元)を作る</label>
+                    <select wire:model="link_copied_issue" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        <option value="ask">コピーするときに選ぶ</option>
+                        <option value="yes">常に作る</option>
+                        <option value="no">作らない</option>
+                    </select>
+                    @error('link_copied_issue') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">課題をコピーしたとき、添付ファイルをコピーする</label>
+                    <select wire:model="copy_attachments_on_issue_copy" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        <option value="ask">コピーするときに選ぶ</option>
+                        <option value="yes">常にコピーする</option>
+                        <option value="no">コピーしない</option>
+                    </select>
+                    @error('copy_attachments_on_issue_copy') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+            </div>
 
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" wire:model="reactions_enabled" class="rounded border-gray-300">

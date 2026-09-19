@@ -19,6 +19,7 @@ use App\Support\TimeLog\TimeLogConstraints;
 use App\Services\WorkflowService;
 use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Issues\CopyOptions;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -35,6 +36,17 @@ new #[Layout('components.layouts.app')] class extends Component
     public Project $project;
 
     public ?Issue $issue = null;
+
+    /** The issue a new one is being copied from (`?copy_from=`). */
+    public ?int $copySourceId = null;
+
+    public bool $copyLink = true;
+
+    public bool $copyAttachments = true;
+
+    public bool $copySubtasks = true;
+
+    public bool $copyWatchers = true;
 
     public ?int $tracker_id = null;
 
@@ -240,12 +252,38 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Prefills a new issue's fields from ?copy_from=<id> — the source
-     * issue's own tracker/status/journals/attachments/relations are
-     * deliberately not carried over: status resets to the normal new-
-     * issue default above, and the rest are considered out of scope for
-     * a lightweight "start from a similar issue" copy.
+     * Prefills a new issue's fields from ?copy_from=<id>. The status resets
+     * to the normal new-issue default; on save, the copy form's checkboxes
+     * (and the link_copied_issue / copy_attachments_on_issue_copy settings)
+     * decide whether the source is linked and its attachments, subtasks and
+     * watchers are carried over — see IssueService::finishCopy().
      */
+    #[Computed]
+    public function copySource(): ?Issue
+    {
+        if ($this->copySourceId === null || $this->issue !== null) {
+            return null;
+        }
+
+        $source = Issue::query()->where('project_id', $this->project->id)->withCount('children')->find($this->copySourceId);
+
+        return $source !== null && auth()->user()?->can('view', $source) ? $source : null;
+    }
+
+    /**
+     * Whether the copy form offers the watchers checkbox: only to someone
+     * who may add watchers, and only when the source has active ones.
+     */
+    #[Computed]
+    public function copySourceHasWatchers(): bool
+    {
+        $source = $this->copySource;
+
+        return $source !== null
+            && auth()->user()->can('addWatchers', $source)
+            && $source->watchers()->exists();
+    }
+
     private function prefillFromCopySource(Project $project): void
     {
         $sourceId = request()->integer('copy_from');
@@ -260,6 +298,7 @@ new #[Layout('components.layouts.app')] class extends Component
             return;
         }
 
+        $this->copySourceId = $source->id;
         $this->tracker_id = $source->tracker_id;
         $this->priority_id = $source->priority_id;
         $this->category_id = $source->category_id;
@@ -653,6 +692,19 @@ new #[Layout('components.layouts.app')] class extends Component
                 ? $this->status_id
                 : $this->defaultStatusIdForTracker($this->tracker_id);
             $issue = app(IssueService::class)->create($data, auth()->user(), $customFieldData);
+
+            if ($this->copySource !== null) {
+                app(IssueService::class)->finishCopy(
+                    $this->copySource,
+                    $issue,
+                    $this->project,
+                    auth()->user(),
+                    linkCopy: CopyOptions::resolve(CopyOptions::linkMode(), $this->copyLink),
+                    copyAttachments: CopyOptions::resolve(CopyOptions::attachmentsMode(), $this->copyAttachments),
+                    copyWatchers: $this->copySourceHasWatchers && $this->copyWatchers,
+                    copySubtasks: $this->copySource->children_count > 0 && $this->copySubtasks,
+                );
+            }
         }
 
         $addedMedia = [];
@@ -888,6 +940,36 @@ new #[Layout('components.layouts.app')] class extends Component
                         :required="$field->is_required || $this->isRequired('cf_'.$field->id)"
                         :disabled="$this->isReadOnly('cf_'.$field->id) || ! $field->editableBy(auth()->user())" />
                 @endforeach
+            </div>
+        @endif
+
+        @if ($this->copySource !== null)
+            <div class="space-y-1 rounded-md border border-gray-200 bg-gray-50 p-3" data-copy-options>
+                <p class="text-sm font-medium text-gray-700">#{{ $this->copySource->id }} からのコピー</p>
+                @if (CopyOptions::linkMode() === 'ask')
+                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" wire:model="copyLink" class="rounded border-gray-300">
+                        コピー元との関連を作る
+                    </label>
+                @endif
+                @if (CopyOptions::attachmentsMode() === 'ask' && $this->copySource->getMedia('attachments')->isNotEmpty())
+                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" wire:model="copyAttachments" class="rounded border-gray-300">
+                        添付ファイルをコピーする
+                    </label>
+                @endif
+                @if ($this->copySource->children_count > 0)
+                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" wire:model="copySubtasks" class="rounded border-gray-300">
+                        子課題をコピーする
+                    </label>
+                @endif
+                @if ($this->copySourceHasWatchers)
+                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" wire:model="copyWatchers" class="rounded border-gray-300">
+                        ウォッチャーをコピーする
+                    </label>
+                @endif
             </div>
         @endif
 

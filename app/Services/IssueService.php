@@ -546,14 +546,13 @@ final class IssueService
      * corresponding flag is true (both default true, matching Redmine's
      * bulk-copy form, whose checkboxes are checked by default). Subtasks
      * are duplicated only when $copySubtasks is true (see copySubtasks()).
-     * A copied_to relation IS created back
-     * to $source, matching Redmine's Issue#after_create_from_copy — done
-     * automatically on every copy, same as Redmine's own default. Unlike
+     * A copied_to relation is created back to $source unless $linkCopy is
+     * false, matching Redmine's Issue#after_create_from_copy. Unlike
      * Redmine, this isn't gated by cross_project_issue_relations, since
      * the relation records provenance rather than being a user-authored
      * cross-project link.
      */
-    public function copy(Issue $source, Project $targetProject, int $trackerId, User $actor, bool $copyAttachments = true, bool $copyWatchers = true, bool $copySubtasks = false): Issue
+    public function copy(Issue $source, Project $targetProject, int $trackerId, User $actor, bool $copyAttachments = true, bool $copyWatchers = true, bool $copySubtasks = false, bool $linkCopy = true): Issue
     {
         $assignedToId = $source->assigned_to_id;
 
@@ -579,11 +578,26 @@ final class IssueService
             'done_ratio' => $source->done_ratio,
         ], $actor, $customFieldData);
 
-        IssueRelation::create([
-            'issue_from_id' => $source->id,
-            'issue_to_id' => $copy->id,
-            'relation_type' => IssueRelationType::CopiedTo->value,
-        ]);
+        $this->finishCopy($source, $copy, $targetProject, $actor, $linkCopy, $copyAttachments, $copyWatchers, $copySubtasks);
+
+        return $copy;
+    }
+
+    /**
+     * What follows saving a copy: the copied_to relation back to the
+     * source (when $linkCopy), attachments, watchers and subtasks. Also the
+     * tail of the single-issue copy form, whose new issue is created by the
+     * form itself.
+     */
+    public function finishCopy(Issue $source, Issue $copy, Project $targetProject, User $actor, bool $linkCopy, bool $copyAttachments, bool $copyWatchers, bool $copySubtasks): void
+    {
+        if ($linkCopy) {
+            IssueRelation::create([
+                'issue_from_id' => $source->id,
+                'issue_to_id' => $copy->id,
+                'relation_type' => IssueRelationType::CopiedTo->value,
+            ]);
+        }
 
         if ($copyAttachments) {
             foreach ($source->getMedia('attachments') as $media) {
@@ -593,9 +607,8 @@ final class IssueService
 
         if ($copyWatchers) {
             // firstOrCreate() rather than a bare insert since create()
-            // above already auto-watched the copy's author/assignee —
-            // matches Redmine's own watcher_user_ids= (a set, so no
-            // duplicate rows either).
+            // already auto-watched the copy's author/assignee — matches
+            // Redmine's own watcher_user_ids= (a set, so no duplicate rows).
             $source->watchers()
                 ->whereHas('user', fn ($query) => $query->where('status', UserStatus::Active))
                 ->get()
@@ -605,8 +618,6 @@ final class IssueService
         if ($copySubtasks) {
             $this->copySubtasks($source, $copy, $targetProject, $actor, $copyAttachments, $copyWatchers);
         }
-
-        return $copy;
     }
 
     /**
