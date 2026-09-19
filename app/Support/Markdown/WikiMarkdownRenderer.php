@@ -260,15 +260,11 @@ final class WikiMarkdownRenderer
      * replaceCollapseBlocks() runs the body's own Markdown needs to
      * already be HTML.
      *
-     * A collapse block nested inside another isn't correctly supported:
-     * the non-greedy body match stops at the first `}}` it finds, which
-     * for nested blocks is the inner one's closing marker, not the
-     * outer's — a regex can't balance same-name nested delimiters in one
-     * pass. This degrades safely (the inner open tag is left as literal
-     * text rather than crashing or mangling the rest of the page) rather
-     * than nesting correctly; a real fix would need a proper scanner,
-     * not a regex, and nested collapse blocks are enough of an edge case
-     * that it's left as a known limitation.
+     * Blocks may nest: the body is found by scanning line by line and
+     * counting opening `{{collapse` lines against closing `}}` lines, so an
+     * inner block's `}}` no longer ends the outer one; the inner block is
+     * rendered by the recursive call on the outer body. A block that is
+     * never closed is left as literal text.
      *
      * @param  MediaCollection<int, Media>|null  $attachments
      * @param  array<int, int>  $includedPageIds
@@ -277,24 +273,81 @@ final class WikiMarkdownRenderer
     private function extractCollapseBlocks(string $text, ?Project $project, ?MediaCollection $attachments, ?WikiPage $page, array $includedPageIds): array
     {
         $blocks = [];
+        $lines = explode("\n", $text);
+        $output = [];
+        $count = count($lines);
+        $index = 0;
 
-        $text = preg_replace_callback(
-            '/^\{\{collapse(?:\(([^)]*)\))?[ \t]*\r?\n(.*?)\r?\n\}\}[ \t]*$/ms',
-            function (array $matches) use (&$blocks, $project, $attachments, $page, $includedPageIds) {
-                $label = trim($matches[1]);
-                $placeholder = 'COLLAPSE-MACRO-PLACEHOLDER-'.count($blocks);
+        while ($index < $count) {
+            $opening = $this->collapseOpening($lines[$index]);
+            $closingIndex = $opening === null ? null : $this->collapseClosingIndex($lines, $index);
 
-                $blocks[$placeholder] = [
-                    'label' => $label !== '' ? $label : '表示',
-                    'body' => $this->renderMarkdown($matches[2], $project, $attachments, $page, $includedPageIds),
-                ];
+            if ($opening === null || $closingIndex === null) {
+                $output[] = $lines[$index];
+                $index++;
 
-                return $placeholder;
-            },
-            $text,
-        ) ?? $text;
+                continue;
+            }
+
+            $placeholder = 'COLLAPSE-MACRO-PLACEHOLDER-'.count($blocks);
+
+            $blocks[$placeholder] = [
+                'label' => $opening !== '' ? $opening : '表示',
+                'body' => $this->renderMarkdown(
+                    implode("\n", array_slice($lines, $index + 1, $closingIndex - $index - 1)),
+                    $project,
+                    $attachments,
+                    $page,
+                    $includedPageIds,
+                ),
+            ];
+
+            // Blank lines around it keep the placeholder a paragraph of its
+            // own even when the block directly follows or precedes text —
+            // replaceCollapseBlocks() only swaps whole-paragraph matches.
+            array_push($output, '', $placeholder, '');
+            $index = $closingIndex + 1;
+        }
+
+        $text = implode("\n", $output);
 
         return [$text, $blocks];
+    }
+
+    /**
+     * The trimmed label of a `{{collapse}}` / `{{collapse(Label)}}` opening
+     * line, or null when the line is not one.
+     */
+    private function collapseOpening(string $line): ?string
+    {
+        return preg_match('/^\{\{collapse(?:\(([^)]*)\))?[ \t]*\r?$/', $line, $matches) === 1
+            ? trim($matches[1] ?? '')
+            : null;
+    }
+
+    /**
+     * Index of the `}}` line that closes the block opened at $openIndex,
+     * counting nested openings, or null when it is never closed.
+     *
+     * @param  array<int, string>  $lines
+     */
+    private function collapseClosingIndex(array $lines, int $openIndex): ?int
+    {
+        $depth = 1;
+
+        for ($index = $openIndex + 1, $count = count($lines); $index < $count; $index++) {
+            if ($this->collapseOpening($lines[$index]) !== null) {
+                $depth++;
+            } elseif (preg_match('/^\}\}[ \t]*\r?$/', $lines[$index]) === 1) {
+                $depth--;
+
+                if ($depth === 0) {
+                    return $index;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

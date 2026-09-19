@@ -69,23 +69,70 @@ test('an unclosed collapse block is left as literal text', function () {
         ->and($html)->not->toContain('<details>');
 });
 
-test('a collapse block nested inside another degrades safely rather than nesting correctly', function () {
-    // Documented limitation: the non-greedy body match closes on the
-    // first `}}` it finds, which for nested blocks is the inner one's —
-    // so the outer block's body ends up truncated there, and the
-    // leftover text (including the now-orphaned inner opening tag) is
-    // left as literal text rather than the page crashing or losing
-    // content entirely.
+test('a collapse block nested inside another renders as a nested details element', function () {
     $project = Project::factory()->create();
     $text = "{{collapse(Outer)\nBefore.\n\n{{collapse(Inner)\nNested content.\n}}\n\nAfter.\n}}\n";
 
     $html = app(WikiMarkdownRenderer::class)->render($text, $project);
 
     expect($html)->toContain('<summary>Outer</summary>')
-        ->and($html)->toContain('Before.')
-        ->and($html)->toContain('Nested content.')
-        ->and(substr_count($html, '<details>'))->toBe(1)
-        ->and($html)->toContain('After.');
+        ->and($html)->toContain('<summary>Inner</summary>')
+        ->and(substr_count($html, '<details>'))->toBe(2)
+        ->and($html)->toMatch('#<details><summary>Outer</summary>.*Before\..*<details><summary>Inner</summary>.*Nested content\..*</details>.*After\..*</details>#s')
+        ->and($html)->not->toContain('{{collapse')
+        ->and($html)->not->toContain('COLLAPSE-MACRO-PLACEHOLDER');
+});
+
+test('three levels of nesting and sibling blocks after a nested one all render', function () {
+    $project = Project::factory()->create();
+    $text = "{{collapse(A)\n{{collapse(B)\n{{collapse(C)\nDeep.\n}}\n}}\n}}\n\n{{collapse(Sibling)\nSecond.\n}}\n";
+
+    $html = app(WikiMarkdownRenderer::class)->render($text, $project);
+
+    expect(substr_count($html, '<details>'))->toBe(4)
+        ->and($html)->toContain('Deep.')
+        ->and($html)->toContain('<summary>Sibling</summary>')
+        ->and($html)->not->toContain('{{');
+});
+
+test('an unclosed collapse block is left as literal text and nothing else is lost', function () {
+    $project = Project::factory()->create();
+
+    $html = app(WikiMarkdownRenderer::class)->render("Intro.\n\n{{collapse(Open)\nNever closed.\n", $project);
+
+    expect($html)->toContain('Intro.')
+        ->and($html)->toContain('Never closed.')
+        ->and($html)->not->toContain('<details>');
+});
+
+test('an unclosed inner block does not swallow the outer one', function () {
+    $project = Project::factory()->create();
+
+    $html = app(WikiMarkdownRenderer::class)->render("{{collapse(Outer)\nText.\n{{collapse(Inner)\nStill open.\n}}\n", $project);
+
+    // Two openings, one closing: the closing pairs with the innermost
+    // opening, leaving the outer one unclosed and literal.
+    expect(substr_count($html, '<details>'))->toBe(1)
+        ->and($html)->toContain('Still open.');
+});
+
+test('a collapse block written directly against surrounding text still renders without leaking its placeholder', function () {
+    $project = Project::factory()->create();
+
+    $html = app(WikiMarkdownRenderer::class)->render("Line before\n{{collapse(Tight)\nInside.\n}}\nLine after\n", $project);
+
+    expect($html)->toContain('<summary>Tight</summary>')
+        ->and($html)->toContain('Line before')
+        ->and($html)->toContain('Line after')
+        ->and($html)->not->toContain('COLLAPSE-MACRO-PLACEHOLDER');
+});
+
+test('CRLF line endings still delimit collapse blocks', function () {
+    $project = Project::factory()->create();
+
+    $html = app(WikiMarkdownRenderer::class)->render("{{collapse(Win)\r\nBody text.\r\n}}\r\n", $project);
+
+    expect($html)->toContain('<summary>Win</summary>')->and($html)->toContain('Body text.');
 });
 
 test('the collapse macro renders on the wiki show page for a member who can view it', function () {
