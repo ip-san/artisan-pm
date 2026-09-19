@@ -52,9 +52,11 @@ final class SearchController extends Controller
         // per-project) view-permission check is cheaper than checking
         // every project in the system and intersecting afterward —
         // set-intersection order doesn't affect the result, only the cost.
-        $query = ($data['scope'] ?? 'all') === 'my_projects'
-            ? Project::query()->whereIn('id', $user->projects()->pluck('projects.id'))
-            : Project::query();
+        $query = match ($data['scope'] ?? 'all') {
+            'my_projects' => Project::query()->whereIn('id', $user->projects()->pluck('projects.id')),
+            'bookmarks' => Project::query()->whereIn('id', $user->bookmarkedProjects()->pluck('projects.id')),
+            default => Project::query(),
+        };
 
         return $this->search($this->visibleProjects($query, $user), $user, $data);
     }

@@ -43,6 +43,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public bool $myProjectsOnly = false;
 
+    #[Url]
+    public bool $bookmarkedOnly = false;
+
     public function mount(): void
     {
         $this->jumpToIssueIfIdQuery();
@@ -76,13 +79,22 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function searchableProjects(): Collection
     {
-        if (! $this->myProjectsOnly || ! auth()->check()) {
-            return $this->visibleProjects;
+        $projects = $this->visibleProjects;
+
+        if (! auth()->check()) {
+            return $projects;
         }
 
-        $memberProjectIds = auth()->user()->projects()->pluck('projects.id');
+        if ($this->myProjectsOnly) {
+            $projects = $projects->whereIn('id', auth()->user()->projects()->pluck('projects.id'));
+        }
 
-        return $this->visibleProjects->whereIn('id', $memberProjectIds)->values();
+        // Redmine's scope=bookmarks: only the projects the viewer starred.
+        if ($this->bookmarkedOnly) {
+            $projects = $projects->whereIn('id', auth()->user()->bookmarkedProjects()->pluck('projects.id'));
+        }
+
+        return $projects->values();
     }
 
     /**
@@ -205,6 +217,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="flex items-center gap-1.5">
                 <input type="checkbox" wire:model="myProjectsOnly" class="rounded border-gray-300">
                 自分のプロジェクトのみ
+            </label>
+            <label class="flex items-center gap-1.5">
+                <input type="checkbox" wire:model="bookmarkedOnly" class="rounded border-gray-300">
+                ブックマークしたプロジェクトのみ
             </label>
         </div>
     </form>

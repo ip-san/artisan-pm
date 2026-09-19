@@ -171,3 +171,30 @@ test('the search page and the API accept the attachments option', function () {
         ->and($this->getJson("/api/v1/projects/{$project->id}/search?q=ui-api-token&attachments=only")->json('data'))->toHaveCount(1);
     $this->getJson('/api/v1/search?q=x&attachments=bogus')->assertUnprocessable();
 });
+
+test('the bookmarks scope limits the global search and the API to starred projects', function () {
+    $starred = Project::factory()->create();
+    $other = Project::factory()->create();
+    $user = attachmentSearchMember($starred, ['view_project', 'view_issues']);
+    Member::factory()->for($other)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_project', 'view_issues']])
+    );
+    attachmentSearchIssue($starred, 'bookmark-scope in starred');
+    attachmentSearchIssue($other, 'bookmark-scope in other');
+    $user->bookmarkedProjects()->attach($starred);
+
+    $everything = Livewire::actingAs($user)->test('search.global-index')->set('query', 'bookmark-scope')->call('search');
+    expect($everything->get('results'))->toHaveCount(2);
+
+    $bookmarked = Livewire::actingAs($user)->test('search.global-index')
+        ->set('query', 'bookmark-scope')->set('bookmarkedOnly', true)->call('search');
+    expect($bookmarked->get('results')->pluck('title')->join(' '))->toContain('in starred')->not->toContain('in other');
+
+    Passport::actingAs($user);
+    $titles = collect($this->getJson('/api/v1/search?q=bookmark-scope&scope=bookmarks')->assertOk()->json('data'))->pluck('title')->join(' ');
+    expect($titles)->toContain('in starred')->not->toContain('in other');
+
+    $lonely = User::factory()->create();
+    Passport::actingAs($lonely);
+    expect($this->getJson('/api/v1/search?q=bookmark-scope&scope=bookmarks')->json('data'))->toBeEmpty();
+});

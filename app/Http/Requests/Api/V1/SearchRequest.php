@@ -34,7 +34,7 @@ final class SearchRequest extends FormRequest
             'titles_only' => ['sometimes', 'boolean'],
             'open_issues' => ['sometimes', 'boolean'],
             'attachments' => ['sometimes', Rule::enum(AttachmentSearchMode::class)],
-            'scope' => ['sometimes', Rule::in(['all', 'my_projects'])],
+            'scope' => ['sometimes', Rule::in(['all', 'my_projects', 'bookmarks'])],
             'subprojects' => ['sometimes', 'boolean'],
         ];
     }
