@@ -198,8 +198,8 @@
 | 112 | A3-01 | — | M | done(2026-09-20) |
 | 113 | A3-02 / A3-11 / A13-05 | A3-01 | M | done(2026-09-20、save_queries と search_project は A13-05b) |
 | 113b | A13-05b | A13-05 | S〜M | todo |
-| 114 | A3-03 | — | M | todo |
-| 115 | A11-16 | A3-03 | S | todo |
+| 114 | A3-03 | — | M | blocked(要承認: docs/design/gap-A3-03.md) |
+| 115 | A11-16 | A3-03 | S | blocked(依存: A3-03) |
 | 116 | A3-09 | — | M | todo |
 | 117 | A4-01 | — | M | todo |
 | 118 | A4-02 | — | M | todo |
