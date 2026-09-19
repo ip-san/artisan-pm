@@ -5,6 +5,7 @@ use App\Enums\UserStatus;
 use App\Models\Group;
 use App\Models\User;
 use App\Services\AccountDeletionService;
+use App\Support\Export\CsvCell;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\UserFilterFieldRegistry;
 use Illuminate\Support\Collection;
@@ -107,10 +108,10 @@ new #[Layout('components.layouts.app')] class extends Component
         return response()->streamDownload(function () use ($columns, $users): void {
             $handle = fopen('php://output', 'w');
             fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, array_map(fn ($key) => UserFilterFieldRegistry::columns()[$key], $columns));
+            fputcsv($handle, CsvCell::row(array_map(fn ($key) => UserFilterFieldRegistry::columns()[$key], $columns)));
 
             foreach ($users as $user) {
-                fputcsv($handle, array_map(fn ($key) => $this->columnValue($user, $key), $columns));
+                fputcsv($handle, CsvCell::row(array_map(fn ($key) => $this->columnValue($user, $key), $columns)));
             }
 
             fclose($handle);

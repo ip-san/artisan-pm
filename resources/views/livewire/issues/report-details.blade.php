@@ -138,7 +138,7 @@ new #[Layout('components.layouts.app')] class extends Component
             }
 
             foreach ($lines as $line) {
-                fputcsv($handle, array_map(fn ($value) => $encoding === 'UTF-8' ? (string) $value : mb_convert_encoding((string) $value, $encoding, 'UTF-8'), $line), $separator);
+                fputcsv($handle, array_map(fn ($value) => $encoding === 'UTF-8' ? (string) $value : mb_convert_encoding((string) $value, $encoding, 'UTF-8'), \App\Support\Export\CsvCell::row($line)), $separator);
             }
 
             fclose($handle);

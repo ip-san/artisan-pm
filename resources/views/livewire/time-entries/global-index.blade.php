@@ -185,7 +185,7 @@ new #[Layout('components.layouts.app')] class extends Component
             }
 
             $write = function (array $row) use ($handle, $encoding, $separator): void {
-                fputcsv($handle, array_map(fn ($value) => $encoding === 'UTF-8' ? (string) $value : mb_convert_encoding((string) $value, $encoding, 'UTF-8'), $row), $separator);
+                fputcsv($handle, array_map(fn ($value) => $encoding === 'UTF-8' ? (string) $value : mb_convert_encoding((string) $value, $encoding, 'UTF-8'), \App\Support\Export\CsvCell::row($row)), $separator);
             };
 
             $write(array_map(fn (string $key) => self::DISPLAY_COLUMNS[$key] ?? $key, $columns));

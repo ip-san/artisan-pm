@@ -813,6 +813,8 @@ new #[Layout('components.layouts.app')] class extends Component
             }
 
             $writeRow = function (array $row) use ($handle, $separator, $encoding): void {
+                $row = \App\Support\Export\CsvCell::row($row);
+
                 if ($encoding !== 'UTF-8') {
                     $row = array_map(fn (string $value) => mb_convert_encoding($value, $encoding, 'UTF-8'), $row);
                 }
