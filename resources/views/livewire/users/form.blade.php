@@ -5,6 +5,8 @@ use App\Models\AuthSource;
 use App\Models\CustomField;
 use App\Models\Setting;
 use App\Models\User;
+use App\Rules\AllowedEmailDomain;
+use App\Rules\UniqueUserValueIgnoringCase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -78,14 +80,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $rules = [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($this->user?->id)],
+            'email' => ['required', 'string', 'email', 'max:255', new UniqueUserValueIgnoringCase('email', $this->user?->id), new AllowedEmailDomain($this->user?->email)],
             'is_admin' => ['boolean'],
             'status' => ['required', Rule::enum(UserStatus::class)],
             'auth_source_id' => ['nullable', 'exists:auth_sources,id'],
             // Always mandatory now, not just for LDAP-linked accounts —
             // format/length constants live on User (single source of
             // truth shared with registration and LDAP provisioning).
-            'login' => ['required', 'string', 'max:'.User::LOGIN_LENGTH_LIMIT, 'regex:'.User::LOGIN_FORMAT_REGEX, Rule::unique('users')->ignore($this->user?->id)],
+            'login' => ['required', 'string', 'max:'.User::LOGIN_LENGTH_LIMIT, 'regex:'.User::LOGIN_FORMAT_REGEX, new UniqueUserValueIgnoringCase('login', $this->user?->id)],
         ];
 
         if (! $isLdapLinked) {

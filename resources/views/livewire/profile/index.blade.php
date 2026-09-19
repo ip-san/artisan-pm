@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\MailNotificationOption;
+use App\Rules\AllowedEmailDomain;
+use App\Rules\UniqueUserValueIgnoringCase;
 use App\Services\AccountDeletionService;
 use App\Support\Auth\RequiresPasswordConfirmation;
 use Illuminate\Support\Facades\Auth;
@@ -50,7 +52,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'email' => ['required', 'string', 'email', 'max:255', new UniqueUserValueIgnoringCase('email', $user->id), new AllowedEmailDomain($user->email)],
             'mail_notification' => ['required', Rule::in(array_map(fn (MailNotificationOption $o) => $o->value, MailNotificationOption::cases()))],
             'no_self_notified' => ['boolean'],
         ]);

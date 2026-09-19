@@ -7,6 +7,8 @@ namespace App\Http\Requests\Api\V1;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use App\Enums\MailNotificationOption;
+use App\Rules\AllowedEmailDomain;
+use App\Rules\UniqueUserValueIgnoringCase;
 use Illuminate\Validation\Rule;
 
 /**
@@ -31,7 +33,7 @@ final class UpdateMyAccountRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'string', 'max:255'],
-            'email' => ['sometimes', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->user()->id)],
+            'email' => ['sometimes', 'string', 'email', 'max:255', new UniqueUserValueIgnoringCase('email', $this->user()->id), new AllowedEmailDomain($this->user()->email)],
             'mail_notification' => ['sometimes', Rule::enum(MailNotificationOption::class)],
             'no_self_notified' => ['sometimes', 'boolean'],
         ];

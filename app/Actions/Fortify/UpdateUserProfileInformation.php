@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Actions\Fortify;
 
 use App\Models\User;
+use App\Rules\AllowedEmailDomain;
+use App\Rules\UniqueUserValueIgnoringCase;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -34,7 +36,8 @@ final class UpdateUserProfileInformation implements UpdatesUserProfileInformatio
                 'string',
                 'email',
                 'max:255',
-                Rule::unique('users')->ignore($user->id),
+                new UniqueUserValueIgnoringCase('email', $user->id),
+                new AllowedEmailDomain($user->email),
             ],
         ])->validateWithBag('updateProfileInformation');
 
