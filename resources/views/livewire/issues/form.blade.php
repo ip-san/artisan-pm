@@ -65,6 +65,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $parent_id = null;
 
+    public string $parentSearch = '';
+
     public string $subject = '';
 
     public string $description = '';
@@ -265,6 +267,24 @@ new #[Layout('components.layouts.app')] class extends Component
      * Whether the form offers the watcher checkboxes: only when creating, and
      * only to someone holding add_issue_watchers in the project.
      */
+    /**
+     * Issues of this project that could be the parent, found by id or subject.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Issue>
+     */
+    #[Computed]
+    public function parentSuggestions(): \Illuminate\Database\Eloquent\Collection
+    {
+        return \App\Support\Issues\IssueSuggestions::search(auth()->user(), $this->parentSearch, $this->project, excludeIssueId: $this->issue?->id);
+    }
+
+    public function pickParent(int $issueId): void
+    {
+        $this->parent_id = $issueId;
+        $this->reset('parentSearch');
+        unset($this->parentSuggestions);
+    }
+
     #[Computed]
     public function canAddWatchers(): bool
     {
@@ -957,6 +977,19 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">親課題ID</label>
                 <input type="number" wire:model="parent_id" placeholder="例: 123"
                     class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <div data-parent-search>
+                    <input type="text" wire:model.live.debounce.250ms="parentSearch" placeholder="#番号または件名で検索..."
+                        class="mt-2 block w-72 rounded-md border-gray-300 shadow-sm text-sm">
+                    @if ($this->parentSuggestions->isNotEmpty())
+                        <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-gray-200 bg-white text-sm shadow-sm">
+                            @foreach ($this->parentSuggestions as $suggestion)
+                                <li wire:key="parent-suggestion-{{ $suggestion->id }}">
+                                    <button type="button" wire:click="pickParent({{ $suggestion->id }})" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">#{{ $suggestion->id }} {{ $suggestion->subject }}</button>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
                 @error('parent_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
         @endif

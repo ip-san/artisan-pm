@@ -100,6 +100,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $relatedIssueId = null;
 
+    public string $relatedSearch = '';
+
     public string $relationType = 'relates';
 
     public ?int $relationDelay = null;
@@ -192,6 +194,25 @@ new #[Layout('components.layouts.app')] class extends Component
     public function subtasks(): \Illuminate\Database\Eloquent\Collection
     {
         return $this->issue->children->loadMissing(RelatedIssueColumns::relationsFor(array_keys($this->relatedColumns)));
+    }
+
+    /**
+     * Issues that could be related to this one, found by id or subject; other
+     * projects too when cross-project relations are allowed.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Issue>
+     */
+    #[Computed]
+    public function relatedSuggestions(): \Illuminate\Database\Eloquent\Collection
+    {
+        return \App\Support\Issues\IssueSuggestions::search(auth()->user(), $this->relatedSearch, $this->issue->project, allowOtherProjects: true, excludeIssueId: $this->issue->id);
+    }
+
+    public function pickRelated(int $issueId): void
+    {
+        $this->relatedIssueId = $issueId;
+        $this->reset('relatedSearch');
+        unset($this->relatedSuggestions);
     }
 
     public function addRelation(): void
@@ -1100,6 +1121,20 @@ new #[Layout('components.layouts.app')] class extends Component
                     <label class="block text-xs font-medium text-gray-700">課題ID</label>
                     <input type="number" wire:model="relatedIssueId" placeholder="例: 123"
                         class="mt-1 block w-28 rounded-md border-gray-300 shadow-sm text-sm">
+                </div>
+                <div data-related-search>
+                    <label class="block text-xs font-medium text-gray-700">検索</label>
+                    <input type="text" wire:model.live.debounce.250ms="relatedSearch" placeholder="#番号または件名..."
+                        class="mt-1 block w-56 rounded-md border-gray-300 shadow-sm text-sm">
+                    @if ($this->relatedSuggestions->isNotEmpty())
+                        <ul class="absolute z-10 mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-gray-200 bg-white text-sm shadow-sm">
+                            @foreach ($this->relatedSuggestions as $suggestion)
+                                <li wire:key="related-suggestion-{{ $suggestion->id }}">
+                                    <button type="button" wire:click="pickRelated({{ $suggestion->id }})" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">#{{ $suggestion->id }} {{ $suggestion->subject }}</button>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
                 </div>
                 @if (in_array($relationType, ['precedes', 'follows'], true))
                     <div>
