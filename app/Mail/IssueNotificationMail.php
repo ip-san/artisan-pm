@@ -10,11 +10,13 @@ use App\Models\Journal;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Support\Mail\MessageIdentity;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 /**
@@ -68,7 +70,24 @@ final class IssueNotificationMail extends Mailable
         public readonly string $eventType,
         public readonly User $actor,
         public readonly ?Journal $journal = null,
+        public readonly ?int $recipientId = null,
     ) {}
+
+    /**
+     * Redmine's threading headers: the creation mail is identified by the
+     * issue, an update by its journal and referencing the issue.
+     */
+    public function headers(): Headers
+    {
+        if ($this->journal !== null) {
+            return new Headers(
+                messageId: MessageIdentity::tokenFor($this->journal, $this->recipientId),
+                references: [MessageIdentity::tokenFor($this->issue, $this->recipientId)],
+            );
+        }
+
+        return new Headers(messageId: MessageIdentity::tokenFor($this->issue, $this->recipientId));
+    }
 
     public function envelope(): Envelope
     {

@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\EnumerationType;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\Journal;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Setting;
@@ -14,6 +15,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Support\Attachments\AttachmentUploader;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Mail\MessageIdentity;
 use App\Support\Mail\ParsedIncomingMail;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -135,6 +137,7 @@ final class IncomingMailService
             body: $body,
             fromEmail: (string) ($message->from[0]->mail ?? ''),
             attachments: $attachments,
+            replyHeaders: array_map('strval', [...$message->in_reply_to->all(), ...$message->references->all()]),
         );
     }
 
@@ -205,14 +208,23 @@ final class IncomingMailService
             return null;
         }
 
-        // A subject containing "[... #123]" is a reply to a notification
-        // about issue #123 — matches Redmine's MailHandler::
-        // ISSUE_REPLY_SUBJECT_RE, routing to a comment on the existing
-        // issue instead of creating a new one. This app doesn't send
-        // outbound notification emails yet, so nothing currently
-        // generates a subject shaped like that automatically, but a
-        // sender can still trigger it by including the pattern
-        // themselves, and it's ready for whenever notifications exist.
+        // Redmine's MailHandler#dispatch: a reply is recognised first by the
+        // Message-Id our notification mails carry (In-Reply-To / References),
+        // then by a "[... #123]" subject. A recognised header for something
+        // this app has no reply handler for is ignored, not treated as a new
+        // issue.
+        $target = MessageIdentity::target($mail->replyHeaders);
+
+        if ($target !== null) {
+            $issueId = match ($target[0]) {
+                'issue' => $target[1],
+                'journal' => Journal::query()->whereKey($target[1])->value('issue_id'),
+                default => null,
+            };
+
+            return $issueId === null ? null : $this->receiveIssueReply((int) $issueId, $mail, $author);
+        }
+
         if (preg_match('/\[(?:[^\]]*\s+)?#(\d+)\]/', $mail->subject, $matches) === 1) {
             return $this->receiveIssueReply((int) $matches[1], $mail, $author);
         }

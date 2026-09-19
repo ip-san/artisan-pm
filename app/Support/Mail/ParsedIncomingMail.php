@@ -13,11 +13,13 @@ final readonly class ParsedIncomingMail
 {
     /**
      * @param  array<int, array{filename: string, content: string}>  $attachments
+     * @param  array<int, string>  $replyHeaders  the In-Reply-To and References values
      */
     public function __construct(
         public string $subject,
         public string $body,
         public string $fromEmail,
         public array $attachments = [],
+        public array $replyHeaders = [],
     ) {}
 }
