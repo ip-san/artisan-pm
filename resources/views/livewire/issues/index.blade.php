@@ -201,6 +201,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $bulkComment = '';
 
+    /**
+     * Fields the bulk edit sets to "none" (only these three can be blank).
+     *
+     * @var array<int, string>
+     */
+    public array $bulkClear = [];
+
     public ?int $bulkMoveToProjectId = null;
 
     public ?int $bulkMoveToTrackerId = null;
@@ -927,6 +934,8 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->authorize('manageSubtasks', [Issue::class, $this->project]);
         }
 
+        $clearable = array_values(array_intersect($this->bulkClear, ['assigned_to_id', 'fixed_version_id', 'category_id']));
+
         $changes = array_filter([
             'priority_id' => $data['bulkPriorityId'],
             'assigned_to_id' => $data['bulkAssignedToId'],
@@ -945,6 +954,10 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_id' => $data['bulkParentId'],
         ], fn ($value) => $value !== null);
 
+        foreach ($clearable as $field) {
+            $changes[$field] = null;
+        }
+
         if (isset($changes['status_id'])) {
             $targetStatus = IssueStatus::findOrFail($changes['status_id']);
 
@@ -959,11 +972,63 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $count = $issues->count();
 
-        $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment']);
+        $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear']);
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
         session()->flash('status', "{$count}件の課題を更新しました。");
+    }
+
+    /**
+     * Right-click on a row: the clicked issue becomes the selection unless it
+     * is already part of it, so the menu acts on the whole selection like
+     * Redmine's context menu does.
+     */
+    public function openContextMenu(int $issueId): void
+    {
+        abort_unless($this->canBulkEdit, 403);
+
+        $issue = Issue::query()->where('project_id', $this->project->id)->find($issueId);
+
+        abort_if($issue === null, 404);
+
+        if (! in_array($issue->id, array_map('intval', $this->selected), true)) {
+            $this->selected = [(string) $issue->id];
+        }
+
+        unset($this->selectedIssues, $this->bulkStatusOptions);
+    }
+
+    /**
+     * One quick change from the context menu, applied to the selection
+     * through the same validation and authorization as the bulk form. The
+     * value `none` clears a version, assignee or category; `me` assigns the
+     * current user.
+     */
+    public function contextUpdate(string $field, string $value): void
+    {
+        $properties = [
+            'status_id' => 'bulkStatusId',
+            'tracker_id' => 'bulkTrackerId',
+            'priority_id' => 'bulkPriorityId',
+            'fixed_version_id' => 'bulkFixedVersionId',
+            'assigned_to_id' => 'bulkAssignedToId',
+            'category_id' => 'bulkCategoryId',
+            'done_ratio' => 'bulkDoneRatio',
+        ];
+
+        abort_unless($this->canBulkEdit && isset($properties[$field]), 403);
+
+        $this->reset(['bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear']);
+
+        if ($value === 'none') {
+            abort_unless(in_array($field, ['assigned_to_id', 'fixed_version_id', 'category_id'], true), 422);
+            $this->bulkClear = [$field];
+        } else {
+            $this->{$properties[$field]} = (int) ($value === 'me' && $field === 'assigned_to_id' ? auth()->id() : $value);
+        }
+
+        $this->applyBulkEdit();
     }
 
     /**
@@ -1175,7 +1240,78 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 }; ?>
 
-<div>
+<div x-data="{ menu: { open: false, x: 0, y: 0 }, showMenu(event, issueId) { const x = event.clientX, y = event.clientY; $wire.openContextMenu(issueId).then(() => { this.menu = { open: true, x: Math.min(x, window.innerWidth - 220), y: Math.min(y, window.innerHeight - 320) }; }); } }"
+    x-on:click.window="menu.open = false" x-on:keydown.escape.window="menu.open = false">
+
+    @if ($this->canBulkEdit && count($selected) > 0)
+        <div x-show="menu.open" x-cloak x-on:click.stop x-bind:style="`left:${menu.x}px;top:${menu.y}px`" data-context-menu
+            class="fixed z-50 w-52 rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg">
+            @if (count($selected) === 1)
+                <a href="{{ route('issues.edit', [$project, $this->selectedIssues->first()]) }}" class="block px-3 py-1.5 text-gray-700 hover:bg-gray-100">編集</a>
+            @else
+                <a href="#bulk-edit-form" x-on:click="menu.open = false" class="block px-3 py-1.5 text-gray-700 hover:bg-gray-100">一括編集</a>
+            @endif
+
+            @foreach ([
+                'status_id' => ['ステータス', $this->bulkStatusOptions, false],
+                'tracker_id' => ['トラッカー', $this->bulkTrackers, false],
+                'priority_id' => ['優先度', $this->priorities, false],
+            ] as $menuField => [$menuLabel, $menuOptions, $menuNone])
+                @if ($menuOptions->isNotEmpty())
+                    <div class="group relative" wire:key="context-menu-{{ $menuField }}">
+                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-gray-700 group-hover:bg-gray-100">{{ $menuLabel }} <span class="text-gray-400">›</span></span>
+                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg group-hover:block">
+                            @foreach ($menuOptions as $menuOption)
+                                <button type="button" wire:click="contextUpdate('{{ $menuField }}', '{{ $menuOption->id }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">{{ $menuOption->name }}</button>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+            @endforeach
+
+            @foreach ([
+                'fixed_version_id' => ['対象バージョン', $this->projectVersions(), '(なし)'],
+                'assigned_to_id' => ['担当者', $this->projectMembers, '(未割当)'],
+                'category_id' => ['カテゴリ', $this->bulkCategories, '(なし)'],
+            ] as $menuField => [$menuLabel, $menuOptions, $menuNone])
+                @if ($menuOptions->isNotEmpty() || $menuField === 'assigned_to_id')
+                    <div class="group relative" wire:key="context-menu-{{ $menuField }}">
+                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-gray-700 group-hover:bg-gray-100">{{ $menuLabel }} <span class="text-gray-400">›</span></span>
+                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg group-hover:block">
+                            @if ($menuField === 'assigned_to_id' && $this->projectMembers->contains('id', auth()->id()))
+                                <button type="button" wire:click="contextUpdate('assigned_to_id', 'me')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">&lt;&lt; 自分 &gt;&gt;</button>
+                            @endif
+                            @foreach ($menuOptions as $menuOption)
+                                <button type="button" wire:click="contextUpdate('{{ $menuField }}', '{{ $menuOption->id }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">{{ $menuOption->name }}</button>
+                            @endforeach
+                            <button type="button" wire:click="contextUpdate('{{ $menuField }}', 'none')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-500 hover:bg-gray-100">{{ $menuNone }}</button>
+                        </div>
+                    </div>
+                @endif
+            @endforeach
+
+            <div class="group relative" wire:key="context-menu-done_ratio">
+                <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-gray-700 group-hover:bg-gray-100">進捗率 <span class="text-gray-400">›</span></span>
+                <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg group-hover:block">
+                    @foreach (\App\Support\Issues\DoneRatioSteps::options() as $ratio)
+                        <button type="button" wire:click="contextUpdate('done_ratio', '{{ $ratio }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">{{ $ratio }}%</button>
+                    @endforeach
+                </div>
+            </div>
+
+            @if ($this->canBulkCopy)
+                <a href="#bulk-copy-form" x-on:click="menu.open = false" class="block border-t border-gray-100 px-3 py-1.5 text-gray-700 hover:bg-gray-100">コピー</a>
+            @endif
+            @if (auth()->user()?->can('delete', $this->selectedIssues->first()))
+                @if ($this->bulkDeleteHours > 0)
+                    <button type="button" wire:click="$set('confirmingBulkDelete', true)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-red-700 hover:bg-red-50">削除</button>
+                @else
+                    <button type="button" wire:click="applyBulkDelete" wire:confirm="選択した{{ count($selected) }}件の課題を削除します。この操作は取り消せません。よろしいですか?" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-red-700 hover:bg-red-50">削除</button>
+                @endif
+            @endif
+        </div>
+    @endif
+
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — 課題</h1>
@@ -1298,7 +1434,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($this->canBulkEdit && count($selected) > 0)
-        <form wire:submit="applyBulkEdit" class="mb-4 space-y-3 rounded-md border border-indigo-200 bg-indigo-50 p-4">
+        <form id="bulk-edit-form" wire:submit="applyBulkEdit" class="mb-4 space-y-3 rounded-md border border-indigo-200 bg-indigo-50 p-4">
             <p class="text-sm font-medium text-gray-900">{{ count($selected) }}件を選択中 — 変更する項目だけ設定してください</p>
 
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1443,7 +1579,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if (count($selected) > 0 && $this->canBulkCopy && $this->bulkCopyTargetProjects->isNotEmpty())
-        <form wire:submit="applyBulkCopy" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-white p-4">
+        <form id="bulk-copy-form" wire:submit="applyBulkCopy" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-white p-4">
             <div>
                 <label class="block text-xs font-medium text-gray-700">{{ count($selected) }}件をコピーして複製</label>
                 <select wire:model.live="bulkCopyToProjectId" class="mt-1 block rounded-md border-gray-300 text-sm">
@@ -1586,7 +1722,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($groupIssues as $issue)
-                        <tr wire:key="issue-row-{{ $issue->id }}">
+                        <tr wire:key="issue-row-{{ $issue->id }}" @if ($this->canBulkEdit) x-on:contextmenu.prevent="showMenu($event, {{ $issue->id }})" @endif class="{{ in_array((string) $issue->id, array_map('strval', $selected), true) ? 'bg-indigo-50' : '' }}">
                             @if ($this->canBulkEdit)
                                 <td class="px-4 py-2">
                                     <input type="checkbox" wire:model="selected" value="{{ $issue->id }}" class="rounded border-gray-300">
