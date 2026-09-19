@@ -9,12 +9,13 @@ use App\Models\User;
 use App\Models\WikiPageVersion;
 use App\Support\Activity\ActivityEntry;
 use App\Support\Activity\ActivityProvider;
+use App\Support\Activity\OffByDefault;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use LogicException;
 
-final class WikiActivityProvider implements ActivityProvider
+final class WikiActivityProvider implements ActivityProvider, OffByDefault
 {
     public function __construct(
         private readonly AuthorizationService $authorization,

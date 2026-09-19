@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Support\Activity\ActivityProviderRegistry;
 use App\Support\Activity\Providers\ChangesetActivityProvider;
 use App\Support\Activity\Providers\DocumentActivityProvider;
+use App\Support\Activity\Providers\FileActivityProvider;
 use App\Support\Activity\Providers\IssueActivityProvider;
 use App\Support\Activity\Providers\IssueJournalActivityProvider;
 use App\Support\Activity\Providers\MessageActivityProvider;
@@ -39,6 +40,7 @@ final class ActivityServiceProvider extends ServiceProvider
         $registry->register($this->app->make(MessageActivityProvider::class));
         $registry->register($this->app->make(NewsActivityProvider::class));
         $registry->register($this->app->make(DocumentActivityProvider::class));
+        $registry->register($this->app->make(FileActivityProvider::class));
         $registry->register($this->app->make(ChangesetActivityProvider::class));
         $registry->register($this->app->make(TimeEntryActivityProvider::class));
     }

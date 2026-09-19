@@ -103,7 +103,10 @@ test('wiki edits, forum messages, documents, changesets, and time entries all ap
     Changeset::factory()->for($repository)->create(['committed_on' => now()->subDay()]);
     TimeEntry::factory()->for($project)->for($user)->create(['spent_on' => now()->toDateString()]);
 
+    // Wiki edits, messages and time entries start unchecked (Redmine's
+    // `default: false`), so this ticks every type explicitly.
     $component = Livewire::actingAs($user)->test('activity.index', ['project' => $project]);
+    $component->set('activeTypes', $component->get('providers')->map->type()->all());
     $types = $component->get('entries')->pluck('type');
 
     expect($types)->toContain('wiki-edit')

@@ -5,6 +5,7 @@ use App\Models\Setting;
 use App\Support\Activity\ActivityProviderRegistry;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use App\Support\Activity\OffByDefault;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -46,7 +47,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if ($this->activeTypes === []) {
-            $this->activeTypes = $this->providers->map->type()->all();
+            $this->activeTypes = $this->providers->reject(fn ($provider) => $provider instanceof OffByDefault)->map->type()->values()->all();
         }
     }
 
