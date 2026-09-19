@@ -189,7 +189,7 @@
 | 103 | A1-19 | A1-18 | M | done(2026-09-20) |
 | 104 | A1-22 | — | S | done(2026-09-20、更新日時は既存の updated_at を使用) |
 | 105 | A1-27 | — | M | blocked(要承認: docs/design/gap-A1-27.md) |
-| 106 | A1-28 | — | M〜L | todo |
+| 106 | A1-28 | — | M〜L | blocked(要承認: docs/design/gap-A1-28.md) |
 | 107 | A1-29 | — | S〜M | todo |
 | 108 | A2-03 | — | M | todo |
 | 109 | A2-05 | A2-03 | S〜M | todo |
