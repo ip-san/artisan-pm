@@ -21,6 +21,7 @@ use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\IssueFilterFieldRegistry;
+use App\Support\Query\ListQueryString;
 use App\Support\Query\QueryFilterEngine;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -225,21 +226,30 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private function sortCriteria(): array
     {
-        if ($this->sortKey === null) {
-            return [];
-        }
+        return ListQueryString::sortCriteria(
+            $this->sortKey, $this->sortDirection,
+            $this->sortKey2, $this->sortDirection2,
+            $this->sortKey3, $this->sortDirection3,
+        );
+    }
 
-        $criteria = [[$this->sortKey, $this->sortDirection]];
-
-        if ($this->sortKey2 !== null) {
-            $criteria[] = [$this->sortKey2, $this->sortDirection2];
-        }
-
-        if ($this->sortKey3 !== null) {
-            $criteria[] = [$this->sortKey3, $this->sortDirection3];
-        }
-
-        return $criteria;
+    /**
+     * The Atom feed link carries the list's current filters and sort, so
+     * the feed shows the same issues (Redmine's issues.atom honours the
+     * query the same way).
+     */
+    #[Computed]
+    public function atomUrl(): string
+    {
+        return route('issues.atom', $this->project).'?'.http_build_query([
+            'statusFilter' => $this->statusFilter,
+            ...ListQueryString::toQueryParameters(
+                $this->activeFilterKeys, $this->filterOperators, $this->filterValues,
+                $this->sortKey, $this->sortDirection,
+                $this->sortKey2, $this->sortDirection2,
+                $this->sortKey3, $this->sortDirection3,
+            ),
+        ]);
     }
 
     /**
@@ -937,7 +947,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('issues.atom', $project) }}" class="text-xs text-orange-600 hover:underline">Atom</a>
+            <a href="{{ $this->atomUrl }}" class="text-xs text-orange-600 hover:underline">Atom</a>
             <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-gray-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
                 <option value="SJIS-win">Shift_JIS</option>

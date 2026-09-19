@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Concerns;
 
+use App\Support\Query\ListQueryString;
 use Livewire\Attributes\Url;
 
 /**
@@ -44,22 +45,7 @@ trait InteractsWithQueryFilters
      */
     private function builtFilters(): array
     {
-        $filters = [];
-
-        foreach ($this->activeFilterKeys as $key) {
-            $operator = $this->filterOperators[$key] ?? null;
-
-            if ($operator === null) {
-                continue;
-            }
-
-            $filters[$key] = [
-                'operator' => $operator,
-                'values' => array_values(array_filter($this->filterValues[$key] ?? [], fn ($v) => $v !== null && $v !== '')),
-            ];
-        }
-
-        return $filters;
+        return ListQueryString::filters($this->activeFilterKeys, $this->filterOperators, $this->filterValues);
     }
 
     public function addFilter(string $key): void
