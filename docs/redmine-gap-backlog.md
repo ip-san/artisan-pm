@@ -103,7 +103,7 @@
 | 32 | A11-08 | — | S | done(2026-09-20) |
 | 33 | A11-09 | — | S | done(2026-09-20) |
 | 34 | A11-14 | — | S | done(2026-09-20) |
-| 35 | A6-02 | — | S | todo |
+| 35 | A6-02 | (取り下げ)@mention の News コメント・フォーラム投稿への拡張 | — | Redmine 7.0.0 で `acts_as_mentionable` を持つのは Issue(`description`)・Journal(`notes`)・WikiContent(`text`) のみ(`app/models/{issue,journal,wiki_content}.rb`)。News コメントとフォーラム投稿は対象外 | 作業不要(チェックリストが「次点・未着手」と誤って書いていた) | — | Watchers「作成者/担当者の自動Watch・@mention」(C-22) |
 | 36 | A6-03 | — | S | todo |
 | 37 | A6-04 | — | S | todo |
 | 38 | A5-11 / A6-07 | — | S | todo |
@@ -521,6 +521,7 @@
 | C-19 | (バックログ自身の訂正)A7-04 | 「Wiki 個別バージョンの削除は未実装」 | 実装済みだった。実際の差分は権限(`edit_wiki_pages` ↔ Redmine の `delete_wiki_pages`)と最新版/最後の1版の扱い | 反映済み(A7-04) |
 | C-20 | (実装中に発見したセキュリティ不具合、A11-01 で修正済み)REST API「Issues」 | 一覧 `GET /projects/{id}/issues` は `view_issues` があれば読めるとして記載 | 課題単位の可視性(非公開課題・own/default)が未適用で、権限のない課題が漏れていた | 修正・回帰テスト追加済み(`IssueApiIndexTest.php`) |
 | C-21 | (実装中に発見したアクセス制御の不具合、A11-09 で修正済み)REST API「Issues」`include=children` | 直下の子課題を返すとして記載 | 閲覧権限のない子課題(非公開のサブタスクなど)も題名付きで返していた | 呼び出し元が閲覧可能な子だけに絞り、回帰テスト追加済み |
+| C-22 | (バックログ自身の訂正)A6-02 | 「@mention の News/フォーラムへの拡張が未対応」 | Redmine 自体が対応していない(mentionable は Issue/Journal/WikiContent のみ) | 反映済み |
 
 ---
 
