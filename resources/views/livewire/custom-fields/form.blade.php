@@ -4,6 +4,7 @@ use App\Enums\CustomFieldDefaultValueMode;
 use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Models\CustomField;
+use App\Support\Issues\DoneRatioSteps;
 use App\Models\CustomFieldEnumeration;
 use App\Models\Project;
 use App\Models\Role;
@@ -29,6 +30,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $multiple = false;
 
     public ?int $min_length = null;
+
+    public ?int $ratio_interval = null;
 
     public ?int $max_length = null;
 
@@ -68,6 +71,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->is_required = $customField->is_required;
             $this->multiple = $customField->multiple;
             $this->min_length = $customField->min_length;
+            $this->ratio_interval = $customField->ratio_interval;
             $this->max_length = $customField->max_length;
             $this->regexp = (string) $customField->regexp;
             $this->default_value = (string) $customField->default_value;
@@ -246,6 +250,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'is_required' => ['boolean'],
             'multiple' => ['boolean'],
             'min_length' => ['nullable', 'integer', 'min:0'],
+            'ratio_interval' => ['nullable', 'integer', Rule::in(DoneRatioSteps::INTERVALS)],
             'max_length' => ['nullable', 'integer', 'min:0'],
             'regexp' => ['nullable', 'string', 'max:255', function (string $attribute, mixed $value, \Closure $fail): void {
                 if ($value === '' || $value === null) {
@@ -291,6 +296,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'is_required' => $data['is_required'],
             'multiple' => $data['multiple'],
             'min_length' => $data['min_length'],
+            // Only a progressbar field has a step; blank means the site default.
+            'ratio_interval' => $fieldFormat === CustomFieldFormat::Progressbar->value ? ($data['ratio_interval'] ?? DoneRatioSteps::interval()) : null,
             'max_length' => $data['max_length'],
             'regexp' => $data['regexp'] !== '' ? $data['regexp'] : null,
             'default_value' => $data['default_value'] !== '' && $data['default_value'] !== null ? (string) $data['default_value'] : null,
@@ -428,6 +435,19 @@ new #[Layout('components.layouts.app')] class extends Component
                 <button type="button" wire:click="addEnumerationOption" class="mt-2 text-xs text-indigo-600 hover:underline">
                     + 選択肢を追加
                 </button>
+            </div>
+        @endif
+
+        @if ($field_format === \App\Enums\CustomFieldFormat::Progressbar->value)
+            <div>
+                <label class="block text-sm font-medium text-gray-700">選択肢の刻み</label>
+                <select wire:model="ratio_interval" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">既定({{ \App\Support\Issues\DoneRatioSteps::interval() }} %)</option>
+                    @foreach (\App\Support\Issues\DoneRatioSteps::INTERVALS as $interval)
+                        <option value="{{ $interval }}">{{ $interval }} %</option>
+                    @endforeach
+                </select>
+                @error('ratio_interval') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
         @endif
 

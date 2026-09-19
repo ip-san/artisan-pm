@@ -68,8 +68,12 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="block text-sm font-medium text-gray-700">
                 既定の進捗率(%、任意)
             </label>
-            <input type="number" wire:model="default_done_ratio" min="0" max="100"
-                class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <select wire:model="default_done_ratio" class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <option value="">未設定</option>
+                @foreach (\App\Support\Issues\DoneRatioSteps::options(current: $default_done_ratio) as $ratio)
+                    <option value="{{ $ratio }}">{{ $ratio }} %</option>
+                @endforeach
+            </select>
             <p class="mt-1 text-xs text-gray-500">
                 設定「課題の進捗率」が「ステータスから算出」の場合、このステータスへ変更した課題の進捗率に自動反映されます。
             </p>

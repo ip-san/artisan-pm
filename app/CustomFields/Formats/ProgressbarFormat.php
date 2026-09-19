@@ -10,14 +10,12 @@ use App\Models\CustomField;
 /**
  * Matches Redmine's "progressbar" field format (Redmine::FieldFormat::
  * ProgressbarFormat) — an integer clamped to 0-100. Storage/validation are
- * otherwise identical to IntFormat with a fixed range; Redmine's
- * `ratio_interval` field attribute (which steps the admin's edit `<select>`
- * in fixed increments instead of a free-text/number input, defaulting from
- * `Setting.issue_done_ratio_interval`) is intentionally not reproduced —
- * it only affects the granularity offered while picking a value, not the
- * stored value's validity, and this app has no equivalent stepped-select
- * form control anywhere yet. A plain number input (shared with Int/Float
- * in custom-field-input.blade.php) covers the same value space. Likewise,
+ * otherwise identical to IntFormat with a fixed range. Redmine's
+ * `ratio_interval` field attribute (the step of the value select,
+ * defaulting from `Setting.issue_done_ratio_interval`) is the field's
+ * ratio_interval column: it only shapes the choices offered by
+ * custom-field-input.blade.php, never the validity of a stored value.
+ * Likewise,
  * this app doesn't render an actual progress-bar graphic for its native
  * done_ratio field either (issues/show.blade.php shows it as plain "N%"
  * text), so a custom field of this format is displayed the same way

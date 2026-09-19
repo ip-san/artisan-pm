@@ -1111,7 +1111,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <label class="block text-xs font-medium text-gray-700">進捗率</label>
                     <select wire:model="bulkDoneRatio" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
                         <option value="">変更なし</option>
-                        @foreach ([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as $ratio)
+                        @foreach (\App\Support\Issues\DoneRatioSteps::options() as $ratio)
                             <option value="{{ $ratio }}">{{ $ratio }}%</option>
                         @endforeach
                     </select>

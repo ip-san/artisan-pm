@@ -817,9 +817,13 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($issue)
             @unless ($this->isCoreFieldDisabled('done_ratio'))
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">進捗率 ({{ $done_ratio }}%)</label>
-                    <input type="range" wire:model="done_ratio" min="0" max="100" step="10" class="mt-1 block w-full"
+                    <label class="block text-sm font-medium text-gray-700">進捗率</label>
+                    <select wire:model="done_ratio" class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm sm:text-sm"
                         @disabled($this->doneRatioIsStatusDerived || $this->doneRatioIsParentDerived)>
+                        @foreach (\App\Support\Issues\DoneRatioSteps::options(current: $done_ratio) as $ratio)
+                            <option value="{{ $ratio }}">{{ $ratio }} %</option>
+                        @endforeach
+                    </select>
                     @if ($this->doneRatioIsStatusDerived)
                         <p class="mt-1 text-xs text-gray-500">設定によりステータスから自動算出されます。</p>
                     @elseif ($this->doneRatioIsParentDerived)

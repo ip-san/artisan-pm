@@ -8,6 +8,7 @@ use App\Models\Enumeration;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Support\Issues\DoneRatioSteps;
 use App\Support\Issues\RelatedIssueColumns;
 use App\Models\Tracker;
 use App\Models\IssueStatus;
@@ -121,6 +122,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $issue_done_ratio = 'issue_field';
 
+    public int $issue_done_ratio_interval = 10;
+
     public bool $close_duplicate_issues = true;
 
     public bool $parent_issue_priority = true;
@@ -215,6 +218,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
         $this->reactions_enabled = Setting::get('reactions_enabled', true);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
+        $this->issue_done_ratio_interval = DoneRatioSteps::interval();
         $this->close_duplicate_issues = Setting::get('close_duplicate_issues', true);
         $this->parent_issue_priority = Setting::get('parent_issue_priority', true);
         $this->parent_issue_dates = Setting::get('parent_issue_dates', true);
@@ -341,6 +345,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'attachment_extensions_allowed' => ['nullable', 'string', 'max:1000'],
             'attachment_extensions_denied' => ['nullable', 'string', 'max:1000'],
             'issue_done_ratio' => ['required', 'in:issue_field,issue_status'],
+            'issue_done_ratio_interval' => ['required', 'integer', Rule::in(DoneRatioSteps::INTERVALS)],
             'close_duplicate_issues' => ['boolean'],
             'parent_issue_priority' => ['boolean'],
             'parent_issue_dates' => ['boolean'],
@@ -454,6 +459,17 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="issue_status">ステータスから算出</option>
                 </select>
                 @error('issue_done_ratio') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">進捗率の選択肢の刻み</label>
+                <select wire:model="issue_done_ratio_interval" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach (DoneRatioSteps::INTERVALS as $interval)
+                        <option value="{{ $interval }}">{{ $interval }} %</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-gray-500">課題フォーム・一括編集・ステータスの既定進捗率・進捗率型カスタムフィールドの選択肢の刻み幅です(保存済みの値の妥当性には影響しません)。</p>
+                @error('issue_done_ratio_interval') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-center gap-2 text-sm text-gray-700">
