@@ -1,6 +1,7 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
+use App\Concerns\ReordersColumns;
 use App\Enums\EnumerationType;
 use App\Enums\FilterOperator;
 use App\Enums\IssueTimeEntryDisposition;
@@ -41,6 +42,7 @@ use Livewire\WithPagination;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
+    use ReordersColumns;
     use WithPagination;
 
     /**
@@ -1092,6 +1094,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     </label>
                 @endforeach
             </div>
+
+            <x-column-order :columns="$columns" :labels="$this->availableColumns" />
 
             <div class="flex flex-wrap items-center gap-2 text-sm text-gray-700">
                 並べ替え(最大3列。列見出しのクリックは1列目のみ変更):

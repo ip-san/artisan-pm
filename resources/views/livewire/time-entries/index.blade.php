@@ -1,6 +1,7 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
+use App\Concerns\ReordersColumns;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
 use App\Enums\TimeEntryVisibility;
@@ -25,6 +26,7 @@ use Livewire\Volt\Component;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
+    use ReordersColumns;
 
     /**
      * Columns selectable for display/CSV export — mirrors issues.index's
@@ -480,6 +482,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     </label>
                 @endforeach
             </div>
+
+            <x-column-order :columns="$columns" :labels="self::DISPLAY_COLUMNS" />
 
             <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
         </div>
