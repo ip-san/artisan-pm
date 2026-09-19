@@ -150,6 +150,23 @@ final class User extends Authenticatable implements OAuthenticatable
     }
 
     /**
+     * Redmine only sends a lost-password mail to an active user whose
+     * password is managed locally. Skipping silently (rather than
+     * failing) gives a locked or LDAP-backed account the same response as
+     * an ordinary one, so the endpoint doesn't additionally reveal an
+     * account's state (an unregistered address still gets Fortify's
+     * "no such user" error, as it does in Redmine).
+     */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        if (! $this->isActive() || $this->auth_source_id !== null) {
+            return;
+        }
+
+        $this->notify(new \Illuminate\Auth\Notifications\ResetPassword($token));
+    }
+
+    /**
      * Matches Redmine's Principal.visible scope: restricts $query to users
      * $viewer is actually allowed to search/see (per
      * Role.users_visibility), unless $viewer holds site-wide visibility —

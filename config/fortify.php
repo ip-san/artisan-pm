@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnforceAutologinSetting;
+use App\Http\Middleware\EnforceLostPasswordSetting;
 use Laravel\Fortify\Features;
 
 return [
@@ -102,7 +103,7 @@ return [
     |
     */
 
-    'middleware' => ['web', EnforceAutologinSetting::class],
+    'middleware' => ['web', EnforceAutologinSetting::class, EnforceLostPasswordSetting::class],
 
     /*
     |--------------------------------------------------------------------------

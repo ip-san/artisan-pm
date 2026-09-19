@@ -23,6 +23,13 @@ final class ResetUserPassword implements ResetsUserPasswords
      */
     public function reset(User $user, array $input): void
     {
+        // A token can outlive the account state it was issued in: a locked
+        // user or one that now authenticates against an external directory
+        // (LDAP) must not be able to set a local password with it.
+        if (! $user->isActive() || $user->auth_source_id !== null) {
+            throw ValidationException::withMessages(['email' => 'このアカウントのパスワードは再設定できません。']);
+        }
+
         Validator::make($input, [
             'password' => $this->passwordRules(),
         ])->validate();

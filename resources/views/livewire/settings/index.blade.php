@@ -147,6 +147,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $autologin = false;
 
+    public bool $lost_password = true;
+
     public bool $rest_api_enabled = false;
 
     public bool $login_required = true;
@@ -189,6 +191,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->email_domains_denied = Setting::get('email_domains_denied', '');
         $this->password_min_length = Setting::get('password_min_length', 8);
         $this->autologin = Setting::get('autologin', false);
+        $this->lost_password = Setting::get('lost_password', true);
         $this->rest_api_enabled = Setting::get('rest_api_enabled', false);
         $this->login_required = Setting::get('login_required', true);
         $this->twofa = Setting::get('twofa', '0');
@@ -335,6 +338,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'email_domains_denied' => ['nullable', 'string', 'max:1000'],
             'password_min_length' => ['required', 'integer', 'min:1', 'max:255'],
             'autologin' => ['boolean'],
+            'lost_password' => ['boolean'],
             'rest_api_enabled' => ['boolean'],
             'login_required' => ['boolean'],
             'twofa' => ['required', 'in:0,1,2,3'],
@@ -599,6 +603,14 @@ new #[Layout('components.layouts.app')] class extends Component
                 <p class="mt-1 text-xs text-gray-500">
                     新規登録・管理者によるユーザー作成・パスワード変更のすべてに適用されます(Redmine本家の文字種別必須設定・パスワード有効期限は、それぞれ本アプリのバリデーションルールでは表現できない/専用の運用基盤が必要なため対象外です)。
                 </p>
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="lost_password" class="rounded border-gray-300">
+                    ログインページに「パスワードをお忘れの場合」のリンクを表示し、本人によるパスワード再設定を許可する
+                </label>
+                <p class="mt-1 text-xs text-gray-500">無効の場合、本人からの再設定リクエストは受け付けません(管理者がユーザー編集画面から送るリセットメールのリンクは引き続き有効です)。</p>
             </div>
 
             <div>

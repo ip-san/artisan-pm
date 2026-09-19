@@ -36,6 +36,8 @@ final class FortifyServiceProvider extends ServiceProvider
         Fortify::registerView(fn () => Setting::get('self_registration', 'automatic') === 'disabled'
             ? redirect()->route('login')
             : view('auth.register'));
+        Fortify::requestPasswordResetLinkView(fn () => view('auth.forgot-password'));
+        Fortify::resetPasswordView(fn (Request $request) => view('auth.reset-password', ['request' => $request]));
         Fortify::confirmPasswordView(fn () => view('auth.confirm-password'));
         Fortify::twoFactorChallengeView(fn () => view('auth.two-factor-challenge'));
 

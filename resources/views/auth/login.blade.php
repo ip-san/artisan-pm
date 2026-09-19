@@ -42,6 +42,12 @@
             </button>
         </form>
 
+        @if (\App\Models\Setting::get('lost_password', true))
+            <p class="mt-4 text-sm text-gray-600">
+                <a href="{{ route('password.request') }}" class="text-indigo-600 hover:underline">パスワードをお忘れの場合</a>
+            </p>
+        @endif
+
         <p class="mt-4 text-sm text-gray-600">
             アカウントをお持ちでない場合は <a href="{{ route('register') }}" class="text-indigo-600 hover:underline">新規登録</a>
         </p>
