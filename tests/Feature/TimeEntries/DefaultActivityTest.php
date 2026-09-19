@@ -17,7 +17,7 @@ function timeActivity(string $name, array $attributes = []): Enumeration
     ]);
 }
 
-function activityMember(Project $project, ?Enumeration $roleDefault = null, int $position = 1, array $permissions = ['log_time', 'view_issues']): User
+function roleDefaultActivityMember(Project $project, ?Enumeration $roleDefault = null, int $position = 1, array $permissions = ['log_time', 'view_issues']): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create([
@@ -34,7 +34,7 @@ test('the only available activity is the default', function () {
     $project = Project::factory()->create();
     $only = timeActivity('Development');
 
-    expect($project->defaultActivityId(activityMember($project)))->toBe($only->id);
+    expect($project->defaultActivityId(roleDefaultActivityMember($project)))->toBe($only->id);
 });
 
 test('with no role default the global default activity is used', function () {
@@ -42,7 +42,7 @@ test('with no role default the global default activity is used', function () {
     timeActivity('Design');
     $global = timeActivity('Development', ['is_default' => true]);
 
-    expect($project->defaultActivityId(activityMember($project)))->toBe($global->id);
+    expect($project->defaultActivityId(roleDefaultActivityMember($project)))->toBe($global->id);
 });
 
 test('a role default beats the global default', function () {
@@ -50,7 +50,7 @@ test('a role default beats the global default', function () {
     timeActivity('Development', ['is_default' => true]);
     $design = timeActivity('Design');
 
-    expect($project->defaultActivityId(activityMember($project, $design)))->toBe($design->id);
+    expect($project->defaultActivityId(roleDefaultActivityMember($project, $design)))->toBe($design->id);
 });
 
 test('when several roles name a default the lowest position role wins', function () {
@@ -58,7 +58,7 @@ test('when several roles name a default the lowest position role wins', function
     timeActivity('Development', ['is_default' => true]);
     $first = timeActivity('Design');
     $second = timeActivity('Testing');
-    $user = activityMember($project, $second, position: 5);
+    $user = roleDefaultActivityMember($project, $second, position: 5);
     $extraRole = Role::factory()->create(['position' => 2, 'default_time_entry_activity_id' => $first->id]);
     Member::query()->where('user_id', $user->id)->firstOrFail()->roles()->attach($extraRole);
 
@@ -71,7 +71,7 @@ test('an inactive role default falls through to the global default', function ()
     $retired = timeActivity('Retired', ['active' => false]);
     timeActivity('Design');
 
-    expect($project->defaultActivityId(activityMember($project, $retired)))->toBe($global->id);
+    expect($project->defaultActivityId(roleDefaultActivityMember($project, $retired)))->toBe($global->id);
 });
 
 test('a role default resolves to the project override of that activity', function () {
@@ -80,7 +80,7 @@ test('a role default resolves to the project override of that activity', functio
     timeActivity('Development', ['is_default' => true]);
     $override = timeActivity('Design', ['project_id' => $project->id, 'parent_id' => $design->id]);
 
-    expect($project->defaultActivityId(activityMember($project, $design)))->toBe($override->id);
+    expect($project->defaultActivityId(roleDefaultActivityMember($project, $design)))->toBe($override->id);
 });
 
 test('a role default for a project override that deactivated it is skipped', function () {
@@ -89,7 +89,7 @@ test('a role default for a project override that deactivated it is skipped', fun
     $global = timeActivity('Development', ['is_default' => true]);
     timeActivity('Design', ['project_id' => $project->id, 'parent_id' => $design->id, 'active' => false]);
 
-    expect($project->defaultActivityId(activityMember($project, $design)))->toBe($global->id);
+    expect($project->defaultActivityId(roleDefaultActivityMember($project, $design)))->toBe($global->id);
 });
 
 test('a non-member gets no role default', function () {
@@ -109,7 +109,7 @@ test('the time entry form preselects the role default activity', function () {
     $project = Project::factory()->create();
     timeActivity('Development', ['is_default' => true]);
     $design = timeActivity('Design');
-    $user = activityMember($project, $design);
+    $user = roleDefaultActivityMember($project, $design);
 
     Livewire::actingAs($user)->test('time-entries.form', ['project' => $project])
         ->assertSet('activity_id', $design->id);

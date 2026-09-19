@@ -39,7 +39,7 @@ vendor/bin/sail ps            # 4 コンテナ(laravel.test/pgsql/redis/mailpit)
 2. **Redmine 側確認**: 「Redmine 側の機能」列のファイルを参照チェックアウトで開き、バリデーション・権限・エッジケースを確認する。**まず、その機能・列・設定が Redmine 7.0.0 に現存するか(`app/` での使用箇所、後続マイグレーションでの `drop`)を確認する。廃止済みなら実装せず、状態を `done(対象外: Redmine 7.0 で廃止, 日付)` にして §C に訂正行を追加する。**読めなければ本書の記載を仕様とし、コミットメッセージに「Redmine ソース未参照」と書く。
 3. **判断が要る行**(「設計メモ必須」「設計判断」「スキーマ判断」の記載、または規模 L): `docs/design/gap-<ID>.md` に 1 ページの設計メモ(背景・選択肢 2〜3 個・推奨案・影響範囲)を書き、状態を `blocked(要承認: docs/design/gap-<ID>.md)` にして §5 へ。実装はしない。
 4. **実装**: 既存の兄弟ファイルの構造・命名に合わせる。Policy/可視性スコープに触れる場合は否定ケース(権限なし・他プロジェクト・非公開)のテストを必ず追加する。
-5. **テスト**: 新規/変更した機能の Feature テストを書き、
+5. **テスト**: 新規/変更した機能の Feature テストを書き(Pest のファイル内 `function` ヘルパーはグローバル名前空間に宣言されるため、既存テストと重複しない固有の名前にする。重複は全スイートを走らせて初めて「Cannot redeclare function」で発覚する。確認: `grep -rhoE "^function [a-zA-Z0-9_]+" tests | sort | uniq -d`)、
    `vendor/bin/sail artisan test --compact --filter=<テスト名>` → 影響ディレクトリ `vendor/bin/sail artisan test --compact tests/Feature/<領域>` の順で通す。
    さらに、直前 10 コミットの中に全スイート実行のコミット(メッセージに `[full-suite]`)が無ければ `vendor/bin/sail artisan test --compact` を実行し、通ったらコミットメッセージ末尾に `[full-suite]` を付ける。
 6. **Pint**: `vendor/bin/sail bin pint --dirty --format agent`。
