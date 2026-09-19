@@ -132,7 +132,10 @@ Route::middleware(['rest-api.enabled', 'auth:api,api-key', 'jsonp'])->group(func
     Route::get('/queries', [QueryController::class, 'index'])->name('api.queries.index');
 
     Route::get('/users', [UserController::class, 'index'])->name('api.users.index');
+    Route::post('/users', [UserController::class, 'store'])->name('api.users.store');
     Route::get('/users/{user}', [UserController::class, 'show'])->name('api.users.show');
+    Route::put('/users/{user}', [UserController::class, 'update'])->name('api.users.update');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('api.users.destroy');
 
     Route::get('/my/account', [MyAccountController::class, 'show'])->name('api.my_account.show');
     Route::put('/my/account', [MyAccountController::class, 'update'])->name('api.my_account.update');
