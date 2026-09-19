@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Models\Setting;
 use App\Rules\RequiredPasswordCharacterClasses;
 use App\Support\Attachments\AttachmentUploader;
+use App\Support\Mail\PublicUrl;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use App\Models\User;
 use App\Policies\CalendarPolicy;
@@ -17,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -35,6 +37,14 @@ final class AppServiceProvider extends ServiceProvider
         Gate::before(fn (User $user, string $ability) => $user->is_admin ? true : null);
 
         $this->registerApiKeyGuard();
+
+        // Links built outside a web request (queued mails, scheduled jobs)
+        // follow the host_name/protocol settings when they are set.
+        if ($this->app->runningInConsole()) {
+            PublicUrl::apply();
+        }
+
+        Queue::before(fn () => PublicUrl::apply());
 
         // Calendar and Gantt have no backing Eloquent model for Gate's
         // usual class-name-based policy auto-discovery to key off of, so

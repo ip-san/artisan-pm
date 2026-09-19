@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Support\Attachments\AttachmentArchive;
+use App\Support\Mail\PublicUrl;
 use App\Support\Pagination\PageSize;
 use App\Support\Scm\CodesetConverter;
 use App\Support\Scm\DisplayLimits;
@@ -98,6 +99,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $cache_formatted_text = false;
 
     public string $new_item_menu_tab = '2';
+
+    public string $host_name = '';
+
+    public string $protocol = 'http';
 
     public int $gantt_items_limit = 500;
 
@@ -282,6 +287,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
         $this->new_item_menu_tab = (string) Setting::get('new_item_menu_tab', '2');
+        $this->host_name = (string) Setting::get('host_name', '');
+        $this->protocol = (string) Setting::get('protocol', PublicUrl::DEFAULT_PROTOCOL);
         $this->gantt_items_limit = Setting::get('gantt_items_limit', 500);
         $this->gantt_months_limit = Setting::get('gantt_months_limit', 24);
         $this->reactions_enabled = Setting::get('reactions_enabled', true);
@@ -444,6 +451,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
             'new_item_menu_tab' => ['required', Rule::in(['0', '1', '2'])],
+            'host_name' => ['nullable', 'string', 'max:255', 'regex:'.PublicUrl::HOST_PATTERN],
+            'protocol' => ['required', Rule::in(['http', 'https'])],
             'gantt_items_limit' => ['required', 'integer', 'min:0', 'max:100000'],
             'gantt_months_limit' => ['required', 'integer', 'min:0', 'max:1200'],
             'reactions_enabled' => ['boolean'],
@@ -548,6 +557,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->all();
 
         $data['commit_ref_keywords'] = trim((string) ($data['commit_ref_keywords'] ?? ''));
+        $data['host_name'] = trim((string) ($data['host_name'] ?? ''), " \t\n\r\0\x0B/");
         $data['sys_api_key'] = trim((string) ($data['sys_api_key'] ?? ''));
         $data['repositories_encodings'] = trim((string) ($data['repositories_encodings'] ?? ''));
 
@@ -584,6 +594,24 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">課題一覧の1ページあたりの件数</label>
                 <input type="number" wire:model="default_issues_per_page" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('default_issues_per_page') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">ホスト名(メール内リンク用)</label>
+                    <input type="text" wire:model="host_name" placeholder="例: pm.example.com または pm.example.com/redmine"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <p class="mt-1 text-xs text-gray-500">空欄のときは APP_URL を使います。メールやキューで生成するリンクに使われます。</p>
+                    @error('host_name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">プロトコル</label>
+                    <select wire:model="protocol" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        <option value="http">HTTP</option>
+                        <option value="https">HTTPS</option>
+                    </select>
+                    @error('protocol') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
             </div>
 
             <div>
