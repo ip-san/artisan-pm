@@ -1097,6 +1097,34 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * The menu's watch entry: starts watching every selected issue, or — when
+     * the viewer already watches all of them — stops.
+     */
+    public function contextToggleWatch(): void
+    {
+        $user = auth()->user();
+        $issues = $this->selectedIssues;
+
+        abort_if($issues->isEmpty(), 404);
+
+        foreach ($issues as $issue) {
+            $this->authorize('watch', $issue);
+        }
+
+        $watched = $issues->filter(fn (Issue $issue) => $issue->watchers()->where('user_id', $user->id)->exists());
+
+        if ($watched->count() === $issues->count()) {
+            Watcher::query()->whereIn('watchable_id', $issues->pluck('id'))->where('watchable_type', (new Issue)->getMorphClass())->where('user_id', $user->id)->delete();
+        } else {
+            foreach ($issues as $issue) {
+                $issue->watchers()->firstOrCreate(['user_id' => $user->id]);
+            }
+        }
+
+        unset($this->selectedIssues);
+    }
+
+    /**
      * One quick change from the context menu, applied to the selection
      * through the same validation and authorization as the bulk form. The
      * value `none` clears a version, assignee or category; `me` assigns the
@@ -1398,6 +1426,19 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
             </div>
 
+            @auth
+                <button type="button" wire:click="contextToggleWatch" x-on:click="menu.open = false" class="block w-full border-t border-gray-100 px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">ウォッチ / ウォッチをやめる</button>
+            @endauth
+            @if (count($selected) === 1)
+                @php $menuIssue = $this->selectedIssues->first(); @endphp
+                @if (auth()->user()?->can('manageSubtasks', [\App\Models\Issue::class, $project]) && auth()->user()?->can('create', [\App\Models\Issue::class, $project]))
+                    <a href="{{ route('issues.create', $project) }}?parent_id={{ $menuIssue->id }}" class="block px-3 py-1.5 text-gray-700 hover:bg-gray-100">子課題を追加</a>
+                @endif
+                @if (app(\App\Support\Authorization\AuthorizationService::class)->can(auth()->user(), 'log_time', $project))
+                    <a href="{{ route('time-entries.create', $project) }}?issue_id={{ $menuIssue->id }}" class="block px-3 py-1.5 text-gray-700 hover:bg-gray-100">作業時間を記録</a>
+                @endif
+                <button type="button" x-on:click="navigator.clipboard?.writeText('{{ route('issues.show', [$project, $menuIssue]) }}'); menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">URLをコピー</button>
+            @endif
             @if ($this->canBulkCopy)
                 <a href="#bulk-copy-form" x-on:click="menu.open = false" class="block border-t border-gray-100 px-3 py-1.5 text-gray-700 hover:bg-gray-100">コピー</a>
             @endif

@@ -148,6 +148,19 @@ new #[Layout('components.layouts.app')] class extends Component
         } else {
             $this->authorize('create', [Issue::class, $project]);
 
+            // `?parent_id=` (the list's "add subtask" entry) starts the form as
+            // a subtask of that issue — only for someone who may manage
+            // subtasks, and only for a visible issue of this project.
+            $requestedParentId = request()->integer('parent_id');
+
+            if ($requestedParentId > 0 && $this->canManageSubtasks()) {
+                $requestedParent = Issue::query()->where('project_id', $project->id)->find($requestedParentId);
+
+                if ($requestedParent !== null && auth()->user()->can('view', $requestedParent)) {
+                    $this->parent_id = $requestedParent->id;
+                }
+            }
+
             $this->tracker_id = $project->trackers->first()?->id;
             $this->priority_id = Enumeration::query()
                 ->ofType(EnumerationType::IssuePriority)
