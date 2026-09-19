@@ -19,7 +19,7 @@ test('any authenticated user can view their own account', function () {
         ->assertJsonPath('data.email', 'jane@example.com');
 });
 
-test('the response never leaks the password hash or api key', function () {
+test('the response never leaks the password hash or other secrets', function () {
     $user = User::factory()->create();
 
     Passport::actingAs($user);
@@ -28,8 +28,63 @@ test('the response never leaks the password hash or api key', function () {
 
     expect($response->json('data'))
         ->not->toHaveKey('password')
-        ->not->toHaveKey('api_key')
-        ->not->toHaveKey('remember_token');
+        ->not->toHaveKey('remember_token')
+        ->not->toHaveKey('two_factor_secret');
+});
+
+test('the account shows its own api key and notification settings', function () {
+    $user = User::factory()->create();
+    $key = $user->regenerateApiKey();
+
+    Passport::actingAs($user);
+
+    $this->getJson('/api/v1/my/account')
+        ->assertOk()
+        ->assertJsonPath('data.api_key', $key)
+        ->assertJsonPath('data.mail_notification', $user->mail_notification->value)
+        ->assertJsonPath('data.no_self_notified', $user->no_self_notified);
+});
+
+test('notification settings can be updated and are validated', function () {
+    $user = User::factory()->create();
+
+    Passport::actingAs($user);
+
+    $this->putJson('/api/v1/my/account', ['mail_notification' => 'only_assigned', 'no_self_notified' => false])
+        ->assertOk()
+        ->assertJsonPath('data.mail_notification', 'only_assigned')
+        ->assertJsonPath('data.no_self_notified', false);
+
+    expect($user->fresh()->mail_notification->value)->toBe('only_assigned')
+        ->and($user->fresh()->no_self_notified)->toBeFalse();
+
+    $this->putJson('/api/v1/my/account', ['mail_notification' => 'sometimes'])->assertUnprocessable();
+    $this->putJson('/api/v1/my/account', ['no_self_notified' => 'maybe'])->assertUnprocessable();
+});
+
+test('the api key can be reset and the old key stops working', function () {
+    $user = User::factory()->create();
+    $old = $user->regenerateApiKey();
+
+    Passport::actingAs($user);
+
+    $new = $this->postJson('/api/v1/my/api_key')->assertOk()->json('data.api_key');
+
+    expect($new)->not->toBe($old)->and($new)->toHaveLength(40)
+        ->and($user->fresh()->api_key)->toBe($new);
+});
+
+test('resetting the key needs authentication and never touches another user', function () {
+    $this->postJson('/api/v1/my/api_key')->assertUnauthorized();
+
+    $me = User::factory()->create();
+    $other = User::factory()->create();
+    $otherKey = $other->regenerateApiKey();
+
+    Passport::actingAs($me);
+    $this->postJson('/api/v1/my/api_key', ['user_id' => $other->id])->assertOk();
+
+    expect($other->fresh()->api_key)->toBe($otherKey);
 });
 
 test('a non-admin can update their own name and email', function () {

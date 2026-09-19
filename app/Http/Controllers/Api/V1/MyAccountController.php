@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\UpdateMyAccountRequest;
 use App\Http\Resources\Api\V1\UserResource;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
@@ -34,5 +35,15 @@ final class MyAccountController extends Controller
         $request->user()->update($request->validated());
 
         return new UserResource($request->user());
+    }
+
+    /**
+     * POST /my/api_key — Redmine's reset_api_key: issues a new key and
+     * invalidates the old one (so a caller authenticating with the old key
+     * is locked out afterwards, by design).
+     */
+    public function resetApiKey(Request $request): JsonResponse
+    {
+        return response()->json(['data' => ['api_key' => $request->user()->regenerateApiKey()]]);
     }
 }

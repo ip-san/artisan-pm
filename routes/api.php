@@ -128,6 +128,7 @@ Route::middleware(['rest-api.enabled', 'auth:api,api-key'])->group(function () {
 
     Route::get('/my/account', [MyAccountController::class, 'show'])->name('api.my_account.show');
     Route::put('/my/account', [MyAccountController::class, 'update'])->name('api.my_account.update');
+    Route::post('/my/api_key', [MyAccountController::class, 'resetApiKey'])->name('api.my_account.reset_api_key');
 
     Route::get('/search', [SearchController::class, 'index'])->name('api.search.index');
     Route::get('/projects/{project}/search', [SearchController::class, 'forProject'])->name('api.search.for_project');

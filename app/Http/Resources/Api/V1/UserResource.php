@@ -37,8 +37,13 @@ final class UserResource extends JsonResource
             'is_admin' => $user->is_admin,
             'status' => $user->status->value,
             'language' => $user->language,
+            'mail_notification' => $user->mail_notification->value,
+            'no_self_notified' => $user->no_self_notified,
             'auth_source_id' => $user->auth_source_id,
             'last_login_at' => $user->last_login_at?->toIso8601String(),
+            // A user's own key only — Redmine also shows it to administrators,
+            // but there is no reason to hand every key to any admin token.
+            ...($request->user()?->is($user) ? ['api_key' => $user->api_key] : []),
             'created_at' => $user->created_at->toIso8601String(),
             'updated_at' => $user->updated_at->toIso8601String(),
         ];
