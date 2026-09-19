@@ -4,6 +4,7 @@ use App\Concerns\InteractsWithQueryFilters;
 use App\Enums\IssueRelationType;
 use App\Models\Issue;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\Version;
 use App\Services\GanttService;
 use App\Support\Gantt\GanttRow;
@@ -38,6 +39,24 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * Redmine's gantt_items_limit: at most this many rows are drawn
+     * (0 = every row).
+     */
+    public static function itemsLimit(): int
+    {
+        return max(0, (int) Setting::get('gantt_items_limit', 500));
+    }
+
+    /**
+     * Redmine's gantt_months_limit: the chart spans at most this many months
+     * from its first start date (0 = as long as the issues need).
+     */
+    public static function monthsLimit(): int
+    {
+        return max(0, (int) Setting::get('gantt_months_limit', 24));
+    }
+
+    /**
      * With filters active, the tree is restricted to matching issues
      * (their ancestors stay for depth coherence — see GanttService).
      * The matched-id set is resolved through the same QueryFilterEngine
@@ -47,7 +66,7 @@ new #[Layout('components.layouts.app')] class extends Component
      * @return Collection<int, GanttRow>
      */
     #[Computed]
-    public function rows(): Collection
+    public function allRows(): Collection
     {
         $filters = $this->builtFilters();
 
@@ -58,9 +77,28 @@ new #[Layout('components.layouts.app')] class extends Component
         return app(GanttService::class)->issueTree($this->project, $matchedIds);
     }
 
+    /**
+     * The rows actually drawn: allRows() cut to the items limit.
+     *
+     * @return Collection<int, GanttRow>
+     */
+    #[Computed]
+    public function rows(): Collection
+    {
+        $limit = self::itemsLimit();
+
+        return $limit > 0 ? $this->allRows->take($limit)->values() : $this->allRows;
+    }
+
+    #[Computed]
+    public function rowsTruncated(): bool
+    {
+        return $this->allRows->count() > $this->rows->count();
+    }
+
     public function applyFilters(): void
     {
-        unset($this->rows, $this->rangeStart, $this->rangeEnd, $this->totalDays, $this->monthBands);
+        unset($this->allRows, $this->rows, $this->rangeStart, $this->rangeEnd, $this->totalDays, $this->monthBands);
     }
 
     /**
@@ -105,7 +143,25 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $versionsEnd = $this->versions->pluck('due_date')->filter()->max();
 
-        return collect([$issuesEnd, $versionsEnd])->filter()->max();
+        $end = collect([$issuesEnd, $versionsEnd])->filter()->max();
+        $months = self::monthsLimit();
+
+        if ($months > 0 && $this->rangeStart !== null) {
+            $end = $end->min($this->rangeStart->copy()->addMonthsNoOverflow($months)->subDay());
+        }
+
+        return $end;
+    }
+
+    /**
+     * Whether the months limit cut the chart short of what the issues span.
+     */
+    #[Computed]
+    public function monthsTruncated(): bool
+    {
+        $last = $this->rows->pluck('dueDate')->filter()->max();
+
+        return $last !== null && $this->rangeEnd !== null && $last->gt($this->rangeEnd);
     }
 
     #[Computed]
@@ -209,12 +265,18 @@ new #[Layout('components.layouts.app')] class extends Component
 
     private function percentFromStart(Carbon $date): float
     {
-        return $this->rangeStart->diffInDays($date) / $this->totalDays * 100;
+        return min(100.0, $this->rangeStart->diffInDays($date) / $this->totalDays * 100);
     }
 
+    /**
+     * A bar that runs past the (possibly month-limited) end of the chart is
+     * clipped there instead of overflowing it.
+     */
     private function percentWidth(Carbon $from, Carbon $to): float
     {
-        return (($from->diffInDays($to) + 1) / $this->totalDays) * 100;
+        $to = $to->min($this->rangeEnd);
+
+        return max(0.0, min(100.0 - $this->percentFromStart($from), (($from->diffInDays($to) + 1) / $this->totalDays) * 100));
     }
 
     /**
@@ -288,6 +350,12 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($this->rangeStart === null)
         <p class="text-sm text-gray-500">開始日・期日が設定された課題がありません。</p>
     @else
+        @if ($this->rowsTruncated)
+            <p class="mb-2 text-sm text-amber-700">課題が多いため、先頭{{ number_format(self::itemsLimit()) }}件だけを表示しています。</p>
+        @endif
+        @if ($this->monthsTruncated)
+            <p class="mb-2 text-sm text-amber-700">期間が長いため、開始から{{ self::monthsLimit() }}か月分だけを表示しています。</p>
+        @endif
         <div class="overflow-x-auto rounded-md border border-gray-200 bg-white">
             <div class="flex min-w-[900px]">
                 <div class="w-80 shrink-0 border-r border-gray-200">

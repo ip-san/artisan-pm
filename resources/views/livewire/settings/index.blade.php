@@ -99,6 +99,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $new_item_menu_tab = '2';
 
+    public int $gantt_items_limit = 500;
+
+    public int $gantt_months_limit = 24;
+
     public bool $reactions_enabled = true;
 
     public bool $incoming_mail_enabled = false;
@@ -278,6 +282,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
         $this->new_item_menu_tab = (string) Setting::get('new_item_menu_tab', '2');
+        $this->gantt_items_limit = Setting::get('gantt_items_limit', 500);
+        $this->gantt_months_limit = Setting::get('gantt_months_limit', 24);
         $this->reactions_enabled = Setting::get('reactions_enabled', true);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
         $this->issue_done_ratio_interval = DoneRatioSteps::interval();
@@ -438,6 +444,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
             'new_item_menu_tab' => ['required', Rule::in(['0', '1', '2'])],
+            'gantt_items_limit' => ['required', 'integer', 'min:0', 'max:100000'],
+            'gantt_months_limit' => ['required', 'integer', 'min:0', 'max:1200'],
             'reactions_enabled' => ['boolean'],
             'incoming_mail_enabled' => ['boolean'],
             'incoming_mail_default_project_id' => ['nullable', 'exists:projects,id'],
@@ -734,6 +742,19 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="2">「+」ドロップダウン(課題・バージョン・お知らせなど)</option>
                 </select>
                 @error('new_item_menu_tab') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">ガントチャートの最大表示課題数(0で無制限)</label>
+                    <input type="number" min="0" max="100000" wire:model="gantt_items_limit" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @error('gantt_items_limit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">ガントチャートの最大表示月数(0で無制限)</label>
+                    <input type="number" min="0" max="1200" wire:model="gantt_months_limit" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @error('gantt_months_limit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
             </div>
         </section>
 
