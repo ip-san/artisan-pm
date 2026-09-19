@@ -248,3 +248,64 @@ test('memberUserIds merges direct and group members without duplicates', functio
 
     expect($project->memberUserIds()->sort()->values()->all())->toBe(collect([$direct->id, $both->id, $viaGroupOnly->id])->sort()->values()->all());
 });
+
+function issueMailWithDetails(array $details): array
+{
+    $project = Project::factory()->create();
+    $actor = notifiableMember($project, MailNotificationOption::OnlyMyEvents);
+    $issue = App\Models\Issue::factory()->for($project)->create(mailIssueDefaults());
+    $journal = App\Models\Journal::create(['issue_id' => $issue->id, 'user_id' => $actor->id, 'notes' => null]);
+    foreach ($details as $detail) {
+        $journal->details()->create($detail);
+    }
+
+    $mail = new App\Mail\IssueNotificationMail($issue->fresh(), 'updated', $actor, $journal->load('details'));
+
+    return [$mail, $mail->render()];
+}
+
+test('the mail lists an added and a removed attachment by file name', function () {
+    [, $html] = issueMailWithDetails([
+        ['property' => 'attachment', 'prop_key' => '1', 'old_value' => null, 'new_value' => 'spec.pdf'],
+        ['property' => 'attachment', 'prop_key' => '2', 'old_value' => 'old-draft.docx', 'new_value' => null],
+    ]);
+
+    expect($html)->toContain('添付ファイル')
+        ->and($html)->toContain('(未設定) → spec.pdf')
+        ->and($html)->toContain('old-draft.docx → (未設定)');
+});
+
+test('the mail lists relation changes with the relation label and the other issue id', function () {
+    [, $html] = issueMailWithDetails([
+        ['property' => 'relation', 'prop_key' => 'blocks', 'old_value' => null, 'new_value' => '42'],
+        ['property' => 'relation', 'prop_key' => 'duplicated', 'old_value' => '7', 'new_value' => null],
+    ]);
+
+    expect($html)->toContain('ブロックする')
+        ->and($html)->toContain('(未設定) → #42')
+        ->and($html)->toContain('重複されている')
+        ->and($html)->toContain('#7 → (未設定)');
+});
+
+test('an unknown relation key falls back to the raw key and attribute rows are unchanged', function () {
+    [, $html] = issueMailWithDetails([
+        ['property' => 'relation', 'prop_key' => 'mystery', 'old_value' => null, 'new_value' => '5'],
+        ['property' => 'attr', 'prop_key' => 'subject', 'old_value' => 'Before', 'new_value' => 'After'],
+    ]);
+
+    expect($html)->toContain('mystery')
+        ->and($html)->toContain('題名')
+        ->and($html)->toContain('Before → After');
+});
+
+test('the plain text mail carries the same attachment and relation rows', function () {
+    Setting::set('plain_text_mail', true);
+
+    [, $text] = issueMailWithDetails([
+        ['property' => 'attachment', 'prop_key' => '1', 'old_value' => null, 'new_value' => 'spec.pdf'],
+        ['property' => 'relation', 'prop_key' => 'follows', 'old_value' => null, 'new_value' => '9'],
+    ]);
+
+    expect($text)->toContain('* 添付ファイル: (未設定) → spec.pdf')
+        ->and($text)->toContain('* 後続: (未設定) → #9');
+});

@@ -105,7 +105,9 @@
 | 34 | A11-14 | — | S | done(2026-09-20) |
 | 35 | A6-02 | (取り下げ)@mention の News コメント・フォーラム投稿への拡張 | — | Redmine 7.0.0 で `acts_as_mentionable` を持つのは Issue(`description`)・Journal(`notes`)・WikiContent(`text`) のみ(`app/models/{issue,journal,wiki_content}.rb`)。News コメントとフォーラム投稿は対象外 | 作業不要(チェックリストが「次点・未着手」と誤って書いていた) | — | Watchers「作成者/担当者の自動Watch・@mention」(C-22) |
 | 36 | A6-03 | — | S | done(2026-09-20) |
-| 37 | A6-04 | — | S | todo |
+| 37 | A6-04 | — | S | done(2026-09-20、描画のみ。通知経路は A6-04b) |
+| 37a | A6-04b | A6-04 | M | todo |
+| A6-04b | 添付・関連の変更を実際にメール通知する(編集と同じ Journal に添付を含める、関連の追加/削除の Journal 通知) | A6-04 でメール本文は描画できるようにしたが、`IssueNotificationMail` に渡る Journal は `IssueService::update()` の `$detailsJournal` のみ。添付は `journalizeAttachment()`(`issues/form.blade.php:589`、`Api/V1/IssueController.php:295`)が update 後に別 Journal で記録し、`journalizeRelation()` も通知しない | `update()` が添付(Media 追加を update より前に行うか、添付一覧を引数で受ける)を同じ Journal の `attachment` 詳細に含め、メール送信条件にも加える。関連の追加/削除は独立した通知(Webhook を発火させない専用イベントまたは通知の直接送信)にする | **`IssueUpdated` を関連/添付で発火すると Webhook `issue.updated` も飛ぶため、専用の通知経路が必要**。フォームと API の 3 呼び出し元の順序変更を伴う | M | Journal「メール通知(課題)」 |
 | 38 | A5-11 / A6-07 | — | S | todo |
 | 39 | A12-01 | — | S | todo |
 | 40 | A12-04 | — | S | todo |

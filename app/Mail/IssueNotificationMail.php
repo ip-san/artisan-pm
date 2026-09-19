@@ -44,6 +44,25 @@ final class IssueNotificationMail extends Mailable
         ...Tracker::DISABLABLE_CORE_FIELDS,
     ];
 
+    /**
+     * A relation journal's prop_key is the relation as seen from this issue,
+     * including the reversed names (blocked, duplicated, copied_from)
+     * written on the receiving end.
+     *
+     * @var array<string, string>
+     */
+    private const array RELATION_LABELS = [
+        'relates' => '関連',
+        'blocks' => 'ブロックする',
+        'blocked' => 'ブロックされている',
+        'duplicates' => '重複する',
+        'duplicated' => '重複されている',
+        'precedes' => '先行',
+        'follows' => '後続',
+        'copied_to' => 'コピー先',
+        'copied_from' => 'コピー元',
+    ];
+
     public function __construct(
         public readonly Issue $issue,
         public readonly string $eventType,
@@ -91,11 +110,15 @@ final class IssueNotificationMail extends Mailable
     }
 
     /**
-     * Covers both `attr` and `cf` journal details — a custom-field-only
-     * update still dispatches this mail (IssueService::update()'s
-     * dispatch condition includes $customFieldChanges !== []), so leaving
-     * cf rows out here would send a "課題が更新されました" email with an
-     * empty change table whenever only a custom field changed.
+     * Covers `attr`, `cf`, `attachment` and `relation` journal details — a
+     * custom-field-only update still dispatches this mail
+     * (IssueService::update()'s dispatch condition includes
+     * $customFieldChanges !== []), so leaving cf rows out here would send a
+     * "課題が更新されました" email with an empty change table whenever only a
+     * custom field changed. An attachment row shows the file name on the
+     * side where it exists; a relation row is labelled with the relation
+     * type and shows the other issue as #id, like the journal on the issue
+     * page.
      *
      * @return array<int, array{label: string, old: ?string, new: ?string}>
      */
@@ -108,13 +131,16 @@ final class IssueNotificationMail extends Mailable
         $customFieldNames = CustomField::query()->pluck('name', 'id');
 
         return $this->journal->details
-            ->whereIn('property', ['attr', 'cf'])
+            ->whereIn('property', ['attr', 'cf', 'attachment', 'relation'])
             ->map(fn ($detail) => [
-                'label' => $detail->property === 'cf'
-                    ? ($customFieldNames[(int) $detail->prop_key] ?? $detail->prop_key)
-                    : (self::ATTRIBUTE_LABELS[$detail->prop_key] ?? $detail->prop_key),
-                'old' => $detail->old_value,
-                'new' => $detail->new_value,
+                'label' => match ($detail->property) {
+                    'cf' => $customFieldNames[(int) $detail->prop_key] ?? $detail->prop_key,
+                    'attachment' => '添付ファイル',
+                    'relation' => self::RELATION_LABELS[$detail->prop_key] ?? $detail->prop_key,
+                    default => self::ATTRIBUTE_LABELS[$detail->prop_key] ?? $detail->prop_key,
+                },
+                'old' => $detail->property === 'relation' && $detail->old_value !== null ? "#{$detail->old_value}" : $detail->old_value,
+                'new' => $detail->property === 'relation' && $detail->new_value !== null ? "#{$detail->new_value}" : $detail->new_value,
             ])
             ->values()
             ->all();
