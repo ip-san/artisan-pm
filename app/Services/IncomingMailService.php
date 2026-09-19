@@ -116,6 +116,15 @@ final class IncomingMailService
         return $processed;
     }
 
+    /**
+     * Handles one raw RFC 822 message (what the mail_handler web service
+     * receives) exactly as a mail fetched from the mailbox would be.
+     */
+    public function processRawMessage(string $raw): ?Issue
+    {
+        return $this->createIssueFromMail($this->parse(Message::fromString($raw)));
+    }
+
     private function parse(Message $message): ParsedIncomingMail
     {
         $attachments = [];
@@ -175,9 +184,14 @@ final class IncomingMailService
         }
 
         $lines = explode("\n", $body);
+        $asRegex = (bool) Setting::get('mail_handler_enable_regex_delimiters', false);
 
         foreach ($lines as $index => $line) {
-            if (in_array(trim($line), $delimiters, true)) {
+            $matches = $asRegex
+                ? collect($delimiters)->contains(fn (string $pattern) => self::matchesRegex($pattern, trim($line)))
+                : in_array(trim($line), $delimiters, true);
+
+            if ($matches) {
                 return trim(implode("\n", array_slice($lines, 0, $index)));
             }
         }
@@ -196,6 +210,10 @@ final class IncomingMailService
         $patterns = collect(explode(',', (string) Setting::get('mail_handler_excluded_filenames', '')))
             ->map(fn (string $pattern) => trim($pattern))
             ->filter();
+
+        if (Setting::get('mail_handler_enable_regex_excluded_filenames', false)) {
+            return $patterns->contains(fn (string $pattern) => self::matchesRegex($pattern, $filename));
+        }
 
         return $patterns->contains(fn (string $pattern) => fnmatch($pattern, $filename, FNM_CASEFOLD));
     }
@@ -480,5 +498,15 @@ final class IncomingMailService
         }
 
         return $parent->id;
+    }
+
+    /**
+     * Whether $subject matches $pattern used as a regular expression (Redmine's
+     * enable_regex_* options). A pattern that is not a valid regular
+     * expression matches nothing rather than failing the mail.
+     */
+    private static function matchesRegex(string $pattern, string $subject): bool
+    {
+        return @preg_match('~'.str_replace('~', '\\~', $pattern).'~u', $subject) === 1;
     }
 }

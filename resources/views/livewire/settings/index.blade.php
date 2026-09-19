@@ -160,6 +160,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $autofetch_changesets = false;
 
+    public bool $mail_handler_api_enabled = false;
+
+    public string $mail_handler_api_key = '';
+
+    public bool $mail_handler_enable_regex_delimiters = false;
+
+    public bool $mail_handler_enable_regex_excluded_filenames = false;
+
     public bool $sys_api_enabled = false;
 
     public string $sys_api_key = '';
@@ -383,6 +391,10 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->mail_handler_preferred_body_part = Setting::get('mail_handler_preferred_body_part', 'plain');
         $this->autofetch_changesets = Setting::get('autofetch_changesets', false);
         $this->repository_log_display_limit = Setting::get('repository_log_display_limit', PageSize::DEFAULT_REPOSITORY_LOG_LIMIT);
+        $this->mail_handler_api_enabled = (bool) Setting::get('mail_handler_api_enabled', false);
+        $this->mail_handler_api_key = (string) Setting::get('mail_handler_api_key', '');
+        $this->mail_handler_enable_regex_delimiters = (bool) Setting::get('mail_handler_enable_regex_delimiters', false);
+        $this->mail_handler_enable_regex_excluded_filenames = (bool) Setting::get('mail_handler_enable_regex_excluded_filenames', false);
         $this->sys_api_enabled = Setting::get('sys_api_enabled', false);
         $this->sys_api_key = Setting::get('sys_api_key', '');
         $this->diff_max_lines_displayed = DisplayLimits::maxDiffLines();
@@ -467,6 +479,11 @@ new #[Layout('components.layouts.app')] class extends Component
     /**
      * A fresh random key for the repository management web service.
      */
+    public function generateMailHandlerApiKey(): void
+    {
+        $this->mail_handler_api_key = Str::random(40);
+    }
+
     public function generateSysApiKey(): void
     {
         $this->sys_api_key = Str::random(40);
@@ -555,6 +572,10 @@ new #[Layout('components.layouts.app')] class extends Component
             'commit_fixing_keyword_rules.*.if_tracker_id' => ['nullable', 'exists:trackers,id'],
             'commit_ref_keywords' => ['nullable', 'string', 'max:255'],
             'repository_log_display_limit' => ['required', 'integer', 'min:1', 'max:1000'],
+            'mail_handler_api_enabled' => ['boolean'],
+            'mail_handler_api_key' => ['nullable', 'string', 'max:255'],
+            'mail_handler_enable_regex_delimiters' => ['boolean'],
+            'mail_handler_enable_regex_excluded_filenames' => ['boolean'],
             'sys_api_enabled' => ['boolean'],
             'sys_api_key' => ['nullable', 'string', 'max:255'],
             'diff_max_lines_displayed' => ['required', 'integer', 'min:0', 'max:100000'],
@@ -647,6 +668,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $data['host_name'] = trim((string) ($data['host_name'] ?? ''), " \t\n\r\0\x0B/");
         $data['gravatar_default'] = (string) ($data['gravatar_default'] ?? '');
         $data['sys_api_key'] = trim((string) ($data['sys_api_key'] ?? ''));
+        $data['mail_handler_api_key'] = trim((string) ($data['mail_handler_api_key'] ?? ''));
         $data['repositories_encodings'] = trim((string) ($data['repositories_encodings'] ?? ''));
 
         // Stored the way Redmine's time_entry_list_defaults is.
@@ -1442,6 +1464,30 @@ new #[Layout('components.layouts.app')] class extends Component
                 <textarea wire:model="mail_handler_body_delimiters" rows="2" placeholder="例: -----Original Message-----"
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
                 @error('mail_handler_body_delimiters') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="mail_handler_enable_regex_delimiters" class="rounded border-gray-300">
+                切り捨て行を正規表現として扱う
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="mail_handler_enable_regex_excluded_filenames" class="rounded border-gray-300">
+                除外する添付ファイル名を正規表現として扱う(オフのときはワイルドカード)
+            </label>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="mail_handler_api_enabled" class="rounded border-gray-300">
+                    メール受信用のWebサービスを有効にする
+                </label>
+                <div class="mt-2 flex items-center gap-2">
+                    <input type="text" wire:model="mail_handler_api_key" placeholder="APIキー" autocomplete="off"
+                        class="block w-full max-w-md rounded-md border-gray-300 font-mono shadow-sm sm:text-sm">
+                    <button type="button" wire:click="generateMailHandlerApiKey" class="shrink-0 text-sm text-indigo-600 hover:underline">キーを生成</button>
+                </div>
+                <p class="mt-1 text-xs text-gray-500"><code>POST /mail_handler</code> に <code>key</code> と生メール本文 <code>email</code> を送ると、IMAP/POP の受信と同じ処理をします(メールサーバーのパイプ用)。</p>
+                @error('mail_handler_api_key') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

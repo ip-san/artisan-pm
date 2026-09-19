@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AuthenticateWithAtomKey;
 use App\Http\Middleware\EnforceLoginRequiredSetting;
+use App\Http\Middleware\EnforceMailHandlerApiKey;
 use App\Http\Middleware\EnforcePasswordChange;
 use App\Http\Middleware\EnforceRestApiEnabledSetting;
 use App\Http\Middleware\EnforceSessionTimeout;
@@ -31,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->throttleApi();
         $middleware->appendToGroup('web', RecordRecentProject::class);
         // The /sys web service is called by scripts with a shared key, not from a browser.
-        $middleware->preventRequestForgery(except: ['sys/*']);
+        $middleware->preventRequestForgery(except: ['sys/*', 'mail_handler']);
         $middleware->alias([
             'session.timeout' => EnforceSessionTimeout::class,
             'rest-api.enabled' => EnforceRestApiEnabledSetting::class,
@@ -39,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'password.change' => EnforcePasswordChange::class,
             'login.required' => EnforceLoginRequiredSetting::class,
             'sys.key' => EnforceSysApiKey::class,
+            'mail_handler.key' => EnforceMailHandlerApiKey::class,
             'atom.key' => AuthenticateWithAtomKey::class,
             'jsonp' => WrapJsonpResponse::class,
         ]);

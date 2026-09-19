@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountActivationController;
 use App\Http\Controllers\ActivityFeedController;
 use App\Http\Controllers\GlobalActivityFeedController;
+use App\Http\Controllers\MailHandlerController;
 use App\Http\Controllers\AttachmentBundleController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AttachmentInlineController;
@@ -24,6 +25,8 @@ Route::get('/', function () {
 
 // Redmine's repository management web service, for post-receive hooks and
 // reposman. Guarded by the shared sys_api_key rather than a login.
+Route::post('/mail_handler', MailHandlerController::class)->middleware('mail_handler.key')->name('mail_handler');
+
 Route::middleware('sys.key')->prefix('sys')->group(function () {
     Route::get('/projects', [SysController::class, 'projects'])->name('sys.projects');
     Route::match(['get', 'post'], '/fetch_changesets', [SysController::class, 'fetchChangesets'])->name('sys.fetch-changesets');
