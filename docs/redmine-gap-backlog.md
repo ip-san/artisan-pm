@@ -61,7 +61,7 @@
 | 1 | A11-12 | — | S | done(2026-09-20) |
 | 2 | A1-23 | — | S | done(2026-09-20) |
 | 2a | A1-32 | A1-23 | S | todo |
-| 3 | A1-24 | — | S | todo |
+| 3 | A1-24 | (取り下げ)トラッカーの `is_in_chlog` | — | Redmine 7.0.0 で廃止済み(`db/migrate/20210728131544_drop_is_in_chlog_column.rb`、`app/` に使用箇所なし)。作業不要 | 機械照合が古いマイグレーションの `add_column` だけを見て、後続の `drop` を見落としていた | — | Trackers 節(C-18) |
 | 4 | A3-04 | — | S | todo |
 | 5 | A3-10 | — | S | todo |
 | 6 | A4-06 | — | S | todo |
@@ -496,7 +496,7 @@
 | C-04 | REST API「Roles」 | 「`users_visibility` は本アプリ未実装のため対象外」 | `Role.users_visibility` は 2026-07-30 に実装済み。`RoleResource` に未露出 | 「Resource 未露出(A11-12)」に書き換え |
 | C-05 | Journal「メール通知(課題)」 | 「@mention通知は引き続き未着手」 | Issue/Wiki の @mention は 2026-07-30 に実装済み。未対応は News/フォーラムのみ | 文言修正(A6-02 参照) |
 | C-06 | §0.5「保留の再確認」 | 「単独では割に合わない: … Wikiのannotate(284、ニッチ)」 | Wiki「Annotate/Blame」行は `done(2026-07-22)`、`wiki/annotate.blade.php` が存在 | 該当句を削除 |
-| C-07 | Trackers「ロードマップ対象フラグ・デフォルト非公開・説明文テンプレート」 | 「『説明文テンプレート』に該当するRedmine側フィールドは特定できず未着手」 | Redmine の `trackers.description`(`db/migrate/20190315102101_add_trackers_description.rb`)。本アプリも `trackers.description` 列+`trackers/form.blade.php` に入力欄あり | 「Tracker.description として実装済み」に訂正、行を `done` に |
+| C-07 | Trackers「ロードマップ対象フラグ・デフォルト非公開・説明文テンプレート」 | 「『説明文テンプレート』に該当するRedmine側フィールドは特定できず未着手」 | Redmine の `trackers.description`(`db/migrate/20190315102101_add_trackers_description.rb`)。本アプリも `trackers.description` 列+`trackers/form.blade.php` に入力欄あり | 「Tracker.description として実装済み」に訂正、行を `done` に(適用済み。残る `is_in_chlog` は廃止済みで対象外、C-18) |
 | C-08 | Versions「Wikiページ紐付け・既定バージョン設定」 | 「『既定バージョン設定』に該当するRedmine機能は未特定」 | `projects.default_version_id`(+`default_assigned_to_id`、`project.rb:43-44`) | A1-23 を参照する形に書き換え |
 | C-09 | Journal「メール通知(Wikiページ)」ほか | 「Redmine本家にWebhook相当の概念が無いため、本アプリ独自機能」 | Redmine 7.0.0 はコアに Webhook(`app/models/webhook.rb`、`acts_as_webhookable`、権限 `use_webhooks`、設定 `webhooks_enabled`)を持つ | 記載を訂正し、拡張性節に Webhook のパリティ行(A12-01/02)を追加 |
 | C-10 | 拡張性「受信メールによる課題作成」「メール返信による課題更新」 | 「本アプリはまだ送信メール通知を実装していない」 | 送信メール通知は 2026-07-29〜30 に実装済み | 文言削除、In-Reply-To 経路は A6-06 として残す |
@@ -507,6 +507,7 @@
 | C-15 | 一括編集「PDFエクスポート・Atomフィード」 | 課題 PDF を `done` と記載 | 単体課題 PDF のみ。一覧 PDF は未実装 | 「一覧 PDF は A1-29」を追記 |
 | C-16 | §0 項目 2 | 「専用の『リセットして通知』フローはまだない」 | `users/form.blade.php:150` の `sendPasswordReset()` がパスワード再設定リンクをメール送信(2026-07-22 の行で `done`) | 文言を打ち消し線に |
 | C-17 | (取り下げ) 工数管理「TimeEntry CRUD」 | 「編集対象は作業分類/日付/コメントの3項目のみ」 | **記載は正しい**。この文は`time-entries/index.blade.php`の**一括編集**(`bulkActivityId`/`bulkSpentOn`/`bulkComments`)の説明で、単体編集フォームの話ではない。Redmine の一括編集は時間・課題・プロジェクト・ユーザーも変更できる | 訂正不要。不足は A8-01 に記載 |
+| C-18 | (バックログ自身の訂正)A1-24 `is_in_chlog` | 付録の機械照合で「スキーマ列の欠落」として列挙 | Redmine 7.0.0 は 2021 年に列を廃止済み。**教訓**: マイグレーションの `add_column` だけでなく、`app/` での使用箇所と後続の `drop` を確認する。他の列(`inherit_members`/`homepage`/`default_time_entry_activity_id`/`updated_by_id`/`passwd_changed_on`/`must_change_passwd`/`members.mail_notification`/`is_filter`/`twofa_required` 等)は `app/` に使用箇所があり現役と確認済み(2026-09-20) | 反映済み |
 
 ---
 
