@@ -22,6 +22,7 @@ use App\Support\Scm\CodesetConverter;
 use App\Support\Scm\DisplayLimits;
 use App\Support\TimeLog\TimeLogConstraints;
 use App\Rules\RequiredPasswordCharacterClasses;
+use App\Support\Calendar\WorkingDays;
 use App\Support\Issues\CopyOptions;
 use App\Support\Issues\DoneRatioSteps;
 use App\Support\Issues\RelatedIssueColumns;
@@ -222,6 +223,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $cross_project_issue_relations = false;
 
+    /** @var array<int, string> ISO weekday numbers, 1 = Monday … 7 = Sunday */
+    public array $non_working_week_days = [];
+
     public string $link_copied_issue = 'ask';
 
     public string $copy_attachments_on_issue_copy = 'ask';
@@ -347,6 +351,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->parent_issue_dates = Setting::get('parent_issue_dates', true);
         $this->parent_issue_done_ratio = Setting::get('parent_issue_done_ratio', true);
         $this->cross_project_issue_relations = Setting::get('cross_project_issue_relations', false);
+        $this->non_working_week_days = array_map('strval', WorkingDays::nonWorkingWeekDays());
         $this->link_copied_issue = CopyOptions::linkMode();
         $this->copy_attachments_on_issue_copy = CopyOptions::attachmentsMode();
         $this->default_issue_start_date_to_creation_date = Setting::get('default_issue_start_date_to_creation_date', true);
@@ -564,6 +569,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_issue_dates' => ['boolean'],
             'parent_issue_done_ratio' => ['boolean'],
             'cross_project_issue_relations' => ['boolean'],
+            'non_working_week_days' => ['array'],
+            'non_working_week_days.*' => ['in:1,2,3,4,5,6,7'],
             'link_copied_issue' => ['required', 'in:yes,no,ask'],
             'copy_attachments_on_issue_copy' => ['required', 'in:yes,no,ask'],
             'default_issue_start_date_to_creation_date' => ['boolean'],
@@ -766,6 +773,20 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="checkbox" wire:model="cross_project_issue_relations" class="rounded border-gray-300">
                 プロジェクトをまたいだ課題関連を許可する
             </label>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700">非稼働日(曜日)</span>
+                <div class="mt-1 flex flex-wrap gap-3">
+                    @foreach (['1' => '月', '2' => '火', '3' => '水', '4' => '木', '5' => '金', '6' => '土', '7' => '日'] as $weekday => $weekdayLabel)
+                        <label class="flex items-center gap-1 text-sm text-gray-700" wire:key="non-working-{{ $weekday }}">
+                            <input type="checkbox" wire:model="non_working_week_days" value="{{ $weekday }}" class="rounded border-gray-300">
+                            {{ $weekdayLabel }}
+                        </label>
+                    @endforeach
+                </div>
+                <p class="mt-1 text-xs text-gray-500">先行/後続の関連による日付の自動調整と遅延日数は、ここで選んだ曜日を飛ばして数えます。何も選ばなければ暦日で数えます(全曜日を選んだ場合も暦日)。</p>
+                @error('non_working_week_days.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>

@@ -25,6 +25,7 @@ use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Watcher;
+use App\Support\Calendar\WorkingDays;
 use App\Support\Mail\MentionParser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -436,21 +437,25 @@ final class IssueService
             return;
         }
 
-        $soonestStart = $anchor->copy()->addDays(1 + $delay);
+        // Redmine's successor_soonest_start / reschedule_on: the day count is
+        // in working days, and the successor keeps its working duration.
+        $soonestStart = WorkingDays::add($anchor, 1 + $delay);
 
         if ($successor->start_date !== null && $successor->start_date->greaterThanOrEqualTo($soonestStart)) {
             return;
         }
 
         $duration = $successor->start_date !== null && $successor->due_date !== null
-            ? $successor->start_date->diffInDays($successor->due_date)
+            ? WorkingDays::between($successor->start_date, $successor->due_date)
             : 0;
+
+        $newStart = WorkingDays::nextWorkingDate($soonestStart);
 
         $this->update(
             $successor,
             [
-                'start_date' => $soonestStart->toDateString(),
-                'due_date' => $soonestStart->copy()->addDays($duration)->toDateString(),
+                'start_date' => $newStart->toDateString(),
+                'due_date' => WorkingDays::add($newStart, $duration)->toDateString(),
             ],
             $actor,
             rescheduledIssueIds: $rescheduledIssueIds,
