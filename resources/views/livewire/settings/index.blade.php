@@ -8,6 +8,7 @@ use App\Models\Enumeration;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Support\Pagination\PageSize;
 use App\Rules\RequiredPasswordCharacterClasses;
 use App\Support\Issues\DoneRatioSteps;
 use App\Support\Issues\RelatedIssueColumns;
@@ -84,6 +85,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public int $activity_days_default = 7;
 
     public int $feeds_limit = 15;
+
+    public string $per_page_options = '25,50,100';
+
+    public int $search_results_per_page = 10;
 
     public bool $cache_formatted_text = false;
 
@@ -227,6 +232,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
         $this->activity_days_default = Setting::get('activity_days_default', 7);
         $this->feeds_limit = Setting::get('feeds_limit', 15);
+        $this->per_page_options = Setting::get('per_page_options', PageSize::DEFAULT_OPTIONS);
+        $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
         $this->reactions_enabled = Setting::get('reactions_enabled', true);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
@@ -338,6 +345,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_issues_per_page' => ['required', 'integer', 'min:5', 'max:200'],
             'activity_days_default' => ['required', 'integer', 'min:1', 'max:365'],
             'feeds_limit' => ['required', 'integer', 'min:1', 'max:500'],
+            'per_page_options' => ['required', 'string', 'max:100', 'regex:/^\s*[1-9]\d{0,3}([\s,]+[1-9]\d{0,3})*\s*$/'],
+            'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
             'reactions_enabled' => ['boolean'],
             'incoming_mail_enabled' => ['boolean'],
@@ -454,6 +463,19 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">活動画面の既定の表示期間(日数)</label>
                 <input type="number" min="1" max="365" wire:model="activity_days_default" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('activity_days_default') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">一覧の表示件数の選択肢</label>
+                <input type="text" wire:model="per_page_options" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">カンマまたは空白区切り(例: 25,50,100)。課題・プロジェクト・お知らせ一覧の「表示件数」に出る選択肢です。</p>
+                @error('per_page_options') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">検索結果の1ページあたりの件数</label>
+                <input type="number" min="1" max="200" wire:model="search_results_per_page" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('search_results_per_page') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

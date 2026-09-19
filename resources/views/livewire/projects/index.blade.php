@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\SelectsPageSize;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Support\Markdown\WikiMarkdownRenderer;
@@ -13,6 +14,7 @@ use Livewire\WithPagination;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use SelectsPageSize;
     use WithPagination;
 
     #[Url]
@@ -99,7 +101,7 @@ new #[Layout('components.layouts.app')] class extends Component
             return $visible;
         }
 
-        $perPage = 25;
+        $perPage = $this->pageSize(25);
 
         return new LengthAwarePaginator(
             $visible->forPage($this->getPage(), $perPage)->values(),
@@ -214,6 +216,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($this->projects instanceof \Illuminate\Contracts\Pagination\Paginator)
         <div class="mt-4">
+            <div class="mt-2 flex justify-end"><x-per-page-select :selected="$this->projects->perPage()" :total="$this->projects->total()" /></div>
             {{ $this->projects->links() }}
         </div>
     @endif

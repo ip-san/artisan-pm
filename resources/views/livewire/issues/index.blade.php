@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\SelectsPageSize;
 use App\Concerns\InteractsWithQueryFilters;
 use App\Concerns\ReordersColumns;
 use App\Enums\EnumerationType;
@@ -43,6 +44,7 @@ new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
     use ReordersColumns;
+    use SelectsPageSize;
     use WithPagination;
 
     /**
@@ -263,7 +265,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function issues(): LengthAwarePaginator
     {
-        return $this->filteredIssuesQuery()->paginate(Setting::get('default_issues_per_page', 25));
+        return $this->filteredIssuesQuery()->paginate($this->pageSize((int) Setting::get('default_issues_per_page', 25)));
     }
 
     /**
@@ -1393,5 +1395,6 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     @endforeach
 
+    <div class="mt-2 flex justify-end"><x-per-page-select :selected="$this->issues->perPage()" :total="$this->issues->total()" /></div>
     {{ $this->issues->links() }}
 </div>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\SelectsPageSize;
 use App\Concerns\InteractsWithQueryFilters;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
@@ -37,6 +38,7 @@ use Livewire\WithPagination;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
+    use SelectsPageSize;
     use WithPagination;
 
     /**
@@ -155,7 +157,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function issues(): LengthAwarePaginator
     {
-        return $this->filteredIssuesQuery()->paginate(25);
+        return $this->filteredIssuesQuery()->paginate($this->pageSize(25));
     }
 
     public function sortBy(string $key): void
@@ -374,6 +376,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     <div class="mt-4">
+        <div class="mt-2 flex justify-end"><x-per-page-select :selected="$this->issues->perPage()" :total="$this->issues->total()" /></div>
         {{ $this->issues->links() }}
     </div>
 </div>

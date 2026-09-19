@@ -3,15 +3,20 @@
 use App\Models\Issue;
 use App\Models\Project;
 use App\Services\SearchService;
+use App\Support\Pagination\PageSize;
 use App\Support\Search\SearchResult;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use WithPagination;
+
     public Project $project;
 
     #[Url]
@@ -79,8 +84,36 @@ new #[Layout('components.layouts.app')] class extends Component
         );
     }
 
+    /**
+     * One page of results() at Redmine's search_results_per_page.
+     *
+     * @return LengthAwarePaginator<int, SearchResult>
+     */
+    #[Computed]
+    public function pagedResults(): LengthAwarePaginator
+    {
+        $perPage = PageSize::searchResults();
+
+        return new LengthAwarePaginator(
+            $this->results->forPage($this->getPage(), $perPage)->values(),
+            $this->results->count(),
+            $perPage,
+            $this->getPage(),
+            ['path' => request()->url(), 'pageName' => 'page'],
+        );
+    }
+
+    /**
+     * Any change to the query or a search option starts over at page 1.
+     */
+    public function updated(): void
+    {
+        $this->resetPage();
+    }
+
     public function search(): void
     {
+        $this->resetPage();
         $this->jumpToIssueIfIdQuery();
 
         unset($this->results);
@@ -160,7 +193,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @else
         <p class="mb-4 text-sm text-gray-500">{{ $this->results->count() }}件の結果</p>
         <ul class="space-y-3">
-            @foreach ($this->results as $result)
+            @foreach ($this->pagedResults as $result)
                 <li wire:key="result-{{ $result->type }}-{{ $result->url }}" class="rounded-md border border-gray-200 bg-white p-4">
                     <span class="mr-2 rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                         {{ self::TYPE_LABELS[$result->type] ?? $result->type }}
@@ -173,5 +206,6 @@ new #[Layout('components.layouts.app')] class extends Component
                 </li>
             @endforeach
         </ul>
+        <div class="mt-4">{{ $this->pagedResults->links() }}</div>
     @endif
 </div>

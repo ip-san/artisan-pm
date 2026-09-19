@@ -118,7 +118,8 @@
 | 46 | A11-06 | A7-09 | S | done(2026-09-20) |
 | 47 | A11-05 | — | S | done(2026-09-20) |
 | 48 | A2-01 | — | S | done(2026-09-20) |
-| 49 | A2-07 | — | S〜M | todo |
+| 49 | A2-07 | — | S〜M | done(2026-09-20、ページ分割が既にある一覧のみ。残りは A2-07b) |
+| 49b | A2-07b | A2-07 | M | todo |
 | 50 | A7-12 | — | S | todo |
 | 51 | A9-06 | A2-07, A7-12 | S | todo |
 | 52 | A5-09 | — | S〜M | todo |
@@ -276,6 +277,7 @@
 | A2-05 | 管理画面のプロジェクト一覧クエリ(`ProjectAdminQuery`、Redmine 6.0〜) | 管理者専用のプロジェクト一覧画面なし(一般の `projects.index` を兼用) | `/admin/projects` 相当: 全ステータス横断・フィルタ・一括アーカイブ/削除 | A2-03 の基盤上に | S〜M | — (checklist 未掲載) |
 | A2-06 | 課題レポートのドリルダウン(`reports#issue_report_details`)・サブプロジェクト集計・CSV | 1画面のグリッドのみ | 各軸(トラッカー/優先度/担当者/作成者/バージョン/カテゴリ/サブプロジェクト)の詳細ページと CSV | 旧: 意図的簡略化 | S〜M | 「課題レポート」 |
 | A2-07 | ページサイズ選択(`per_page_options`)と検索結果ページネーション(`search_results_per_page`) | どの一覧にもページサイズ `<select>` なし。検索結果はページネーション自体なし | 共通コンポーネント `<x-per-page-select>` を作り課題/工数/プロジェクト/News/文書一覧に配置。検索結果に `LengthAwarePaginator` | — | S〜M | 設定「全般」 |
+| A2-07b | 一覧のページ分割そのものが無い画面(工数一覧・グローバル工数一覧・プロジェクトのお知らせ一覧・文書一覧)に `PageSize`/`SelectsPageSize`/`<x-per-page-select>`(A2-07 で追加)を適用。工数一覧は合計・グループ化・一括選択が全件前提のため、合計とグループ見出しを SQL 集計に移す作業を伴う | いずれも `->get()` で全件取得(`time-entries/index.blade.php:126`、`time-entries/global-index.blade.php:116`、`news/index.blade.php:27`、`documents/index.blade.php:39`) | 工数一覧は合計を全件集計、行はページ分だけ描画。CSV は全件のまま | A2-07 | M | 設定「全般」 |
 | A2-08 | 工数フィルタ: `subproject_id`/`issue.parent_id`/`issue.status_id`/`issue.fixed_version_id`/`issue.category_id`/`issue.subject`/`user.group`/`user.role`/`author_id`/`project.status`、列: `project`/`created_on`/`tweek`/`author`/CF | `TimeEntryFilterFieldRegistry.php` は user_id/activity_id/spent_on/hours/project_id。列は spent_on/user/activity/issue/comments/hours | 課題側の JOIN フィルタと列を工数側に移植 | A1-17 と同じ `FilterableField` 実装を共有 | M | クエリ「列選択」 |
 | A2-09 | 課題一覧の合計行の設定化(`issue_list_default_totals`)、工数一覧既定(`time_entry_list_defaults`) | 合計は予定/実績を固定表示、設定キーなし | 合計対象列(予定/実績/残工数/数値 CF)を設定で選択 | — | S | クエリ「合計/集計」 |
 
@@ -640,6 +642,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A6-04b | 添付の追加/削除と関連の追加/削除が通知メールになる(従来は通知なし)。編集と同時に添付すると、編集メールと添付メールの 2 通(Redmine は 1 通) | 通知が増える。通知しないでほしい場合は各ユーザーの通知設定か `notified_events` で制御 |
 | (C-23) | **通知メールと Webhook が二重送信されていた不具合を修正**(自動検出+明示登録の重複) | 従来 2 通届いていた通知が 1 通になる。Webhook の受信側が二重呼び出しを前提にしていた場合は影響 |
 | A3-07 | プロジェクト一覧が常にツリー順(検索時もフラット・アルファベット順ではなくなる) | — |
+| A2-07 | 検索結果が `search_results_per_page`(既定 10)件ずつのページ分割になる(従来は全件を 1 ページに表示)。新設定 `per_page_options` の選択肢が課題・グローバル課題・グローバルお知らせ・プロジェクト(検索/フィルタ時)一覧の「表示件数」に出る(既定の件数は従来のまま) | 検索結果が 11 件以上ある場合に 2 ページ目以降になる |
 | A7-02 | `{{collapse}}` がネスト可能に。本文に隣接した `{{collapse}}` でプレースホルダ文字列が漏れる不具合を修正 | — |
 | A1-13 | 課題フォームの進捗率がスライダーからセレクトに | — |
 | A1-21 | 課題詳細のサブタスク/関連課題がリストから表になる | — |

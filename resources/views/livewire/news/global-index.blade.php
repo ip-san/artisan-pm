@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\SelectsPageSize;
 use App\Models\News;
 use App\Models\Project;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -10,6 +11,7 @@ use Livewire\WithPagination;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use SelectsPageSize;
     use WithPagination;
 
     /**
@@ -37,7 +39,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->with(['author', 'project'])
             ->withCount('comments')
             ->latest()
-            ->paginate(10);
+            ->paginate($this->pageSize(10));
     }
 }; ?>
 
@@ -67,6 +69,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </ul>
 
     <div class="mt-4">
+        <div class="mt-2 flex justify-end"><x-per-page-select :selected="$this->newsItems->perPage()" :total="$this->newsItems->total()" /></div>
         {{ $this->newsItems->links() }}
     </div>
 </div>
