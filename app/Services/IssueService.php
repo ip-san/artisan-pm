@@ -10,6 +10,7 @@ use App\Enums\IssueTimeEntryDisposition;
 use App\Enums\UserStatus;
 use App\Events\IssueCreated;
 use App\Events\IssueDeleted;
+use App\Events\IssueJournalRecorded;
 use App\Events\IssueUpdated;
 use App\Exceptions\StaleIssueUpdateException;
 use App\Models\CustomField;
@@ -147,18 +148,40 @@ final class IssueService
      */
     public function journalizeAttachment(Issue $issue, Media $media, bool $added, User $actor): void
     {
-        $journal = Journal::create([
-            'issue_id' => $issue->id,
-            'user_id' => $actor->id,
-            'notes' => null,
-        ]);
+        $this->journalizeAttachments($issue, [$media], $added, $actor);
+    }
 
-        $journal->details()->create([
-            'property' => 'attachment',
-            'prop_key' => (string) $media->id,
-            'old_value' => $added ? null : $media->file_name,
-            'new_value' => $added ? $media->file_name : null,
-        ]);
+    /**
+     * Several attachments in one journal — and so one notification — like
+     * the single journal Redmine writes for an edit that adds files. Mailed
+     * through IssueJournalRecorded (mail only, no webhook); an issue edit's
+     * own mail (from update()) is separate, so an edit that also uploads
+     * files sends two mails here where Redmine sends one.
+     *
+     * @param  iterable<int, Media>  $medias
+     */
+    public function journalizeAttachments(Issue $issue, iterable $medias, bool $added, User $actor): void
+    {
+        $journal = null;
+
+        foreach ($medias as $media) {
+            $journal ??= Journal::create([
+                'issue_id' => $issue->id,
+                'user_id' => $actor->id,
+                'notes' => null,
+            ]);
+
+            $journal->details()->create([
+                'property' => 'attachment',
+                'prop_key' => (string) $media->id,
+                'old_value' => $added ? null : $media->file_name,
+                'new_value' => $added ? $media->file_name : null,
+            ]);
+        }
+
+        if ($journal !== null) {
+            IssueJournalRecorded::dispatch($issue, $actor, $journal->load('details'));
+        }
     }
 
     /**
@@ -199,6 +222,8 @@ final class IssueService
                 'old_value' => $added ? null : (string) $otherIssueId,
                 'new_value' => $added ? (string) $otherIssueId : null,
             ]);
+
+            IssueJournalRecorded::dispatch($issue, $actor, $journal->load('details'));
         }
     }
 

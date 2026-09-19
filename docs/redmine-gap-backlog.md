@@ -106,7 +106,7 @@
 | 35 | A6-02 | (取り下げ)@mention の News コメント・フォーラム投稿への拡張 | — | Redmine 7.0.0 で `acts_as_mentionable` を持つのは Issue(`description`)・Journal(`notes`)・WikiContent(`text`) のみ(`app/models/{issue,journal,wiki_content}.rb`)。News コメントとフォーラム投稿は対象外 | 作業不要(チェックリストが「次点・未着手」と誤って書いていた) | — | Watchers「作成者/担当者の自動Watch・@mention」(C-22) |
 | 36 | A6-03 | — | S | done(2026-09-20) |
 | 37 | A6-04 | — | S | done(2026-09-20、**描画のみ・通知は未達**: メール化される Journal に添付/関連が乗らない。実現は A6-04b) |
-| 37a | A6-04b | A6-04 | M | wip(2026-09-20) |
+| 37a | A6-04b | A6-04 | M | done(2026-09-20、編集+添付は Redmine の 1 通に対し 2 通) |
 | A6-04b | 添付・関連の変更を実際にメール通知する(編集と同じ Journal に添付を含める、関連の追加/削除の Journal 通知) | A6-04 でメール本文は描画できるようにしたが、`IssueNotificationMail` に渡る Journal は `IssueService::update()` の `$detailsJournal` のみ。添付は `journalizeAttachment()`(`issues/form.blade.php:589`、`Api/V1/IssueController.php:295`)が update 後に別 Journal で記録し、`journalizeRelation()` も通知しない | `update()` が添付(Media 追加を update より前に行うか、添付一覧を引数で受ける)を同じ Journal の `attachment` 詳細に含め、メール送信条件にも加える。関連の追加/削除は独立した通知(Webhook を発火させない専用イベントまたは通知の直接送信)にする | **`IssueUpdated` を関連/添付で発火すると Webhook `issue.updated` も飛ぶため、専用の通知経路が必要**。フォームと API の 3 呼び出し元の順序変更を伴う | M | Journal「メール通知(課題)」 |
 | 38 | A5-11 / A6-07 | — | S | done(2026-09-20、default_users_hide_mail は A4-13 待ち) |
 | 39 | A12-01 | — | S | done(2026-09-20) |
@@ -637,6 +637,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A1-09 | 工数のある課題の削除に確認パネルが出る(`todo` 省略時は従来どおり工数を残す) | — |
 | A4-04 | 管理者が必須文字種を選ぶと、既存パスワードは次回変更時から対象(既存ユーザーが即時に締め出されるわけではない)。設定が空(既定)なら従来どおり | — |
 | A4-08 | `login`/`email` の一意性が大文字小文字無視に(Admin と admin は同一扱い)。メールドメイン制限が管理者フォーム・プロフィール・API にも適用(アドレス変更時のみ) | 既存データに大小違いの重複がある場合、その利用者は編集時に一意性エラーになりうる(DB は変更していない) |
+| A6-04b | 添付の追加/削除と関連の追加/削除が通知メールになる(従来は通知なし)。編集と同時に添付すると、編集メールと添付メールの 2 通(Redmine は 1 通) | 通知が増える。通知しないでほしい場合は各ユーザーの通知設定か `notified_events` で制御 |
 | (C-23) | **通知メールと Webhook が二重送信されていた不具合を修正**(自動検出+明示登録の重複) | 従来 2 通届いていた通知が 1 通になる。Webhook の受信側が二重呼び出しを前提にしていた場合は影響 |
 | A3-07 | プロジェクト一覧が常にツリー順(検索時もフラット・アルファベット順ではなくなる) | — |
 | A7-02 | `{{collapse}}` がネスト可能に。本文に隣接した `{{collapse}}` でプレースホルダ文字列が漏れる不具合を修正 | — |

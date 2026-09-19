@@ -258,6 +258,8 @@ final class IssueController extends Controller
      */
     private function attachUploads(Issue $issue, array $uploads, bool $journalize, User $actor): void
     {
+        $attached = [];
+
         foreach ($uploads as $upload) {
             $media = PendingUploadToken::resolve((string) ($upload['token'] ?? ''));
 
@@ -291,9 +293,12 @@ final class IssueController extends Controller
 
             PendingUpload::query()->whereKey($pendingUploadId)->delete();
 
-            if ($journalize) {
-                app(IssueService::class)->journalizeAttachment($issue, $media, added: true, actor: $actor);
-            }
+            $attached[] = $media;
+        }
+
+        // One journal — and one mail — for every file attached in this call.
+        if ($journalize && $attached !== []) {
+            app(IssueService::class)->journalizeAttachments($issue, $attached, added: true, actor: $actor);
         }
     }
 

@@ -577,17 +577,20 @@ new #[Layout('components.layouts.app')] class extends Component
             $issue = app(IssueService::class)->create($data, auth()->user(), $customFieldData);
         }
 
+        $addedMedia = [];
+
         foreach ($this->newAttachments as $file) {
-            $media = $issue->addMedia($file->getRealPath())
+            $addedMedia[] = $issue->addMedia($file->getRealPath())
                 ->usingFileName($file->getClientOriginalName())
                 ->toMediaCollection('attachments');
+        }
 
-            // Only journaled when editing — attachments uploaded while
-            // creating the issue have no journal to belong to (Redmine
-            // behaves the same; creation itself is not journaled).
-            if ($this->issue !== null) {
-                app(IssueService::class)->journalizeAttachment($issue, $media, added: true, actor: auth()->user());
-            }
+        // Only journaled when editing — attachments uploaded while creating
+        // the issue have no journal to belong to (Redmine behaves the same;
+        // creation itself is not journaled). One journal, and one mail, for
+        // all the files added in this save.
+        if ($this->issue !== null && $addedMedia !== []) {
+            app(IssueService::class)->journalizeAttachments($issue, $addedMedia, added: true, actor: auth()->user());
         }
 
         if (filled($logTimeHours)) {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Events\IssueCreated;
+use App\Events\IssueJournalRecorded;
 use App\Events\IssueUpdated;
 use App\Events\NewsCommentCreated;
 use App\Events\NewsCreated;
@@ -24,7 +25,7 @@ final class MailNotificationServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        Event::listen([IssueCreated::class, IssueUpdated::class], SendIssueMailNotifications::class);
+        Event::listen([IssueCreated::class, IssueUpdated::class, IssueJournalRecorded::class], SendIssueMailNotifications::class);
         Event::listen([WikiPageCreated::class, WikiPageUpdated::class], SendWikiPageMailNotifications::class);
         Event::listen([NewsCreated::class, NewsCommentCreated::class], SendNewsMailNotifications::class);
     }
