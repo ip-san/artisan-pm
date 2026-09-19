@@ -30,7 +30,7 @@ function searchMember(Project $project, array $permissions): User
 
 test('an empty query returns no results', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_issues']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_issues']);
 
     $component = Livewire::actingAs($user)->test('search.index', ['project' => $project]);
 
@@ -39,7 +39,7 @@ test('an empty query returns no results', function () {
 
 test('a matching issue subject and description are found', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_issues']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_issues']);
     $issue = Issue::factory()->for($project)->create([
         'tracker_id' => Tracker::factory(),
         'status_id' => IssueStatus::factory(),
@@ -70,7 +70,7 @@ test('a matching issue subject and description are found', function () {
 
 test('a member without view_issues does not see issue results', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project']);
+    $user = searchMember($project, ['view_project', 'search_project']);
     Issue::factory()->for($project)->create([
         'tracker_id' => Tracker::factory(),
         'status_id' => IssueStatus::factory(),
@@ -89,7 +89,7 @@ test('a member without view_issues does not see issue results', function () {
 
 test('a wiki page is found by title or by its current version text', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_wiki_pages']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_wiki_pages']);
     $page = WikiPage::factory()->for($project)->create(['title' => 'Deployment Guide']);
     $page->versions()->create(['author_id' => $user->id, 'text' => 'How to deploy with zero downtime', 'version' => 2]);
 
@@ -111,7 +111,7 @@ test('a wiki page is found by title or by its current version text', function ()
 
 test('news, documents, and forum messages are all searchable', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_news', 'view_documents', 'view_messages']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_news', 'view_documents', 'view_messages']);
 
     News::factory()->for($project)->create(['title' => 'Release notes', 'description' => 'unique-news-token']);
     Document::factory()->for($project)->create(['title' => 'Spec sheet', 'description' => 'unique-document-token']);
@@ -129,7 +129,7 @@ test('news, documents, and forum messages are all searchable', function () {
 
 test('a reply message result links to its parent topic', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_messages']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_messages']);
     $board = Board::factory()->for($project)->create();
     $topic = Message::factory()->for($board)->create(['subject' => 'Original topic']);
     Message::factory()->for($board)->create(['parent_id' => $topic->id, 'content' => 'unique-reply-token']);
@@ -145,7 +145,7 @@ test('a reply message result links to its parent topic', function () {
 
 test('a changeset is found by its commit message and links to the revision', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_changesets']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_changesets']);
     $repository = Repository::factory()->for($project)->create();
     $changeset = Changeset::factory()->for($repository)->create(['comments' => 'Fix unique-commit-token in the parser']);
     Changeset::factory()->for($repository)->create(['comments' => 'Unrelated commit']);
@@ -163,7 +163,7 @@ test('a changeset is found by its commit message and links to the revision', fun
 
 test('a member without view_changesets does not see changeset results', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project']);
+    $user = searchMember($project, ['view_project', 'search_project']);
     $repository = Repository::factory()->for($project)->create();
     Changeset::factory()->for($repository)->create(['comments' => 'Findable commit message']);
 
@@ -178,7 +178,7 @@ test('a member without view_changesets does not see changeset results', function
 
 test('the current project itself is found by name or description', function () {
     $project = Project::factory()->create(['name' => 'Unique Project Name', 'description' => 'unique-project-description-token']);
-    $user = searchMember($project, ['view_project']);
+    $user = searchMember($project, ['view_project', 'search_project']);
 
     $byName = Livewire::actingAs($user)
         ->test('search.index', ['project' => $project])
@@ -198,7 +198,7 @@ test('the current project itself is found by name or description', function () {
 
 test('an issue is found by a searchable custom field value', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_issues']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_issues']);
     $tracker = Tracker::factory()->create();
     $field = CustomField::factory()->create(['searchable' => true]);
     $field->trackers()->attach($tracker);
@@ -224,7 +224,7 @@ test('an issue is found by a searchable custom field value', function () {
 
 test('a custom field value is not searchable unless the field is marked searchable', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_issues']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_issues']);
     $tracker = Tracker::factory()->create();
     $field = CustomField::factory()->create(['searchable' => false]);
     $field->trackers()->attach($tracker);
@@ -250,9 +250,9 @@ test('a custom field value is not searchable unless the field is marked searchab
 test('search results are scoped to the current project only', function () {
     $project = Project::factory()->create();
     $otherProject = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_issues']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_issues']);
     Member::factory()->for($otherProject)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_project', 'view_issues']])
+        Role::factory()->create(['permissions' => ['view_project', 'search_project', 'view_issues']])
     );
 
     Issue::factory()->for($otherProject)->create([
@@ -274,7 +274,7 @@ test('search results are scoped to the current project only', function () {
 
 test('all-words matching requires every word; any-word matching requires just one', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_issues']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_issues']);
     $both = Issue::factory()->for($project)->create(['subject' => 'alpha beta report']);
     $oneOnly = Issue::factory()->for($project)->create(['subject' => 'alpha only here']);
 
@@ -298,7 +298,7 @@ test('all-words matching requires every word; any-word matching requires just on
 
 test('titles-only mode ignores body matches', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_issues']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_issues']);
     $titleMatch = Issue::factory()->for($project)->create(['subject' => 'quasar in title']);
     $bodyMatch = Issue::factory()->for($project)->create(['subject' => 'unrelated', 'description' => 'quasar only in the body']);
 
@@ -316,7 +316,7 @@ test('titles-only mode ignores body matches', function () {
 
 test('open-issues-only mode excludes closed issues but leaves other types alone', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_issues', 'view_news']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_issues', 'view_news']);
     $openStatus = IssueStatus::factory()->create(['is_closed' => false]);
     $closedStatus = IssueStatus::factory()->create(['is_closed' => true]);
     $open = Issue::factory()->for($project)->create(['subject' => 'nebula open', 'status_id' => $openStatus->id]);
@@ -338,7 +338,7 @@ test('open-issues-only mode excludes closed issues but leaves other types alone'
 
 test('a #123 query jumps straight to that issue when it is visible', function () {
     $project = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_issues']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_issues']);
     $issue = Issue::factory()->for($project)->create();
 
     Livewire::actingAs($user)
@@ -358,7 +358,7 @@ test('a #123 query jumps straight to that issue when it is visible', function ()
 test('a #123 query for a nonexistent or foreign issue falls through to a normal search', function () {
     $project = Project::factory()->create();
     $otherProject = Project::factory()->create();
-    $user = searchMember($project, ['view_project', 'view_issues']);
+    $user = searchMember($project, ['view_project', 'search_project', 'view_issues']);
     $foreignIssue = Issue::factory()->for($otherProject)->create();
 
     Livewire::actingAs($user)
@@ -377,9 +377,9 @@ test('a #123 query for a nonexistent or foreign issue falls through to a normal 
 test('subprojects are excluded from the search by default', function () {
     $parent = Project::factory()->create();
     $child = Project::factory()->create(['parent_id' => $parent->id]);
-    $user = searchMember($parent, ['view_project', 'view_issues']);
+    $user = searchMember($parent, ['view_project', 'search_project', 'view_issues']);
     Member::factory()->for($child)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_project', 'view_issues']])
+        Role::factory()->create(['permissions' => ['view_project', 'search_project', 'view_issues']])
     );
 
     Issue::factory()->for($child)->create(['subject' => 'subproject-only-token']);
@@ -397,9 +397,9 @@ test('the include-subprojects toggle expands the search into visible descendants
     $parent = Project::factory()->create();
     $child = Project::factory()->create(['parent_id' => $parent->id]);
     $hiddenChild = Project::factory()->create(['parent_id' => $parent->id, 'is_public' => false]);
-    $user = searchMember($parent, ['view_project', 'view_issues']);
+    $user = searchMember($parent, ['view_project', 'search_project', 'view_issues']);
     Member::factory()->for($child)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_project', 'view_issues']])
+        Role::factory()->create(['permissions' => ['view_project', 'search_project', 'view_issues']])
     );
 
     Issue::factory()->for($child)->create(['subject' => 'visible-subproject-token']);

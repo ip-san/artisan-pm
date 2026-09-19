@@ -60,7 +60,7 @@ test('the issue list follows a chosen page size and ignores one that is not an o
     Setting::set('default_issues_per_page', 5);
     Setting::set('per_page_options', '5,10,20');
     $project = Project::factory()->create();
-    $user = pageSizeMember($project, ['view_project', 'view_issues']);
+    $user = pageSizeMember($project, ['view_project', 'search_project', 'view_issues']);
     pageSizeIssues($project, 12);
 
     $list = Livewire::actingAs($user)->test('issues.index', ['project' => $project]);
@@ -78,7 +78,7 @@ test('the issue list follows a chosen page size and ignores one that is not an o
 test('changing the page size returns to the first page', function () {
     Setting::set('per_page_options', '5,10');
     $project = Project::factory()->create();
-    $user = pageSizeMember($project, ['view_project', 'view_issues']);
+    $user = pageSizeMember($project, ['view_project', 'search_project', 'view_issues']);
     pageSizeIssues($project, 12);
 
     $list = Livewire::actingAs($user)->test('issues.index', ['project' => $project])
@@ -92,7 +92,7 @@ test('changing the page size returns to the first page', function () {
 test('the selector is hidden when every row already fits the smallest option', function () {
     Setting::set('per_page_options', '25,50,100');
     $project = Project::factory()->create();
-    $user = pageSizeMember($project, ['view_project', 'view_issues']);
+    $user = pageSizeMember($project, ['view_project', 'search_project', 'view_issues']);
     pageSizeIssues($project, 3);
 
     Livewire::actingAs($user)->test('issues.index', ['project' => $project])->assertDontSee('表示件数');
@@ -101,7 +101,7 @@ test('the selector is hidden when every row already fits the smallest option', f
 test('the global issue list and the global news list honour the page size too', function () {
     Setting::set('per_page_options', '5,10');
     $project = Project::factory()->create();
-    $user = pageSizeMember($project, ['view_project', 'view_issues', 'view_news']);
+    $user = pageSizeMember($project, ['view_project', 'search_project', 'view_issues', 'view_news']);
     pageSizeIssues($project, 12);
     News::factory(12)->for($project)->create();
 
@@ -116,7 +116,7 @@ test('the global issue list and the global news list honour the page size too', 
 test('search results are paginated at search_results_per_page', function () {
     Setting::set('search_results_per_page', 4);
     $project = Project::factory()->create();
-    $user = pageSizeMember($project, ['view_project', 'view_issues']);
+    $user = pageSizeMember($project, ['view_project', 'search_project', 'view_issues']);
     pageSizeIssues($project, 9, 'paged-needle');
 
     $search = Livewire::actingAs($user)
@@ -138,7 +138,7 @@ test('the global search paginates and shows only what the user may see', functio
     Setting::set('search_results_per_page', 3);
     $visible = Project::factory()->create();
     $hidden = Project::factory()->create();
-    $user = pageSizeMember($visible, ['view_project', 'view_issues']);
+    $user = pageSizeMember($visible, ['view_project', 'search_project', 'view_issues']);
     pageSizeIssues($visible, 5, 'global-paged-needle');
     pageSizeIssues($hidden, 5, 'global-paged-needle');
 

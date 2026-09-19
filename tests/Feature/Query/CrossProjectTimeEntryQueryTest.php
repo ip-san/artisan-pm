@@ -8,7 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use Livewire\Livewire;
 
-function crossProjectTimeEntryMember(Project $project, array $permissions = ['view_time_entries']): User
+function crossProjectTimeEntryMember(Project $project, array $permissions = ['view_time_entries', 'save_queries']): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create(['permissions' => $permissions]);
@@ -21,7 +21,7 @@ test('an admin can save a query from the global time entry list as public and it
     $project = Project::factory()->create();
     $admin = User::factory()->create(['is_admin' => true]);
     Member::factory()->for($project)->for($admin)->create()
-        ->roles()->attach(Role::factory()->create(['permissions' => ['view_time_entries']]));
+        ->roles()->attach(Role::factory()->create(['permissions' => ['view_time_entries', 'save_queries']]));
 
     Livewire::actingAs($admin)
         ->test('time-entries.global-index')

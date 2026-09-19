@@ -27,9 +27,9 @@ function globalSearchMember(Project $project, array $permissions): User
 test('the global search finds matches across every project the user can view_issues in', function () {
     $projectA = Project::factory()->create();
     $projectB = Project::factory()->create();
-    $user = globalSearchMember($projectA, ['view_project', 'view_issues']);
+    $user = globalSearchMember($projectA, ['view_project', 'search_project', 'view_issues']);
     Member::factory()->for($projectB)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_project', 'view_issues']])
+        Role::factory()->create(['permissions' => ['view_project', 'search_project', 'view_issues']])
     );
 
     $issueA = Issue::factory()->for($projectA)->create([
@@ -61,7 +61,7 @@ test('the global search finds matches across every project the user can view_iss
 test('the global search excludes projects the user has no access to at all', function () {
     $visibleProject = Project::factory()->create();
     $hiddenProject = Project::factory()->create(['is_public' => false]);
-    $user = globalSearchMember($visibleProject, ['view_project', 'view_issues']);
+    $user = globalSearchMember($visibleProject, ['view_project', 'search_project', 'view_issues']);
 
     Issue::factory()->for($hiddenProject)->create([
         'tracker_id' => Tracker::factory(),
@@ -83,7 +83,7 @@ test('the global search excludes projects the user has no access to at all', fun
 test('the global search finds a project by name and excludes projects the viewer cannot see', function () {
     $visibleProject = Project::factory()->create(['name' => 'Findable Project', 'is_public' => true]);
     $hiddenProject = Project::factory()->create(['name' => 'Findable Hidden Project', 'is_public' => false]);
-    $user = globalSearchMember($visibleProject, ['view_project']);
+    $user = globalSearchMember($visibleProject, ['view_project', 'search_project']);
 
     $results = Livewire::actingAs($user)
         ->test('search.global-index')
@@ -98,7 +98,7 @@ test('the global search finds a project by name and excludes projects the viewer
 
 test('the global search finds a changeset by its commit message', function () {
     $project = Project::factory()->create();
-    $user = globalSearchMember($project, ['view_project', 'view_changesets']);
+    $user = globalSearchMember($project, ['view_project', 'search_project', 'view_changesets']);
     $repository = Repository::factory()->for($project)->create();
     $changeset = Changeset::factory()->for($repository)->create(['comments' => 'global-search-commit-token']);
 
@@ -115,9 +115,9 @@ test('the global search finds a changeset by its commit message', function () {
 test('the global search only surfaces news from projects the user can view_news in, even if visible otherwise', function () {
     $projectWithNewsAccess = Project::factory()->create();
     $projectWithoutNewsAccess = Project::factory()->create();
-    $user = globalSearchMember($projectWithNewsAccess, ['view_project', 'view_news']);
+    $user = globalSearchMember($projectWithNewsAccess, ['view_project', 'search_project', 'view_news']);
     Member::factory()->for($projectWithoutNewsAccess)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_project']])
+        Role::factory()->create(['permissions' => ['view_project', 'search_project']])
     );
 
     News::factory()->for($projectWithNewsAccess)->create(['title' => 'shared-news-token here']);
@@ -135,9 +135,9 @@ test('the global search only surfaces news from projects the user can view_news 
 test('a #123 query on the global search jumps to that issue regardless of which project it belongs to', function () {
     $projectA = Project::factory()->create();
     $projectB = Project::factory()->create();
-    $user = globalSearchMember($projectA, ['view_project', 'view_issues']);
+    $user = globalSearchMember($projectA, ['view_project', 'search_project', 'view_issues']);
     Member::factory()->for($projectB)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_project', 'view_issues']])
+        Role::factory()->create(['permissions' => ['view_project', 'search_project', 'view_issues']])
     );
 
     $issue = Issue::factory()->for($projectB)->create();
@@ -152,7 +152,7 @@ test('a #123 query on the global search jumps to that issue regardless of which 
 test('a #123 query on the global search falls through to a normal search when the issue is not visible', function () {
     $project = Project::factory()->create();
     $otherProject = Project::factory()->create(['is_public' => false]);
-    $user = globalSearchMember($project, ['view_project', 'view_issues']);
+    $user = globalSearchMember($project, ['view_project', 'search_project', 'view_issues']);
     $foreignIssue = Issue::factory()->for($otherProject)->create();
 
     Livewire::actingAs($user)
@@ -171,11 +171,11 @@ test('the my-projects-only toggle excludes publicly visible projects the user is
     // this, a stranger to $publicProject wouldn't see its issues at all
     // regardless of the toggle, which would make this test pass for the
     // wrong reason.
-    Role::factory()->create(['builtin' => RoleBuiltin::NonMember->value, 'permissions' => ['view_project', 'view_issues']]);
+    Role::factory()->create(['builtin' => RoleBuiltin::NonMember->value, 'permissions' => ['view_project', 'search_project', 'view_issues']]);
 
     $memberProject = Project::factory()->create();
     $publicProject = Project::factory()->create();
-    $user = globalSearchMember($memberProject, ['view_project', 'view_issues']);
+    $user = globalSearchMember($memberProject, ['view_project', 'search_project', 'view_issues']);
 
     Issue::factory()->for($memberProject)->create(['subject' => 'member-project-token']);
     Issue::factory()->for($publicProject)->create(['subject' => 'public-project-token']);
@@ -192,11 +192,11 @@ test('the my-projects-only toggle excludes publicly visible projects the user is
 });
 
 test('without the my-projects-only toggle, publicly visible projects are still included', function () {
-    Role::factory()->create(['builtin' => RoleBuiltin::NonMember->value, 'permissions' => ['view_project', 'view_issues']]);
+    Role::factory()->create(['builtin' => RoleBuiltin::NonMember->value, 'permissions' => ['view_project', 'search_project', 'view_issues']]);
 
     $memberProject = Project::factory()->create();
     $publicProject = Project::factory()->create();
-    $user = globalSearchMember($memberProject, ['view_project', 'view_issues']);
+    $user = globalSearchMember($memberProject, ['view_project', 'search_project', 'view_issues']);
 
     Issue::factory()->for($publicProject)->create(['subject' => 'public-project-token']);
 

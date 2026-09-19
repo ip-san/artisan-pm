@@ -10,7 +10,7 @@ function columnOrderMember(Project $project): User
 {
     $user = User::factory()->create();
     Member::factory()->for($project)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_issues', 'view_time_entries', 'log_time']])
+        Role::factory()->create(['permissions' => ['view_issues', 'view_time_entries', 'log_time', 'save_queries']])
     );
 
     return $user;

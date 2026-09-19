@@ -34,6 +34,9 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('manage_members');
         $registry->register('add_subprojects');
         $registry->register('select_project_publicity');
+        // Saved queries of issues, time entries and Gantt (Redmine's :save_queries).
+        $registry->register('save_queries', requirement: PermissionRequirement::LoggedIn);
+        $registry->register('search_project', requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('manage_project_activities');
         $registry->register('view_members', requirement: PermissionRequirement::None, readOnly: true);
         // Global: not tied to any one project (Redmine's :add_project with

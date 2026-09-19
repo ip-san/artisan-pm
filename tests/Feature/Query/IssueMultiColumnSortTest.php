@@ -12,7 +12,7 @@ use Livewire\Livewire;
 function multiSortMember(Project $project): User
 {
     $user = User::factory()->create();
-    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'save_queries']]);
     $member = Member::factory()->for($project)->for($user)->create();
     $member->roles()->attach($role);
 

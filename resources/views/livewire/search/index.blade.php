@@ -41,6 +41,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function mount(Project $project): void
     {
         $this->authorize('view', $project);
+        abort_unless(app(\App\Support\Authorization\AuthorizationService::class)->can(auth()->user(), 'search_project', $project), 403);
 
         $this->project = $project;
 

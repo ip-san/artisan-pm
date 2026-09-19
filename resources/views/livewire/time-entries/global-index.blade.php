@@ -251,8 +251,19 @@ new #[Layout('components.layouts.app')] class extends Component
         return SavedQuery::visibleGlobally(QueryType::TimeEntry, auth()->user());
     }
 
+    /**
+     * Whether the viewer may save queries (Redmine's save_queries).
+     */
+    #[Computed]
+    public function canSaveQueries(): bool
+    {
+        return app(\App\Support\Authorization\AuthorizationService::class)->canGlobally(auth()->user(), 'save_queries');
+    }
+
     public function saveQuery(): void
     {
+        abort_unless($this->canSaveQueries, 403);
+
         $data = $this->validate([
             'newQueryName' => ['required', 'string', 'max:255'],
             'newQueryVisibility' => ['required', Rule::enum(QueryVisibility::class)],
@@ -359,7 +370,9 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </div>
 
-            <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
+            @if ($this->canSaveQueries)
+                <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
+            @endif
 
             <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-gray-300 text-xs">
                 <option value="UTF-8">UTF-8</option>

@@ -183,8 +183,19 @@ new #[Layout('components.layouts.app')] class extends Component
         return Role::query()->givable()->get();
     }
 
+    /**
+     * Whether the viewer may save queries (Redmine's save_queries).
+     */
+    #[Computed]
+    public function canSaveQueries(): bool
+    {
+        return app(\App\Support\Authorization\AuthorizationService::class)->can(auth()->user(), 'save_queries', $this->project);
+    }
+
     public function saveQuery(): void
     {
+        abort_unless($this->canSaveQueries, 403);
+
         $data = $this->validate([
             'newQueryName' => ['required', 'string', 'max:255'],
             'newQueryVisibility' => ['required', Rule::enum(QueryVisibility::class)],
@@ -692,7 +703,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <x-column-order :columns="$columns" :labels="$this->availableColumns" />
 
-            <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
+            @if ($this->canSaveQueries)
+                <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
+            @endif
         </div>
 
         @if ($showSaveForm)

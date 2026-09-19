@@ -63,7 +63,7 @@ function attachmentSearchTitles(Project $project, User $viewer, string $query, A
 
 test('an issue is found through its attachment file name only when attachments are searched', function () {
     $project = Project::factory()->create();
-    $user = attachmentSearchMember($project, ['view_project', 'view_issues']);
+    $user = attachmentSearchMember($project, ['view_project', 'search_project', 'view_issues']);
     $issue = attachmentSearchIssue($project, 'Unrelated subject');
     attachmentSearchAttach($issue, 'quarterly-budget.xlsx');
 
@@ -74,7 +74,7 @@ test('an issue is found through its attachment file name only when attachments a
 
 test('the attachment description is searched as well', function () {
     $project = Project::factory()->create();
-    $user = attachmentSearchMember($project, ['view_project', 'view_issues']);
+    $user = attachmentSearchMember($project, ['view_project', 'search_project', 'view_issues']);
     $issue = attachmentSearchIssue($project, 'Has a described file');
     attachmentSearchAttach($issue, 'scan.pdf', 'signed-contract-copy');
 
@@ -84,7 +84,7 @@ test('the attachment description is searched as well', function () {
 
 test('include keeps the record own text matches and only mode drops them', function () {
     $project = Project::factory()->create();
-    $user = attachmentSearchMember($project, ['view_project', 'view_issues']);
+    $user = attachmentSearchMember($project, ['view_project', 'search_project', 'view_issues']);
     $own = attachmentSearchIssue($project, 'shared-token in the subject');
     $viaFile = attachmentSearchIssue($project, 'Other');
     attachmentSearchAttach($viaFile, 'shared-token.txt');
@@ -96,7 +96,7 @@ test('include keeps the record own text matches and only mode drops them', funct
 
 test('title only searches attachments only in only mode', function () {
     $project = Project::factory()->create();
-    $user = attachmentSearchMember($project, ['view_project', 'view_issues']);
+    $user = attachmentSearchMember($project, ['view_project', 'search_project', 'view_issues']);
     $issue = attachmentSearchIssue($project, 'Plain');
     attachmentSearchAttach($issue, 'titlesonly-token.txt');
 
@@ -106,7 +106,7 @@ test('title only searches attachments only in only mode', function () {
 
 test('news, documents and wiki pages are found through their attachments too', function () {
     $project = Project::factory()->create();
-    $user = attachmentSearchMember($project, ['view_project', 'view_news', 'view_documents', 'view_wiki_pages']);
+    $user = attachmentSearchMember($project, ['view_project', 'search_project', 'view_news', 'view_documents', 'view_wiki_pages']);
     $news = News::factory()->for($project)->create(['title' => 'A news item']);
     $document = Document::factory()->for($project)->create(['title' => 'A document']);
     $page = WikiPage::factory()->for($project)->create(['title' => 'A wiki page']);
@@ -124,10 +124,10 @@ test('news, documents and wiki pages are found through their attachments too', f
 test('attachments of records the viewer cannot see never leak', function () {
     $project = Project::factory()->create();
     $otherProject = Project::factory()->create();
-    $user = attachmentSearchMember($project, ['view_project', 'view_issues']);
+    $user = attachmentSearchMember($project, ['view_project', 'search_project', 'view_issues']);
     $secret = attachmentSearchIssue($otherProject, 'Secret issue');
     attachmentSearchAttach($secret, 'leaky-token.txt');
-    $noPermission = attachmentSearchMember($project, ['view_project']);
+    $noPermission = attachmentSearchMember($project, ['view_project', 'search_project']);
     attachmentSearchAttach(attachmentSearchIssue($project, 'Visible only with view_issues'), 'leaky-token.txt');
 
     $global = app(SearchService::class)->searchAcrossProjects(collect([$project]), $user, 'leaky-token', attachments: AttachmentSearchMode::Include);
@@ -139,10 +139,10 @@ test('attachments of records the viewer cannot see never leak', function () {
 
 test('a private issue attachment is hidden from a member who cannot see the issue', function () {
     $project = Project::factory()->create();
-    $author = attachmentSearchMember($project, ['view_project', 'view_issues']);
+    $author = attachmentSearchMember($project, ['view_project', 'search_project', 'view_issues']);
     $viewer = User::factory()->create();
     Member::factory()->for($project)->for($viewer)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_project', 'view_issues'], 'issues_visibility' => IssueVisibility::Default->value])
+        Role::factory()->create(['permissions' => ['view_project', 'search_project', 'view_issues'], 'issues_visibility' => IssueVisibility::Default->value])
     );
     $issue = attachmentSearchIssue($project, 'Private thing');
     $issue->update(['is_private' => true, 'author_id' => $author->id]);
@@ -154,7 +154,7 @@ test('a private issue attachment is hidden from a member who cannot see the issu
 
 test('the search page and the API accept the attachments option', function () {
     $project = Project::factory()->create();
-    $user = attachmentSearchMember($project, ['view_project', 'view_issues']);
+    $user = attachmentSearchMember($project, ['view_project', 'search_project', 'view_issues']);
     attachmentSearchAttach(attachmentSearchIssue($project, 'Via file'), 'ui-api-token.txt');
 
     $page = Livewire::actingAs($user)->test('search.index', ['project' => $project])->set('query', 'ui-api-token');
@@ -175,9 +175,9 @@ test('the search page and the API accept the attachments option', function () {
 test('the bookmarks scope limits the global search and the API to starred projects', function () {
     $starred = Project::factory()->create();
     $other = Project::factory()->create();
-    $user = attachmentSearchMember($starred, ['view_project', 'view_issues']);
+    $user = attachmentSearchMember($starred, ['view_project', 'search_project', 'view_issues']);
     Member::factory()->for($other)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_project', 'view_issues']])
+        Role::factory()->create(['permissions' => ['view_project', 'search_project', 'view_issues']])
     );
     attachmentSearchIssue($starred, 'bookmark-scope in starred');
     attachmentSearchIssue($other, 'bookmark-scope in other');

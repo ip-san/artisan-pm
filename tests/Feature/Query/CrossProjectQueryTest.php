@@ -9,7 +9,7 @@ use App\Models\Role;
 use App\Models\User;
 use Livewire\Livewire;
 
-function crossProjectQueryMember(Project $project, array $permissions = ['view_issues']): User
+function crossProjectQueryMember(Project $project, array $permissions = ['view_issues', 'save_queries']): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create(['permissions' => $permissions]);
@@ -22,7 +22,7 @@ test('an admin can save a query from the global issue list as public and it has 
     $project = Project::factory()->create();
     $admin = User::factory()->create(['is_admin' => true]);
     Member::factory()->for($project)->for($admin)->create()
-        ->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+        ->roles()->attach(Role::factory()->create(['permissions' => ['view_issues', 'save_queries']]));
 
     Livewire::actingAs($admin)
         ->test('issues.global-index')

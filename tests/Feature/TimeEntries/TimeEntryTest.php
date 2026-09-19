@@ -15,7 +15,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 
-function timeEntryMember(Project $project, array $permissions = ['log_time', 'view_time_entries']): User
+function timeEntryMember(Project $project, array $permissions = ['log_time', 'view_time_entries', 'save_queries']): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create(['permissions' => $permissions]);

@@ -11,7 +11,7 @@ use App\Models\Setting;
 use App\Models\User;
 use Livewire\Livewire;
 
-function queryListMember(Project $project, array $permissions = ['view_issues']): User
+function queryListMember(Project $project, array $permissions = ['view_issues', 'save_queries']): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create(['permissions' => $permissions]);
@@ -84,7 +84,7 @@ test('grouping buckets issues by the chosen field label', function () {
 
 test('saving a query persists the current filters, columns, and sort', function () {
     $project = Project::factory()->create();
-    $user = queryListMember($project, ['view_issues', 'manage_public_queries']);
+    $user = queryListMember($project, ['view_issues', 'manage_public_queries', 'save_queries']);
     $status = IssueStatus::factory()->create();
 
     Livewire::actingAs($user)
@@ -120,7 +120,7 @@ test('a user without manage_public_queries cannot make a saved query public or r
 
 test('a roles-scoped query is visible only to members holding one of the selected roles', function () {
     $project = Project::factory()->create();
-    $manager = queryListMember($project, ['view_issues', 'manage_public_queries']);
+    $manager = queryListMember($project, ['view_issues', 'manage_public_queries', 'save_queries']);
     $visibleRole = Role::factory()->create(['permissions' => ['view_issues']]);
     $otherRole = Role::factory()->create(['permissions' => ['view_issues']]);
 
