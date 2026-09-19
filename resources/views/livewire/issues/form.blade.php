@@ -117,7 +117,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->lockVersion = $issue->lock_version;
 
             if ($this->canLogTime) {
-                $this->logTimeActivityId = $this->timeEntryActivities->firstWhere('is_default', true)?->id;
+                $this->logTimeActivityId = $project->defaultActivityId(auth()->user());
             }
 
             $this->fieldRules = app(WorkflowService::class)->fieldRules($issue, auth()->user());

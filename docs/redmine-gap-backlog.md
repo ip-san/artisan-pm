@@ -65,7 +65,7 @@
 | A1-33 | REST API `PUT /projects/{id}` での `default_version_id` / `default_assigned_to_id` の更新(Redmine の `safe_attributes`、`project.rb:839-841`) | A1-23 で読み取り(`default_version`/`default_assignee`)のみ実装。`UpdateProjectRequest` に規則なし | 両フィールドを追加し、Web フォームと同じ選択肢(オープンな共有バージョン/割当可能メンバー)で検証 | A1-23 完了が前提 | S | REST API「Projects」 |
 | 3 | A1-24 | (取り下げ)トラッカーの `is_in_chlog` | — | Redmine 7.0.0 で廃止済み(`db/migrate/20210728131544_drop_is_in_chlog_column.rb`、`app/` に使用箇所なし)。作業不要 | 機械照合が古いマイグレーションの `add_column` だけを見て、後続の `drop` を見落としていた | — | Trackers 節(C-18) |
 | 4 | A3-04 | — | S | done(2026-09-20) |
-| 5 | A3-10 | — | S | todo |
+| 5 | A3-10 | — | S | done(2026-09-20) |
 | 6 | A4-06 | — | S | todo |
 | 7 | A4-15 | — | S | todo |
 | 8 | A5-16 | — | S | todo |

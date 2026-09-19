@@ -4,6 +4,8 @@ use App\Enums\IssueVisibility;
 use App\Enums\RoleBuiltin;
 use App\Enums\TimeEntryVisibility;
 use App\Enums\UsersVisibility;
+use App\Enums\EnumerationType;
+use App\Models\Enumeration;
 use App\Models\Role;
 use App\Support\Permissions\PermissionRegistry;
 use Illuminate\Support\Collection;
@@ -29,6 +31,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $assignable = true;
 
+    public ?int $defaultTimeEntryActivityId = null;
+
     public bool $allRolesManaged = true;
 
     /** @var array<int> */
@@ -46,6 +50,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->timeEntriesVisibility = $role->time_entries_visibility->value;
             $this->usersVisibility = $role->users_visibility->value;
             $this->assignable = $role->assignable;
+            $this->defaultTimeEntryActivityId = $role->default_time_entry_activity_id;
             $this->allRolesManaged = $role->all_roles_managed;
             $this->managedRoleIds = $role->managedRoles->pluck('id')->all();
         } else {
@@ -81,6 +86,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->timeEntriesVisibility = $source->time_entries_visibility->value;
         $this->usersVisibility = $source->users_visibility->value;
         $this->assignable = $source->assignable;
+        $this->defaultTimeEntryActivityId = $source->default_time_entry_activity_id;
         $this->allRolesManaged = $source->all_roles_managed;
         $this->managedRoleIds = $source->managedRoles->pluck('id')->all();
     }
@@ -97,6 +103,24 @@ new #[Layout('components.layouts.app')] class extends Component
         $isNonMember = $this->role?->builtin === RoleBuiltin::NonMember;
 
         return array_keys($registry->assignableTo($isAnonymous, $isNonMember));
+    }
+
+    /**
+     * Shared (non-project-specific) active time entry activities — the
+     * choices for a role's default activity. Matches Redmine's
+     * TimeEntryActivity.active.shared in roles/_form.html.erb.
+     *
+     * @return Collection<int, Enumeration>
+     */
+    #[Computed]
+    public function sharedActivities(): Collection
+    {
+        return Enumeration::query()
+            ->ofType(EnumerationType::TimeEntryActivity)
+            ->whereNull('project_id')
+            ->where('active', true)
+            ->orderBy('position')
+            ->get();
     }
 
     /**
@@ -122,6 +146,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'issuesVisibility' => ['required', Rule::enum(IssueVisibility::class)],
             'timeEntriesVisibility' => ['required', Rule::enum(TimeEntryVisibility::class)],
             'usersVisibility' => ['required', Rule::enum(UsersVisibility::class)],
+            'defaultTimeEntryActivityId' => ['nullable', Rule::in($this->sharedActivities->pluck('id')->all())],
             'managedRoleIds' => ['array'],
             'managedRoleIds.*' => [Rule::in($this->otherGivableRoles->pluck('id')->all())],
         ]);
@@ -131,8 +156,12 @@ new #[Layout('components.layouts.app')] class extends Component
         $data['time_entries_visibility'] = $data['timeEntriesVisibility'];
         $data['users_visibility'] = $data['usersVisibility'];
         $data['assignable'] = $this->assignable;
+        // The Anonymous role never logs time, so Redmine hides the field for it.
+        $data['default_time_entry_activity_id'] = $this->role?->builtin === RoleBuiltin::Anonymous
+            ? null
+            : $data['defaultTimeEntryActivityId'];
         $data['all_roles_managed'] = $this->allRolesManaged;
-        unset($data['issuesVisibility'], $data['timeEntriesVisibility'], $data['usersVisibility'], $data['managedRoleIds']);
+        unset($data['issuesVisibility'], $data['timeEntriesVisibility'], $data['usersVisibility'], $data['managedRoleIds'], $data['defaultTimeEntryActivityId']);
 
         if ($this->role) {
             $this->role->update($data);
@@ -193,6 +222,22 @@ new #[Layout('components.layouts.app')] class extends Component
                 このロールを持つメンバーが、プロジェクトメンバー追加時のユーザー検索でどこまでの範囲のユーザーを検索できるかを制限します。
             </p>
         </div>
+
+        @if ($role?->builtin !== \App\Enums\RoleBuiltin::Anonymous)
+            <div>
+                <label class="block text-sm font-medium text-gray-700">既定の作業分類</label>
+                <select wire:model="defaultTimeEntryActivityId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">なし</option>
+                    @foreach ($this->sharedActivities as $activity)
+                        <option value="{{ $activity->id }}">{{ $activity->name }}</option>
+                    @endforeach
+                </select>
+                @error('defaultTimeEntryActivityId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">
+                    このロールを持つメンバーが工数を記録するとき、作業分類の初期値になります。
+                </p>
+            </div>
+        @endif
 
         <label class="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" wire:model="assignable" class="rounded border-gray-300">

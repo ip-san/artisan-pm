@@ -50,7 +50,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $this->issue_id = request()->integer('issue_id') ?: null;
             $this->user_id = auth()->id();
-            $this->activity_id = $this->activities->firstWhere('is_default', true)?->id;
+            $this->activity_id = $project->defaultActivityId(auth()->user());
             $this->spent_on = now()->toDateString();
         }
     }

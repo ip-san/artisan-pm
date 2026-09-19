@@ -13,9 +13,10 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable(['name', 'builtin', 'permissions', 'position', 'issues_visibility', 'time_entries_visibility', 'users_visibility', 'assignable', 'all_roles_managed'])]
+#[Fillable(['name', 'builtin', 'permissions', 'position', 'issues_visibility', 'time_entries_visibility', 'users_visibility', 'assignable', 'all_roles_managed', 'default_time_entry_activity_id'])]
 final class Role extends Model
 {
     /** @use HasFactory<RoleFactory> */
@@ -48,6 +49,17 @@ final class Role extends Model
             'assignable' => 'boolean',
             'all_roles_managed' => 'boolean',
         ];
+    }
+
+    /**
+     * The shared time entry activity members holding this role start with
+     * when logging time (Redmine's Role#default_time_entry_activity).
+     *
+     * @return BelongsTo<Enumeration, $this>
+     */
+    public function defaultTimeEntryActivity(): BelongsTo
+    {
+        return $this->belongsTo(Enumeration::class, 'default_time_entry_activity_id');
     }
 
     /**

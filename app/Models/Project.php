@@ -358,6 +358,57 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * The activity a user starts with when logging time in this project.
+     * Matches Redmine's TimeEntryActivity.default_activity_id: the only
+     * available activity wins outright; otherwise the user's member roles
+     * (lowest position first) can each name a default, then the project's
+     * own default activity, then the global default. A role or default
+     * pointing at a shared activity resolves to this project's override of
+     * it when there is one.
+     */
+    public function defaultActivityId(?User $user = null): ?int
+    {
+        $available = $this->activities();
+
+        if ($available->isEmpty()) {
+            return null;
+        }
+
+        if ($available->count() === 1) {
+            return $available->first()->id;
+        }
+
+        $firstAvailableMatch = fn (array $ids): ?int => collect($ids)
+            ->map(fn (int $id) => $available->first(fn (Enumeration $activity) => $activity->id === $id || $activity->parent_id === $id)?->id)
+            ->first(fn (?int $id) => $id !== null);
+
+        if ($user !== null) {
+            $roleDefaults = app(AuthorizationService::class)->rolesFor($user, $this)
+                ->filter(fn (Role $role) => $role->builtin === null)
+                ->sortBy('position')
+                ->pluck('default_time_entry_activity_id')
+                ->filter()
+                ->values()
+                ->all();
+
+            if (($id = $firstAvailableMatch($roleDefaults)) !== null) {
+                return $id;
+            }
+        }
+
+        $enumerationDefaults = Enumeration::query()
+            ->ofType(EnumerationType::TimeEntryActivity)
+            ->where('is_default', true)
+            ->where(fn (Builder $q) => $q->whereNull('project_id')->orWhere('project_id', $this->id))
+            ->get()
+            ->sortBy(fn (Enumeration $activity) => $activity->project_id === null ? 1 : 0)
+            ->pluck('id')
+            ->all();
+
+        return $firstAvailableMatch($enumerationDefaults);
+    }
+
+    /**
      * @return HasMany<WikiPage, $this>
      */
     public function wikiPages(): HasMany
