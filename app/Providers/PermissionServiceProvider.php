@@ -33,6 +33,9 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('select_project_modules', readOnly: true);
         $registry->register('manage_members');
         $registry->register('add_subprojects');
+        // Global: not tied to any one project (Redmine's :add_project with
+        // :require => :loggedin) — see AuthorizationService::canGlobally().
+        $registry->register('add_project', requirement: PermissionRequirement::LoggedIn);
         $registry->register('manage_public_queries');
 
         $registry->register('manage_versions', module: ProjectModuleKey::IssueTracking);

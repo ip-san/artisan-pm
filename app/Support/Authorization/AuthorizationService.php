@@ -68,6 +68,36 @@ final class AuthorizationService
     }
 
     /**
+     * A permission that belongs to no project (Redmine's
+     * `allowed_to?(perm, nil, global: true)`, e.g. add_project): held when
+     * any role the user has grants it — a role on any project membership
+     * (directly or through a group) or the NonMember builtin role that every
+     * signed-in user has. Anonymous visitors never hold one.
+     */
+    public function canGlobally(?User $user, string $permissionKey): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        if ($user->is_admin) {
+            return true;
+        }
+
+        if ($this->permissions->get($permissionKey) === null) {
+            return false;
+        }
+
+        $granting = Role::query()->get()->filter(fn (Role $role) => $role->hasPermission($permissionKey));
+
+        if ($granting->contains(fn (Role $role) => $role->builtin === RoleBuiltin::NonMember)) {
+            return true;
+        }
+
+        return $this->hasAnyMembershipWithRoles($user, $granting->pluck('id'));
+    }
+
+    /**
      * Resolves in tiers: guests get the Anonymous builtin role on public
      * projects; members get their assigned role(s); everyone else falls
      * back to the NonMember builtin role, again only on public projects.

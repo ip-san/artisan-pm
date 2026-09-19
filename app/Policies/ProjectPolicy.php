@@ -24,12 +24,14 @@ final class ProjectPolicy
     }
 
     /**
-     * Only administrators may create top-level projects for now — there is
-     * no project instance yet to scope a "member" permission check against.
+     * Creating a top-level project takes the global add_project permission
+     * (Redmine's, granted through any of the user's roles); administrators
+     * always may, via Gate::before. The creator becomes a member with the
+     * default role — see Project::addDefaultMember().
      */
     public function create(User $user): bool
     {
-        return false;
+        return $this->authorization->canGlobally($user, 'add_project');
     }
 
     public function update(User $user, Project $project): bool
