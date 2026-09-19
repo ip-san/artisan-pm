@@ -127,7 +127,8 @@
 | 54 | A8-03 / A13-03 | — | S | done(2026-09-20) |
 | 55 | A5-12 / A10-02 | — | S〜M | done(2026-09-20、エンコーディング/表示件数は A5-12b) |
 | 55b | A5-12b | A5-12 | S | done(2026-09-20、エンコーディングは全体設定のみ) |
-| 56 | A10-01 | — | S〜M | todo |
+| 56 | A10-01 | — | S〜M | done(2026-09-20、エンコーディングのみ。URL/資格情報は A10-01b) |
+| 56b | A10-01b | A10-01 | M | blocked(要承認: docs/design/gap-A10-01b.md) |
 | 57 | A10-05 / A5-07 | — | S | todo |
 | 58 | A10-03 / A13-06 | — | S | todo |
 | 59 | A7-10 | — | S | todo |
@@ -409,6 +410,7 @@
 | ID | Redmine 側の機能 | 本アプリの現状 | 残作業 | 前提・設計上の注意 | 規模 | checklist 行 |
 |---|---|---|---|---|---|---|
 | A10-01 | リポジトリ接続情報(`repositories.url`/`root_url`/`login`/`password`/`log_encoding`/`path_encoding`/`extra_info`) | `Repository` の fillable は project_id/type/path/last_synced_revision/is_default/identifier。認証情報・エンコーディングなし | SVN の URL+ユーザー/パスワード(暗号化 cast)、ログ/パスのエンコーディング指定を追加し `SvnAdapter`/`GitAdapter` に渡す | 認証情報は `encrypted` cast | S〜M | リポジトリ連携「対応SCM種別」 |
+| A10-01b | リポジトリのリモート URL(`url`/`root_url`)とログイン/パスワード(`login`/`password`)、`extra_info` | `Repository` は `repositories_root` 配下のローカルパスだけを受け付ける(`WithinRepositoriesRoot`)。資格情報の列なし | SVN の URL+資格情報(暗号化 cast)を許可する。**セキュリティ境界の変更のため要承認** | 設計メモ: `docs/design/gap-A10-01b.md`。A10-01 で分離 | M | リポジトリ連携「対応SCM種別」 |
 | A10-02 | コミットキーワード設定の拡張(A5-12)、`commit_cross_project_ref` | `{keywords, status_id}` のみ、他プロジェクト参照は常に許可 | 参照キーワード設定化、更新ルールに `done_ratio`/`if_tracker_id`、他プロジェクト参照の許可トグル | — | S | 「コミットメッセージのキーワード連動」 |
 | A10-03 | `/sys` WS(`sys/projects`、`sys/fetch_changesets`、`sys_api_key`)と `reposman.rb` 連携 | なし(grep 0件) | API キー認証の `GET /sys/projects.json`、`GET /sys/fetch_changesets?id=` を追加(post-receive フックからの同期トリガー用) | 既存 `RepositorySyncService` を呼ぶだけ | S | 設定「リポジトリ」 |
 | A10-04 | Annotate の同一リビジョン連続行の色分けブロック | 全行に個別表示 | 連続する同一 revision をグループ化し交互に背景色 | 旧: 意図的対象外 | S | 「Annotate/Blame」 |

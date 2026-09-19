@@ -41,8 +41,15 @@ final readonly class GitAdapter implements ScmAdapter
         '-c', 'core.sshCommand=false',
     ];
 
+    /**
+     * @param  ?string  $logEncoding  the encoding commit messages are stored in, when
+     *                                not UTF-8 (falls back to commit_logs_encoding)
+     * @param  ?string  $pathEncoding  the encoding path names are stored in, when not UTF-8
+     */
     public function __construct(
         private string $path,
+        private ?string $logEncoding = null,
+        private ?string $pathEncoding = null,
     ) {}
 
     public function isAvailable(): bool
@@ -67,7 +74,7 @@ final readonly class GitAdapter implements ScmAdapter
             return [];
         }
 
-        return $this->parseLog(CodesetConverter::logToUtf8($result->output()));
+        return $this->parseLog(CodesetConverter::logToUtf8($result->output(), $this->logEncoding));
     }
 
     public function diff(string $revision, ?string $fromRevision = null, ?string $path = null): string
@@ -94,7 +101,7 @@ final readonly class GitAdapter implements ScmAdapter
 
         $entries = [];
 
-        foreach (explode("\n", trim(CodesetConverter::toUtf8($result->output()))) as $line) {
+        foreach (explode("\n", trim(CodesetConverter::toUtf8($result->output(), $this->pathEncoding))) as $line) {
             if ($line === '') {
                 continue;
             }

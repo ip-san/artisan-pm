@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['project_id', 'type', 'path', 'last_synced_revision', 'is_default', 'identifier'])]
+#[Fillable(['project_id', 'type', 'path', 'last_synced_revision', 'is_default', 'identifier', 'log_encoding', 'path_encoding'])]
 final class Repository extends Model
 {
     /** @use HasFactory<RepositoryFactory> */
@@ -132,7 +132,7 @@ final class Repository extends Model
     public function adapter(): ScmAdapter
     {
         return match ($this->type) {
-            RepositoryType::Git => new GitAdapter($this->path),
+            RepositoryType::Git => new GitAdapter($this->path, $this->log_encoding, $this->path_encoding),
             RepositoryType::Svn => new SvnAdapter($this->path),
         };
     }

@@ -3,6 +3,7 @@
 use App\Enums\RepositoryType;
 use App\Models\Project;
 use App\Models\Repository;
+use App\Support\Scm\CodesetConverter;
 use App\Models\Setting;
 use App\Rules\WithinRepositoriesRoot;
 use Illuminate\Support\Collection;
@@ -24,6 +25,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $path = '';
 
     public ?string $identifier = null;
+
+    public ?string $log_encoding = null;
+
+    public ?string $path_encoding = null;
 
     /**
      * Every literal segment any repository.* route registers right after
@@ -64,6 +69,8 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->type = $this->repository->type->value;
             $this->path = $this->repository->path;
             $this->identifier = $this->repository->identifier;
+            $this->log_encoding = $this->repository->log_encoding;
+            $this->path_encoding = $this->repository->path_encoding;
         }
     }
 
@@ -119,6 +126,14 @@ new #[Layout('components.layouts.app')] class extends Component
             ],
         ];
 
+        $encodingRule = function (string $attribute, mixed $value, Closure $fail): void {
+            if (filled($value) && ! CodesetConverter::isKnownEncoding((string) $value)) {
+                $fail("「{$value}」は未対応のエンコーディングです。");
+            }
+        };
+        $rules['log_encoding'] = ['nullable', 'string', 'max:50', $encodingRule];
+        $rules['path_encoding'] = ['nullable', 'string', 'max:50', $encodingRule];
+
         // Only validated (and therefore only ever written) while still
         // editable — once frozen, the field isn't rendered at all, so
         // there's nothing meaningful to validate on submit.
@@ -149,6 +164,9 @@ new #[Layout('components.layouts.app')] class extends Component
         // treats '' as a real value distinct from NULL, so a second
         // identifier-less repository in the same project would collide
         // with the first unless this is normalized before saving.
+        $data['log_encoding'] = filled($data['log_encoding'] ?? null) ? trim($data['log_encoding']) : null;
+        $data['path_encoding'] = filled($data['path_encoding'] ?? null) ? trim($data['path_encoding']) : null;
+
         if (array_key_exists('identifier', $data)) {
             $data['identifier'] = $data['identifier'] === '' ? null : $data['identifier'];
         }
@@ -183,6 +201,21 @@ new #[Layout('components.layouts.app')] class extends Component
             <input type="text" wire:model="path" placeholder="/path/to/repo.git"
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('path') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">コミットログのエンコーディング</label>
+                <input type="text" wire:model="log_encoding" placeholder="空欄で全体設定を使用(例: SJIS-win)"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('log_encoding') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">パス名のエンコーディング</label>
+                <input type="text" wire:model="path_encoding" placeholder="空欄でUTF-8/全体設定"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('path_encoding') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
             <p class="mt-1 text-xs text-gray-500">
                 管理者が配置したリポジトリ用ディレクトリ({{ config('scm.repositories_root') }})配下のパスのみ指定できます。
             </p>

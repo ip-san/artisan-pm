@@ -82,11 +82,12 @@ final class CodesetConverter
     }
 
     /**
-     * Commit messages and committer names: the commit_logs_encoding first.
+     * Commit messages and committer names: the repository's own log encoding
+     * first, else the commit_logs_encoding setting.
      */
-    public static function logToUtf8(string $raw): string
+    public static function logToUtf8(string $raw, ?string $repositoryEncoding = null): string
     {
-        $logEncoding = Setting::get('commit_logs_encoding', self::DEFAULT_LOG_ENCODING);
+        $logEncoding = filled($repositoryEncoding) ? $repositoryEncoding : Setting::get('commit_logs_encoding', self::DEFAULT_LOG_ENCODING);
 
         return self::toUtf8($raw, is_string($logEncoding) ? $logEncoding : null);
     }
