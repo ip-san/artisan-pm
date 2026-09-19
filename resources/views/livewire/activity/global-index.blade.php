@@ -43,7 +43,13 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if ($this->activeTypes === []) {
-            $this->activeTypes = $this->providers->reject(fn ($provider) => $provider instanceof OffByDefault)->map->type()->values()->all();
+            // The types the user last applied (Redmine's activity_scope), if
+            // any of them still exist; otherwise everything not off by default.
+            $remembered = array_values(array_intersect((array) auth()->user()?->preference('activity_scope'), $this->providers->map->type()->all()));
+
+            $this->activeTypes = $remembered !== []
+                ? $remembered
+                : $this->providers->reject(fn ($provider) => $provider instanceof OffByDefault)->map->type()->values()->all();
         }
     }
 
@@ -109,6 +115,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function applyFilters(): void
     {
+        if (auth()->user() !== null) {
+            \App\Support\Preferences\UserPreferences::save(auth()->user(), ['activity_scope' => $this->activeTypes]);
+        }
+
         unset($this->visibleProjects, $this->entries, $this->groupedEntries);
     }
 }; ?>
@@ -136,6 +146,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
             適用
         </button>
+        <a href="{{ route('activity.global-atom', ['key' => auth()->user()?->atomKey()]) }}" class="text-xs text-orange-600 hover:underline">Atom</a>
     </div>
 
     @forelse ($this->groupedEntries as $date => $dayEntries)

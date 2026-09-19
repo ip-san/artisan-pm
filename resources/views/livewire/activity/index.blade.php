@@ -47,7 +47,13 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if ($this->activeTypes === []) {
-            $this->activeTypes = $this->providers->reject(fn ($provider) => $provider instanceof OffByDefault)->map->type()->values()->all();
+            // The types the user last applied (Redmine's activity_scope), if
+            // any of them still exist; otherwise everything not off by default.
+            $remembered = array_values(array_intersect((array) auth()->user()?->preference('activity_scope'), $this->providers->map->type()->all()));
+
+            $this->activeTypes = $remembered !== []
+                ? $remembered
+                : $this->providers->reject(fn ($provider) => $provider instanceof OffByDefault)->map->type()->values()->all();
         }
     }
 
@@ -118,6 +124,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function applyFilters(): void
     {
+        if (auth()->user() !== null) {
+            \App\Support\Preferences\UserPreferences::save(auth()->user(), ['activity_scope' => $this->activeTypes]);
+        }
+
         unset($this->scopedProjects, $this->entries, $this->groupedEntries);
     }
 }; ?>

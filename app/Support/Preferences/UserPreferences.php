@@ -69,6 +69,7 @@ final class UserPreferences
             'recently_used_project_ids' => [],
             'auto_watch_on' => self::validAutoWatch(Setting::get('default_users_auto_watch_on', self::DEFAULT_AUTO_WATCH_ON)),
             'default_issue_query' => null,
+            'activity_scope' => [],
         ];
     }
 
@@ -102,6 +103,7 @@ final class UserPreferences
                 'auto_watch_on' => self::validAutoWatch($value),
                 'default_issue_query' => filled($value) ? (int) $value : null,
                 'history_default_tab' => array_key_exists((string) $value, self::HISTORY_TABS) ? (string) $value : 'history',
+                'activity_scope' => array_values(array_unique(array_map('strval', is_array($value) ? $value : []))),
                 'recently_used_projects' => max(0, min(10, (int) $value)),
                 'recently_used_project_ids' => array_values(array_unique(array_map('intval', is_array($value) ? $value : []))),
                 default => null,

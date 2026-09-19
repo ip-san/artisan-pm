@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountActivationController;
 use App\Http\Controllers\ActivityFeedController;
+use App\Http\Controllers\GlobalActivityFeedController;
 use App\Http\Controllers\AttachmentBundleController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AttachmentInlineController;
@@ -64,6 +65,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Volt::route('/search', 'search.global-index')->name('search.global-index');
     Volt::route('/issues/calendar', 'calendar.global-index')->name('calendar.global-index');
     Volt::route('/activity', 'activity.global-index')->name('activity.global-index');
+    Route::get('/activity.atom', GlobalActivityFeedController::class)->name('activity.global-atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
 
     Volt::route('/projects', 'projects.index')->name('projects.index');
     Volt::route('/projects/create', 'projects.form')->name('projects.create');

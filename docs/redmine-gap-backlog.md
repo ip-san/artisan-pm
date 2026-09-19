@@ -211,9 +211,10 @@
 | 123b | A8-02b | A8-02 | S〜M | todo |
 | 124 | A8-04 | A8-02 | M | done(2026-09-20) |
 | 125 | A8-05 | — | S〜M | done(2026-09-20、一括編集は対象外) |
-| 126 | A9-01 | — | M | todo |
+| 126 | A9-01 | — | M | blocked(要承認: docs/design/gap-A9-01.md) |
 | 127 | A9-03 | — | M | todo |
-| 128 | A9-04 | — | M | todo |
+| 128 | A9-04 | — | M | done(2026-09-20、ページング/件数上限は A9-04b) |
+| 128b | A9-04b | A9-04 | M | todo |
 | 129 | A11-07 | — | M | todo |
 | 130 | A11-10 | — | M | todo |
 | 131 | A12-02 / A13-07 | — | M | todo |
@@ -412,6 +413,7 @@
 | A9-02 | カレンダーへのバージョン期日表示 | `calendar/index.blade.php` に version の記述なし | プロジェクト(および共有)バージョンの `due_date` を◆で表示 | ガントのマイルストーン実装(`versions.roadmap`)を流用 | S | ダッシュボード「カレンダー」 |
 | A9-03 | マイページのブロック: `issuesupdatedbyme`(自分が更新した課題)、`calendar`、同一クエリの最大3回配置(`max_occurs`)、ブロックごとの設定(`my_page_settings`: 列/ソート) | `app/Support/Dashboard/Blocks/` は Activity/AssignedIssues/Documents/LatestNews/ReportedIssues/TimeEntries/WatchedIssues + SavedIssueQuery。同一クエリは1つまで | `UpdatedByMeBlock`(Journal の user_id 基準)、`CalendarBlock`(週表示)、ブロック設定 UI | calendar ブロックは「一覧形式に馴染まない」として見送られていた | M | ダッシュボード「マイページ」 |
 | A9-04 | グローバル活動: ページネーション/件数上限、`activity_scope` 個人設定、全プロジェクト Atom(`/activity.atom`) | `activity.global-index` は「可視プロジェクト数×8プロバイダ」を全件走査、Atom なし | 各プロバイダに複数プロジェクト対応の `entries()` を追加し1クエリ化、日付単位ページング、`ActivityFeedController` のグローバル版 | 8 プロバイダ全部の改修 | M | 「グローバルアクティビティフィード」 |
+| A9-04b | グローバル活動の性能: 各プロバイダに複数プロジェクト対応の `entries()` を追加して1クエリ化し、日付単位ページング/件数上限を入れる | 現状は「可視プロジェクト数×プロバイダ数」の全件走査 | `ActivityProvider` に `entriesForProjects(Collection, ...)` を追加(8 プロバイダ全部を改修)、ページング | A9-04 で分離 | M | 「グローバルアクティビティフィード」 |
 | A9-05 | `feeds_limit` 設定 | 定数 | A5-02 参照 | — | S | 設定「全般」 |
 | A9-06 | 検索: `bookmarks` スコープ、結果ページネーション、添付検索 | `ProjectBookmark` は実装済み(`projects/index.blade.php` の `bookmarkedOnly`)だが検索スコープに未配線(`search/*.blade.php` grep 0件)。ページネーションなし | スコープ選択肢に「ブックマーク」を追加、`search_results_per_page` でページング(A2-07)、添付(A7-12) | チェックリストは「ブックマーク機能自体が無い」と記載(C-03) | S | 「検索(モジュール横断)」 |
 | A9-07 | プロジェクトジャンプボックス(ヘッダーの検索付きプロジェクト切替)と `recently_used_projects` | なし(grep 0件) | ヘッダーにインクリメンタル検索付きドロップダウン、最近使ったプロジェクトを A4-13 に保存 | — | S | — (checklist 未掲載) |
@@ -684,6 +686,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A4-14 | 課題へのコメント/更新でウォッチが増えるようになる(個人設定「自分がコメント・更新した課題」をオンにした人のみ、既定はオフ)。既定の自動ウォッチ(作成・担当)は従来どおり | — |
 | A9-07 | すべてのページのヘッダーにプロジェクト移動のドロップダウンが増える。プロジェクトページを開くと個人設定に「最近使ったプロジェクト」が保存される | 個人設定で件数を 0 にすると記録しない |
 | A7-02 | `{{collapse}}` がネスト可能に。本文に隣接した `{{collapse}}` でプレースホルダ文字列が漏れる不具合を修正 | — |
+| A9-04 | 全プロジェクトの活動に Atom フィード(`/activity.atom`)が増え、活動ページで最後に選んだ種別が記憶される(個人設定) | — |
 | A8-05 | 全プロジェクト横断の工数一覧に、権限のある行の「編集」「削除」と CSV エクスポートが増える | — |
 | A8-04 | 工数レポートの行の軸にカスタムフィールドが選べ、CSV出力ができる。全プロジェクト横断の工数レポート(`/time_entries/report`)が使える | — |
 | A8-02 | 管理画面のカスタムフィールドの対象に「工数」「優先度」が増える。工数フォーム・工数一覧(列/CSV)・優先度の管理フォームに反映 | 作らなければ影響なし |
