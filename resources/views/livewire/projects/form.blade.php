@@ -2,7 +2,10 @@
 
 use App\Enums\ProjectModuleKey;
 use App\Models\CustomField;
+use App\Enums\QueryType;
+use App\Enums\QueryVisibility;
 use App\Models\Project;
+use App\Models\Query;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
@@ -35,6 +38,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $default_assigned_to_id = null;
 
+    public ?int $default_issue_query_id = null;
+
     /** @var array<string> */
     public array $modules = [];
 
@@ -58,6 +63,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->parent_id = $project->parent_id;
             $this->default_version_id = $project->default_version_id;
             $this->default_assigned_to_id = $project->default_assigned_to_id;
+            $this->default_issue_query_id = $project->default_issue_query_id;
             $this->modules = $project->moduleAssignments->pluck('module.value')->all();
             $this->trackerIds = $project->trackers->pluck('id')->all();
 
@@ -153,6 +159,23 @@ new #[Layout('components.layouts.app')] class extends Component
      *
      * @return Collection<int, User>
      */
+    /**
+     * Public issue queries the project's list can open on: site-wide ones and
+     * the project's own (Redmine requires public so every member can use it).
+     *
+     * @return Collection<int, Query>
+     */
+    #[Computed]
+    public function defaultQueryOptions(): Collection
+    {
+        return Query::query()
+            ->where('type', QueryType::Issue->value)
+            ->where('visibility', QueryVisibility::Public->value)
+            ->where(fn ($q) => $q->whereNull('project_id')->orWhere('project_id', $this->project?->id))
+            ->orderBy('name')
+            ->get();
+    }
+
     #[Computed]
     public function defaultAssigneeOptions(): Collection
     {
@@ -246,6 +269,7 @@ new #[Layout('components.layouts.app')] class extends Component
             // exposes both on the settings page only).
             $rules['default_version_id'] = ['nullable', Rule::in($this->defaultVersionOptions->pluck('id')->all())];
             $rules['default_assigned_to_id'] = ['nullable', Rule::in($this->defaultAssigneeOptions->pluck('id')->all())];
+            $rules['default_issue_query_id'] = ['nullable', Rule::in($this->defaultQueryOptions->pluck('id')->all())];
         }
 
         $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
@@ -389,6 +413,16 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endforeach
                     </select>
                     @error('default_version_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">課題一覧の既定クエリ</label>
+                    <select wire:model="default_issue_query_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        <option value="">指定しない</option>
+                        @foreach ($this->defaultQueryOptions as $query)
+                            <option value="{{ $query->id }}">{{ $query->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('default_issue_query_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">既定の担当者</label>

@@ -3,6 +3,8 @@
 use App\Enums\EnumerationType;
 use App\Enums\MailNotificationOption;
 use App\Enums\ProjectModuleKey;
+use App\Enums\QueryType;
+use App\Enums\QueryVisibility;
 use App\Enums\RepositoryType;
 use App\Models\Enumeration;
 use App\Models\Project;
@@ -103,6 +105,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $cache_formatted_text = false;
 
     public string $new_item_menu_tab = '2';
+
+    public ?int $default_issue_query = null;
 
     public bool $default_users_hide_mail = false;
 
@@ -313,6 +317,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
         $this->new_item_menu_tab = (string) Setting::get('new_item_menu_tab', '2');
+        $this->default_issue_query = filled(Setting::get('default_issue_query')) ? (int) Setting::get('default_issue_query') : null;
         $this->default_users_hide_mail = (bool) Setting::get('default_users_hide_mail', false);
         $this->default_users_auto_watch_on = UserPreferences::defaults()['auto_watch_on'];
         $this->timespan_format = Hours::timespanFormat();
@@ -485,6 +490,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
             'new_item_menu_tab' => ['required', Rule::in(['0', '1', '2'])],
+            'default_issue_query' => ['nullable', Rule::exists('queries', 'id')->where('type', QueryType::Issue->value)->where('visibility', QueryVisibility::Public->value)->whereNull('project_id')],
             'default_users_hide_mail' => ['boolean'],
             'default_users_auto_watch_on' => ['array'],
             'default_users_auto_watch_on.*' => [Rule::in(array_keys(UserPreferences::AUTO_WATCH_ON))],
@@ -824,6 +830,18 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="2">「+」ドロップダウン(課題・バージョン・お知らせなど)</option>
                 </select>
                 @error('new_item_menu_tab') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">課題一覧の既定クエリ(全体)</label>
+                <select wire:model="default_issue_query" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">指定しない</option>
+                    @foreach (\App\Models\Query::query()->where('type', \App\Enums\QueryType::Issue->value)->where('visibility', \App\Enums\QueryVisibility::Public->value)->whereNull('project_id')->orderBy('name')->get() as $query)
+                        <option value="{{ $query->id }}">{{ $query->name }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-gray-500">個人設定・プロジェクトの既定がないときに使われます。公開クエリのみ選べます。</p>
+                @error('default_issue_query') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

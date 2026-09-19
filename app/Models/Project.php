@@ -30,7 +30,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-#[Fillable(['name', 'identifier', 'description', 'homepage', 'is_public', 'parent_id', 'default_version_id', 'default_assigned_to_id'])]
+#[Fillable(['name', 'identifier', 'description', 'homepage', 'is_public', 'parent_id', 'default_version_id', 'default_assigned_to_id', 'default_issue_query_id'])]
 final class Project extends Model implements HasMedia
 {
     /** @use HasFactory<ProjectFactory> */

@@ -25,6 +25,7 @@ use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\ListQueryString;
+use App\Support\Query\DefaultIssueQuery;
 use App\Support\Query\ListDefaults;
 use App\Support\Query\QueryFilterEngine;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -533,20 +534,19 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Redmine's default_issue_query: a visit that names no filter, sort or
-     * columns of its own opens on the user's chosen global query.
+     * Redmine's IssueQuery.default: a visit that names no filter, sort or
+     * columns of its own opens on the user's, the project's or the site's
+     * default query, in that order.
      */
     private function applyDefaultQuery(): void
     {
-        $queryId = auth()->user()?->preference('default_issue_query');
-
-        if ($queryId === null || request()->hasAny(['columns', 'groupBy', 'sortKey', 'activeFilterKeys', 'statusFilter', 'f'])) {
+        if (request()->hasAny(['columns', 'groupBy', 'sortKey', 'activeFilterKeys', 'statusFilter', 'f'])) {
             return;
         }
 
-        $query = SavedQuery::query()->whereNull('project_id')->where('type', QueryType::Issue->value)->find($queryId);
+        $query = DefaultIssueQuery::for(auth()->user(), $this->project);
 
-        if ($query !== null && $query->visibleTo(auth()->user())) {
+        if ($query !== null) {
             $this->loadQuery($query->id);
         }
     }
