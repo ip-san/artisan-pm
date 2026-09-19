@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\Setting;
+use App\Rules\RequiredPasswordCharacterClasses;
 use App\Models\User;
 use App\Policies\CalendarPolicy;
 use App\Policies\GanttPolicy;
@@ -41,10 +42,12 @@ final class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
 
-        // Matches Redmine's password_min_length setting — re-read from
-        // Setting (cached, so this is cheap) on every call rather than
-        // once at boot, so an admin's change takes effect immediately.
-        Password::defaults(fn () => Password::min((int) Setting::get('password_min_length', 8)));
+        // Matches Redmine's password_min_length and
+        // password_required_char_classes settings — re-read from Setting
+        // (cached, so this is cheap) on every call rather than once at boot,
+        // so an admin's change takes effect immediately.
+        Password::defaults(fn () => Password::min((int) Setting::get('password_min_length', 8))
+            ->rules([new RequiredPasswordCharacterClasses]));
     }
 
     /**

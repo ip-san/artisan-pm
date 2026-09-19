@@ -93,3 +93,92 @@ test('the default minimum of 8 applies when the setting has never been configure
 
     expect(User::where('email', 'default-length@example.com')->exists())->toBeFalse();
 });
+
+function charClassPasswordInput(string $password): array
+{
+    return [
+        'name' => 'Char Class', 'login' => 'charclass', 'email' => 'charclass@example.com',
+        'password' => $password, 'password_confirmation' => $password,
+    ];
+}
+
+test('an admin can require character classes and the choice is saved', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)->test('settings.index')
+        ->assertSet('password_required_char_classes', [])
+        ->set('password_required_char_classes', ['uppercase', 'digits'])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('password_required_char_classes'))->toBe(['uppercase', 'digits']);
+
+    Livewire::actingAs($admin)->test('settings.index')
+        ->set('password_required_char_classes', ['emoji'])
+        ->call('save')
+        ->assertHasErrors('password_required_char_classes.0');
+});
+
+test('each required class must be present independently', function (array $required, string $password, bool $valid) {
+    Setting::set('password_required_char_classes', $required);
+
+    $validator = Illuminate\Support\Facades\Validator::make(['password' => $password], ['password' => Illuminate\Validation\Rules\Password::default()]);
+
+    expect($validator->passes())->toBe($valid);
+})->with([
+    'upper only required, has upper' => [['uppercase'], 'longpasswordA', true],
+    'upper only required, lacks upper' => [['uppercase'], 'longpassword1', false],
+    'lower only required, has lower' => [['lowercase'], 'LONGPASSWORDa', true],
+    'lower only required, lacks lower' => [['lowercase'], 'LONGPASSWORD1', false],
+    'digits required' => [['digits'], 'longpassword7', true],
+    'digits missing' => [['digits'], 'longpasswordX', false],
+    'special required, has special' => [['special_chars'], 'longpassword!', true],
+    'special required, has tilde' => [['special_chars'], 'longpassword~', true],
+    'special required, none' => [['special_chars'], 'longpassword1A', false],
+    'all four satisfied' => [['uppercase', 'lowercase', 'digits', 'special_chars'], 'Longpass1!', true],
+    'all four, one missing' => [['uppercase', 'lowercase', 'digits', 'special_chars'], 'Longpass1x', false],
+    'nothing required' => [[], 'longpassword', true],
+]);
+
+test('the failure message names every missing class', function () {
+    Setting::set('password_required_char_classes', ['uppercase', 'digits', 'special_chars']);
+
+    $validator = Illuminate\Support\Facades\Validator::make(['password' => 'alllowercase'], ['password' => Illuminate\Validation\Rules\Password::default()]);
+
+    expect($validator->errors()->first('password'))->toContain('英大文字')->toContain('数字')->toContain('記号');
+});
+
+test('unknown stored classes are ignored', function () {
+    Setting::set('password_required_char_classes', ['bogus', 'digits']);
+
+    expect(App\Rules\RequiredPasswordCharacterClasses::required())->toBe(['digits']);
+});
+
+test('registration, the admin form and password reset all enforce the classes', function () {
+    Setting::set('password_required_char_classes', ['uppercase', 'digits']);
+
+    expect(fn () => app(App\Actions\Fortify\CreateNewUser::class)->create(charClassPasswordInput('alllowercasepassword')))
+        ->toThrow(Illuminate\Validation\ValidationException::class);
+
+    $ok = app(App\Actions\Fortify\CreateNewUser::class)->create(charClassPasswordInput('GoodPassword123'));
+    expect($ok->login)->toBe('charclass');
+
+    $admin = User::factory()->admin()->create();
+    Livewire::actingAs($admin)->test('users.form')
+        ->set('name', 'Someone')->set('login', 'someone')->set('email', 'someone@example.com')
+        ->set('password', 'alllowercasepassword')->set('password_confirmation', 'alllowercasepassword')
+        ->call('save')
+        ->assertHasErrors('password');
+
+    $user = User::factory()->create();
+    expect(fn () => app(App\Actions\Fortify\ResetUserPassword::class)->reset($user, ['password' => 'alllowercasepassword', 'password_confirmation' => 'alllowercasepassword']))
+        ->toThrow(Illuminate\Validation\ValidationException::class);
+});
+
+test('a blank password is left to the required rules rather than the class rule', function () {
+    Setting::set('password_required_char_classes', ['uppercase']);
+
+    $validator = Illuminate\Support\Facades\Validator::make(['password' => ''], ['password' => ['nullable', Illuminate\Validation\Rules\Password::default()]]);
+
+    expect($validator->passes())->toBeTrue();
+});

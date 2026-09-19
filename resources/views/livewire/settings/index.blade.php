@@ -8,6 +8,7 @@ use App\Models\Enumeration;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Rules\RequiredPasswordCharacterClasses;
 use App\Support\Issues\DoneRatioSteps;
 use App\Support\Issues\RelatedIssueColumns;
 use App\Models\Tracker;
@@ -160,6 +161,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public int $password_min_length = 8;
 
+    /** @var array<int, string> */
+    public array $password_required_char_classes = [];
+
     public bool $autologin = false;
 
     public bool $lost_password = true;
@@ -209,6 +213,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->email_domains_allowed = Setting::get('email_domains_allowed', '');
         $this->email_domains_denied = Setting::get('email_domains_denied', '');
         $this->password_min_length = Setting::get('password_min_length', 8);
+        $this->password_required_char_classes = RequiredPasswordCharacterClasses::required();
         $this->autologin = Setting::get('autologin', false);
         $this->lost_password = Setting::get('lost_password', true);
         $this->rest_api_enabled = Setting::get('rest_api_enabled', false);
@@ -371,6 +376,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'email_domains_allowed' => ['nullable', 'string', 'max:1000'],
             'email_domains_denied' => ['nullable', 'string', 'max:1000'],
             'password_min_length' => ['required', 'integer', 'min:1', 'max:255'],
+            'password_required_char_classes' => ['array'],
+            'password_required_char_classes.*' => [Rule::in(array_keys(RequiredPasswordCharacterClasses::CLASSES))],
             'autologin' => ['boolean'],
             'lost_password' => ['boolean'],
             'rest_api_enabled' => ['boolean'],
@@ -689,8 +696,22 @@ new #[Layout('components.layouts.app')] class extends Component
                     class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('password_min_length') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-gray-500">
-                    新規登録・管理者によるユーザー作成・パスワード変更のすべてに適用されます(Redmine本家の文字種別必須設定・パスワード有効期限は、それぞれ本アプリのバリデーションルールでは表現できない/専用の運用基盤が必要なため対象外です)。
+                    新規登録・管理者によるユーザー作成・パスワード変更のすべてに適用されます(パスワード有効期限は専用の運用基盤が必要なため対象外です)。
                 </p>
+            </div>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700 mb-2">パスワードに必ず含める文字種</span>
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach (RequiredPasswordCharacterClasses::CLASSES as $key => $class)
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" wire:model="password_required_char_classes" value="{{ $key }}" class="rounded border-gray-300">
+                            {{ $class['message'] }}
+                        </label>
+                    @endforeach
+                </div>
+                <p class="mt-1 text-xs text-gray-500">選んだ文字種は、それぞれ1文字以上必要です。既存のパスワードは、次に変更するときから対象になります。</p>
+                @error('password_required_char_classes.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>
