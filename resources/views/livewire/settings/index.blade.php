@@ -155,6 +155,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public int $session_timeout = 0;
 
+    public int $session_lifetime = 0;
+
     public string $email_domains_allowed = '';
 
     public string $email_domains_denied = '';
@@ -210,6 +212,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->self_registration = Setting::get('self_registration', 'automatic');
         $this->unsubscribe = Setting::get('unsubscribe', true);
         $this->session_timeout = Setting::get('session_timeout', 0);
+        $this->session_lifetime = Setting::get('session_lifetime', 0);
         $this->email_domains_allowed = Setting::get('email_domains_allowed', '');
         $this->email_domains_denied = Setting::get('email_domains_denied', '');
         $this->password_min_length = Setting::get('password_min_length', 8);
@@ -373,6 +376,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'self_registration' => ['required', 'in:disabled,manual,email,automatic'],
             'unsubscribe' => ['boolean'],
             'session_timeout' => ['required', Rule::in([0, 60, 120, 240, 480, 720, 1440, 2880])],
+            'session_lifetime' => ['required', Rule::in([0, 240, 480, 720, 1440, 10080, 43200, 86400, 525600])],
             'email_domains_allowed' => ['nullable', 'string', 'max:1000'],
             'email_domains_denied' => ['nullable', 'string', 'max:1000'],
             'password_min_length' => ['required', 'integer', 'min:1', 'max:255'],
@@ -688,6 +692,23 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('session_timeout') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-gray-500">この時間操作が無かったセッションは無効になり、再ログインが必要になります。</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">セッションの最大有効期間</label>
+                <select wire:model="session_lifetime" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="0">無効</option>
+                    <option value="240">4時間</option>
+                    <option value="480">8時間</option>
+                    <option value="720">12時間</option>
+                    <option value="1440">1日</option>
+                    <option value="10080">7日</option>
+                    <option value="43200">30日</option>
+                    <option value="86400">60日</option>
+                    <option value="525600">365日</option>
+                </select>
+                @error('session_lifetime') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">操作の有無にかかわらず、ログインからこの時間が経過したセッションは無効になり、再ログインが必要になります。</p>
             </div>
 
             <div>
