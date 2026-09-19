@@ -109,6 +109,7 @@ Route::middleware(['rest-api.enabled', 'auth:api,api-key'])->group(function () {
     Route::put('/wiki/{wiki_page}', [WikiPageController::class, 'update'])->name('api.wiki_pages.update');
     Route::delete('/wiki/{wiki_page}', [WikiPageController::class, 'destroy'])->name('api.wiki_pages.destroy');
 
+    Route::get('/news', [NewsController::class, 'globalIndex'])->name('api.news.global_index');
     Route::get('/projects/{project}/news', [NewsController::class, 'index'])->name('api.news.index');
     Route::post('/projects/{project}/news', [NewsController::class, 'store'])->name('api.news.store');
     Route::get('/news/{news}', [NewsController::class, 'show'])->name('api.news.show');

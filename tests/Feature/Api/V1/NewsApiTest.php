@@ -196,3 +196,59 @@ test('a non-member cannot delete a news item in a private project', function () 
 
     expect(News::find($news->id))->not->toBeNull();
 });
+
+test('the global index lists news of every project the caller may view news in, newest first', function () {
+    $visible = Project::factory()->create();
+    $noNewsRole = Project::factory()->create();
+    $private = Project::factory()->private()->create();
+    $public = Project::factory()->create();
+    $user = apiNewsMember($visible, ['view_news']);
+    Member::factory()->for($noNewsRole)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+    $older = News::factory()->for($visible)->create(['created_at' => now()->subDay()]);
+    $newer = News::factory()->for($visible)->create(['created_at' => now()]);
+    $hiddenByRole = News::factory()->for($noNewsRole)->create();
+    $hiddenPrivate = News::factory()->for($private)->create();
+    $publicItem = News::factory()->for($public)->create(['created_at' => now()->subDays(2)]);
+
+    Passport::actingAs($user);
+
+    $ids = collect($this->getJson('/api/v1/news')->assertOk()->json('data'))->pluck('id');
+
+    expect($ids->take(2)->all())->toBe([$newer->id, $older->id])
+        ->and($ids)->not->toContain($hiddenByRole->id)
+        ->and($ids)->not->toContain($hiddenPrivate->id)
+        ->and($publicItem->id)->toBeInt();
+});
+
+test('the global index needs authentication and project_id narrows it without widening access', function () {
+    $this->getJson('/api/v1/news')->assertUnauthorized();
+
+    $mine = Project::factory()->create();
+    $secret = Project::factory()->private()->create();
+    $user = apiNewsMember($mine, ['view_news']);
+    $inMine = News::factory()->for($mine)->create();
+    $inSecret = News::factory()->for($secret)->create();
+
+    Passport::actingAs($user);
+
+    expect(collect($this->getJson("/api/v1/news?project_id={$mine->id}")->json('data'))->pluck('id')->all())->toBe([$inMine->id])
+        ->and(collect($this->getJson("/api/v1/news?project_id={$secret->id}")->json('data'))->pluck('id')->all())->toBe([])
+        ->and($inSecret->id)->toBeInt();
+});
+
+test('the global index reports comment counts without per-row queries', function () {
+    $project = Project::factory()->create();
+    $user = apiNewsMember($project, ['view_news']);
+    News::factory()->for($project)->count(5)->create();
+
+    Passport::actingAs($user);
+
+    $queries = 0;
+    DB::listen(function () use (&$queries) {
+        $queries++;
+    });
+
+    $this->getJson('/api/v1/news')->assertOk()->assertJsonStructure(['data' => [['id', 'comments_count']]]);
+
+    expect($queries)->toBeLessThan(15);
+});
