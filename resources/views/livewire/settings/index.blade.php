@@ -649,7 +649,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('twofa') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-gray-500">
-                    「必須」に設定すると、対象ユーザーは二要素認証を設定するまでアカウント設定ページ以外にアクセスできなくなります(Redmine本家のグループ単位の必須設定は、本アプリにグループ側の対応する属性が無いため対象外です)。
+                    「必須」に設定すると、対象ユーザーは二要素認証を設定するまでアカウント設定ページ以外にアクセスできなくなります(この設定が「任意」または「管理者のみ必須」のときは、グループ編集画面で「このグループのメンバーに必須」を指定することもできます)。
                 </p>
             </div>
         </section>

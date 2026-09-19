@@ -254,10 +254,8 @@ final class User extends Authenticatable implements OAuthenticatable
      * set up two-factor authentication before being allowed to use the
      * application further, per the Setting.twofa admin toggle
      * ('0' disabled, '1' optional, '2' required for everyone, '3' required
-     * for administrators only). Redmine also has a fourth trigger —
-     * Setting.twofa_optional? (tiers '1'/'3') combined with membership in a
-     * Group that itself has twofa_required — which this app's Group model
-     * has no equivalent attribute for and is intentionally out of scope.
+     * for administrators only). Under the two "optional" tiers ('1'/'3'),
+     * membership in a Group that itself has twofa_required also forces it.
      */
     public function mustActivateTwoFactor(): bool
     {
@@ -265,11 +263,14 @@ final class User extends Authenticatable implements OAuthenticatable
             return false;
         }
 
-        return match (Setting::get('twofa', '0')) {
-            '2' => true,
-            '3' => $this->is_admin,
-            default => false,
-        };
+        $tier = Setting::get('twofa', '0');
+
+        if ($tier === '2' || ($tier === '3' && $this->is_admin)) {
+            return true;
+        }
+
+        return in_array($tier, ['1', '3'], true)
+            && $this->groups()->where('groups.twofa_required', true)->exists();
     }
 
     /**

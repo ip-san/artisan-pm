@@ -14,11 +14,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
-#[Fillable(['name'])]
+#[Fillable(['name', 'twofa_required'])]
 final class Group extends Model
 {
     /** @use HasFactory<GroupFactory> */
     use HasCustomFields, HasFactory;
+
+    /**
+     * Eloquent doesn't read back column defaults on an unrefreshed model.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'twofa_required' => false,
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'twofa_required' => 'boolean',
+        ];
+    }
 
     /**
      * @return BelongsToMany<User, $this>

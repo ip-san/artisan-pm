@@ -2,6 +2,7 @@
 
 use App\Models\CustomField;
 use App\Models\Group;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -14,6 +15,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public ?Group $group = null;
 
     public string $name = '';
+
+    public bool $twofaRequired = false;
 
     public string $userSearch = '';
 
@@ -31,6 +34,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $this->group = $group;
             $this->name = $group->name;
+            $this->twofaRequired = $group->twofa_required;
 
             $this->customFieldValues = $group->customFieldFormValues($group->relevantCustomFields());
         } else {
@@ -53,6 +57,17 @@ new #[Layout('components.layouts.app')] class extends Component
         return ($this->group ?? new Group)->relevantCustomFields();
     }
 
+    /**
+     * The per-group switch only has an effect while the site-wide setting
+     * is "optional" or "required for administrators" — Redmine disables the
+     * checkbox otherwise (groups/_form.html.erb).
+     */
+    #[Computed]
+    public function twofaGroupSwitchEnabled(): bool
+    {
+        return in_array(Setting::get('twofa', '0'), ['1', '3'], true);
+    }
+
     public function save(): void
     {
         $rules = [
@@ -64,6 +79,12 @@ new #[Layout('components.layouts.app')] class extends Component
         $data = $this->validate($rules);
         $customFieldData = CustomField::filterEditableValues($this->customFields, $data['customFieldValues'] ?? [], auth()->user());
         unset($data['customFieldValues']);
+
+        // A disabled checkbox never submits, so leave the stored value alone
+        // while the site-wide setting makes the switch meaningless.
+        if ($this->twofaGroupSwitchEnabled) {
+            $data['twofa_required'] = $this->twofaRequired;
+        }
 
         if ($this->group) {
             $this->group->update($data);
@@ -151,6 +172,19 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="block text-sm font-medium text-gray-700">名前</label>
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="twofaRequired" class="rounded border-gray-300"
+                    @disabled(! $this->twofaGroupSwitchEnabled)>
+                このグループのメンバーに二要素認証を必須にする
+            </label>
+            @if (\App\Models\Setting::get('twofa', '0') === '2')
+                <p class="mt-1 text-xs text-gray-500">二要素認証は全ユーザーに必須のため、この設定は不要です。</p>
+            @elseif (! $this->twofaGroupSwitchEnabled)
+                <p class="mt-1 text-xs text-gray-500">サイト設定の二要素認証が「任意」または「管理者のみ必須」のときに使えます。</p>
+            @endif
         </div>
 
         @if ($this->customFields->isNotEmpty())
