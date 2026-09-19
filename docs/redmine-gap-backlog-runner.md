@@ -20,6 +20,7 @@ vendor/bin/sail ps            # 4 コンテナ(laravel.test/pgsql/redis/mailpit)
 ```
 
 - コンテナが落ちていれば `vendor/bin/sail up -d` を実行し、`vendor/bin/sail artisan migrate --no-interaction` を通す。
+- 画面を描画するテストが `Vite manifest not found` で落ちる場合は `public/build/manifest.json` が未生成なので `vendor/bin/sail npm ci && vendor/bin/sail npm run build` を実行する(`public/build` と `node_modules` は gitignore 対象、コミットしない。Sail 内ではビルドが通ることを確認済み)。
 - API 系テストが `Invalid key supplied`(Passport)で落ちる場合は `storage/oauth-*.key` が未生成なので `vendor/bin/sail artisan passport:keys --no-interaction` を実行する(鍵は gitignore 対象、コミットしない)。
 - `vendor/bin/sail` 自体が無ければ作業せず §6 の「環境不備」で終了する。
 - 未コミット変更があるのに §0.3 に `wip` 行が無い場合: `git diff --stat` を見て、直前のコミットの続きと判断できるならそのコミットの行を `wip` として扱う。判断できなければ変更を `git stash push -u -m "gap-loop-orphan-$(date +%s)"` で退避し、その旨を §7 の報告に書いて次へ進む(**`git stash pop` は使わない**)。

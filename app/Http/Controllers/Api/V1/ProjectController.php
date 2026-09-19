@@ -28,6 +28,7 @@ final class ProjectController extends Controller
     public function index(): AnonymousResourceCollection
     {
         $projects = Project::query()
+            ->with(['defaultVersion', 'defaultAssignedTo'])
             ->orderBy('name')
             ->get()
             ->filter(fn (Project $project) => Gate::allows('view', $project))

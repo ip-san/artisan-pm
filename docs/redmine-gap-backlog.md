@@ -59,7 +59,8 @@
 | 0 | C 表の全行を `parity-checklist.md` に反映(コード変更なし、テスト/Pint 不要) | — | S | done(2026-09-20) |
 | **段 1: 独立した S 項目** | | | | |
 | 1 | A11-12 | — | S | done(2026-09-20) |
-| 2 | A1-23 | — | S | todo |
+| 2 | A1-23 | — | S | done(2026-09-20) |
+| 2a | A1-32 | A1-23 | S | todo |
 | 3 | A1-24 | — | S | todo |
 | 4 | A3-04 | — | S | todo |
 | 5 | A3-10 | — | S | todo |
@@ -128,6 +129,7 @@
 | 70 | A6-06 | A5-01 | S | todo |
 | 71 | A4-09 | — | S〜M | todo |
 | 72 | A1-31 | A4-09 | S | todo |
+| A1-32 | バージョンフォームの「既定バージョンにする」チェックボックス(`versions/_form.html.erb:14`、`Version#default_project_version`)と、バージョン一覧・設定画面での既定バージョン表示 | A1-23 で `projects.default_version_id` は実装済み。`versions/form.blade.php` にチェックボックスなし | チェックで `projects.default_version_id` を更新、外すと(自分が既定なら)NULL。一覧に既定マークを表示 | A1-23 完了が前提 | S | Versions「Wikiページ紐付け・既定バージョン設定」 |
 | 73 | A4-11 | — | S | todo |
 | 74 | A14-04 | — | S | todo |
 | 75 | A14-05 | — | S | todo |

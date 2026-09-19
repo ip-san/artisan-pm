@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\QueryVisibility;
 use App\Enums\UserStatus;
 use App\Models\Member;
+use App\Models\Project;
 use App\Models\PendingUpload;
 use App\Models\Query;
 use App\Models\RepositoryCommitter;
@@ -43,6 +44,7 @@ final class AccountDeletionService
     public function delete(User $user): void
     {
         Member::query()->where('user_id', $user->id)->delete();
+        Project::query()->where('default_assigned_to_id', $user->id)->update(['default_assigned_to_id' => null]);
         $user->groups()->detach();
         $user->bookmarkedProjects()->detach();
         Watcher::query()->where('user_id', $user->id)->delete();

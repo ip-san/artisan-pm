@@ -139,6 +139,16 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->prefillFromCopySource($project);
             $this->applyCustomFieldDefaults();
 
+            // Matches Redmine's Issue#default_assign and the fixed_version
+            // default in Issue#tracker=: the project's default version and
+            // assignee only fill fields the copy source left empty, and only
+            // while they are still usable (open shared version / member with
+            // an assignable role).
+            $this->fixed_version_id ??= $project->usableDefaultVersionId();
+            $this->assigned_to_id ??= ($this->category_id !== null
+                ? IssueCategory::query()->whereKey($this->category_id)->value('assigned_to_id')
+                : null) ?? $project->usableDefaultAssigneeId();
+
             // Matches Redmine's build_new_issue_from_params, which applies
             // this default (via ||=) after copy_from handling — a copied
             // issue's own due date always wins over the offset default.

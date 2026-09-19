@@ -5,6 +5,9 @@ use App\Models\CustomField;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Tracker;
+use App\Models\User;
+use App\Models\Version;
+use App\Enums\VersionStatus;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -26,6 +29,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $parent_id = null;
 
+    public ?int $default_version_id = null;
+
+    public ?int $default_assigned_to_id = null;
+
     /** @var array<string> */
     public array $modules = [];
 
@@ -46,6 +53,8 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->description = (string) $project->description;
             $this->is_public = $project->is_public;
             $this->parent_id = $project->parent_id;
+            $this->default_version_id = $project->default_version_id;
+            $this->default_assigned_to_id = $project->default_assigned_to_id;
             $this->modules = $project->moduleAssignments->pluck('module.value')->all();
             $this->trackerIds = $project->trackers->pluck('id')->all();
 
@@ -111,6 +120,50 @@ new #[Layout('components.layouts.app')] class extends Component
             ->orderBy('name')
             ->get()
             ->filter(fn (Project $candidate) => auth()->user()?->can('createSubproject', $candidate))
+            ->values();
+    }
+
+    /**
+     * Open shared versions, plus the current default even if it has since
+     * been closed — matches Redmine's project_default_version_options, so
+     * saving other settings never silently drops a stale default.
+     *
+     * @return Collection<int, Version>
+     */
+    #[Computed]
+    public function defaultVersionOptions(): Collection
+    {
+        if ($this->project === null) {
+            return collect();
+        }
+
+        return $this->project->sharedVersions()
+            ->filter(fn (Version $version) => $version->status === VersionStatus::Open
+                || $version->id === $this->project->default_version_id)
+            ->sortBy('name')
+            ->values();
+    }
+
+    /**
+     * Assignable members, plus the current default assignee even if they
+     * have since lost that role (Redmine's project_default_assigned_to_options).
+     *
+     * @return Collection<int, User>
+     */
+    #[Computed]
+    public function defaultAssigneeOptions(): Collection
+    {
+        if ($this->project === null) {
+            return collect();
+        }
+
+        return $this->project->assignableUsers()
+            ->when(
+                $this->project->defaultAssignedTo !== null,
+                fn (Collection $users) => $users->push($this->project->defaultAssignedTo)
+            )
+            ->unique('id')
+            ->sortBy('name')
             ->values();
     }
 
@@ -182,6 +235,14 @@ new #[Layout('components.layouts.app')] class extends Component
             'trackerIds' => ['required', 'array', 'min:1'],
             'trackerIds.*' => ['exists:trackers,id'],
         ];
+
+        if ($this->project !== null) {
+            // Only offered when editing: a brand-new project has no
+            // versions or members to choose from yet (Redmine likewise
+            // exposes both on the settings page only).
+            $rules['default_version_id'] = ['nullable', Rule::in($this->defaultVersionOptions->pluck('id')->all())];
+            $rules['default_assigned_to_id'] = ['nullable', Rule::in($this->defaultAssigneeOptions->pluck('id')->all())];
+        }
 
         $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
 
@@ -305,6 +366,31 @@ new #[Layout('components.layouts.app')] class extends Component
                 </p>
             @endif
         </div>
+
+        @if ($project)
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">既定の対象バージョン</label>
+                    <select wire:model="default_version_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        <option value="">なし</option>
+                        @foreach ($this->defaultVersionOptions as $version)
+                            <option value="{{ $version->id }}">{{ $version->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('default_version_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">既定の担当者</label>
+                    <select wire:model="default_assigned_to_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        <option value="">なし</option>
+                        @foreach ($this->defaultAssigneeOptions as $assignee)
+                            <option value="{{ $assignee->id }}">{{ $assignee->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('default_assigned_to_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+            </div>
+        @endif
 
         @if ($this->customFields->isNotEmpty())
             <div class="space-y-4 border-t border-gray-200 pt-4">

@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use Laravel\Passport\Passport;
 
 test('unauthenticated requests are rejected', function () {
@@ -331,4 +332,30 @@ test('a member without delete_project cannot delete a project via the api', func
     $this->deleteJson("/api/v1/projects/{$project->id}")->assertForbidden();
 
     expect(Project::find($project->id))->not->toBeNull();
+});
+
+test('the project payload includes the default version and default assignee', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $version = Version::factory()->for($project)->create(['name' => '1.0']);
+    $project->update(['default_version_id' => $version->id, 'default_assigned_to_id' => $user->id]);
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/projects/{$project->id}")
+        ->assertOk()
+        ->assertJsonPath('data.default_version', ['id' => $version->id, 'name' => '1.0'])
+        ->assertJsonPath('data.default_assignee', ['id' => $user->id, 'name' => $user->name]);
+});
+
+test('the project payload has null defaults when none are set', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/projects/{$project->id}")
+        ->assertOk()
+        ->assertJsonPath('data.default_version', null)
+        ->assertJsonPath('data.default_assignee', null);
 });

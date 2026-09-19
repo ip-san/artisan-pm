@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -29,7 +30,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-#[Fillable(['name', 'identifier', 'description', 'is_public', 'parent_id'])]
+#[Fillable(['name', 'identifier', 'description', 'is_public', 'parent_id', 'default_version_id', 'default_assigned_to_id'])]
 final class Project extends Model implements HasMedia
 {
     /** @use HasFactory<ProjectFactory> */
@@ -127,6 +128,58 @@ final class Project extends Model implements HasMedia
     public function issueCategories(): HasMany
     {
         return $this->hasMany(IssueCategory::class);
+    }
+
+    /**
+     * The version a new issue in this project starts with, if it is still
+     * an open shared version — see {@see self::usableDefaultVersionId()}.
+     *
+     * @return BelongsTo<Version, $this>
+     */
+    public function defaultVersion(): BelongsTo
+    {
+        return $this->belongsTo(Version::class, 'default_version_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function defaultAssignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'default_assigned_to_id');
+    }
+
+    /**
+     * The default version's id when it is still usable for a new issue:
+     * open and reachable through {@see self::sharedVersions()}. Matches
+     * Redmine's Issue#fixed_version default, which silently skips a
+     * default version that has since been closed, locked or unshared.
+     */
+    public function usableDefaultVersionId(): ?int
+    {
+        if ($this->default_version_id === null) {
+            return null;
+        }
+
+        return $this->sharedVersions()
+            ->first(fn (Version $version) => $version->id === $this->default_version_id
+                && $version->status === VersionStatus::Open)
+            ?->id;
+    }
+
+    /**
+     * The default assignee's id when they can still be assigned issues in
+     * this project (a member holding an assignable role).
+     */
+    public function usableDefaultAssigneeId(): ?int
+    {
+        if ($this->default_assigned_to_id === null) {
+            return null;
+        }
+
+        return $this->assignableUsers()->contains('id', $this->default_assigned_to_id)
+            ? $this->default_assigned_to_id
+            : null;
     }
 
     /**
