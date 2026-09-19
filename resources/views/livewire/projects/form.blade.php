@@ -100,6 +100,15 @@ new #[Layout('components.layouts.app')] class extends Component
         }
     }
 
+    /**
+     * Whether the publicity checkbox is offered (select_project_publicity).
+     */
+    #[Computed]
+    public function canSelectPublicity(): bool
+    {
+        return Project::mayChoosePublicity(auth()->user(), $this->project);
+    }
+
     #[Computed]
     public function trackers(): Collection
     {
@@ -279,6 +288,16 @@ new #[Layout('components.layouts.app')] class extends Component
         $trackerIds = $data['trackerIds'];
         unset($data['customFieldValues'], $data['trackerIds']);
 
+        // Without select_project_publicity the posted value is ignored: an
+        // existing project keeps what it has, a new one takes the site default.
+        if (! $this->canSelectPublicity) {
+            if ($this->project) {
+                unset($data['is_public']);
+            } else {
+                $data['is_public'] = Setting::get('default_projects_public', true);
+            }
+        }
+
         if ($this->project) {
             $removedTrackerIds = $this->project->trackers->pluck('id')->diff($trackerIds);
 
@@ -367,10 +386,12 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         @endif
 
-        <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" wire:model="is_public" class="rounded border-gray-300">
-            公開プロジェクト(匿名/非メンバーに閲覧を許可しうる)
-        </label>
+        @if ($this->canSelectPublicity)
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="is_public" class="rounded border-gray-300">
+                公開プロジェクト(匿名/非メンバーに閲覧を許可しうる)
+            </label>
+        @endif
 
         <div>
             <span class="block text-sm font-medium text-gray-700 mb-2">有効なモジュール</span>

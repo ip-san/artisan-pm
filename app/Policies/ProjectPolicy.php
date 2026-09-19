@@ -67,6 +67,24 @@ final class ProjectPolicy
         return $this->authorization->can($user, 'delete_project', $project) && $project->isLeaf();
     }
 
+    /**
+     * Redmine's select_project_publicity: choosing whether the project is
+     * public, split off edit_project.
+     */
+    public function selectPublicity(User $user, Project $project): bool
+    {
+        return $this->authorization->can($user, 'select_project_publicity', $project);
+    }
+
+    /**
+     * Redmine's manage_project_activities: turning the time-tracking
+     * activities on or off for this project.
+     */
+    public function manageActivities(User $user, Project $project): bool
+    {
+        return $this->authorization->can($user, 'manage_project_activities', $project);
+    }
+
     public function selectModules(User $user, Project $project): bool
     {
         return $this->authorization->can($user, 'select_project_modules', $project);

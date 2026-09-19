@@ -59,6 +59,11 @@ final class ProjectController extends Controller
         // default_projects_public setting rather than silently leaving the
         // column's raw default (and the in-memory model's null, per the
         // same unrefreshed-attribute gap already worked around on status).
+        // Without select_project_publicity the value is ignored, as in the web form.
+        if (! Project::mayChoosePublicity($request->user(), null)) {
+            unset($data['is_public']);
+        }
+
         $data['is_public'] ??= Setting::get('default_projects_public', true);
 
         $project = Project::create($data);
@@ -86,6 +91,10 @@ final class ProjectController extends Controller
 
         if ($trackerIds !== null) {
             $this->guardTrackersInUse($project, $trackerIds);
+        }
+
+        if (! Project::mayChoosePublicity($request->user(), $project)) {
+            unset($data['is_public']);
         }
 
         $project->update($data);

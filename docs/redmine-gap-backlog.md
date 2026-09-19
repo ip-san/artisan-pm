@@ -196,7 +196,8 @@
 | 110 | A2-04 | — | M | done(2026-09-20、保存クエリ・ページング・ユーザーのCFは未対応) |
 | 111 | A2-06 | — | S〜M | done(2026-09-20、グラフは対象外) |
 | 112 | A3-01 | — | M | done(2026-09-20) |
-| 113 | A3-02 / A3-11 / A13-05 | A3-01 | M | todo |
+| 113 | A3-02 / A3-11 / A13-05 | A3-01 | M | done(2026-09-20、save_queries と search_project は A13-05b) |
+| 113b | A13-05b | A13-05 | S〜M | todo |
 | 114 | A3-03 | — | M | todo |
 | 115 | A11-16 | A3-03 | S | todo |
 | 116 | A3-09 | — | M | todo |
@@ -469,6 +470,7 @@
 | A13-03 | `edit_own_time_entries`、`log_time_for_other_users`、`import_time_entries`、`import_issues` | `edit_time_entries` を流用、インポートは `add_issues`/`log_time` で判定 | 権限追加+Policy | S | A8-01, A8-03 |
 | A13-04 | `manage_wiki`、`view_wiki_edits`、`delete_wiki_pages_attachments` | `delete_wiki_pages`/`edit_wiki_pages` に包含 | 権限追加+`WikiPagePolicy` | S | A7-05, A7-06 |
 | A13-05 | `add_project`、`select_project_publicity`、`view_members`、`manage_project_activities`、`save_queries`、`search_project` | 管理者専用/`edit_project`/`view_project`/`manage_public_queries` に包含 | グローバル権限の仕組み(A3-01)を導入したうえで追加。`view_members` はメンバー一覧タブの表示ゲート、`save_queries` は非公開クエリ保存のゲート、`search_project` は検索対象プロジェクトの制御 | M | A3-01, A3-02, A3-11 |
+| A13-05b | 権限 `save_queries`(課題/工数/ガントの保存クエリの作成・編集・削除のゲート。`allowed_to?(:save_queries, project, global: true)`)と `search_project`(検索のゲート) | 保存クエリは閲覧できれば誰でも保存でき、検索は `view_project` で開ける | 2 権限を登録し、既存ロールへ現行の挙動を保つ移行(保存クエリ=匿名以外の全ロール、検索=`view_project` 保持ロール)を付与、保存フォーム・検索ページ・API をゲート | A13-05 で分離 | S〜M | A13-05 |
 | A13-06 | `commit_access`(リポジトリへの書き込み権限、`/sys` WS でのアクセス制御に使用) | なし | A10-03 と同時 | S | A10-03 |
 | A13-07 | `use_webhooks` | なし | A12-02 と同時 | S | A12-02 |
 
@@ -680,6 +682,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A4-14 | 課題へのコメント/更新でウォッチが増えるようになる(個人設定「自分がコメント・更新した課題」をオンにした人のみ、既定はオフ)。既定の自動ウォッチ(作成・担当)は従来どおり | — |
 | A9-07 | すべてのページのヘッダーにプロジェクト移動のドロップダウンが増える。プロジェクトページを開くと個人設定に「最近使ったプロジェクト」が保存される | 個人設定で件数を 0 にすると記録しない |
 | A7-02 | `{{collapse}}` がネスト可能に。本文に隣接した `{{collapse}}` でプレースホルダ文字列が漏れる不具合を修正 | — |
+| A3-02 / A3-11 / A13-05 | ロールの権限に「プロジェクトの公開設定の選択」(`select_project_publicity`)、「プロジェクトの作業分類の管理」(`manage_project_activities`)、「メンバーの表示」(`view_members`)が増える。プロジェクト編集で公開/非公開を切り替えられるのは前者の権限者だけ、作業分類設定は後者だけ、REST のメンバー一覧は `view_members` だけになる。既存ロールには従来の権限(`edit_project`/`manage_members`)の保持者へ自動付与される | 既存の挙動は保たれる(新規ロールを作るときは付与が必要) |
 | A3-01 | ロールの権限に「プロジェクトの追加」(`add_project`)が増える。付与されたロール(メンバー役割、グループ経由、非メンバー)を持つ一般ユーザーがトップレベルのプロジェクトを作成できる(**従来は管理者のみ**)。既定では誰にも付与されない | 付与しなければ従来どおり管理者のみ |
 | A2-06 | 課題レポートに各集計の「詳細」ページ(未完了/完了/合計・CSV)と「サブプロジェクト別」が増える。**レポートは閲覧できる課題だけを数える**(従来は非公開課題も数えていた) | サブプロジェクトは設定「サブプロジェクトの課題を表示」がオンのときだけ集計 |
 | A2-04 | 管理者のユーザー一覧が表形式になり、フィルタ・表示列選択・並べ替え・CSVエクスポートが使える。全リストのフィルタ「〜を含む」が大文字小文字を区別しなくなり、値が空の条件は無視される | 既定はフィルタなしで従来と同じユーザーが並ぶ |

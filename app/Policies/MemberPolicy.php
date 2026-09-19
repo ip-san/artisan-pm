@@ -10,10 +10,8 @@ use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
 
 /**
- * Redmine gates every MembersController action (index/show/create/update/
- * destroy) behind the single manage_members permission — there is no
- * separate "view members" permission — so this policy does the same: one
- * ability per action, all delegating to the same manage_members check.
+ * Listing and reading members takes Redmine's view_members (a public, read
+ * permission); creating, updating and removing them takes manage_members.
  */
 final class MemberPolicy
 {
@@ -23,12 +21,12 @@ final class MemberPolicy
 
     public function viewAny(?User $user, Project $project): bool
     {
-        return $this->authorization->can($user, 'manage_members', $project);
+        return $this->authorization->can($user, 'view_members', $project);
     }
 
     public function view(?User $user, Member $member): bool
     {
-        return $this->authorization->can($user, 'manage_members', $member->project);
+        return $this->authorization->can($user, 'view_members', $member->project);
     }
 
     public function create(User $user, Project $project): bool

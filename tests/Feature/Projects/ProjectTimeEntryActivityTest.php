@@ -8,7 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use Livewire\Livewire;
 
-function projectActivityManager(Project $project, array $permissions = ['edit_project', 'log_time', 'view_time_entries']): User
+function projectActivityManager(Project $project, array $permissions = ['manage_project_activities', 'log_time', 'view_time_entries']): User
 {
     $user = User::factory()->create();
     Member::factory()->for($project)->for($user)->create()->roles()->attach(
@@ -63,7 +63,7 @@ test('re-enabling a deactivated activity removes the override row', function () 
         ->and($project->activities()->pluck('id'))->toContain($activity->id);
 });
 
-test('a user without edit_project cannot access or save the activities settings page', function () {
+test('a user without manage_project_activities cannot access or save the activities settings page', function () {
     $project = Project::factory()->create();
     $user = User::factory()->create();
     Member::factory()->for($project)->for($user)->create()->roles()->attach(

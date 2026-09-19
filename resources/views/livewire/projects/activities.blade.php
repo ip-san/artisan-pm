@@ -17,7 +17,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount(Project $project): void
     {
-        $this->authorize('update', $project);
+        $this->authorize('manageActivities', $project);
 
         $this->project = $project;
 
@@ -46,7 +46,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function save(): void
     {
-        $this->authorize('update', $this->project);
+        $this->authorize('manageActivities', $this->project);
 
         $overridesByParentId = $this->project->timeEntryActivityOverrides()->get()->keyBy('parent_id');
 

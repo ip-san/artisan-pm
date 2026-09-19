@@ -651,6 +651,25 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * Whether $user may choose this project's publicity (Redmine's
+     * select_project_publicity safe attribute): administrators always; for an
+     * existing project anyone holding the permission on it; for a new one
+     * (null) only when the role they would be given as its creator has it.
+     */
+    public static function mayChoosePublicity(User $user, ?self $project): bool
+    {
+        if ($user->is_admin) {
+            return true;
+        }
+
+        if ($project !== null) {
+            return app(AuthorizationService::class)->can($user, 'select_project_publicity', $project);
+        }
+
+        return self::defaultMemberRole()?->hasPermission('select_project_publicity') ?? false;
+    }
+
+    /**
      * Matches Redmine's Project#add_default_member, called only for
      * non-admin creators (an admin already sees every project regardless
      * of membership). No-op when there is no givable role to grant at

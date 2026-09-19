@@ -21,9 +21,9 @@ test('unauthenticated requests are rejected', function () {
     $this->getJson("/api/v1/projects/{$project->id}/memberships")->assertUnauthorized();
 });
 
-test('a member with manage_members can list a project\'s memberships', function () {
+test('a member with view_members can list a project\'s memberships', function () {
     $project = Project::factory()->create();
-    $user = apiMembershipManager($project);
+    $user = apiMembershipManager($project, ['view_members']);
     $member = Member::factory()->for($project)->create();
 
     Passport::actingAs($user);
@@ -34,9 +34,9 @@ test('a member with manage_members can list a project\'s memberships', function 
     expect(collect($response->json('data'))->pluck('id'))->toContain($member->id);
 });
 
-test('a member without manage_members cannot list memberships', function () {
+test('a member without view_members cannot list memberships, even with manage_members', function () {
     $project = Project::factory()->create();
-    $user = apiMembershipManager($project, ['view_issues']);
+    $user = apiMembershipManager($project, ['view_issues', 'manage_members']);
 
     Passport::actingAs($user);
 
