@@ -142,7 +142,7 @@
 | 68 | A1-15 | — | S | done(2026-09-20、グローバル一覧の列は未対応) |
 | 69 | A5-01 | — | S | done(2026-09-20) |
 | 70 | A6-06 | A5-01 | S | done(2026-09-20、対象は課題通知のみ) |
-| 71 | A4-09 | — | S〜M | todo |
+| 71 | A4-09 | — | S〜M | done(2026-09-20) |
 | 72 | A1-31 | A4-09 | S | todo |
 | A1-32 | バージョンフォームの「既定バージョンにする」チェックボックス(`versions/_form.html.erb:14`、`Version#default_project_version`)と、バージョン一覧・設定画面での既定バージョン表示 | A1-23 で `projects.default_version_id` は実装済み。`versions/form.blade.php` にチェックボックスなし | チェックで `projects.default_version_id` を更新、外すと(自分が既定なら)NULL。一覧に既定マークを表示 | A1-23 完了が前提 | S | Versions「Wikiページ紐付け・既定バージョン設定」 |
 | 73 | A4-11 | — | S | todo |
@@ -662,6 +662,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A5-15 | ガントチャートが 500 課題・24 か月を超える分は描画されなくなる(従来は全件) | 設定で 0(無制限)にすると従来どおり |
 | A1-15 | REST API の課題 JSON に `estimated_hours`/`total_estimated_hours`/`estimated_remaining_hours` と(工数閲覧権限があれば)`spent_hours`/`total_spent_hours` が増える(既存フィールドは不変) | — |
 | A6-06 | 課題通知メールに `Message-ID`/`References` が付き、メールクライアントで課題ごとにスレッド表示される。返信は件名を書き換えても課題に紐付く | — |
+| A4-09 | 画面上の Atom リンクの URL に `?key=<個人のキー>` が付く(そのリンクを共有するとあなたの権限で読まれる)。プロフィールでキーをリセットできる | リンクを共有しない。漏れたらプロフィールでリセット |
 | A7-02 | `{{collapse}}` がネスト可能に。本文に隣接した `{{collapse}}` でプレースホルダ文字列が漏れる不具合を修正 | — |
 | A1-13 | 課題フォームの進捗率がスライダーからセレクトに | — |
 | A1-21 | 課題詳細のサブタスク/関連課題がリストから表になる | — |

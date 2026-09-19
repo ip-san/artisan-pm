@@ -215,6 +215,27 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->twoFactorEnabled ? auth()->user()->recoveryCodes() : [];
     }
 
+    /**
+     * Redmine's my/atom_key reset: the old key stops working at once.
+     */
+    public function resetAtomKey(): void
+    {
+        if (! $this->requirePasswordConfirmation()) {
+            return;
+        }
+
+        auth()->user()->regenerateAtomKey();
+
+        unset($this->atomKey);
+        session()->flash('status', 'Atomキーをリセットしました。');
+    }
+
+    #[Computed]
+    public function atomKey(): string
+    {
+        return auth()->user()->atomKey();
+    }
+
     #[Computed]
     public function apiKey(): ?string
     {
@@ -363,6 +384,19 @@ new #[Layout('components.layouts.app')] class extends Component
         <button wire:click="regenerateApiKey" wire:confirm="APIキーを再生成しますか?古いキーは無効になります。"
             class="text-sm text-indigo-600 hover:underline">
             {{ $this->apiKey ? '再生成' : '生成' }}
+        </button>
+    </section>
+
+    <section class="rounded-md border border-gray-200 bg-white p-4">
+        <h2 class="mb-4 text-sm font-semibold text-gray-900">Atomキー</h2>
+        <p class="mb-4 text-sm text-gray-600">
+            フィードリーダーなどログインできない環境からAtomフィードを購読するためのキーです。
+            フィードのURLに <code>?key=</code> として付けて使います(画面上のAtomリンクには自動で付いています)。
+        </p>
+        <p class="mb-2 break-all rounded-md bg-gray-50 p-3 font-mono text-sm text-gray-800" data-atom-key>{{ $this->atomKey }}</p>
+        <button wire:click="resetAtomKey" wire:confirm="Atomキーをリセットしますか?古いキーを使った購読は読めなくなります。"
+            class="text-sm text-indigo-600 hover:underline">
+            リセット
         </button>
     </section>
 

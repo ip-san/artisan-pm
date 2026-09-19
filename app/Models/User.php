@@ -35,7 +35,7 @@ use Laravel\Passport\HasApiTokens;
  * direct property assignment instead.
  */
 #[Fillable(['name', 'email', 'password', 'language', 'auth_source_id', 'login', 'status', 'mail_notification', 'no_self_notified'])]
-#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'api_key'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'api_key', 'atom_key'])]
 final class User extends Authenticatable implements OAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -286,6 +286,27 @@ final class User extends Authenticatable implements OAuthenticatable
         $this->save();
 
         return $this->api_key;
+    }
+
+    /**
+     * The key that authenticates this user's Atom feeds (`?key=`), created on
+     * first use like Redmine's rss_key token.
+     */
+    public function atomKey(): string
+    {
+        if ($this->atom_key === null) {
+            return $this->regenerateAtomKey();
+        }
+
+        return $this->atom_key;
+    }
+
+    public function regenerateAtomKey(): string
+    {
+        $this->atom_key = bin2hex(random_bytes(20));
+        $this->save();
+
+        return $this->atom_key;
     }
 
     public static function customizableType(): CustomizableType

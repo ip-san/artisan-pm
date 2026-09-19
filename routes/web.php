@@ -89,7 +89,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
     Volt::route('/projects/{project:identifier}/versions/create', 'versions.form')->name('versions.create');
     Volt::route('/projects/{project:identifier}/versions/{version}/edit', 'versions.form')->name('versions.edit')->scopeBindings();
 
-    Route::get('/projects/{project:identifier}/issues.atom', IssueAtomController::class)->name('issues.atom');
+    Route::get('/projects/{project:identifier}/issues.atom', IssueAtomController::class)->name('issues.atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required'])->middleware('atom.key');
     Volt::route('/projects/{project:identifier}/issues', 'issues.index')->name('issues.index')
         ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/projects/{project:identifier}/issues/create', 'issues.form')->name('issues.create');
@@ -148,12 +149,14 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
     // Also registered before the plain {board} route below — otherwise
     // its unconstrained parameter would swallow "5.atom" as a literal
     // board id before this route ever got a chance to match it.
-    Route::get('/projects/{project:identifier}/boards/{board}.atom', BoardAtomController::class)->whereNumber('board')->name('boards.atom')->scopeBindings();
+    Route::get('/projects/{project:identifier}/boards/{board}.atom', BoardAtomController::class)->whereNumber('board')->name('boards.atom')->scopeBindings()
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required'])->middleware('atom.key');
     Volt::route('/projects/{project:identifier}/boards/{board}', 'boards.show')->name('boards.show')->scopeBindings();
     Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}', 'messages.show')->name('messages.show')->scopeBindings();
     Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}/edit', 'messages.form')->name('messages.edit')->scopeBindings();
 
-    Route::get('/projects/{project:identifier}/news.atom', NewsAtomController::class)->name('news.atom');
+    Route::get('/projects/{project:identifier}/news.atom', NewsAtomController::class)->name('news.atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required'])->middleware('atom.key');
     Volt::route('/projects/{project:identifier}/news', 'news.index')->name('news.index');
     Volt::route('/projects/{project:identifier}/news/new', 'news.form')->name('news.create');
     Volt::route('/projects/{project:identifier}/news/{news}/edit', 'news.form')->name('news.edit')->scopeBindings();
@@ -222,7 +225,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
     Volt::route('/projects/{project:identifier}/repository/{repositoryParam}', 'repository.index')->name('repository.index.repo');
 
     Volt::route('/projects/{project:identifier}/activity', 'activity.index')->name('activity.index');
-    Route::get('/projects/{project:identifier}/activity.atom', ActivityFeedController::class)->name('activity.atom');
+    Route::get('/projects/{project:identifier}/activity.atom', ActivityFeedController::class)->name('activity.atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required'])->middleware('atom.key');
 
     Volt::route('/projects/{project:identifier}/calendar', 'calendar.index')->name('calendar.index');
 

@@ -265,6 +265,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function atomUrl(): string
     {
         return route('issues.atom', $this->project).'?'.http_build_query([
+            'key' => auth()->user()?->atomKey(),
             'statusFilter' => $this->statusFilter,
             ...ListQueryString::toQueryParameters(
                 $this->activeFilterKeys, $this->filterOperators, $this->filterValues,

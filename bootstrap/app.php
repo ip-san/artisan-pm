@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuthenticateWithAtomKey;
 use App\Http\Middleware\EnforceLoginRequiredSetting;
 use App\Http\Middleware\EnforceRestApiEnabledSetting;
 use App\Http\Middleware\EnforceSessionTimeout;
@@ -33,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'twofa.required' => EnforceTwofaRequired::class,
             'login.required' => EnforceLoginRequiredSetting::class,
             'sys.key' => EnforceSysApiKey::class,
+            'atom.key' => AuthenticateWithAtomKey::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
