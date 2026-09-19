@@ -41,7 +41,7 @@ vendor/bin/sail ps            # 4 コンテナ(laravel.test/pgsql/redis/mailpit)
 4. **実装**: 既存の兄弟ファイルの構造・命名に合わせる。Policy/可視性スコープに触れる場合は否定ケース(権限なし・他プロジェクト・非公開)のテストを必ず追加する。
 5. **テスト**: 新規/変更した機能の Feature テストを書き(Pest のファイル内 `function` ヘルパーはグローバル名前空間に宣言されるため、既存テストと重複しない固有の名前にする。重複は全スイートを走らせて初めて「Cannot redeclare function」で発覚する。確認: `grep -rhoE "^function [a-zA-Z0-9_]+" tests | sort | uniq -d`)、
    `vendor/bin/sail artisan test --compact --filter=<テスト名>` → 影響ディレクトリ `vendor/bin/sail artisan test --compact tests/Feature/<領域>` の順で通す。
-   さらに、直前 10 コミットの中に全スイート実行のコミット(メッセージに `[full-suite]`)が無ければ `vendor/bin/sail artisan test --compact` を実行し、通ったらコミットメッセージ末尾に `[full-suite]` を付ける。
+   さらに、直前 10 コミットの中に全スイート実行のコミット(メッセージに `[full-suite]`)が無ければ `vendor/bin/sail artisan test --compact` を実行し、通ったらコミットメッセージ末尾に `[full-suite]` を付ける。**タグの意味は「そのコミットの作業ツリーで全スイートが通った」であり、「最近実行した」ではない**。実行したのがそのコミットの変更前なら付けない(付けると次回の起動が全スイート実行を飛ばしてしまう)。全スイートはコミット直前、変更を含めた状態で実行する。
 6. **Pint**: `vendor/bin/sail bin pint --dirty --format agent`。
 7. **規模超過**: 想定規模の 2 倍を超えそうなら、行を `<ID>a`/`<ID>b` に分割して §0.3 に追加し、終わった部分だけ `done` にする。残りは `todo` のまま次回に回す。
 

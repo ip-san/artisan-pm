@@ -149,18 +149,21 @@ test('an issue without logged time is deleted straight away whatever the stale f
     expect(Issue::query()->whereKey($issue->id)->exists())->toBeFalse();
 });
 
-test('a tampered todo value is rejected', function () {
+test('a tampered todo value is rejected with an error and nothing is deleted', function () {
     $project = Project::factory()->create();
     $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
     $issue = deletableIssue($project);
-    TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 1]);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 1]);
 
-    expect(fn () => Livewire::actingAs($user)
+    Livewire::actingAs($user)
         ->test('issues.show', ['project' => $project, 'issue' => $issue])
         ->set('timeEntryTodo', 'explode')
-        ->call('deleteIssue'))->toThrow(ValueError::class);
+        ->call('deleteIssue')
+        ->assertHasErrors('timeEntryTodo')
+        ->assertNoRedirect();
 
-    expect(Issue::query()->whereKey($issue->id)->exists())->toBeTrue();
+    expect(Issue::query()->whereKey($issue->id)->exists())->toBeTrue()
+        ->and($entry->fresh()->issue_id)->toBe($issue->id);
 });
 
 test('the delete confirmation panel appears only when the issue has logged time', function () {

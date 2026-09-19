@@ -105,7 +105,7 @@
 | 34 | A11-14 | — | S | done(2026-09-20) |
 | 35 | A6-02 | (取り下げ)@mention の News コメント・フォーラム投稿への拡張 | — | Redmine 7.0.0 で `acts_as_mentionable` を持つのは Issue(`description`)・Journal(`notes`)・WikiContent(`text`) のみ(`app/models/{issue,journal,wiki_content}.rb`)。News コメントとフォーラム投稿は対象外 | 作業不要(チェックリストが「次点・未着手」と誤って書いていた) | — | Watchers「作成者/担当者の自動Watch・@mention」(C-22) |
 | 36 | A6-03 | — | S | done(2026-09-20) |
-| 37 | A6-04 | — | S | done(2026-09-20、描画のみ。通知経路は A6-04b) |
+| 37 | A6-04 | — | S | done(2026-09-20、**描画のみ・通知は未達**: メール化される Journal に添付/関連が乗らない。実現は A6-04b) |
 | 37a | A6-04b | A6-04 | M | todo |
 | A6-04b | 添付・関連の変更を実際にメール通知する(編集と同じ Journal に添付を含める、関連の追加/削除の Journal 通知) | A6-04 でメール本文は描画できるようにしたが、`IssueNotificationMail` に渡る Journal は `IssueService::update()` の `$detailsJournal` のみ。添付は `journalizeAttachment()`(`issues/form.blade.php:589`、`Api/V1/IssueController.php:295`)が update 後に別 Journal で記録し、`journalizeRelation()` も通知しない | `update()` が添付(Media 追加を update より前に行うか、添付一覧を引数で受ける)を同じ Journal の `attachment` 詳細に含め、メール送信条件にも加える。関連の追加/削除は独立した通知(Webhook を発火させない専用イベントまたは通知の直接送信)にする | **`IssueUpdated` を関連/添付で発火すると Webhook `issue.updated` も飛ぶため、専用の通知経路が必要**。フォームと API の 3 呼び出し元の順序変更を伴う | M | Journal「メール通知(課題)」 |
 | 38 | A5-11 / A6-07 | — | S | done(2026-09-20、default_users_hide_mail は A4-13 待ち) |
@@ -615,3 +615,28 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 - 参照 Redmine は 7.0.0 のチェックアウト。バージョン固有の新機能(`estimated_remaining_hours`、Webhook、ユーザーインポート、Reaction)は 7.0.0 の実ソースで存在を確認したが、リリースノートとの照合は行っていない。
 - `parity-checklist.md` の `done` 行の**実装品質**(Redmine と同じ挙動か)は本書の対象外。本書は「存在するか」のみを見ている。
 - `vendor/` が本ワークツリーに無いためテストは実行していない(本書はドキュメントのみの変更)。
+
+---
+
+## 挙動変更ログ(完了報告 §7 にそのまま転記する)
+
+実装で**既存の挙動が変わった**もの。利用者・API クライアント・運用に影響しうるため、完了報告の「挙動変更」節として必ず報告する。各行は 1 件 1 行、実装した行の ID を付ける。
+
+| ID | 変更 | 影響 |
+|---|---|---|
+| A3-05 | クローズ中のプロジェクトで `manage_members`・`add_subprojects`・`manage_public_queries` が拒否される(従来は許可)。`edit_own_issue_notes`・`delete_own_messages` は許可に変わる | 非管理者はクローズ済みプロジェクトのメンバー管理ができなくなる(Redmine 準拠) |
+| A7-04 | Wiki の履歴削除に `delete_wiki_pages` が必要(従来は `edit_wiki_pages`)。最新版・最後の1版も削除可能(最後の1版はページごと削除) | 編集権限だけのロールは履歴を消せなくなる |
+| A11-01 | `GET /projects/{id}/issues` が課題単位の可視性を適用(**セキュリティ修正**) | 従来の漏洩に依存していたクライアントは結果が減る |
+| A11-09 | `GET /issues/{id}?include=children` が閲覧不可の子課題を返さない(**セキュリティ修正**)。`children` が再帰的に入れ子になる | 従来はフラットな 1 階層だったので、各子に `children` が加わる |
+| A11-14 | `GET /my/account` の応答に本人の `api_key` が含まれる | 応答をログに残す運用では鍵が漏れる可能性があるため注意 |
+| A11-14 | `PUT /my/account`・`POST /my/api_key` が追加 | — |
+| A1-14 | 課題の API 応答に `lock_version` が加わる | — |
+| A5-11 | 課題通知メールの件名: 更新でステータスが変わらないとき `(ステータス)` が付かなくなる | **ユーザーが件名形式でメールフィルタを組んでいる場合に影響**(Redmine 既定の規則) |
+| A4-06 | `/forgot-password`・`/reset-password/{token}` が 500 から正常動作に。ロック中/LDAP ユーザーにはリセットメールを送らない | 従来壊れていた管理者の「リセットメール送信」のリンクが機能する |
+| A1-09 | 工数のある課題の削除に確認パネルが出る(`todo` 省略時は従来どおり工数を残す) | — |
+| A3-07 | プロジェクト一覧が常にツリー順(検索時もフラット・アルファベット順ではなくなる) | — |
+| A7-02 | `{{collapse}}` がネスト可能に。本文に隣接した `{{collapse}}` でプレースホルダ文字列が漏れる不具合を修正 | — |
+| A1-13 | 課題フォームの進捗率がスライダーからセレクトに | — |
+| A1-21 | 課題詳細のサブタスク/関連課題がリストから表になる | — |
+
+**フロントエンドの再ビルドが必要**: A10-04・A9-02・A1-21・A1-13 などが新しい Tailwind クラスを使う。`public/build` は gitignore 対象のため、デプロイ時に `npm run build` を実行すること。

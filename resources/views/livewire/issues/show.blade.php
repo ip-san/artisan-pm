@@ -604,9 +604,21 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('delete', $this->issue);
 
-        $disposition = $this->loggedHoursForDeletion > 0
-            ? IssueTimeEntryDisposition::from($this->timeEntryTodo)
-            : IssueTimeEntryDisposition::Nullify;
+        $disposition = IssueTimeEntryDisposition::Nullify;
+
+        if ($this->loggedHoursForDeletion > 0) {
+            $requested = IssueTimeEntryDisposition::tryFrom($this->timeEntryTodo);
+
+            // A value the panel never offers can only be a tampered request:
+            // refuse it rather than guessing (nothing has been deleted yet).
+            if ($requested === null) {
+                $this->addError('timeEntryTodo', '作業時間の扱いが不正です。');
+
+                return;
+            }
+
+            $disposition = $requested;
+        }
 
         app(IssueService::class)->delete(
             $this->issue,
