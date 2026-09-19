@@ -8,6 +8,7 @@ use App\Models\IssueRelation;
 use App\Models\Journal;
 use App\Models\JournalDetail;
 use App\Models\Project;
+use App\Models\Repository;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
@@ -15,11 +16,13 @@ use App\Services\IssueService;
 use App\Services\ReactionService;
 use App\Support\Issues\RelatedIssueColumns;
 use App\Support\Markdown\WikiMarkdownRenderer;
+use App\Support\Preferences\UserPreferences;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
@@ -114,7 +117,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $issue);
 
         $this->project = $project;
-        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', ...self::JOURNAL_RELATIONS, 'reactions', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user']);
+        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', ...self::JOURNAL_RELATIONS, 'reactions', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user', 'changesets.repository.project']);
 
         foreach ($this->issue->attachments() as $media) {
             $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
@@ -387,6 +390,13 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->comment = "{$journal->user->name} wrote:\n{$quoted}\n\n";
     }
 
+    /**
+     * Which history tab is open: `history` (everything), `notes`,
+     * `properties` or `changesets`. Empty means the user's own default.
+     */
+    #[Url(as: 'tab')]
+    public string $historyTab = '';
+
     public ?int $editingJournalId = null;
 
     public string $editingJournalNotes = '';
@@ -456,6 +466,44 @@ new #[Layout('components.layouts.app')] class extends Component
     /**
      * @return Collection<int, Journal>
      */
+    /**
+     * The tabs offered for this issue and viewer, in order: every issue has
+     * the three journal views, related revisions appear when there are any
+     * and the viewer may see changesets.
+     *
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function historyTabs(): array
+    {
+        $tabs = UserPreferences::HISTORY_TABS;
+
+        if ($this->issue->changesets->isNotEmpty() && auth()->user()?->can('viewAny', [Repository::class, $this->project])) {
+            $tabs['changesets'] = 'チェンジセット';
+        }
+
+        return $tabs;
+    }
+
+    #[Computed]
+    public function activeHistoryTab(): string
+    {
+        $tabs = $this->historyTabs;
+
+        if (array_key_exists($this->historyTab, $tabs)) {
+            return $this->historyTab;
+        }
+
+        $default = (string) auth()->user()?->preference('history_default_tab');
+
+        return array_key_exists($default, $tabs) ? $default : 'history';
+    }
+
+    public function setHistoryTab(string $tab): void
+    {
+        $this->historyTab = array_key_exists($tab, $this->historyTabs) ? $tab : '';
+    }
+
     #[Computed]
     public function visibleJournals(): Collection
     {
@@ -1061,8 +1109,32 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     <h2 class="text-sm font-semibold text-gray-900 mb-2">履歴</h2>
+    <div class="mb-3 flex gap-1 border-b border-gray-200 text-sm" data-history-tabs>
+        @foreach ($this->historyTabs as $tabKey => $tabLabel)
+            <button type="button" wire:click="setHistoryTab('{{ $tabKey }}')" wire:key="history-tab-{{ $tabKey }}"
+                class="{{ $this->activeHistoryTab === $tabKey ? 'border-b-2 border-indigo-600 font-semibold text-indigo-700' : 'text-gray-500 hover:text-gray-800' }} px-3 py-1.5">
+                {{ $tabLabel }}
+            </button>
+        @endforeach
+    </div>
+
+    @if ($this->activeHistoryTab === 'changesets')
+        <ul class="mb-6 space-y-2" data-history-changesets>
+            @foreach ($issue->changesets as $changeset)
+                <li class="rounded-md border border-gray-200 bg-white p-3 text-sm" wire:key="issue-changeset-{{ $changeset->id }}">
+                    <a href="{{ route($changeset->repository->routeName('repository.show'), $changeset->repository->routeParameters(['changeset' => $changeset])) }}" class="font-mono text-indigo-600 hover:underline">{{ $changeset->shortRevision() }}</a>
+                    <span class="ml-2 text-xs text-gray-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</span>
+                    <div class="mt-1 text-gray-800">{{ $changeset->commentsHtml(firstLineOnly: true) }}</div>
+                </li>
+            @endforeach
+        </ul>
+    @else
     <ul class="space-y-3 mb-6">
-        @forelse ($this->visibleJournals as $journal)
+        @forelse ($this->visibleJournals->filter(fn ($entry) => match ($this->activeHistoryTab) {
+            'notes' => filled(trim((string) $entry->notes)),
+            'properties' => $entry->details->isNotEmpty(),
+            default => true,
+        }) as $journal)
             @unless ($journal->isEmpty())
                 <li wire:key="journal-{{ $journal->id }}" class="rounded-md border border-gray-200 bg-white p-3 text-sm">
                     <div class="text-gray-500 text-xs mb-1">
@@ -1121,6 +1193,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <li class="text-sm text-gray-500">履歴はありません。</li>
         @endforelse
     </ul>
+    @endif
 
     @can('addNotes', $issue)
         <form wire:submit="addComment" class="space-y-2">

@@ -26,6 +26,14 @@ final class UserPreferences
     public const array TEXTAREA_FONTS = ['' => '標準', 'monospace' => '等幅', 'proportional' => 'プロポーショナル'];
 
     /**
+     * The tabs of an issue's history (Redmine's history_default_tab picks
+     * which opens first).
+     *
+     * @var array<string, string>
+     */
+    public const array HISTORY_TABS = ['history' => 'すべて', 'notes' => 'コメント', 'properties' => 'プロパティ変更'];
+
+    /**
      * What "auto watch" can react to, by key (Redmine's auto_watch_on).
      *
      * @var array<string, string>
@@ -56,6 +64,7 @@ final class UserPreferences
             'textarea_font' => '',
             'hide_mail' => (bool) Setting::get('default_users_hide_mail', false),
             'notify_about_high_priority_issues' => false,
+            'history_default_tab' => 'history',
             'recently_used_projects' => 3,
             'recently_used_project_ids' => [],
             'auto_watch_on' => self::validAutoWatch(Setting::get('default_users_auto_watch_on', self::DEFAULT_AUTO_WATCH_ON)),
@@ -92,6 +101,7 @@ final class UserPreferences
                 'textarea_font' => array_key_exists((string) $value, self::TEXTAREA_FONTS) ? (string) $value : '',
                 'auto_watch_on' => self::validAutoWatch($value),
                 'default_issue_query' => filled($value) ? (int) $value : null,
+                'history_default_tab' => array_key_exists((string) $value, self::HISTORY_TABS) ? (string) $value : 'history',
                 'recently_used_projects' => max(0, min(10, (int) $value)),
                 'recently_used_project_ids' => array_values(array_unique(array_map('intval', is_array($value) ? $value : []))),
                 default => null,

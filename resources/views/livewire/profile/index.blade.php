@@ -54,6 +54,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public int $recently_used_projects = 3;
 
+    public string $history_default_tab = 'history';
+
     /** @var array<int, string> */
     public array $auto_watch_on = [];
 
@@ -66,7 +68,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->mail_notification = auth()->user()->mail_notification->value;
         $this->no_self_notified = auth()->user()->no_self_notified;
 
-        foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'notify_about_high_priority_issues', 'recently_used_projects', 'auto_watch_on', 'default_issue_query'] as $key) {
+        foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'notify_about_high_priority_issues', 'recently_used_projects', 'history_default_tab', 'auto_watch_on', 'default_issue_query'] as $key) {
             $this->{$key} = auth()->user()->preference($key) ?? $this->{$key};
         }
     }
@@ -98,6 +100,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'hide_mail' => ['boolean'],
             'notify_about_high_priority_issues' => ['boolean'],
             'recently_used_projects' => ['required', 'integer', 'min:0', 'max:10'],
+            'history_default_tab' => ['required', Rule::in(array_keys(UserPreferences::HISTORY_TABS))],
             'auto_watch_on' => ['array'],
             'auto_watch_on.*' => [Rule::in(array_keys(UserPreferences::AUTO_WATCH_ON))],
             'default_issue_query' => ['nullable', Rule::in($this->issueQueries->pluck('id')->all())],
@@ -441,6 +444,15 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                 </select>
                 @error('comments_sorting') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">課題の履歴の初期タブ</label>
+                <select wire:model="history_default_tab" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Support\Preferences\UserPreferences::HISTORY_TABS as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
             </div>
 
             <div>
