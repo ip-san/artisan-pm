@@ -40,6 +40,7 @@ Route::middleware(['rest-api.enabled', 'auth:api,api-key'])->group(function () {
     Route::post('/projects/{project}/unarchive', [ProjectController::class, 'unarchive'])->name('api.projects.unarchive');
     Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->name('api.projects.destroy');
 
+    Route::get('/issues', [IssueController::class, 'globalIndex'])->name('api.issues.global_index');
     Route::get('/projects/{project}/issues', [IssueController::class, 'index'])->name('api.issues.index');
     Route::post('/projects/{project}/issues', [IssueController::class, 'store'])->name('api.issues.store');
     Route::get('/issues/{issue}', [IssueController::class, 'show'])->name('api.issues.show');

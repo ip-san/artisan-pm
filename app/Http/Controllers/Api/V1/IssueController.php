@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Services\IssueService;
 use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Attachments\PendingUploadToken;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -44,11 +45,52 @@ final class IssueController extends Controller
      */
     private const array INDEX_INCLUDES = ['relations'];
 
+    /**
+     * Only what the caller's role lets them see: view_issues on the project
+     * plus the per-issue visibility tier (private issues, "own issues
+     * only"), exactly as the issue list and Atom feed apply it.
+     */
     public function index(Request $request, Project $project): AnonymousResourceCollection
     {
         Gate::authorize('viewAny', [Issue::class, $project]);
 
-        $query = Issue::query()->where('project_id', $project->id)->orderByDesc('id');
+        return $this->listIssues(
+            $request,
+            Issue::query()->where('project_id', $project->id)->visibleTo($request->user(), $project),
+        );
+    }
+
+    /**
+     * Redmine's project-less GET /issues.json: issues across every project
+     * the caller may view issues in, each project's own visibility tier
+     * applied (the same scope as the global issue list).
+     */
+    public function globalIndex(Request $request): AnonymousResourceCollection
+    {
+        $user = $request->user();
+
+        $projects = Project::query()->get()
+            ->filter(fn (Project $project) => $user->can('viewAny', [Issue::class, $project]))
+            ->values();
+
+        return $this->listIssues($request, Issue::query()->visibleToAcrossProjects($user, $projects));
+    }
+
+    /**
+     * Shared by both indexes. Optional Redmine-style filters, all ANDed;
+     * an unrecognised or malformed value is ignored rather than failing:
+     * status_id (open, closed, * or an id — absent means every status,
+     * unlike Redmine's open default, so existing clients see no change),
+     * project_id (global index only matters there), tracker_id, priority_id,
+     * category_id, fixed_version_id, parent_id, author_id and assigned_to_id
+     * (`me` means the caller), and sort=column[:desc] over id, subject,
+     * created_on and updated_on.
+     *
+     * @param  Builder<Issue>  $query
+     */
+    private function listIssues(Request $request, Builder $query): AnonymousResourceCollection
+    {
+        $this->applyIndexFilters($request, $query);
 
         if (in_array('relations', $this->parseIncludes($request, self::INDEX_INCLUDES), true)) {
             $query->with(['relationsFrom.to', 'relationsTo.from']);
@@ -58,6 +100,51 @@ final class IssueController extends Controller
         $issues = $query->paginate();
 
         return IssueResource::collection($issues);
+    }
+
+    /**
+     * @param  Builder<Issue>  $query
+     */
+    private function applyIndexFilters(Request $request, Builder $query): void
+    {
+        $status = $request->query('status_id');
+
+        if ($status === 'open' || $status === 'closed') {
+            $query->whereHas('status', fn (Builder $q) => $q->where('is_closed', $status === 'closed'));
+        } elseif (is_string($status) && ctype_digit($status)) {
+            $query->where('status_id', (int) $status);
+        }
+
+        foreach (['project_id', 'tracker_id', 'priority_id', 'category_id', 'fixed_version_id', 'parent_id', 'author_id'] as $column) {
+            $value = $request->query($column);
+
+            if (is_string($value) && ctype_digit($value)) {
+                $query->where($column, (int) $value);
+            }
+        }
+
+        $assignee = $request->query('assigned_to_id');
+
+        if ($assignee === 'me') {
+            $query->where('assigned_to_id', $request->user()->id);
+        } elseif (is_string($assignee) && ctype_digit($assignee)) {
+            $query->where('assigned_to_id', (int) $assignee);
+        }
+
+        $sort = $request->query('sort');
+        $columns = ['id' => 'id', 'subject' => 'subject', 'created_on' => 'created_at', 'updated_on' => 'updated_at'];
+
+        if (is_string($sort)) {
+            [$name, $direction] = array_pad(explode(':', $sort, 2), 2, 'asc');
+
+            if (isset($columns[$name])) {
+                $query->orderBy($columns[$name], $direction === 'desc' ? 'desc' : 'asc')->orderByDesc('id');
+
+                return;
+            }
+        }
+
+        $query->orderByDesc('id');
     }
 
     public function show(Request $request, Issue $issue): IssueResource

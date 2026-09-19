@@ -65,6 +65,7 @@
 | A5-16b | `default_issue_start_date_to_creation_date` を REST API 課題作成(`IssuesController#build_new_issue_from_params`)と受信メール課題作成(`mail_handler.rb:216`)にも適用 | A5-16 で Web フォームのみ設定化。API/メールは開始日を補完しない | 設定オン時に両経路で `start_date ??= today` | 設定の既定がオンのため、適用すると既存 API クライアント/メールの挙動が変わる。**適用前にユーザーへ確認**(または既定オフに変更) | S | Issues本体「担当者『自分』ショートカット・既定開始/期日」 |
 | A1-34 | 親課題を削除すると子孫も削除される(Redmine: `acts_as_nested_set :dependent => :destroy`、`issues_controller.rb:434` の `self_and_descendants`。工数の確認対象も子孫を含む) | 本アプリは子課題を `parent_id` NULL 化して最上位に残す(`IssueDeletionTest` 'orphans its children'、チェックリスト「課題削除」に意図的とある) | 削除時に子孫を再帰削除し、工数の合計/付替対象を子孫分まで含める。削除確認に「N 件のサブタスクも削除されます」を表示 | **データ削除の意味が変わる**ため要承認。既存テストの期待値を反転する | S〜M | Issues本体「課題削除」 |
 | A1-35 | 一括削除の確認画面での工数の扱い(`todo`、複数プロジェクト選択時は付替なし) | `issues/index.blade.php` の一括削除は `IssueService::delete()` を既定(nullify)で呼ぶのみ | 一括削除にも A1-09 と同じ選択肢を追加(選択課題の工数合計を表示、単一プロジェクトのときだけ付替を許可、付替先は選択課題以外) | A1-09 完了が前提 | S | Issues本体「課題削除」 |
+| A11-17 | REST の課題一覧の高度なフィルタ(`f[]`/`op[]`/`v[][]`、カスタムフィールド、`updated_on` 範囲など)と `limit`/`offset`、`include` の追加 | A11-01 で基本フィルタと `sort` のみ実装。`ListQueryString`/`QueryFilterEngine`(Web と Atom で共通化済み)は API 未接続 | `ListQueryString::fromRequestInput()` で `activeFilterKeys` 等を解釈し `QueryFilterEngine` を API 一覧にも適用(または Redmine 形式の `f[]` を変換)、`limit`/`offset` を受け付ける | A1-17(フィルタ拡張)と同じエンジンを使うため後続が有利 | M | REST API「Issues」 |
 | A1-33 | REST API `PUT /projects/{id}` での `default_version_id` / `default_assigned_to_id` の更新(Redmine の `safe_attributes`、`project.rb:839-841`) | A1-23 で読み取り(`default_version`/`default_assignee`)のみ実装。`UpdateProjectRequest` に規則なし | 両フィールドを追加し、Web フォームと同じ選択肢(オープンな共有バージョン/割当可能メンバー)で検証 | A1-23 完了が前提 | S | REST API「Projects」 |
 | 3 | A1-24 | (取り下げ)トラッカーの `is_in_chlog` | — | Redmine 7.0.0 で廃止済み(`db/migrate/20210728131544_drop_is_in_chlog_column.rb`、`app/` に使用箇所なし)。作業不要 | 機械照合が古いマイグレーションの `add_column` だけを見て、後続の `drop` を見落としていた | — | Trackers 節(C-18) |
 | 4 | A3-04 | — | S | done(2026-09-20) |
@@ -94,7 +95,8 @@
 | 25 | A1-14 | — | S | done(2026-09-20) |
 | 26 | A11-13 | — | S | done(2026-09-20) |
 | 27 | A11-11 | A11-13 | S | done(2026-09-20) |
-| 28 | A11-01 | — | S | todo |
+| 28 | A11-01 | — | S | done(2026-09-20) |
+| 28a | A11-17 | A11-01, A1-17 | M | todo |
 | 29 | A11-02 | — | S | todo |
 | 30 | A11-03 | — | S | todo |
 | 31 | A11-04 | — | S | todo |
@@ -517,6 +519,7 @@
 | C-17 | (取り下げ) 工数管理「TimeEntry CRUD」 | 「編集対象は作業分類/日付/コメントの3項目のみ」 | **記載は正しい**。この文は`time-entries/index.blade.php`の**一括編集**(`bulkActivityId`/`bulkSpentOn`/`bulkComments`)の説明で、単体編集フォームの話ではない。Redmine の一括編集は時間・課題・プロジェクト・ユーザーも変更できる | 訂正不要。不足は A8-01 に記載 |
 | C-18 | (バックログ自身の訂正)A1-24 `is_in_chlog` | 付録の機械照合で「スキーマ列の欠落」として列挙 | Redmine 7.0.0 は 2021 年に列を廃止済み。**教訓**: マイグレーションの `add_column` だけでなく、`app/` での使用箇所と後続の `drop` を確認する。他の列(`inherit_members`/`homepage`/`default_time_entry_activity_id`/`updated_by_id`/`passwd_changed_on`/`must_change_passwd`/`members.mail_notification`/`is_filter`/`twofa_required` 等)は `app/` に使用箇所があり現役と確認済み(2026-09-20) | 反映済み |
 | C-19 | (バックログ自身の訂正)A7-04 | 「Wiki 個別バージョンの削除は未実装」 | 実装済みだった。実際の差分は権限(`edit_wiki_pages` ↔ Redmine の `delete_wiki_pages`)と最新版/最後の1版の扱い | 反映済み(A7-04) |
+| C-20 | (実装中に発見したセキュリティ不具合、A11-01 で修正済み)REST API「Issues」 | 一覧 `GET /projects/{id}/issues` は `view_issues` があれば読めるとして記載 | 課題単位の可視性(非公開課題・own/default)が未適用で、権限のない課題が漏れていた | 修正・回帰テスト追加済み(`IssueApiIndexTest.php`) |
 
 ---
 
