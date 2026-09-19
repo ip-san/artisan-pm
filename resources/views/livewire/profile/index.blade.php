@@ -52,6 +52,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $notify_about_high_priority_issues = false;
 
+    public int $recently_used_projects = 3;
+
     /** @var array<int, string> */
     public array $auto_watch_on = [];
 
@@ -64,7 +66,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->mail_notification = auth()->user()->mail_notification->value;
         $this->no_self_notified = auth()->user()->no_self_notified;
 
-        foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'notify_about_high_priority_issues', 'auto_watch_on', 'default_issue_query'] as $key) {
+        foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'notify_about_high_priority_issues', 'recently_used_projects', 'auto_watch_on', 'default_issue_query'] as $key) {
             $this->{$key} = auth()->user()->preference($key) ?? $this->{$key};
         }
     }
@@ -95,6 +97,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'textarea_font' => ['nullable', Rule::in(array_keys(UserPreferences::TEXTAREA_FONTS))],
             'hide_mail' => ['boolean'],
             'notify_about_high_priority_issues' => ['boolean'],
+            'recently_used_projects' => ['required', 'integer', 'min:0', 'max:10'],
             'auto_watch_on' => ['array'],
             'auto_watch_on.*' => [Rule::in(array_keys(UserPreferences::AUTO_WATCH_ON))],
             'default_issue_query' => ['nullable', Rule::in($this->issueQueries->pluck('id')->all())],
@@ -463,6 +466,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="checkbox" wire:model="notify_about_high_priority_issues" class="rounded border-gray-300">
                 優先度が既定より高い課題は、通知設定に関わらずメールで知らせる
             </label>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">プロジェクト移動に表示する最近使ったプロジェクトの数</label>
+                <input type="number" min="0" max="10" wire:model="recently_used_projects" class="mt-1 block w-24 rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('recently_used_projects') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
 
             <div>
                 <span class="block text-sm font-medium text-gray-700">自動的にウォッチする課題</span>

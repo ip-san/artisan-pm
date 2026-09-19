@@ -17,6 +17,7 @@
                     <div class="flex items-center gap-6">
                         <a href="{{ route('projects.index') }}" class="font-semibold text-gray-900">{{ $appTitle }}</a>
                         @auth
+                            <x-project-jump-box />
                             <a href="{{ route('my-page.index') }}" class="text-sm text-gray-600 hover:text-gray-900">マイページ</a>
                             <a href="{{ route('projects.index') }}" class="text-sm text-gray-600 hover:text-gray-900">プロジェクト</a>
                             <a href="{{ route('issues.global-index') }}" class="text-sm text-gray-600 hover:text-gray-900">課題</a>
