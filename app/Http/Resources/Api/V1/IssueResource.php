@@ -39,6 +39,7 @@ final class IssueResource extends JsonResource
             'start_date' => $issue->start_date?->toDateString(),
             'due_date' => $issue->due_date?->toDateString(),
             'done_ratio' => $issue->done_ratio,
+            'lock_version' => $issue->lock_version,
             'created_at' => $issue->created_at->toIso8601String(),
             'updated_at' => $issue->updated_at->toIso8601String(),
 

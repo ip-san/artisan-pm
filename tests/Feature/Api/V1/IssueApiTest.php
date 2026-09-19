@@ -305,3 +305,79 @@ test('a filename override at attach time cannot bypass the extension deny list',
     expect($attachment)->not->toBeNull()
         ->and($attachment->file_name)->toBe('notes.txt');
 });
+
+test('the issue payload carries the lock_version', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/issues/{$issue->id}")->assertOk()->assertJsonPath('data.lock_version', $issue->lock_version);
+});
+
+test('an api update with the current lock_version succeeds and bumps it', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'edit_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/issues/{$issue->id}", ['subject' => 'Renamed', 'lock_version' => $issue->lock_version])
+        ->assertOk()
+        ->assertJsonPath('data.subject', 'Renamed')
+        ->assertJsonPath('data.lock_version', $issue->lock_version + 1);
+});
+
+test('an api update with a stale lock_version is a 409 that changes nothing', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'edit_issues']);
+    $issue = Issue::factory()->for($project)->create([...apiIssueDefaults(), 'subject' => 'Original']);
+    $staleVersion = $issue->lock_version;
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/issues/{$issue->id}", ['subject' => 'First writer'])->assertOk();
+
+    $this->putJson("/api/v1/issues/{$issue->id}", ['subject' => 'Second writer', 'lock_version' => $staleVersion, 'notes' => 'x'])
+        ->assertStatus(409)
+        ->assertJsonPath('lock_version', $staleVersion + 1)
+        ->assertJsonStructure(['message', 'errors' => ['lock_version']]);
+
+    expect($issue->fresh()->subject)->toBe('First writer')
+        ->and($issue->fresh()->lock_version)->toBe($staleVersion + 1);
+});
+
+test('an api update without lock_version keeps last-write-wins', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'edit_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/issues/{$issue->id}", ['subject' => 'One'])->assertOk();
+    $this->putJson("/api/v1/issues/{$issue->id}", ['subject' => 'Two'])->assertOk();
+
+    expect($issue->fresh()->subject)->toBe('Two');
+});
+
+test('a malformed lock_version is rejected as a validation error', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'edit_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/issues/{$issue->id}", ['lock_version' => 'abc'])->assertUnprocessable();
+    $this->putJson("/api/v1/issues/{$issue->id}", ['lock_version' => -1])->assertUnprocessable();
+});
+
+test('a stale lock_version cannot be used to probe an issue the caller may not edit', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/issues/{$issue->id}", ['lock_version' => 999])->assertForbidden();
+});

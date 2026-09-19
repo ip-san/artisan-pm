@@ -37,6 +37,9 @@ final class UpdateIssueRequest extends FormRequest
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
             'done_ratio' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            // Optimistic locking, as Redmine's safe attribute of the same
+            // name: the lock_version the client last read.
+            'lock_version' => ['sometimes', 'integer', 'min:0'],
             'uploads' => ['array'],
             'uploads.*.token' => ['required', 'string'],
             'uploads.*.filename' => ['nullable', 'string', 'max:255'],

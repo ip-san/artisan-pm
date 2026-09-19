@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\IssueTimeEntryDisposition;
+use App\Exceptions\StaleIssueUpdateException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreIssueRequest;
 use App\Http\Requests\Api\V1\UpdateIssueRequest;
@@ -87,17 +88,34 @@ final class IssueController extends Controller
         return (new IssueResource($issue))->response()->setStatusCode(201);
     }
 
-    public function update(UpdateIssueRequest $request, Issue $issue): IssueResource
+    /**
+     * Send the `lock_version` last read (it is part of every issue payload)
+     * to make the update conditional: if someone saved in between, nothing
+     * is changed and the response is 409 Conflict carrying the current
+     * lock_version. Omitting it keeps the last-write-wins behaviour every
+     * existing client relies on. (Redmine answers a stale API update with a
+     * bare 422; 409 is the accurate status.)
+     */
+    public function update(UpdateIssueRequest $request, Issue $issue): IssueResource|JsonResponse
     {
         $data = $request->validated();
         $uploads = $data['uploads'] ?? [];
-        unset($data['uploads']);
+        $expectedLockVersion = isset($data['lock_version']) ? (int) $data['lock_version'] : null;
+        unset($data['uploads'], $data['lock_version']);
 
         if (isset($data['status_id']) && $data['status_id'] !== $issue->status_id) {
             Gate::authorize('transitionTo', [$issue, IssueStatus::findOrFail($data['status_id'])]);
         }
 
-        $issue = app(IssueService::class)->update($issue, $data, $request->user());
+        try {
+            $issue = app(IssueService::class)->update($issue, $data, $request->user(), expectedLockVersion: $expectedLockVersion);
+        } catch (StaleIssueUpdateException $exception) {
+            return response()->json([
+                'message' => '課題が他のユーザーによって更新されています。最新の内容を取得して、もう一度やり直してください。',
+                'errors' => ['lock_version' => ['The issue was modified after the given lock_version was read.']],
+                'lock_version' => $exception->issue->lock_version,
+            ], 409);
+        }
 
         $this->attachUploads($issue, $uploads, journalize: true, actor: $request->user());
 
