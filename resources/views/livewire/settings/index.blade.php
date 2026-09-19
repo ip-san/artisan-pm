@@ -97,6 +97,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $cache_formatted_text = false;
 
+    public string $new_item_menu_tab = '2';
+
     public bool $reactions_enabled = true;
 
     public bool $incoming_mail_enabled = false;
@@ -275,6 +277,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->per_page_options = Setting::get('per_page_options', PageSize::DEFAULT_OPTIONS);
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
+        $this->new_item_menu_tab = (string) Setting::get('new_item_menu_tab', '2');
         $this->reactions_enabled = Setting::get('reactions_enabled', true);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
         $this->issue_done_ratio_interval = DoneRatioSteps::interval();
@@ -434,6 +437,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'per_page_options' => ['required', 'string', 'max:100', 'regex:/^\s*[1-9]\d{0,3}([\s,]+[1-9]\d{0,3})*\s*$/'],
             'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
+            'new_item_menu_tab' => ['required', Rule::in(['0', '1', '2'])],
             'reactions_enabled' => ['boolean'],
             'incoming_mail_enabled' => ['boolean'],
             'incoming_mail_default_project_id' => ['nullable', 'exists:projects,id'],
@@ -720,6 +724,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('start_of_week') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-gray-500">カレンダー画面(プロジェクト内/全プロジェクト共通)の週始まりに反映されます。</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">新規作成メニュー(プロジェクト内)</label>
+                <select wire:model="new_item_menu_tab" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="0">なし</option>
+                    <option value="1">「新しい課題」リンクのみ</option>
+                    <option value="2">「+」ドロップダウン(課題・バージョン・お知らせなど)</option>
+                </select>
+                @error('new_item_menu_tab') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
         </section>
 
