@@ -56,7 +56,7 @@
 | # | ID | 依存 | 規模 | 状態 |
 |---|---|---|---|---|
 | **段 0: チェックリスト訂正**(コード変更なし) | | | | |
-| 0 | C 表の全行を `parity-checklist.md` に反映(コード変更なし、テスト/Pint 不要) | — | S | todo |
+| 0 | C 表の全行を `parity-checklist.md` に反映(コード変更なし、テスト/Pint 不要) | — | S | done(2026-09-20) |
 | **段 1: 独立した S 項目** | | | | |
 | 1 | A11-12 | — | S | todo |
 | 2 | A1-23 | — | S | todo |
@@ -365,7 +365,7 @@
 
 | ID | Redmine 側の機能 | 本アプリの現状 | 残作業 | 前提・設計上の注意 | 規模 | checklist 行 |
 |---|---|---|---|---|---|---|
-| A8-01 | 工数編集でのプロジェクト移動(`TimelogController#update` の `project_id`) | `time-entries/form.blade.php` は issue_id/user_id/activity_id/hours/spent_on/comments を編集可(チェックリストの「3項目のみ」は古い、C-17)。プロジェクト移動のみ不可 | プロジェクト選択(移動先で `log_time` 権限があるもの)を追加し、課題との整合(課題が別プロジェクトなら解除)を検証。A5-09 のバリデーションを適用 | `edit_own_time_entries`(A13)で自分の分のみ許可 | S | 工数管理「TimeEntry CRUD」 |
+| A8-01 | 工数の単体編集でのプロジェクト移動、および一括編集への時間/課題/プロジェクト/ユーザー追加(`TimelogController#update`/`#bulk_update`) | 単体編集フォーム(`time-entries/form.blade.php`)は issue_id/user_id/activity_id/hours/spent_on/comments を編集可でプロジェクト移動のみ不可。**一括編集**(`index.blade.php`)は作業分類/日付/コメントの3項目のみ(チェックリスト記載は正しい、C-17 取り下げ) | プロジェクト選択(移動先で `log_time` 権限があるもの)を追加し、課題との整合(課題が別プロジェクトなら解除)を検証。A5-09 のバリデーションを適用 | `edit_own_time_entries`(A13)で自分の分のみ許可 | S | 工数管理「TimeEntry CRUD」 |
 | A8-02 | 工数のカスタムフィールド(`TimeEntryCustomField`、`CustomizableType::TimeEntry`) | `app/Enums/CustomizableType.php` に TimeEntry なし。`IssuePriority` もなし | `CustomizableType::TimeEntry`/`IssuePriority` を追加し、フォーム/一覧列/CSV/レポート軸/API に露出 | `Enumeration` は `match($this->type)` で既に多型化済み | M | 「TimeEntry CRUD」、カスタムフィールド 節 |
 | A8-03 | 工数の記録者と対象者の分離(`time_entries.author_id` と `user_id`、権限 `log_time_for_other_users`) | `user_id` のみ。他者分の記録は `edit_time_entries` を流用 | `author_id` 列追加、権限追加、API の `user_id` 指定を新権限でゲート | A13 | S | REST API「Time entries」 |
 | A8-04 | 多次元レポート: カスタムフィールド軸、プロジェクト横断(`/time_entries/report`)、CSV(`report_to_csv`) | `TimeReportBuilder` は単一プロジェクト・固定軸・CSV なし | list/bool 型 CF を軸に追加、グローバル `/time_entries/report`、CSV 出力 | A8-02 が CF 軸の前提 | M | 工数管理「多次元工数レポート」 |
@@ -504,7 +504,7 @@
 | C-14 | Issues本体「課題のコピー」 | 「ジャーナル/添付/関連/親子は意図的にコピー対象外」 | `IssueService::copy()` に `$copyAttachments` 引数が存在(一括コピー経路)。`?copy_from=` プリフィルは依然何も複製しない | 2 経路の違いを明記(A1-08) |
 | C-15 | 一括編集「PDFエクスポート・Atomフィード」 | 課題 PDF を `done` と記載 | 単体課題 PDF のみ。一覧 PDF は未実装 | 「一覧 PDF は A1-29」を追記 |
 | C-16 | §0 項目 2 | 「専用の『リセットして通知』フローはまだない」 | `users/form.blade.php:150` の `sendPasswordReset()` がパスワード再設定リンクをメール送信(2026-07-22 の行で `done`) | 文言を打ち消し線に |
-| C-17 | 工数管理「TimeEntry CRUD」 | 「編集対象は作業分類/日付/コメントの3項目のみ(時間・プロジェクト移動・カスタムフィールドは対象外)」 | `time-entries/form.blade.php` は hours/issue_id/user_id も編集可。未対応はプロジェクト移動(A8-01)と CF(A8-02)のみ | 文言修正 |
+| C-17 | (取り下げ) 工数管理「TimeEntry CRUD」 | 「編集対象は作業分類/日付/コメントの3項目のみ」 | **記載は正しい**。この文は`time-entries/index.blade.php`の**一括編集**(`bulkActivityId`/`bulkSpentOn`/`bulkComments`)の説明で、単体編集フォームの話ではない。Redmine の一括編集は時間・課題・プロジェクト・ユーザーも変更できる | 訂正不要。不足は A8-01 に記載 |
 
 ---
 
