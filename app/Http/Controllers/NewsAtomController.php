@@ -31,7 +31,7 @@ final class NewsAtomController extends Controller
                 type: 'news',
                 title: $news->title,
                 url: route('news.show', [$project, $news]),
-                authorName: $news->author->name,
+                authorName: $news->author->displayName(),
                 occurredAt: $news->created_at ?? throw new LogicException('News is missing created_at.'),
             ));
 

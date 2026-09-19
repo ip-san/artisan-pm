@@ -60,7 +60,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div>
                     <span class="font-medium text-gray-900">{{ $category->name }}</span>
                     @if ($category->assignedTo)
-                        <span class="ml-2 text-xs text-gray-500">既定の担当者: {{ $category->assignedTo->name }}</span>
+                        <span class="ml-2 text-xs text-gray-500">既定の担当者: {{ $category->assignedTo->displayName() }}</span>
                     @endif
                 </div>
                 <div class="flex gap-3">

@@ -411,7 +411,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $quoted = collect(explode("\n", $journal->notes))->map(fn (string $line) => "> {$line}")->implode("\n");
 
-        $this->comment = "{$journal->user->name} wrote:\n{$quoted}\n\n";
+        $this->comment = "{$journal->user->displayName()} wrote:\n{$quoted}\n\n";
     }
 
     /**
@@ -913,7 +913,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div><span class="text-gray-500">ステータス:</span> {{ $issue->status->name }}</div>
         <div><span class="text-gray-500">優先度:</span> {{ $issue->priority->name }}</div>
         <div><span class="text-gray-500">カテゴリ:</span> {{ $issue->category?->name ?? 'なし' }}</div>
-        <div><span class="text-gray-500">作成者:</span> <x-avatar :user="$issue->author" :size="18" /> {{ $issue->author->name }}</div>
+        <div><span class="text-gray-500">作成者:</span> <x-avatar :user="$issue->author" :size="18" /> {{ $issue->author->displayName() }}</div>
         <div><span class="text-gray-500">担当者:</span> <x-avatar :user="$issue->assignedTo" :size="18" /> {{ $issue->assignedTo?->name ?? '未割当' }}</div>
         <div><span class="text-gray-500">対象バージョン:</span> {{ $issue->fixedVersion?->name ?? 'なし' }}</div>
         <div><span class="text-gray-500">進捗率:</span> {{ $issue->done_ratio }}%</div>
@@ -960,7 +960,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <ul class="mb-3 flex flex-wrap gap-2">
             @foreach ($issue->watchers as $watcher)
                 <li class="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
-                    {{ $watcher->user->name }}
+                    {{ $watcher->user->displayName() }}
                     @can('deleteWatchers', $issue)
                         <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-gray-400 hover:text-red-600" title="ウォッチャーから削除">×</button>
                     @endcan
@@ -1163,7 +1163,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <ul class="mb-6 space-y-1">
             @foreach ($issue->timeEntries as $entry)
                 <li class="flex items-center justify-between text-sm">
-                    <span>{{ $entry->spent_on->toDateString() }} — {{ $entry->user->name }} — {{ $entry->activity->name }}</span>
+                    <span>{{ $entry->spent_on->toDateString() }} — {{ $entry->user->displayName() }} — {{ $entry->activity->name }}</span>
                     <span class="text-gray-500">{{ $entry->hours }} 時間</span>
                 </li>
             @endforeach
@@ -1201,12 +1201,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 <li wire:key="journal-{{ $journal->id }}" class="rounded-md border border-gray-200 bg-white p-3 text-sm">
                     <div class="text-gray-500 text-xs mb-1">
                         <x-avatar :user="$journal->user" :size="20" class="mr-1" />
-                        {{ $journal->user->name }} — {{ $journal->created_at->format('Y-m-d H:i') }}
+                        {{ $journal->user->displayName() }} — {{ $journal->created_at->format('Y-m-d H:i') }}
                         @if ($journal->private_notes)
                             <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-amber-700">非公開</span>
                         @endif
                         @if ($journal->notes && $journal->updatedBy !== null)
-                            <span class="ml-1 italic" data-journal-edited>({{ $journal->updatedBy->name }} が編集 {{ $journal->updated_at->format('Y-m-d H:i') }})</span>
+                            <span class="ml-1 italic" data-journal-edited>({{ $journal->updatedBy->displayName() }} が編集 {{ $journal->updated_at->format('Y-m-d H:i') }})</span>
                         @elseif ($journal->notes && ! $journal->updated_at->equalTo($journal->created_at))
                             <span class="ml-1 italic">(編集済み)</span>
                         @endif

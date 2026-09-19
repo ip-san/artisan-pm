@@ -95,7 +95,7 @@ final class RelatedIssueColumns
             'priority_id' => $issue->priority->name,
             'category_id' => $issue->category?->name ?? '',
             'assigned_to_id' => $issue->assignedTo?->name ?? '',
-            'author_id' => $issue->author->name,
+            'author_id' => $issue->author->displayName(),
             'fixed_version_id' => $issue->fixedVersion?->name ?? '',
             'start_date' => $issue->start_date?->toDateString() ?? '',
             'due_date' => $issue->due_date?->toDateString() ?? '',

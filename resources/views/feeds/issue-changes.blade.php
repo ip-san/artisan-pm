@@ -16,7 +16,7 @@
             <id>{{ route('issues.show', [$issue->project, $issue]) }}?journal_id={{ $journal->id }}</id>
             <updated>{{ $journal->created_at->toAtomString() }}</updated>
             <author>
-                <name>{{ $journal->user->name }}</name>
+                <name>{{ $journal->user->displayName() }}</name>
             </author>
             <content type="html">{{ '<ul>'.collect($details($journal))->map(fn ($line) => '<li>'.e($line).'</li>')->implode('').'</ul>'.($journal->notes ? '<p>'.nl2br(e($journal->notes)).'</p>' : '') }}</content>
         </entry>

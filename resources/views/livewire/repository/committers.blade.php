@@ -118,7 +118,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <li class="flex items-center justify-between px-4 py-3" wire:key="committer-mapping-{{ $mapping->id }}">
                 <div>
                     <span class="font-mono text-sm text-gray-900">{{ $mapping->committer }}</span>
-                    <span class="ml-2 text-xs text-gray-500">→ {{ $mapping->user->name }}</span>
+                    <span class="ml-2 text-xs text-gray-500">→ {{ $mapping->user->displayName() }}</span>
                 </div>
                 <button wire:click="deleteMapping({{ $mapping->id }})" wire:confirm="この対応付けを削除しますか?"
                     class="text-sm text-red-600 hover:underline">

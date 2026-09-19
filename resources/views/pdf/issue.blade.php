@@ -21,7 +21,7 @@
 </head>
 <body>
     <h1>{{ $project->name }} - {{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}</h1>
-    <div class="meta">{{ $issue->created_at?->format('Y-m-d H:i') }} - {{ $issue->author->name }}</div>
+    <div class="meta">{{ $issue->created_at?->format('Y-m-d H:i') }} - {{ $issue->author->displayName() }}</div>
 
     <table class="attrs">
         <tr>
@@ -60,7 +60,7 @@
         <div class="section-title">履歴</div>
         @foreach ($notes as $entry)
             <div class="note">
-                <div class="note-meta">{{ $entry['journal']->user->name }} — {{ $entry['journal']->created_at->format('Y-m-d H:i') }}</div>
+                <div class="note-meta">{{ $entry['journal']->user->displayName() }} — {{ $entry['journal']->created_at->format('Y-m-d H:i') }}</div>
                 <div class="prose">{!! $entry['html'] !!}</div>
             </div>
         @endforeach

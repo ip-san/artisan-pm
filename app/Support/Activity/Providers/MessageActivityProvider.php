@@ -46,7 +46,7 @@ final class MessageActivityProvider implements ActivityProvider, OffByDefault
                 type: $this->type(),
                 title: $message->isTopic() ? $message->subject : "{$message->board->name}: {$message->parent->subject}",
                 url: route('messages.show', [$project, $message->board, $message->isTopic() ? $message : $message->parent]),
-                authorName: $message->author->name,
+                authorName: $message->author->displayName(),
                 occurredAt: $message->created_at ?? throw new LogicException('Message is missing created_at.'),
                 authorId: $message->author_id,
             ));

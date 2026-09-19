@@ -208,6 +208,20 @@ final class User extends Authenticatable implements OAuthenticatable
         }
     }
 
+    /**
+     * How the user is named on screen, per the site's `user_format` (Redmine's
+     * setting): `name` (default), `name_login` ("Name (login)") or `login`.
+     * A missing login falls back to the name.
+     */
+    public function displayName(): string
+    {
+        return match (Setting::get('user_format', 'name')) {
+            'name_login' => filled($this->login) ? "{$this->name} ({$this->login})" : $this->name,
+            'login' => filled($this->login) ? $this->login : $this->name,
+            default => $this->name,
+        };
+    }
+
     public function isActive(): bool
     {
         return $this->status === UserStatus::Active;

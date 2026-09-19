@@ -753,7 +753,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'subject' => $issue->subject,
             'category_id' => $issue->category?->name ?? 'なし',
             'assigned_to_id' => $issue->assignedTo?->name ?? '未割当',
-            'author_id' => $issue->author->name,
+            'author_id' => $issue->author->displayName(),
             'fixed_version_id' => $issue->fixedVersion?->name ?? 'なし',
             'start_date' => $issue->start_date?->toDateString() ?? '',
             'due_date' => $issue->due_date?->toDateString() ?? '',
@@ -773,7 +773,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 ))
                 ->join(', '),
             'attachments' => $issue->attachments()->map(fn ($media) => $media->file_name)->join("\n"),
-            'watchers' => $issue->watchers->map(fn (Watcher $watcher) => $watcher->user->name)->join("\n"),
+            'watchers' => $issue->watchers->map(fn (Watcher $watcher) => $watcher->user->displayName())->join("\n"),
             'project_id' => $issue->project->name,
             'parent_id' => $issue->parent_id !== null ? "#{$issue->parent_id}" : '',
             'updated_at' => $issue->updated_at?->format('Y-m-d H:i') ?? '',

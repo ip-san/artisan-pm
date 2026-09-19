@@ -69,9 +69,9 @@ new #[Layout('components.layouts.app')] class extends Component
     </h1>
 
     <p class="mb-4 text-xs text-gray-500">
-        v{{ $versionFrom->version }} ({{ $versionFrom->author->name }} — {{ $versionFrom->created_at->format('Y-m-d H:i') }})
+        v{{ $versionFrom->version }} ({{ $versionFrom->author->displayName() }} — {{ $versionFrom->created_at->format('Y-m-d H:i') }})
         から
-        v{{ $versionTo->version }} ({{ $versionTo->author->name }} — {{ $versionTo->created_at->format('Y-m-d H:i') }})
+        v{{ $versionTo->version }} ({{ $versionTo->author->displayName() }} — {{ $versionTo->created_at->format('Y-m-d H:i') }})
         への変更
     </p>
 

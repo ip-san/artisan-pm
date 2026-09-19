@@ -86,7 +86,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $quoted = collect(explode("\n", $message->content))->map(fn (string $line) => "> {$line}")->implode("\n");
 
-        $this->replyContent = "{$message->author->name} wrote:\n{$quoted}\n\n";
+        $this->replyContent = "{$message->author->displayName()} wrote:\n{$quoted}\n\n";
     }
 
     public function addReply(): void
@@ -327,7 +327,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <ul class="mb-3 flex flex-wrap gap-2">
             @foreach ($topic->watchers as $watcher)
                 <li class="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
-                    {{ $watcher->user->name }}
+                    {{ $watcher->user->displayName() }}
                     @can('deleteWatchers', $topic)
                         <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-gray-400 hover:text-red-600" title="ウォッチャーから削除">×</button>
                     @endcan
@@ -419,7 +419,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endforeach
         </ul>
     @endif
-    <p class="mb-6 text-xs text-gray-500">{{ $topic->author->name }} — {{ $topic->created_at->format('Y-m-d H:i') }}</p>
+    <p class="mb-6 text-xs text-gray-500">{{ $topic->author->displayName() }} — {{ $topic->created_at->format('Y-m-d H:i') }}</p>
 
     <h2 class="text-sm font-semibold text-gray-900 mb-2">返信 ({{ $this->replies->total() }})</h2>
     <ul class="mb-2 space-y-3">
@@ -465,7 +465,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </ul>
                 @endif
                 <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
-                    <span>{{ $reply->author->name }} — {{ $reply->created_at->format('Y-m-d H:i') }}</span>
+                    <span>{{ $reply->author->displayName() }} — {{ $reply->created_at->format('Y-m-d H:i') }}</span>
                     <span class="flex items-center gap-2">
                         <x-reaction-button :reactable="$reply" type="message" />
                         @can('update', $reply)

@@ -59,7 +59,7 @@ final class IssueAtomController extends Controller
                 type: 'issue',
                 title: "#{$issue->id} {$issue->subject}",
                 url: route('issues.show', [$project, $issue]),
-                authorName: $issue->author->name,
+                authorName: $issue->author->displayName(),
                 occurredAt: $issue->updated_at ?? throw new LogicException('Issue is missing updated_at.'),
             ));
 

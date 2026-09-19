@@ -46,7 +46,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="mb-4 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
         <span>
             これは v{{ $wikiPageVersion->version }} の過去バージョンです
-            ({{ $wikiPageVersion->author->name }} — {{ $wikiPageVersion->created_at->format('Y-m-d H:i') }})。
+            ({{ $wikiPageVersion->author->displayName() }} — {{ $wikiPageVersion->created_at->format('Y-m-d H:i') }})。
         </span>
         @can('update', $wikiPage)
             <a href="{{ route('wiki.edit', [$project, $wikiPage]) }}?version={{ $wikiPageVersion->version }}"

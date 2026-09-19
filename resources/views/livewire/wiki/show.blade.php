@@ -383,7 +383,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <ul class="mb-3 flex flex-wrap gap-2">
             @foreach ($wikiPage->watchers as $watcher)
                 <li class="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
-                    {{ $watcher->user->name }}
+                    {{ $watcher->user->displayName() }}
                     @can('deleteWatchers', $wikiPage)
                         <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-gray-400 hover:text-red-600" title="ウォッチャーから削除">×</button>
                     @endcan
@@ -453,7 +453,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($wikiPage->currentVersion)
         <p class="mt-2 text-xs text-gray-500">
-            最終更新: {{ $wikiPage->currentVersion->author->name }} — {{ $wikiPage->currentVersion->created_at->format('Y-m-d H:i') }}
+            最終更新: {{ $wikiPage->currentVersion->author->displayName() }} — {{ $wikiPage->currentVersion->created_at->format('Y-m-d H:i') }}
             (v{{ $wikiPage->currentVersion->version }})
         </p>
     @endif

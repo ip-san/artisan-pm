@@ -52,7 +52,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <p class="text-sm text-gray-600">{{ $item->summary }}</p>
                 @endif
                 <p class="mt-1 text-xs text-gray-500">
-                    {{ $item->author->name }} — {{ $item->created_at->format('Y-m-d H:i') }}
+                    {{ $item->author->displayName() }} — {{ $item->created_at->format('Y-m-d H:i') }}
                     — コメント{{ $item->comments_count }}件
                 </p>
             </li>

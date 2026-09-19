@@ -53,7 +53,7 @@ new #[Layout('components.layouts.app')] class extends Component
         } else {
             $this->addType = 'user';
             $this->selectedUserId = $member->user_id;
-            $this->userSearch = "{$member->user->name} ({$member->user->email})";
+            $this->userSearch = "{$member->user->displayName()} ({$member->user->email})";
         }
 
         // Only the roles that actually have a checkbox (this editor's
@@ -325,9 +325,9 @@ new #[Layout('components.layouts.app')] class extends Component
                         @if ($member->isForGroup())
                             {{ $member->group->name }}(グループ)
                         @elseif ($member->user->isVisibleTo(auth()->user()))
-                            <a href="{{ route('users.show', $member->user) }}" class="hover:underline">{{ $member->user->name }}</a>
+                            <a href="{{ route('users.show', $member->user) }}" class="hover:underline">{{ $member->user->displayName() }}</a>
                         @else
-                            {{ $member->user->name }}
+                            {{ $member->user->displayName() }}
                         @endif
                     </span>
                     <span class="ml-2 text-xs text-gray-500">

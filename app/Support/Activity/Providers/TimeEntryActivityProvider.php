@@ -45,7 +45,7 @@ final class TimeEntryActivityProvider implements ActivityProvider, OffByDefault
                 type: $this->type(),
                 title: "{$entry->hours}時間 ({$entry->activity->name})".($entry->issue ? " — #{$entry->issue->id} {$entry->issue->subject}" : ''),
                 url: $entry->issue ? route('issues.show', [$project, $entry->issue]) : route('time-entries.index', $project),
-                authorName: $entry->user->name,
+                authorName: $entry->user->displayName(),
                 occurredAt: $entry->spent_on,
                 authorId: $entry->user_id,
             ));

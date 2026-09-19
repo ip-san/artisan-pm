@@ -50,7 +50,7 @@ final class SendProjectEventMailNotifications
             ),
             new ProjectEventNotification(
                 sprintf('[%s - %s #%d] %s', $project->name, $message->board->name, $topic->id, $message->subject),
-                $message->author->name.' さんがフォーラムに投稿しました。',
+                $message->author->displayName().' さんがフォーラムに投稿しました。',
                 $message->subject,
                 route('messages.show', [$project, $message->board, $topic]),
                 $message->content,

@@ -281,7 +281,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         return match ($key) {
-            'user_id' => $entry->user->name,
+            'user_id' => $entry->user->displayName(),
             'activity_id' => $entry->activity->name,
             'spent_on' => $entry->spent_on->toDateString(),
             'hours' => \App\Support\Format\Hours::format($entry->hours, false),

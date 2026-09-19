@@ -45,7 +45,7 @@ final class IssueActivityProvider implements ActivityProvider
                 type: $this->type(),
                 title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
                 url: route('issues.show', [$project, $issue]),
-                authorName: $issue->author->name,
+                authorName: $issue->author->displayName(),
                 occurredAt: $issue->created_at ?? throw new LogicException('Issue is missing created_at.'),
                 authorId: $issue->author_id,
             ));

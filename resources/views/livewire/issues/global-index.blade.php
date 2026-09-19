@@ -191,7 +191,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'priority_id' => $issue->priority->name,
             'subject' => $issue->subject,
             'assigned_to_id' => $issue->assignedTo?->name ?? '未割当',
-            'author_id' => $issue->author->name,
+            'author_id' => $issue->author->displayName(),
             'fixed_version_id' => $issue->fixedVersion?->name ?? 'なし',
             'start_date' => $issue->start_date?->toDateString() ?? '',
             'due_date' => $issue->due_date?->toDateString() ?? '',

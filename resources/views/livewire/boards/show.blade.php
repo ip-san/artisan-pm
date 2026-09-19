@@ -81,7 +81,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 {{ $topic->subject }}
                             </a>
                         </td>
-                        <td class="px-4 py-2 text-gray-500">{{ $topic->author->name }}</td>
+                        <td class="px-4 py-2 text-gray-500">{{ $topic->author->displayName() }}</td>
                         <td class="px-4 py-2 text-gray-500">{{ $topic->replies_count }}</td>
                         <td class="px-4 py-2 text-gray-500">{{ $topic->updated_at->format('Y-m-d H:i') }}</td>
                     </tr>

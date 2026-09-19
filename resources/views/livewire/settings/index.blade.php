@@ -258,6 +258,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $self_registration = 'automatic';
 
+    public string $user_format = 'name';
+
     public bool $show_custom_fields_on_registration = false;
 
     public bool $unsubscribe = true;
@@ -325,6 +327,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('manage', Setting::class);
 
         $this->self_registration = Setting::get('self_registration', 'automatic');
+        $this->user_format = (string) Setting::get('user_format', 'name');
         $this->show_custom_fields_on_registration = (bool) Setting::get('show_custom_fields_on_registration', false);
         $this->unsubscribe = Setting::get('unsubscribe', true);
         $this->session_timeout = Setting::get('session_timeout', 0);
@@ -622,6 +625,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'issue_list_default_columns.*' => [Rule::in(array_keys(self::ISSUE_LIST_COLUMNS))],
             'start_of_week' => ['required', Rule::in([0, 1, 6])],
             'self_registration' => ['required', 'in:disabled,manual,email,automatic'],
+            'user_format' => ['required', 'in:name,name_login,login'],
             'show_custom_fields_on_registration' => ['boolean'],
             'unsubscribe' => ['boolean'],
             'session_timeout' => ['required', Rule::in([0, 60, 120, 240, 480, 720, 1440, 2880])],
@@ -788,6 +792,17 @@ new #[Layout('components.layouts.app')] class extends Component
                     2KBを超えるMarkdown本文の描画結果をキャッシュする
                 </label>
                 <p class="mt-1 text-xs text-gray-500">大きなWikiページの表示を速くします。他ページの取り込み(@{{include}})や子ページ一覧(@{{child_pages}})を含む本文は対象外で、キャッシュは1時間で失効します。#123やページリンクの参照先が作成・削除された直後は、最大1時間古い表示が残ることがあります。</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">ユーザー名の表示形式</label>
+                <select wire:model="user_format" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="name">名前</option>
+                    <option value="name_login">名前 (ログインID)</option>
+                    <option value="login">ログインID</option>
+                </select>
+                @error('user_format') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-gray-500">課題・コメント・Wiki・お知らせ・活動・工数などでユーザーを表示するときの形式です(APIと管理画面の名前は変わりません)。</p>
             </div>
 
             <div>
