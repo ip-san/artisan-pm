@@ -137,7 +137,7 @@
 | 62 | A7-08 / A13-02 | — | S | done(2026-09-20、A7-08 のうち引用返信/返信ウォッチは対象外=C-24) |
 | 63 | A13-01 | — | S〜M | done(2026-09-20) |
 | 64 | A5-04 / A14-06 | — | S | done(2026-09-20) |
-| 66 | A9-08 | — | S | todo |
+| 66 | A9-08 | — | S | done(対象外: Redmine 7.0 に無い, 2026-09-20) |
 | 67 | A5-15 | — | S | todo |
 | 68 | A1-15 | — | S | todo |
 | 69 | A5-01 | — | S | todo |
@@ -532,6 +532,7 @@
 | C-22 | (バックログ自身の訂正)A6-02 | 「@mention の News/フォーラムへの拡張が未対応」 | Redmine 自体が対応していない(mentionable は Issue/Journal/WikiContent のみ) | 反映済み |
 | C-23 | (実装中に発見した既存の不具合、修正済み)メール・Webhook の二重送信 | `MailNotificationServiceProvider`/`WebhookServiceProvider` は「自動検出は union 型の handle() を複数登録に展開できないので明示登録する」と説明していた | 自動検出は union 型を展開する。明示登録と併存して**全リスナーが二重登録**され、課題・Wiki・News の通知メールと Webhook がすべて 2 回ずつ送られていた | `bootstrap/app.php` の `withEvents(discover: false)` で自動検出を無効化し、`EventListenerRegistrationTest` を追加 |
 | C-24 | (バックログ自身の訂正)A7-08 | 「フォーラムの返信のウォッチ、投稿の引用返信が未対応」 | 引用返信は `messages/show.blade.php` の `quote()` で実装済み(トピックにも返信にも「引用」ボタンがある)。返信のウォッチは Redmine 自体がトピック(root)のみで、`MessagePolicy::watch` も同じ | 該当部分は対象外。権限の分離(A13-02)のみ実施 |
+| C-25 | (バックログ自身の訂正)A9-08 | 「Redmine の検索ボックスの `r123`(リビジョン)/`p:`(プロジェクト)ショートカット」 | Redmine 7.0 の `SearchController#index` のクイックジャンプは `#?\d+` の課題番号だけ(`search_controller.rb:40-44`)。`r123` はテキスト内リンク記法(wiki/課題本文)であって検索ボックスの機能ではなく、`p:` に相当する機能もない。本アプリの `#123` ジャンプは Redmine と同じ | ギャップではないため対象外(`done(対象外: Redmine 7.0 に無い, 2026-09-20)`) |
 
 ---
 
