@@ -6,6 +6,7 @@ namespace App\Http\Resources\Api\V1;
 
 use App\Models\Changeset;
 use App\Models\Issue;
+use App\Models\TimeEntry;
 use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Journal;
@@ -21,6 +22,30 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 final class IssueResource extends JsonResource
 {
+    /**
+     * Whether the caller may see logged time in this issue's project — decided
+     * once per project per request, since a list or a tree of children shares
+     * the same answer.
+     */
+    private function mayViewTime(Request $request, Issue $issue): bool
+    {
+        $user = $request->user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        /** @var array<int, bool> $known */
+        $known = $request->attributes->get('issue_api_time_visibility', []);
+
+        if (! array_key_exists($issue->project_id, $known)) {
+            $known[$issue->project_id] = $user->can('viewAny', [TimeEntry::class, $issue->loadMissing('project')->project]);
+            $request->attributes->set('issue_api_time_visibility', $known);
+        }
+
+        return $known[$issue->project_id];
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -43,6 +68,13 @@ final class IssueResource extends JsonResource
             'start_date' => $issue->start_date?->toDateString(),
             'due_date' => $issue->due_date?->toDateString(),
             'done_ratio' => $issue->done_ratio,
+            'estimated_hours' => $issue->estimated_hours !== null ? (float) $issue->estimated_hours : null,
+            'total_estimated_hours' => $issue->estimated_hours !== null || ! $issue->isLeaf() ? $issue->totalEstimatedHours() : null,
+            'estimated_remaining_hours' => $issue->estimated_hours !== null ? $issue->estimatedRemainingHours() : null,
+            // Logged time is only shown to those who may see time entries,
+            // as in Redmine's issues/show.api.rsb.
+            'spent_hours' => $this->mayViewTime($request, $issue) ? $issue->spentHours() : null,
+            'total_spent_hours' => $this->mayViewTime($request, $issue) ? $issue->totalSpentHours() : null,
             'lock_version' => $issue->lock_version,
             'created_at' => $issue->created_at->toIso8601String(),
             'updated_at' => $issue->updated_at->toIso8601String(),

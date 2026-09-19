@@ -70,7 +70,21 @@ new #[Layout('components.layouts.app')] class extends Component
         'relations' => '関連するチケット',
         'attachments' => '添付ファイル',
         'watchers' => 'ウォッチャー',
+        'estimated_hours' => '予定工数',
+        'total_estimated_hours' => '合計予定工数',
+        'estimated_remaining_hours' => '残り工数',
+        'spent_hours' => '作業時間',
+        'total_spent_hours' => '合計作業時間',
     ];
+
+    /**
+     * The hour columns computed from other data rather than stored on the
+     * issue: they cannot be sorted in SQL, so their headings are not
+     * sort buttons.
+     *
+     * @var array<int, string>
+     */
+    public const array COMPUTED_HOUR_COLUMNS = ['total_estimated_hours', 'estimated_remaining_hours', 'spent_hours', 'total_spent_hours'];
 
     /**
      * Matches issues/show.blade.php's RELATION_LABELS wording exactly —
@@ -204,7 +218,9 @@ new #[Layout('components.layouts.app')] class extends Component
             )
             ->when(in_array('relations', $this->columns, true), fn (Builder $q) => $q->with(['relationsFrom', 'relationsTo']))
             ->when(in_array('attachments', $this->columns, true), fn (Builder $q) => $q->with('media'))
-            ->when(in_array('watchers', $this->columns, true), fn (Builder $q) => $q->with('watchers.user'));
+            ->when(in_array('watchers', $this->columns, true), fn (Builder $q) => $q->with('watchers.user'))
+            ->when(array_intersect(['spent_hours', 'total_spent_hours', 'total_estimated_hours'], $this->columns) !== [], fn (Builder $q) => $q->withCount('children'))
+            ->when(array_intersect(['spent_hours', 'total_spent_hours'], $this->columns) !== [], fn (Builder $q) => $q->withSum('timeEntries', 'hours'));
 
         if ($this->statusFilter !== 'all') {
             $isClosed = $this->statusFilter === 'closed';
@@ -637,6 +653,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->join(', '),
             'attachments' => $issue->attachments()->map(fn ($media) => $media->file_name)->join("\n"),
             'watchers' => $issue->watchers->map(fn (Watcher $watcher) => $watcher->user->name)->join("\n"),
+            'estimated_hours' => $issue->estimated_hours !== null ? number_format((float) $issue->estimated_hours, 2, '.', '') : '',
+            'total_estimated_hours' => $issue->estimated_hours !== null || ! $issue->isLeaf() ? number_format($issue->totalEstimatedHours(), 2, '.', '') : '',
+            'estimated_remaining_hours' => $issue->estimated_hours !== null ? number_format($issue->estimatedRemainingHours(), 2, '.', '') : '',
+            'spent_hours' => number_format($issue->spentHours(), 2, '.', ''),
+            'total_spent_hours' => number_format($issue->totalSpentHours(), 2, '.', ''),
             default => '',
         };
     }
@@ -1352,12 +1373,16 @@ new #[Layout('components.layouts.app')] class extends Component
                         <th class="px-4 py-2">#</th>
                         @foreach ($columns as $columnKey)
                             <th wire:key="column-heading-{{ $columnKey }}" class="px-4 py-2">
-                                <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
+                                @if (in_array($columnKey, self::COMPUTED_HOUR_COLUMNS, true))
                                     {{ $this->availableColumns[$columnKey] ?? $columnKey }}
-                                    @if ($sortKey === $columnKey)
-                                        <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                                    @endif
-                                </button>
+                                @else
+                                    <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
+                                        {{ $this->availableColumns[$columnKey] ?? $columnKey }}
+                                        @if ($sortKey === $columnKey)
+                                            <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                        @endif
+                                    </button>
+                                @endif
                             </th>
                         @endforeach
                     </tr>

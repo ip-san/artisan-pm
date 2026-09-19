@@ -825,6 +825,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 <span class="text-gray-400">(合計: {{ Number::format($issue->totalEstimatedHours(), precision: 2) }} 時間)</span>
             @endif
         </div>
+        @if ($issue->estimated_hours !== null)
+            <div>
+                <span class="text-gray-500">残り工数(予定):</span>
+                {{ Number::format($issue->estimatedRemainingHours(), precision: 2) }} 時間
+            </div>
+        @endif
     </div>
 
     @if ($issue->description)

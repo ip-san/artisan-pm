@@ -92,6 +92,10 @@ final class IssueController extends Controller
     {
         $this->applyIndexFilters($request, $query);
 
+        // One query each for the child count and logged hours, instead of
+        // one per issue when the resource asks isLeaf()/spentHours().
+        $query->withCount('children')->withSum('timeEntries', 'hours');
+
         if (in_array('relations', $this->parseIncludes($request, self::INDEX_INCLUDES), true)) {
             $query->with(['relationsFrom.to', 'relationsTo.from']);
         }

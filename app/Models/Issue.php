@@ -290,8 +290,16 @@ final class Issue extends Model implements HasMedia
             ->map(fn (IssueRelation $relation) => $relation->from);
     }
 
+    /**
+     * Uses a preloaded `children_count` (withCount('children')) when a list
+     * query supplied one, so a page of issues doesn't ask once per row.
+     */
     public function isLeaf(): bool
     {
+        if (array_key_exists('children_count', $this->attributes)) {
+            return (int) $this->attributes['children_count'] === 0;
+        }
+
         return ! $this->children()->exists();
     }
 
@@ -325,6 +333,11 @@ final class Issue extends Model implements HasMedia
      */
     public function spentHours(): float
     {
+        // A list query may have preloaded the sum (withSum('timeEntries', 'hours')).
+        if (array_key_exists('time_entries_sum_hours', $this->attributes)) {
+            return (float) $this->attributes['time_entries_sum_hours'];
+        }
+
         return (float) $this->timeEntries()->sum('hours');
     }
 
@@ -356,6 +369,15 @@ final class Issue extends Model implements HasMedia
         $ids = $this->descendantIds()->push($this->id);
 
         return (float) Issue::query()->whereIn('id', $ids)->sum('estimated_hours');
+    }
+
+    /**
+     * Redmine 7's Issue#estimated_remaining_hours: the part of the estimate
+     * not yet worked off, by the done ratio.
+     */
+    public function estimatedRemainingHours(): float
+    {
+        return (float) ($this->estimated_hours ?? 0) * (100 - (int) ($this->done_ratio ?? 0)) / 100;
     }
 
     public static function customizableType(): CustomizableType
