@@ -31,6 +31,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $newWatcherId = null;
 
+    public string $watcherSearch = '';
+
     /** @var array<int, string> attachment media id => description input value */
     public array $attachmentDescriptions = [];
 
@@ -132,8 +134,21 @@ new #[Layout('components.layouts.app')] class extends Component
     public function watcherCandidates(): Collection
     {
         $watchingIds = $this->topic->watchers->pluck('user_id');
+        $search = mb_strtolower(trim($this->watcherSearch));
 
-        return $this->project->users->reject(fn (User $user) => $watchingIds->contains($user->id))->values();
+        // A name/email search over the members not yet watching, ten at a
+        // time (the picker is an autocomplete, not a full list).
+        return $this->project->users
+            ->reject(fn (User $user) => $watchingIds->contains($user->id))
+            ->filter(fn (User $user) => $search === '' || str_contains(mb_strtolower($user->name.' '.$user->email), $search))
+            ->take(10)
+            ->values();
+    }
+
+    public function pickWatcher(int $userId): void
+    {
+        $this->newWatcherId = $userId;
+        $this->addWatcher();
     }
 
     public function addWatcher(): void
@@ -321,20 +336,20 @@ new #[Layout('components.layouts.app')] class extends Component
         </ul>
 
         @can('addWatchers', $topic)
-            @if ($this->watcherCandidates->isNotEmpty())
-                <form wire:submit="addWatcher" class="mb-4 flex items-end gap-2">
-                    <div>
-                        <select wire:model="newWatcherId" class="block rounded-md border-gray-300 shadow-sm text-sm">
-                            <option value="">ウォッチャーを追加...</option>
-                            @foreach ($this->watcherCandidates as $candidate)
-                                <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <button type="submit" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        追加
-                    </button>
-                </form>
+            @if ($watcherSearch !== '' || $this->watcherCandidates->isNotEmpty())
+                <div class="mb-4  relative" data-watcher-search>
+                    <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="ウォッチャーを追加(名前・メールで検索)..."
+                        class="block w-72 rounded-md border-gray-300 shadow-sm text-sm">
+                    <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-gray-200 bg-white text-sm shadow-sm">
+                        @foreach ($this->watcherCandidates as $candidate)
+                            <li wire:key="watcher-candidate-{{ $candidate->id }}">
+                                <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">
+                                    {{ $candidate->name }} <span class="text-xs text-gray-400">{{ $candidate->email }}</span>
+                                </button>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
                 @error('newWatcherId') <p class="-mt-2 mb-4 text-sm text-red-600">{{ $message }}</p> @enderror
             @endif
         @endcan
