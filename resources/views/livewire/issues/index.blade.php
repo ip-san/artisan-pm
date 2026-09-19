@@ -28,6 +28,7 @@ use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\ListQueryString;
 use App\Support\Issues\CopyOptions;
 use App\Support\Issues\SubprojectScope;
+use App\Support\Query\CustomFieldFilter;
 use App\Support\Query\DefaultIssueQuery;
 use App\Support\Query\ListDefaults;
 use App\Support\Query\QueryFilterEngine;
@@ -293,7 +294,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $sortCriteria = $this->sortCriteria();
 
         if ($sortCriteria !== []) {
-            $query = $this->engine->applySort($query, $sortCriteria);
+            $query = $this->engine->applySort($query, $sortCriteria, $this->sortOnlyCustomFields());
         } else {
             $query->orderByDesc('id');
         }
@@ -315,6 +316,19 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->sortKey2, $this->sortDirection2,
             $this->sortKey3, $this->sortDirection3,
         );
+    }
+
+    /**
+     * Custom fields of this project that can be sorted by even though they
+     * are not offered as filters: column headers of any shown custom field
+     * sort, like Redmine's.
+     *
+     * @return Collection<string, CustomFieldFilter>
+     */
+    private function sortOnlyCustomFields(): Collection
+    {
+        return $this->projectIssueCustomFields
+            ->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => new CustomFieldFilter($field)]);
     }
 
     /**
@@ -671,6 +685,24 @@ new #[Layout('components.layouts.app')] class extends Component
             ->all();
 
         return [...self::DISPLAY_COLUMNS, ...$customFieldLabels];
+    }
+
+    /**
+     * The columns the 2nd/3rd sort levels offer: the native set plus every
+     * single-value custom field.
+     *
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function sortableColumns(): array
+    {
+        return [
+            ...self::DISPLAY_COLUMNS,
+            ...$this->projectIssueCustomFields
+                ->reject(fn (CustomField $field) => $field->multiple)
+                ->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => $field->name])
+                ->all(),
+        ];
     }
 
     /**
@@ -1417,7 +1449,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         {{ $level }}列目:
                         <select wire:model.live="{{ $keyProp }}" class="rounded-md border-gray-300 text-sm">
                             <option value="">なし</option>
-                            @foreach (self::DISPLAY_COLUMNS as $columnKey => $label)
+                            @foreach ($this->sortableColumns as $columnKey => $label)
                                 <option value="{{ $columnKey }}">{{ $label }}</option>
                             @endforeach
                         </select>

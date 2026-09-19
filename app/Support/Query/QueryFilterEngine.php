@@ -72,12 +72,13 @@ final class QueryFilterEngine
     /**
      * @param  Builder<*>  $query
      * @param  array<int, array{0: string, 1: string}>  $sortCriteria  [key, direction] pairs
+     * @param  Collection<string, FilterableField>  $sortOnlyFields  extra fields that may be sorted by but are not offered as filters (custom fields without "used as filter")
      * @return Builder<*>
      */
-    public function applySort(Builder $query, array $sortCriteria): Builder
+    public function applySort(Builder $query, array $sortCriteria, ?Collection $sortOnlyFields = null): Builder
     {
         foreach ($sortCriteria as [$key, $direction]) {
-            $field = $this->fields->get($key);
+            $field = $this->fields->get($key) ?? $sortOnlyFields?->get($key);
 
             if ($field?->isSortable()) {
                 $query = $field->applySort($query, $direction);

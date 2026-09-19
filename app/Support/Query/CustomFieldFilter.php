@@ -75,17 +75,34 @@ final class CustomFieldFilter implements FilterableField
     }
 
     /**
-     * Sorting by an EAV value needs a join scoped to this one custom_field_id
-     * rather than the plain orderBy() a native column uses — deferred; a
-     * custom field simply isn't offered as a sort option for now.
+     * Orders by the field's value through a correlated subquery scoped to
+     * this one custom_field_id, so several sorted custom fields never
+     * collide on a shared join and a multi-row result can't duplicate
+     * issues. Blank sorts as the smallest value (first ascending, last
+     * descending) — Redmine's COALESCE(value, '') puts blanks together the
+     * same way.
      */
     public function applySort(Builder $query, string $direction): Builder
     {
-        return $query;
+        $model = $query->getModel();
+        $column = $this->field->format()->storageColumn();
+        $descending = $direction === 'desc';
+
+        return $query->orderByRaw(
+            "(SELECT cfv.{$column} FROM custom_field_values cfv"
+            .' WHERE cfv.customized_type = ? AND cfv.customized_id = '.$model->getQualifiedKeyName()
+            .' AND cfv.custom_field_id = ? ORDER BY cfv.id DESC LIMIT 1) '
+            .($descending ? 'DESC NULLS LAST' : 'ASC NULLS FIRST'),
+            [$this->field->customized_type->value, $this->field->id],
+        );
     }
 
+    /**
+     * A multi-value field has no single value to order by (Redmine leaves
+     * it out too).
+     */
     public function isSortable(): bool
     {
-        return false;
+        return ! $this->field->multiple;
     }
 }

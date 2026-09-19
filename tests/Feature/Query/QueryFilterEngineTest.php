@@ -108,7 +108,7 @@ test('a custom field not attached to the project is not offered as a filterable 
     expect($engine->field("cf_{$field->id}"))->toBeNull();
 });
 
-test('a custom field is not sortable', function () {
+test('a single-value custom field is sortable and a multi-value one is not', function () {
     $project = Project::factory()->create();
     $tracker = Tracker::factory()->create();
     $project->trackers()->attach($tracker);
@@ -118,5 +118,10 @@ test('a custom field is not sortable', function () {
 
     $engine = issueEngine($project);
 
-    expect($engine->field("cf_{$field->id}")->isSortable())->toBeFalse();
+    expect($engine->field("cf_{$field->id}")->isSortable())->toBeTrue();
+
+    $multiple = CustomField::factory()->create(['multiple' => true]);
+    $multiple->trackers()->attach($tracker);
+
+    expect(issueEngine($project)->field("cf_{$multiple->id}")->isSortable())->toBeFalse();
 });
