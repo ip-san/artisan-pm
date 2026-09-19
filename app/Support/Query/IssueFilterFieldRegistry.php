@@ -50,6 +50,7 @@ final class IssueFilterFieldRegistry
 
         $customFields = CustomField::query()
             ->where('customized_type', CustomizableType::Issue)
+            ->where('is_filter', true)
             ->whereHas('trackers', fn ($query) => $query->whereIn('trackers.id', $project->trackers->pluck('id')))
             ->with(['trackers', 'projects'])
             ->orderBy('position')
@@ -106,6 +107,7 @@ final class IssueFilterFieldRegistry
 
         $customFields = CustomField::query()
             ->where('customized_type', CustomizableType::Issue)
+            ->where('is_filter', true)
             ->whereHas('trackers', fn ($query) => $query->whereIn('trackers.id', $trackers->pluck('id')))
             ->with(['trackers', 'projects'])
             ->orderBy('position')

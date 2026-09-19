@@ -22,7 +22,7 @@ use Spatie\EloquentSortable\SortableTrait;
 
 #[Fillable([
     'name', 'field_format', 'customized_type', 'is_required', 'multiple',
-    'searchable', 'editable', 'default_value', 'default_value_mode', 'min_length', 'max_length', 'regexp', 'ratio_interval',
+    'searchable', 'is_filter', 'editable', 'default_value', 'default_value_mode', 'min_length', 'max_length', 'regexp', 'ratio_interval',
     'possible_values', 'position',
 ])]
 final class CustomField extends Model implements Sortable
@@ -49,6 +49,7 @@ final class CustomField extends Model implements Sortable
         'is_required' => false,
         'multiple' => false,
         'searchable' => false,
+        'is_filter' => true,
         'editable' => true,
     ];
 
@@ -97,6 +98,7 @@ final class CustomField extends Model implements Sortable
             'is_required' => 'boolean',
             'multiple' => 'boolean',
             'searchable' => 'boolean',
+            'is_filter' => 'boolean',
             'editable' => 'boolean',
             'possible_values' => 'array',
             'default_value_mode' => CustomFieldDefaultValueMode::class,

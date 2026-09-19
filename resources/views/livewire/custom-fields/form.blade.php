@@ -43,6 +43,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $searchable = false;
 
+    public bool $is_filter = true;
+
     public bool $editable = true;
 
     public string $possibleValuesText = '';
@@ -77,6 +79,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->default_value = (string) $customField->default_value;
             $this->default_value_mode = $customField->default_value_mode?->value ?? 'fixed_date';
             $this->searchable = $customField->searchable;
+            $this->is_filter = $customField->is_filter;
             $this->editable = $customField->editable;
             $this->possibleValuesText = implode("\n", $customField->possible_values ?? []);
             $this->enumerationOptions = $customField->enumerationOptions
@@ -275,6 +278,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 default => ['nullable', 'date'],
             },
             'searchable' => ['boolean'],
+            'is_filter' => ['boolean'],
             'editable' => ['boolean'],
             'trackerIds' => $isForIssues ? ['required', 'array', 'min:1'] : ['array'],
             'trackerIds.*' => ['exists:trackers,id'],
@@ -309,6 +313,7 @@ new #[Layout('components.layouts.app')] class extends Component
             // (it can't today, but this avoids relying on that).
             'default_value_mode' => $fieldFormat === CustomFieldFormat::Date->value ? $data['default_value_mode'] : null,
             'searchable' => $data['searchable'],
+            'is_filter' => $data['is_filter'],
             'editable' => $data['editable'],
             'possible_values' => $possibleValues,
         ];
@@ -508,6 +513,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" wire:model="searchable" class="rounded border-gray-300">
                 検索対象にする
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="is_filter" class="rounded border-gray-300">
+                フィルタとして使用する
             </label>
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" wire:model="editable" class="rounded border-gray-300">

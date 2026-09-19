@@ -43,6 +43,7 @@ final class CustomFieldResource extends JsonResource
             'max_length' => $field->max_length,
             'is_required' => $field->is_required,
             'searchable' => $field->searchable,
+            'is_filter' => $field->is_filter,
             'multiple' => $field->multiple,
             'editable' => $field->editable,
             'default_value' => $field->default_value,
