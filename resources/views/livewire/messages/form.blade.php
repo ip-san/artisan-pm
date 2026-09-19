@@ -95,6 +95,10 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->toMediaCollection('attachments');
         }
 
+        if ($message->wasRecentlyCreated) {
+            \App\Events\MessagePosted::dispatch($message);
+        }
+
         $this->redirect(route('messages.show', [$this->project, $this->board, $topic]), navigate: true);
     }
 }; ?>

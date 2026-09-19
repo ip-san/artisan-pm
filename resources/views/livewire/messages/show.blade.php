@@ -95,13 +95,15 @@ new #[Layout('components.layouts.app')] class extends Component
             'replyContent' => ['required', 'string'],
         ]);
 
-        Message::create([
+        $reply = Message::create([
             'board_id' => $this->board->id,
             'parent_id' => $this->topic->id,
             'author_id' => auth()->id(),
             'subject' => "RE: {$this->topic->subject}",
             'content' => $data['replyContent'],
         ]);
+
+        \App\Events\MessagePosted::dispatch($reply);
 
         $this->reset('replyContent');
         unset($this->replies);

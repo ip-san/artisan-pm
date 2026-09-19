@@ -89,12 +89,18 @@ new #[Layout('components.layouts.app')] class extends Component
             $document = Document::create($data);
         }
 
+        $isNew = $document->wasRecentlyCreated;
+
         $document->setCustomFieldValues($customFieldData);
 
         foreach ($this->newAttachments as $file) {
             $document->addMedia($file->getRealPath())
                 ->usingFileName($file->getClientOriginalName())
                 ->toMediaCollection('attachments');
+        }
+
+        if ($isNew) {
+            \App\Events\DocumentAdded::dispatch($document, auth()->user());
         }
 
         $this->redirect(route('documents.show', [$this->project, $document]), navigate: true);

@@ -18,8 +18,8 @@ final class SendIssueMailNotifications
         $isCreated = $event instanceof IssueCreated;
 
         $actor = $isCreated ? $event->issue->author : $event->actor;
-        $eventKey = $isCreated ? 'issue_added' : 'issue_updated';
         $journal = $isCreated ? null : $event->journal;
+        $eventKey = $isCreated ? 'issue_added' : self::updateEventKey($journal);
         $mentionedLogins = $event instanceof IssueJournalRecorded ? [] : $event->mentionedLogins;
 
         $recipients = NotificationRecipients::forIssue($event->issue, $eventKey, $actor, $mentionedLogins);
@@ -32,5 +32,21 @@ final class SendIssueMailNotifications
             $recipients,
             new IssueNotification($event->issue, $isCreated ? 'created' : 'updated', $actor, $journal),
         );
+    }
+
+    /**
+     * Redmine's Journal#send_notification: an update mails when
+     * `issue_updated` is on, or — for one that carries a comment — when only
+     * `issue_note_added` is on.
+     */
+    private static function updateEventKey(?\App\Models\Journal $journal): string
+    {
+        $events = NotificationRecipients::notifiedEventKeys();
+
+        if (filled($journal?->notes) && ! in_array('issue_updated', $events, true) && in_array('issue_note_added', $events, true)) {
+            return 'issue_note_added';
+        }
+
+        return 'issue_updated';
     }
 }

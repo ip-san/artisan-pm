@@ -105,11 +105,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->authorize('manageFiles', $target);
 
+        $names = [];
+
         foreach ($this->newFiles as $file) {
             $target->addMedia($file->getRealPath())
                 ->usingFileName($file->getClientOriginalName())
                 ->toMediaCollection('files');
+            $names[] = $file->getClientOriginalName();
         }
+
+        \App\Events\ProjectFilesAdded::dispatch($this->project, auth()->user(), $names, $target instanceof \App\Models\Version ? $target->name : null);
 
         $this->reset('newFiles');
         unset($this->versions);

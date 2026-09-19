@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Events\DocumentAdded;
 use App\Events\IssueCreated;
 use App\Events\IssueJournalRecorded;
 use App\Events\IssueUpdated;
+use App\Events\MessagePosted;
 use App\Events\NewsCommentCreated;
 use App\Events\NewsCreated;
+use App\Events\ProjectFilesAdded;
 use App\Events\WikiPageCreated;
 use App\Events\WikiPageUpdated;
 use App\Listeners\SendIssueMailNotifications;
 use App\Listeners\SendNewsMailNotifications;
+use App\Listeners\SendProjectEventMailNotifications;
 use App\Listeners\SendWikiPageMailNotifications;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -28,5 +32,6 @@ final class MailNotificationServiceProvider extends ServiceProvider
         Event::listen([IssueCreated::class, IssueUpdated::class, IssueJournalRecorded::class], SendIssueMailNotifications::class);
         Event::listen([WikiPageCreated::class, WikiPageUpdated::class], SendWikiPageMailNotifications::class);
         Event::listen([NewsCreated::class, NewsCommentCreated::class], SendNewsMailNotifications::class);
+        Event::listen([MessagePosted::class, DocumentAdded::class, ProjectFilesAdded::class], SendProjectEventMailNotifications::class);
     }
 }

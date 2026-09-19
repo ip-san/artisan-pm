@@ -38,6 +38,14 @@ final class NotificationRecipients
     /**
      * @return array<int, string>
      */
+    public static function notifiedEventKeys(): array
+    {
+        return self::notifiedEvents();
+    }
+
+    /**
+     * @return array<int, string>
+     */
     private static function notifiedEvents(): array
     {
         return Setting::get('notified_events', self::defaultNotifiedEvents());
@@ -184,6 +192,28 @@ final class NotificationRecipients
 
         return self::resolve($news->project, $actor, $watcherIds, fn (User $user) => true, allTiersRequireMembershipOrWatch: true)
             ->filter(fn (User $user) => $user->can('view', $news))
+            ->values();
+    }
+
+    /**
+     * The audience of the smaller project events (a forum post, a document,
+     * uploaded files): like the news mail, every project member who has not
+     * opted out, plus $watcherIds (a topic's watchers), narrowed to people
+     * $mayView says can see the thing. Nothing goes out unless the event key
+     * is switched on in `notified_events`.
+     *
+     * @param  callable(User): bool  $mayView
+     * @param  Collection<int, int>|null  $watcherIds
+     * @return Collection<int, User>
+     */
+    public static function forProjectEvent(Project $project, string $eventKey, User $actor, callable $mayView, ?Collection $watcherIds = null): Collection
+    {
+        if (! in_array($eventKey, self::notifiedEvents(), true)) {
+            return collect();
+        }
+
+        return self::resolve($project, $actor, $watcherIds ?? collect(), fn (User $user) => true, allTiersRequireMembershipOrWatch: true)
+            ->filter(fn (User $user) => $mayView($user))
             ->values();
     }
 

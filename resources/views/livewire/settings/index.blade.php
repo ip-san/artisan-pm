@@ -66,26 +66,23 @@ new #[Layout('components.layouts.app')] class extends Component
     ];
 
     /**
-     * Matches App\Support\Mail\NotificationRecipients::defaultNotifiedEvents()
-     * — only the two event keys actually wired to a mail-sending listener
-     * today. Redmine also has issue_note_added/news_added/wiki_content_*,
-     * but this app's IssueService only ever dispatches a single
-     * "issue_updated" event for any update (comment-only included, so a
-     * separate issue_note_added toggle would be a no-op), and News/Wiki
-     * have no notification listener yet at all — offering their toggles
-     * here would violate this checklist's own §0.5 principle #1 (no
-     * settings row without the matching feature in the same commit).
-     * Add a key here in the same commit that wires its listener.
+     * The events an administrator can switch mail on for; each key is checked
+     * by NotificationRecipients before anything is sent. Add a key here in the
+     * same commit that wires its listener.
      *
      * @var array<string, string>
      */
     public const array NOTIFIED_EVENTS = [
         'issue_added' => '課題が作成されたとき',
         'issue_updated' => '課題が更新されたとき',
+        'issue_note_added' => '課題にコメントが追加されたとき(「更新」を選んでいなくても通知)',
         'wiki_content_added' => 'Wikiページが追加されたとき',
         'wiki_content_updated' => 'Wikiページが更新されたとき',
         'news_added' => 'お知らせが投稿されたとき',
         'news_comment_added' => 'お知らせにコメントが投稿されたとき',
+        'message_posted' => 'フォーラムにメッセージが投稿されたとき',
+        'document_added' => '文書が追加されたとき',
+        'file_added' => 'ファイルが追加されたとき',
     ];
 
     public string $app_title = '';
