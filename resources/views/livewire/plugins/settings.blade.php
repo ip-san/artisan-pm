@@ -2,6 +2,7 @@
 
 use App\Models\Setting;
 use App\Support\Plugins\PluginManager;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -33,14 +34,26 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * The plugin's own Blade view for its settings (Plugin::$settingsView),
+     * or null to use the generic editor — also when the named view does not
+     * exist, so a typo in a plugin never breaks the page.
+     */
+    #[Computed]
+    public function settingsView(): ?string
+    {
+        $view = app(PluginManager::class)->plugin($this->pluginId)?->settingsView;
+
+        return $view !== null && view()->exists($view) ? $view : null;
+    }
+
+    /**
      * Every value is submitted as a string by the form (checkboxes excepted,
      * which Livewire already binds as real booleans) — coerced back to the
      * type of the plugin's own declared default, the same "infer the field
      * kind from the default value" simplification the form below uses to
-     * decide checkbox vs. text input in the first place. This app has no
-     * per-plugin custom Blade partial mechanism (Redmine's `:partial`
-     * option) — every plugin gets this same generic key/value editor,
-     * documented in docs/parity-checklist.md.
+     * decide checkbox vs. text input in the first place. A plugin with its
+     * own settings view (Plugin::$settingsView) still saves through this
+     * method, so its keys must exist in the declared defaults.
      */
     public function save(): void
     {
@@ -82,20 +95,24 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     <form wire:submit="save" class="max-w-lg space-y-4 rounded-md border border-gray-200 bg-white p-4">
-        @foreach ($values as $key => $value)
-            <div>
-                @if (is_bool($value))
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" wire:model="values.{{ $key }}" class="rounded border-gray-300">
-                        {{ $key }}
-                    </label>
-                @else
-                    <label class="block text-sm font-medium text-gray-700">{{ $key }}</label>
-                    <input type="text" wire:model="values.{{ $key }}"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @endif
-            </div>
-        @endforeach
+        @if ($this->settingsView)
+            @include($this->settingsView, ['values' => $values, 'pluginId' => $pluginId])
+        @else
+            @foreach ($values as $key => $value)
+                <div>
+                    @if (is_bool($value))
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" wire:model="values.{{ $key }}" class="rounded border-gray-300">
+                            {{ $key }}
+                        </label>
+                    @else
+                        <label class="block text-sm font-medium text-gray-700">{{ $key }}</label>
+                        <input type="text" wire:model="values.{{ $key }}"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @endif
+                </div>
+            @endforeach
+        @endif
 
         <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
             保存

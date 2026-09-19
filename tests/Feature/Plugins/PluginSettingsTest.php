@@ -124,3 +124,66 @@ test('PluginManager::settings falls back to declared defaults when nothing is st
         'max_items' => 10,
     ]);
 });
+
+function registerCustomViewPlugin(?string $view): void
+{
+    Illuminate\Support\Facades\View::addNamespace('custom_view_plugin', base_path('tests/Fixtures/Plugins/CustomViewPlugin/views'));
+
+    app(PluginManager::class)->registerPlugin(
+        new Plugin(id: 'custom_view_plugin', name: 'Custom View Plugin', author: 'Test', version: '1.0.0', requiresCoreVersion: '1.0.0', settingsView: $view),
+        ['endpoint' => 'https://example.test', 'verbose' => false],
+    );
+}
+
+test('a plugin can supply its own settings view in place of the generic editor', function () {
+    registerCustomViewPlugin('custom_view_plugin::settings');
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('plugins.settings', ['plugin' => 'custom_view_plugin'])
+        ->assertSee('CUSTOM-SETTINGS-FOR-CUSTOM_VIEW_PLUGIN')
+        ->assertSeeHtml('data-custom-plugin-settings')
+        ->assertDontSee('verbose</label>', escape: false);
+});
+
+test('a custom settings view saves through the same coercing save path', function () {
+    registerCustomViewPlugin('custom_view_plugin::settings');
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('plugins.settings', ['plugin' => 'custom_view_plugin'])
+        ->assertSet('values.endpoint', 'https://example.test')
+        ->set('values.endpoint', 'https://api.example.test')
+        ->set('values.verbose', true)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(app(PluginManager::class)->settings('custom_view_plugin'))->toBe(['endpoint' => 'https://api.example.test', 'verbose' => true]);
+});
+
+test('a missing settings view falls back to the generic editor instead of failing', function () {
+    registerCustomViewPlugin('custom_view_plugin::does_not_exist');
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('plugins.settings', ['plugin' => 'custom_view_plugin'])
+        ->assertOk()
+        ->assertSee('endpoint')
+        ->assertDontSee('CUSTOM-SETTINGS-FOR');
+});
+
+test('a plugin without a settings view keeps the generic editor', function () {
+    $this->app->register(SamplePluginServiceProvider::class);
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('plugins.settings', ['plugin' => 'sample_plugin'])
+        ->assertSee('greeting')
+        ->assertDontSeeHtml('data-custom-plugin-settings');
+});
+
+test('the custom view route still needs an admin', function () {
+    registerCustomViewPlugin('custom_view_plugin::settings');
+
+    $this->actingAs(User::factory()->create())->get(route('plugins.settings', 'custom_view_plugin'))->assertForbidden();
+});
