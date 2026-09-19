@@ -184,11 +184,9 @@ final class NotificationRecipients
      */
     private static function resolve(Project $project, User $actor, Collection $watcherIds, callable $eventSpecificAllows, bool $assignedAndOwnerTiersRequireWatcher = false, bool $allTiersRequireMembershipOrWatch = false): Collection
     {
-        // Direct user memberships only — the same "not group-expanded"
-        // simplification Project::assignableUsers() already documents,
-        // kept consistent here rather than resolving group membership
-        // just for this one audience.
-        $memberIds = $project->users()->pluck('users.id');
+        // Direct members plus the users of member groups, like Redmine's
+        // Project#notified_users (each group user has a member row there).
+        $memberIds = $project->memberUserIds();
 
         $candidateIds = $watcherIds->merge($memberIds)->unique();
 

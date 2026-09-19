@@ -5,6 +5,7 @@ use App\Mail\IssueNotificationMail;
 use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\IssueStatus;
+use App\Models\Group;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
@@ -195,4 +196,55 @@ test('plain_text_mail sends a text-only message', function () {
 
     expect($mailable->content()->view)->toBeNull()
         ->and($mailable->content()->text)->toBe('mail.issues.notification-text');
+});
+
+test('a user who belongs to a member group is notified like a direct member', function () {
+    Notification::fake();
+
+    $project = Project::factory()->create();
+    $author = notifiableMember($project, MailNotificationOption::OnlyMyEvents);
+    $groupUser = User::factory()->create(['mail_notification' => MailNotificationOption::All]);
+    $group = Group::factory()->create();
+    $group->users()->attach($groupUser);
+    Member::factory()->for($project)->create(['group_id' => $group->id, 'user_id' => null])->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_issues']])
+    );
+
+    app(IssueService::class)->create([...mailIssueDefaults(), 'project_id' => $project->id, 'subject' => 'New issue'], $author);
+
+    Notification::assertSentTo($groupUser, IssueNotification::class);
+});
+
+test('a group user who cannot view the issue is still not notified, and a non-member group is ignored', function () {
+    Notification::fake();
+
+    $project = Project::factory()->create();
+    $author = notifiableMember($project, MailNotificationOption::OnlyMyEvents);
+    $noViewUser = User::factory()->create(['mail_notification' => MailNotificationOption::All]);
+    $strangerUser = User::factory()->create(['mail_notification' => MailNotificationOption::All]);
+    $memberGroup = Group::factory()->create();
+    $memberGroup->users()->attach($noViewUser);
+    Group::factory()->create()->users()->attach($strangerUser);
+    Member::factory()->for($project)->create(['group_id' => $memberGroup->id, 'user_id' => null])->roles()->attach(
+        Role::factory()->create(['permissions' => []])
+    );
+
+    app(IssueService::class)->create([...mailIssueDefaults(), 'project_id' => $project->id, 'subject' => 'New issue'], $author);
+
+    Notification::assertNotSentTo($noViewUser, IssueNotification::class);
+    Notification::assertNotSentTo($strangerUser, IssueNotification::class);
+});
+
+test('memberUserIds merges direct and group members without duplicates', function () {
+    $project = Project::factory()->create();
+    $direct = User::factory()->create();
+    $both = User::factory()->create();
+    $viaGroupOnly = User::factory()->create();
+    Member::factory()->for($project)->for($direct)->create();
+    Member::factory()->for($project)->for($both)->create();
+    $group = Group::factory()->create();
+    $group->users()->attach([$both->id, $viaGroupOnly->id]);
+    Member::factory()->for($project)->create(['group_id' => $group->id, 'user_id' => null]);
+
+    expect($project->memberUserIds()->sort()->values()->all())->toBe(collect([$direct->id, $both->id, $viaGroupOnly->id])->sort()->values()->all());
 });

@@ -104,7 +104,7 @@
 | 33 | A11-09 | — | S | done(2026-09-20) |
 | 34 | A11-14 | — | S | done(2026-09-20) |
 | 35 | A6-02 | (取り下げ)@mention の News コメント・フォーラム投稿への拡張 | — | Redmine 7.0.0 で `acts_as_mentionable` を持つのは Issue(`description`)・Journal(`notes`)・WikiContent(`text`) のみ(`app/models/{issue,journal,wiki_content}.rb`)。News コメントとフォーラム投稿は対象外 | 作業不要(チェックリストが「次点・未着手」と誤って書いていた) | — | Watchers「作成者/担当者の自動Watch・@mention」(C-22) |
-| 36 | A6-03 | — | S | todo |
+| 36 | A6-03 | — | S | done(2026-09-20) |
 | 37 | A6-04 | — | S | todo |
 | 38 | A5-11 / A6-07 | — | S | todo |
 | 39 | A12-01 | — | S | todo |

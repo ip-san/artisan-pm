@@ -79,6 +79,28 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * Ids of every user who is a member of this project, whether directly
+     * or through a group that is itself a member — Redmine gives each
+     * group user a member row of their own, so notified_users sees them
+     * all. (assignableUsers() below deliberately stays direct-only.)
+     *
+     * @return Collection<int, int>
+     */
+    public function memberUserIds(): Collection
+    {
+        $direct = $this->users()->pluck('users.id');
+        $groupIds = $this->members()->whereNotNull('group_id')->pluck('group_id');
+
+        if ($groupIds->isEmpty()) {
+            return $direct;
+        }
+
+        return $direct->merge(
+            User::query()->whereHas('groups', fn ($groups) => $groups->whereIn('groups.id', $groupIds))->pluck('id')
+        )->unique()->values();
+    }
+
+    /**
      * Members eligible to be picked as an issue's assignee — those
      * holding at least one role with `assignable = true`. Only considers
      * direct user memberships, not roles gained through a group's own
