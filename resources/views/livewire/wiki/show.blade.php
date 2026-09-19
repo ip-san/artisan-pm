@@ -396,7 +396,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @php $attachments = $wikiPage->attachments(); @endphp
     @if ($attachments->isNotEmpty())
-        <h2 class="mt-4 text-sm font-semibold text-gray-900 mb-2">添付ファイル</h2>
+        <h2 class="mt-4 text-sm font-semibold text-gray-900 mb-2">添付ファイル<x-attachment-bulk-links :container="$wikiPage" :count="$attachments->count()" /></h2>
         <ul class="mb-4 space-y-1">
             @foreach ($attachments as $media)
                 <li class="py-1 text-sm" wire:key="wiki-attachment-{{ $media->id }}">

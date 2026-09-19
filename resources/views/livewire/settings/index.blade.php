@@ -8,6 +8,7 @@ use App\Models\Enumeration;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Support\Attachments\AttachmentArchive;
 use App\Support\Pagination\PageSize;
 use App\Support\Scm\CodesetConverter;
 use App\Support\Scm\DisplayLimits;
@@ -158,6 +159,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $timelog_accept_closed_issues = true;
 
     public int $attachment_max_size = 10240;
+
+    public int $bulk_download_max_size = 102400;
 
     public string $attachment_extensions_allowed = '';
 
@@ -328,6 +331,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->timelog_max_hours_per_day = TimeLogConstraints::maxHoursPerDay();
         $this->timelog_accept_future_dates = TimeLogConstraints::acceptsFutureDates();
         $this->timelog_accept_closed_issues = TimeLogConstraints::acceptsClosedIssues();
+        $this->bulk_download_max_size = AttachmentArchive::maxSizeKb();
         $this->attachment_max_size = Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024));
         $this->attachment_extensions_allowed = Setting::get('attachment_extensions_allowed', '');
         $this->attachment_extensions_denied = Setting::get('attachment_extensions_denied', '');
@@ -465,6 +469,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'timelog_max_hours_per_day' => ['required', 'numeric', 'min:0', 'max:1000'],
             'timelog_accept_future_dates' => ['boolean'],
             'timelog_accept_closed_issues' => ['boolean'],
+            'bulk_download_max_size' => ['required', 'integer', 'min:0', 'max:10485760'],
             'attachment_max_size' => ['required', 'integer', 'min:1', 'max:'.intdiv((int) config('media-library.max_file_size'), 1024)],
             'attachment_extensions_allowed' => ['nullable', 'string', 'max:1000'],
             'attachment_extensions_denied' => ['nullable', 'string', 'max:1000'],
@@ -1034,6 +1039,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">最大アップロードサイズ(KB)</label>
                 <input type="number" wire:model="attachment_max_size" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('attachment_max_size') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">まとめてダウンロードできる合計サイズ(KB、0で無制限)</label>
+                <input type="number" min="0" wire:model="bulk_download_max_size" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @error('bulk_download_max_size') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

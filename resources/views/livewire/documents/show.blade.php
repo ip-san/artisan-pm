@@ -112,7 +112,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @php $attachments = $document->attachments(); @endphp
-    <h2 class="text-sm font-semibold text-gray-900 mb-2">添付ファイル</h2>
+    <h2 class="text-sm font-semibold text-gray-900 mb-2">添付ファイル<x-attachment-bulk-links :container="$document" :count="$attachments->count()" /></h2>
     <ul class="space-y-1">
         @forelse ($attachments as $media)
             <li class="text-sm" wire:key="document-attachment-{{ $media->id }}">

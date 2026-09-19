@@ -917,7 +917,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @php $attachments = $issue->attachments(); @endphp
     @if ($attachments->isNotEmpty())
-        <h2 class="text-sm font-semibold text-gray-900 mb-2">添付ファイル</h2>
+        <h2 class="text-sm font-semibold text-gray-900 mb-2">添付ファイル<x-attachment-bulk-links :container="$issue" :count="$attachments->count()" /></h2>
         <ul class="mb-6 space-y-1">
             @foreach ($attachments as $media)
                 <li class="py-1 text-sm" wire:key="issue-attachment-{{ $media->id }}">
