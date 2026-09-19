@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources\Api\V1;
 
 use App\Models\Version;
+use App\Support\Api\CustomFieldPayload;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,6 +29,7 @@ final class VersionResource extends JsonResource
             'status' => $version->status->value,
             'sharing' => $version->sharing->value,
             'due_date' => $version->due_date?->toDateString(),
+            'custom_fields' => CustomFieldPayload::read($version),
             'created_at' => $version->created_at->toIso8601String(),
             'updated_at' => $version->updated_at->toIso8601String(),
         ];

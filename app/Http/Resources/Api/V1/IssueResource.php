@@ -13,6 +13,7 @@ use App\Models\Journal;
 use App\Models\Watcher;
 use App\Support\Attachments\AttachmentUploader;
 use App\Services\WorkflowService;
+use App\Support\Api\CustomFieldPayload;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -75,6 +76,7 @@ final class IssueResource extends JsonResource
             // as in Redmine's issues/show.api.rsb.
             'spent_hours' => $this->mayViewTime($request, $issue) ? $issue->spentHours() : null,
             'total_spent_hours' => $this->mayViewTime($request, $issue) ? $issue->totalSpentHours() : null,
+            'custom_fields' => CustomFieldPayload::read($issue),
             'lock_version' => $issue->lock_version,
             'created_at' => $issue->created_at->toIso8601String(),
             'updated_at' => $issue->updated_at->toIso8601String(),

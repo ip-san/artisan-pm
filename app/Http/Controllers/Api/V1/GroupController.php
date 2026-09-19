@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\Api\CustomFieldPayload;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreGroupRequest;
 use App\Http\Requests\Api\V1\UpdateGroupRequest;
@@ -48,9 +49,12 @@ final class GroupController extends Controller
         $userIds = $data['user_ids'] ?? [];
         unset($data['user_ids']);
 
+        $customFieldData = CustomFieldPayload::extract($request, (new Group)->relevantCustomFields(), $request->user(), requireAll: true);
+
         $group = new Group($data);
         $group->save();
         $group->users()->sync($userIds);
+        $group->setCustomFieldValues($customFieldData);
 
         return (new GroupResource($group->load('users')))->response()->setStatusCode(201);
     }
@@ -141,7 +145,10 @@ final class GroupController extends Controller
             unset($data['user_ids']);
         }
 
+        $customFieldData = CustomFieldPayload::extract($request, $group->relevantCustomFields(), $request->user());
+
         $group->update($data);
+        $group->setCustomFieldValues($customFieldData);
 
         return new GroupResource($group->load('users'));
     }

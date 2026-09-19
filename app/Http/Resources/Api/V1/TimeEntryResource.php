@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources\Api\V1;
 
 use App\Models\TimeEntry;
+use App\Support\Api\CustomFieldPayload;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,6 +30,7 @@ final class TimeEntryResource extends JsonResource
             'hours' => (float) $timeEntry->hours,
             'spent_on' => $timeEntry->spent_on->toDateString(),
             'comments' => $timeEntry->comments,
+            'custom_fields' => CustomFieldPayload::read($timeEntry),
             'created_at' => $timeEntry->created_at->toIso8601String(),
             'updated_at' => $timeEntry->updated_at->toIso8601String(),
         ];

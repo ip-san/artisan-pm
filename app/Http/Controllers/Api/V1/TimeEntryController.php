@@ -13,6 +13,7 @@ use App\Models\Issue;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Services\TimeEntryService;
+use App\Support\Api\CustomFieldPayload;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -116,11 +117,14 @@ final class TimeEntryController extends Controller
 
     public function storeForIssue(StoreTimeEntryRequest $request, Issue $issue): JsonResponse
     {
+        $customFieldData = CustomFieldPayload::extract($request, (new TimeEntry)->forceFill(['project_id' => $issue->project_id])->relevantCustomFields(), $request->user(), requireAll: true);
+
         $timeEntry = app(TimeEntryService::class)->create([
             ...$request->validated(),
             'project_id' => $issue->project_id,
             'issue_id' => $issue->id,
         ]);
+        $timeEntry->setCustomFieldValues($customFieldData);
 
         return (new TimeEntryResource($timeEntry))->response()->setStatusCode(201);
     }
@@ -134,14 +138,20 @@ final class TimeEntryController extends Controller
 
     public function store(StoreTimeEntryRequest $request, Project $project): JsonResponse
     {
+        $customFieldData = CustomFieldPayload::extract($request, (new TimeEntry)->forceFill(['project_id' => $project->id])->relevantCustomFields(), $request->user(), requireAll: true);
+
         $timeEntry = app(TimeEntryService::class)->create([...$request->validated(), 'project_id' => $project->id]);
+        $timeEntry->setCustomFieldValues($customFieldData);
 
         return (new TimeEntryResource($timeEntry))->response()->setStatusCode(201);
     }
 
     public function update(UpdateTimeEntryRequest $request, TimeEntry $timeEntry): TimeEntryResource
     {
+        $customFieldData = CustomFieldPayload::extract($request, $timeEntry->relevantCustomFields(), $request->user());
+
         $timeEntry = app(TimeEntryService::class)->update($timeEntry, $request->validated());
+        $timeEntry->setCustomFieldValues($customFieldData);
 
         return new TimeEntryResource($timeEntry);
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\Api\CustomFieldPayload;
 use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
 use App\Http\Controllers\Controller;
@@ -66,7 +67,16 @@ final class ProjectController extends Controller
 
         $data['is_public'] ??= Setting::get('default_projects_public', true);
 
+        // A project that does not exist yet has no roles to hide fields from.
+        $customFieldData = CustomFieldPayload::extract(
+            $request,
+            \App\Models\CustomField::query()->where('customized_type', \App\Enums\CustomizableType::Project)->orderBy('position')->get(),
+            $request->user(),
+            requireAll: true,
+        );
+
         $project = Project::create($data);
+        $project->setCustomFieldValues($customFieldData);
 
         // Matches ProjectsController#create in Redmine and this app's own
         // web form: an admin already sees every project regardless of
@@ -97,7 +107,10 @@ final class ProjectController extends Controller
             unset($data['is_public']);
         }
 
+        $customFieldData = CustomFieldPayload::extract($request, $project->relevantCustomFields(), $request->user());
+
         $project->update($data);
+        $project->setCustomFieldValues($customFieldData);
 
         if ($modules !== null) {
             $project->syncModules(array_map(fn (string $m) => ProjectModuleKey::from($m), $modules));

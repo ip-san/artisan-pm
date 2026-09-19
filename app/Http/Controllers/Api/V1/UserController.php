@@ -13,6 +13,7 @@ use App\Http\Resources\Api\V1\UserResource;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\AccountDeletionService;
+use App\Support\Api\CustomFieldPayload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -73,7 +74,9 @@ final class UserController extends Controller
         // is_admin is not mass-assignable — see User's docblock.
         $user->is_admin = (bool) ($data['is_admin'] ?? false);
         $user->must_change_passwd = $authSourceId === null && ($data['must_change_passwd'] ?? false);
+        $customFieldData = CustomFieldPayload::extract($request, $user->relevantCustomFields(), $request->user(), requireAll: true);
         $user->save();
+        $user->setCustomFieldValues($customFieldData);
 
         return (new UserResource($user))->response()->setStatusCode(201);
     }
@@ -102,7 +105,9 @@ final class UserController extends Controller
             $user->must_change_passwd = $user->auth_source_id === null && $data['must_change_passwd'];
         }
 
+        $customFieldData = CustomFieldPayload::extract($request, $user->relevantCustomFields(), $request->user());
         $user->save();
+        $user->setCustomFieldValues($customFieldData);
 
         return new UserResource($user);
     }

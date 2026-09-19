@@ -15,6 +15,7 @@ use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\IssueService;
+use App\Support\Api\CustomFieldPayload;
 use App\Support\Attachments\PendingUploadAttacher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -179,9 +180,17 @@ final class IssueController extends Controller
         $uploads = $data['uploads'] ?? [];
         unset($data['uploads']);
 
+        $customFieldData = CustomFieldPayload::extract(
+            $request,
+            (new Issue)->forceFill(['project_id' => $project->id, 'tracker_id' => $data['tracker_id']])->relevantCustomFields(),
+            $request->user(),
+            requireAll: true,
+        );
+
         $issue = app(IssueService::class)->create(
             [...$data, 'project_id' => $project->id, 'status_id' => $this->defaultStatusId()],
             $request->user(),
+            $customFieldData,
         );
 
         // Not journaled — an issue's creation itself isn't journaled
@@ -212,7 +221,8 @@ final class IssueController extends Controller
         }
 
         try {
-            $issue = app(IssueService::class)->update($issue, $data, $request->user(), expectedLockVersion: $expectedLockVersion);
+            $customFieldData = CustomFieldPayload::extract($request, $issue->relevantCustomFields(), $request->user());
+            $issue = app(IssueService::class)->update($issue, $data, $request->user(), customFieldData: $customFieldData, expectedLockVersion: $expectedLockVersion);
         } catch (StaleIssueUpdateException $exception) {
             return response()->json([
                 'message' => '課題が他のユーザーによって更新されています。最新の内容を取得して、もう一度やり直してください。',
@@ -306,10 +316,15 @@ final class IssueController extends Controller
     private function loadDescendants(Issue $issue): void
     {
         $level = $issue->children;
+        $tree = [];
 
         for ($depth = 0; $level->isNotEmpty() && $depth < 25; $depth++) {
+            $tree = [...$tree, ...$level->all()];
             $level = new EloquentCollection($level->loadMissing('children')->pluck('children')->flatten(1)->all());
         }
+
+        // The payload shows each issue's custom fields: one query for the lot.
+        (new EloquentCollection($tree))->loadMissing('customFieldValues');
     }
 
     /**

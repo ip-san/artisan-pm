@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources\Api\V1;
 
 use App\Models\Group;
+use App\Support\Api\CustomFieldPayload;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -24,6 +25,7 @@ final class GroupResource extends JsonResource
             'id' => $group->id,
             'name' => $group->name,
             'user_ids' => $this->whenLoaded('users', fn () => $group->users->pluck('id')->all()),
+            'custom_fields' => CustomFieldPayload::read($group),
             'created_at' => $group->created_at->toIso8601String(),
             'updated_at' => $group->updated_at->toIso8601String(),
         ];

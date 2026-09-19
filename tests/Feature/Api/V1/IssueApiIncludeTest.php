@@ -325,5 +325,8 @@ test('a leaf issue reports an empty children list and the nested load stays quer
 
     $this->getJson("/api/v1/issues/{$root->id}?include=children")->assertOk();
 
-    expect($queries)->toBeLessThan(60);
+    // Each nested issue also lists its custom fields, worked out per tracker
+    // (this tree gives every level its own tracker, the worst case), so the
+    // budget leaves room for that on top of the tree walk itself.
+    expect($queries)->toBeLessThan(80);
 });

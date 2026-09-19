@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources\Api\V1;
 
 use App\Models\User;
+use App\Support\Api\CustomFieldPayload;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -48,6 +49,7 @@ final class UserResource extends JsonResource
                 'must_change_passwd' => $user->must_change_passwd,
                 'passwd_changed_on' => $user->passwd_changed_on?->toIso8601String(),
             ] : []),
+            ...($isAdmin || $isSelf ? ['custom_fields' => CustomFieldPayload::read($user)] : []),
             'last_login_at' => $user->last_login_at?->toIso8601String(),
             // A user's own key only — Redmine also shows it to administrators,
             // but there is no reason to hand every key to any admin token.

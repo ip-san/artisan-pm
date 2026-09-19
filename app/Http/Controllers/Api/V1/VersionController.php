@@ -11,6 +11,7 @@ use App\Http\Resources\Api\V1\VersionResource;
 use App\Models\Project;
 use App\Models\Version;
 use App\Services\VersionService;
+use App\Support\Api\CustomFieldPayload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
@@ -35,14 +36,20 @@ final class VersionController extends Controller
 
     public function store(StoreVersionRequest $request, Project $project): JsonResponse
     {
+        $customFieldData = CustomFieldPayload::extract($request, (new Version)->forceFill(['project_id' => $project->id])->relevantCustomFields(), $request->user(), requireAll: true);
+
         $version = app(VersionService::class)->create([...$request->validated(), 'project_id' => $project->id]);
+        $version->setCustomFieldValues($customFieldData);
 
         return (new VersionResource($version))->response()->setStatusCode(201);
     }
 
     public function update(UpdateVersionRequest $request, Version $version): VersionResource
     {
+        $customFieldData = CustomFieldPayload::extract($request, $version->relevantCustomFields(), $request->user());
+
         $version = app(VersionService::class)->update($version, $request->validated());
+        $version->setCustomFieldValues($customFieldData);
 
         return new VersionResource($version);
     }
