@@ -138,3 +138,81 @@ test('deleting a group via the api requires admin', function () {
 
     expect(Group::find($group->id))->not->toBeNull();
 });
+
+test('an admin can add users to a group by user_id or user_ids', function () {
+    $admin = User::factory()->admin()->create();
+    $group = Group::factory()->create();
+    [$a, $b, $c] = User::factory()->count(3)->create()->all();
+
+    Passport::actingAs($admin);
+
+    $this->postJson("/api/v1/groups/{$group->id}/users", ['user_id' => $a->id])->assertNoContent();
+    $this->postJson("/api/v1/groups/{$group->id}/users", ['user_ids' => [$b->id, (string) $c->id]])->assertNoContent();
+
+    expect($group->users()->pluck('users.id')->sort()->values()->all())->toBe(collect([$a->id, $b->id, $c->id])->sort()->values()->all());
+});
+
+test('adding skips users already in the group and unknown ids, and fails when nothing could be added', function () {
+    $admin = User::factory()->admin()->create();
+    $group = Group::factory()->create();
+    $member = User::factory()->create();
+    $newcomer = User::factory()->create();
+    $group->users()->attach($member);
+
+    Passport::actingAs($admin);
+
+    $this->postJson("/api/v1/groups/{$group->id}/users", ['user_ids' => [$member->id, $newcomer->id, 999999]])->assertNoContent();
+    expect($group->users()->count())->toBe(2);
+
+    $this->postJson("/api/v1/groups/{$group->id}/users", ['user_id' => $member->id])->assertUnprocessable();
+    $this->postJson("/api/v1/groups/{$group->id}/users", ['user_id' => 999999])->assertUnprocessable();
+    $this->postJson("/api/v1/groups/{$group->id}/users", [])->assertUnprocessable();
+    $this->postJson("/api/v1/groups/{$group->id}/users", ['user_ids' => [['nested'], 'abc', -3, 0]])->assertUnprocessable();
+    expect($group->users()->count())->toBe(2);
+});
+
+test('an admin can remove members with user_id, user_ids or the classic user route', function () {
+    $admin = User::factory()->admin()->create();
+    $group = Group::factory()->create();
+    [$a, $b, $c, $d] = User::factory()->count(4)->create()->all();
+    $group->users()->attach([$a->id, $b->id, $c->id, $d->id]);
+
+    Passport::actingAs($admin);
+
+    $this->deleteJson("/api/v1/groups/{$group->id}/users", ['user_id' => $a->id])->assertNoContent();
+    $this->deleteJson("/api/v1/groups/{$group->id}/users", ['user_ids' => [$b->id, $c->id]])->assertNoContent();
+    $this->deleteJson("/api/v1/groups/{$group->id}/users/{$d->id}")->assertNoContent();
+
+    expect($group->users()->count())->toBe(0);
+});
+
+test('removing users who are not members is a 404 and touches nothing', function () {
+    $admin = User::factory()->admin()->create();
+    $group = Group::factory()->create();
+    $member = User::factory()->create();
+    $outsider = User::factory()->create();
+    $group->users()->attach($member);
+
+    Passport::actingAs($admin);
+
+    $this->deleteJson("/api/v1/groups/{$group->id}/users", ['user_id' => $outsider->id])->assertNotFound();
+    $this->deleteJson("/api/v1/groups/{$group->id}/users")->assertNotFound();
+    $this->deleteJson("/api/v1/groups/{$group->id}/users/{$outsider->id}")->assertNotFound();
+    expect($group->users()->count())->toBe(1);
+});
+
+test('only an admin can change group membership through the api', function () {
+    $user = User::factory()->create();
+    $group = Group::factory()->create();
+    $member = User::factory()->create();
+    $group->users()->attach($member);
+
+    $this->postJson("/api/v1/groups/{$group->id}/users", ['user_id' => $user->id])->assertUnauthorized();
+
+    Passport::actingAs($user);
+
+    $this->postJson("/api/v1/groups/{$group->id}/users", ['user_id' => $user->id])->assertForbidden();
+    $this->deleteJson("/api/v1/groups/{$group->id}/users", ['user_id' => $member->id])->assertForbidden();
+    $this->deleteJson("/api/v1/groups/{$group->id}/users/{$member->id}")->assertForbidden();
+    expect($group->users()->count())->toBe(1);
+});

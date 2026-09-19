@@ -85,6 +85,9 @@ Route::middleware(['rest-api.enabled', 'auth:api,api-key'])->group(function () {
     Route::get('/groups', [GroupController::class, 'index'])->name('api.groups.index');
     Route::post('/groups', [GroupController::class, 'store'])->name('api.groups.store');
     Route::get('/groups/{group}', [GroupController::class, 'show'])->name('api.groups.show');
+    Route::post('/groups/{group}/users', [GroupController::class, 'addUsers'])->name('api.groups.users.add');
+    Route::delete('/groups/{group}/users', [GroupController::class, 'removeUsers'])->name('api.groups.users.remove');
+    Route::delete('/groups/{group}/users/{user}', [GroupController::class, 'removeUser'])->name('api.groups.users.destroy');
     Route::put('/groups/{group}', [GroupController::class, 'update'])->name('api.groups.update');
     Route::delete('/groups/{group}', [GroupController::class, 'destroy'])->name('api.groups.destroy');
 
