@@ -226,10 +226,10 @@
 | 134b | A12-06b | A12-06 | M | todo |
 | 135 | A5-06 / A14-03 | — | M | blocked(要承認: docs/design/gap-A5-06.md) |
 | **段 3: L 項目(設計メモ→`blocked(要承認)`→承認後に実装)** | | | | |
-| 136 | A4-10b | A4-10a | L | todo |
-| 137 | A1-20 | — | L | todo |
-| 137a | A5-05 | A1-20 | S | todo |
-| 138 | A14-01 | — | L | todo |
+| 136 | A4-10b | A4-10a | L | blocked(要承認: docs/design/gap-A4-10b.md) |
+| 137 | A1-20 | — | L | blocked(要承認: docs/design/gap-A1-20.md) |
+| 137a | A5-05 | A1-20 | S | blocked(依存: A1-20) |
+| 138 | A14-01 | — | L | blocked(要承認: docs/design/gap-A14-01.md) |
 | 139 | B'-02 | 承認 | M | blocked(要承認: MediaLibrary 設計) |
 | 140 | B'-03 | 承認 | S〜M | blocked(要承認: ScmAdapter 設計) |
 | 141 | B'-01 | 承認 | M×3 | blocked(要承認: hg/cvs/bzr バイナリ追加) |
