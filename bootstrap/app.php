@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    // Listeners are registered explicitly in MailNotificationServiceProvider and
+    // WebhookServiceProvider. Laravel's auto-discovery (which does resolve a
+    // union-typed handle() to one registration per event) would register the
+    // same listeners a second time, so every mail and webhook went out twice.
+    ->withEvents(discover: false)
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->throttleApi();
         $middleware->alias([

@@ -17,10 +17,8 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Registered explicitly rather than relying on event auto-discovery, for
- * the same reason as WebhookServiceProvider: these listeners' handle()
- * methods take a union type that discovery's single-type reflection
- * doesn't resolve to multiple registrations.
+ * Registered explicitly, with event auto-discovery switched off in
+ * bootstrap/app.php — see WebhookServiceProvider for why.
  */
 final class MailNotificationServiceProvider extends ServiceProvider
 {
