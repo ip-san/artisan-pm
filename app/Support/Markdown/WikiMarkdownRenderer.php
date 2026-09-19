@@ -19,6 +19,7 @@ use League\CommonMark\Extension\Mention\Mention;
 use League\CommonMark\Extension\Mention\MentionExtension;
 use League\CommonMark\Extension\TableOfContents\TableOfContentsExtension;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
 use League\CommonMark\MarkdownConverter;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -152,8 +153,7 @@ final class WikiMarkdownRenderer
     {
         if ($includedPageIds !== []
             || strlen($text) <= self::CACHE_MIN_BYTES
-            || str_contains($text, '{{include')
-            || str_contains($text, '{{child_pages')
+            || WikiMacros::isDynamic($text)
             || ! Setting::get('cache_formatted_text', false)
         ) {
             return null;
@@ -239,7 +239,7 @@ final class WikiMarkdownRenderer
         $html = (new MarkdownConverter($environment))->convert($text)->getContent();
         $html = $this->replaceCollapseBlocks($html, $collapseBlocks);
         $html = $this->replaceIncludeMacros($html, $includeBlocks);
-        $html = $project !== null ? $this->replaceChildPagesMacro($html, $page, $project) : $html;
+        $html = WikiMacros::replaceIn($html, $project, $page, $attachments);
 
         if ($attachments === null || $attachments->isEmpty()) {
             return $html;
@@ -417,9 +417,26 @@ final class WikiMarkdownRenderer
      */
     private function renderIncludedPage(string $title, Project $project, array $includedPageIds): string
     {
-        $target = $project->wikiPages()->where('title', $title)->first();
+        // `project:Page` reaches into another project (Redmine's
+        // {{include(project:Page)}}); that page's own view permission decides,
+        // since being able to read this one says nothing about it.
+        $targetProject = $project;
 
-        if ($target === null) {
+        if (str_contains($title, ':')) {
+            [$identifier, $pageTitle] = array_map('trim', explode(':', $title, 2));
+            $other = Project::query()->where('identifier', $identifier)->first();
+
+            if ($other !== null) {
+                $targetProject = $other;
+                $title = $pageTitle;
+            }
+        }
+
+        $target = $targetProject->wikiPages()->where('title', $title)->first();
+
+        // A page the reader may not see is reported as missing, so its
+        // existence is not revealed either.
+        if ($target === null || ($targetProject->isNot($project) && ! Gate::forUser(auth()->user())->allows('view', $target))) {
             return '<p>'.e("ページ「{$title}」が見つかりません。").'</p>';
         }
 
@@ -429,7 +446,7 @@ final class WikiMarkdownRenderer
 
         $html = $this->renderMarkdown(
             $target->currentVersion === null ? '' : $target->currentVersion->text,
-            $project,
+            $targetProject,
             $target->attachments(),
             $target,
             [...$includedPageIds, $target->id],
@@ -493,55 +510,6 @@ final class WikiMarkdownRenderer
         }
 
         return $changed ? HtmlFragment::innerHtml($document) : $html;
-    }
-
-    /**
-     * A `{{child_pages}}` line on its own is replaced with a flat,
-     * alphabetically-ordered list of $page's own child pages — the same
-     * ordering/flatness as the "子ページ" list wiki.show already renders
-     * separately (see its `children()` computed property). Left
-     * untouched as literal text when there's no $page (matches Redmine's
-     * own "can be used from a wiki page only" restriction) or the macro
-     * isn't alone on its own line — the same standalone-line requirement
-     * {{toc}} already has.
-     */
-    private function replaceChildPagesMacro(string $html, ?WikiPage $page, Project $project): string
-    {
-        if ($page === null || ! str_contains($html, '{{child_pages}}')) {
-            return $html;
-        }
-
-        $document = HtmlFragment::load($html);
-        $changed = false;
-
-        foreach (iterator_to_array($document->getElementsByTagName('p')) as $paragraph) {
-            if (trim($paragraph->textContent) !== '{{child_pages}}') {
-                continue;
-            }
-
-            $paragraph->parentNode->replaceChild($this->buildChildPagesList($document, $page, $project), $paragraph);
-            $changed = true;
-        }
-
-        return $changed ? HtmlFragment::innerHtml($document) : $html;
-    }
-
-    private function buildChildPagesList(DOMDocument $document, WikiPage $page, Project $project): DOMElement
-    {
-        $list = $document->createElement('ul');
-        $list->setAttribute('class', 'child-pages');
-
-        foreach ($page->children()->orderBy('title')->get() as $child) {
-            $link = $document->createElement('a');
-            $link->setAttribute('href', route('wiki.show', [$project, $child]));
-            $link->textContent = $child->title;
-
-            $item = $document->createElement('li');
-            $item->appendChild($link);
-            $list->appendChild($item);
-        }
-
-        return $list;
     }
 
     /**
