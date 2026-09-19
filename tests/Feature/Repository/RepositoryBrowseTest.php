@@ -137,6 +137,31 @@ test('a member with browse_repository can annotate a file, seeing a revision and
         ->and($lines[0]->revision)->not->toBeEmpty();
 });
 
+test('the annotate view colours each revision block and shows the revision once per block', function () {
+    $project = Project::factory()->create();
+    $user = browseMember($project);
+    $path = createBrowsableGitRepo();
+    file_put_contents("{$path}/src/app.php", "<?php\necho 'hi';\necho 'second commit';\n");
+    Process::path($path)->run(['git', 'add', '-A'])->throw();
+    Process::path($path)->run(['git', 'commit', '-q', '-m', 'Extend app'])->throw();
+    Repository::factory()->for($project)->create(['path' => $path]);
+
+    $component = Livewire::actingAs($user)
+        ->test('repository.annotate', ['project' => $project, 'path' => 'src/app.php']);
+
+    $lines = $component->get('lines');
+    $blocks = $component->get('blocks');
+
+    expect($lines)->toHaveCount(3)
+        ->and($blocks[0]['showMeta'])->toBeTrue()
+        ->and($blocks[1]['showMeta'])->toBeFalse()
+        ->and($blocks[2]['showMeta'])->toBeTrue()
+        ->and($blocks[2]['isChange'])->toBeTrue()
+        ->and($blocks[0]['colorIndex'])->not->toBe($blocks[2]['colorIndex']);
+
+    $component->assertSee('bg-red-50', false)->assertSee('bg-orange-50', false)->assertSee('border-t border-gray-300', false);
+});
+
 test('a member without browse_repository is forbidden from annotating a file', function () {
     $project = Project::factory()->create();
     $user = browseMember($project, []);
