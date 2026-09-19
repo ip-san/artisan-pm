@@ -12,6 +12,7 @@ use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueRelation;
+use App\Models\IssueCategory;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
@@ -184,6 +185,19 @@ new #[Layout('components.layouts.app')] class extends Component
     public ?int $bulkStatusId = null;
 
     public ?int $bulkDoneRatio = null;
+
+    public ?int $bulkTrackerId = null;
+
+    public ?int $bulkCategoryId = null;
+
+    public string $bulkStartDate = '';
+
+    public string $bulkDueDate = '';
+
+    /** '' leaves it, 'yes' makes the issues private, 'no' public. */
+    public string $bulkIsPrivate = '';
+
+    public ?int $bulkParentId = null;
 
     public string $bulkComment = '';
 
@@ -815,11 +829,37 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $issues = $this->selectedIssues;
 
-        if ($issues->isEmpty() || $issues->pluck('status_id')->unique()->count() > 1) {
+        if ($issues->isEmpty()) {
             return collect();
         }
 
-        return app(WorkflowService::class)->allowedTransitions($issues->first(), auth()->user());
+        $workflow = app(WorkflowService::class);
+
+        // Each issue's own workflow governs its transitions, so a mixed
+        // selection offers only the statuses every one of them may move to.
+        $common = $issues
+            ->map(fn (Issue $issue) => $workflow->allowedTransitions($issue, auth()->user())->pluck('id'))
+            ->reduce(fn (?Collection $carry, Collection $ids) => $carry === null ? $ids : $carry->intersect($ids));
+
+        return $workflow->allowedTransitions($issues->first(), auth()->user())->whereIn('id', $common->all())->values();
+    }
+
+    /**
+     * @return Collection<int, Tracker>
+     */
+    #[Computed]
+    public function bulkTrackers(): Collection
+    {
+        return $this->project->trackers()->orderBy('position')->get();
+    }
+
+    /**
+     * @return Collection<int, IssueCategory>
+     */
+    #[Computed]
+    public function bulkCategories(): Collection
+    {
+        return $this->project->issueCategories()->orderBy('name')->get();
     }
 
     #[Computed]
@@ -860,8 +900,32 @@ new #[Layout('components.layouts.app')] class extends Component
             'bulkFixedVersionId' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $this->project->id)],
             'bulkStatusId' => ['nullable', 'exists:issue_statuses,id'],
             'bulkDoneRatio' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'bulkTrackerId' => ['nullable', Rule::in($this->bulkTrackers->pluck('id')->all())],
+            'bulkCategoryId' => ['nullable', Rule::in($this->bulkCategories->pluck('id')->all())],
+            'bulkStartDate' => ['nullable', 'date'],
+            'bulkDueDate' => ['nullable', 'date'],
+            'bulkIsPrivate' => ['nullable', Rule::in(['yes', 'no'])],
+            'bulkParentId' => ['nullable', Rule::exists('issues', 'id')->where('project_id', $this->project->id), function (string $attribute, mixed $value, \Closure $fail) use ($issues): void {
+                // A parent may not be one of the issues being edited, nor
+                // anything below them (that would loop the tree).
+                $forbidden = $issues->pluck('id')->merge($issues->flatMap(fn (Issue $issue) => $issue->descendantIds()));
+
+                if ($forbidden->contains((int) $value)) {
+                    $fail('選択した課題自身またはその子孫は親課題にできません。');
+                }
+            }],
             'bulkComment' => ['nullable', 'string'],
         ]);
+
+        if ($data['bulkIsPrivate'] !== null && $data['bulkIsPrivate'] !== '') {
+            foreach ($issues as $issue) {
+                $this->authorize('setPrivateOn', $issue);
+            }
+        }
+
+        if ($data['bulkParentId'] !== null) {
+            $this->authorize('manageSubtasks', [Issue::class, $this->project]);
+        }
 
         $changes = array_filter([
             'priority_id' => $data['bulkPriorityId'],
@@ -869,6 +933,16 @@ new #[Layout('components.layouts.app')] class extends Component
             'fixed_version_id' => $data['bulkFixedVersionId'],
             'status_id' => $data['bulkStatusId'],
             'done_ratio' => $data['bulkDoneRatio'],
+            'tracker_id' => $data['bulkTrackerId'],
+            'category_id' => $data['bulkCategoryId'],
+            'start_date' => filled($data['bulkStartDate'] ?? null) ? $data['bulkStartDate'] : null,
+            'due_date' => filled($data['bulkDueDate'] ?? null) ? $data['bulkDueDate'] : null,
+            'is_private' => match ($data['bulkIsPrivate'] ?? '') {
+                'yes' => true,
+                'no' => false,
+                default => null,
+            },
+            'parent_id' => $data['bulkParentId'],
         ], fn ($value) => $value !== null);
 
         if (isset($changes['status_id'])) {
@@ -885,7 +959,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $count = $issues->count();
 
-        $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkComment']);
+        $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment']);
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
@@ -1265,6 +1339,51 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endforeach
                     </select>
                 </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">トラッカー</label>
+                    <select wire:model="bulkTrackerId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                        <option value="">変更なし</option>
+                        @foreach ($this->bulkTrackers as $tracker)
+                            <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('bulkTrackerId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">カテゴリ</label>
+                    <select wire:model="bulkCategoryId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                        <option value="">変更なし</option>
+                        @foreach ($this->bulkCategories as $category)
+                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('bulkCategoryId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">開始日</label>
+                    <input type="date" wire:model="bulkStartDate" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                    @error('bulkStartDate') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">期日</label>
+                    <input type="date" wire:model="bulkDueDate" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                    @error('bulkDueDate') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">非公開</label>
+                    <select wire:model="bulkIsPrivate" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                        <option value="">変更なし</option>
+                        <option value="yes">非公開にする</option>
+                        <option value="no">公開にする</option>
+                    </select>
+                </div>
+                @can('manageSubtasks', [\App\Models\Issue::class, $project])
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">親課題(番号)</label>
+                        <input type="number" wire:model="bulkParentId" placeholder="変更なし" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                        @error('bulkParentId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                @endcan
                 <div>
                     <label class="block text-xs font-medium text-gray-700">進捗率</label>
                     <select wire:model="bulkDoneRatio" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
