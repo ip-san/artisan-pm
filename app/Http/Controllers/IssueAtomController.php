@@ -35,7 +35,7 @@ final class IssueAtomController extends Controller
             ->whereHas('status', fn ($query) => $query->where('is_closed', false))
             ->with('author')
             ->latest('updated_at')
-            ->limit(ActivityFeedController::LIMIT)
+            ->limit(ActivityFeedController::limit())
             ->get()
             ->map(fn (Issue $issue) => new ActivityEntry(
                 type: 'issue',

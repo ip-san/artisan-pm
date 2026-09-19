@@ -15,9 +15,8 @@ use LogicException;
 /**
  * Matches Redmine's BoardsController#show responding to format.atom:
  * every message in this board (topics and replies alike), newest
- * first. Capped the same way the project activity feed is (shared
- * ActivityFeedController::LIMIT) rather than exposing
- * Setting.feeds_limit as a configurable value.
+ * first. Capped by Setting::feeds_limit like every other Atom feed (see
+ * ActivityFeedController::limit()).
  */
 final class BoardAtomController extends Controller
 {
@@ -28,7 +27,7 @@ final class BoardAtomController extends Controller
         $entries = $board->messages()
             ->with(['author', 'parent'])
             ->latest('id')
-            ->limit(ActivityFeedController::LIMIT)
+            ->limit(ActivityFeedController::limit())
             ->get()
             ->map(fn (Message $message) => new ActivityEntry(
                 type: 'message',

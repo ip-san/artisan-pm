@@ -80,6 +80,8 @@ new #[Layout('components.layouts.app')] class extends Component
     // silently change the default view for existing installs.
     public int $activity_days_default = 7;
 
+    public int $feeds_limit = 15;
+
     public bool $reactions_enabled = true;
 
     public bool $incoming_mail_enabled = false;
@@ -201,6 +203,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->welcome_text = Setting::get('welcome_text', '');
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
         $this->activity_days_default = Setting::get('activity_days_default', 7);
+        $this->feeds_limit = Setting::get('feeds_limit', 15);
         $this->reactions_enabled = Setting::get('reactions_enabled', true);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
         $this->close_duplicate_issues = Setting::get('close_duplicate_issues', true);
@@ -305,6 +308,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'welcome_text' => ['nullable', 'string', 'max:5000'],
             'default_issues_per_page' => ['required', 'integer', 'min:5', 'max:200'],
             'activity_days_default' => ['required', 'integer', 'min:1', 'max:365'],
+            'feeds_limit' => ['required', 'integer', 'min:1', 'max:500'],
             'reactions_enabled' => ['boolean'],
             'incoming_mail_enabled' => ['boolean'],
             'incoming_mail_default_project_id' => ['nullable', 'exists:projects,id'],
@@ -411,6 +415,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">活動画面の既定の表示期間(日数)</label>
                 <input type="number" min="1" max="365" wire:model="activity_days_default" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('activity_days_default') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Atomフィードの最大エントリ数</label>
+                <input type="number" min="1" max="500" wire:model="feeds_limit" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">活動・課題・お知らせ・フォーラムの各Atomフィードに共通で適用されます。</p>
+                @error('feeds_limit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

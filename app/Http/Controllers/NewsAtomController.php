@@ -13,10 +13,8 @@ use LogicException;
 
 /**
  * Matches Redmine's NewsController#index responding to format.atom: every
- * news item in this project, newest first. Capped the same way the
- * project activity feed and board Atom feeds are (shared
- * ActivityFeedController::LIMIT) rather than exposing Setting.feeds_limit
- * as a configurable value.
+ * news item in this project, newest first. Capped by Setting::feeds_limit
+ * like every other Atom feed (see ActivityFeedController::limit()).
  */
 final class NewsAtomController extends Controller
 {
@@ -27,7 +25,7 @@ final class NewsAtomController extends Controller
         $entries = $project->news()
             ->with('author')
             ->latest('id')
-            ->limit(ActivityFeedController::LIMIT)
+            ->limit(ActivityFeedController::limit())
             ->get()
             ->map(fn (News $news) => new ActivityEntry(
                 type: 'news',
