@@ -296,6 +296,17 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     @endcan
 
+    @if ($project->homepage !== null && $project->homepage !== '')
+        <p class="text-sm text-gray-700 mb-2">
+            <span class="text-gray-500">ホームページ:</span>
+            @if ($project->homepageUrl())
+                <a href="{{ $project->homepageUrl() }}" rel="noopener noreferrer" class="text-indigo-600 hover:underline">{{ $project->homepage }}</a>
+            @else
+                {{ $project->homepage }}
+            @endif
+        </p>
+    @endif
+
     @if ($project->description)
         <p class="text-sm text-gray-700 mb-6">{{ $project->description }}</p>
     @endif

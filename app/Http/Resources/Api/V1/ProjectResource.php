@@ -29,6 +29,7 @@ final class ProjectResource extends JsonResource
             'identifier' => $project->identifier,
             'name' => $project->name,
             'description' => $project->description,
+            'homepage' => $project->homepage,
             'is_public' => $project->is_public,
             'status' => $project->status->value,
             'parent_id' => $project->parent_id,

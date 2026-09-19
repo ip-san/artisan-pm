@@ -30,7 +30,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-#[Fillable(['name', 'identifier', 'description', 'is_public', 'parent_id', 'default_version_id', 'default_assigned_to_id'])]
+#[Fillable(['name', 'identifier', 'description', 'homepage', 'is_public', 'parent_id', 'default_version_id', 'default_assigned_to_id'])]
 final class Project extends Model implements HasMedia
 {
     /** @use HasFactory<ProjectFactory> */
@@ -128,6 +128,25 @@ final class Project extends Model implements HasMedia
     public function issueCategories(): HasMany
     {
         return $this->hasMany(IssueCategory::class);
+    }
+
+    /**
+     * The homepage as a clickable URL, or null when it is blank or uses a
+     * scheme that must not become a link. Matches Redmine's
+     * uri_with_safe_scheme? on the overview page, which only links
+     * http/https/ftp/ftps/mailto (a `javascript:` value is shown as text).
+     */
+    public function homepageUrl(): ?string
+    {
+        $homepage = trim((string) $this->homepage);
+
+        if ($homepage === '') {
+            return null;
+        }
+
+        $scheme = strtolower((string) parse_url($homepage, PHP_URL_SCHEME));
+
+        return in_array($scheme, ['http', 'https', 'ftp', 'ftps', 'mailto'], true) ? $homepage : null;
     }
 
     /**

@@ -68,6 +68,7 @@ final class UpdateProjectRequest extends FormRequest
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'identifier' => ['sometimes', 'required', 'string', 'max:100', 'alpha_dash', Rule::unique('projects', 'identifier')->ignore($project->id)],
             'description' => ['nullable', 'string'],
+            'homepage' => ['nullable', 'string', 'max:255'],
             'is_public' => ['boolean'],
             // Excludes the project itself and its own descendants —
             // either would create a cycle in the nested set, matching

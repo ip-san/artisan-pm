@@ -41,6 +41,7 @@ final class StoreProjectRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'identifier' => ['required', 'string', 'max:100', 'alpha_dash', Rule::unique('projects', 'identifier')],
             'description' => ['nullable', 'string'],
+            'homepage' => ['nullable', 'string', 'max:255'],
             'is_public' => ['boolean'],
             'parent_id' => ['nullable', 'exists:projects,id'],
             'tracker_ids' => ['required', 'array', 'min:1'],

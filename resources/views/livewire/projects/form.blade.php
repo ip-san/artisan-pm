@@ -25,6 +25,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $description = '';
 
+    public string $homepage = '';
+
     public bool $is_public = true;
 
     public ?int $parent_id = null;
@@ -51,6 +53,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->name = $project->name;
             $this->identifier = $project->identifier;
             $this->description = (string) $project->description;
+            $this->homepage = (string) $project->homepage;
             $this->is_public = $project->is_public;
             $this->parent_id = $project->parent_id;
             $this->default_version_id = $project->default_version_id;
@@ -225,6 +228,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 Rule::unique('projects', 'identifier')->ignore($this->project?->id),
             ],
             'description' => ['nullable', 'string'],
+            'homepage' => ['nullable', 'string', 'max:255'],
             'is_public' => ['boolean'],
             // Allowed parents are the permission-filtered list, plus this
             // project's own current parent (if any) — so leaving parent_id
@@ -317,6 +321,13 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="block text-sm font-medium text-gray-700">説明</label>
             <textarea wire:model="description" rows="3"
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">ホームページ</label>
+            <input type="text" wire:model="homepage"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            @error('homepage') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
         @if ($this->availableParents->isNotEmpty())
