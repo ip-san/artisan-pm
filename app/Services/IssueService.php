@@ -27,6 +27,7 @@ use App\Models\User;
 use App\Models\Watcher;
 use App\Support\Calendar\WorkingDays;
 use App\Support\Mail\MentionParser;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -349,7 +350,7 @@ final class IssueService
             $this->closeDuplicates($issue, $actor, $comment);
         }
 
-        $this->recalculateAncestorAttributes($issue->parent_id);
+        $this->recalculateAncestorAttributes($issue->parent_id, $actor, $rescheduledIssueIds);
 
         $oldParentId = $original['parent_id'] ?? null;
 
@@ -394,12 +395,12 @@ final class IssueService
      * plus the relation's delay — recursing through the chain via
      * update()'s own $rescheduledIssueIds cascade.
      *
-     * Deliberately simplified from Redmine in two ways, both documented in
-     * the parity checklist: dates shift by calendar days rather than
-     * working days (this app has no working-day calendar), and a successor
-     * with children is rescheduled directly rather than propagating down
-     * to its leaves — the same "dates are freely editable, no derivation
-     * lock" treatment this app already gives every parent issue.
+     * Day counts skip the non-working weekdays (WorkingDays). A successor
+     * with children whose dates are derived (parent_issue_dates on) is not
+     * moved itself: its leaves are, and its dates follow from them — see
+     * rescheduleLeaves(). Simplified from Redmine in one way, documented in
+     * the parity checklist: successors are only ever pushed later, never
+     * pulled earlier when the predecessor finishes sooner.
      *
      * @param  array<int, int>  $rescheduledIssueIds
      */
@@ -451,6 +452,12 @@ final class IssueService
 
         $newStart = WorkingDays::nextWorkingDate($soonestStart);
 
+        if (Setting::get('parent_issue_dates', true) && $successor->children()->exists()) {
+            $this->rescheduleLeaves($successor, $newStart, $actor, $rescheduledIssueIds);
+
+            return;
+        }
+
         $this->update(
             $successor,
             [
@@ -460,6 +467,45 @@ final class IssueService
             $actor,
             rescheduledIssueIds: $rescheduledIssueIds,
         );
+    }
+
+    /**
+     * Redmine's Issue#reschedule_on! for a parent with derived dates:
+     * pushes each leaf below it that starts before $date (or has no start)
+     * to start on $date, keeping its working duration; leaves that already
+     * start on or after $date stay where they are. The parent's own dates
+     * then follow from its leaves (recalculateAncestorAttributes()).
+     *
+     * @param  array<int, int>  $rescheduledIssueIds
+     */
+    private function rescheduleLeaves(Issue $parent, CarbonInterface $date, User $actor, array $rescheduledIssueIds): void
+    {
+        $leaves = Issue::query()
+            ->whereIn('id', $parent->descendantIds())
+            ->whereDoesntHave('children')
+            ->with('project')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($leaves as $leaf) {
+            if ($leaf->start_date !== null && $leaf->start_date->greaterThanOrEqualTo($date)) {
+                continue;
+            }
+
+            $duration = $leaf->start_date !== null && $leaf->due_date !== null
+                ? WorkingDays::between($leaf->start_date, $leaf->due_date)
+                : 0;
+
+            $this->update(
+                $leaf,
+                [
+                    'start_date' => $date->toDateString(),
+                    'due_date' => WorkingDays::add($date, $duration)->toDateString(),
+                ],
+                $actor,
+                rescheduledIssueIds: $rescheduledIssueIds,
+            );
+        }
     }
 
     /**
@@ -740,9 +786,12 @@ final class IssueService
      * its own Setting (parent_issue_priority/_dates/_done_ratio,
      * default on) and, like Redmine, saved directly without validation,
      * events, or a journal entry — this is a silent bookkeeping
-     * recalculation, not a user-authored edit.
+     * recalculation, not a user-authored edit. With an $actor, a parent
+     * whose derived dates changed also reschedules its own successors.
+     *
+     * @param  array<int, int>  $rescheduledIssueIds
      */
-    private function recalculateAncestorAttributes(?int $parentId): void
+    private function recalculateAncestorAttributes(?int $parentId, ?User $actor = null, array $rescheduledIssueIds = []): void
     {
         while ($parentId !== null) {
             $parent = Issue::query()->find($parentId);
@@ -768,6 +817,12 @@ final class IssueService
 
             if ($updates !== []) {
                 $parent->forceFill($updates)->save();
+
+                // Like Redmine's saved parent, a derived date change moves
+                // the parent's own successors too.
+                if ($actor !== null && ($parent->wasChanged('start_date') || $parent->wasChanged('due_date'))) {
+                    $this->rescheduleSuccessors($parent, $actor, [...$rescheduledIssueIds, $parent->id]);
+                }
             }
 
             $parentId = $parent->parent_id;
