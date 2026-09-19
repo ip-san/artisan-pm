@@ -16,6 +16,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?TimeEntry $timeEntry = null;
 
+    /** The project the entry is (or will be) logged in; editing may move it. */
+    public ?int $project_id = null;
+
     public ?int $issue_id = null;
 
     public ?int $user_id = null;
@@ -31,6 +34,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function mount(Project $project, ?TimeEntry $timeEntry = null): void
     {
         $this->project = $project;
+        $this->project_id = $project->id;
 
         if ($timeEntry?->exists) {
             // {timeEntry} is a plain implicit binding by id, independent of the {project} route segment.
@@ -56,6 +60,54 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * Where the entry lands: the route's project unless an edit picked
+     * another one, which must be a project the user may log time in
+     * (Redmine's Project.allowed_to(:log_time) list on TimelogController).
+     */
+    #[Computed]
+    public function targetProject(): Project
+    {
+        if ($this->project_id === null || $this->project_id === $this->project->id) {
+            return $this->project;
+        }
+
+        return $this->moveTargets->firstWhere('id', $this->project_id) ?? $this->project;
+    }
+
+    /**
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function moveTargets(): Collection
+    {
+        return Project::query()->orderBy('name')->get()
+            ->filter(fn (Project $candidate) => $candidate->is($this->project) || auth()->user()->can('create', [TimeEntry::class, $candidate]))
+            ->values();
+    }
+
+    /**
+     * Moving to another project drops what only made sense in the old one:
+     * the issue (an entry's issue must belong to its project) and an
+     * activity the new project does not offer.
+     */
+    public function updatedProjectId(): void
+    {
+        unset($this->targetProject);
+
+        if ($this->issue_id !== null && ! $this->targetProject->issues()->whereKey($this->issue_id)->exists()) {
+            $this->issue_id = null;
+        }
+
+        if (! $this->activities->contains('id', $this->activity_id)) {
+            $this->activity_id = $this->targetProject->defaultActivityId(auth()->user());
+        }
+
+        if ($this->user_id !== null && ! $this->targetProject->loadMissing('users')->users->contains('id', $this->user_id)) {
+            $this->user_id = auth()->id();
+        }
+    }
+
+    /**
      * This project's effective TimeEntryActivity set — matches Redmine's
      * Project#activities, so an activity a project has deactivated (see
      * projects.activities) no longer appears here even though it's still
@@ -67,13 +119,13 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function activities(): Collection
     {
-        return $this->project->activities(includeInactive: true);
+        return $this->targetProject->activities(includeInactive: true);
     }
 
     #[Computed]
     public function projectMembers(): Collection
     {
-        return $this->project->users;
+        return $this->targetProject->loadMissing('users')->users;
     }
 
     /**
@@ -86,10 +138,10 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function projectIssues(): Collection
     {
-        $issues = $this->project->issues()->orderByDesc('id')->limit(100)->get();
+        $issues = $this->targetProject->issues()->orderByDesc('id')->limit(100)->get();
 
         if ($this->issue_id !== null && ! $issues->contains('id', $this->issue_id)) {
-            $selected = $this->project->issues()->find($this->issue_id);
+            $selected = $this->targetProject->issues()->find($this->issue_id);
 
             if ($selected !== null) {
                 $issues->prepend($selected);
@@ -107,13 +159,19 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function canManageOthers(): bool
     {
-        return app(AuthorizationService::class)->can(auth()->user(), 'edit_time_entries', $this->project);
+        return app(AuthorizationService::class)->can(auth()->user(), 'edit_time_entries', $this->targetProject);
     }
 
     public function save(): void
     {
+        $target = $this->targetProject;
+
+        // A tampered project id is not among the moveTargets; treating it as
+        // "no move" would silently save elsewhere, so refuse it outright.
+        abort_if($this->project_id !== null && $this->project_id !== $target->id, 403);
+
         $rules = [
-            'issue_id' => ['nullable', Rule::exists('issues', 'id')->where('project_id', $this->project->id)],
+            'issue_id' => ['nullable', Rule::exists('issues', 'id')->where('project_id', $target->id)],
             'activity_id' => ['required', Rule::in($this->activities->pluck('id')->all())],
             'hours' => ['required', 'numeric', 'min:0', 'max:1000'],
             'spent_on' => ['required', 'date'],
@@ -121,7 +179,7 @@ new #[Layout('components.layouts.app')] class extends Component
         ];
 
         if ($this->canManageOthers) {
-            $rules['user_id'] = ['required', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)];
+            $rules['user_id'] = ['required', Rule::exists('members', 'user_id')->where('project_id', $target->id)];
         }
 
         $data = $this->validate($rules);
@@ -131,13 +189,18 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if ($this->timeEntry) {
+            if ($target->id !== $this->timeEntry->project_id) {
+                $this->authorize('create', [TimeEntry::class, $target]);
+                $data['project_id'] = $target->id;
+            }
+
             app(TimeEntryService::class)->update($this->timeEntry, $data);
         } else {
-            $data['project_id'] = $this->project->id;
+            $data['project_id'] = $target->id;
             app(TimeEntryService::class)->create($data);
         }
 
-        $this->redirect(route('time-entries.index', $this->project), navigate: true);
+        $this->redirect(route('time-entries.index', $target), navigate: true);
     }
 }; ?>
 
@@ -147,6 +210,18 @@ new #[Layout('components.layouts.app')] class extends Component
     </h1>
 
     <form wire:submit="save" class="space-y-4">
+        @if ($timeEntry && $this->moveTargets->count() > 1)
+            <div>
+                <label class="block text-sm font-medium text-gray-700">プロジェクト</label>
+                <select wire:model.live="project_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach ($this->moveTargets as $candidate)
+                        <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
+                    @endforeach
+                </select>
+                @error('project_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+        @endif
+
         <div>
             <label class="block text-sm font-medium text-gray-700">課題</label>
             <select wire:model="issue_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">

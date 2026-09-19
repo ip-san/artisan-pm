@@ -69,6 +69,15 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int, int> */
     public array $selected = [];
 
+    public ?int $bulkProjectId = null;
+
+    /** An issue id, `none` to detach the entries from their issue, or '' to leave it. */
+    public string $bulkIssueId = '';
+
+    public ?int $bulkUserId = null;
+
+    public string $bulkHours = '';
+
     public ?int $bulkActivityId = null;
 
     public string $bulkSpentOn = '';
@@ -292,6 +301,40 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * Projects the selected entries may be moved to: the ones the user may
+     * log time in, this project included.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function moveTargets(): Collection
+    {
+        return Project::query()->orderBy('name')->get()
+            ->filter(fn (Project $candidate) => $candidate->is($this->project) || auth()->user()->can('create', [TimeEntry::class, $candidate]))
+            ->values();
+    }
+
+    #[Computed]
+    public function bulkTargetProject(): Project
+    {
+        if ($this->bulkProjectId === null) {
+            return $this->project;
+        }
+
+        return $this->moveTargets->firstWhere('id', $this->bulkProjectId) ?? $this->project;
+    }
+
+    /**
+     * Anything the old target's issue/user/activity picks no longer fit.
+     */
+    public function updatedBulkProjectId(): void
+    {
+        $this->bulkIssueId = '';
+        $this->bulkUserId = null;
+        $this->bulkActivityId = null;
+    }
+
+    /**
      * @return EloquentCollection<int, TimeEntry>
      */
     #[Computed]
@@ -317,17 +360,58 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->authorize('update', $entry);
         }
 
+        $target = $this->bulkTargetProject;
+        $moving = $target->id !== $this->project->id;
+
+        // The project field is a dropdown of allowed targets; anything else
+        // was tampered with.
+        abort_if($this->bulkProjectId !== null && $this->bulkProjectId !== $target->id, 403);
+
+        if ($moving) {
+            $this->authorize('create', [TimeEntry::class, $target]);
+        }
+
         $data = $this->validate([
-            'bulkActivityId' => ['nullable', Rule::in($this->activities->pluck('id')->all())],
+            'bulkActivityId' => ['nullable', Rule::in($target->activities(includeInactive: true)->pluck('id')->all())],
             'bulkSpentOn' => [$this->bulkSpentOn === '' ? 'nullable' : 'date'],
             'bulkComments' => ['nullable', 'string'],
+            'bulkHours' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            'bulkUserId' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $target->id)],
+            'bulkIssueId' => ['nullable', fn (string $attribute, mixed $value, \Closure $fail) => $value === 'none'
+                || ! filled($value)
+                || (ctype_digit((string) $value) && $target->issues()->whereKey((int) $value)->exists())
+                    ? null
+                    : $fail('選択した課題はこのプロジェクトにありません。')],
         ]);
 
+        $issueChoice = $data['bulkIssueId'] ?? '';
+
+        if ($issueChoice !== '' && $issueChoice !== 'none') {
+            $this->authorize('view', $target->issues()->findOrFail((int) $issueChoice));
+        }
+
+        // Redmine rejects an entry whose issue belongs to another project, so
+        // a move has to say what happens to the issue.
+        if ($moving && $issueChoice === '' && $entries->contains(fn (TimeEntry $entry) => $entry->issue_id !== null)) {
+            $this->addError('bulkIssueId', '別のプロジェクトへ移動するときは、課題を指定するか「課題を外す」を選んでください。');
+
+            return;
+        }
+
         $changes = array_filter([
+            'project_id' => $moving ? $target->id : null,
             'activity_id' => $data['bulkActivityId'],
+            'user_id' => $data['bulkUserId'] ?? null,
+            'hours' => filled($data['bulkHours'] ?? null) ? $data['bulkHours'] : null,
             'spent_on' => $data['bulkSpentOn'] !== '' ? $data['bulkSpentOn'] : null,
             'comments' => $data['bulkComments'] !== '' ? $data['bulkComments'] : null,
         ], fn ($value) => $value !== null);
+
+        if ($issueChoice === 'none') {
+            $changes['issue_id'] = null;
+        } elseif ($issueChoice !== '') {
+            $changes['issue_id'] = (int) $issueChoice;
+        }
 
         $timeEntryService = app(TimeEntryService::class);
 
@@ -345,7 +429,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $count = $entries->count();
 
-        $this->reset(['selected', 'bulkActivityId', 'bulkSpentOn', 'bulkComments']);
+        $this->reset(['selected', 'bulkProjectId', 'bulkIssueId', 'bulkUserId', 'bulkHours', 'bulkActivityId', 'bulkSpentOn', 'bulkComments']);
         unset($this->timeEntries, $this->groupedTimeEntries, $this->selectedTimeEntries);
 
         session()->flash('status', "{$count}件の工数記録を更新しました。");
@@ -510,11 +594,47 @@ new #[Layout('components.layouts.app')] class extends Component
             <p class="text-sm font-medium text-gray-900">{{ count($selected) }}件を選択中 — 変更する項目だけ設定してください</p>
 
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                @if ($this->moveTargets->count() > 1)
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">プロジェクト</label>
+                        <select wire:model.live="bulkProjectId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                            <option value="">変更なし</option>
+                            @foreach ($this->moveTargets->reject(fn ($candidate) => $candidate->is($this->project)) as $candidate)
+                                <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">課題(番号)</label>
+                    <div class="mt-1 flex items-center gap-2">
+                        <input type="text" wire:model="bulkIssueId" placeholder="変更なし" inputmode="numeric"
+                            class="block w-full rounded-md border-gray-300 text-sm">
+                        <button type="button" wire:click="$set('bulkIssueId', 'none')" class="shrink-0 text-xs text-indigo-600 hover:underline">課題を外す</button>
+                    </div>
+                    @error('bulkIssueId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">担当者</label>
+                    <select wire:model="bulkUserId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                        <option value="">変更なし</option>
+                        @foreach ($this->bulkTargetProject->loadMissing('users')->users as $member)
+                            <option value="{{ $member->id }}">{{ $member->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('bulkUserId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700">時間</label>
+                    <input type="number" step="0.01" wire:model="bulkHours" placeholder="変更なし"
+                        class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                    @error('bulkHours') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700">作業分類</label>
                     <select wire:model="bulkActivityId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
                         <option value="">変更なし</option>
-                        @foreach ($this->activities as $activity)
+                        @foreach ($this->bulkTargetProject->activities(includeInactive: true) as $activity)
                             <option value="{{ $activity->id }}">{{ $activity->name }}</option>
                         @endforeach
                     </select>
