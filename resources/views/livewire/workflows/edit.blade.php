@@ -10,6 +10,7 @@ use App\Models\WorkflowFieldRule;
 use App\Models\WorkflowTransition;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -68,9 +69,17 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public bool $usedStatusesOnly = true;
 
-    public ?int $copySourceTrackerId = null;
+    /**
+     * A tracker id, `any` (Redmine's "same as target": each target pair uses
+     * its own tracker as the source), or null while nothing is chosen.
+     */
+    public int|string|null $copySourceTrackerId = null;
 
-    public ?int $copySourceRoleId = null;
+    /**
+     * A role id, `any` ("same as target": each target pair uses its own
+     * role as the source), or null while nothing is chosen.
+     */
+    public int|string|null $copySourceRoleId = null;
 
     /** @var array<int, int> */
     public array $copyTargetTrackerIds = [];
@@ -259,34 +268,51 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /**
      * Copies every workflow_transitions/workflow_field_rules row for a
-     * single source (tracker, role) pair onto every (target tracker ×
-     * target role) combination — matches Redmine's WorkflowRule.copy,
-     * scoped down to always requiring an explicit source and target
-     * selection rather than Redmine's "blank means all" shorthand. Each
-     * target pair's existing rows are replaced, not merged, same as
-     * Redmine's copy_one.
+     * source (tracker, role) pair onto every (target tracker × target role)
+     * combination — Redmine's WorkflowRule.copy. Either source side may be
+     * `any` ("same as target"), so a single tracker's workflow can be copied
+     * role by role, or one role's across every tracker, but not both at
+     * once. Each target pair's existing rows are replaced, not merged, as in
+     * Redmine's copy_one, and a pair whose source equals its target is
+     * skipped. Targets must be chosen explicitly (Redmine's controller
+     * rejects an empty target selection too).
      */
     public function copyWorkflow(): void
     {
         $this->authorize('manage', WorkflowTransition::class);
 
         $data = $this->validate([
-            'copySourceTrackerId' => ['required', 'exists:trackers,id'],
-            'copySourceRoleId' => ['required', 'exists:roles,id'],
+            'copySourceTrackerId' => ['required', Rule::in(['any', ...Tracker::query()->pluck('id')->all()])],
+            'copySourceRoleId' => ['required', Rule::in(['any', ...$this->roles->pluck('id')->all()])],
             'copyTargetTrackerIds' => ['required', 'array', 'min:1'],
             'copyTargetTrackerIds.*' => ['exists:trackers,id'],
             'copyTargetRoleIds' => ['required', 'array', 'min:1'],
-            'copyTargetRoleIds.*' => ['exists:roles,id'],
+            'copyTargetRoleIds.*' => [Rule::in($this->roles->pluck('id')->all())],
         ]);
 
-        DB::transaction(function () use ($data) {
+        $sourceTrackerId = (string) $data['copySourceTrackerId'] === 'any' ? null : (int) $data['copySourceTrackerId'];
+        $sourceRoleId = (string) $data['copySourceRoleId'] === 'any' ? null : (int) $data['copySourceRoleId'];
+
+        if ($sourceTrackerId === null && $sourceRoleId === null) {
+            $this->addError('copySourceTrackerId', 'コピー元のトラッカーとロールの少なくとも一方を指定してください。');
+
+            return;
+        }
+
+        DB::transaction(function () use ($data, $sourceTrackerId, $sourceRoleId) {
             foreach ($data['copyTargetTrackerIds'] as $targetTrackerId) {
                 foreach ($data['copyTargetRoleIds'] as $targetRoleId) {
-                    if ($targetTrackerId === $data['copySourceTrackerId'] && $targetRoleId === $data['copySourceRoleId']) {
+                    $targetTrackerId = (int) $targetTrackerId;
+                    $targetRoleId = (int) $targetRoleId;
+
+                    $pairSourceTrackerId = $sourceTrackerId ?? $targetTrackerId;
+                    $pairSourceRoleId = $sourceRoleId ?? $targetRoleId;
+
+                    if ($pairSourceTrackerId === $targetTrackerId && $pairSourceRoleId === $targetRoleId) {
                         continue;
                     }
 
-                    $this->copyWorkflowPair($data['copySourceTrackerId'], $data['copySourceRoleId'], $targetTrackerId, $targetRoleId);
+                    $this->copyWorkflowPair($pairSourceTrackerId, $pairSourceRoleId, $targetTrackerId, $targetRoleId);
                 }
             }
         });
@@ -450,6 +476,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <label class="block text-sm font-medium text-gray-700">コピー元トラッカー</label>
                     <select wire:model="copySourceTrackerId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                         <option value="">選択してください</option>
+                        <option value="any">--- コピー先と同じ ---</option>
                         @foreach ($this->trackers as $tracker)
                             <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
                         @endforeach
@@ -460,6 +487,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <label class="block text-sm font-medium text-gray-700">コピー元ロール</label>
                     <select wire:model="copySourceRoleId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                         <option value="">選択してください</option>
+                        <option value="any">--- コピー先と同じ ---</option>
                         @foreach ($this->roles as $role)
                             <option value="{{ $role->id }}">{{ $role->name }}</option>
                         @endforeach
