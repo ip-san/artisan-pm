@@ -12,6 +12,7 @@ use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Support\Attachments\AttachmentUploader;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Mail\ParsedIncomingMail;
 use Illuminate\Support\Facades\Log;
@@ -261,6 +262,7 @@ final class IncomingMailService
             try {
                 $issue->addMediaFromString($attachment['content'])
                     ->usingFileName($attachment['filename'] !== '' ? $attachment['filename'] : 'attachment')
+                    ->withCustomProperties([AttachmentUploader::PROPERTY => $issue->author_id])
                     ->toMediaCollection('attachments');
             } catch (Throwable $e) {
                 Log::warning('Incoming mail: failed to attach a file to the created issue.', [
@@ -302,6 +304,7 @@ final class IncomingMailService
             try {
                 $updated->addMediaFromString($attachment['content'])
                     ->usingFileName($attachment['filename'] !== '' ? $attachment['filename'] : 'attachment')
+                    ->withCustomProperties([AttachmentUploader::PROPERTY => $author->id])
                     ->toMediaCollection('attachments');
             } catch (Throwable $e) {
                 Log::warning('Incoming mail: failed to attach a file to a reply comment.', [

@@ -403,7 +403,7 @@
 | CRUD | done | — |
 | カテゴリ | done | `Enumeration` 経由 |
 | 添付ファイル | done | `Document implements HasMedia` |
-| カテゴリ/日付/タイトル/作成者でのグルーピング・並べ替え | partial(2026-07-22) | Redmineの`DocumentsController#index`(`sort_by`パラメータ)を移植。`documents.index`に`#[Url]`束縛の`sortBy`(既定`category`)を追加、カテゴリ別(既定・未分類は空文字キーで先頭)/更新日別(新しい日付グループが先頭)/タイトル先頭文字別にグルーピング・並べ替え。「作成者」でのグルーピング(Redmineは各文書の最新添付ファイルのアップロード者でグルーピング)は本アプリの添付ファイルがアップロード者を記録していないため対象外(記録用インフラの追加が別途必要、単独のwell-scoped項目には収まらないため見送り) |
+| カテゴリ/日付/タイトル/作成者でのグルーピング・並べ替え | partial(2026-07-22) | Redmineの`DocumentsController#index`(`sort_by`パラメータ)を移植。`documents.index`に`#[Url]`束縛の`sortBy`(既定`category`)を追加、カテゴリ別(既定・未分類は空文字キーで先頭)/更新日別(新しい日付グループが先頭)/タイトル先頭文字別にグルーピング・並べ替え。~~「作成者」でのグルーピング(Redmineは各文書の最新添付ファイルのアップロード者でグルーピング)は本アプリの添付ファイルがアップロード者を記録していないため対象外~~ → **実装(2026-09-20、A7-09)**: アップロード者を`media.custom_properties.uploaded_by`に記録する仕組みを追加。**記録は1か所**(`AppServiceProvider`の`Media::creating`フック — リクエストのユーザー、APIガードも含む)なので、課題・Wiki・フォーラム・News・文書・ファイル・API(`PendingUpload`経由の`move()`でも保持)のどの経路も漏れず、リクエスト外(受信メール)は送信者を明示指定、なければ匿名。`AttachmentUploader`(`idOf`/`userOf`/`usersFor`)で取得。文書一覧に「作成者」並べ替えを追加(最新の添付のアップロード者名でグループ化、添付なし・不明は「(不明)」グループ、メディアは先読み)。**注意**: 実装前にアップロードされたファイルはアップロード者が不明のまま。テスト: `AttachmentUploaderTest.php` |
 | カスタムフィールド | done(2026-07-22) | `CustomizableType::Document`を追加(Issue/Project/Version/Group/TimeEntryActivityに続き4回目の同一パターン適用)。`Document`に`HasCustomFields`トレイト+`customizableType()`+`relevantCustomFields()`(Versionと同じ、プロジェクトのロール経由で可視性解決)を実装、`documents/form.blade.php`に入力欄、`documents/show.blade.php`に表示欄(Issue詳細と同じ`customFieldDisplayValues()`パターン)を追加。カスタムフィールド管理画面の「対象」選択肢は`CustomizableType::cases()`を直接列挙しているため追加のUI変更は不要 |
 
 ### Files モジュール

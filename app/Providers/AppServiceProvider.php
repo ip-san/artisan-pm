@@ -6,6 +6,8 @@ namespace App\Providers;
 
 use App\Models\Setting;
 use App\Rules\RequiredPasswordCharacterClasses;
+use App\Support\Attachments\AttachmentUploader;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use App\Models\User;
 use App\Policies\CalendarPolicy;
 use App\Policies\GanttPolicy;
@@ -41,6 +43,19 @@ final class AppServiceProvider extends ServiceProvider
         Gate::define('viewGantt', [GanttPolicy::class, 'view']);
 
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
+
+        // Redmine's Attachment#author: every new attachment records who
+        // uploaded it, from the request's user (API guards included), unless
+        // the code creating it already named someone.
+        Media::creating(function (Media $media): void {
+            if ($media->getCustomProperty(AttachmentUploader::PROPERTY) === null) {
+                $userId = request()->user()?->id ?? auth()->id();
+
+                if ($userId !== null) {
+                    $media->setCustomProperty(AttachmentUploader::PROPERTY, $userId);
+                }
+            }
+        });
 
         // Matches Redmine's password_min_length and
         // password_required_char_classes settings — re-read from Setting
