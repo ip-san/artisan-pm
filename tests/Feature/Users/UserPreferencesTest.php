@@ -22,7 +22,7 @@ test('every option has a default and a stored value wins', function () {
     expect($user->preference('comments_sorting'))->toBe('asc')
         ->and($user->preference('warn_on_leaving_unsaved'))->toBeTrue()
         ->and($user->preference('hide_mail'))->toBeFalse()
-        ->and($user->preference('auto_watch_on'))->toBe([])
+        ->and($user->preference('auto_watch_on'))->toBe(['issue_created', 'issue_assigned_to_me'])
         ->and($user->preference('default_issue_query'))->toBeNull();
 
     UserPreferences::save($user, ['comments_sorting' => 'desc', 'hide_mail' => true]);
@@ -47,10 +47,10 @@ test('new accounts start from the site-wide default_users settings', function ()
 test('saving cleans values and ignores unknown keys', function () {
     $user = User::factory()->create();
 
-    UserPreferences::save($user, ['comments_sorting' => 'sideways', 'textarea_font' => 'comic', 'auto_watch_on' => ['issue_assigned_to', 'x'], 'evil' => 'data', 'default_issue_query' => '7']);
+    UserPreferences::save($user, ['comments_sorting' => 'sideways', 'textarea_font' => 'comic', 'auto_watch_on' => ['issue_assigned_to_me', 'x'], 'evil' => 'data', 'default_issue_query' => '7']);
 
     $stored = $user->fresh()->preferences;
-    expect($stored)->toMatchArray(['comments_sorting' => 'asc', 'textarea_font' => '', 'auto_watch_on' => ['issue_assigned_to'], 'default_issue_query' => 7])
+    expect($stored)->toMatchArray(['comments_sorting' => 'asc', 'textarea_font' => '', 'auto_watch_on' => ['issue_assigned_to_me'], 'default_issue_query' => 7])
         ->and($stored)->not->toHaveKey('evil');
 });
 

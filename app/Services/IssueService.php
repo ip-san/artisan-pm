@@ -71,8 +71,8 @@ final class IssueService
 
         $issue->setCustomFieldValues($customFieldData);
 
-        $this->autoWatch($issue, $issue->author_id);
-        $this->autoWatch($issue, $issue->assigned_to_id);
+        $this->autoWatch($issue, $issue->author_id, 'issue_created');
+        $this->autoWatch($issue, $issue->assigned_to_id, 'issue_assigned_to_me');
 
         $this->recalculateAncestorAttributes($issue->parent_id);
 
@@ -273,7 +273,7 @@ final class IssueService
         $issue->setCustomFieldValues($customFieldData);
 
         if ($assignedToChanged) {
-            $this->autoWatch($issue, $issue->assigned_to_id);
+            $this->autoWatch($issue, $issue->assigned_to_id, 'issue_assigned_to_me');
         }
 
         $changes = $this->diff($original, $issue->only(self::JOURNALED_ATTRIBUTES));
@@ -283,6 +283,8 @@ final class IssueService
         $detailsJournal = null;
 
         if ($hasDetails || filled($comment)) {
+            $this->autoWatch($issue, $actor->id, 'issue_contributed_to');
+
             // Matches Redmine's Journal#split_private_notes: a private note
             // combined with attribute changes in the same save is split into
             // two journals, so the public attribute-change record isn't
@@ -764,14 +766,23 @@ final class IssueService
     }
 
     /**
-     * Matches Redmine's default behavior of auto-watching an issue's
-     * author on creation and its assignee whenever assignment changes.
-     * firstOrCreate rather than create() since the same user can already
-     * be watching (e.g. assigned to the issue they authored).
+     * Redmine's auto_watch_on: the user starts watching the issue when the
+     * event named by `$event` happens and their personal options list it —
+     * `issue_created` (their own new issue), `issue_assigned_to_me`,
+     * `issue_contributed_to` (they commented or changed it). The defaults
+     * keep this app's long-standing behavior of watching what you create
+     * and what is assigned to you. firstOrCreate since the same user can
+     * already be watching (e.g. assigned to the issue they authored).
      */
-    private function autoWatch(Issue $issue, ?int $userId): void
+    public function autoWatch(Issue $issue, ?int $userId, string $event): void
     {
         if ($userId === null) {
+            return;
+        }
+
+        $user = User::query()->find($userId);
+
+        if ($user === null || ! $user->isActive() || ! in_array($event, (array) $user->preference('auto_watch_on'), true)) {
             return;
         }
 

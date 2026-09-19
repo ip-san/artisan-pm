@@ -33,8 +33,17 @@ final class UserPreferences
     public const array AUTO_WATCH_ON = [
         'issue_created' => '自分が作成した課題',
         'issue_contributed_to' => '自分がコメント・更新した課題',
-        'issue_assigned_to' => '自分が担当になった課題',
+        'issue_assigned_to_me' => '自分が担当になった課題',
     ];
+
+    /**
+     * What accounts auto-watch until an administrator or the user says
+     * otherwise: this app's original behavior (Redmine's own default is
+     * just issue_created).
+     *
+     * @var array<int, string>
+     */
+    public const array DEFAULT_AUTO_WATCH_ON = ['issue_created', 'issue_assigned_to_me'];
 
     /**
      * @return array<string, mixed>
@@ -46,7 +55,7 @@ final class UserPreferences
             'warn_on_leaving_unsaved' => true,
             'textarea_font' => '',
             'hide_mail' => (bool) Setting::get('default_users_hide_mail', false),
-            'auto_watch_on' => self::validAutoWatch(Setting::get('default_users_auto_watch_on', [])),
+            'auto_watch_on' => self::validAutoWatch(Setting::get('default_users_auto_watch_on', self::DEFAULT_AUTO_WATCH_ON)),
             'default_issue_query' => null,
         ];
     }

@@ -437,6 +437,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data = $this->validate(['comment' => ['required', 'string']]);
 
+        app(IssueService::class)->autoWatch($this->issue, auth()->id(), 'issue_contributed_to');
+
         Journal::create([
             'issue_id' => $this->issue->id,
             'user_id' => auth()->id(),
