@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\CustomField;
+use App\Concerns\ManagesPrincipalMemberships;
 use App\Models\Group;
 use App\Models\Setting;
 use App\Models\User;
@@ -12,6 +13,8 @@ use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use ManagesPrincipalMemberships;
+
     public ?Group $group = null;
 
     public string $name = '';
@@ -40,6 +43,16 @@ new #[Layout('components.layouts.app')] class extends Component
         } else {
             $this->authorize('create', Group::class);
         }
+    }
+
+    protected function membershipPrincipal(): Group
+    {
+        return $this->group ?? abort(404);
+    }
+
+    protected function membershipColumn(): string
+    {
+        return 'group_id';
     }
 
     #[Computed]
@@ -250,5 +263,10 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforelse
             </ul>
         </div>
+    @endif
+
+    @if ($group)
+        <x-principal-memberships :memberships="$this->principalMemberships" :projects="$this->membershipProjects" :roles="$this->membershipRoles"
+            :editing="$editingMembershipId ? $this->principalMemberships->firstWhere('id', $editingMembershipId) : null" />
     @endif
 </div>

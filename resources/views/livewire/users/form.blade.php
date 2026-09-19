@@ -4,6 +4,7 @@ use App\Enums\UserStatus;
 use App\Models\AuthSource;
 use App\Models\CustomField;
 use App\Models\Setting;
+use App\Concerns\ManagesPrincipalMemberships;
 use App\Models\User;
 use App\Rules\AllowedEmailDomain;
 use App\Rules\UniqueUserValueIgnoringCase;
@@ -20,6 +21,8 @@ use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use ManagesPrincipalMemberships;
+
     public ?User $user = null;
 
     public string $name = '';
@@ -57,6 +60,16 @@ new #[Layout('components.layouts.app')] class extends Component
         } else {
             $this->authorize('create', User::class);
         }
+    }
+
+    protected function membershipPrincipal(): User
+    {
+        return $this->user ?? abort(404);
+    }
+
+    protected function membershipColumn(): string
+    {
+        return 'user_id';
     }
 
     #[Computed]
@@ -286,4 +299,9 @@ new #[Layout('components.layouts.app')] class extends Component
             </a>
         </div>
     </form>
+
+    @if ($user)
+        <x-principal-memberships :memberships="$this->principalMemberships" :projects="$this->membershipProjects" :roles="$this->membershipRoles"
+            :editing="$editingMembershipId ? $this->principalMemberships->firstWhere('id', $editingMembershipId) : null" />
+    @endif
 </div>
