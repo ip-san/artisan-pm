@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
 use DateTimeImmutable;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Fetches new commits from a Repository's adapter and records them as
@@ -189,15 +190,22 @@ final class RepositorySyncService
                 continue;
             }
 
-            $this->timeEntries->create([
-                'project_id' => $issue->project_id,
-                'issue_id' => $issue->id,
-                'user_id' => $actor->id,
-                'activity_id' => $activityId,
-                'hours' => $entry['hours'],
-                'spent_on' => $committedOn->format('Y-m-d'),
-                'comments' => 'コミットメッセージのキーワードにより自動的に記録されました。',
-            ]);
+            // A `timelog_*` setting may reject the entry (closed issue, daily
+            // cap, ...); the commit still syncs, only the time is skipped —
+            // Redmine ignores the failed save the same way.
+            try {
+                $this->timeEntries->create([
+                    'project_id' => $issue->project_id,
+                    'issue_id' => $issue->id,
+                    'user_id' => $actor->id,
+                    'activity_id' => $activityId,
+                    'hours' => $entry['hours'],
+                    'spent_on' => $committedOn->format('Y-m-d'),
+                    'comments' => 'コミットメッセージのキーワードにより自動的に記録されました。',
+                ]);
+            } catch (ValidationException) {
+                continue;
+            }
         }
     }
 

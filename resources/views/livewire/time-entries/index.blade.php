@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -330,8 +331,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $timeEntryService = app(TimeEntryService::class);
 
-        foreach ($entries as $entry) {
-            $timeEntryService->update($entry, $changes);
+        try {
+            foreach ($entries as $entry) {
+                $timeEntryService->update($entry, $changes);
+            }
+        } catch (ValidationException $exception) {
+            // A `timelog_*` setting rejected one of the entries; earlier ones
+            // in the selection are already saved, as in Redmine's bulk_update.
+            $this->addError('bulkComments', collect($exception->errors())->flatten()->first());
+
+            return;
         }
 
         $count = $entries->count();

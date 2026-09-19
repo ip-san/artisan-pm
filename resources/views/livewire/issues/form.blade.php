@@ -15,12 +15,14 @@ use App\Models\Tracker;
 use App\Models\Version;
 use App\Services\IssueService;
 use App\Services\TimeEntryService;
+use App\Support\TimeLog\TimeLogConstraints;
 use App\Services\WorkflowService;
 use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -517,7 +519,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if ($this->issue && $this->canLogTime) {
-            $rules['logTimeHours'] = ['nullable', 'numeric', 'min:0.01', 'max:1000'];
+            $rules['logTimeHours'] = ['nullable', 'numeric', 'min:0', 'max:1000'];
             $rules['logTimeActivityId'] = [
                 'required_with:logTimeHours',
                 Rule::in($this->timeEntryActivities->pluck('id')->all()),
@@ -536,6 +538,26 @@ new #[Layout('components.layouts.app')] class extends Component
         $logTimeActivityId = $data['logTimeActivityId'] ?? null;
         $logTimeComments = $data['logTimeComments'] ?? '';
         unset($data['customFieldValues'], $data['newAttachments'], $data['logTimeHours'], $data['logTimeActivityId'], $data['logTimeComments']);
+
+        // Checked before the issue is saved so a rejected entry (a `timelog_*`
+        // setting) leaves the issue untouched instead of half-applied.
+        if (filled($logTimeHours) && $this->issue) {
+            try {
+                TimeLogConstraints::assertSatisfied([
+                    'issue_id' => $this->issue->id,
+                    'user_id' => auth()->id(),
+                    'hours' => $logTimeHours,
+                    'spent_on' => now()->toDateString(),
+                    'comments' => $logTimeComments,
+                ]);
+            } catch (ValidationException $exception) {
+                foreach ($exception->errors() as $field => $messages) {
+                    $this->addError($field === 'comments' ? 'logTimeComments' : 'logTimeHours', $messages[0]);
+                }
+
+                return;
+            }
+        }
 
         // An empty text input means "no estimate", not zero — store null
         // rather than letting the decimal cast coerce '' to 0.00.

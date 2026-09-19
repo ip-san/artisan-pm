@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Support\Pagination\PageSize;
+use App\Support\TimeLog\TimeLogConstraints;
 use App\Rules\RequiredPasswordCharacterClasses;
 use App\Support\Issues\DoneRatioSteps;
 use App\Support\Issues\RelatedIssueColumns;
@@ -119,6 +120,17 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /** @var array<int, array{keywords: string, status_id: ?int}> */
     public array $commit_fixing_keyword_rules = [];
+
+    /** @var array<int, string> */
+    public array $timelog_required_fields = [];
+
+    public bool $timelog_accept_0_hours = true;
+
+    public float $timelog_max_hours_per_day = 999;
+
+    public bool $timelog_accept_future_dates = true;
+
+    public bool $timelog_accept_closed_issues = true;
 
     public int $attachment_max_size = 10240;
 
@@ -275,6 +287,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->commit_fixing_keyword_rules = Setting::get('commit_fixing_keyword_rules', $defaultFixingStatusId !== null
             ? [['keywords' => 'fixes, fix, closes, close', 'status_id' => $defaultFixingStatusId]]
             : []);
+        $this->timelog_required_fields = TimeLogConstraints::requiredFields();
+        $this->timelog_accept_0_hours = TimeLogConstraints::acceptsZeroHours();
+        $this->timelog_max_hours_per_day = TimeLogConstraints::maxHoursPerDay();
+        $this->timelog_accept_future_dates = TimeLogConstraints::acceptsFutureDates();
+        $this->timelog_accept_closed_issues = TimeLogConstraints::acceptsClosedIssues();
         $this->attachment_max_size = Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024));
         $this->attachment_extensions_allowed = Setting::get('attachment_extensions_allowed', '');
         $this->attachment_extensions_denied = Setting::get('attachment_extensions_denied', '');
@@ -364,6 +381,12 @@ new #[Layout('components.layouts.app')] class extends Component
             'commit_fixing_keyword_rules' => ['array'],
             'commit_fixing_keyword_rules.*.keywords' => ['nullable', 'string', 'max:255'],
             'commit_fixing_keyword_rules.*.status_id' => ['nullable', 'required_with:commit_fixing_keyword_rules.*.keywords', 'exists:issue_statuses,id'],
+            'timelog_required_fields' => ['array'],
+            'timelog_required_fields.*' => [Rule::in(array_keys(TimeLogConstraints::REQUIRABLE_FIELDS))],
+            'timelog_accept_0_hours' => ['boolean'],
+            'timelog_max_hours_per_day' => ['required', 'numeric', 'min:0', 'max:1000'],
+            'timelog_accept_future_dates' => ['boolean'],
+            'timelog_accept_closed_issues' => ['boolean'],
             'attachment_max_size' => ['required', 'integer', 'min:1', 'max:'.intdiv((int) config('media-library.max_file_size'), 1024)],
             'attachment_extensions_allowed' => ['nullable', 'string', 'max:1000'],
             'attachment_extensions_denied' => ['nullable', 'string', 'max:1000'],
@@ -878,6 +901,43 @@ new #[Layout('components.layouts.app')] class extends Component
                 <textarea wire:model="emails_footer" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
                 @error('emails_footer') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+        </section>
+
+        <section class="space-y-4 border-t border-gray-200 pt-6">
+            <h2 class="text-sm font-semibold text-gray-900">工数管理</h2>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700">必須にする項目</span>
+                <div class="mt-1 flex gap-4 text-sm text-gray-700">
+                    @foreach (\App\Support\TimeLog\TimeLogConstraints::REQUIRABLE_FIELDS as $field => $label)
+                        <label class="flex items-center gap-1.5">
+                            <input type="checkbox" value="{{ $field }}" wire:model="timelog_required_fields" class="rounded border-gray-300">
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('timelog_required_fields') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">1日あたりの最大工数(時間、0で無制限)</label>
+                <input type="number" step="0.01" min="0" max="1000" wire:model="timelog_max_hours_per_day" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">同じユーザーが同じ日に記録できる工数の合計の上限です。</p>
+                @error('timelog_max_hours_per_day') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="timelog_accept_0_hours" class="rounded border-gray-300">
+                0時間の記録を許可する
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="timelog_accept_future_dates" class="rounded border-gray-300">
+                未来の日付への記録を許可する
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="timelog_accept_closed_issues" class="rounded border-gray-300">
+                終了した課題への記録を許可する
+            </label>
         </section>
 
         <section class="space-y-4 border-t border-gray-200 pt-6">

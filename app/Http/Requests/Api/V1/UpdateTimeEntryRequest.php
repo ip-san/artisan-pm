@@ -43,7 +43,7 @@ final class UpdateTimeEntryRequest extends FormRequest
             // actual members row, via a non-member role or admin bypass).
             'user_id' => ['sometimes', 'integer', 'exists:users,id'],
             'activity_id' => ['sometimes', 'integer', Rule::in($project->activities()->pluck('id'))],
-            'hours' => ['sometimes', 'numeric', 'min:0.01', 'max:1000'],
+            'hours' => ['sometimes', 'numeric', 'min:0', 'max:1000'],
             'spent_on' => ['sometimes', 'date'],
             'comments' => ['nullable', 'string', 'max:1024'],
         ];

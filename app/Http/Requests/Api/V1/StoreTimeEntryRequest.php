@@ -81,7 +81,7 @@ final class StoreTimeEntryRequest extends FormRequest
             // implies an actual members row for this project.
             'user_id' => ['required', 'integer', 'exists:users,id'],
             'activity_id' => ['required', 'integer', Rule::in($project->activities()->pluck('id'))],
-            'hours' => ['required', 'numeric', 'min:0.01', 'max:1000'],
+            'hours' => ['required', 'numeric', 'min:0', 'max:1000'],
             'spent_on' => ['required', 'date'],
             // Redmine本家はcommentsの長さ上限を1024文字とするため、上限のない
             // 既存Web UIのフォーム(resources/views/livewire/time-entries/form.blade.php)

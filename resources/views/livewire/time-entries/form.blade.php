@@ -115,7 +115,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $rules = [
             'issue_id' => ['nullable', Rule::exists('issues', 'id')->where('project_id', $this->project->id)],
             'activity_id' => ['required', Rule::in($this->activities->pluck('id')->all())],
-            'hours' => ['required', 'numeric', 'min:0.01', 'max:1000'],
+            'hours' => ['required', 'numeric', 'min:0', 'max:1000'],
             'spent_on' => ['required', 'date'],
             'comments' => ['nullable', 'string'],
         ];
