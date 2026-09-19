@@ -172,7 +172,7 @@
 | 88 | A1-16 | A1-15 | M | done(2026-09-20、id/project 列は対象外) |
 | 89 | A3-06 | — | M | done(2026-09-20、課題一覧と工数合計のみ。ガント/カレンダー/レポート/フィルタは未対応) |
 | 90 | A1-17 | A1-16, A3-06 | L | blocked(要承認: docs/design/gap-A1-17.md) |
-| 91 | A2-08 | A1-17 | M | todo |
+| 91 | A2-08 | A1-17 | M | blocked(依存: A1-17) |
 | 92 | A1-25 | — | M | done(2026-09-20、API の status_id は未対応) |
 | 93 | A1-06 | A1-25 | M | done(2026-09-20、カスタムフィールドの一括編集は A1-06b) |
 | 93b | A1-06b | A1-06 | M | todo |
@@ -191,8 +191,8 @@
 | 105 | A1-27 | — | M | blocked(要承認: docs/design/gap-A1-27.md) |
 | 106 | A1-28 | — | M〜L | blocked(要承認: docs/design/gap-A1-28.md) |
 | 107 | A1-29 | — | S〜M | done(2026-09-20) |
-| 108 | A2-03 | — | M | todo |
-| 109 | A2-05 | A2-03 | S〜M | todo |
+| 108 | A2-03 | — | M | blocked(要承認: docs/design/gap-A2-03.md) |
+| 109 | A2-05 | A2-03 | S〜M | blocked(依存: A2-03) |
 | 110 | A2-04 | — | M | todo |
 | 111 | A2-06 | — | S〜M | todo |
 | 112 | A3-01 | — | M | todo |
