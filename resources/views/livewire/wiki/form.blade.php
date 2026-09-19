@@ -256,7 +256,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </p>
     @endif
 
-    <form wire:submit="save" class="space-y-4">
+    <form wire:submit="save" class="space-y-4" {!! \App\Support\Preferences\UserPreferences::unsavedWarningAttributes(auth()->user()) !!}>
         @if ($this->canRename)
             <div>
                 <label class="block text-sm font-medium text-gray-700">タイトル</label>
@@ -297,7 +297,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div>
             <label class="block text-sm font-medium text-gray-700">本文(Markdown)</label>
-            <textarea wire:model="text" rows="16" class="mt-1 block w-full rounded-md border-gray-300 font-mono text-sm shadow-sm"></textarea>
+            <textarea wire:model="text" rows="16" class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user(), 'font-mono') }} mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm"></textarea>
             @error('text') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             <p class="mt-1 text-xs text-gray-500">
                 「#123」で課題にリンク、「[[ページ名]]」または「[[ページ名|表示名]]」で他のWikiページにリンクできます。

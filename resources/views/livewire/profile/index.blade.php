@@ -14,6 +14,10 @@ use Laravel\Fortify\Actions\ConfirmTwoFactorAuthentication;
 use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
 use Laravel\Fortify\Actions\EnableTwoFactorAuthentication;
 use Laravel\Fortify\Actions\GenerateNewRecoveryCodes;
+use App\Enums\QueryType;
+use App\Models\Query as SavedQuery;
+use App\Support\Preferences\UserPreferences;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -38,12 +42,64 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $no_self_notified = false;
 
+    public string $comments_sorting = 'asc';
+
+    public bool $warn_on_leaving_unsaved = true;
+
+    public string $textarea_font = '';
+
+    public bool $hide_mail = false;
+
+    /** @var array<int, string> */
+    public array $auto_watch_on = [];
+
+    public ?int $default_issue_query = null;
+
     public function mount(): void
     {
         $this->name = auth()->user()->name;
         $this->email = auth()->user()->email;
         $this->mail_notification = auth()->user()->mail_notification->value;
         $this->no_self_notified = auth()->user()->no_self_notified;
+
+        foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'auto_watch_on', 'default_issue_query'] as $key) {
+            $this->{$key} = auth()->user()->preference($key) ?? $this->{$key};
+        }
+    }
+
+    /**
+     * Saved issue queries the user may pick as their starting list —
+     * Redmine's default_issue_query.
+     *
+     * @return Collection<int, SavedQuery>
+     */
+    #[Computed]
+    public function issueQueries(): Collection
+    {
+        return SavedQuery::query()
+            ->where('type', QueryType::Issue->value)
+            ->whereNull('project_id')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (SavedQuery $query) => $query->visibleTo(auth()->user()))
+            ->values();
+    }
+
+    public function savePreferences(): void
+    {
+        $data = $this->validate([
+            'comments_sorting' => ['required', Rule::in(array_keys(UserPreferences::COMMENTS_SORTING))],
+            'warn_on_leaving_unsaved' => ['boolean'],
+            'textarea_font' => ['nullable', Rule::in(array_keys(UserPreferences::TEXTAREA_FONTS))],
+            'hide_mail' => ['boolean'],
+            'auto_watch_on' => ['array'],
+            'auto_watch_on.*' => [Rule::in(array_keys(UserPreferences::AUTO_WATCH_ON))],
+            'default_issue_query' => ['nullable', Rule::in($this->issueQueries->pluck('id')->all())],
+        ]);
+
+        UserPreferences::save(auth()->user(), $data);
+
+        session()->flash('status', '個人設定を保存しました。');
     }
 
     public function updateProfile(): void
@@ -366,6 +422,65 @@ new #[Layout('components.layouts.app')] class extends Component
                 有効にする
             </button>
         @endif
+    </section>
+
+    <section class="rounded-md border border-gray-200 bg-white p-4" data-preferences>
+        <h2 class="mb-4 text-sm font-semibold text-gray-900">個人設定</h2>
+        <form wire:submit="savePreferences" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">課題のコメントの並び順</label>
+                <select wire:model="comments_sorting" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Support\Preferences\UserPreferences::COMMENTS_SORTING as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('comments_sorting') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">テキストエリアのフォント</label>
+                <select wire:model="textarea_font" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Support\Preferences\UserPreferences::TEXTAREA_FONTS as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="warn_on_leaving_unsaved" class="rounded border-gray-300">
+                保存せずにページを離れるとき警告する
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="hide_mail" class="rounded border-gray-300">
+                メールアドレスを他のユーザーに表示しない
+            </label>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700">自動的にウォッチする課題</span>
+                <div class="mt-1 flex flex-wrap gap-4 text-sm text-gray-700">
+                    @foreach (\App\Support\Preferences\UserPreferences::AUTO_WATCH_ON as $value => $label)
+                        <label class="flex items-center gap-1.5">
+                            <input type="checkbox" value="{{ $value }}" wire:model="auto_watch_on" class="rounded border-gray-300">
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">既定の課題クエリ</label>
+                <select wire:model="default_issue_query" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">指定しない</option>
+                    @foreach ($this->issueQueries as $query)
+                        <option value="{{ $query->id }}">{{ $query->name }}</option>
+                    @endforeach
+                </select>
+                @error('default_issue_query') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">保存</button>
+        </form>
     </section>
 
     <section class="rounded-md border border-gray-200 bg-white p-4">

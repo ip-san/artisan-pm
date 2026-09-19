@@ -13,6 +13,7 @@ use App\Support\Avatar\UserAvatar;
 use App\Support\Format\Hours;
 use App\Support\Mail\PublicUrl;
 use App\Support\Pagination\PageSize;
+use App\Support\Preferences\UserPreferences;
 use App\Support\Query\ListDefaults;
 use App\Support\Scm\CodesetConverter;
 use App\Support\Scm\DisplayLimits;
@@ -102,6 +103,11 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $cache_formatted_text = false;
 
     public string $new_item_menu_tab = '2';
+
+    public bool $default_users_hide_mail = false;
+
+    /** @var array<int, string> */
+    public array $default_users_auto_watch_on = [];
 
     public string $timespan_format = 'decimal';
 
@@ -307,6 +313,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
         $this->new_item_menu_tab = (string) Setting::get('new_item_menu_tab', '2');
+        $this->default_users_hide_mail = (bool) Setting::get('default_users_hide_mail', false);
+        $this->default_users_auto_watch_on = UserPreferences::defaults()['auto_watch_on'];
         $this->timespan_format = Hours::timespanFormat();
         $this->issue_list_default_totals = ListDefaults::issueTotals();
         $this->time_entry_list_default_columns = ListDefaults::timeEntryColumns();
@@ -477,6 +485,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
             'new_item_menu_tab' => ['required', Rule::in(['0', '1', '2'])],
+            'default_users_hide_mail' => ['boolean'],
+            'default_users_auto_watch_on' => ['array'],
+            'default_users_auto_watch_on.*' => [Rule::in(array_keys(UserPreferences::AUTO_WATCH_ON))],
             'timespan_format' => ['required', Rule::in(array_keys(Hours::FORMATS))],
             'issue_list_default_totals' => ['array'],
             'issue_list_default_totals.*' => [Rule::in(array_keys(ListDefaults::ISSUE_TOTALS))],
@@ -813,6 +824,23 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="2">「+」ドロップダウン(課題・バージョン・お知らせなど)</option>
                 </select>
                 @error('new_item_menu_tab') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700">新規ユーザーの既定の個人設定</span>
+                <label class="mt-1 flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="default_users_hide_mail" class="rounded border-gray-300">
+                    メールアドレスを他のユーザーに表示しない
+                </label>
+                <div class="mt-1 flex flex-wrap gap-4 text-sm text-gray-700">
+                    @foreach (\App\Support\Preferences\UserPreferences::AUTO_WATCH_ON as $value => $label)
+                        <label class="flex items-center gap-1.5">
+                            <input type="checkbox" value="{{ $value }}" wire:model="default_users_auto_watch_on" class="rounded border-gray-300">
+                            {{ $label }}をウォッチ
+                        </label>
+                    @endforeach
+                </div>
+                <p class="mt-1 text-xs text-gray-500">個人設定を変更していないユーザーに適用されます。</p>
             </div>
 
             <div>

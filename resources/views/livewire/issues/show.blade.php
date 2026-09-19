@@ -461,15 +461,18 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $user = auth()->user();
 
+        // Redmine's comments_sorting: the reader's choice of oldest or newest first.
+        $ordered = $user?->preference('comments_sorting') === 'desc' ? $this->issue->journals->reverse()->values() : $this->issue->journals;
+
         if ($user !== null && $user->can('viewPrivateNotes', $this->issue)) {
-            return $this->issue->journals;
+            return $ordered;
         }
 
         // A user can always see their own private notes, even without
         // view_private_notes — matching Redmine's Journal#visible?. A guest
         // (null $user) never has a "own" notes, so they only ever see
         // non-private journals.
-        return $this->issue->journals
+        return $ordered
             ->filter(fn (Journal $journal) => ! $journal->private_notes || ($user !== null && $journal->user_id === $user->id))
             ->values();
     }
@@ -1120,7 +1123,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @can('addNotes', $issue)
         <form wire:submit="addComment" class="space-y-2">
             <textarea wire:model="comment" rows="3" placeholder="コメントを追加"
-                class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+                class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user()) }} block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
             @error('comment') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
             @can('setNotesPrivate', $issue)
                 <label class="flex items-center gap-1.5 text-sm text-gray-700">

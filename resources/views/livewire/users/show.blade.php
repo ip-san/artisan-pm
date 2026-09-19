@@ -177,7 +177,9 @@ new #[Layout('components.layouts.app')] class extends Component
         <div>
             <ul class="mb-6 space-y-1 text-sm text-gray-700">
                 <li><span class="text-gray-500">ログインID:</span> {{ $user->login }}</li>
-                <li><span class="text-gray-500">メールアドレス:</span> {{ $user->email }}</li>
+                @if (! $user->preference('hide_mail') || auth()->id() === $user->id || auth()->user()?->is_admin)
+                    <li><span class="text-gray-500">メールアドレス:</span> {{ $user->email }}</li>
+                @endif
                 <li><span class="text-gray-500">登録日:</span> {{ $user->created_at?->format('Y-m-d') }}</li>
                 @if ($user->last_login_at)
                     <li><span class="text-gray-500">最終ログイン:</span> {{ $user->last_login_at->format('Y-m-d H:i') }}</li>

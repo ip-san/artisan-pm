@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Support\Preferences\UserPreferences;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
@@ -99,6 +100,7 @@ final class User extends Authenticatable implements OAuthenticatable
             'status' => UserStatus::class,
             'mail_notification' => MailNotificationOption::class,
             'no_self_notified' => 'boolean',
+            'preferences' => 'array',
         ];
     }
 
@@ -292,6 +294,15 @@ final class User extends Authenticatable implements OAuthenticatable
      * The key that authenticates this user's Atom feeds (`?key=`), created on
      * first use like Redmine's rss_key token.
      */
+    /**
+     * One personal option (Redmine's UserPreference), falling back to its
+     * default — see UserPreferences for the keys.
+     */
+    public function preference(string $key): mixed
+    {
+        return UserPreferences::get($this, $key);
+    }
+
     public function atomKey(): string
     {
         if ($this->atom_key === null) {

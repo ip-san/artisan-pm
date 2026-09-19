@@ -668,7 +668,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $message }}</div>
     @enderror
 
-    <form wire:submit="save" class="space-y-4">
+    <form wire:submit="save" class="space-y-4" {!! \App\Support\Preferences\UserPreferences::unsavedWarningAttributes(auth()->user()) !!}>
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700">トラッカー</label>
@@ -707,7 +707,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="block text-sm font-medium text-gray-700">説明</label>
                 <textarea wire:model="description" rows="4" @disabled($this->isReadOnly('description'))
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+                    class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user()) }} mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
                 <button type="button" wire:click="togglePreview"
                     class="mt-2 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
                     {{ $showPreview ? 'プレビューを閉じる' : 'プレビュー' }}
