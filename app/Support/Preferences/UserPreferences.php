@@ -55,6 +55,7 @@ final class UserPreferences
             'warn_on_leaving_unsaved' => true,
             'textarea_font' => '',
             'hide_mail' => (bool) Setting::get('default_users_hide_mail', false),
+            'notify_about_high_priority_issues' => false,
             'auto_watch_on' => self::validAutoWatch(Setting::get('default_users_auto_watch_on', self::DEFAULT_AUTO_WATCH_ON)),
             'default_issue_query' => null,
         ];
@@ -85,7 +86,7 @@ final class UserPreferences
         foreach ($values as $key => $value) {
             $clean[$key] = match ($key) {
                 'comments_sorting' => array_key_exists((string) $value, self::COMMENTS_SORTING) ? $value : 'asc',
-                'warn_on_leaving_unsaved', 'hide_mail' => (bool) $value,
+                'warn_on_leaving_unsaved', 'hide_mail', 'notify_about_high_priority_issues' => (bool) $value,
                 'textarea_font' => array_key_exists((string) $value, self::TEXTAREA_FONTS) ? (string) $value : '',
                 'auto_watch_on' => self::validAutoWatch($value),
                 'default_issue_query' => filled($value) ? (int) $value : null,

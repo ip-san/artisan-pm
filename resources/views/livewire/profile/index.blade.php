@@ -50,6 +50,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $hide_mail = false;
 
+    public bool $notify_about_high_priority_issues = false;
+
     /** @var array<int, string> */
     public array $auto_watch_on = [];
 
@@ -62,7 +64,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->mail_notification = auth()->user()->mail_notification->value;
         $this->no_self_notified = auth()->user()->no_self_notified;
 
-        foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'auto_watch_on', 'default_issue_query'] as $key) {
+        foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'notify_about_high_priority_issues', 'auto_watch_on', 'default_issue_query'] as $key) {
             $this->{$key} = auth()->user()->preference($key) ?? $this->{$key};
         }
     }
@@ -92,6 +94,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'warn_on_leaving_unsaved' => ['boolean'],
             'textarea_font' => ['nullable', Rule::in(array_keys(UserPreferences::TEXTAREA_FONTS))],
             'hide_mail' => ['boolean'],
+            'notify_about_high_priority_issues' => ['boolean'],
             'auto_watch_on' => ['array'],
             'auto_watch_on.*' => [Rule::in(array_keys(UserPreferences::AUTO_WATCH_ON))],
             'default_issue_query' => ['nullable', Rule::in($this->issueQueries->pluck('id')->all())],
@@ -454,6 +457,11 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" wire:model="hide_mail" class="rounded border-gray-300">
                 メールアドレスを他のユーザーに表示しない
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="notify_about_high_priority_issues" class="rounded border-gray-300">
+                優先度が既定より高い課題は、通知設定に関わらずメールで知らせる
             </label>
 
             <div>

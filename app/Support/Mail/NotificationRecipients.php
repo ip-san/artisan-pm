@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Support\Mail;
 
+use App\Enums\EnumerationType;
 use App\Enums\MailNotificationOption;
 use App\Enums\UserStatus;
+use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\News;
 use App\Models\Project;
@@ -70,9 +72,37 @@ final class NotificationRecipients
             };
         });
 
-        return $tiered->merge(self::forMentionedUsers($mentionedLogins, $actor))
+        return $tiered->merge(self::forHighPriorityIssue($issue, $actor))
+            ->merge(self::forMentionedUsers($mentionedLogins, $actor))
             ->unique('id')
             ->filter(fn (User $user) => $user->can('view', $issue))
+            ->values();
+    }
+
+    /**
+     * Redmine's notify_about_high_priority_issues: members who asked for it
+     * are told about every issue whose priority ranks above the default one,
+     * whatever their general notification setting says (even `none`). The
+     * caller still applies the visibility check, and the actor's own
+     * no_self_notified choice holds.
+     *
+     * @return Collection<int, User>
+     */
+    private static function forHighPriorityIssue(Issue $issue, User $actor): Collection
+    {
+        $defaultPosition = Enumeration::query()->ofType(EnumerationType::IssuePriority)->where('is_default', true)->value('position');
+        $priorityPosition = $issue->priority()->value('position');
+
+        if ($defaultPosition === null || $priorityPosition === null || $priorityPosition <= $defaultPosition) {
+            return collect();
+        }
+
+        return User::query()
+            ->whereIn('id', $issue->project->memberUserIds())
+            ->where('status', UserStatus::Active)
+            ->get()
+            ->filter(fn (User $user) => (bool) $user->preference('notify_about_high_priority_issues'))
+            ->reject(fn (User $user) => $user->id === $actor->id && $actor->no_self_notified)
             ->values();
     }
 

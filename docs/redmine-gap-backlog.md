@@ -165,7 +165,7 @@
 | 82 | A4-13 | — | M | done(2026-09-20、残りは A4-13b) |
 | 82b | A4-13b | A4-13 | S | todo |
 | 83 | A4-14 | A4-13 | S | done(2026-09-20、記載の「ウォッチャーにならない」は既存実装済み=個人設定化のみ) |
-| 84 | A6-05 | A4-13 | S | todo |
+| 84 | A6-05 | A4-13 | S | done(2026-09-20) |
 | 85 | A9-07 / A14-07 | A4-13 | S | todo |
 | 86 | A1-04 | A4-13 | M | todo |
 | 87 | A2-02 | A4-13 | S〜M | todo |
@@ -320,7 +320,7 @@
 | A4-11 | アバター(`gravatar_enabled`/`gravatar_default`)、Redmine 6.0 の添付アバター | なし(grep 0件) | Gravatar URL 生成ヘルパー+設定、課題詳細/Journal/メンバー一覧に表示 | — | S | 設定「表示」 |
 | A4-12 | ユーザーのタイムゾーン(`default_users_time_zone`、`users.time_zone`)と日付/時刻形式(`date_format`/`time_format`/`timespan_format`) | `config/app.php` の単一タイムゾーン。ユーザー列なし | ユーザー列+プロフィール選択、表示時に `Carbon::setTimezone()`。日付形式は設定で選択し Blade ヘルパーで統一 | A14-01(i18n)と同時に扱うのが効率的 | M | 設定「表示」 |
 | A4-13 | ユーザー個人設定(`UserPreference`): `comments_sorting`、`warn_on_leaving_unsaved`、`notify_about_high_priority_issues`、`textarea_font`、`recently_used_projects`、`history_default_tab`、`default_issue_query`/`default_project_query`、`auto_watch_on`(+設定 `default_users_auto_watch_on`)、`hide_mail`(+`default_users_hide_mail`) | `users` に `mail_notification`/`no_self_notified`/`language` のみ。設定基盤なし | `user_preferences` テーブル(または JSON 列)とプロフィール画面のセクション。各設定を消費する箇所(Journal 並び順、履歴既定タブ、自動ウォッチ、公開プロフィールのメール非表示)を配線 | A1-04、A2-02、A9-08 が依存 | M | 設定「ユーザー」 |
-| A4-13b | A4-13 の個人設定のうち未配線のもの: `notify_about_high_priority_issues`(高優先度の課題は通知設定に関わらず通知)、`history_default_tab`(課題履歴の既定タブ。本アプリに履歴タブなし)、`recently_used_projects`(最近使ったプロジェクトの数。プロジェクトジャンプボックスなし)、`default_project_query`(プロジェクト一覧の既定クエリ。プロジェクトの保存クエリなし) | `UserPreferences` に未定義 | 消費先が無い設定は、消費先の機能(履歴タブ・ジャンプボックス・プロジェクトクエリ)を作る行で同時に。`notify_about_high_priority_issues` は `NotificationRecipients::forIssue` に条件を足す | A4-13 で分離 | S | 設定「ユーザー」 |
+| A4-13b | A4-13 の個人設定のうち未配線のもの: ~~`notify_about_high_priority_issues`~~(A6-05 で実装済み)、`history_default_tab`(課題履歴の既定タブ。本アプリに履歴タブなし)、`recently_used_projects`(最近使ったプロジェクトの数。プロジェクトジャンプボックスなし)、`default_project_query`(プロジェクト一覧の既定クエリ。プロジェクトの保存クエリなし) | `UserPreferences` に未定義 | 消費先が無い設定は、消費先の機能(履歴タブ・ジャンプボックス・プロジェクトクエリ)を作る行で同時に。`notify_about_high_priority_issues` は `NotificationRecipients::forIssue` に条件を足す | A4-13 で分離 | S | 設定「ユーザー」 |
 | A4-14 | 自動ウォッチ(`auto_watch_on`: 作成した課題/コメントした課題を自動でウォッチ) | 作成者/担当者は通知対象だがウォッチャーにはならない | A4-13 の設定を見て `IssueService::create()`/コメント追加時に `Watcher` を作成 | — | S | Watchers「作成者/担当者の自動Watch」 |
 | A4-15 | グループ単位の 2FA 必須(`groups.twofa_required`) | `Group` に列なし。`User::mustActivateTwoFactor()` は値 1 を 0 と同等に扱う | 列+グループフォーム、`mustActivateTwoFactor()` に所属グループ判定を追加 | — | S | 「2FA必須設定」 |
 | A4-16 | ユーザー一覧のコンテキストメニュー(`context_menus/users`) | なし | 一括ロック/解除/削除/グループ追加 | A1-05 の共通部品を流用 | S | — (checklist 未掲載) |
