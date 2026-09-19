@@ -7,6 +7,7 @@ use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
 use Laravel\Passport\Passport;
@@ -133,6 +134,54 @@ test('a member with delete_issues can delete an issue via the api', function () 
     $this->deleteJson("/api/v1/issues/{$issue->id}")->assertNoContent();
 
     expect(Issue::find($issue->id))->toBeNull();
+});
+
+test('deleting an issue via the api keeps its time entries detached unless told otherwise', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'delete_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id]);
+
+    Passport::actingAs($user);
+
+    $this->deleteJson("/api/v1/issues/{$issue->id}")->assertNoContent();
+
+    expect($entry->fresh()->issue_id)->toBeNull();
+});
+
+test('the api delete accepts todo=destroy to remove the time entries too', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'delete_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id]);
+
+    Passport::actingAs($user);
+
+    $this->deleteJson("/api/v1/issues/{$issue->id}?todo=destroy")->assertNoContent();
+
+    expect(TimeEntry::find($entry->id))->toBeNull();
+});
+
+test('the api delete can reassign time entries and rejects a bad target or todo without deleting', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'delete_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+    $target = Issue::factory()->for($project)->create(apiIssueDefaults());
+    $foreign = Issue::factory()->for(Project::factory()->create())->create(apiIssueDefaults());
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id]);
+
+    Passport::actingAs($user);
+
+    $this->deleteJson("/api/v1/issues/{$issue->id}?todo=reassign")->assertUnprocessable();
+    $this->deleteJson("/api/v1/issues/{$issue->id}?todo=reassign&reassign_to_id={$foreign->id}")->assertUnprocessable();
+    $this->deleteJson("/api/v1/issues/{$issue->id}?todo=reassign&reassign_to_id={$issue->id}")->assertUnprocessable();
+    $this->deleteJson("/api/v1/issues/{$issue->id}?todo=explode")->assertUnprocessable();
+    expect(Issue::find($issue->id))->not->toBeNull();
+
+    $this->deleteJson("/api/v1/issues/{$issue->id}?todo=reassign&reassign_to_id={$target->id}")->assertNoContent();
+
+    expect($entry->fresh()->issue_id)->toBe($target->id)
+        ->and(Issue::find($issue->id))->toBeNull();
 });
 
 test('deleting an issue via the api requires delete_issues permission', function () {

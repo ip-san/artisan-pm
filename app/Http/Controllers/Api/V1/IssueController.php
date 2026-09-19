@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\IssueTimeEntryDisposition;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreIssueRequest;
 use App\Http\Requests\Api\V1\UpdateIssueRequest;
@@ -21,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 final class IssueController extends Controller
 {
@@ -102,11 +104,26 @@ final class IssueController extends Controller
         return new IssueResource($issue);
     }
 
-    public function destroy(Issue $issue): JsonResponse
+    /**
+     * Redmine's `todo` / `reassign_to_id` parameters choose what happens to
+     * the issue's logged time. Omitting `todo` keeps the entries detached
+     * from any issue (see IssueService::delete() for why that differs from
+     * Redmine's delete-them default).
+     */
+    public function destroy(Request $request, Issue $issue): JsonResponse
     {
         Gate::authorize('delete', $issue);
 
-        app(IssueService::class)->delete($issue);
+        $data = $request->validate([
+            'todo' => ['nullable', Rule::enum(IssueTimeEntryDisposition::class)],
+            'reassign_to_id' => ['nullable', 'integer'],
+        ]);
+
+        app(IssueService::class)->delete(
+            $issue,
+            IssueTimeEntryDisposition::tryFrom($data['todo'] ?? '') ?? IssueTimeEntryDisposition::Nullify,
+            isset($data['reassign_to_id']) ? (int) $data['reassign_to_id'] : null,
+        );
 
         return response()->json(status: 204);
     }

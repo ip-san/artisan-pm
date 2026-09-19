@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CustomFieldFormat;
+use App\Enums\IssueTimeEntryDisposition;
 use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\IssueRelation;
@@ -552,11 +553,36 @@ new #[Layout('components.layouts.app')] class extends Component
         $media->save();
     }
 
+    public bool $confirmingDelete = false;
+
+    public string $timeEntryTodo = 'nullify';
+
+    public string $reassignToId = '';
+
+    /**
+     * Hours logged directly against this issue — when there are any, the
+     * delete confirmation asks what to do with them (Redmine's
+     * issues/destroy.html.erb).
+     */
+    #[Computed]
+    public function loggedHoursForDeletion(): float
+    {
+        return $this->issue->spentHours();
+    }
+
     public function deleteIssue(): void
     {
         $this->authorize('delete', $this->issue);
 
-        app(IssueService::class)->delete($this->issue);
+        $disposition = $this->loggedHoursForDeletion > 0
+            ? IssueTimeEntryDisposition::from($this->timeEntryTodo)
+            : IssueTimeEntryDisposition::Nullify;
+
+        app(IssueService::class)->delete(
+            $this->issue,
+            $disposition,
+            $this->reassignToId !== '' ? (int) $this->reassignToId : null,
+        );
 
         $this->redirect(route('issues.index', $this->project), navigate: true);
     }
@@ -658,13 +684,54 @@ new #[Layout('components.layouts.app')] class extends Component
                 </a>
             @endcan
             @can('delete', $issue)
-                <button wire:click="deleteIssue" wire:confirm="この課題を削除しますか?この操作は取り消せません。"
-                    class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
-                    削除
-                </button>
+                @if ($this->loggedHoursForDeletion > 0)
+                    <button wire:click="$set('confirmingDelete', true)"
+                        class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
+                        削除
+                    </button>
+                @else
+                    <button wire:click="deleteIssue" wire:confirm="この課題を削除しますか?この操作は取り消せません。"
+                        class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
+                        削除
+                    </button>
+                @endif
             @endcan
         </div>
     </div>
+
+    @if ($confirmingDelete && $this->loggedHoursForDeletion > 0)
+        @can('delete', $issue)
+            <form wire:submit="deleteIssue" class="mb-6 space-y-3 rounded-md border border-red-200 bg-red-50 p-4">
+                <p class="text-sm font-medium text-red-800">
+                    この課題には {{ rtrim(rtrim(number_format($this->loggedHoursForDeletion, 2), '0'), '.') }} 時間の作業時間が記録されています。削除する課題の作業時間をどうしますか?
+                </p>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="radio" wire:model.live="timeEntryTodo" value="nullify">
+                    課題との紐付けを外してプロジェクトに残す
+                </label>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="radio" wire:model.live="timeEntryTodo" value="destroy">
+                    作業時間も一緒に削除する
+                </label>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="radio" wire:model.live="timeEntryTodo" value="reassign">
+                    このプロジェクトの別の課題へ付け替える: #
+                    <input type="number" min="1" wire:model="reassignToId" wire:focus="$set('timeEntryTodo', 'reassign')"
+                        class="w-24 rounded-md border-gray-300 text-sm">
+                </label>
+                @error('reassign_to_id') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+                <div class="flex gap-2">
+                    <button type="submit" class="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500">
+                        削除する
+                    </button>
+                    <button type="button" wire:click="$set('confirmingDelete', false)"
+                        class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        キャンセル
+                    </button>
+                </div>
+            </form>
+        @endcan
+    @endif
 
     @can('move', $issue)
         @if ($this->moveTargetProjects->isNotEmpty())

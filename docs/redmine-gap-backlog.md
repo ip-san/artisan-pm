@@ -63,6 +63,8 @@
 | 2a | A1-32 | A1-23 | S | todo |
 | 2b | A1-33 | A1-23 | S | todo |
 | A5-16b | `default_issue_start_date_to_creation_date` を REST API 課題作成(`IssuesController#build_new_issue_from_params`)と受信メール課題作成(`mail_handler.rb:216`)にも適用 | A5-16 で Web フォームのみ設定化。API/メールは開始日を補完しない | 設定オン時に両経路で `start_date ??= today` | 設定の既定がオンのため、適用すると既存 API クライアント/メールの挙動が変わる。**適用前にユーザーへ確認**(または既定オフに変更) | S | Issues本体「担当者『自分』ショートカット・既定開始/期日」 |
+| A1-34 | 親課題を削除すると子孫も削除される(Redmine: `acts_as_nested_set :dependent => :destroy`、`issues_controller.rb:434` の `self_and_descendants`。工数の確認対象も子孫を含む) | 本アプリは子課題を `parent_id` NULL 化して最上位に残す(`IssueDeletionTest` 'orphans its children'、チェックリスト「課題削除」に意図的とある) | 削除時に子孫を再帰削除し、工数の合計/付替対象を子孫分まで含める。削除確認に「N 件のサブタスクも削除されます」を表示 | **データ削除の意味が変わる**ため要承認。既存テストの期待値を反転する | S〜M | Issues本体「課題削除」 |
+| A1-35 | 一括削除の確認画面での工数の扱い(`todo`、複数プロジェクト選択時は付替なし) | `issues/index.blade.php` の一括削除は `IssueService::delete()` を既定(nullify)で呼ぶのみ | 一括削除にも A1-09 と同じ選択肢を追加(選択課題の工数合計を表示、単一プロジェクトのときだけ付替を許可、付替先は選択課題以外) | A1-09 完了が前提 | S | Issues本体「課題削除」 |
 | A1-33 | REST API `PUT /projects/{id}` での `default_version_id` / `default_assigned_to_id` の更新(Redmine の `safe_attributes`、`project.rb:839-841`) | A1-23 で読み取り(`default_version`/`default_assignee`)のみ実装。`UpdateProjectRequest` に規則なし | 両フィールドを追加し、Web フォームと同じ選択肢(オープンな共有バージョン/割当可能メンバー)で検証 | A1-23 完了が前提 | S | REST API「Projects」 |
 | 3 | A1-24 | (取り下げ)トラッカーの `is_in_chlog` | — | Redmine 7.0.0 で廃止済み(`db/migrate/20210728131544_drop_is_in_chlog_column.rb`、`app/` に使用箇所なし)。作業不要 | 機械照合が古いマイグレーションの `add_column` だけを見て、後続の `drop` を見落としていた | — | Trackers 節(C-18) |
 | 4 | A3-04 | — | S | done(2026-09-20) |
@@ -73,7 +75,9 @@
 | 8a | A5-16b | A5-16 | S | blocked(要承認: 既存 API/メールの挙動が変わる。設定の既定をオフにするか、適用してよいか) |
 | 9 | A5-02 / A9-05 | — | S | done(2026-09-20) |
 | 10 | A5-03 | — | S | done(2026-09-20) |
-| 11 | A1-09 | — | S | todo |
+| 11 | A1-09 | — | S | done(2026-09-20) |
+| 11a | A1-35 | A1-09 | S | todo |
+| 11b | A1-34 | A1-09 | S〜M | blocked(要承認: 子課題の再帰削除に挙動変更、既存の意図的仕様を覆す) |
 | 12 | A1-30 | — | S | todo |
 | 13 | A9-02 | — | S | todo |
 | 14 | A10-04 | — | S | todo |

@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\EnumerationType;
 use App\Enums\IssueRelationType;
+use App\Enums\IssueTimeEntryDisposition;
 use App\Enums\UserStatus;
 use App\Events\IssueCreated;
 use App\Events\IssueDeleted;
@@ -25,6 +26,8 @@ use App\Models\Watcher;
 use App\Support\Mail\MentionParser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
@@ -84,11 +87,54 @@ final class IssueService
      * leave those attributes readable in PHP, but there's no reason to
      * rely on that.
      */
-    public function delete(Issue $issue): void
-    {
+    /**
+     * $timeEntries mirrors Redmine's `todo` choice for the issue's logged
+     * time. Redmine defaults its confirmation form to deleting the entries;
+     * this app has always kept them (detached), so Nullify stays the
+     * default for every caller that doesn't ask — a deliberate, data-safe
+     * difference. Reassign moves them to $reassignToIssueId, which must be
+     * a different issue of the same project (Redmine looks it up through
+     * `@project.issues`).
+     *
+     * @throws ValidationException when reassigning to a missing/foreign issue or the issue itself
+     */
+    public function delete(
+        Issue $issue,
+        IssueTimeEntryDisposition $timeEntries = IssueTimeEntryDisposition::Nullify,
+        ?int $reassignToIssueId = null,
+    ): void {
+        $reassignTo = null;
+
+        if ($timeEntries === IssueTimeEntryDisposition::Reassign) {
+            $reassignTo = $reassignToIssueId === null
+                ? null
+                : Issue::query()->where('project_id', $issue->project_id)->find($reassignToIssueId);
+
+            if ($reassignTo === null) {
+                throw ValidationException::withMessages(['reassign_to_id' => 'このプロジェクトに存在する課題を指定してください。']);
+            }
+
+            if ($reassignTo->is($issue)) {
+                throw ValidationException::withMessages(['reassign_to_id' => '削除する課題自身には付け替えできません。']);
+            }
+        }
+
+        // Dispatched before anything is removed so listeners (the webhook
+        // payload builder) still see a fully intact issue.
         IssueDeleted::dispatch($issue);
 
-        $issue->delete();
+        DB::transaction(function () use ($issue, $timeEntries, $reassignTo) {
+            match ($timeEntries) {
+                IssueTimeEntryDisposition::Destroy => $issue->timeEntries()->delete(),
+                IssueTimeEntryDisposition::Nullify => $issue->timeEntries()->update(['issue_id' => null]),
+                IssueTimeEntryDisposition::Reassign => $issue->timeEntries()->update([
+                    'issue_id' => $reassignTo->id,
+                    'project_id' => $reassignTo->project_id,
+                ]),
+            };
+
+            $issue->delete();
+        });
     }
 
     /**
