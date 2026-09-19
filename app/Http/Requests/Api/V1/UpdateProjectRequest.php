@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api\V1;
 
 use App\Enums\ProjectModuleKey;
+use App\Enums\VersionStatus;
 use App\Models\Project;
+use App\Models\Version;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -78,6 +80,19 @@ final class UpdateProjectRequest extends FormRequest
             'tracker_ids.*' => ['exists:trackers,id'],
             'modules' => ['sometimes', 'array'],
             'modules.*' => [Rule::in(array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::cases()))],
+            // The same choices the project form offers (Redmine's
+            // safe_attributes): an open shared version, or a member who can be
+            // assigned issues — or the value the project already has, so an
+            // unrelated update never trips on a since-closed default. null
+            // clears it.
+            'default_version_id' => ['nullable', 'integer', Rule::in(array_filter([
+                ...$project->sharedVersions()->filter(fn (Version $version) => $version->status === VersionStatus::Open)->pluck('id')->all(),
+                $project->default_version_id,
+            ]))],
+            'default_assigned_to_id' => ['nullable', 'integer', Rule::in(array_filter([
+                ...$project->assignableUsers()->pluck('id')->all(),
+                $project->default_assigned_to_id,
+            ]))],
         ];
     }
 }

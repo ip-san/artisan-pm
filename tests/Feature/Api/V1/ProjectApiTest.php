@@ -359,3 +359,71 @@ test('the project payload has null defaults when none are set', function () {
         ->assertJsonPath('data.default_version', null)
         ->assertJsonPath('data.default_assignee', null);
 });
+
+function projectDefaultsSetup(): array
+{
+    $project = Project::factory()->create();
+    $admin = User::factory()->admin()->create();
+    $member = User::factory()->create();
+    Member::factory()->for($project)->for($member)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues'], 'assignable' => true]));
+
+    return [$project, $admin, $member];
+}
+
+test('the API can set and clear the default version and assignee', function () {
+    [$project, $admin, $member] = projectDefaultsSetup();
+    $version = Version::factory()->for($project)->create(['name' => '3.0']);
+
+    Passport::actingAs($admin);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['default_version_id' => $version->id, 'default_assigned_to_id' => $member->id])
+        ->assertOk()
+        ->assertJsonPath('data.default_version', ['id' => $version->id, 'name' => '3.0'])
+        ->assertJsonPath('data.default_assignee.id', $member->id);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['default_version_id' => null, 'default_assigned_to_id' => null])
+        ->assertOk()
+        ->assertJsonPath('data.default_version', null)
+        ->assertJsonPath('data.default_assignee', null);
+});
+
+test('the API refuses a closed or foreign version and a non-assignable user', function () {
+    [$project, $admin] = projectDefaultsSetup();
+    $closed = Version::factory()->for($project)->create(['status' => App\Enums\VersionStatus::Closed]);
+    $foreign = Version::factory()->for(Project::factory()->create())->create();
+    $outsider = User::factory()->create();
+    $nonAssignable = User::factory()->create();
+    Member::factory()->for($project)->for($nonAssignable)->create()->roles()->attach(Role::factory()->create(['permissions' => [], 'assignable' => false]));
+
+    Passport::actingAs($admin);
+
+    foreach (['default_version_id' => [$closed->id, $foreign->id], 'default_assigned_to_id' => [$outsider->id, $nonAssignable->id]] as $field => $invalidIds) {
+        foreach ($invalidIds as $id) {
+            $this->putJson("/api/v1/projects/{$project->id}", [$field => $id])->assertUnprocessable();
+        }
+    }
+
+    expect($project->fresh()->default_version_id)->toBeNull()
+        ->and($project->fresh()->default_assigned_to_id)->toBeNull();
+});
+
+test('an unrelated update keeps a default version that has since been closed', function () {
+    [$project, $admin] = projectDefaultsSetup();
+    $version = Version::factory()->for($project)->create(['status' => App\Enums\VersionStatus::Closed]);
+    $project->update(['default_version_id' => $version->id]);
+
+    Passport::actingAs($admin);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['default_version_id' => $version->id, 'description' => 'edited'])->assertOk();
+
+    expect($project->fresh()->default_version_id)->toBe($version->id);
+});
+
+test('a non-string default id is rejected', function () {
+    [$project, $admin] = projectDefaultsSetup();
+
+    Passport::actingAs($admin);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['default_version_id' => 'abc'])->assertUnprocessable();
+    $this->putJson("/api/v1/projects/{$project->id}", ['default_assigned_to_id' => ['x']])->assertUnprocessable();
+});
