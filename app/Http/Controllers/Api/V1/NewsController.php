@@ -8,7 +8,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreNewsRequest;
 use App\Http\Requests\Api\V1\UpdateNewsRequest;
 use App\Http\Resources\Api\V1\NewsResource;
+use App\Events\NewsCommentCreated;
+use App\Http\Resources\Api\V1\NewsCommentResource;
 use App\Models\News;
+use App\Models\NewsComment;
 use App\Models\Project;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,8 +21,8 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Project-nested index/store, plus Redmine's project-less GET /news.json
  * (globalIndex), which lists news of every project the caller may view
- * news in, newest first. Redmine's news comments are not part of this API;
- * only comments_count is reported.
+ * news in, newest first, and Redmine's comment endpoints (storeComment /
+ * destroyComment).
  */
 final class NewsController extends Controller
 {
@@ -78,6 +81,41 @@ final class NewsController extends Controller
         $news->save();
 
         return (new NewsResource($news->loadCount('comments')))->response()->setStatusCode(201);
+    }
+
+    /**
+     * POST /news/{news}/comments — needs comment_news, like the web form.
+     */
+    public function storeComment(Request $request, News $news): JsonResponse
+    {
+        Gate::authorize('comment', $news);
+
+        $data = $request->validate(['content' => ['required', 'string']]);
+
+        $comment = NewsComment::create([
+            'news_id' => $news->id,
+            'author_id' => $request->user()->id,
+            'content' => $data['content'],
+        ]);
+
+        NewsCommentCreated::dispatch($comment);
+
+        return (new NewsCommentResource($comment))->response()->setStatusCode(201);
+    }
+
+    /**
+     * DELETE /news/{news}/comments/{comment} — manage_news, as in Redmine;
+     * a comment is only reachable through its own news item.
+     */
+    public function destroyComment(News $news, NewsComment $comment): JsonResponse
+    {
+        abort_unless($comment->news_id === $news->id, 404);
+
+        Gate::authorize('delete', $comment);
+
+        $comment->delete();
+
+        return response()->json(status: 204);
     }
 
     public function update(UpdateNewsRequest $request, News $news): NewsResource

@@ -252,3 +252,77 @@ test('the global index reports comment counts without per-row queries', function
 
     expect($queries)->toBeLessThan(15);
 });
+
+test('a member with comment_news can comment on a news item through the api', function () {
+    Illuminate\Support\Facades\Event::fake([App\Events\NewsCommentCreated::class]);
+    $project = Project::factory()->create();
+    $user = apiNewsMember($project, ['view_news', 'comment_news']);
+    $news = News::factory()->for($project)->create();
+
+    Passport::actingAs($user);
+
+    $response = $this->postJson("/api/v1/news/{$news->id}/comments", ['content' => 'Nice announcement'])
+        ->assertCreated()
+        ->assertJsonPath('data.content', 'Nice announcement')
+        ->assertJsonPath('data.author_id', $user->id)
+        ->assertJsonPath('data.news_id', $news->id);
+
+    expect(App\Models\NewsComment::query()->whereKey($response->json('data.id'))->exists())->toBeTrue();
+    Illuminate\Support\Facades\Event::assertDispatched(App\Events\NewsCommentCreated::class);
+});
+
+test('commenting needs comment_news and a non-empty content', function () {
+    $project = Project::factory()->create();
+    $reader = apiNewsMember($project, ['view_news']);
+    $commenter = apiNewsMember($project, ['view_news', 'comment_news']);
+    $outsider = User::factory()->create();
+    $news = News::factory()->for($project)->create();
+
+    Passport::actingAs($reader);
+    $this->postJson("/api/v1/news/{$news->id}/comments", ['content' => 'x'])->assertForbidden();
+
+    Passport::actingAs($outsider);
+    $this->postJson("/api/v1/news/{$news->id}/comments", ['content' => 'x'])->assertForbidden();
+
+    Passport::actingAs($commenter);
+    $this->postJson("/api/v1/news/{$news->id}/comments", ['content' => ''])->assertUnprocessable();
+    $this->postJson("/api/v1/news/{$news->id}/comments", [])->assertUnprocessable();
+
+    expect(App\Models\NewsComment::query()->count())->toBe(0);
+});
+
+test('a member with manage_news can delete a comment and comment authors get no special right', function () {
+    $project = Project::factory()->create();
+    $manager = apiNewsMember($project, ['view_news', 'manage_news']);
+    $author = apiNewsMember($project, ['view_news', 'comment_news']);
+    $news = News::factory()->for($project)->create();
+    $comment = App\Models\NewsComment::factory()->create(['news_id' => $news->id, 'author_id' => $author->id]);
+
+    Passport::actingAs($author);
+    $this->deleteJson("/api/v1/news/{$news->id}/comments/{$comment->id}")->assertForbidden();
+    expect(App\Models\NewsComment::query()->whereKey($comment->id)->exists())->toBeTrue();
+
+    Passport::actingAs($manager);
+    $this->deleteJson("/api/v1/news/{$news->id}/comments/{$comment->id}")->assertNoContent();
+    expect(App\Models\NewsComment::query()->whereKey($comment->id)->exists())->toBeFalse();
+});
+
+test('a comment can only be deleted through its own news item', function () {
+    $project = Project::factory()->create();
+    $manager = apiNewsMember($project, ['view_news', 'manage_news']);
+    $news = News::factory()->for($project)->create();
+    $otherNews = News::factory()->for($project)->create();
+    $comment = App\Models\NewsComment::factory()->create(['news_id' => $otherNews->id]);
+
+    Passport::actingAs($manager);
+
+    $this->deleteJson("/api/v1/news/{$news->id}/comments/{$comment->id}")->assertNotFound();
+    expect(App\Models\NewsComment::query()->whereKey($comment->id)->exists())->toBeTrue();
+});
+
+test('comment endpoints need authentication', function () {
+    $news = News::factory()->create();
+
+    $this->postJson("/api/v1/news/{$news->id}/comments", ['content' => 'x'])->assertUnauthorized();
+    $this->deleteJson("/api/v1/news/{$news->id}/comments/1")->assertUnauthorized();
+});

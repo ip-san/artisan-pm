@@ -113,6 +113,8 @@ Route::middleware(['rest-api.enabled', 'auth:api,api-key'])->group(function () {
     Route::get('/projects/{project}/news', [NewsController::class, 'index'])->name('api.news.index');
     Route::post('/projects/{project}/news', [NewsController::class, 'store'])->name('api.news.store');
     Route::get('/news/{news}', [NewsController::class, 'show'])->name('api.news.show');
+    Route::post('/news/{news}/comments', [NewsController::class, 'storeComment'])->name('api.news.comments.store');
+    Route::delete('/news/{news}/comments/{comment}', [NewsController::class, 'destroyComment'])->name('api.news.comments.destroy');
     Route::put('/news/{news}', [NewsController::class, 'update'])->name('api.news.update');
     Route::delete('/news/{news}', [NewsController::class, 'destroy'])->name('api.news.destroy');
 
