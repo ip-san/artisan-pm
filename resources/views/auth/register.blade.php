@@ -45,6 +45,10 @@
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
             </div>
 
+            @foreach (\App\Actions\Fortify\CreateNewUser::registrationCustomFields() as $customField)
+                <x-registration-custom-field :field="$customField" />
+            @endforeach
+
             <button type="submit"
                 class="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
                 登録

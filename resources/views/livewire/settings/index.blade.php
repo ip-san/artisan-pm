@@ -256,6 +256,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $self_registration = 'automatic';
 
+    public bool $show_custom_fields_on_registration = false;
+
     public bool $unsubscribe = true;
 
     public int $session_timeout = 0;
@@ -321,6 +323,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('manage', Setting::class);
 
         $this->self_registration = Setting::get('self_registration', 'automatic');
+        $this->show_custom_fields_on_registration = (bool) Setting::get('show_custom_fields_on_registration', false);
         $this->unsubscribe = Setting::get('unsubscribe', true);
         $this->session_timeout = Setting::get('session_timeout', 0);
         $this->session_lifetime = Setting::get('session_lifetime', 0);
@@ -615,6 +618,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'issue_list_default_columns.*' => [Rule::in(array_keys(self::ISSUE_LIST_COLUMNS))],
             'start_of_week' => ['required', Rule::in([0, 1, 6])],
             'self_registration' => ['required', 'in:disabled,manual,email,automatic'],
+            'show_custom_fields_on_registration' => ['boolean'],
             'unsubscribe' => ['boolean'],
             'session_timeout' => ['required', Rule::in([0, 60, 120, 240, 480, 720, 1440, 2880])],
             'session_lifetime' => ['required', Rule::in([0, 240, 480, 720, 1440, 10080, 43200, 86400, 525600])],
@@ -1103,6 +1107,10 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="automatic">自動的に有効化</option>
                 </select>
                 @error('self_registration') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="show_custom_fields_on_registration" @disabled($self_registration === 'disabled') class="rounded border-gray-300">
+                    登録フォームにユーザーのカスタムフィールドを表示する(必須の項目は常に表示)
+                </label>
             </div>
 
             <div>

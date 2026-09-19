@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Actions\Fortify;
 
 use App\Enums\UserStatus;
+use App\Enums\CustomizableType;
+use App\Models\CustomField;
 use App\Models\Setting;
 use App\Models\User;
 use App\Rules\AllowedEmailDomain;
 use App\Rules\UniqueUserValueIgnoringCase;
 use App\Notifications\ConfirmAccountRegistration;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
@@ -20,6 +23,25 @@ use Laravel\Fortify\Contracts\CreatesNewUsers;
 final class CreateNewUser implements CreatesNewUsers
 {
     use PasswordValidationRules;
+
+    /**
+     * The user custom fields the registration form asks for: the required
+     * ones always, the editable ones too when show_custom_fields_on_registration
+     * is on (Redmine's account/register rule).
+     *
+     * @return Collection<int, CustomField>
+     */
+    public static function registrationCustomFields(): Collection
+    {
+        $showAll = (bool) Setting::get('show_custom_fields_on_registration', false);
+
+        return CustomField::query()
+            ->where('customized_type', CustomizableType::User)
+            ->orderBy('position')
+            ->get()
+            ->filter(fn (CustomField $field) => $field->is_required || ($showAll && $field->editable))
+            ->values();
+    }
 
     /**
      * Validate and create a newly registered user.
@@ -48,7 +70,11 @@ final class CreateNewUser implements CreatesNewUsers
             ]);
         }
 
-        Validator::make($input, [
+        $customFields = self::registrationCustomFields();
+        $customFieldInput = collect($input['custom_fields'] ?? [])->only($customFields->pluck('id')->all())->all();
+
+        Validator::make([...$input, 'customFieldValues' => $customFieldInput], [
+            ...CustomField::formValidationRules($customFields),
             'name' => ['required', 'string', 'max:255'],
             'login' => ['required', 'string', 'max:'.User::LOGIN_LENGTH_LIMIT, 'regex:'.User::LOGIN_FORMAT_REGEX, new UniqueUserValueIgnoringCase('login')],
             'email' => [
@@ -73,6 +99,8 @@ final class CreateNewUser implements CreatesNewUsers
             // whenever it isn't explicitly given at creation time.
             'no_self_notified' => Setting::get('default_users_no_self_notified', true),
         ]);
+
+        $user->setCustomFieldValues($customFieldInput);
 
         if ($mode === 'email') {
             // 1 day, matching Redmine's Token.validity_time default for
