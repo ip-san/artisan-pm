@@ -45,6 +45,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $is_filter = true;
 
+    public string $description = '';
+
     public bool $editable = true;
 
     public string $possibleValuesText = '';
@@ -80,6 +82,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->default_value_mode = $customField->default_value_mode?->value ?? 'fixed_date';
             $this->searchable = $customField->searchable;
             $this->is_filter = $customField->is_filter;
+            $this->description = (string) $customField->description;
             $this->editable = $customField->editable;
             $this->possibleValuesText = implode("\n", $customField->possible_values ?? []);
             $this->enumerationOptions = $customField->enumerationOptions
@@ -279,6 +282,7 @@ new #[Layout('components.layouts.app')] class extends Component
             },
             'searchable' => ['boolean'],
             'is_filter' => ['boolean'],
+            'description' => ['nullable', 'string', 'max:2000'],
             'editable' => ['boolean'],
             'trackerIds' => $isForIssues ? ['required', 'array', 'min:1'] : ['array'],
             'trackerIds.*' => ['exists:trackers,id'],
@@ -314,6 +318,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_value_mode' => $fieldFormat === CustomFieldFormat::Date->value ? $data['default_value_mode'] : null,
             'searchable' => $data['searchable'],
             'is_filter' => $data['is_filter'],
+            'description' => ($data['description'] ?? '') !== '' ? $data['description'] : null,
             'editable' => $data['editable'],
             'possible_values' => $possibleValues,
         ];
@@ -352,6 +357,13 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="block text-sm font-medium text-gray-700">名前</label>
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">説明(任意)</label>
+            <textarea wire:model="description" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+            <p class="mt-1 text-xs text-gray-500">入力欄の下に補足として表示されます。</p>
+            @error('description') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
         <div>

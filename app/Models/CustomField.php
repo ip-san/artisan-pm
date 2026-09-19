@@ -21,7 +21,7 @@ use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
 
 #[Fillable([
-    'name', 'field_format', 'customized_type', 'is_required', 'multiple',
+    'name', 'description', 'field_format', 'customized_type', 'is_required', 'multiple',
     'searchable', 'is_filter', 'editable', 'default_value', 'default_value_mode', 'min_length', 'max_length', 'regexp', 'ratio_interval',
     'possible_values', 'position',
 ])]

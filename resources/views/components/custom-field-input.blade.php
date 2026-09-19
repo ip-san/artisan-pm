@@ -6,6 +6,9 @@
         {{ $field->name }}
         @if ($required)<span class="text-red-500">*</span>@endif
     </label>
+    @if ($field->description)
+        <p class="text-xs text-gray-500">{{ $field->description }}</p>
+    @endif
 
     @if ($field->field_format === \App\Enums\CustomFieldFormat::Bool)
         <input type="checkbox" wire:model="{{ $path }}" @disabled($disabled) class="mt-1 rounded border-gray-300">

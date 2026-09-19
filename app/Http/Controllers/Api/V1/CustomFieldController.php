@@ -25,7 +25,7 @@ final class CustomFieldController extends Controller
         Gate::authorize('viewAny', CustomField::class);
 
         $fields = CustomField::query()
-            ->with(['trackers', 'roles'])
+            ->with(['trackers', 'roles', 'projects'])
             ->orderBy('customized_type')
             ->orderBy('position')
             ->get();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources\Api\V1;
 
+use App\Enums\CustomizableType;
 use App\Models\CustomField;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -36,15 +37,18 @@ final class CustomFieldResource extends JsonResource
         return [
             'id' => $field->id,
             'name' => $field->name,
+            'description' => $field->description,
             'customized_type' => $field->customized_type->value,
             'field_format' => $field->field_format->value,
             'regexp' => $field->regexp,
             'min_length' => $field->min_length,
             'max_length' => $field->max_length,
             'is_required' => $field->is_required,
+            'is_for_all' => $field->projects->isEmpty(),
             'searchable' => $field->searchable,
             'is_filter' => $field->is_filter,
             'multiple' => $field->multiple,
+            'visible' => $field->roles->isEmpty(),
             'editable' => $field->editable,
             'default_value' => $field->default_value,
             'default_value_mode' => $field->default_value_mode?->value,
@@ -54,6 +58,16 @@ final class CustomFieldResource extends JsonResource
                 ->all(),
             'tracker_ids' => $field->trackers->pluck('id')->all(),
             'role_ids' => $field->roles->pluck('id')->all(),
+            // Redmine's {id, name} object arrays: projects and trackers only
+            // for issue fields, roles for the types that can restrict by
+            // role. The *_ids arrays above stay for existing clients.
+            ...($field->customized_type === CustomizableType::Issue ? [
+                'projects' => $field->projects->map(fn ($project) => ['id' => $project->id, 'name' => $project->name])->values()->all(),
+                'trackers' => $field->trackers->map(fn ($tracker) => ['id' => $tracker->id, 'name' => $tracker->name])->values()->all(),
+            ] : []),
+            ...(in_array($field->customized_type, [CustomizableType::Issue, CustomizableType::Project, CustomizableType::Version], true) ? [
+                'roles' => $field->roles->map(fn ($role) => ['id' => $role->id, 'name' => $role->name])->values()->all(),
+            ] : []),
         ];
     }
 }
