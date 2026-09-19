@@ -84,6 +84,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private const array JOURNAL_RELATIONS = [
         'journals.user',
+        'journals.updatedBy',
         'journals.details',
         'journals.reactions',
         'journals.issue.project',
@@ -401,6 +402,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $editingJournalNotes = '';
 
+    public bool $editingJournalPrivate = false;
+
     public function startEditingJournal(int $journalId): void
     {
         $journal = $this->issue->journals->firstWhere('id', $journalId);
@@ -413,11 +416,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->editingJournalId = $journalId;
         $this->editingJournalNotes = (string) $journal->notes;
+        $this->editingJournalPrivate = $journal->private_notes;
     }
 
     public function cancelEditingJournal(): void
     {
-        $this->reset('editingJournalId', 'editingJournalNotes');
+        $this->reset('editingJournalId', 'editingJournalNotes', 'editingJournalPrivate');
     }
 
     /**
@@ -435,9 +439,17 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data = $this->validate(['editingJournalNotes' => ['nullable', 'string']]);
 
-        $journal->update(['notes' => $data['editingJournalNotes'] ?? '']);
+        $attributes = ['notes' => $data['editingJournalNotes'] ?? '', 'updated_by_id' => auth()->id()];
 
-        $this->reset('editingJournalId', 'editingJournalNotes');
+        // Redmine's `private_notes` safe attribute: only someone holding
+        // set_notes_private may flip it; for anyone else it is left alone.
+        if (auth()->user()->can('setNotesPrivate', $this->issue)) {
+            $attributes['private_notes'] = $this->editingJournalPrivate;
+        }
+
+        $journal->update($attributes);
+
+        $this->reset('editingJournalId', 'editingJournalNotes', 'editingJournalPrivate');
         $this->reloadJournals();
     }
 
@@ -1143,7 +1155,9 @@ new #[Layout('components.layouts.app')] class extends Component
                         @if ($journal->private_notes)
                             <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-amber-700">非公開</span>
                         @endif
-                        @if ($journal->notes && ! $journal->updated_at->equalTo($journal->created_at))
+                        @if ($journal->notes && $journal->updatedBy !== null)
+                            <span class="ml-1 italic" data-journal-edited>({{ $journal->updatedBy->name }} が編集 {{ $journal->updated_at->format('Y-m-d H:i') }})</span>
+                        @elseif ($journal->notes && ! $journal->updated_at->equalTo($journal->created_at))
                             <span class="ml-1 italic">(編集済み)</span>
                         @endif
                     </div>
@@ -1169,6 +1183,12 @@ new #[Layout('components.layouts.app')] class extends Component
                             <div class="mt-1 space-y-1">
                                 <textarea wire:model="editingJournalNotes" rows="3" class="block w-full rounded-md border-gray-300 text-sm shadow-sm"></textarea>
                                 @error('editingJournalNotes') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                                @can('setNotesPrivate', $issue)
+                                    <label class="flex items-center gap-1.5 text-xs text-gray-700">
+                                        <input type="checkbox" wire:model="editingJournalPrivate" class="rounded border-gray-300">
+                                        非公開コメントにする
+                                    </label>
+                                @endcan
                                 <div class="flex gap-2">
                                     <button wire:click="saveJournalEdit" class="text-xs text-indigo-600 hover:underline">保存</button>
                                     <button wire:click="cancelEditingJournal" class="text-xs text-gray-500 hover:underline">キャンセル</button>

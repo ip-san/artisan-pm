@@ -25,7 +25,13 @@ final class JournalController extends Controller
 {
     public function update(UpdateJournalRequest $request, Journal $journal): JournalResource
     {
-        $journal->update($request->validated());
+        $attributes = $request->validated();
+
+        if (! $request->user()->can('setNotesPrivate', $journal->issue)) {
+            unset($attributes['private_notes']);
+        }
+
+        $journal->update([...$attributes, 'updated_by_id' => $request->user()->id]);
 
         return new JournalResource($journal);
     }

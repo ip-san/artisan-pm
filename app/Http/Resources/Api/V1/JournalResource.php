@@ -26,6 +26,7 @@ final class JournalResource extends JsonResource
             'user_id' => $journal->user_id,
             'notes' => $journal->notes,
             'private_notes' => $journal->private_notes,
+            'updated_by_id' => $journal->updated_by_id,
             'created_at' => $journal->created_at->toIso8601String(),
             'updated_at' => $journal->updated_at->toIso8601String(),
         ];

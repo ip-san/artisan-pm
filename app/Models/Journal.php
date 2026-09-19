@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['issue_id', 'user_id', 'notes', 'private_notes'])]
+#[Fillable(['issue_id', 'user_id', 'notes', 'private_notes', 'updated_by_id'])]
 final class Journal extends Model
 {
     use HasReactions;
@@ -36,6 +36,16 @@ final class Journal extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The user who last edited the notes, null when never edited.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by_id');
     }
 
     /**

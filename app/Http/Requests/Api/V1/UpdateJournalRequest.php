@@ -26,6 +26,9 @@ final class UpdateJournalRequest extends FormRequest
             // "sometimes" so an omitted key leaves notes untouched rather
             // than clearing it, matching the other Update*Request forms.
             'notes' => ['sometimes', 'nullable', 'string'],
+            // Only honoured for someone holding set_notes_private (Redmine's
+            // safe_attributes drops it otherwise, without an error).
+            'private_notes' => ['sometimes', 'boolean'],
         ];
     }
 }
