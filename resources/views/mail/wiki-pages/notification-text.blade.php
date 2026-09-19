@@ -1,3 +1,9 @@
+@if ($header)
+{{ $header }}
+
+--
+
+@endif
 {{ $eventType === 'created' ? 'Wikiページが追加されました。' : 'Wikiページが更新されました。' }}({{ $actor->name }})
 
 {{ $wikiPage->project->name }} - {{ $wikiPage->title }}

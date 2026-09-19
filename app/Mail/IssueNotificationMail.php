@@ -76,15 +76,33 @@ final class IssueNotificationMail extends Mailable
 
         return new Envelope(
             subject: sprintf(
-                '[%s - %s #%d] (%s) %s',
+                '[%s - %s #%d] %s%s',
                 $this->issue->project->name,
                 $this->issue->tracker->name,
                 $this->issue->id,
-                $this->issue->status->name,
+                $this->statusInSubject() ? "({$this->issue->status->name}) " : '',
                 $this->issue->subject,
             ),
             from: filled($fromAddress) ? new Address($fromAddress) : null,
         );
+    }
+
+    /**
+     * Redmine's show_status_changes_in_mail_subject (default on): a new
+     * issue's subject carries its status, an update's only when that update
+     * changed the status (Mailer#issue_add / #issue_edit).
+     */
+    private function statusInSubject(): bool
+    {
+        if (! (bool) Setting::get('show_status_changes_in_mail_subject', true)) {
+            return false;
+        }
+
+        if ($this->eventType === 'created') {
+            return true;
+        }
+
+        return $this->journal?->details->contains(fn ($detail) => $detail->property === 'attr' && $detail->prop_key === 'status_id') ?? false;
     }
 
     public function content(): Content
@@ -95,6 +113,7 @@ final class IssueNotificationMail extends Mailable
             'actor' => $this->actor,
             'journal' => $this->journal,
             'changes' => $this->changes(),
+            'header' => Setting::get('emails_header', ''),
             'footer' => Setting::get('emails_footer', ''),
             'url' => route('issues.show', [$this->issue->project, $this->issue]),
         ];

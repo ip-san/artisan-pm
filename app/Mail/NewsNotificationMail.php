@@ -53,6 +53,7 @@ final class NewsNotificationMail extends Mailable
             'eventType' => $this->eventType,
             'actor' => $this->actor,
             'comment' => $this->comment,
+            'header' => Setting::get('emails_header', ''),
             'footer' => Setting::get('emails_footer', ''),
             'url' => route('news.show', [$this->news->project, $this->news]),
         ];

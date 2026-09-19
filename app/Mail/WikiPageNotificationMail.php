@@ -50,6 +50,7 @@ final class WikiPageNotificationMail extends Mailable
             'wikiPage' => $this->wikiPage,
             'eventType' => $this->eventType,
             'actor' => $this->actor,
+            'header' => Setting::get('emails_header', ''),
             'footer' => Setting::get('emails_footer', ''),
             'url' => route('wiki.show', [$this->wikiPage->project, $this->wikiPage]),
         ];

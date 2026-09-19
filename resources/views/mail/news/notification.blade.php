@@ -1,6 +1,11 @@
 <!doctype html>
 <html>
 <body style="font-family: sans-serif; font-size: 14px; color: #1f2933;">
+    @if ($header)
+        <p style="color: #6b7280; font-size: 12px;">{{ $header }}</p>
+        <hr>
+    @endif
+
     <p>
         {{ $eventType === 'added' ? 'お知らせが投稿されました。' : 'お知らせにコメントが投稿されました。' }}
         ({{ $actor->name }})

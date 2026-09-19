@@ -309,3 +309,82 @@ test('the plain text mail carries the same attachment and relation rows', functi
     expect($text)->toContain('* 添付ファイル: (未設定) → spec.pdf')
         ->and($text)->toContain('* 後続: (未設定) → #9');
 });
+
+function issueMailSubject(string $eventType, array $details = []): string
+{
+    $project = Project::factory()->create(['name' => 'Acme']);
+    $actor = notifiableMember($project, MailNotificationOption::OnlyMyEvents);
+    $status = IssueStatus::query()->firstOrCreate(['name' => 'In Progress']);
+    $issue = App\Models\Issue::factory()->for($project)->create([...mailIssueDefaults(), 'status_id' => $status->id, 'subject' => 'Broken page']);
+    $journal = App\Models\Journal::create(['issue_id' => $issue->id, 'user_id' => $actor->id, 'notes' => null]);
+    foreach ($details as $detail) {
+        $journal->details()->create($detail);
+    }
+
+    return (new App\Mail\IssueNotificationMail($issue->fresh(), $eventType, $actor, $journal->load('details')))->envelope()->subject;
+}
+
+test('a new issue subject carries the status by default', function () {
+    expect(issueMailSubject('created'))->toContain('(In Progress) Broken page');
+});
+
+test('an update subject carries the status only when the update changed it', function () {
+    $statusChange = ['property' => 'attr', 'prop_key' => 'status_id', 'old_value' => '1', 'new_value' => '2'];
+    $otherChange = ['property' => 'attr', 'prop_key' => 'subject', 'old_value' => 'a', 'new_value' => 'b'];
+
+    expect(issueMailSubject('updated', [$statusChange]))->toContain('(In Progress) Broken page')
+        ->and(issueMailSubject('updated', [$otherChange]))->toEndWith('] Broken page')
+        ->and(issueMailSubject('updated', [$otherChange]))->not->toContain('In Progress');
+});
+
+test('with the setting off no subject carries the status', function () {
+    Setting::set('show_status_changes_in_mail_subject', false);
+    $statusChange = ['property' => 'attr', 'prop_key' => 'status_id', 'old_value' => '1', 'new_value' => '2'];
+
+    expect(issueMailSubject('created'))->toEndWith('] Broken page')
+        ->and(issueMailSubject('updated', [$statusChange]))->toEndWith('] Broken page');
+});
+
+test('the email header is printed above the content in issue, wiki and news mail, html and text', function () {
+    Setting::set('emails_header', 'HEADER-LINE');
+
+    [, $html] = issueMailWithDetails([['property' => 'attr', 'prop_key' => 'subject', 'old_value' => 'a', 'new_value' => 'b']]);
+    Setting::set('plain_text_mail', true);
+    [, $text] = issueMailWithDetails([['property' => 'attr', 'prop_key' => 'subject', 'old_value' => 'a', 'new_value' => 'b']]);
+
+    expect($html)->toContain('HEADER-LINE')
+        ->and(strpos($text, 'HEADER-LINE'))->toBe(0);
+
+    $project = Project::factory()->create();
+    $actor = notifiableMember($project, MailNotificationOption::OnlyMyEvents);
+    $page = App\Models\WikiPage::factory()->for($project)->create();
+    $news = App\Models\News::factory()->for($project)->create();
+
+    Setting::set('plain_text_mail', false);
+    expect((new App\Mail\WikiPageNotificationMail($page, 'created', $actor))->render())->toContain('HEADER-LINE')
+        ->and((new App\Mail\NewsNotificationMail($news, 'added', $actor))->render())->toContain('HEADER-LINE');
+
+    Setting::set('plain_text_mail', true);
+    expect((new App\Mail\WikiPageNotificationMail($page, 'created', $actor))->render())->toContain('HEADER-LINE')
+        ->and((new App\Mail\NewsNotificationMail($news, 'added', $actor))->render())->toContain('HEADER-LINE');
+});
+
+test('no header block is printed when the header is empty', function () {
+    [, $html] = issueMailWithDetails([['property' => 'attr', 'prop_key' => 'subject', 'old_value' => 'a', 'new_value' => 'b']]);
+
+    expect($html)->not->toContain('<hr>');
+});
+
+test('the settings page saves the header and the subject toggle', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire\Livewire::actingAs($admin)->test('settings.index')
+        ->assertSet('show_status_changes_in_mail_subject', true)
+        ->set('emails_header', 'Welcome header')
+        ->set('show_status_changes_in_mail_subject', false)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('emails_header'))->toBe('Welcome header')
+        ->and(Setting::get('show_status_changes_in_mail_subject'))->toBeFalse();
+});

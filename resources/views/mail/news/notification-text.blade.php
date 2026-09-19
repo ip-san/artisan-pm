@@ -1,3 +1,9 @@
+@if ($header)
+{{ $header }}
+
+--
+
+@endif
 {{ $eventType === 'added' ? 'お知らせが投稿されました。' : 'お知らせにコメントが投稿されました。' }}({{ $actor->name }})
 
 {{ $news->project->name }} - {{ $news->title }}

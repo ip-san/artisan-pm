@@ -193,6 +193,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $default_notification_option = 'only_assigned';
 
+    public string $emails_header = '';
+
+    public bool $show_status_changes_in_mail_subject = true;
+
     public string $emails_footer = '';
 
     public function mount(): void
@@ -272,6 +276,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->plain_text_mail = Setting::get('plain_text_mail', false);
         $this->default_users_no_self_notified = Setting::get('default_users_no_self_notified', true);
         $this->default_notification_option = Setting::get('default_notification_option', 'only_assigned');
+        $this->emails_header = Setting::get('emails_header', '');
+        $this->show_status_changes_in_mail_subject = Setting::get('show_status_changes_in_mail_subject', true);
         $this->emails_footer = Setting::get('emails_footer', '');
     }
 
@@ -383,6 +389,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'plain_text_mail' => ['boolean'],
             'default_users_no_self_notified' => ['boolean'],
             'default_notification_option' => ['required', Rule::in(array_map(fn (MailNotificationOption $o) => $o->value, MailNotificationOption::cases()))],
+            'emails_header' => ['nullable', 'string', 'max:2000'],
+            'show_status_changes_in_mail_subject' => ['boolean'],
             'emails_footer' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -788,6 +796,17 @@ new #[Layout('components.layouts.app')] class extends Component
                 <p class="mt-1 text-xs text-gray-500">
                     ここでの設定は新規ユーザー作成時の初期値です。各ユーザーはプロフィール画面で個別に変更できます。
                 </p>
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="show_status_changes_in_mail_subject" class="rounded border-gray-300">
+                通知メールの件名にステータスの変更を含める
+            </label>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">通知メールのヘッダ</label>
+                <textarea wire:model="emails_header" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+                @error('emails_header') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>
