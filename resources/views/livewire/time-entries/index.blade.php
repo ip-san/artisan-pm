@@ -254,7 +254,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'user_id' => $entry->user->name,
             'activity_id' => $entry->activity->name,
             'spent_on' => $entry->spent_on->toDateString(),
-            'hours' => (string) $entry->hours,
+            'hours' => \App\Support\Format\Hours::format($entry->hours, false),
             'issue_id' => $entry->issue ? "#{$entry->issue->id} {$entry->issue->subject}" : '',
             'comments' => (string) $entry->comments,
             default => '',
@@ -277,7 +277,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private function formatHours(EloquentCollection $entries): string
     {
-        return Number::format((float) $entries->sum('hours'), precision: 2);
+        return \App\Support\Format\Hours::format((float) $entries->sum('hours'));
     }
 
     #[Computed]

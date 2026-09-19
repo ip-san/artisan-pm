@@ -117,9 +117,9 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                 </div>
                 <div class="mt-2 flex gap-4 text-xs text-gray-500">
-                    <span>予定工数: {{ Number::format($version->estimatedHours(), precision: 2) }} 時間</span>
-                    <span>実績工数: {{ Number::format($version->spentHours(), precision: 2) }} 時間</span>
-                    <span>残工数: {{ Number::format($version->estimatedRemainingHours(), precision: 2) }} 時間</span>
+                    <span>予定工数: {{ \App\Support\Format\Hours::format($version->estimatedHours()) }} 時間</span>
+                    <span>実績工数: {{ \App\Support\Format\Hours::format($version->spentHours()) }} 時間</span>
+                    <span>残工数: {{ \App\Support\Format\Hours::format($version->estimatedRemainingHours()) }} 時間</span>
                 </div>
             </li>
         @empty

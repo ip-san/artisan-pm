@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Support\Attachments\AttachmentArchive;
 use App\Support\Avatar\UserAvatar;
+use App\Support\Format\Hours;
 use App\Support\Mail\PublicUrl;
 use App\Support\Pagination\PageSize;
 use App\Support\Query\ListDefaults;
@@ -101,6 +102,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $cache_formatted_text = false;
 
     public string $new_item_menu_tab = '2';
+
+    public string $timespan_format = 'decimal';
 
     /** @var array<int, string> */
     public array $issue_list_default_totals = [];
@@ -301,6 +304,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
         $this->new_item_menu_tab = (string) Setting::get('new_item_menu_tab', '2');
+        $this->timespan_format = Hours::timespanFormat();
         $this->issue_list_default_totals = ListDefaults::issueTotals();
         $this->time_entry_list_default_columns = ListDefaults::timeEntryColumns();
         $this->time_entry_list_show_total = ListDefaults::timeEntriesShowHoursTotal();
@@ -470,6 +474,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
             'new_item_menu_tab' => ['required', Rule::in(['0', '1', '2'])],
+            'timespan_format' => ['required', Rule::in(array_keys(Hours::FORMATS))],
             'issue_list_default_totals' => ['array'],
             'issue_list_default_totals.*' => [Rule::in(array_keys(ListDefaults::ISSUE_TOTALS))],
             'time_entry_list_default_columns' => ['array', 'min:1'],
@@ -804,6 +809,16 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="2">「+」ドロップダウン(課題・バージョン・お知らせなど)</option>
                 </select>
                 @error('new_item_menu_tab') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">時間の表示形式</label>
+                <select wire:model="timespan_format" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Support\Format\Hours::FORMATS as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('timespan_format') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

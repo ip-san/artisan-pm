@@ -820,15 +820,15 @@ new #[Layout('components.layouts.app')] class extends Component
         <div><span class="text-gray-500">期日:</span> {{ $issue->due_date?->toDateString() ?? '-' }}</div>
         <div>
             <span class="text-gray-500">予定工数:</span>
-            {{ $issue->estimated_hours !== null ? Number::format((float) $issue->estimated_hours, precision: 2).' 時間' : '-' }}
+            {{ $issue->estimated_hours !== null ? \App\Support\Format\Hours::format((float) $issue->estimated_hours).' 時間' : '-' }}
             @if (! $issue->isLeaf() && $issue->totalEstimatedHours() > 0)
-                <span class="text-gray-400">(合計: {{ Number::format($issue->totalEstimatedHours(), precision: 2) }} 時間)</span>
+                <span class="text-gray-400">(合計: {{ \App\Support\Format\Hours::format($issue->totalEstimatedHours()) }} 時間)</span>
             @endif
         </div>
         @if ($issue->estimated_hours !== null)
             <div>
                 <span class="text-gray-500">残り工数(予定):</span>
-                {{ Number::format($issue->estimatedRemainingHours(), precision: 2) }} 時間
+                {{ \App\Support\Format\Hours::format($issue->estimatedRemainingHours()) }} 時間
             </div>
         @endif
     </div>
@@ -1039,9 +1039,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($issue->timeEntries->isNotEmpty() || (! $issue->isLeaf() && $issue->totalSpentHours() > 0))
         <h2 class="text-sm font-semibold text-gray-900 mb-2">
-            工数 ({{ Number::format((float) $issue->timeEntries->sum('hours'), precision: 2) }} 時間)
+            工数 ({{ \App\Support\Format\Hours::format((float) $issue->timeEntries->sum('hours')) }} 時間)
             @if (! $issue->isLeaf())
-                <span class="font-normal text-gray-400">(合計: {{ Number::format($issue->totalSpentHours(), precision: 2) }} 時間)</span>
+                <span class="font-normal text-gray-400">(合計: {{ \App\Support\Format\Hours::format($issue->totalSpentHours()) }} 時間)</span>
             @endif
         </h2>
         <ul class="mb-6 space-y-1">

@@ -315,7 +315,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->totalSpentHours > 0)
             <div class="rounded-md border border-gray-200 bg-white p-4 mb-6">
                 <h2 class="text-sm font-semibold text-gray-900 mb-2">実績工数</h2>
-                <p class="text-sm text-gray-700">{{ Number::format($this->totalSpentHours, precision: 2) }} 時間</p>
+                <p class="text-sm text-gray-700">{{ \App\Support\Format\Hours::format($this->totalSpentHours) }} 時間</p>
             </div>
         @endif
     @endcan

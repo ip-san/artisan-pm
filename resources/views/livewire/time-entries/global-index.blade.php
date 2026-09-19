@@ -174,7 +174,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private function formatHours(EloquentCollection $entries): string
     {
-        return Number::format((float) $entries->sum('hours'), precision: 2);
+        return \App\Support\Format\Hours::format((float) $entries->sum('hours'));
     }
 
     #[Computed]

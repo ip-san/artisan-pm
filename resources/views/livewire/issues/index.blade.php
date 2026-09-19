@@ -663,11 +663,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->join(', '),
             'attachments' => $issue->attachments()->map(fn ($media) => $media->file_name)->join("\n"),
             'watchers' => $issue->watchers->map(fn (Watcher $watcher) => $watcher->user->name)->join("\n"),
-            'estimated_hours' => $issue->estimated_hours !== null ? number_format((float) $issue->estimated_hours, 2, '.', '') : '',
-            'total_estimated_hours' => $issue->estimated_hours !== null || ! $issue->isLeaf() ? number_format($issue->totalEstimatedHours(), 2, '.', '') : '',
-            'estimated_remaining_hours' => $issue->estimated_hours !== null ? number_format($issue->estimatedRemainingHours(), 2, '.', '') : '',
-            'spent_hours' => number_format($issue->spentHours(), 2, '.', ''),
-            'total_spent_hours' => number_format($issue->totalSpentHours(), 2, '.', ''),
+            'estimated_hours' => $issue->estimated_hours !== null ? \App\Support\Format\Hours::format((float) $issue->estimated_hours, false) : '',
+            'total_estimated_hours' => $issue->estimated_hours !== null || ! $issue->isLeaf() ? \App\Support\Format\Hours::format($issue->totalEstimatedHours(), false) : '',
+            'estimated_remaining_hours' => $issue->estimated_hours !== null ? \App\Support\Format\Hours::format($issue->estimatedRemainingHours(), false) : '',
+            'spent_hours' => \App\Support\Format\Hours::format($issue->spentHours(), false),
+            'total_spent_hours' => \App\Support\Format\Hours::format($issue->totalSpentHours(), false),
             default => '',
         };
     }
@@ -1359,7 +1359,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @php
                     $totalValue = ['estimated_hours' => 'estimated', 'spent_hours' => 'spent', 'estimated_remaining_hours' => 'remaining'][$totalKey];
                 @endphp
-                {{ $loop->first ? '' : '/ ' }}{{ ListDefaults::ISSUE_TOTALS[$totalKey] }} {{ Number::format($this->listTotals[$totalValue], precision: 2) }} 時間
+                {{ $loop->first ? '' : '/ ' }}{{ ListDefaults::ISSUE_TOTALS[$totalKey] }} {{ \App\Support\Format\Hours::format($this->listTotals[$totalValue]) }} 時間
             @endforeach
         </p>
     @endif
@@ -1374,8 +1374,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 {{ $groupLabel ?: '(未設定)' }} ({{ $groupTotal['count'] ?? $groupIssues->count() }})
                 @if ($groupTotal !== null)
                     <span class="ml-2 text-xs font-normal text-gray-500">
-                        予定 {{ Number::format($groupTotal['estimated'], precision: 2) }} 時間
-                        / 実績 {{ Number::format($groupTotal['spent'], precision: 2) }} 時間
+                        予定 {{ \App\Support\Format\Hours::format($groupTotal['estimated']) }} 時間
+                        / 実績 {{ \App\Support\Format\Hours::format($groupTotal['spent']) }} 時間
                     </span>
                 @endif
             </h2>
