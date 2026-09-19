@@ -309,10 +309,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-gray-900">ユーザー管理</h1>
-        <a href="{{ route('users.create') }}"
-            class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
-            新規ユーザー
-        </a>
+        <div class="flex gap-2">
+            <a href="{{ route('users.import') }}" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">CSVインポート</a>
+            <a href="{{ route('users.create') }}"
+                class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                新規ユーザー
+            </a>
+        </div>
     </div>
 
     <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">

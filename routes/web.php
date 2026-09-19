@@ -276,6 +276,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
 
     Volt::route('/users', 'users.index')->name('users.index');
     Volt::route('/users/create', 'users.form')->name('users.create');
+    Volt::route('/users/import', 'users.import')->name('users.import');
+    Volt::route('/users/imports/{import}', 'users.import-status')->name('users.import-status');
     Volt::route('/users/{user}/edit', 'users.form')->name('users.edit');
     Volt::route('/users/{user}', 'users.show')->name('users.show');
 
