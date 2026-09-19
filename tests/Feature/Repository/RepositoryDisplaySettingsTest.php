@@ -7,6 +7,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Services\RepositorySyncService;
 use App\Support\Scm\CodesetConverter;
+use App\Support\Scm\DisplayLimits;
 use Illuminate\Support\Facades\Process;
 use Livewire\Livewire;
 
@@ -118,4 +119,64 @@ test('the settings form saves the repository display options and rejects unknown
         ->set('repository_log_display_limit', 0)
         ->call('save')
         ->assertHasErrors(['repositories_encodings', 'commit_logs_encoding', 'repository_log_display_limit']);
+});
+
+test('a diff longer than diff_max_lines_displayed is cut and says so', function () {
+    Setting::set('diff_max_lines_displayed', 3);
+
+    expect(DisplayLimits::truncateDiff("a\nb\nc\nd\ne"))->toBe(['text' => "a\nb\nc", 'truncated' => true])
+        ->and(DisplayLimits::truncateDiff("a\nb\nc"))->toBe(['text' => "a\nb\nc", 'truncated' => false]);
+
+    Setting::set('diff_max_lines_displayed', 0);
+    expect(DisplayLimits::truncateDiff(str_repeat("x\n", 5000))['truncated'])->toBeFalse();
+});
+
+test('file_max_size_displayed hides large files and 0 lifts the limit', function () {
+    Setting::set('file_max_size_displayed', 1);
+
+    expect(DisplayLimits::fileTooLargeToDisplay(1024))->toBeFalse()
+        ->and(DisplayLimits::fileTooLargeToDisplay(1025))->toBeTrue();
+
+    Setting::set('file_max_size_displayed', 0);
+    expect(DisplayLimits::fileTooLargeToDisplay(50_000_000))->toBeFalse();
+});
+
+test('the changeset page shows the truncation notice with a small diff limit', function () {
+    Setting::set('diff_max_lines_displayed', 2);
+    $project = Project::factory()->create();
+    $path = sys_get_temp_dir().'/scm-test-'.uniqid();
+    mkdir($path);
+    $run = fn (array $command) => Process::path($path)->timeout(10)->run($command)->throw();
+    $run(['git', 'init', '-q']);
+    $run(['git', 'config', 'user.email', 'dev@example.com']);
+    $run(['git', 'config', 'user.name', 'Dev']);
+    file_put_contents("{$path}/big.txt", implode("\n", range(1, 40))."\n");
+    $run(['git', 'add', '-A']);
+    $run(['git', 'commit', '-q', '-m', 'Big change']);
+    $repository = Repository::factory()->for($project)->create(['path' => $path]);
+    app(RepositorySyncService::class)->sync($repository);
+    $changeset = $repository->changesets()->with('repository.project')->orderBy('id')->get()->last();
+
+    Livewire::actingAs(User::factory()->admin()->create())
+        ->test('repository.show', ['project' => $project, 'changeset' => $changeset])
+        ->assertSee('差分が大きいため');
+
+    Process::path(sys_get_temp_dir())->run(['rm', '-rf', $path]);
+});
+
+test('the settings form saves the display limits and thumbnail size', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)->test('settings.index')
+        ->set('diff_max_lines_displayed', 200)
+        ->set('file_max_size_displayed', 64)
+        ->set('thumbnails_size', 150)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('diff_max_lines_displayed'))->toBe(200)
+        ->and(Setting::get('file_max_size_displayed'))->toBe(64)
+        ->and(Setting::get('thumbnails_size'))->toBe(150);
+
+    Livewire::actingAs($admin)->test('settings.index')->set('thumbnails_size', 4)->call('save')->assertHasErrors(['thumbnails_size']);
 });

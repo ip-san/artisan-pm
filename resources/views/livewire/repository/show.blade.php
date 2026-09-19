@@ -4,6 +4,7 @@ use App\Models\Changeset;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Repository;
+use App\Support\Scm\DisplayLimits;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -105,6 +106,18 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * The diff cut to diff_max_lines_displayed. Applied after the cache so
+     * changing the setting takes effect on diffs already cached whole.
+     *
+     * @return array{text: string, truncated: bool}
+     */
+    #[Computed]
+    public function shownDiff(): array
+    {
+        return DisplayLimits::truncateDiff($this->diff);
+    }
+
+    /**
      * Diffs are immutable once a revision is committed, so this is cached
      * indefinitely rather than re-shelling out to git on every view —
      * matches the plan's requirement to cache browse/diff results instead
@@ -187,5 +200,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </a>
         @endif
     </h2>
-    <pre class="overflow-x-auto rounded-md border border-gray-200 bg-gray-900 p-4 text-xs text-gray-100">{{ $this->diff }}</pre>
+    @if ($this->shownDiff['truncated'])
+        <p class="mb-2 text-sm text-amber-700">差分が大きいため、先頭{{ number_format(\App\Support\Scm\DisplayLimits::maxDiffLines()) }}行だけを表示しています。</p>
+    @endif
+    <pre class="overflow-x-auto rounded-md border border-gray-200 bg-gray-900 p-4 text-xs text-gray-100">{{ $this->shownDiff['text'] }}</pre>
 </div>

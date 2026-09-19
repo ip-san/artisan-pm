@@ -3,6 +3,7 @@
 use App\Models\Changeset;
 use App\Models\Project;
 use App\Models\Repository;
+use App\Support\Scm\DisplayLimits;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -64,6 +65,17 @@ new #[Layout('components.layouts.app')] class extends Component
             fn () => $this->repository->adapter()->diff($this->toChangeset->revision, $this->fromChangeset->revision),
         );
     }
+
+    /**
+     * The diff cut to diff_max_lines_displayed (applied after the cache).
+     *
+     * @return array{text: string, truncated: bool}
+     */
+    #[Computed]
+    public function shownDiff(): array
+    {
+        return DisplayLimits::truncateDiff($this->diff);
+    }
 }; ?>
 
 <div class="max-w-4xl">
@@ -86,6 +98,9 @@ new #[Layout('components.layouts.app')] class extends Component
     @if (trim($this->diff) === '')
         <p class="text-sm text-gray-500">このリビジョン間に差分はありません。</p>
     @else
-        <pre class="overflow-x-auto rounded-md border border-gray-200 bg-gray-900 p-4 text-xs text-gray-100">{{ $this->diff }}</pre>
+        @if ($this->shownDiff['truncated'])
+            <p class="mb-2 text-sm text-amber-700">差分が大きいため、先頭{{ number_format(\App\Support\Scm\DisplayLimits::maxDiffLines()) }}行だけを表示しています。</p>
+        @endif
+        <pre class="overflow-x-auto rounded-md border border-gray-200 bg-gray-900 p-4 text-xs text-gray-100">{{ $this->shownDiff['text'] }}</pre>
     @endif
 </div>

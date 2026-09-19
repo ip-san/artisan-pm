@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Support\Pagination\PageSize;
 use App\Support\Scm\CodesetConverter;
+use App\Support\Scm\DisplayLimits;
 use App\Support\TimeLog\TimeLogConstraints;
 use App\Rules\RequiredPasswordCharacterClasses;
 use App\Support\Issues\DoneRatioSteps;
@@ -113,6 +114,12 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $autofetch_changesets = false;
 
     public int $repository_log_display_limit = 100;
+
+    public int $diff_max_lines_displayed = 1500;
+
+    public int $file_max_size_displayed = 512;
+
+    public int $thumbnails_size = 100;
 
     public string $repositories_encodings = '';
 
@@ -287,6 +294,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->mail_handler_preferred_body_part = Setting::get('mail_handler_preferred_body_part', 'plain');
         $this->autofetch_changesets = Setting::get('autofetch_changesets', false);
         $this->repository_log_display_limit = Setting::get('repository_log_display_limit', PageSize::DEFAULT_REPOSITORY_LOG_LIMIT);
+        $this->diff_max_lines_displayed = DisplayLimits::maxDiffLines();
+        $this->file_max_size_displayed = DisplayLimits::maxFileSizeKb();
+        $this->thumbnails_size = Setting::get('thumbnails_size', 100);
         $this->repositories_encodings = Setting::get('repositories_encodings', '');
         $this->commit_logs_encoding = Setting::get('commit_logs_encoding', 'UTF-8');
         $this->commit_logs_formatting = Setting::get('commit_logs_formatting', true);
@@ -425,6 +435,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'commit_fixing_keyword_rules.*.if_tracker_id' => ['nullable', 'exists:trackers,id'],
             'commit_ref_keywords' => ['nullable', 'string', 'max:255'],
             'repository_log_display_limit' => ['required', 'integer', 'min:1', 'max:1000'],
+            'diff_max_lines_displayed' => ['required', 'integer', 'min:0', 'max:100000'],
+            'file_max_size_displayed' => ['required', 'integer', 'min:0', 'max:102400'],
+            'thumbnails_size' => ['required', 'integer', 'min:16', 'max:2000'],
             'repositories_encodings' => ['nullable', 'string', 'max:255', $encodingList],
             'commit_logs_encoding' => ['required', 'string', 'max:50', $encodingName],
             'commit_logs_formatting' => ['boolean'],
@@ -1132,6 +1145,26 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">履歴に表示するリビジョン数</label>
                 <input type="number" min="1" max="1000" wire:model="repository_log_display_limit" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('repository_log_display_limit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">差分の最大表示行数(0で無制限)</label>
+                    <input type="number" min="0" max="100000" wire:model="diff_max_lines_displayed" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @error('diff_max_lines_displayed') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">ファイルの最大表示サイズ(KB、0で無制限)</label>
+                    <input type="number" min="0" max="102400" wire:model="file_max_size_displayed" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @error('file_max_size_displayed') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">サムネイルの大きさ(px)</label>
+                <input type="number" min="16" max="2000" wire:model="thumbnails_size" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">この後にアップロードされる画像から適用されます。</p>
+                @error('thumbnails_size') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

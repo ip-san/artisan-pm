@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Concerns;
 
+use App\Models\Setting;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
@@ -23,11 +24,14 @@ trait HasThumbnails
 {
     public function registerMediaConversions(?Media $media = null): void
     {
+        // Redmine's thumbnails_size; applies to files uploaded from now on.
+        $size = max(1, (int) Setting::get('thumbnails_size', 100));
+
         $this->addMediaConversion('thumb')
             ->nonQueued()
             ->performOnCollections(...$this->thumbnailCollections())
-            ->width(100)
-            ->height(100);
+            ->width($size)
+            ->height($size);
     }
 
     /**

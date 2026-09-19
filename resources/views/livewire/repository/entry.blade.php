@@ -3,6 +3,7 @@
 use App\Models\Project;
 use App\Models\Repository;
 use App\Support\Scm\CodesetConverter;
+use App\Support\Scm\DisplayLimits;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -35,6 +36,16 @@ new #[Layout('components.layouts.app')] class extends Component
         // A file in a legacy encoding listed in repositories_encodings shows
         // as text; anything else that is not UTF-8 stays raw and reads as binary.
         return CodesetConverter::convertStrictly($raw) ?? $raw;
+    }
+
+    /**
+     * Larger than file_max_size_displayed: not rendered inline, only offered
+     * for download (Redmine's "file too large to display").
+     */
+    #[Computed]
+    public function tooLargeToDisplay(): bool
+    {
+        return DisplayLimits::fileTooLargeToDisplay(strlen($this->content));
     }
 
     #[Computed]
@@ -85,6 +96,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($this->isBinary)
         <p class="text-sm text-gray-500">バイナリファイルは表示できません。上の「ダウンロード」から取得してください。</p>
+    @elseif ($this->tooLargeToDisplay)
+        <p class="text-sm text-gray-500">ファイルが大きいため({{ number_format(\App\Support\Scm\DisplayLimits::maxFileSizeKb()) }}KBを超えています)表示できません。上の「ダウンロード」から取得してください。</p>
     @else
         <pre class="overflow-x-auto rounded-md border border-gray-200 bg-gray-900 p-4 text-xs text-gray-100">{{ $this->content }}</pre>
     @endif

@@ -129,7 +129,7 @@
 | 55b | A5-12b | A5-12 | S | done(2026-09-20、エンコーディングは全体設定のみ) |
 | 56 | A10-01 | — | S〜M | done(2026-09-20、エンコーディングのみ。URL/資格情報は A10-01b) |
 | 56b | A10-01b | A10-01 | M | blocked(要承認: docs/design/gap-A10-01b.md) |
-| 57 | A10-05 / A5-07 | — | S | todo |
+| 57 | A10-05 / A5-07 | — | S | done(2026-09-20、bulk_download_max_size は A7-10 と同時) |
 | 58 | A10-03 / A13-06 | — | S | todo |
 | 59 | A7-10 | — | S | todo |
 | 60 | A7-11 | — | S | todo |
@@ -374,7 +374,7 @@
 | A7-07 | Wiki 一括 PDF エクスポート(`wiki#export` の PDF)は実装済みだが、`export_wiki_pages` の HTML/TXT の ZIP に添付ファイルを含める | ZIP は本文のみ | 各ページの添付を `attachments/` ディレクトリとして同梱 | 優先度低 | S | Wiki「PDF/HTML/TXT/ZIPエクスポート」 |
 | A7-08 | フォーラム: 返信のウォッチ、権限 `add_message_watchers`/`delete_message_watchers`/`view_message_watchers`、投稿の引用返信 | トピックのみ Watch。専用権限なし | 権限追加と `MessagePolicy` の分離、返信本文の引用ボタン | A13 | S | フォーラム「トピックのWatch」 |
 | A7-09 | 文書一覧の「作成者」グルーピング、添付ファイルのアップロード者記録(`attachments.author_id`) | Spatie Media に `uploaded_by` なし(grep 0件) | `media.custom_properties.uploaded_by` または専用列に保存し、`addMedia()` の全呼び出し箇所で設定。文書一覧のグルーピングと A11-06 の API 露出で使用 | 全アップロード経路(課題/Wiki/フォーラム/News/文書/ファイル/API)を網羅する | S〜M | Documents「カテゴリ/日付/タイトル/作成者でのグルーピング」 |
-| A7-10 | 添付ファイルの一括 ZIP ダウンロード(`bulk_download_max_size`)、一括編集(`attachments#edit_all`) | なし | 課題/Wiki/文書の添付一覧に「すべてダウンロード」と「説明を一括編集」 | — | S | 添付ファイル 節 |
+| A7-10 | 添付ファイルの一括 ZIP ダウンロード(`bulk_download_max_size`)、一括編集(`attachments#edit_all`) | なし | 課題/Wiki/文書の添付一覧に「すべてダウンロード」と「説明を一括編集」。**設定 `bulk_download_max_size`(既定 102400KB、A5-07 から移管)を同時に追加し、超過時は ZIP を作らない** | — | S | 添付ファイル 節 |
 | A7-11 | `files` アクティビティプロバイダと `wiki_edits` の既定オフ(`activity.register :files`/`:wiki_edits, default: false`) | `app/Support/Activity/Providers/` は Changeset/Document/Issue/IssueJournal/Message/News/TimeEntry/Wiki の 8 種。Files モジュールの添付追加は活動に出ない | `FileActivityProvider`(バージョンに紐づく Media)を追加。種別チェックボックスの既定オン/オフをプロバイダ定義に持たせる | — | S | ダッシュボード「グローバルアクティビティフィード」 |
 | A7-12 | 検索対象の添付ファイル(ファイル名/説明)(`SearchController` の `attachments` トグル、`attachment` フィルタ) | `SearchService` に添付検索なし | `searchAttachments()` を追加し、所有オブジェクトの可視性で絞り込み | API `GET /search` の `attachments` パラメータも | S | 検索(モジュール横断)、REST API「Search」 |
 | A7-13 | 一覧画面でのリンク形式 CF のリンク化 | 課題一覧列ではプレーンテキスト | `<x-custom-field-value>` を一覧列にも適用 | 旧: 意図的簡略化 | S | カスタムフィールド「フィールド形式」 |
@@ -651,6 +651,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A13-03 | 工数の編集/削除は自分の分でも `edit_own_time_entries` が必要になり、他ユーザー分の記録は `log_time_for_other_users`、CSV インポートは `import_time_entries` / `import_issues` が必要になる(**マイグレーションが従来の権限を持つロールへ自動付与**するので既存ロールは変わらない。新規に作るロールでは付け忘れに注意) | ロール編集画面で新権限を付与する。カスタム権限セットを持つデプロイは付与結果を確認 |
 | A5-12 | コミットのキーワード設定が拡張された。ルールに進捗率・トラッカー条件、新設定の参照キーワード(既定 `*` で従来どおり)と他プロジェクト参照の許可(既定オンで従来どおり)。既定値は Redmine と異なる | 設定画面「リポジトリ」で変更できる。Redmine 既定に揃えるなら参照キーワードを `refs,references,IssueID`、他プロジェクト参照をオフにする |
 | A5-12b | リポジトリのコミットログが Markdown で整形表示される(従来はプレーンテキスト)。履歴の表示件数と文字コード候補が設定化 | 整形が不要なら設定「コミットログをMarkdownで整形して表示する」をオフにする |
+| A10-05 | 大きな差分は先頭 1500 行までの表示になり、512KB を超えるファイルはリポジトリ画面でインライン表示されない(従来は無制限) | 設定「リポジトリ」で 0 にすると無制限に戻る |
 | A7-02 | `{{collapse}}` がネスト可能に。本文に隣接した `{{collapse}}` でプレースホルダ文字列が漏れる不具合を修正 | — |
 | A1-13 | 課題フォームの進捗率がスライダーからセレクトに | — |
 | A1-21 | 課題詳細のサブタスク/関連課題がリストから表になる | — |
