@@ -60,6 +60,7 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Volt::route('/news', 'news.global-index')->name('news.global-index');
     Volt::route('/issues', 'issues.global-index')->name('issues.global-index');
     Volt::route('/time_entries', 'time-entries.global-index')->name('time-entries.global-index');
+    Volt::route('/time_entries/report', 'time-entries.report')->name('time-entries.global-report');
     Volt::route('/search', 'search.global-index')->name('search.global-index');
     Volt::route('/issues/calendar', 'calendar.global-index')->name('calendar.global-index');
     Volt::route('/activity', 'activity.global-index')->name('activity.global-index');

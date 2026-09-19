@@ -4,6 +4,15 @@ declare(strict_types=1);
 
 namespace App\Support\TimeReport;
 
+use App\Models\Enumeration;
+use App\Models\Issue;
+use App\Models\IssueCategory;
+use App\Models\IssueStatus;
+use App\Models\Tracker;
+use App\Models\User;
+use App\Models\Version;
+use Illuminate\Support\Collection;
+
 /**
  * One selectable row axis for the multi-dimensional time report — mirrors
  * Redmine::Helpers::TimeReport#available_criteria
@@ -53,6 +62,29 @@ enum TimeReportCriterion: string
             self::Activity => 'time_entries.activity_id',
             self::Issue => 'time_entries.issue_id',
         };
+    }
+
+    /**
+     * This native criterion as a report axis.
+     */
+    public function axis(): TimeReportAxis
+    {
+        return new TimeReportAxis(
+            key: $this->value,
+            label: $this->label(),
+            expression: $this->column(),
+            needsIssueJoin: in_array($this, [self::Status, self::Version, self::Category, self::Tracker], true),
+            join: null,
+            labels: fn (Collection $ids) => match ($this) {
+                self::Status => IssueStatus::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
+                self::Version => Version::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
+                self::Category => IssueCategory::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
+                self::User => User::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
+                self::Tracker => Tracker::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
+                self::Activity => Enumeration::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
+                self::Issue => Issue::query()->whereIn('id', $ids)->get()->mapWithKeys(fn (Issue $issue) => [$issue->id => "#{$issue->id} {$issue->subject}"])->all(),
+            },
+        );
     }
 
     /**

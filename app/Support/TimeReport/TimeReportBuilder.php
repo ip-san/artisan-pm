@@ -4,14 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\TimeReport;
 
-use App\Models\Enumeration;
-use App\Models\Issue;
-use App\Models\IssueCategory;
-use App\Models\IssueStatus;
 use App\Models\TimeEntry;
-use App\Models\Tracker;
-use App\Models\User;
-use App\Models\Version;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -32,7 +25,7 @@ final class TimeReportBuilder
 
     /**
      * @param  Builder<TimeEntry>  $baseQuery  Already scoped/filtered (project, visibility, etc.) — this method only adds grouping/joins on top.
-     * @param  array<int, TimeReportCriterion>  $criteria  Deduped, capped to 3 by the caller — matching Redmine's `@criteria[0, 3]`.
+     * @param  array<int, TimeReportAxis>  $criteria  Deduped, capped to 3 by the caller — matching Redmine's `@criteria[0, 3]`.
      */
     public function build(Builder $baseQuery, array $criteria, TimeReportPeriod $period): TimeReportTable
     {
@@ -40,20 +33,31 @@ final class TimeReportBuilder
             return TimeReportTable::empty();
         }
 
-        // Every criterion's underlying column has a distinct unqualified
-        // name (status_id, fixed_version_id, category_id, user_id,
-        // tracker_id, activity_id, issue_id) — selecting them table-qualified
-        // but unaliased is safe since no driver ever has to disambiguate two
-        // same-named columns here, so each comes back keyed by that bare name.
-        $columns = array_map(fn (TimeReportCriterion $c) => $c->column(), $criteria);
+        // Each axis is selected under its own alias (axis_0, axis_1, ...) so a
+        // custom field's value column never collides with another axis' name.
+        $selects = [];
+        $groups = [];
+
+        foreach ($criteria as $index => $axis) {
+            $selects[] = "{$axis->expression} as axis_{$index}";
+            $groups[] = $axis->expression;
+        }
 
         $query = (clone $baseQuery)
             ->when(
-                TimeReportCriterion::requiresIssueJoin($criteria),
+                collect($criteria)->contains(fn (TimeReportAxis $axis) => $axis->needsIssueJoin),
                 fn (Builder $q) => $q->leftJoin('issues', 'time_entries.issue_id', '=', 'issues.id'),
-            )
-            ->groupBy([...$columns, 'time_entries.spent_on'])
-            ->selectRaw(implode(', ', $columns).', time_entries.spent_on as spent_on, SUM(time_entries.hours) as hours');
+            );
+
+        foreach ($criteria as $axis) {
+            if ($axis->join !== null) {
+                ($axis->join)($query);
+            }
+        }
+
+        $query = $query
+            ->groupBy([...$groups, 'time_entries.spent_on'])
+            ->selectRaw(implode(', ', $selects).', time_entries.spent_on as spent_on, SUM(time_entries.hours) as hours');
 
         /** @var Collection<int, object> $rawRows */
         $rawRows = $query->get();
@@ -69,14 +73,14 @@ final class TimeReportBuilder
         $buckets = [];
 
         foreach ($rawRows as $row) {
-            $values = array_map(fn (TimeReportCriterion $c) => $row->{$this->shortColumn($c)}, $criteria);
-            $rowKey = implode('|', array_map(fn ($v) => $v ?? '', $values));
+            $values = array_map(fn (int $index) => $row->{"axis_{$index}"}, array_keys($criteria));
+            $rowKey = implode('|', array_map(fn ($v) => is_bool($v) ? (int) $v : ($v ?? ''), $values));
             $periodKey = $period->keyFor(Carbon::parse($row->spent_on));
 
             if (! isset($buckets[$rowKey])) {
                 $buckets[$rowKey] = [
                     'labels' => array_map(
-                        fn (TimeReportCriterion $c, $v) => $labelResolvers[$c->value][$v ?? ''] ?? '(なし)',
+                        fn (TimeReportAxis $axis, $v) => $labelResolvers[$axis->key][$v ?? ''] ?? '(なし)',
                         $criteria,
                         $values,
                     ),
@@ -111,17 +115,6 @@ final class TimeReportBuilder
     }
 
     /**
-     * The unqualified column name a criterion's grouped value comes back
-     * under (e.g. 'issues.status_id' => 'status_id').
-     */
-    private function shortColumn(TimeReportCriterion $criterion): string
-    {
-        $column = $criterion->column();
-
-        return str_contains($column, '.') ? substr($column, strpos($column, '.') + 1) : $column;
-    }
-
-    /**
      * @param  Collection<int, object>  $rawRows
      * @return array<int, array{key: string, label: string}>
      */
@@ -144,30 +137,21 @@ final class TimeReportBuilder
     }
 
     /**
-     * Batch-resolves display labels for every distinct value each
-     * criterion actually returned, one query per criterion rather than
-     * N+1 per row.
+     * Batch-resolves display labels for every distinct value each axis
+     * actually returned, one query per axis rather than N+1 per row.
      *
-     * @param  array<int, TimeReportCriterion>  $criteria
+     * @param  array<int, TimeReportAxis>  $criteria
      * @param  Collection<int, object>  $rawRows
-     * @return array<string, array<int|string, string>> keyed by criterion value => [rawValue => label]
+     * @return array<string, array<int|string, string>> keyed by axis key => [rawValue => label]
      */
     private function labelResolvers(array $criteria, Collection $rawRows): array
     {
         $resolvers = [];
 
-        foreach ($criteria as $criterion) {
-            $ids = $rawRows->pluck($this->shortColumn($criterion))->filter()->unique()->values();
+        foreach ($criteria as $index => $axis) {
+            $values = $rawRows->pluck("axis_{$index}")->filter(fn ($value) => $value !== null && $value !== '')->unique()->values();
 
-            $resolvers[$criterion->value] = match ($criterion) {
-                TimeReportCriterion::Status => IssueStatus::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
-                TimeReportCriterion::Version => Version::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
-                TimeReportCriterion::Category => IssueCategory::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
-                TimeReportCriterion::User => User::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
-                TimeReportCriterion::Tracker => Tracker::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
-                TimeReportCriterion::Activity => Enumeration::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
-                TimeReportCriterion::Issue => Issue::query()->whereIn('id', $ids)->get()->mapWithKeys(fn (Issue $issue) => [$issue->id => "#{$issue->id} {$issue->subject}"])->all(),
-            };
+            $resolvers[$axis->key] = ($axis->labels)($values);
         }
 
         return $resolvers;

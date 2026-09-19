@@ -7,11 +7,14 @@ use App\Models\TimeEntry;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
+use App\Support\TimeReport\TimeReportAxes;
+use App\Support\TimeReport\TimeReportAxis;
 use App\Support\TimeReport\TimeReportBuilder;
-use App\Support\TimeReport\TimeReportCriterion;
 use App\Support\TimeReport\TimeReportPeriod;
 use App\Support\TimeReport\TimeReportTable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -27,7 +30,8 @@ new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
 
-    public Project $project;
+    /** Null on the cross-project report (/time_entries/report). */
+    public ?Project $project = null;
 
     /** @var array<int, string> */
     #[Url]
@@ -36,32 +40,59 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public string $period = 'month';
 
-    public function mount(Project $project): void
+    public function mount(?Project $project = null): void
     {
-        $this->authorize('viewAny', [TimeEntry::class, $project]);
+        if ($project !== null) {
+            $this->authorize('viewAny', [TimeEntry::class, $project]);
+        }
 
         $this->project = $project;
+    }
+
+    /**
+     * The projects this report covers: the one, or on the cross-project
+     * report every project the viewer may see time entries of.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function scopeProjects(): Collection
+    {
+        if ($this->project !== null) {
+            return collect([$this->project]);
+        }
+
+        return Project::query()->with('users')->get()
+            ->filter(fn (Project $candidate) => auth()->user()?->can('viewAny', [TimeEntry::class, $candidate]))
+            ->values();
     }
 
     #[Computed]
     public function engine(): QueryFilterEngine
     {
-        return new QueryFilterEngine(TimeEntryFilterFieldRegistry::forProject($this->project));
+        return new QueryFilterEngine($this->project !== null
+            ? TimeEntryFilterFieldRegistry::forProject($this->project)
+            : TimeEntryFilterFieldRegistry::forProjects($this->scopeProjects));
     }
 
     /**
-     * @return array<int, TimeReportCriterion>
+     * Every row axis offered on this report.
+     *
+     * @return array<string, TimeReportAxis>
+     */
+    #[Computed]
+    public function availableAxes(): array
+    {
+        return TimeReportAxes::available(auth()->user(), $this->scopeProjects, includeProject: $this->project === null);
+    }
+
+    /**
+     * @return array<int, TimeReportAxis>
      */
     #[Computed]
     public function selectedCriteria(): array
     {
-        return collect($this->criteria)
-            ->map(fn (string $key) => TimeReportCriterion::tryFrom($key))
-            ->filter()
-            ->unique()
-            ->take(3)
-            ->values()
-            ->all();
+        return TimeReportAxes::resolve($this->criteria, $this->availableAxes);
     }
 
     #[Computed]
@@ -75,6 +106,12 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private function filteredTimeEntriesQuery(): Builder
     {
+        if ($this->project === null) {
+            $query = TimeEntry::query()->visibleToAcrossProjects(auth()->user(), $this->scopeProjects);
+
+            return $this->engine->applyFilters($query, $this->builtFilters());
+        }
+
         $query = TimeEntry::query()->where('time_entries.project_id', $this->project->id);
 
         if (app(AuthorizationService::class)->timeEntryVisibilityFor(auth()->user(), $this->project) === TimeEntryVisibility::Own) {
@@ -105,11 +142,55 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         unset($this->report);
     }
+
+    #[Url]
+    public string $csvEncoding = 'UTF-8';
+
+    #[Url]
+    public string $csvSeparator = ',';
+
+    /**
+     * Redmine's report CSV: one row per axis combination, a column per
+     * period, then the row total, closed by a totals row.
+     */
+    public function exportCsv(): StreamedResponse
+    {
+        abort_if($this->project !== null && auth()->user()?->cannot('viewAny', [TimeEntry::class, $this->project]), 403);
+
+        $encoding = in_array($this->csvEncoding, ['UTF-8', 'SJIS-win'], true) ? $this->csvEncoding : 'UTF-8';
+        $separator = in_array($this->csvSeparator, [',', ';', "\t"], true) ? $this->csvSeparator : ',';
+        $report = $this->report;
+        $criteria = $this->selectedCriteria;
+
+        $lines = [array_merge(array_map(fn (TimeReportAxis $axis) => $axis->label, $criteria), array_column($report->periods, 'label'), ['合計'])];
+
+        foreach ($report->rows as $row) {
+            $cells = array_map(fn (array $period) => isset($row['cells'][$period['key']]) ? number_format($row['cells'][$period['key']], 2, '.', '') : '', $report->periods);
+            $lines[] = array_merge($row['labels'], $cells, [number_format($row['total'], 2, '.', '')]);
+        }
+
+        $totals = array_map(fn (array $period) => number_format($report->columnTotals[$period['key']] ?? 0, 2, '.', ''), $report->periods);
+        $lines[] = array_merge(['合計'], array_fill(0, max(0, count($criteria) - 1), ''), $totals, [number_format($report->grandTotal, 2, '.', '')]);
+
+        return response()->streamDownload(function () use ($lines, $encoding, $separator): void {
+            $handle = fopen('php://output', 'w');
+
+            if ($encoding === 'UTF-8') {
+                fwrite($handle, "\xEF\xBB\xBF");
+            }
+
+            foreach ($lines as $line) {
+                fputcsv($handle, array_map(fn ($value) => $encoding === 'UTF-8' ? (string) $value : mb_convert_encoding((string) $value, $encoding, 'UTF-8'), $line), $separator);
+            }
+
+            fclose($handle);
+        }, 'timelog.csv');
+    }
 }; ?>
 
 <div>
     <div class="mb-6">
-        <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — 工数レポート</h1>
+        <h1 class="text-xl font-semibold text-gray-900">{{ $project ? $project->name.' — ' : '' }}工数レポート</h1>
         <p class="mt-1 text-sm text-gray-500">合計: {{ number_format($this->report->grandTotal, 2) }} 時間</p>
     </div>
 
@@ -124,13 +205,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="flex items-center gap-2 text-sm text-gray-700">
                 行の軸(最大3つ):
-                @foreach (\App\Support\TimeReport\TimeReportCriterion::cases() as $criterion)
-                    <label class="flex items-center gap-1">
-                        <input type="checkbox" wire:click="toggleCriterion('{{ $criterion->value }}')"
-                            @checked(in_array($criterion->value, $criteria, true))
-                            @disabled(count($criteria) >= 3 && ! in_array($criterion->value, $criteria, true))
+                @foreach ($this->availableAxes as $axisKey => $axisOption)
+                    <label class="flex items-center gap-1" wire:key="axis-{{ $axisKey }}">
+                        <input type="checkbox" wire:click="toggleCriterion('{{ $axisKey }}')"
+                            @checked(in_array($axisKey, $criteria, true))
+                            @disabled(count($criteria) >= 3 && ! in_array($axisKey, $criteria, true))
                             class="rounded border-gray-300">
-                        {{ $criterion->label() }}
+                        {{ $axisOption->label }}
                     </label>
                 @endforeach
             </div>
@@ -146,6 +227,19 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
+    <div class="mb-3 flex items-center gap-2">
+        <select wire:model="csvEncoding" class="rounded-md border-gray-300 text-xs">
+            <option value="UTF-8">UTF-8</option>
+            <option value="SJIS-win">Shift_JIS</option>
+        </select>
+        <select wire:model="csvSeparator" class="rounded-md border-gray-300 text-xs">
+            <option value=",">カンマ</option>
+            <option value=";">セミコロン</option>
+            <option value="{{ "\t" }}">タブ</option>
+        </select>
+        <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">CSVエクスポート</button>
+    </div>
+
     @if ($this->report->isEmpty())
         <p class="text-sm text-gray-500">行の軸を1つ以上選択してください。該当する工数記録がない場合も表は空になります。</p>
     @else
@@ -154,7 +248,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <thead class="bg-gray-50">
                     <tr>
                         @foreach ($this->selectedCriteria as $criterion)
-                            <th class="px-3 py-2 text-left font-medium text-gray-500">{{ $criterion->label() }}</th>
+                            <th class="px-3 py-2 text-left font-medium text-gray-500">{{ $criterion->label }}</th>
                         @endforeach
                         @foreach ($this->report->periods as $columnPeriod)
                             <th class="px-3 py-2 text-right font-medium text-gray-500">{{ $columnPeriod['label'] }}</th>
