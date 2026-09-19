@@ -101,7 +101,7 @@
 | 30 | A11-03 | — | S | done(2026-09-20) |
 | 31 | A11-04 | — | S | done(2026-09-20) |
 | 32 | A11-08 | — | S | done(2026-09-20) |
-| 33 | A11-09 | — | S | todo |
+| 33 | A11-09 | — | S | done(2026-09-20) |
 | 34 | A11-14 | — | S | todo |
 | 35 | A6-02 | — | S | todo |
 | 36 | A6-03 | — | S | todo |
@@ -520,6 +520,7 @@
 | C-18 | (バックログ自身の訂正)A1-24 `is_in_chlog` | 付録の機械照合で「スキーマ列の欠落」として列挙 | Redmine 7.0.0 は 2021 年に列を廃止済み。**教訓**: マイグレーションの `add_column` だけでなく、`app/` での使用箇所と後続の `drop` を確認する。他の列(`inherit_members`/`homepage`/`default_time_entry_activity_id`/`updated_by_id`/`passwd_changed_on`/`must_change_passwd`/`members.mail_notification`/`is_filter`/`twofa_required` 等)は `app/` に使用箇所があり現役と確認済み(2026-09-20) | 反映済み |
 | C-19 | (バックログ自身の訂正)A7-04 | 「Wiki 個別バージョンの削除は未実装」 | 実装済みだった。実際の差分は権限(`edit_wiki_pages` ↔ Redmine の `delete_wiki_pages`)と最新版/最後の1版の扱い | 反映済み(A7-04) |
 | C-20 | (実装中に発見したセキュリティ不具合、A11-01 で修正済み)REST API「Issues」 | 一覧 `GET /projects/{id}/issues` は `view_issues` があれば読めるとして記載 | 課題単位の可視性(非公開課題・own/default)が未適用で、権限のない課題が漏れていた | 修正・回帰テスト追加済み(`IssueApiIndexTest.php`) |
+| C-21 | (実装中に発見したアクセス制御の不具合、A11-09 で修正済み)REST API「Issues」`include=children` | 直下の子課題を返すとして記載 | 閲覧権限のない子課題(非公開のサブタスクなど)も題名付きで返していた | 呼び出し元が閲覧可能な子だけに絞り、回帰テスト追加済み |
 
 ---
 

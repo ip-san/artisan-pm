@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Resources\Api\V1;
 
+use App\Models\Changeset;
 use App\Models\Issue;
 use App\Models\IssueRelation;
+use App\Models\IssueStatus;
 use App\Models\Journal;
 use App\Models\Watcher;
+use App\Services\WorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -54,8 +57,18 @@ final class IssueResource extends JsonResource
                 fn () => $this->visibleRelations($issue, $request),
             ),
             'attachments' => $this->whenLoaded('media', fn () => $this->attachments($issue)),
-            'children' => $this->whenLoaded('children', fn () => $this->children($issue)),
+            'children' => $this->whenLoaded('children', fn () => $this->children($issue, $request)),
             'watchers' => $this->whenLoaded('watchers', fn () => $this->watchers($issue)),
+            // Not relations, so the controller records the request in the
+            // request attributes (see IssueController::show()).
+            'allowed_statuses' => $this->when(
+                $this->includes($request, 'allowed_statuses'),
+                fn () => $this->allowedStatuses($issue, $request),
+            ),
+            'changesets' => $this->when(
+                $this->includes($request, 'changesets') && $issue->relationLoaded('changesets'),
+                fn () => $this->changesets($issue, $request),
+            ),
         ];
     }
 
@@ -135,21 +148,75 @@ final class IssueResource extends JsonResource
         ])->values()->all();
     }
 
+    private function includes(Request $request, string $key): bool
+    {
+        return in_array($key, $request->attributes->get('issue_api_includes', []), true);
+    }
+
     /**
-     * Direct children only, one level deep — unlike Redmine's own
-     * infinitely-recursive render_api_issue_children, kept flat to match
-     * this resource's existing convention of not embedding nested
-     * resource graphs.
+     * The statuses the caller may move this issue to, plus its current one
+     * — Redmine's `new_statuses_allowed_to`, the same list the edit form
+     * offers.
      *
      * @return array<int, array<string, mixed>>
      */
-    private function children(Issue $issue): array
+    private function allowedStatuses(Issue $issue, Request $request): array
     {
-        return $issue->children->map(fn (Issue $child) => [
-            'id' => $child->id,
-            'tracker_id' => $child->tracker_id,
-            'subject' => $child->subject,
-        ])->values()->all();
+        return app(WorkflowService::class)->allowedTransitions($issue, $request->user())
+            ->push($issue->status)
+            ->unique('id')
+            ->sortBy('position')
+            ->map(fn (IssueStatus $status) => ['id' => $status->id, 'name' => $status->name, 'is_closed' => $status->is_closed])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Commits linked to the issue, limited to repositories whose project the
+     * caller may view changesets in (an issue can be referenced from a
+     * commit of another project). Redmine also resolves the committer to a
+     * user; this app keeps the committer as the SCM's own text.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function changesets(Issue $issue, Request $request): array
+    {
+        return $issue->changesets
+            ->filter(fn (Changeset $changeset) => $request->user()?->can('view', $changeset->repository))
+            ->sortBy('committed_on')
+            ->map(fn (Changeset $changeset) => [
+                'revision' => $changeset->revision,
+                'committer' => $changeset->committer,
+                'comments' => $changeset->comments,
+                'committed_on' => $changeset->committed_on->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The issue's children, each with its own `children` recursively like
+     * Redmine's render_api_issue_children, keeping only the ones the caller
+     * may see (a subtask can be private even when its parent is not).
+     * Descendants must be eager-loaded (IssueController does); a level
+     * without loaded children is treated as a leaf.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function children(Issue $issue, Request $request, int $depth = 0): array
+    {
+        return $issue->children
+            ->filter(fn (Issue $child) => $request->user()?->can('view', $child))
+            ->map(fn (Issue $child) => [
+                'id' => $child->id,
+                'tracker_id' => $child->tracker_id,
+                'subject' => $child->subject,
+                ...($depth < 25 && $child->relationLoaded('children') && $child->children->isNotEmpty()
+                    ? ['children' => $this->children($child, $request, $depth + 1)]
+                    : []),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

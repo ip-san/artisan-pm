@@ -19,6 +19,7 @@ use App\Services\IssueService;
 use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Attachments\PendingUploadToken;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -29,13 +30,14 @@ use Illuminate\Validation\Rule;
 final class IssueController extends Controller
 {
     /**
-     * The relations show's ?include= can request — Redmine's own keys,
-     * minus allowed_statuses (needs the workflow engine) and changesets
-     * (needs SCM linkage), both left out of scope here.
+     * What show's ?include= can request — Redmine's own keys.
+     * allowed_statuses and changesets are not relations: the resource
+     * computes them from the include list recorded in the request
+     * attributes below.
      *
      * @var array<int, string>
      */
-    private const array SHOW_INCLUDES = ['journals', 'relations', 'attachments', 'children', 'watchers'];
+    private const array SHOW_INCLUDES = ['journals', 'relations', 'attachments', 'children', 'watchers', 'allowed_statuses', 'changesets'];
 
     /**
      * Matches Redmine's own index action, which only ever honors
@@ -151,7 +153,14 @@ final class IssueController extends Controller
     {
         Gate::authorize('view', $issue);
 
-        $issue->load($this->relationsToLoad($this->parseIncludes($request, self::SHOW_INCLUDES)));
+        $includes = $this->parseIncludes($request, self::SHOW_INCLUDES);
+        $request->attributes->set('issue_api_includes', $includes);
+
+        $issue->load($this->relationsToLoad($includes));
+
+        if (in_array('children', $includes, true)) {
+            $this->loadDescendants($issue);
+        }
 
         return new IssueResource($issue);
     }
@@ -305,6 +314,20 @@ final class IssueController extends Controller
     }
 
     /**
+     * Loads children level by level until a level has none, so the resource
+     * can nest them without lazy loading. The depth is capped as a guard
+     * against a corrupt parent cycle.
+     */
+    private function loadDescendants(Issue $issue): void
+    {
+        $level = $issue->children;
+
+        for ($depth = 0; $level->isNotEmpty() && $depth < 25; $depth++) {
+            $level = new EloquentCollection($level->loadMissing('children')->pluck('children')->flatten(1)->all());
+        }
+    }
+
+    /**
      * @param  array<int, string>  $includes
      * @return array<int, string>
      */
@@ -316,6 +339,7 @@ final class IssueController extends Controller
             'attachments' => ['media'],
             'children' => ['children'],
             'watchers' => ['watchers.user'],
+            'changesets' => ['changesets.repository.project'],
             default => [],
         })->all();
     }

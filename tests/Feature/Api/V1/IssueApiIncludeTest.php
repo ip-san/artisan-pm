@@ -220,3 +220,110 @@ test('an unrecognized include key is silently ignored', function () {
         ->assertOk()
         ->assertJsonMissingPath('data.not_a_real_key');
 });
+
+test('allowed_statuses lists the statuses the caller may move to plus the current one', function () {
+    $project = Project::factory()->create();
+    $user = includeTestMember($project, ['view_issues', 'edit_issues']);
+    $tracker = Tracker::factory()->create();
+    $open = IssueStatus::factory()->create(['name' => 'New', 'position' => 1]);
+    $done = IssueStatus::factory()->create(['name' => 'Done', 'is_closed' => true, 'position' => 2]);
+    $unreachable = IssueStatus::factory()->create(['name' => 'Unreachable', 'position' => 3]);
+    $role = Role::query()->latest('id')->firstOrFail();
+    App\Models\WorkflowTransition::create(['tracker_id' => $tracker->id, 'role_id' => $role->id, 'old_status_id' => $open->id, 'new_status_id' => $done->id, 'author' => false, 'assignee' => false]);
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $open->id, 'priority_id' => Enumeration::factory()->create()->id]);
+
+    Passport::actingAs($user);
+
+    $statuses = $this->getJson("/api/v1/issues/{$issue->id}?include=allowed_statuses")->assertOk()->json('data.allowed_statuses');
+
+    expect(collect($statuses)->pluck('name')->all())->toBe(['New', 'Done'])
+        ->and($statuses[1])->toBe(['id' => $done->id, 'name' => 'Done', 'is_closed' => true])
+        ->and(collect($statuses)->pluck('name'))->not->toContain($unreachable->name);
+});
+
+test('allowed_statuses is absent unless requested', function () {
+    $project = Project::factory()->create();
+    $user = includeTestMember($project);
+    $issue = Issue::factory()->for($project)->create(includeTestIssueDefaults());
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/issues/{$issue->id}")->assertOk()->assertJsonMissingPath('data.allowed_statuses');
+});
+
+test('changesets lists linked commits the caller may view and hides other projects\' commits', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $user = includeTestMember($project, ['view_issues', 'view_changesets']);
+    $issue = Issue::factory()->for($project)->create(includeTestIssueDefaults());
+    $visible = App\Models\Changeset::factory()->for(App\Models\Repository::factory()->for($project))->create(['revision' => 'abc123', 'comments' => 'Fix the thing', 'committed_on' => now()->subDay()]);
+    $hidden = App\Models\Changeset::factory()->for(App\Models\Repository::factory()->for($otherProject))->create(['revision' => 'def456']);
+    $issue->changesets()->attach([$visible->id, $hidden->id]);
+
+    Passport::actingAs($user);
+
+    $changesets = $this->getJson("/api/v1/issues/{$issue->id}?include=changesets")->assertOk()->json('data.changesets');
+
+    expect($changesets)->toHaveCount(1)
+        ->and($changesets[0]['revision'])->toBe('abc123')
+        ->and($changesets[0]['comments'])->toBe('Fix the thing')
+        ->and($changesets[0])->toHaveKeys(['committer', 'committed_on']);
+});
+
+test('changesets is empty for a caller without view_changesets', function () {
+    $project = Project::factory()->create();
+    $user = includeTestMember($project, ['view_issues']);
+    $issue = Issue::factory()->for($project)->create(includeTestIssueDefaults());
+    $changeset = App\Models\Changeset::factory()->for(App\Models\Repository::factory()->for($project))->create();
+    $issue->changesets()->attach($changeset);
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/issues/{$issue->id}?include=changesets")->assertOk()->assertJsonPath('data.changesets', []);
+});
+
+test('children nest recursively and leave out subtasks the caller cannot see', function () {
+    $project = Project::factory()->create();
+    $user = includeTestMember($project);
+    $author = User::factory()->create();
+    $root = Issue::factory()->for($project)->create(includeTestIssueDefaults());
+    $child = Issue::factory()->for($project)->create([...includeTestIssueDefaults(), 'parent_id' => $root->id, 'subject' => 'Child']);
+    $grandchild = Issue::factory()->for($project)->create([...includeTestIssueDefaults(), 'parent_id' => $child->id, 'subject' => 'Grandchild']);
+    $greatGrandchild = Issue::factory()->for($project)->create([...includeTestIssueDefaults(), 'parent_id' => $grandchild->id, 'subject' => 'Great grandchild']);
+    Issue::factory()->for($project)->create([...includeTestIssueDefaults(), 'parent_id' => $root->id, 'subject' => 'Secret child', 'is_private' => true, 'author_id' => $author->id]);
+
+    $role = Role::query()->latest('id')->firstOrFail();
+    $role->update(['issues_visibility' => 'default']);
+
+    Passport::actingAs($user);
+
+    $children = $this->getJson("/api/v1/issues/{$root->id}?include=children")->assertOk()->json('data.children');
+
+    expect(collect($children)->pluck('subject')->all())->toBe(['Child'])
+        ->and($children[0]['children'][0]['subject'])->toBe('Grandchild')
+        ->and($children[0]['children'][0]['children'][0]['id'])->toBe($greatGrandchild->id)
+        ->and($children[0]['children'][0]['children'][0])->not->toHaveKey('children');
+});
+
+test('a leaf issue reports an empty children list and the nested load stays query-flat', function () {
+    $project = Project::factory()->create();
+    $user = includeTestMember($project);
+    $root = Issue::factory()->for($project)->create(includeTestIssueDefaults());
+    $parent = $root;
+    foreach (range(1, 6) as $i) {
+        $parent = Issue::factory()->for($project)->create([...includeTestIssueDefaults(), 'parent_id' => $parent->id]);
+    }
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/issues/{$parent->id}?include=children")->assertOk()->assertJsonPath('data.children', []);
+
+    $queries = 0;
+    DB::listen(function () use (&$queries) {
+        $queries++;
+    });
+
+    $this->getJson("/api/v1/issues/{$root->id}?include=children")->assertOk();
+
+    expect($queries)->toBeLessThan(60);
+});
