@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\RoleBuiltin;
+use App\Enums\UsersVisibility;
 use App\Models\Role;
 use App\Models\User;
 use Laravel\Passport\Passport;
@@ -68,4 +69,21 @@ test('a member of no projects can still list roles, matching the unscoped index'
     Passport::actingAs($user);
 
     $this->getJson('/api/v1/roles')->assertOk();
+});
+
+test('the role payload exposes all three visibility settings', function () {
+    $user = User::factory()->create();
+    $role = Role::factory()->create([
+        'issues_visibility' => 'own',
+        'time_entries_visibility' => 'own',
+        'users_visibility' => UsersVisibility::MembersOfVisibleProjects,
+    ]);
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/roles/{$role->id}")
+        ->assertOk()
+        ->assertJsonPath('data.issues_visibility', 'own')
+        ->assertJsonPath('data.time_entries_visibility', 'own')
+        ->assertJsonPath('data.users_visibility', UsersVisibility::MembersOfVisibleProjects->value);
 });

@@ -26,6 +26,7 @@ final class RoleResource extends JsonResource
             'assignable' => $role->assignable,
             'issues_visibility' => $role->issues_visibility->value,
             'time_entries_visibility' => $role->time_entries_visibility->value,
+            'users_visibility' => $role->users_visibility->value,
             'permissions' => $role->permissionKeys(),
         ];
     }
