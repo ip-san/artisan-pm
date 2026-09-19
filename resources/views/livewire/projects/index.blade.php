@@ -40,24 +40,16 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * With no search or status filter active, this shows every project
-     * (not just roots) in nested-set tree order with each one's absolute
-     * depth exposed via withDepth() — the Blade view indents by that
-     * depth, matching Redmine's tree-style project list. Once either
-     * filter is used, subprojects need to be findable in a flat match
-     * list instead, so the query switches to plain alphabetical order
-     * across every project with no depth/indentation (searching implies
-     * wanting matches, not tree context — replicating Redmine's
-     * ancestor-expansion-under-filter is a separate, larger piece of
-     * work). Pagination happens after the can('view') filter (which
-     * can't be expressed in SQL) rather than via ->paginate(), so the
-     * page count reflects only what this user can actually see.
-     *
-     * Depth is absolute (from the true root), not relative to the
-     * nearest VISIBLE ancestor — a project whose parent this user can't
-     * view still renders at its real depth, so it can appear indented
-     * with no visible parent above it. This is a deliberate
-     * simplification; Redmine's own tree rendering is more involved.
+     * Every project the viewer can see, in nested-set tree order, each with
+     * a `display_level` for indentation. The level counts only ancestors
+     * that are themselves in the list, like Redmine's project_tree: a
+     * project whose parent is hidden (no view permission, or filtered out by
+     * the search/status filter) starts a new top-level entry instead of
+     * hanging under an invisible parent. Searching therefore keeps the tree
+     * shape of the matches. Pagination (25 per page) applies while a filter
+     * is active and happens after the can('view') filter, which can't be
+     * expressed in SQL, so the page count reflects only what this user can
+     * actually see.
      *
      * @return Collection<int, Project>|LengthAwarePaginator<int, Project>
      */
@@ -81,21 +73,15 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $filtering = $this->search !== '' || $this->statusFilter !== 'all';
 
-        $query = Project::query();
+        $query = Project::query()->defaultOrder();
 
-        if ($filtering) {
-            $query->orderBy('name');
+        if ($this->search !== '') {
+            $query->where(fn ($q) => $q->where('name', 'like', "%{$this->search}%")
+                ->orWhere('identifier', 'like', "%{$this->search}%"));
+        }
 
-            if ($this->search !== '') {
-                $query->where(fn ($q) => $q->where('name', 'like', "%{$this->search}%")
-                    ->orWhere('identifier', 'like', "%{$this->search}%"));
-            }
-
-            if ($this->statusFilter !== 'all') {
-                $query->where('status', $this->statusFilter);
-            }
-        } else {
-            $query->withDepth()->defaultOrder();
+        if ($this->statusFilter !== 'all') {
+            $query->where('status', $this->statusFilter);
         }
 
         $visible = $query->get()
@@ -106,6 +92,8 @@ new #[Layout('components.layouts.app')] class extends Component
             $bookmarkedIds = auth()->user()->bookmarkedProjects()->pluck('projects.id');
             $visible = $visible->filter(fn (Project $project) => $bookmarkedIds->contains($project->id))->values();
         }
+
+        $visible = $this->withDisplayLevels($visible);
 
         if (! $filtering) {
             return $visible;
@@ -120,6 +108,29 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->getPage(),
             ['pageName' => 'page'],
         );
+    }
+
+    /**
+     * Sets `display_level` on projects given in nested-set order: the number
+     * of earlier projects in the list that contain it.
+     *
+     * @param  Collection<int, Project>  $projects
+     * @return Collection<int, Project>
+     */
+    private function withDisplayLevels(Collection $projects): Collection
+    {
+        $ancestors = [];
+
+        foreach ($projects as $project) {
+            while ($ancestors !== [] && end($ancestors)->_rgt < $project->_lft) {
+                array_pop($ancestors);
+            }
+
+            $project->setAttribute('display_level', count($ancestors));
+            $ancestors[] = $project;
+        }
+
+        return $projects;
     }
 
     public function toggleBookmark(int $projectId): void
@@ -177,7 +188,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
         @forelse ($this->projects as $project)
-            <li class="flex items-start justify-between px-4 py-3" style="padding-left: {{ 16 + ($project->depth ?? 0) * 16 }}px">
+            <li class="flex items-start justify-between px-4 py-3" style="padding-left: {{ 16 + ($project->display_level ?? 0) * 16 }}px">
                 <div>
                     <a href="{{ route('projects.show', $project) }}" class="font-medium text-indigo-600 hover:underline">
                         {{ $project->name }}
