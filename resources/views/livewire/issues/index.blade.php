@@ -3,6 +3,7 @@
 use App\Concerns\InteractsWithQueryFilters;
 use App\Enums\EnumerationType;
 use App\Enums\FilterOperator;
+use App\Enums\IssueTimeEntryDisposition;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
 use App\Models\CustomField;
@@ -28,7 +29,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -855,6 +858,28 @@ new #[Layout('components.layouts.app')] class extends Component
         session()->flash('status', "{$count}件の課題を「{$targetProject->name}」へ移動しました。");
     }
 
+    public bool $confirmingBulkDelete = false;
+
+    public string $bulkTimeEntryTodo = 'nullify';
+
+    public string $bulkReassignToId = '';
+
+    /**
+     * Hours logged directly against the selected issues — when there are
+     * any, the delete asks what to do with them (Redmine's
+     * issues/destroy.html.erb, which also offers a reassign target only when
+     * the selection is within one project, as it always is here).
+     */
+    #[Computed]
+    public function bulkDeleteHours(): float
+    {
+        if ($this->selectedIssues->isEmpty()) {
+            return 0.0;
+        }
+
+        return (float) TimeEntry::query()->whereIn('issue_id', $this->selectedIssues->pluck('id'))->sum('hours');
+    }
+
     public function applyBulkDelete(): void
     {
         $issues = $this->selectedIssues;
@@ -865,13 +890,46 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->authorize('delete', $issue);
         }
 
-        $count = $issues->count();
+        $disposition = IssueTimeEntryDisposition::Nullify;
+        $reassignToId = null;
 
-        foreach ($issues as $issue) {
-            app(IssueService::class)->delete($issue);
+        if ($this->bulkDeleteHours > 0) {
+            $disposition = IssueTimeEntryDisposition::tryFrom($this->bulkTimeEntryTodo);
+
+            if ($disposition === null) {
+                $this->addError('bulkTimeEntryTodo', '作業時間の扱いが不正です。');
+
+                return;
+            }
+
+            if ($disposition === IssueTimeEntryDisposition::Reassign) {
+                $reassignToId = $this->bulkReassignToId !== '' ? (int) $this->bulkReassignToId : null;
+
+                // A target that is itself being deleted would strand the
+                // entries again; refuse before anything is removed.
+                if ($reassignToId === null || $issues->contains('id', $reassignToId)) {
+                    $this->addError('bulkReassignToId', '削除しない、このプロジェクトの課題を指定してください。');
+
+                    return;
+                }
+            }
         }
 
-        $this->reset('selected');
+        $count = $issues->count();
+
+        try {
+            DB::transaction(function () use ($issues, $disposition, $reassignToId) {
+                foreach ($issues as $issue) {
+                    app(IssueService::class)->delete($issue, $disposition, $reassignToId);
+                }
+            });
+        } catch (ValidationException $exception) {
+            $this->addError('bulkReassignToId', collect($exception->errors())->flatten()->first());
+
+            return;
+        }
+
+        $this->reset('selected', 'confirmingBulkDelete', 'bulkTimeEntryTodo', 'bulkReassignToId');
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
@@ -1206,11 +1264,51 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if (count($selected) > 0 && auth()->user()?->can('delete', $this->selectedIssues->first()))
         <div class="mb-4">
-            <button type="button" wire:click="applyBulkDelete"
-                wire:confirm="選択した{{ count($selected) }}件の課題を削除します。この操作は取り消せません。よろしいですか?"
-                class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
-                選択した{{ count($selected) }}件を削除
-            </button>
+            @if ($this->bulkDeleteHours > 0)
+                <button type="button" wire:click="$set('confirmingBulkDelete', true)"
+                    class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
+                    選択した{{ count($selected) }}件を削除
+                </button>
+
+                @if ($confirmingBulkDelete)
+                    <form wire:submit="applyBulkDelete" class="mt-3 space-y-3 rounded-md border border-red-200 bg-red-50 p-4">
+                        <p class="text-sm font-medium text-red-800">
+                            選択した課題には合計 {{ rtrim(rtrim(number_format($this->bulkDeleteHours, 2), '0'), '.') }} 時間の作業時間が記録されています。作業時間をどうしますか?
+                        </p>
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="radio" wire:model.live="bulkTimeEntryTodo" value="nullify">
+                            課題との紐付けを外してプロジェクトに残す
+                        </label>
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="radio" wire:model.live="bulkTimeEntryTodo" value="destroy">
+                            作業時間も一緒に削除する
+                        </label>
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="radio" wire:model.live="bulkTimeEntryTodo" value="reassign">
+                            このプロジェクトの別の課題へ付け替える: #
+                            <input type="number" min="1" wire:model="bulkReassignToId" wire:focus="$set('bulkTimeEntryTodo', 'reassign')"
+                                class="w-24 rounded-md border-gray-300 text-sm">
+                        </label>
+                        @error('bulkTimeEntryTodo') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+                        @error('bulkReassignToId') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+                        <div class="flex gap-2">
+                            <button type="submit" class="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500">
+                                削除する
+                            </button>
+                            <button type="button" wire:click="$set('confirmingBulkDelete', false)"
+                                class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                キャンセル
+                            </button>
+                        </div>
+                    </form>
+                @endif
+            @else
+                <button type="button" wire:click="applyBulkDelete"
+                    wire:confirm="選択した{{ count($selected) }}件の課題を削除します。この操作は取り消せません。よろしいですか?"
+                    class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
+                    選択した{{ count($selected) }}件を削除
+                </button>
+            @endif
         </div>
     @endif
 
