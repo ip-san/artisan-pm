@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AttachmentSearchMode;
 use App\Enums\CustomizableType;
 use App\Models\Changeset;
 use App\Models\CustomField;
@@ -17,6 +18,7 @@ use App\Models\User;
 use App\Models\WikiPage;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Search\SearchResult;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -56,9 +58,9 @@ final class SearchService
     /**
      * @return Collection<int, SearchResult>
      */
-    public function search(Project $project, ?User $viewer, string $query, bool $allWords = true, bool $titlesOnly = false, bool $openIssuesOnly = false): Collection
+    public function search(Project $project, ?User $viewer, string $query, bool $allWords = true, bool $titlesOnly = false, bool $openIssuesOnly = false, AttachmentSearchMode $attachments = AttachmentSearchMode::Exclude): Collection
     {
-        return $this->searchAcrossProjects(collect([$project]), $viewer, $query, $allWords, $titlesOnly, $openIssuesOnly);
+        return $this->searchAcrossProjects(collect([$project]), $viewer, $query, $allWords, $titlesOnly, $openIssuesOnly, $attachments);
     }
 
     /**
@@ -68,7 +70,7 @@ final class SearchService
      *                                              view_wiki_pages in the same project, for instance).
      * @return Collection<int, SearchResult>
      */
-    public function searchAcrossProjects(Collection $projects, ?User $viewer, string $query, bool $allWords = true, bool $titlesOnly = false, bool $openIssuesOnly = false): Collection
+    public function searchAcrossProjects(Collection $projects, ?User $viewer, string $query, bool $allWords = true, bool $titlesOnly = false, bool $openIssuesOnly = false, AttachmentSearchMode $attachments = AttachmentSearchMode::Exclude): Collection
     {
         $words = preg_split('/\s+/u', trim($query), -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
@@ -76,16 +78,76 @@ final class SearchService
             return collect();
         }
 
+        // Changesets and projects have no attachments, so searching through
+        // attachments only leaves them out (Redmine's acts_as_searchable).
+        $hasOwnText = $attachments->searchesOwnText();
+
         return collect()
-            ->merge($this->searchIssues($projects, $viewer, $words, $allWords, $titlesOnly, $openIssuesOnly))
-            ->merge($this->searchWikiPages($projects, $viewer, $words, $allWords, $titlesOnly))
-            ->merge($this->searchNews($projects, $viewer, $words, $allWords, $titlesOnly))
-            ->merge($this->searchDocuments($projects, $viewer, $words, $allWords, $titlesOnly))
-            ->merge($this->searchMessages($projects, $viewer, $words, $allWords, $titlesOnly))
-            ->merge($this->searchChangesets($projects, $viewer, $words, $allWords))
-            ->merge($this->searchProjects($projects, $words, $allWords, $titlesOnly))
+            ->merge($this->searchIssues($projects, $viewer, $words, $allWords, $titlesOnly, $openIssuesOnly, $attachments))
+            ->merge($this->searchWikiPages($projects, $viewer, $words, $allWords, $titlesOnly, $attachments))
+            ->merge($this->searchNews($projects, $viewer, $words, $allWords, $titlesOnly, $attachments))
+            ->merge($this->searchDocuments($projects, $viewer, $words, $allWords, $titlesOnly, $attachments))
+            ->merge($this->searchMessages($projects, $viewer, $words, $allWords, $titlesOnly, $attachments))
+            ->merge($hasOwnText ? $this->searchChangesets($projects, $viewer, $words, $allWords) : [])
+            ->merge($hasOwnText ? $this->searchProjects($projects, $words, $allWords, $titlesOnly) : [])
             ->sortByDesc('updatedAt')
             ->values();
+    }
+
+    /**
+     * The ids of records whose attachment file name or description match
+     * — a subquery over the media table, scoped to the given owner rows
+     * so it never scans other projects' files. `$morph` is the owner's
+     * morph-map alias.
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<TModel>  $owners
+     * @param  array<int, string>  $words
+     * @return Builder<Media>
+     */
+    private function attachmentOwnerIds(string $morph, Builder $owners, array $words, bool $allWords): Builder
+    {
+        return $this->whereWordsMatch(
+            Media::query()
+                ->select('model_id')
+                ->where('model_type', $morph)
+                ->where('collection_name', 'attachments')
+                ->whereIn('model_id', $owners->clone()->select('id')),
+            ['file_name', 'custom_properties->description'],
+            $words,
+            $allWords,
+        );
+    }
+
+    /**
+     * The per-type word match, widened or replaced by an attachment match
+     * according to $attachments — for types whose own text is matched by
+     * plain columns.
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<TModel>  $base
+     * @param  array<int, string>  $columns
+     * @param  array<int, string>  $words
+     * @return Builder<TModel>
+     */
+    private function whereMatchesOrHasMatchingAttachment(Builder $base, string $morph, array $columns, array $words, bool $allWords, bool $titlesOnly, AttachmentSearchMode $attachments): Builder
+    {
+        if (! $attachments->searchesAttachments($titlesOnly)) {
+            return $this->whereWordsMatch($base, $columns, $words, $allWords);
+        }
+
+        $attachmentIds = $this->attachmentOwnerIds($morph, $base, $words, $allWords);
+
+        if (! $attachments->searchesOwnText()) {
+            return $base->whereIn('id', $attachmentIds);
+        }
+
+        return $base->where(function (Builder $either) use ($attachmentIds, $columns, $words, $allWords) {
+            $either->whereIn('id', $attachmentIds)
+                ->orWhere(fn (Builder $own) => $this->whereWordsMatch($own, $columns, $words, $allWords));
+        });
     }
 
     /**
@@ -123,7 +185,7 @@ final class SearchService
      * @param  array<int, string>  $words
      * @return Collection<int, SearchResult>
      */
-    private function searchIssues(Collection $projects, ?User $viewer, array $words, bool $allWords, bool $titlesOnly, bool $openIssuesOnly): Collection
+    private function searchIssues(Collection $projects, ?User $viewer, array $words, bool $allWords, bool $titlesOnly, bool $openIssuesOnly, AttachmentSearchMode $attachments): Collection
     {
         $projectIds = $this->projectIdsPermitting($projects, $viewer, 'view_issues');
 
@@ -131,15 +193,25 @@ final class SearchService
             return collect();
         }
 
-        $matchedIds = $this->whereWordsMatch(
-            Issue::query()->whereIn('project_id', $projectIds),
-            $titlesOnly ? ['subject'] : ['subject', 'description'],
-            $words,
-            $allWords,
-        )->limit(self::RESULTS_PER_TYPE)->pluck('id');
+        $matchedIds = collect();
 
-        if (! $titlesOnly) {
-            $matchedIds = $matchedIds->merge($this->issueIdsMatchingSearchableCustomFields($projectIds, $words, $allWords))->unique();
+        if ($attachments->searchesOwnText()) {
+            $matchedIds = $this->whereWordsMatch(
+                Issue::query()->whereIn('project_id', $projectIds),
+                $titlesOnly ? ['subject'] : ['subject', 'description'],
+                $words,
+                $allWords,
+            )->limit(self::RESULTS_PER_TYPE)->pluck('id');
+
+            if (! $titlesOnly) {
+                $matchedIds = $matchedIds->merge($this->issueIdsMatchingSearchableCustomFields($projectIds, $words, $allWords))->unique();
+            }
+        }
+
+        if ($attachments->searchesAttachments($titlesOnly)) {
+            $matchedIds = $matchedIds
+                ->merge($this->attachmentOwnerIds('issue', Issue::query()->whereIn('project_id', $projectIds), $words, $allWords)->limit(self::RESULTS_PER_TYPE)->pluck('model_id'))
+                ->unique();
         }
 
         // Word-matching above only narrows by project_id, not by whether
@@ -222,7 +294,7 @@ final class SearchService
      * @param  array<int, string>  $words
      * @return Collection<int, SearchResult>
      */
-    private function searchWikiPages(Collection $projects, ?User $viewer, array $words, bool $allWords, bool $titlesOnly): Collection
+    private function searchWikiPages(Collection $projects, ?User $viewer, array $words, bool $allWords, bool $titlesOnly, AttachmentSearchMode $attachments): Collection
     {
         $projectIds = $this->projectIdsPermitting($projects, $viewer, 'view_wiki_pages');
 
@@ -230,18 +302,32 @@ final class SearchService
             return collect();
         }
 
-        return WikiPage::query()
-            ->whereIn('project_id', $projectIds)
-            ->where(function (Builder $outer) use ($words, $allWords, $titlesOnly) {
-                foreach ($words as $wordIndex => $word) {
-                    $outer->where(function (Builder $inner) use ($word, $titlesOnly) {
-                        $inner->where('title', 'like', "%{$word}%");
+        $pages = WikiPage::query()->whereIn('project_id', $projectIds);
+        $attachmentIds = $attachments->searchesAttachments($titlesOnly)
+            ? $this->attachmentOwnerIds('wiki_page', $pages, $words, $allWords)
+            : null;
 
-                        if (! $titlesOnly) {
-                            $inner->orWhereHas('currentVersion', fn ($version) => $version->where('text', 'like', "%{$word}%"));
-                        }
-                    }, boolean: ($allWords || $wordIndex === 0) ? 'and' : 'or');
+        return $pages
+            ->where(function (Builder $either) use ($words, $allWords, $titlesOnly, $attachments, $attachmentIds) {
+                if ($attachmentIds !== null) {
+                    $either->whereIn('id', $attachmentIds);
                 }
+
+                if (! $attachments->searchesOwnText()) {
+                    return;
+                }
+
+                $either->orWhere(function (Builder $outer) use ($words, $allWords, $titlesOnly) {
+                    foreach ($words as $wordIndex => $word) {
+                        $outer->where(function (Builder $inner) use ($word, $titlesOnly) {
+                            $inner->where('title', 'like', "%{$word}%");
+
+                            if (! $titlesOnly) {
+                                $inner->orWhereHas('currentVersion', fn ($version) => $version->where('text', 'like', "%{$word}%"));
+                            }
+                        }, boolean: ($allWords || $wordIndex === 0) ? 'and' : 'or');
+                    }
+                });
             })
             ->with(['project', 'currentVersion'])
             ->limit(self::RESULTS_PER_TYPE)
@@ -260,7 +346,7 @@ final class SearchService
      * @param  array<int, string>  $words
      * @return Collection<int, SearchResult>
      */
-    private function searchNews(Collection $projects, ?User $viewer, array $words, bool $allWords, bool $titlesOnly): Collection
+    private function searchNews(Collection $projects, ?User $viewer, array $words, bool $allWords, bool $titlesOnly, AttachmentSearchMode $attachments): Collection
     {
         $projectIds = $this->projectIdsPermitting($projects, $viewer, 'view_news');
 
@@ -268,11 +354,14 @@ final class SearchService
             return collect();
         }
 
-        return $this->whereWordsMatch(
+        return $this->whereMatchesOrHasMatchingAttachment(
             News::query()->whereIn('project_id', $projectIds),
+            'news',
             $titlesOnly ? ['title'] : ['title', 'summary', 'description'],
             $words,
             $allWords,
+            $titlesOnly,
+            $attachments,
         )
             ->with('project')
             ->take(self::RESULTS_PER_TYPE)
@@ -291,7 +380,7 @@ final class SearchService
      * @param  array<int, string>  $words
      * @return Collection<int, SearchResult>
      */
-    private function searchDocuments(Collection $projects, ?User $viewer, array $words, bool $allWords, bool $titlesOnly): Collection
+    private function searchDocuments(Collection $projects, ?User $viewer, array $words, bool $allWords, bool $titlesOnly, AttachmentSearchMode $attachments): Collection
     {
         $projectIds = $this->projectIdsPermitting($projects, $viewer, 'view_documents');
 
@@ -299,11 +388,14 @@ final class SearchService
             return collect();
         }
 
-        return $this->whereWordsMatch(
+        return $this->whereMatchesOrHasMatchingAttachment(
             Document::query()->whereIn('project_id', $projectIds),
+            'document',
             $titlesOnly ? ['title'] : ['title', 'description'],
             $words,
             $allWords,
+            $titlesOnly,
+            $attachments,
         )
             ->with('project')
             ->take(self::RESULTS_PER_TYPE)
@@ -322,7 +414,7 @@ final class SearchService
      * @param  array<int, string>  $words
      * @return Collection<int, SearchResult>
      */
-    private function searchMessages(Collection $projects, ?User $viewer, array $words, bool $allWords, bool $titlesOnly): Collection
+    private function searchMessages(Collection $projects, ?User $viewer, array $words, bool $allWords, bool $titlesOnly, AttachmentSearchMode $attachments): Collection
     {
         $projectIds = $this->projectIdsPermitting($projects, $viewer, 'view_messages');
 
@@ -330,11 +422,14 @@ final class SearchService
             return collect();
         }
 
-        return $this->whereWordsMatch(
+        return $this->whereMatchesOrHasMatchingAttachment(
             Message::query()->whereHas('board', fn ($board) => $board->whereIn('project_id', $projectIds)),
+            'message',
             $titlesOnly ? ['subject'] : ['subject', 'content'],
             $words,
             $allWords,
+            $titlesOnly,
+            $attachments,
         )
             ->take(self::RESULTS_PER_TYPE)
             ->get()

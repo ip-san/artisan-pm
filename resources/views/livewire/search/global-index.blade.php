@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AttachmentSearchMode;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Services\SearchService;
@@ -35,6 +36,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     #[Url]
     public bool $openIssuesOnly = false;
+
+    #[Url]
+    public string $attachments = '0';
 
     #[Url]
     public bool $myProjectsOnly = false;
@@ -94,6 +98,7 @@ new #[Layout('components.layouts.app')] class extends Component
             allWords: $this->allWords,
             titlesOnly: $this->titlesOnly,
             openIssuesOnly: $this->openIssuesOnly,
+            attachments: AttachmentSearchMode::tryFrom($this->attachments) ?? AttachmentSearchMode::Exclude,
         );
     }
 
@@ -191,6 +196,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="checkbox" wire:model="openIssuesOnly" class="rounded border-gray-300">
                 オープンな課題のみ
             </label>
+            <span class="flex items-center gap-3" data-attachment-search>
+                添付ファイル:
+                <label class="flex items-center gap-1"><input type="radio" wire:model="attachments" value="0"> 検索しない</label>
+                <label class="flex items-center gap-1"><input type="radio" wire:model="attachments" value="1"> 一緒に検索</label>
+                <label class="flex items-center gap-1"><input type="radio" wire:model="attachments" value="only"> 添付のみ</label>
+            </span>
             <label class="flex items-center gap-1.5">
                 <input type="checkbox" wire:model="myProjectsOnly" class="rounded border-gray-300">
                 自分のプロジェクトのみ

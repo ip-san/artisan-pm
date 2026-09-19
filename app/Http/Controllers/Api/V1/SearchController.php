@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\AttachmentSearchMode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\SearchRequest;
 use App\Http\Resources\Api\V1\SearchResultResource;
@@ -94,6 +95,7 @@ final class SearchController extends Controller
             $data['all_words'] ?? true,
             $data['titles_only'] ?? false,
             $data['open_issues'] ?? false,
+            AttachmentSearchMode::tryFrom((string) ($data['attachments'] ?? '0')) ?? AttachmentSearchMode::Exclude,
         );
 
         return SearchResultResource::collection($results);

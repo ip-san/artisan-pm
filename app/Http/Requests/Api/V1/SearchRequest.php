@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Enums\AttachmentSearchMode;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -32,6 +33,7 @@ final class SearchRequest extends FormRequest
             'all_words' => ['sometimes', 'boolean'],
             'titles_only' => ['sometimes', 'boolean'],
             'open_issues' => ['sometimes', 'boolean'],
+            'attachments' => ['sometimes', Rule::enum(AttachmentSearchMode::class)],
             'scope' => ['sometimes', Rule::in(['all', 'my_projects'])],
             'subprojects' => ['sometimes', 'boolean'],
         ];
