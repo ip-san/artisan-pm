@@ -40,6 +40,8 @@ final class PermissionServiceProvider extends ServiceProvider
         // :require => :loggedin) — see AuthorizationService::canGlobally().
         $registry->register('add_project', requirement: PermissionRequirement::LoggedIn);
         $registry->register('manage_public_queries');
+        // Lets a webhook owned by the user fire for this project (Redmine's :use_webhooks).
+        $registry->register('use_webhooks');
 
         $registry->register('manage_versions', module: ProjectModuleKey::IssueTracking);
         $registry->register('manage_categories', module: ProjectModuleKey::IssueTracking);

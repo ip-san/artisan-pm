@@ -218,8 +218,9 @@
 | 128b | A9-04b | A9-04 | M | todo |
 | 129 | A11-07 | — | M | done(2026-09-20、send_information/generate_password は未対応) |
 | 130 | A11-10 | — | M | done(2026-09-20、include=attachments の共通化は対象外) |
-| 131 | A12-02 / A13-07 | — | M | todo |
-| 132 | A12-03 | — | M | todo |
+| 131 | A12-02 / A13-07 | — | M | done(2026-09-20、ユーザー自身の管理画面は A12-02b) |
+| 131b | A12-02b | A12-02 | S〜M | todo |
+| 132 | A12-03 | — | M | wip(2026-09-20) |
 | 133 | A12-05 | — | M | todo |
 | 134 | A12-06 / A5-10 | — | M | todo |
 | 135 | A5-06 / A14-03 | — | M | todo |
@@ -460,6 +461,7 @@
 |---|---|---|---|---|---|---|
 | A12-01 | Webhook イベント `news.*`(Redmine 7.0 は Issue/News/TimeEntry/Version/WikiPage の 5 モデルが `acts_as_webhookable`) | `app/Enums/WebhookEvent.php` は issue/wiki_page/time_entry/version の 12 種。`news.*` なし | `NewsCreated`/`NewsCommentCreated` イベントは既存なので `DispatchWebhooksForNewsEvent` リスナーと Enum 値を追加 | — | S | 拡張性 節(Webhook は「本アプリ独自機能」と記載されていたが Redmine 7.0 でコア化、C-09) |
 | A12-02 | Webhook の所有ユーザーと可視性判定(`Webhook#user`、`object.visible?(hook.user) && allowed_to?(:use_webhooks)`)、`webhooks_enabled` 設定、権限 `use_webhooks` | Webhook は管理者が登録するグローバル設定、ユーザー紐付けなし | `webhooks.user_id` 列を追加し配信時に可視性を判定、`use_webhooks` 権限(A13)、有効/無効設定 | 現行 Webhook の配信対象(全課題)からの後方互換に注意 | M | 同上 |
+| A12-02b | ユーザー自身が自分の Webhook を管理する画面(`/my/webhooks`、`use_webhooks` 権限者のみ) | 管理者画面のみ | マイアカウントに Webhook 一覧/登録を追加(所有者は自分に固定) | A12-02 で分離 | S〜M | 「Webhook」 |
 | A12-03 | プラグインのランタイム検出(`plugins/*/init.rb` 自動読込) | `bootstrap/providers.php` への手動登録(`PluginManager` docblock) | `plugins/` ディレクトリ走査+Composer オートロード登録、有効/無効フラグ | 旧: 意図的(第一段階) | M | 拡張性「ランタイムでのプラグイン検出」 |
 | A12-04 | プラグイン独自の設定パーシャル(`settings :partial => '...'`) | 型推定の汎用エディタのみ | プラグイン定義に Blade ビュー名を渡せるようにし、あれば汎用エディタの代わりに描画 | — | S | 「プラグイン設定UI・永続化」 |
 | A12-05 | モデル/コントローラのライフサイクルフック(`controller_issues_edit_before_save` 等) | ビュー描画フック(`<x-hook>`)のみ | 主要サービス(`IssueService::create/update/delete`、`TimeEntry`、`WikiPage`)の前後に Laravel イベント(既に `IssueCreated` 等はある)を整理し、プラグインが購読できるフック名一覧をドキュメント化 | 既存イベントの流用で大半は賄える | M | 「コントローラ/モデルのライフサイクルフック」 |
@@ -689,6 +691,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A4-14 | 課題へのコメント/更新でウォッチが増えるようになる(個人設定「自分がコメント・更新した課題」をオンにした人のみ、既定はオフ)。既定の自動ウォッチ(作成・担当)は従来どおり | — |
 | A9-07 | すべてのページのヘッダーにプロジェクト移動のドロップダウンが増える。プロジェクトページを開くと個人設定に「最近使ったプロジェクト」が保存される | 個人設定で件数を 0 にすると記録しない |
 | A7-02 | `{{collapse}}` がネスト可能に。本文に隣接した `{{collapse}}` でプレースホルダ文字列が漏れる不具合を修正 | — |
+| A12-02 | Webhook に「所有ユーザー」(そのユーザーが見られる対象で、プロジェクトの「Webhookの利用」権限がある場合だけ送信)と、設定「Webhookを有効にする」が増える。ロールの権限に「Webhookの利用」 | 所有者を付けない従来のWebhookは従来どおり全件送信 |
 | A11-10 | REST API の課題・工数・プロジェクト・バージョン・グループ・ユーザーに `custom_fields`(読み書き)が増える | 応答に項目が増えるだけで、従来の呼び出しは影響なし |
 | A11-07 | REST API: `POST/PUT/DELETE /users`(管理者)が使え、`GET /users/{id}` は管理者以外でも見えるユーザーなら取得できる(項目は閲覧者に応じて出し分け)。**従来は非管理者に403だった** | 従来の管理者の呼び出しは影響なし(応答に項目が増える) |
 | A9-03 | マイページのブロックに「自分が更新した課題」「今週のカレンダー」が増える | 追加しなければ影響なし |

@@ -28,11 +28,7 @@ final class DispatchWebhooksForVersionEvent
 
     private function dispatchTo(Version $version, WebhookEvent $webhookEvent): void
     {
-        $webhooks = Webhook::query()
-            ->where('is_active', true)
-            ->where(fn ($query) => $query->whereNull('project_id')->orWhere('project_id', $version->project_id))
-            ->get()
-            ->filter(fn (Webhook $webhook) => $webhook->listensFor($webhookEvent));
+        $webhooks = Webhook::deliverableFor($version, $version->project_id, $webhookEvent);
 
         $payload = [
             'event' => $webhookEvent->value,

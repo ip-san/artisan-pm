@@ -28,11 +28,7 @@ final class DispatchWebhooksForTimeEntryEvent
 
     private function dispatchTo(TimeEntry $timeEntry, WebhookEvent $webhookEvent): void
     {
-        $webhooks = Webhook::query()
-            ->where('is_active', true)
-            ->where(fn ($query) => $query->whereNull('project_id')->orWhere('project_id', $timeEntry->project_id))
-            ->get()
-            ->filter(fn (Webhook $webhook) => $webhook->listensFor($webhookEvent));
+        $webhooks = Webhook::deliverableFor($timeEntry, $timeEntry->project_id, $webhookEvent);
 
         $payload = [
             'event' => $webhookEvent->value,

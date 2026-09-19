@@ -1,7 +1,9 @@
 <?php
 
 use App\Enums\WebhookEvent;
+use App\Enums\UserStatus;
 use App\Models\Project;
+use App\Models\User;
 use App\Models\Webhook;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -21,6 +23,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $project_id = null;
 
+    public ?int $user_id = null;
+
     /** @var array<string> */
     public array $events = [];
 
@@ -38,6 +42,7 @@ new #[Layout('components.layouts.app')] class extends Component
             // never round-tripped back into the form; submitting with
             // this field blank keeps the existing secret unchanged.
             $this->project_id = $webhook->project_id;
+            $this->user_id = $webhook->user_id;
             $this->events = $webhook->events ?? [];
             $this->is_active = $webhook->is_active;
         } else {
@@ -51,6 +56,17 @@ new #[Layout('components.layouts.app')] class extends Component
         return Project::query()->orderBy('name')->get();
     }
 
+    /**
+     * Who a webhook can belong to: active users.
+     *
+     * @return Collection<int, User>
+     */
+    #[Computed]
+    public function owners(): Collection
+    {
+        return User::query()->where('status', UserStatus::Active)->orderBy('name')->get();
+    }
+
     public function save(): void
     {
         $data = $this->validate([
@@ -58,6 +74,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'url' => ['required', 'url', 'max:2048'],
             'secret' => ['nullable', 'string'],
             'project_id' => ['nullable', 'exists:projects,id'],
+            'user_id' => ['nullable', Rule::exists('users', 'id')->where('status', UserStatus::Active->value)],
             'events' => ['required', 'array', 'min:1'],
             'events.*' => [Rule::enum(WebhookEvent::class)],
             'is_active' => ['boolean'],
@@ -101,6 +118,18 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
             <input type="password" wire:model="secret" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
             <p class="mt-1 text-xs text-gray-500">設定すると、送信するリクエストに署名が付与されます。</p>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">所有ユーザー</label>
+            <select wire:model="user_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <option value="">なし(すべてのイベントを送信)</option>
+                @foreach ($this->owners as $owner)
+                    <option value="{{ $owner->id }}">{{ $owner->name }}</option>
+                @endforeach
+            </select>
+            <p class="mt-1 text-xs text-gray-500">選ぶと、そのユーザーが閲覧でき、かつプロジェクトで「Webhookの利用」権限を持つ対象のイベントだけを送信します。</p>
+            @error('user_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
 
         <div>
