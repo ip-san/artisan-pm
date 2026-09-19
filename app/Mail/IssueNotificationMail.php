@@ -37,7 +37,7 @@ final class IssueNotificationMail extends Mailable
      *
      * @var array<string, string>
      */
-    private const array ATTRIBUTE_LABELS = [
+    public const array ATTRIBUTE_LABELS = [
         'project_id' => 'プロジェクト',
         'tracker_id' => 'トラッカー',
         'status_id' => 'ステータス',
@@ -53,7 +53,7 @@ final class IssueNotificationMail extends Mailable
      *
      * @var array<string, string>
      */
-    private const array RELATION_LABELS = [
+    public const array RELATION_LABELS = [
         'relates' => '関連',
         'blocks' => 'ブロックする',
         'blocked' => 'ブロックされている',

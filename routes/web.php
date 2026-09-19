@@ -7,6 +7,7 @@ use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AttachmentThumbnailController;
 use App\Http\Controllers\BoardAtomController;
 use App\Http\Controllers\IssueAtomController;
+use App\Http\Controllers\IssueChangesAtomController;
 use App\Http\Controllers\IssuePdfController;
 use App\Http\Controllers\NewsAtomController;
 use App\Http\Controllers\RepositoryRawController;
@@ -89,6 +90,10 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
     Volt::route('/projects/{project:identifier}/versions/create', 'versions.form')->name('versions.create');
     Volt::route('/projects/{project:identifier}/versions/{version}/edit', 'versions.form')->name('versions.edit')->scopeBindings();
 
+    Route::get('/projects/{project:identifier}/issues/changes.atom', IssueChangesAtomController::class)->name('issues.changes-atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required'])->middleware('atom.key');
+    Route::get('/issues/changes.atom', IssueChangesAtomController::class)->name('issues.global-changes-atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required'])->middleware('atom.key');
     Route::get('/projects/{project:identifier}/issues.atom', IssueAtomController::class)->name('issues.atom')
         ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required'])->middleware('atom.key');
     Volt::route('/projects/{project:identifier}/issues', 'issues.index')->name('issues.index')
