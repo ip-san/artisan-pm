@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Rules;
 
+use App\Models\EmailAddress;
 use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -27,6 +28,14 @@ final class UniqueUserValueIgnoringCase implements ValidationRule
             ->whereRaw('lower('.$this->column.') = ?', [mb_strtolower((string) $value)])
             ->when($this->ignoreUserId !== null, fn ($query) => $query->whereKeyNot($this->ignoreUserId))
             ->exists();
+
+        // An email is also taken when it is somebody else's additional one.
+        if (! $taken && $this->column === 'email') {
+            $taken = EmailAddress::query()
+                ->whereRaw('lower(address) = ?', [mb_strtolower((string) $value)])
+                ->when($this->ignoreUserId !== null, fn ($query) => $query->where('user_id', '!=', $this->ignoreUserId))
+                ->exists();
+        }
 
         if ($taken) {
             $fail('validation.unique')->translate();

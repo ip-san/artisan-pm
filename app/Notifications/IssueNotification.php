@@ -38,6 +38,6 @@ final class IssueNotification extends Notification implements ShouldQueue
         // notifiable the way it does for a MailMessage, so the
         // recipient has to be set here explicitly.
         return (new IssueNotificationMail($this->issue, $this->eventType, $this->actor, $this->journal, $notifiable->id))
-            ->to($notifiable->email);
+            ->to($notifiable->routeNotificationFor('mail', $this));
     }
 }

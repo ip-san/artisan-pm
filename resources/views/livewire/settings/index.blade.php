@@ -259,6 +259,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $email_domains_denied = '';
 
+    public int $max_additional_emails = 5;
+
     public int $password_min_length = 8;
 
     /** @var array<int, string> */
@@ -315,6 +317,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->session_lifetime = Setting::get('session_lifetime', 0);
         $this->email_domains_allowed = Setting::get('email_domains_allowed', '');
         $this->email_domains_denied = Setting::get('email_domains_denied', '');
+        $this->max_additional_emails = (int) Setting::get('max_additional_emails', 5);
         $this->password_min_length = Setting::get('password_min_length', 8);
         $this->password_required_char_classes = RequiredPasswordCharacterClasses::required();
         $this->autologin = Setting::get('autologin', false);
@@ -592,6 +595,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'session_lifetime' => ['required', Rule::in([0, 240, 480, 720, 1440, 10080, 43200, 86400, 525600])],
             'email_domains_allowed' => ['nullable', 'string', 'max:1000'],
             'email_domains_denied' => ['nullable', 'string', 'max:1000'],
+            'max_additional_emails' => ['required', 'integer', 'min:0', 'max:50'],
             'password_min_length' => ['required', 'integer', 'min:1', 'max:255'],
             'password_required_char_classes' => ['array'],
             'password_required_char_classes.*' => [Rule::in(array_keys(RequiredPasswordCharacterClasses::CLASSES))],
@@ -1092,6 +1096,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 <p class="mt-1 text-xs text-gray-500">
                     先頭に「.」を付けると、そのドメインとサブドメインすべてに一致します(例: .example.org)。自己登録時のみ適用され、管理者による直接のユーザー作成には適用されません。
                 </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">追加メールアドレスの上限数(1人あたり)</label>
+                <input type="number" min="0" max="50" wire:model="max_additional_emails" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">プロフィールで追加できるメールアドレスの数です。0にすると追加できません。追加したアドレスにも通知メールが届きます。</p>
+                @error('max_additional_emails') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

@@ -34,6 +34,6 @@ final class NewsNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): NewsNotificationMail
     {
         return (new NewsNotificationMail($this->news, $this->eventType, $this->actor, $this->comment))
-            ->to($notifiable->email);
+            ->to($notifiable->routeNotificationFor('mail', $this));
     }
 }

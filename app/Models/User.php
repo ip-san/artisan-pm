@@ -121,6 +121,30 @@ final class User extends Authenticatable implements OAuthenticatable
     }
 
     /**
+     * The extra addresses the user added (the primary one is `email`).
+     *
+     * @return HasMany<EmailAddress, $this>
+     */
+    public function additionalEmails(): HasMany
+    {
+        return $this->hasMany(EmailAddress::class)->orderBy('id');
+    }
+
+    /**
+     * Where a notification mail goes: the primary address plus every
+     * additional one left switched on, like Redmine's `user.mails`.
+     *
+     * @return array<int, string>
+     */
+    public function routeNotificationForMail(): array
+    {
+        return [
+            $this->email,
+            ...$this->additionalEmails()->where('notify', true)->pluck('address')->all(),
+        ];
+    }
+
+    /**
      * @return HasMany<Member, $this>
      */
     public function memberships(): HasMany

@@ -202,7 +202,9 @@ final class IncomingMailService
 
     public function createIssueFromMail(ParsedIncomingMail $mail): ?Issue
     {
-        $author = User::query()->where('email', $mail->fromEmail)->first();
+        // The sender may write from the primary address or an additional one.
+        $author = User::query()->where('email', $mail->fromEmail)->first()
+            ?? User::query()->whereHas('additionalEmails', fn ($query) => $query->whereRaw('lower(address) = ?', [mb_strtolower($mail->fromEmail)]))->first();
 
         if ($author === null) {
             return null;

@@ -15,7 +15,9 @@ use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
 use Laravel\Fortify\Actions\EnableTwoFactorAuthentication;
 use Laravel\Fortify\Actions\GenerateNewRecoveryCodes;
 use App\Enums\QueryType;
+use App\Models\EmailAddress;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\Query as SavedQuery;
 use App\Support\Preferences\UserPreferences;
 use Illuminate\Support\Collection;
@@ -40,6 +42,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $code = '';
 
     public string $mail_notification = '';
+
+    public string $newAdditionalEmail = '';
 
     /** @var array<int, string> */
     public array $notified_project_ids = [];
@@ -143,6 +147,64 @@ new #[Layout('components.layouts.app')] class extends Component
     public function notifiableProjects(): Collection
     {
         return auth()->user()->projects()->orderBy('name')->get();
+    }
+
+    /**
+     * The extra addresses this account has (plus how many more it may add).
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, EmailAddress>
+     */
+    #[Computed]
+    public function additionalEmails(): \Illuminate\Database\Eloquent\Collection
+    {
+        return auth()->user()->additionalEmails()->get();
+    }
+
+    public function addEmail(): void
+    {
+        $user = auth()->user();
+        $limit = (int) Setting::get('max_additional_emails', 5);
+
+        $data = $this->validate([
+            'newAdditionalEmail' => ['required', 'string', 'email', 'max:255', new UniqueUserValueIgnoringCase('email', $user->id), new AllowedEmailDomain,
+                function (string $attribute, mixed $value, \Closure $fail) use ($user): void {
+                    $address = mb_strtolower((string) $value);
+
+                    if ($address === mb_strtolower($user->email) || EmailAddress::query()->whereRaw('lower(address) = ?', [$address])->exists()) {
+                        $fail('このメールアドレスは既に登録されています。');
+                    }
+                },
+            ],
+        ]);
+
+        if ($user->additionalEmails()->count() >= $limit) {
+            $this->addError('newAdditionalEmail', "追加できるメールアドレスは{$limit}件までです。");
+
+            return;
+        }
+
+        $user->additionalEmails()->create(['address' => $data['newAdditionalEmail']]);
+
+        $this->reset('newAdditionalEmail');
+        unset($this->additionalEmails);
+    }
+
+    public function removeEmail(int $emailId): void
+    {
+        auth()->user()->additionalEmails()->whereKey($emailId)->delete();
+
+        unset($this->additionalEmails);
+    }
+
+    public function toggleEmailNotify(int $emailId): void
+    {
+        $address = auth()->user()->additionalEmails()->whereKey($emailId)->first();
+
+        abort_if($address === null, 404);
+
+        $address->update(['notify' => ! $address->notify]);
+
+        unset($this->additionalEmails);
     }
 
     public function updateProfile(): void
@@ -366,6 +428,24 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">メールアドレス</label>
                 <input type="email" wire:model="email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div data-additional-emails>
+                <label class="block text-sm font-medium text-gray-700">追加のメールアドレス</label>
+                @foreach ($this->additionalEmails as $additional)
+                    <div class="mt-1 flex items-center gap-3 text-sm" wire:key="additional-email-{{ $additional->id }}">
+                        <span class="text-gray-900">{{ $additional->address }}</span>
+                        <button type="button" wire:click="toggleEmailNotify({{ $additional->id }})" class="text-xs {{ $additional->notify ? 'text-green-700' : 'text-gray-500' }} hover:underline">
+                            通知{{ $additional->notify ? 'あり' : 'なし' }}
+                        </button>
+                        <button type="button" wire:click="removeEmail({{ $additional->id }})" wire:confirm="このメールアドレスを削除しますか?" class="text-xs text-red-600 hover:underline">削除</button>
+                    </div>
+                @endforeach
+                <div class="mt-2 flex items-center gap-2">
+                    <input type="email" wire:model="newAdditionalEmail" placeholder="追加するメールアドレス" class="block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <button type="button" wire:click="addEmail" class="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">追加</button>
+                </div>
+                @error('newAdditionalEmail') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

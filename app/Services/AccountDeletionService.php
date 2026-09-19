@@ -46,6 +46,7 @@ final class AccountDeletionService
         Member::query()->where('user_id', $user->id)->delete();
         Project::query()->where('default_assigned_to_id', $user->id)->update(['default_assigned_to_id' => null]);
         $user->groups()->detach();
+        $user->additionalEmails()->delete();
         $user->bookmarkedProjects()->detach();
         Watcher::query()->where('user_id', $user->id)->delete();
         Query::query()->where('user_id', $user->id)->where('visibility', QueryVisibility::Private)->delete();
