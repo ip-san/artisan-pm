@@ -82,6 +82,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public int $feeds_limit = 15;
 
+    public bool $cache_formatted_text = false;
+
     public bool $reactions_enabled = true;
 
     public bool $incoming_mail_enabled = false;
@@ -204,6 +206,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
         $this->activity_days_default = Setting::get('activity_days_default', 7);
         $this->feeds_limit = Setting::get('feeds_limit', 15);
+        $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
         $this->reactions_enabled = Setting::get('reactions_enabled', true);
         $this->issue_done_ratio = Setting::get('issue_done_ratio', 'issue_field');
         $this->close_duplicate_issues = Setting::get('close_duplicate_issues', true);
@@ -309,6 +312,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_issues_per_page' => ['required', 'integer', 'min:5', 'max:200'],
             'activity_days_default' => ['required', 'integer', 'min:1', 'max:365'],
             'feeds_limit' => ['required', 'integer', 'min:1', 'max:500'],
+            'cache_formatted_text' => ['boolean'],
             'reactions_enabled' => ['boolean'],
             'incoming_mail_enabled' => ['boolean'],
             'incoming_mail_default_project_id' => ['nullable', 'exists:projects,id'],
@@ -422,6 +426,14 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="number" min="1" max="500" wire:model="feeds_limit" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-gray-500">活動・課題・お知らせ・フォーラムの各Atomフィードに共通で適用されます。</p>
                 @error('feeds_limit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="cache_formatted_text" class="rounded border-gray-300">
+                    2KBを超えるMarkdown本文の描画結果をキャッシュする
+                </label>
+                <p class="mt-1 text-xs text-gray-500">大きなWikiページの表示を速くします。他ページの取り込み(@{{include}})や子ページ一覧(@{{child_pages}})を含む本文は対象外で、キャッシュは1時間で失効します。#123やページリンクの参照先が作成・削除された直後は、最大1時間古い表示が残ることがあります。</p>
             </div>
 
             <div>

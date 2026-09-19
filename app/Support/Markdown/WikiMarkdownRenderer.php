@@ -6,6 +6,7 @@ namespace App\Support\Markdown;
 
 use App\Models\Issue;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\WikiPage;
 use DOMDocument;
 use DOMElement;
@@ -17,6 +18,7 @@ use League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension;
 use League\CommonMark\Extension\Mention\Mention;
 use League\CommonMark\Extension\Mention\MentionExtension;
 use League\CommonMark\Extension\TableOfContents\TableOfContentsExtension;
+use Illuminate\Support\Facades\Cache;
 use League\CommonMark\MarkdownConverter;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -83,6 +85,10 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 final class WikiMarkdownRenderer
 {
+    private const CACHE_MIN_BYTES = 2048;
+
+    private const CACHE_TTL_SECONDS = 3600;
+
     /**
      * Image extensions eligible for inline resolution — matches Redmine's
      * InlineAttachmentsScrubber exactly (notably no .svg, for the same XSS
@@ -119,6 +125,60 @@ final class WikiMarkdownRenderer
      *                                            never pass this.
      */
     public function render(string $text, ?Project $project = null, ?MediaCollection $attachments = null, ?WikiPage $page = null, array $includedPageIds = []): string
+    {
+        $cacheKey = $this->cacheKeyFor($text, $project, $attachments, $page, $includedPageIds);
+
+        if ($cacheKey === null) {
+            return $this->renderMarkdown($text, $project, $attachments, $page, $includedPageIds);
+        }
+
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, fn () => $this->renderMarkdown($text, $project, $attachments, $page, $includedPageIds));
+    }
+
+    /**
+     * Redmine's cache_formatted_text (config/settings.yml, default off):
+     * only texts over 2 KB are worth caching. This renderer's output also
+     * depends on data outside $text, so anything whose result can go stale
+     * without the text changing is never cached — a page pulling in
+     * another via {{include}} or listing children via {{child_pages}} —
+     * and a stored result expires after CACHE_TTL_SECONDS. Left, as in
+     * Redmine, is the small window where a "#123" or "[[Page]]" reference
+     * renders differently after the target is created or deleted.
+     *
+     * @param  MediaCollection<int, Media>|null  $attachments
+     * @param  array<int, int>  $includedPageIds
+     */
+    private function cacheKeyFor(string $text, ?Project $project, ?MediaCollection $attachments, ?WikiPage $page, array $includedPageIds): ?string
+    {
+        if ($includedPageIds !== []
+            || strlen($text) <= self::CACHE_MIN_BYTES
+            || str_contains($text, '{{include')
+            || str_contains($text, '{{child_pages')
+            || ! Setting::get('cache_formatted_text', false)
+        ) {
+            return null;
+        }
+
+        $attachmentSignature = $attachments === null
+            ? ''
+            : $attachments->map(fn (Media $media) => $media->id.':'.$media->file_name.':'.$media->updated_at?->getTimestamp())->implode(',');
+
+        return 'formatted_text:'.hash('sha256', implode('|', [
+            $project?->id ?? 0,
+            $page?->id ?? 0,
+            $attachmentSignature,
+            $text,
+        ]));
+    }
+
+    /**
+     * The uncached renderer; also the entry point for the recursive
+     * {{collapse}} / {{include}} calls, which are never cached on their own.
+     *
+     * @param  MediaCollection<int, Media>|null  $attachments
+     * @param  array<int, int>  $includedPageIds
+     */
+    private function renderMarkdown(string $text, ?Project $project = null, ?MediaCollection $attachments = null, ?WikiPage $page = null, array $includedPageIds = []): string
     {
         [$text, $collapseBlocks] = $this->extractCollapseBlocks($text, $project, $attachments, $page, $includedPageIds);
         [$text, $includeBlocks] = $this->extractIncludeMacros($text, $project, $includedPageIds);
@@ -226,7 +286,7 @@ final class WikiMarkdownRenderer
 
                 $blocks[$placeholder] = [
                     'label' => $label !== '' ? $label : '表示',
-                    'body' => $this->render($matches[2], $project, $attachments, $page, $includedPageIds),
+                    'body' => $this->renderMarkdown($matches[2], $project, $attachments, $page, $includedPageIds),
                 ];
 
                 return $placeholder;
@@ -314,7 +374,7 @@ final class WikiMarkdownRenderer
             return '<p>'.e("「{$title}」の循環インクルードが検出されました。").'</p>';
         }
 
-        $html = $this->render(
+        $html = $this->renderMarkdown(
             $target->currentVersion === null ? '' : $target->currentVersion->text,
             $project,
             $target->attachments(),
