@@ -150,7 +150,8 @@
 | 75 | A14-05 | — | S | done(2026-09-20) |
 | 76 | A2-09 | — | S | done(2026-09-20、数値カスタムフィールドの合計は未対応) |
 | 77 | A8-07 | — | S | done(2026-09-20、入力側の 1:30 は未対応) |
-| 78 | A7-07 | — | S | todo |
+| 78 | A7-07 | — | S | done(対象外: Redmine 7.0 に無い, 2026-09-20) |
+| 78b | A7-15 | — | S | todo |
 | 79 | A7-14 | — | S〜M | todo |
 | 80 | A3-12 | — | S〜M | todo |
 | 81 | A11-15 | — | S | todo |
@@ -379,6 +380,7 @@
 | A7-12 | 検索対象の添付ファイル(ファイル名/説明)(`SearchController` の `attachments` トグル、`attachment` フィルタ) | `SearchService` に添付検索なし | `searchAttachments()` を追加し、所有オブジェクトの可視性で絞り込み | API `GET /search` の `attachments` パラメータも | S | 検索(モジュール横断)、REST API「Search」 |
 | A7-13 | 一覧画面でのリンク形式 CF のリンク化 | 課題一覧列ではプレーンテキスト | `<x-custom-field-value>` を一覧列にも適用 | 旧: 意図的簡略化 | S | カスタムフィールド「フィールド形式」 |
 | A7-14 | 課題一覧・詳細でのサムネイル表示(`thumbnails_size`)、テキスト/PDF 添付のインラインプレビュー(`attachments#show`) | サムネイル生成は実装済み。プレビュー画面なし | 添付の `show` 画面(画像/テキスト/PDF/Diff の表示) | — | S〜M | 添付ファイル「サムネイル/画像変換」 |
+| A7-15 | Wiki の ZIP エクスポートのファイル名: Redmine は `\` を `_` に、`/?%*:|"'<>` と改行を `_` に置換し、衝突したら `名前(1).txt` と番号を付ける(`wiki_controller.rb:440-455`)。本アプリは `/`・`\` を `-` に置換するだけで、`a/b` と `a-b` のようなページが同名ファイルになり ZIP 内で上書き/重複する | `resources/views/livewire/wiki/pages.blade.php` の `exportZip()` | Redmine と同じ置換規則+`(n)` の連番に揃える | C-26 の確認中に発見 | S | Wiki「ZIPエクスポート」 |
 
 ### A-8. 工数管理
 
@@ -533,6 +535,7 @@
 | C-23 | (実装中に発見した既存の不具合、修正済み)メール・Webhook の二重送信 | `MailNotificationServiceProvider`/`WebhookServiceProvider` は「自動検出は union 型の handle() を複数登録に展開できないので明示登録する」と説明していた | 自動検出は union 型を展開する。明示登録と併存して**全リスナーが二重登録**され、課題・Wiki・News の通知メールと Webhook がすべて 2 回ずつ送られていた | `bootstrap/app.php` の `withEvents(discover: false)` で自動検出を無効化し、`EventListenerRegistrationTest` を追加 |
 | C-24 | (バックログ自身の訂正)A7-08 | 「フォーラムの返信のウォッチ、投稿の引用返信が未対応」 | 引用返信は `messages/show.blade.php` の `quote()` で実装済み(トピックにも返信にも「引用」ボタンがある)。返信のウォッチは Redmine 自体がトピック(root)のみで、`MessagePolicy::watch` も同じ | 該当部分は対象外。権限の分離(A13-02)のみ実施 |
 | C-25 | (バックログ自身の訂正)A9-08 | 「Redmine の検索ボックスの `r123`(リビジョン)/`p:`(プロジェクト)ショートカット」 | Redmine 7.0 の `SearchController#index` のクイックジャンプは `#?\d+` の課題番号だけ(`search_controller.rb:40-44`)。`r123` はテキスト内リンク記法(wiki/課題本文)であって検索ボックスの機能ではなく、`p:` に相当する機能もない。本アプリの `#123` ジャンプは Redmine と同じ | ギャップではないため対象外(`done(対象外: Redmine 7.0 に無い, 2026-09-20)`) |
+| C-26 | (バックログ自身の訂正)A7-07 | 「Wiki の HTML/TXT ZIP に添付ファイルを含める」 | Redmine 7.0 の `WikiController#export`(format zip)は各ページ本文を `<タイトル>.txt` で入れるだけで、添付ファイルは含まない(`wiki_controller.rb:414-438`)。HTML 出力も添付なしの単一 `wiki.html` | ギャップではないため対象外(`done(対象外: Redmine 7.0 に無い, 2026-09-20)`)。確認中に見つけた別件(ZIP 内ファイル名の衝突)は A7-15 として追加 |
 
 ---
 
