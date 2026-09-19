@@ -19,6 +19,7 @@ use App\Models\Tracker;
 use App\Models\IssueStatus;
 use App\Support\Mail\NotificationRecipients;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -112,6 +113,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $mail_handler_preferred_body_part = 'plain';
 
     public bool $autofetch_changesets = false;
+
+    public bool $sys_api_enabled = false;
+
+    public string $sys_api_key = '';
 
     public int $repository_log_display_limit = 100;
 
@@ -294,6 +299,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->mail_handler_preferred_body_part = Setting::get('mail_handler_preferred_body_part', 'plain');
         $this->autofetch_changesets = Setting::get('autofetch_changesets', false);
         $this->repository_log_display_limit = Setting::get('repository_log_display_limit', PageSize::DEFAULT_REPOSITORY_LOG_LIMIT);
+        $this->sys_api_enabled = Setting::get('sys_api_enabled', false);
+        $this->sys_api_key = Setting::get('sys_api_key', '');
         $this->diff_max_lines_displayed = DisplayLimits::maxDiffLines();
         $this->file_max_size_displayed = DisplayLimits::maxFileSizeKb();
         $this->thumbnails_size = Setting::get('thumbnails_size', 100);
@@ -372,6 +379,14 @@ new #[Layout('components.layouts.app')] class extends Component
         return Role::query()->givable()->get();
     }
 
+    /**
+     * A fresh random key for the repository management web service.
+     */
+    public function generateSysApiKey(): void
+    {
+        $this->sys_api_key = Str::random(40);
+    }
+
     public function addFixingKeywordRule(): void
     {
         $this->commit_fixing_keyword_rules[] = ['keywords' => '', 'status_id' => null, 'done_ratio' => null, 'if_tracker_id' => null];
@@ -435,6 +450,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'commit_fixing_keyword_rules.*.if_tracker_id' => ['nullable', 'exists:trackers,id'],
             'commit_ref_keywords' => ['nullable', 'string', 'max:255'],
             'repository_log_display_limit' => ['required', 'integer', 'min:1', 'max:1000'],
+            'sys_api_enabled' => ['boolean'],
+            'sys_api_key' => ['nullable', 'string', 'max:255'],
             'diff_max_lines_displayed' => ['required', 'integer', 'min:0', 'max:100000'],
             'file_max_size_displayed' => ['required', 'integer', 'min:0', 'max:102400'],
             'thumbnails_size' => ['required', 'integer', 'min:16', 'max:2000'],
@@ -514,6 +531,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->all();
 
         $data['commit_ref_keywords'] = trim((string) ($data['commit_ref_keywords'] ?? ''));
+        $data['sys_api_key'] = trim((string) ($data['sys_api_key'] ?? ''));
         $data['repositories_encodings'] = trim((string) ($data['repositories_encodings'] ?? ''));
 
         foreach ($data as $key => $value) {
@@ -1139,6 +1157,20 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @error('enabled_scm_types') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 @error('enabled_scm_types.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="sys_api_enabled" class="rounded border-gray-300">
+                    リポジトリ管理用WebサービスのAPIを有効にする
+                </label>
+                <div class="mt-2 flex items-center gap-2">
+                    <input type="text" wire:model="sys_api_key" placeholder="APIキー" autocomplete="off"
+                        class="block w-full max-w-md rounded-md border-gray-300 font-mono shadow-sm sm:text-sm">
+                    <button type="button" wire:click="generateSysApiKey" class="shrink-0 text-sm text-indigo-600 hover:underline">キーを生成</button>
+                </div>
+                <p class="mt-1 text-xs text-gray-500"><code>GET /sys/projects</code> と <code>/sys/fetch_changesets?id=&lt;プロジェクト&gt;</code> を <code>key</code> パラメータ付きで呼び出せます(post-receive フック用)。</p>
+                @error('sys_api_key') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

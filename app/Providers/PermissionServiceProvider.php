@@ -91,6 +91,7 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('browse_repository', module: ProjectModuleKey::Repository, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('manage_repository', module: ProjectModuleKey::Repository);
         $registry->register('manage_related_issues', module: ProjectModuleKey::Repository);
+        $registry->register('commit_access', module: ProjectModuleKey::Repository);
 
         $registry->register('view_calendar', module: ProjectModuleKey::Calendar, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('view_gantt', module: ProjectModuleKey::Gantt, requirement: PermissionRequirement::None, readOnly: true);

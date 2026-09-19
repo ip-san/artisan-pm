@@ -9,11 +9,19 @@ use App\Http\Controllers\IssueAtomController;
 use App\Http\Controllers\IssuePdfController;
 use App\Http\Controllers\NewsAtomController;
 use App\Http\Controllers\RepositoryRawController;
+use App\Http\Controllers\SysController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
 Route::get('/', function () {
     return redirect()->route('projects.index');
+});
+
+// Redmine's repository management web service, for post-receive hooks and
+// reposman. Guarded by the shared sys_api_key rather than a login.
+Route::middleware('sys.key')->prefix('sys')->group(function () {
+    Route::get('/projects', [SysController::class, 'projects'])->name('sys.projects');
+    Route::match(['get', 'post'], '/fetch_changesets', [SysController::class, 'fetchChangesets'])->name('sys.fetch-changesets');
 });
 
 Route::get('/account/activate/{user}', AccountActivationController::class)

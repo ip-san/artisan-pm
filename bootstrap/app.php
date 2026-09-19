@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnforceLoginRequiredSetting;
 use App\Http\Middleware\EnforceRestApiEnabledSetting;
 use App\Http\Middleware\EnforceSessionTimeout;
+use App\Http\Middleware\EnforceSysApiKey;
 use App\Http\Middleware\EnforceTwofaRequired;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -24,11 +25,14 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withEvents(discover: false)
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->throttleApi();
+        // The /sys web service is called by scripts with a shared key, not from a browser.
+        $middleware->preventRequestForgery(except: ['sys/*']);
         $middleware->alias([
             'session.timeout' => EnforceSessionTimeout::class,
             'rest-api.enabled' => EnforceRestApiEnabledSetting::class,
             'twofa.required' => EnforceTwofaRequired::class,
             'login.required' => EnforceLoginRequiredSetting::class,
+            'sys.key' => EnforceSysApiKey::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
