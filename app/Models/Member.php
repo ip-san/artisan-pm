@@ -18,6 +18,13 @@ final class Member extends Model
     /** @use HasFactory<MemberFactory> */
     use HasFactory;
 
+    protected function casts(): array
+    {
+        return [
+            'mail_notification' => 'boolean',
+        ];
+    }
+
     protected static function booted(): void
     {
         // Redmine's Member#remove_from_project_default_assigned_to: a user who

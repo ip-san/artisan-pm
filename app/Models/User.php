@@ -146,6 +146,34 @@ final class User extends Authenticatable implements OAuthenticatable
             ->withTimestamps();
     }
 
+    /**
+     * The projects this user chose to hear about when their mail
+     * notification setting is `selected` (Redmine's notified_project_ids).
+     *
+     * @return array<int, int>
+     */
+    public function notifiedProjectIds(): array
+    {
+        return $this->memberships()->where('mail_notification', true)->pluck('project_id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * Replaces the chosen projects; only the user's own memberships can be
+     * chosen, and an empty list clears every one.
+     *
+     * @param  array<int, int|string>  $projectIds
+     */
+    public function setNotifiedProjectIds(array $projectIds): void
+    {
+        $projectIds = array_map('intval', $projectIds);
+
+        $this->memberships()->update(['mail_notification' => false]);
+
+        if ($projectIds !== []) {
+            $this->memberships()->whereIn('project_id', $projectIds)->update(['mail_notification' => true]);
+        }
+    }
+
     public function isActive(): bool
     {
         return $this->status === UserStatus::Active;

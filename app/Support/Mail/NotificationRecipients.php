@@ -218,6 +218,9 @@ final class NotificationRecipients
         // Project#notified_users (each group user has a member row there).
         $memberIds = $project->memberUserIds();
 
+        // Members who ticked this project under the `selected` setting.
+        $selectedMemberIds = $project->members()->whereNotNull('user_id')->where('mail_notification', true)->pluck('user_id');
+
         $candidateIds = $watcherIds->merge($memberIds)->unique();
 
         if ($candidateIds->isEmpty()) {
@@ -233,7 +236,7 @@ final class NotificationRecipients
             // (UserPreference#no_self_notified) that decides whether they
             // see their own changes, not a site-wide admin toggle.
             ->reject(fn (User $user) => $user->id === $actor->id && $actor->no_self_notified)
-            ->filter(function (User $user) use ($watcherIds, $memberIds, $eventSpecificAllows, $assignedAndOwnerTiersRequireWatcher, $allTiersRequireMembershipOrWatch) {
+            ->filter(function (User $user) use ($watcherIds, $memberIds, $selectedMemberIds, $eventSpecificAllows, $assignedAndOwnerTiersRequireWatcher, $allTiersRequireMembershipOrWatch) {
                 $isWatcher = $watcherIds->contains($user->id);
                 $isMember = $memberIds->contains($user->id);
 
@@ -241,11 +244,11 @@ final class NotificationRecipients
                     $user->mail_notification === MailNotificationOption::None => false,
                     $allTiersRequireMembershipOrWatch => $isMember || $isWatcher,
                     $user->mail_notification === MailNotificationOption::All => $isMember || $isWatcher,
-                    // Redmine's `selected` (notify only for hand-picked
-                    // projects) has no per-membership toggle in this app
-                    // yet, so it degrades to OnlyMyEvents — see the enum's
-                    // doc comment.
-                    in_array($user->mail_notification, [MailNotificationOption::OnlyMyEvents, MailNotificationOption::Selected], true) => $isWatcher,
+                    // Redmine's `selected`: the projects the user ticked, plus
+                    // what they are involved in (an author and an assignee
+                    // watch their issue, so watching covers that).
+                    $user->mail_notification === MailNotificationOption::Selected => $isWatcher || $selectedMemberIds->contains($user->id),
+                    $user->mail_notification === MailNotificationOption::OnlyMyEvents => $isWatcher,
                     default => $assignedAndOwnerTiersRequireWatcher ? $isWatcher : true,
                 };
 

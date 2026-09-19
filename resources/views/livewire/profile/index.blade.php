@@ -15,6 +15,7 @@ use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
 use Laravel\Fortify\Actions\EnableTwoFactorAuthentication;
 use Laravel\Fortify\Actions\GenerateNewRecoveryCodes;
 use App\Enums\QueryType;
+use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Support\Preferences\UserPreferences;
 use Illuminate\Support\Collection;
@@ -39,6 +40,9 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $code = '';
 
     public string $mail_notification = '';
+
+    /** @var array<int, string> */
+    public array $notified_project_ids = [];
 
     public bool $no_self_notified = false;
 
@@ -66,6 +70,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->name = auth()->user()->name;
         $this->email = auth()->user()->email;
         $this->mail_notification = auth()->user()->mail_notification->value;
+        $this->notified_project_ids = array_map('strval', auth()->user()->notifiedProjectIds());
         $this->no_self_notified = auth()->user()->no_self_notified;
 
         foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'notify_about_high_priority_issues', 'recently_used_projects', 'history_default_tab', 'auto_watch_on', 'default_issue_query'] as $key) {
@@ -111,6 +116,35 @@ new #[Layout('components.layouts.app')] class extends Component
         session()->flash('status', '個人設定を保存しました。');
     }
 
+    /**
+     * `selected` only makes sense for someone with a project to select; a
+     * setting already saved as `selected` stays offered.
+     *
+     * @return array<int, MailNotificationOption>
+     */
+    #[Computed]
+    public function notificationOptions(): array
+    {
+        $user = auth()->user();
+        $hasProjects = $this->notifiableProjects->isNotEmpty();
+
+        return array_values(array_filter(
+            MailNotificationOption::cases(),
+            fn (MailNotificationOption $option) => $option !== MailNotificationOption::Selected || $hasProjects || $user->mail_notification === MailNotificationOption::Selected,
+        ));
+    }
+
+    /**
+     * The projects the user belongs to directly.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function notifiableProjects(): Collection
+    {
+        return auth()->user()->projects()->orderBy('name')->get();
+    }
+
     public function updateProfile(): void
     {
         $user = auth()->user();
@@ -118,11 +152,18 @@ new #[Layout('components.layouts.app')] class extends Component
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', new UniqueUserValueIgnoringCase('email', $user->id), new AllowedEmailDomain($user->email)],
-            'mail_notification' => ['required', Rule::in(array_map(fn (MailNotificationOption $o) => $o->value, MailNotificationOption::cases()))],
+            'mail_notification' => ['required', Rule::in(array_map(fn (MailNotificationOption $o) => $o->value, $this->notificationOptions))],
+            'notified_project_ids' => ['array'],
+            'notified_project_ids.*' => [Rule::in($this->notifiableProjects->pluck('id')->map(fn ($id) => (string) $id)->all())],
             'no_self_notified' => ['boolean'],
         ]);
 
+        $projectIds = $data['mail_notification'] === MailNotificationOption::Selected->value ? $data['notified_project_ids'] ?? [] : [];
+        unset($data['notified_project_ids']);
+
         $user->update($data);
+        $user->setNotifiedProjectIds($projectIds);
+        $this->notified_project_ids = array_map('strval', $projectIds);
 
         session()->flash('status', 'プロフィールを更新しました。');
     }
@@ -330,12 +371,25 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="block text-sm font-medium text-gray-700">メール通知</label>
                 <select wire:model="mail_notification" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                    @foreach (\App\Enums\MailNotificationOption::cases() as $option)
+                    @foreach ($this->notificationOptions as $option)
                         <option value="{{ $option->value }}">{{ $option->label() }}</option>
                     @endforeach
                 </select>
                 @error('mail_notification') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+
+            @if ($mail_notification === \App\Enums\MailNotificationOption::Selected->value)
+                <fieldset class="rounded-md border border-gray-200 p-3" data-notified-projects>
+                    <legend class="px-1 text-sm font-medium text-gray-700">通知を受け取るプロジェクト</legend>
+                    @foreach ($this->notifiableProjects as $notifiable)
+                        <label class="flex items-center gap-2 text-sm text-gray-700" wire:key="notified-project-{{ $notifiable->id }}">
+                            <input type="checkbox" wire:model="notified_project_ids" value="{{ $notifiable->id }}" class="rounded border-gray-300">
+                            {{ $notifiable->name }}
+                        </label>
+                    @endforeach
+                    <p class="mt-1 text-xs text-gray-500">選択していないプロジェクトでは、自分が作成者・担当者・ウォッチャーの課題だけが通知されます。</p>
+                </fieldset>
+            @endif
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-gray-700">
