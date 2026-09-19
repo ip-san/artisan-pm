@@ -7,6 +7,8 @@ namespace App\Services;
 use App\Enums\WorkflowFieldRuleType;
 use App\Models\Issue;
 use App\Models\IssueStatus;
+use App\Models\Project;
+use App\Models\Tracker;
 use App\Models\User;
 use App\Models\WorkflowFieldRule;
 use App\Models\WorkflowTransition;
@@ -56,6 +58,40 @@ final class WorkflowService
         $statuses = IssueStatus::query()->whereIn('id', $newStatusIds)->orderBy('position')->get();
 
         return $this->excludeUnreopenableStatuses($this->excludeUnclosableStatuses($statuses, $issue), $issue);
+    }
+
+    /**
+     * The statuses a brand-new issue may start in: the targets of the
+     * workflow's "new issue" row (transitions with no old status) for the
+     * creator's roles, counting the rows that apply to the author since the
+     * creator is the author. With no such row the tracker's default status
+     * is the only choice — Redmine's Issue#new_statuses_allowed_to for a new
+     * record. Administrators may pick any status.
+     *
+     * @return Collection<int, IssueStatus>
+     */
+    public function initialStatuses(Project $project, Tracker $tracker, User $creator): Collection
+    {
+        $default = IssueStatus::query()->whereKey($tracker->default_status_id)->first()
+            ?? IssueStatus::query()->orderBy('position')->first();
+
+        if ($creator->is_admin) {
+            return IssueStatus::query()->orderBy('position')->get();
+        }
+
+        $roleIds = $this->authorization->rolesFor($creator, $project)->pluck('id');
+
+        $statusIds = $roleIds->isEmpty() ? collect() : WorkflowTransition::query()
+            ->where('tracker_id', $tracker->id)
+            ->whereIn('role_id', $roleIds)
+            ->whereNull('old_status_id')
+            ->where('assignee', false)
+            ->pluck('new_status_id')
+            ->unique();
+
+        $statuses = IssueStatus::query()->whereIn('id', $statusIds)->orderBy('position')->get();
+
+        return $statuses->isEmpty() ? collect($default === null ? [] : [$default]) : $statuses;
     }
 
     /**

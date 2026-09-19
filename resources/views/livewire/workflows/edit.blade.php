@@ -45,11 +45,8 @@ new #[Layout('components.layouts.app')] class extends Component
      * Which of the workflow table's three contexts is being edited: the
      * general case, or the transitions/rules that apply *additionally*
      * when the acting user is specifically the issue's author or
-     * assignee. Deliberately not editing new-issue (null old_status_id)
-     * transitions here — nothing in this app currently consults them
-     * (IssueService::create()'s status defaulting doesn't look at the
-     * workflow table at all), so there's no observable behavior to wire a
-     * grid to yet.
+     * assignee. The grid's first row, "new issue" (key 0 — stored with a
+     * null old_status_id), lists the statuses a new issue may start in.
      *
      * @var 'general'|'author'|'assignee'
      */
@@ -113,6 +110,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->whereColumn('old_status_id', '!=', 'new_status_id')
                 ->get(['old_status_id', 'new_status_id'])
                 ->flatMap(fn (WorkflowTransition $transition) => [$transition->old_status_id, $transition->new_status_id])
+                ->filter()
                 ->unique();
 
             if ($usedStatusIds->isNotEmpty()) {
@@ -176,9 +174,8 @@ new #[Layout('components.layouts.app')] class extends Component
             ->where('role_id', $this->role_id)
             ->where('author', $author)
             ->where('assignee', $assignee)
-            ->whereNotNull('old_status_id')
             ->get()
-            ->mapWithKeys(fn (WorkflowTransition $t) => ["{$t->old_status_id}-{$t->new_status_id}" => true])
+            ->mapWithKeys(fn (WorkflowTransition $t) => [($t->old_status_id ?? 0).'-'.$t->new_status_id => true])
             ->all();
 
         $this->fieldRules = WorkflowFieldRule::query()
@@ -215,7 +212,6 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->where('role_id', $this->role_id)
                 ->where('author', $author)
                 ->where('assignee', $assignee)
-                ->whereNotNull('old_status_id')
                 ->delete();
 
             foreach ($this->transitions as $key => $checked) {
@@ -228,7 +224,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 WorkflowTransition::create([
                     'tracker_id' => $this->tracker_id,
                     'role_id' => $this->role_id,
-                    'old_status_id' => (int) $oldStatusId,
+                    'old_status_id' => (int) $oldStatusId === 0 ? null : (int) $oldStatusId,
                     'new_status_id' => (int) $newStatusId,
                     'author' => $author,
                     'assignee' => $assignee,
@@ -411,6 +407,14 @@ new #[Layout('components.layouts.app')] class extends Component
                         </tr>
                     </thead>
                     <tbody>
+                        <tr wire:key="transition-row-new" class="border-t border-gray-100 bg-gray-50" data-new-issue-row>
+                            <th class="px-2 py-1 text-left text-xs font-medium text-gray-700">(新規課題)</th>
+                            @foreach ($this->statuses as $newStatus)
+                                <td class="px-2 py-1 text-center">
+                                    <input type="checkbox" wire:model="transitions.0-{{ $newStatus->id }}" class="rounded border-gray-300">
+                                </td>
+                            @endforeach
+                        </tr>
                         @foreach ($this->statuses as $oldStatus)
                             <tr wire:key="transition-row-{{ $oldStatus->id }}" class="border-t border-gray-100">
                                 <th class="px-2 py-1 text-left text-xs font-medium text-gray-700">{{ $oldStatus->name }}</th>

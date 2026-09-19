@@ -167,6 +167,7 @@ new #[Layout('components.layouts.app')] class extends Component
             // Resolved after the copy-from prefill (which may itself change
             // tracker_id) so the default status matches whichever tracker
             // actually ends up selected, not the project's first one.
+            unset($this->initialStatuses);
             $this->status_id = $this->defaultStatusIdForTracker($this->tracker_id);
             $this->applyPrivateByDefault($this->tracker_id);
         }
@@ -199,7 +200,30 @@ new #[Layout('components.layouts.app')] class extends Component
             ? Tracker::query()->whereKey($trackerId)->value('default_status_id')
             : null;
 
-        return $trackerDefault ?? IssueStatus::query()->orderBy('position')->first()?->id;
+        $default = $trackerDefault ?? IssueStatus::query()->orderBy('position')->first()?->id;
+        $allowed = $this->initialStatuses->pluck('id');
+
+        // The workflow's "new issue" row may not list the tracker's default
+        // status; then the first status it does allow is the starting point.
+        return $allowed->contains($default) ? $default : ($allowed->first() ?? $default);
+    }
+
+    /**
+     * The statuses this user may start a new issue in, for the chosen
+     * tracker (see WorkflowService::initialStatuses()).
+     *
+     * @return Collection<int, IssueStatus>
+     */
+    #[Computed]
+    public function initialStatuses(): Collection
+    {
+        $tracker = $this->tracker_id !== null ? Tracker::query()->find($this->tracker_id) : null;
+
+        if ($this->issue !== null || $tracker === null) {
+            return collect();
+        }
+
+        return app(WorkflowService::class)->initialStatuses($this->project, $tracker, auth()->user());
     }
 
     /**
@@ -623,7 +647,11 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         } else {
             $data['project_id'] = $this->project->id;
-            $data['status_id'] = $this->status_id;
+            // Only a status the workflow lets this user start in; anything
+            // else (a tampered value) falls back to the tracker's default.
+            $data['status_id'] = $this->initialStatuses->contains('id', $this->status_id)
+                ? $this->status_id
+                : $this->defaultStatusIdForTracker($this->tracker_id);
             $issue = app(IssueService::class)->create($data, auth()->user(), $customFieldData);
         }
 
@@ -680,6 +708,18 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('tracker_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+
+            @if (! $issue && $this->initialStatuses->count() > 1)
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">ステータス</label>
+                    <select wire:model="status_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm" data-initial-status>
+                        @foreach ($this->initialStatuses as $status)
+                            <option value="{{ $status->id }}">{{ $status->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('status_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
+            @endif
 
             @if ($issue)
                 <div>
