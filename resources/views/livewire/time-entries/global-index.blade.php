@@ -95,7 +95,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $query = TimeEntry::query()
             ->visibleToAcrossProjects(auth()->user(), $this->visibleProjects)
-            ->with(['project', 'user', 'activity', 'issue']);
+            ->with(['project', 'user', 'activity', 'issue', 'customFieldValues']);
 
         $query = $this->engine->applyFilters($query, $this->builtFilters());
 
@@ -188,7 +188,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 fputcsv($handle, array_map(fn ($value) => $encoding === 'UTF-8' ? (string) $value : mb_convert_encoding((string) $value, $encoding, 'UTF-8'), \App\Support\Export\CsvCell::row($row)), $separator);
             };
 
-            $write(array_map(fn (string $key) => self::DISPLAY_COLUMNS[$key] ?? $key, $columns));
+            $write(array_map(fn (string $key) => $this->availableColumns[$key] ?? $key, $columns));
 
             foreach ($entries as $entry) {
                 $write(array_map(fn (string $key) => $this->columnValue($entry, $key), $columns));
@@ -198,8 +198,33 @@ new #[Layout('components.layouts.app')] class extends Component
         }, 'timelog.csv');
     }
 
+    /**
+     * The fixed columns plus a cf_{id} one per time entry custom field the
+     * viewer may see everywhere (an admin's, or one with no role restriction).
+     *
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function availableColumns(): array
+    {
+        return [
+            ...self::DISPLAY_COLUMNS,
+            ...(new TimeEntry)->relevantCustomFields()
+                ->filter(fn (\App\Models\CustomField $field) => auth()->user()?->is_admin || $field->roles->isEmpty())
+                ->mapWithKeys(fn (\App\Models\CustomField $field) => ["cf_{$field->id}" => $field->name])
+                ->all(),
+        ];
+    }
+
     public function columnValue(TimeEntry $entry, string $key): string
     {
+        if (str_starts_with($key, 'cf_')) {
+            return $entry->customFieldValues
+                ->where('custom_field_id', (int) substr($key, 3))
+                ->map(fn (\App\Models\CustomFieldValue $value) => (string) $value->value())
+                ->join(', ');
+        }
+
         return match ($key) {
             'project_id' => $entry->project->name,
             'user_id' => $entry->user->displayName(),
@@ -362,7 +387,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="flex items-center gap-2 text-sm text-gray-700">
                 表示列:
-                @foreach (self::DISPLAY_COLUMNS as $key => $label)
+                @foreach ($this->availableColumns as $key => $label)
                     <label class="flex items-center gap-1">
                         <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-gray-300">
                         {{ $label }}
@@ -410,7 +435,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @foreach ($columns as $columnKey)
                             <th wire:key="column-heading-{{ $columnKey }}" class="px-4 py-2">
                                 <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
-                                    {{ self::DISPLAY_COLUMNS[$columnKey] ?? $columnKey }}
+                                    {{ $this->availableColumns[$columnKey] ?? $columnKey }}
                                     @if ($sortKey === $columnKey)
                                         <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
                                     @endif

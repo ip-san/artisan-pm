@@ -85,6 +85,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $bulkComments = '';
 
+    /** @var array<int, mixed> custom field id => the value to set on every selected entry (blank = leave alone) */
+    public array $bulkCustomFieldValues = [];
+
     public string $newQueryName = '';
 
     public string $newQueryVisibility = 'private';
@@ -442,6 +445,20 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->applyBulkEdit();
     }
 
+    /**
+     * The custom fields the bulk edit can set: single-value ones the viewer may
+     * see and edit in the project the entries land in.
+     *
+     * @return Collection<int, \App\Models\CustomField>
+     */
+    #[Computed]
+    public function bulkCustomFields(): Collection
+    {
+        return (new TimeEntry)->forceFill(['project_id' => $this->bulkTargetProject->id])->relevantCustomFields()
+            ->filter(fn (\App\Models\CustomField $field) => ! $field->multiple && $field->editableBy(auth()->user()))
+            ->values();
+    }
+
     public function applyBulkEdit(): void
     {
         $entries = $this->selectedTimeEntries;
@@ -477,6 +494,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     : $fail('選択した課題はこのプロジェクトにありません。')],
         ]);
 
+        // Only the fields given a value are validated and set.
+        $customFieldInput = collect($this->bulkCustomFieldValues)->filter(fn ($value) => filled($value))->only($this->bulkCustomFields->pluck('id')->all())->all();
+        $customFieldRules = collect(\App\Models\CustomField::formValidationRules($this->bulkCustomFields->whereIn('id', array_keys($customFieldInput))))
+            ->mapWithKeys(fn ($rules, $key) => [str_replace('customFieldValues.', 'bulkCustomFieldValues.', $key) => $rules])->all();
+        if ($customFieldRules !== []) {
+            $this->validate($customFieldRules);
+        }
+
         $issueChoice = $data['bulkIssueId'] ?? '';
 
         if ($issueChoice !== '' && $issueChoice !== 'none') {
@@ -511,6 +536,10 @@ new #[Layout('components.layouts.app')] class extends Component
         try {
             foreach ($entries as $entry) {
                 $timeEntryService->update($entry, $changes);
+
+                if ($customFieldInput !== []) {
+                    $entry->setCustomFieldValues($customFieldInput);
+                }
             }
         } catch (ValidationException $exception) {
             // A `timelog_*` setting rejected one of the entries; earlier ones
@@ -522,7 +551,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $count = $entries->count();
 
-        $this->reset(['selected', 'bulkProjectId', 'bulkIssueId', 'bulkUserId', 'bulkHours', 'bulkActivityId', 'bulkSpentOn', 'bulkComments']);
+        $this->reset(['selected', 'bulkProjectId', 'bulkIssueId', 'bulkUserId', 'bulkHours', 'bulkActivityId', 'bulkSpentOn', 'bulkComments', 'bulkCustomFieldValues']);
         unset($this->timeEntries, $this->groupedTimeEntries, $this->selectedTimeEntries);
 
         session()->flash('status', "{$count}件の工数記録を更新しました。");
@@ -773,6 +802,32 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input type="date" wire:model="bulkSpentOn" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
                 </div>
             </div>
+
+            @if ($this->bulkCustomFields->isNotEmpty())
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-bulk-custom-fields>
+                    @foreach ($this->bulkCustomFields as $field)
+                        <div wire:key="bulk-cf-{{ $field->id }}">
+                            <label class="block text-xs font-medium text-gray-700">{{ $field->name }}</label>
+                            @if (in_array($field->field_format, [\App\Enums\CustomFieldFormat::List, \App\Enums\CustomFieldFormat::Enumeration, \App\Enums\CustomFieldFormat::Bool], true))
+                                <select wire:model="bulkCustomFieldValues.{{ $field->id }}" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                                    <option value="">変更なし</option>
+                                    @if ($field->field_format === \App\Enums\CustomFieldFormat::Bool)
+                                        <option value="1">はい</option>
+                                        <option value="0">いいえ</option>
+                                    @else
+                                        @foreach ($field->format()->options($field) as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            @else
+                                <input type="text" wire:model="bulkCustomFieldValues.{{ $field->id }}" placeholder="変更なし" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                            @endif
+                            @error("bulkCustomFieldValues.{$field->id}") <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    @endforeach
+                </div>
+            @endif
 
             <div>
                 <label class="block text-xs font-medium text-gray-700">コメント(変更する場合のみ入力)</label>
