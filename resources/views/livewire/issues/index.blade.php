@@ -220,6 +220,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $bulkCopyWatchers = true;
 
+    public bool $bulkCopySubtasks = true;
+
     public function mount(Project $project): void
     {
         $this->authorize('viewAny', [Issue::class, $project]);
@@ -1227,12 +1229,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 auth()->user(),
                 copyAttachments: $this->bulkCopyAttachments,
                 copyWatchers: $this->bulkCopyWatchers,
+                copySubtasks: $this->bulkCopySubtasks,
             );
         }
 
         $count = $issues->count();
 
-        $this->reset(['selected', 'bulkCopyToProjectId', 'bulkCopyToTrackerId', 'bulkCopyAttachments', 'bulkCopyWatchers']);
+        $this->reset(['selected', 'bulkCopyToProjectId', 'bulkCopyToTrackerId', 'bulkCopyAttachments', 'bulkCopyWatchers', 'bulkCopySubtasks']);
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
@@ -1608,6 +1611,10 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="flex items-center gap-1.5 text-xs text-gray-700">
                     <input type="checkbox" wire:model="bulkCopyWatchers" class="rounded border-gray-300">
                     ウォッチャーも複製
+                </label>
+                <label class="flex items-center gap-1.5 text-xs text-gray-700">
+                    <input type="checkbox" wire:model="bulkCopySubtasks" class="rounded border-gray-300">
+                    子課題も複製
                 </label>
                 <button type="submit"
                     class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">

@@ -8,6 +8,7 @@ use App\Enums\EnumerationType;
 use App\Enums\IssueRelationType;
 use App\Enums\IssueTimeEntryDisposition;
 use App\Enums\UserStatus;
+use App\Enums\VersionStatus;
 use App\Events\IssueCreated;
 use App\Events\IssueDeleted;
 use App\Events\IssueJournalRecorded;
@@ -544,15 +545,15 @@ final class IssueService
      * project. Attachments and watchers are duplicated when the
      * corresponding flag is true (both default true, matching Redmine's
      * bulk-copy form, whose checkboxes are checked by default). Subtasks
-     * are NOT duplicated — out of scope for this pass, unlike Redmine's
-     * own recursive descendant copy. A copied_to relation IS created back
+     * are duplicated only when $copySubtasks is true (see copySubtasks()).
+     * A copied_to relation IS created back
      * to $source, matching Redmine's Issue#after_create_from_copy — done
      * automatically on every copy, same as Redmine's own default. Unlike
      * Redmine, this isn't gated by cross_project_issue_relations, since
      * the relation records provenance rather than being a user-authored
      * cross-project link.
      */
-    public function copy(Issue $source, Project $targetProject, int $trackerId, User $actor, bool $copyAttachments = true, bool $copyWatchers = true): Issue
+    public function copy(Issue $source, Project $targetProject, int $trackerId, User $actor, bool $copyAttachments = true, bool $copyWatchers = true, bool $copySubtasks = false): Issue
     {
         $assignedToId = $source->assigned_to_id;
 
@@ -601,7 +602,96 @@ final class IssueService
                 ->each(fn (Watcher $watcher) => $copy->watchers()->firstOrCreate(['user_id' => $watcher->user_id]));
         }
 
+        if ($copySubtasks) {
+            $this->copySubtasks($source, $copy, $targetProject, $actor, $copyAttachments, $copyWatchers);
+        }
+
         return $copy;
+    }
+
+    /**
+     * Redmine's after_create_from_copy subtask pass: walks the source's
+     * descendants top-down and copies each one under the copy of its
+     * parent (a skipped subtask takes its whole subtree with it, since its
+     * children have no copied parent to hang from). Each subtask keeps its
+     * own tracker, so one the target project doesn't use is skipped; the
+     * version survives only when it is open and reachable from the target
+     * project, the category only inside the same project, and the assignee
+     * only while active and a member of the target project. Subtasks the
+     * actor may not see are never copied (no disclosure of private
+     * issues). No copied_to relation is created for subtasks, like Redmine.
+     */
+    private function copySubtasks(Issue $source, Issue $copy, Project $targetProject, User $actor, bool $copyAttachments, bool $copyWatchers): void
+    {
+        $source->loadMissing('project');
+        $reachableVersionIds = $targetProject->sharedVersions()->pluck('id');
+        $trackerIds = $targetProject->trackers()->pluck('trackers.id');
+        $copiedIds = [$source->id => $copy];
+        $queue = [$source->id];
+
+        while ($queue !== []) {
+            $parentId = array_shift($queue);
+
+            $children = Issue::query()
+                ->visibleTo($actor, $source->project)
+                ->where('parent_id', $parentId)
+                ->orderBy('id')
+                ->with('fixedVersion')
+                ->get();
+
+            foreach ($children as $child) {
+                if (! $trackerIds->contains($child->tracker_id)) {
+                    continue;
+                }
+
+                $assignedToId = $child->assigned_to_id;
+
+                if ($assignedToId !== null && ! $targetProject->users()->whereKey($assignedToId)->where('users.status', UserStatus::Active->value)->exists()) {
+                    $assignedToId = null;
+                }
+
+                $version = $child->fixedVersion;
+                $keepVersion = $version !== null && $version->status === VersionStatus::Open && $reachableVersionIds->contains($version->id);
+
+                $customFieldData = $child->relevantCustomFields()
+                    ->mapWithKeys(fn (CustomField $field) => [$field->id => $this->normalizedCustomFieldValue($child, $field)])
+                    ->filter(fn (?string $value) => $value !== null)
+                    ->all();
+
+                $subtaskCopy = $this->create([
+                    'project_id' => $targetProject->id,
+                    'tracker_id' => $child->tracker_id,
+                    'status_id' => $child->status_id,
+                    'priority_id' => $child->priority_id,
+                    'subject' => $child->subject,
+                    'description' => $child->description,
+                    'assigned_to_id' => $assignedToId,
+                    'fixed_version_id' => $keepVersion ? $child->fixed_version_id : null,
+                    'category_id' => $child->project_id === $targetProject->id ? $child->category_id : null,
+                    'start_date' => $child->start_date,
+                    'due_date' => $child->due_date,
+                    'done_ratio' => $child->done_ratio,
+                    'is_private' => $child->is_private,
+                    'parent_id' => $copiedIds[$parentId]->id,
+                ], $actor, $customFieldData);
+
+                if ($copyAttachments) {
+                    foreach ($child->getMedia('attachments') as $media) {
+                        $media->copy($subtaskCopy, 'attachments');
+                    }
+                }
+
+                if ($copyWatchers) {
+                    $child->watchers()
+                        ->whereHas('user', fn ($query) => $query->where('status', UserStatus::Active))
+                        ->get()
+                        ->each(fn (Watcher $watcher) => $subtaskCopy->watchers()->firstOrCreate(['user_id' => $watcher->user_id]));
+                }
+
+                $copiedIds[$child->id] = $subtaskCopy;
+                $queue[] = $child->id;
+            }
+        }
     }
 
     /**
