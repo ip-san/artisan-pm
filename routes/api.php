@@ -31,7 +31,7 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware(['rest-api.enabled', 'auth:api,api-key']);
 
-Route::middleware(['rest-api.enabled', 'auth:api,api-key'])->group(function () {
+Route::middleware(['rest-api.enabled', 'auth:api,api-key', 'jsonp'])->group(function () {
     Route::get('/projects', [ProjectController::class, 'index'])->name('api.projects.index');
     Route::post('/projects', [ProjectController::class, 'store'])->name('api.projects.store');
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('api.projects.show');

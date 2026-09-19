@@ -6,6 +6,7 @@ use App\Http\Middleware\EnforceRestApiEnabledSetting;
 use App\Http\Middleware\EnforceSessionTimeout;
 use App\Http\Middleware\EnforceSysApiKey;
 use App\Http\Middleware\EnforceTwofaRequired;
+use App\Http\Middleware\WrapJsonpResponse;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -35,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'login.required' => EnforceLoginRequiredSetting::class,
             'sys.key' => EnforceSysApiKey::class,
             'atom.key' => AuthenticateWithAtomKey::class,
+            'jsonp' => WrapJsonpResponse::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

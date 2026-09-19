@@ -245,6 +245,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $rest_api_enabled = false;
 
+    public bool $jsonp_enabled = false;
+
     public bool $login_required = true;
 
     public string $twofa = '0';
@@ -293,6 +295,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->autologin = Setting::get('autologin', false);
         $this->lost_password = Setting::get('lost_password', true);
         $this->rest_api_enabled = Setting::get('rest_api_enabled', false);
+        $this->jsonp_enabled = Setting::get('jsonp_enabled', false);
         $this->login_required = Setting::get('login_required', true);
         $this->twofa = Setting::get('twofa', '0');
         $this->app_title = Setting::get('app_title', config('app.name'));
@@ -552,6 +555,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'autologin' => ['boolean'],
             'lost_password' => ['boolean'],
             'rest_api_enabled' => ['boolean'],
+            'jsonp_enabled' => ['boolean'],
             'login_required' => ['boolean'],
             'twofa' => ['required', 'in:0,1,2,3'],
             'default_projects_public' => ['boolean'],
@@ -1050,6 +1054,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     REST APIを有効にする
                 </label>
                 <p class="mt-1 text-xs text-gray-500">無効の場合、APIキー/OAuth2による認証を試みる前にすべてのAPIリクエストを拒否します(既定は無効、Redmine本家と同じ)。</p>
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="jsonp_enabled" class="rounded border-gray-300">
+                    JSONPを有効にする
+                </label>
+                <p class="mt-1 text-xs text-gray-500">GETで<code>callback</code>を付けると、JSONを関数呼び出しにして返します。他サイトのページからAPIキー付きのURLを読めるようになるため、セキュリティ上のリスクがあります(既定は無効)。</p>
             </div>
 
             <div>
