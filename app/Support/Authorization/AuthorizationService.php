@@ -44,16 +44,18 @@ final class AuthorizationService
         }
 
         // Matches Redmine's Project#allows_to?: archived projects allow no
-        // action at all. Closed projects allow only read-only module
-        // permissions (e.g. add_issues is blocked) — project-management
-        // permissions (module === null, like close_project/edit_project)
-        // are deliberately exempt so a closed project can still be
-        // reopened or otherwise administered.
+        // action at all, and a closed project allows only permissions
+        // flagged read-only (`:read => true` in Redmine's preparation.rb) —
+        // add_issues and manage_members are blocked, while view_* and the
+        // project administration permissions Redmine flags as read
+        // (edit_project, close_project, delete_project,
+        // select_project_modules) stay usable, so a closed project can still
+        // be reopened, reconfigured or deleted.
         if ($project->isArchived()) {
             return false;
         }
 
-        if ($project->isClosed() && $permission->module !== null && ! $permission->readOnly) {
+        if ($project->isClosed() && ! $permission->readOnly) {
             return false;
         }
 
