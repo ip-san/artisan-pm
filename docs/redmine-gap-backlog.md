@@ -146,7 +146,7 @@
 | 72 | A1-31 | A4-09 | S | done(2026-09-20、query_id 指定は未対応) |
 | A1-32 | バージョンフォームの「既定バージョンにする」チェックボックス(`versions/_form.html.erb:14`、`Version#default_project_version`)と、バージョン一覧・設定画面での既定バージョン表示 | A1-23 で `projects.default_version_id` は実装済み。`versions/form.blade.php` にチェックボックスなし | チェックで `projects.default_version_id` を更新、外すと(自分が既定なら)NULL。一覧に既定マークを表示 | A1-23 完了が前提 | S | Versions「Wikiページ紐付け・既定バージョン設定」 |
 | 73 | A4-11 | — | S | done(2026-09-20、アップロード式アバターは対象外) |
-| 74 | A14-04 | — | S | todo |
+| 74 | A14-04 | — | S | done(2026-09-20、スケジューラ稼働状況は未対応) |
 | 75 | A14-05 | — | S | todo |
 | 76 | A2-09 | — | S | todo |
 | 77 | A8-07 | — | S | todo |

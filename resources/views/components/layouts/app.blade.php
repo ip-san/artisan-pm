@@ -37,6 +37,7 @@
                             @can('manage', \App\Models\Setting::class)
                                 <a href="{{ route('settings.index') }}" class="text-sm text-gray-600 hover:text-gray-900">設定</a>
                                 <a href="{{ route('plugins.index') }}" class="text-sm text-gray-600 hover:text-gray-900">プラグイン</a>
+                                <a href="{{ route('admin.info') }}" class="text-sm text-gray-600 hover:text-gray-900">情報</a>
                             @endcan
                             @can('viewAny', \App\Models\AuthSource::class)
                                 <a href="{{ route('auth-sources.index') }}" class="text-sm text-gray-600 hover:text-gray-900">LDAP認証</a>
