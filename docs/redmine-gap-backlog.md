@@ -170,7 +170,7 @@
 | 86 | A1-04 | A4-13 | M | done(2026-09-20、作業時間タブは既存の工数欄で代替) |
 | 87 | A2-02 | A4-13 | S〜M | done(2026-09-20) |
 | 88 | A1-16 | A1-15 | M | done(2026-09-20、id/project 列は対象外) |
-| 89 | A3-06 | — | M | todo |
+| 89 | A3-06 | — | M | done(2026-09-20、課題一覧と工数合計のみ。ガント/カレンダー/レポート/フィルタは未対応) |
 | 90 | A1-17 | A1-16, A3-06 | L | todo |
 | 91 | A2-08 | A1-17 | M | todo |
 | 92 | A1-25 | — | M | todo |
@@ -295,6 +295,7 @@
 | A3-04 | プロジェクトの `homepage` 列 | `projects` に列なし | 列+フォーム+概要画面リンク+API | — | S | — (checklist 未掲載) |
 | A3-05 | クローズ中プロジェクトの編集ブロック | クローズ中でも設定変更・再オープン可能 | Redmine の `Project#allows_to?`(クローズ時は読み取り権限と `close_project` のみ)を `ProjectPolicy` に反映 | 旧: 実装上の判断 | S | Projects「クローズ/再オープン」 |
 | A3-06 | サブプロジェクトの課題を親の一覧に含める(`display_subprojects_issues` 設定、`subproject_id` フィルタ) | 設定なし(grep 0件)。一覧・工数合計はプロジェクト自身のみ | 設定追加、課題一覧/ガント/カレンダー/工数合計で子孫プロジェクトを既定で含める。フィルタ `subproject_id` | A1-17 と連動 | M | 工数管理「プロジェクトの実績工数合計」 |
+| A3-06b | `display_subprojects_issues` を課題レポート・ガント・カレンダー・バージョン画面・活動にも適用し、`subproject_id` フィルタ(=/!/!*/全サブ)を足す | 課題一覧と工数合計のみ `SubprojectScope` を使う | 各画面のプロジェクト絞り込みを `SubprojectScope::projectsForIssues` に置換。フィルタは A1-17 と同時 | A3-06 で分離 | M | 設定「課題トラッキング」 |
 | A3-07 | プロジェクト一覧: フィルタ使用時のツリー維持、可視祖先基準のインデント | フィルタ時はフラット表示、深さは絶対深度 | 可視プロジェクトのみでツリーを再構築(`kalnoy/nestedset` の `toTree()`) | 旧: 意図的簡略化 | S | Projects「プロジェクト一覧」 |
 | A3-08 | グループメンバーのロール編集 | 削除→再追加のみ | メンバー編集フォームでグループ行も編集可能に | — | S | Projects「メンバー管理」 |
 | A3-09 | メンバー単位のメール通知選択(`members.mail_notification`、ユーザーの `mail_notification = selected`) | `members` に列なし。`selected` は `only_my_events` に縮退 | 列追加、プロフィールの通知設定に「選択したプロジェクトのみ」+プロジェクト一覧チェックボックス、`NotificationRecipients` で判定 | — | M | Journal「メール通知(課題)」 |

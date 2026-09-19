@@ -25,6 +25,7 @@ use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\ListQueryString;
+use App\Support\Issues\SubprojectScope;
 use App\Support\Query\DefaultIssueQuery;
 use App\Support\Query\ListDefaults;
 use App\Support\Query\QueryFilterEngine;
@@ -77,6 +78,7 @@ new #[Layout('components.layouts.app')] class extends Component
         'estimated_remaining_hours' => '残り工数',
         'spent_hours' => '作業時間',
         'total_spent_hours' => '合計作業時間',
+        'project_id' => 'プロジェクト',
         'parent_id' => '親課題',
         'updated_at' => '更新日',
         'closed_on' => '終了日',
@@ -223,13 +225,24 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * The project plus, with display_subprojects_issues on, the subprojects
+     * whose issues the list also shows.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function scopeProjects(): Collection
+    {
+        return SubprojectScope::projectsForIssues($this->project, auth()->user());
+    }
+
+    /**
      * @return Builder<Issue>
      */
     private function filteredIssuesQuery(): Builder
     {
         $query = Issue::query()
-            ->where('project_id', $this->project->id)
-            ->visibleTo(auth()->user(), $this->project)
+            ->visibleToAcrossProjects(auth()->user(), $this->scopeProjects)
             ->with(['tracker', 'status', 'priority', 'category', 'assignedTo', 'author', 'fixedVersion'])
             ->when(
                 collect($this->columns)->contains(fn (string $column) => str_starts_with($column, 'cf_')),
@@ -238,6 +251,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->when(in_array('relations', $this->columns, true), fn (Builder $q) => $q->with(['relationsFrom', 'relationsTo']))
             ->when(in_array('attachments', $this->columns, true), fn (Builder $q) => $q->with('media'))
             ->when(in_array('watchers', $this->columns, true), fn (Builder $q) => $q->with('watchers.user'))
+            ->when(in_array('project_id', $this->columns, true), fn (Builder $q) => $q->with('project'))
             ->when(in_array('last_updated_by', $this->columns, true), fn (Builder $q) => $q->with('lastJournal.user'))
             ->when(in_array('last_notes', $this->columns, true), fn (Builder $q) => $q->with('lastNotesJournal'))
             ->when(array_intersect(['spent_hours', 'total_spent_hours', 'total_estimated_hours'], $this->columns) !== [], fn (Builder $q) => $q->withCount('children'))
@@ -701,6 +715,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->join(', '),
             'attachments' => $issue->attachments()->map(fn ($media) => $media->file_name)->join("\n"),
             'watchers' => $issue->watchers->map(fn (Watcher $watcher) => $watcher->user->name)->join("\n"),
+            'project_id' => $issue->project->name,
             'parent_id' => $issue->parent_id !== null ? "#{$issue->parent_id}" : '',
             'updated_at' => $issue->updated_at?->format('Y-m-d H:i') ?? '',
             'closed_on' => $issue->closed_on?->format('Y-m-d H:i') ?? '',

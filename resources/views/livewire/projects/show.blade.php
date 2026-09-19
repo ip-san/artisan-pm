@@ -2,6 +2,8 @@
 
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Models\TimeEntry;
+use App\Support\Issues\SubprojectScope;
 use App\Support\Auth\RequiresPasswordConfirmation;
 use Illuminate\Support\Number;
 use Livewire\Attributes\Computed;
@@ -25,14 +27,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /**
      * This project's own logged hours — matches Redmine's project overview
-     * @total_hours, but without the display_subprojects_issues-driven
-     * subproject rollup (no such setting exists in this app yet), so it's
-     * this project's TimeEntry rows only.
+     * @total_hours: this project's logged hours, plus its subprojects' when
+     * display_subprojects_issues is on.
      */
     #[Computed]
     public function totalSpentHours(): float
     {
-        return (float) $this->project->timeEntries()->sum('hours');
+        $projects = SubprojectScope::projectsForTimeEntries($this->project, auth()->user());
+
+        return (float) TimeEntry::query()->whereIn('project_id', $projects->pluck('id'))->sum('hours');
     }
 
     public function toggleBookmark(): void

@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Support\Attachments\AttachmentArchive;
 use App\Support\Avatar\UserAvatar;
 use App\Support\Format\Hours;
+use App\Support\Issues\SubprojectScope;
 use App\Support\Mail\PublicUrl;
 use App\Support\Pagination\PageSize;
 use App\Support\Preferences\UserPreferences;
@@ -105,6 +106,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $cache_formatted_text = false;
 
     public string $new_item_menu_tab = '2';
+
+    public bool $display_subprojects_issues = false;
 
     public ?int $default_issue_query = null;
 
@@ -317,6 +320,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
         $this->new_item_menu_tab = (string) Setting::get('new_item_menu_tab', '2');
+        $this->display_subprojects_issues = SubprojectScope::enabled();
         $this->default_issue_query = filled(Setting::get('default_issue_query')) ? (int) Setting::get('default_issue_query') : null;
         $this->default_users_hide_mail = (bool) Setting::get('default_users_hide_mail', false);
         $this->default_users_auto_watch_on = UserPreferences::defaults()['auto_watch_on'];
@@ -490,6 +494,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
             'new_item_menu_tab' => ['required', Rule::in(['0', '1', '2'])],
+            'display_subprojects_issues' => ['boolean'],
             'default_issue_query' => ['nullable', Rule::exists('queries', 'id')->where('type', QueryType::Issue->value)->where('visibility', QueryVisibility::Public->value)->whereNull('project_id')],
             'default_users_hide_mail' => ['boolean'],
             'default_users_auto_watch_on' => ['array'],
@@ -831,6 +836,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('new_item_menu_tab') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="display_subprojects_issues" class="rounded border-gray-300">
+                親プロジェクトの課題一覧・工数合計にサブプロジェクトも含める
+            </label>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700">課題一覧の既定クエリ(全体)</label>
