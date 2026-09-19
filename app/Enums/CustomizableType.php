@@ -14,6 +14,8 @@ namespace App\Enums;
 enum CustomizableType: string
 {
     case Issue = 'issue';
+    case TimeEntry = 'time_entry';
+    case IssuePriority = 'issue_priority';
     case Project = 'project';
     case Version = 'version';
     case Group = 'group';

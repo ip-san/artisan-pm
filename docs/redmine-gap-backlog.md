@@ -207,7 +207,8 @@
 | 120 | A4-12 / A14-02 | — | M | blocked(要承認: docs/design/gap-A4-12.md) |
 | 121 | A6-01 | — | M | done(2026-09-20、issue_status_updated 等の細分は未対応) |
 | 122 | A7-01 | — | M | done(2026-09-20、インライン利用と一部オプションは未対応) |
-| 123 | A8-02 | — | M | todo |
+| 123 | A8-02 | — | M | done(2026-09-20、API/一括編集/横断一覧は A8-02b) |
+| 123b | A8-02b | A8-02 | S〜M | todo |
 | 124 | A8-04 | A8-02 | M | todo |
 | 125 | A8-05 | — | S〜M | todo |
 | 126 | A9-01 | — | M | todo |
@@ -396,6 +397,7 @@
 |---|---|---|---|---|---|---|
 | A8-01 | 工数の単体編集でのプロジェクト移動、および一括編集への時間/課題/プロジェクト/ユーザー追加(`TimelogController#update`/`#bulk_update`) | 単体編集フォーム(`time-entries/form.blade.php`)は issue_id/user_id/activity_id/hours/spent_on/comments を編集可でプロジェクト移動のみ不可。**一括編集**(`index.blade.php`)は作業分類/日付/コメントの3項目のみ(チェックリスト記載は正しい、C-17 取り下げ) | プロジェクト選択(移動先で `log_time` 権限があるもの)を追加し、課題との整合(課題が別プロジェクトなら解除)を検証。A5-09 のバリデーションを適用 | `edit_own_time_entries`(A13)で自分の分のみ許可 | S | 工数管理「TimeEntry CRUD」 |
 | A8-02 | 工数のカスタムフィールド(`TimeEntryCustomField`、`CustomizableType::TimeEntry`) | `app/Enums/CustomizableType.php` に TimeEntry なし。`IssuePriority` もなし | `CustomizableType::TimeEntry`/`IssuePriority` を追加し、フォーム/一覧列/CSV/レポート軸/API に露出 | `Enumeration` は `match($this->type)` で既に多型化済み | M | 「TimeEntry CRUD」、カスタムフィールド 節 |
+| A8-02b | 工数カスタムフィールドの残り: 工数の一括編集フォームでの変更、全体の工数一覧(`time-entries.global-index`)の列、工数の REST API(`custom_fields` の入出力。課題 API と同時に方針を決める) | A8-02 ではプロジェクトの工数フォーム・一覧・CSV のみ | 各画面へ同じ `customFields` を配線 | A8-02 で分離 | S〜M | 「TimeEntry CRUD」 |
 | A8-03 | 工数の記録者と対象者の分離(`time_entries.author_id` と `user_id`、権限 `log_time_for_other_users`) | `user_id` のみ。他者分の記録は `edit_time_entries` を流用 | `author_id` 列追加、権限追加、API の `user_id` 指定を新権限でゲート | A13 | S | REST API「Time entries」 |
 | A8-04 | 多次元レポート: カスタムフィールド軸、プロジェクト横断(`/time_entries/report`)、CSV(`report_to_csv`) | `TimeReportBuilder` は単一プロジェクト・固定軸・CSV なし | list/bool 型 CF を軸に追加、グローバル `/time_entries/report`、CSV 出力 | A8-02 が CF 軸の前提 | M | 工数管理「多次元工数レポート」 |
 | A8-05 | プロジェクト横断の工数一覧での編集/削除/CSV/保存済みクエリ | `time-entries.global-index` は閲覧のみ | プロジェクト単位画面の機能を横断画面へ移植(可視性は `Role.time_entries_visibility` で判定済み) | — | S〜M | 「プロジェクト横断の工数一覧」 |
@@ -682,6 +684,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A4-14 | 課題へのコメント/更新でウォッチが増えるようになる(個人設定「自分がコメント・更新した課題」をオンにした人のみ、既定はオフ)。既定の自動ウォッチ(作成・担当)は従来どおり | — |
 | A9-07 | すべてのページのヘッダーにプロジェクト移動のドロップダウンが増える。プロジェクトページを開くと個人設定に「最近使ったプロジェクト」が保存される | 個人設定で件数を 0 にすると記録しない |
 | A7-02 | `{{collapse}}` がネスト可能に。本文に隣接した `{{collapse}}` でプレースホルダ文字列が漏れる不具合を修正 | — |
+| A8-02 | 管理画面のカスタムフィールドの対象に「工数」「優先度」が増える。工数フォーム・工数一覧(列/CSV)・優先度の管理フォームに反映 | 作らなければ影響なし |
 | A7-01 | Wikiマクロが増える: `{{macro_list}}` `{{hello_world}}` `{{recent_pages(N)}}` `{{issue(id)}}` `{{thumbnail(file)}}`、`{{child_pages}}` の深さ指定、`{{include(プロジェクト:ページ)}}`(別プロジェクト) | 使わなければ影響なし |
 | A6-01 | 設定「メール通知」に「課題にコメントが追加されたとき」「フォーラムにメッセージが投稿されたとき」「文書が追加されたとき」「ファイルが追加されたとき」が増える(既定は従来どおり課題の作成/更新のみ) | チェックしなければ従来どおり |
 | A4-03 | 設定「認証」に「パスワードの有効期限」、ユーザー編集に「次回ログイン時にパスワードの変更を要求する」が増える。該当ユーザーはパスワードを変更するまでプロフィール以外を開けない(有効期限は既定で無効) | 既存アカウントの有効期限の起点は移行時点 |

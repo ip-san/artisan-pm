@@ -14,6 +14,7 @@ use App\Models\News;
 use App\Models\NewsComment;
 use App\Models\PendingUpload;
 use App\Models\Project;
+use App\Models\TimeEntry;
 use App\Models\User;
 use App\Models\Version;
 use App\Models\WikiPage;
@@ -46,7 +47,9 @@ final class MorphMapServiceProvider extends ServiceProvider
             'journal' => Journal::class,
             'news_comment' => NewsComment::class,
             'group' => Group::class,
+            'time_entry' => TimeEntry::class,
             'time_entry_activity' => Enumeration::class,
+            'issue_priority' => Enumeration::class,
             'document_category' => Enumeration::class,
             'user' => User::class,
             'pending_upload' => PendingUpload::class,

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Concerns\HasCustomFields;
+use App\Enums\CustomizableType;
 use App\Enums\TimeEntryVisibility;
 use App\Support\Authorization\AuthorizationService;
 use Database\Factories\TimeEntryFactory;
@@ -18,7 +20,7 @@ use Illuminate\Support\Collection;
 final class TimeEntry extends Model
 {
     /** @use HasFactory<TimeEntryFactory> */
-    use HasFactory;
+    use HasCustomFields, HasFactory;
 
     protected function casts(): array
     {
@@ -26,6 +28,41 @@ final class TimeEntry extends Model
             'hours' => 'decimal:2',
             'spent_on' => 'date',
         ];
+    }
+
+    public static function customizableType(): CustomizableType
+    {
+        return CustomizableType::TimeEntry;
+    }
+
+    /**
+     * The time entry custom fields (Redmine's TimeEntryCustomField), further
+     * narrowed to the ones visible to the current user's role(s) in the entry's
+     * project — admins, and anyone when a field has no role restriction, see
+     * them all.
+     *
+     * @return Collection<int, CustomField>
+     */
+    public function relevantCustomFields(): Collection
+    {
+        $fields = CustomField::query()
+            ->where('customized_type', CustomizableType::TimeEntry)
+            ->with(['projects', 'roles'])
+            ->orderBy('position')
+            ->get();
+
+        $this->loadMissing('project');
+
+        $fields = $fields->filter(fn (CustomField $field) => $this->project === null || $field->appliesToProject($this->project));
+        $user = auth()->user();
+
+        if ($user?->is_admin || $this->project === null) {
+            return $fields->values();
+        }
+
+        $userRoles = $user ? app(AuthorizationService::class)->rolesFor($user, $this->project) : collect();
+
+        return $fields->filter(fn (CustomField $field) => $field->visibleToRoles($userRoles))->values();
     }
 
     /**

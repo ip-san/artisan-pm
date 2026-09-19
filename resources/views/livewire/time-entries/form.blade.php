@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\CustomField;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Services\TimeEntryService;
@@ -31,6 +32,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $comments = '';
 
+    /** @var array<int, mixed> */
+    public array $customFieldValues = [];
+
     public function mount(Project $project, ?TimeEntry $timeEntry = null): void
     {
         $this->project = $project;
@@ -49,6 +53,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->hours = (string) $timeEntry->hours;
             $this->spent_on = $timeEntry->spent_on->toDateString();
             $this->comments = (string) $timeEntry->comments;
+            $this->customFieldValues = $timeEntry->customFieldFormValues($timeEntry->relevantCustomFields());
         } else {
             $this->authorize('create', [TimeEntry::class, $project]);
 
@@ -152,6 +157,17 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * The custom fields the entry carries in the project it lands in.
+     *
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function customFields(): Collection
+    {
+        return (new TimeEntry)->forceFill(['project_id' => $this->targetProject->id])->relevantCustomFields();
+    }
+
+    /**
      * Only members with log_time_for_other_users may log time on another member's
      * behalf — everyone else's entries are always recorded under their own
      * account, mirroring Redmine's "log time for others" permission.
@@ -182,7 +198,11 @@ new #[Layout('components.layouts.app')] class extends Component
             $rules['user_id'] = ['required', Rule::exists('members', 'user_id')->where('project_id', $target->id)];
         }
 
+        $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
+
         $data = $this->validate($rules);
+        $customFieldData = CustomField::filterEditableValues($this->customFields, $data['customFieldValues'] ?? [], auth()->user());
+        unset($data['customFieldValues']);
 
         if (! $this->canManageOthers) {
             $data['user_id'] = auth()->id();
@@ -194,11 +214,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 $data['project_id'] = $target->id;
             }
 
-            app(TimeEntryService::class)->update($this->timeEntry, $data);
+            $saved = app(TimeEntryService::class)->update($this->timeEntry, $data);
         } else {
             $data['project_id'] = $target->id;
-            app(TimeEntryService::class)->create($data);
+            $saved = app(TimeEntryService::class)->create($data);
         }
+
+        $saved->setCustomFieldValues($customFieldData);
 
         $this->redirect(route('time-entries.index', $target), navigate: true);
     }
@@ -277,6 +299,10 @@ new #[Layout('components.layouts.app')] class extends Component
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
             @error('comments') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
+
+        @foreach ($this->customFields as $field)
+            <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" wire:key="time-entry-cf-{{ $field->id }}" />
+        @endforeach
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">

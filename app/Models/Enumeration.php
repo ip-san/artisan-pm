@@ -112,9 +112,9 @@ final class Enumeration extends Model implements Sortable
     }
 
     /**
-     * Only meaningful for TimeEntryActivity/DocumentCategory — matches
-     * Redmine's TimeEntryActivityCustomField/DocumentCategoryCustomField
-     * (IssuePriority has no custom-field equivalent in Redmine). This
+     * Only meaningful for the three enumeration kinds Redmine gives custom
+     * fields (TimeEntryActivityCustomField, DocumentCategoryCustomField,
+     * IssuePriorityCustomField). This
      * model represents all three enumeration kinds in one table, so
      * unlike Issue/Project/Version/Group there's no single static "this
      * model's type"; treated as an implementation detail since nothing
@@ -126,11 +126,10 @@ final class Enumeration extends Model implements Sortable
     }
 
     /**
-     * TimeEntryActivity/DocumentCategory custom fields are relevant to
-     * every enumeration of that same type — same reasoning as Group:
-     * these are admin-only resources (EnumerationPolicy denies everyone
-     * else) with no project/role visibility concept to filter by.
-     * IssuePriority enumerations never have custom fields.
+     * TimeEntryActivity/DocumentCategory/IssuePriority custom fields are
+     * relevant to every enumeration of that same type — same reasoning as
+     * Group: these are admin-only resources (EnumerationPolicy denies
+     * everyone else) with no project/role visibility concept to filter by.
      *
      * @return Collection<int, CustomField>
      */
@@ -139,6 +138,7 @@ final class Enumeration extends Model implements Sortable
         $customizableType = match ($this->type) {
             EnumerationType::TimeEntryActivity => CustomizableType::TimeEntryActivity,
             EnumerationType::DocumentCategory => CustomizableType::DocumentCategory,
+            EnumerationType::IssuePriority => CustomizableType::IssuePriority,
             default => null,
         };
 

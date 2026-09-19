@@ -120,7 +120,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $query = TimeEntry::query()
             ->where('project_id', $this->project->id)
-            ->with(['user', 'activity', 'issue']);
+            ->with(['user', 'activity', 'issue', 'customFieldValues']);
 
         if (app(AuthorizationService::class)->timeEntryVisibilityFor(auth()->user(), $this->project) === TimeEntryVisibility::Own) {
             $query->where('user_id', auth()->id());
@@ -248,8 +248,38 @@ new #[Layout('components.layouts.app')] class extends Component
         return SavedQuery::visibleIn($this->project, QueryType::TimeEntry, auth()->user());
     }
 
+    /**
+     * The selectable columns: the fixed ones plus one cf_{id} per time entry
+     * custom field visible to the viewer in this project.
+     *
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function availableColumns(): array
+    {
+        return [
+            ...self::DISPLAY_COLUMNS,
+            ...(new TimeEntry)->forceFill(['project_id' => $this->project->id])->relevantCustomFields()
+                ->mapWithKeys(fn (\App\Models\CustomField $field) => ["cf_{$field->id}" => $field->name])
+                ->all(),
+        ];
+    }
+
     public function columnValue(TimeEntry $entry, string $key): string
     {
+        if (str_starts_with($key, 'cf_')) {
+            $field = $entry->customFieldValues->firstWhere('custom_field_id', (int) substr($key, 3));
+
+            if ($field === null) {
+                return '';
+            }
+
+            return $entry->customFieldValues
+                ->where('custom_field_id', $field->custom_field_id)
+                ->map(fn (\App\Models\CustomFieldValue $value) => (string) $value->value())
+                ->join(', ');
+        }
+
         return match ($key) {
             'user_id' => $entry->user->name,
             'activity_id' => $entry->activity->name,
@@ -539,7 +569,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 fputcsv($handle, $row, $separator);
             };
 
-            $writeRow(array_map(fn (string $key) => self::DISPLAY_COLUMNS[$key] ?? $key, $columns));
+            $writeRow(array_map(fn (string $key) => $this->availableColumns[$key] ?? $key, $columns));
 
             $query->chunk(200, function ($chunk) use ($writeRow, $columns) {
                 foreach ($chunk as $entry) {
@@ -650,7 +680,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="flex items-center gap-2 text-sm text-gray-700">
                 表示列:
-                @foreach (self::DISPLAY_COLUMNS as $key => $label)
+                @foreach ($this->availableColumns as $key => $label)
                     <label class="flex items-center gap-1">
                         <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-gray-300">
                         {{ $label }}
@@ -658,7 +688,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </div>
 
-            <x-column-order :columns="$columns" :labels="self::DISPLAY_COLUMNS" />
+            <x-column-order :columns="$columns" :labels="$this->availableColumns" />
 
             <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
         </div>
@@ -767,7 +797,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @foreach ($columns as $columnKey)
                             <th wire:key="column-heading-{{ $columnKey }}" class="px-4 py-2">
                                 <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
-                                    {{ self::DISPLAY_COLUMNS[$columnKey] ?? $columnKey }}
+                                    {{ $this->availableColumns[$columnKey] ?? $columnKey }}
                                     @if ($sortKey === $columnKey)
                                         <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
                                     @endif
