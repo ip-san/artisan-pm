@@ -125,7 +125,8 @@
 | 52 | A5-09 | — | S〜M | done(2026-09-20) |
 | 53 | A8-01 | A5-09 | S | done(2026-09-20) |
 | 54 | A8-03 / A13-03 | — | S | done(2026-09-20) |
-| 55 | A5-12 / A10-02 | — | S〜M | todo |
+| 55 | A5-12 / A10-02 | — | S〜M | done(2026-09-20、エンコーディング/表示件数は A5-12b) |
+| 55b | A5-12b | A5-12 | S | todo |
 | 56 | A10-01 | — | S〜M | todo |
 | 57 | A10-05 / A5-07 | — | S | todo |
 | 58 | A10-03 / A13-06 | — | S | todo |
@@ -338,6 +339,7 @@
 | A5-10 | `mail_handler_*`: `mail_handler_api_enabled`/`mail_handler_api_key`(rdm-mailhandler.rb からの HTTP 受信)、`mail_handler_enable_regex_delimiters`、`mail_handler_enable_regex_excluded_filenames` | 受信は IMAP/POP ポーリングのみ、区切り/除外は完全一致・ワイルドカードのみ | API キー認証の `POST /mail_handler` エンドポイント、正規表現モードのトグル | S〜M | A12-06 |
 | A5-11 | `emails_header`、`show_status_changes_in_mail_subject`、`default_users_hide_mail` | `emails_footer` のみ | ヘッダー文追加、件名の `(ステータス)` を設定で省略可能に、メール非表示の既定値 | S | A6 |
 | A5-12 | `commit_ref_keywords`、`commit_update_keywords`(`done_ratio`/`if_tracker_id` 付き)、`commit_cross_project_ref`、`commit_logs_encoding`、`commit_logs_formatting`、`repositories_encodings`、`repository_log_display_limit`、`enabled_scm`(名称違い) | `commit_fixing_keyword_rules` は `{keywords, status_id}` のみ(`RepositorySyncService.php:23`)。refs キーワードはハードコード。他はなし | ルールに `done_ratio`/`tracker_id` を追加、参照キーワードを設定化、他プロジェクト参照の許可設定、ログのエンコーディング指定、履歴表示件数 | S〜M | A10 |
+| A5-12b | `commit_logs_encoding`・`repositories_encodings`(SCM 出力を UTF-8 に変換)、`repository_log_display_limit`(履歴一覧の件数。現状 `repository/index.blade.php:83` が 100 固定)、`commit_logs_formatting`(コミットログの書式化) | いずれも設定なし | 履歴表示件数を設定化し、エンコーディング設定を各アダプタの出力変換に配線、`commit_logs_formatting` は changeset コメントの Markdown 化のオン/オフ | A5-12 で分離 | S | 設定「リポジトリ」 |
 | A5-13 | `sys_api_enabled` / `sys_api_key` | `/sys` WS なし(grep 0件) | A10-03 参照 | — | A10-03 |
 | A5-14 | `default_language`、`force_default_language_for_anonymous`/`_for_loggedin`、`text_formatting`、`user_format`、`date_format`、`time_format`、`timespan_format`、`default_users_time_zone` | 基盤なし | A14-01、A4-10a/b、A4-12 参照。`text_formatting` は B-06 | — | A14, A4 |
 | A5-15 | `gantt_items_limit`、`gantt_months_limit` | ガントは全件描画 | 描画件数/月数の上限設定 | S | A9-01 |
@@ -645,6 +647,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A2-07 | 検索結果が `search_results_per_page`(既定 10)件ずつのページ分割になる(従来は全件を 1 ページに表示)。新設定 `per_page_options` の選択肢が課題・グローバル課題・グローバルお知らせ・プロジェクト(検索/フィルタ時)一覧の「表示件数」に出る(既定の件数は従来のまま) | 検索結果が 11 件以上ある場合に 2 ページ目以降になる |
 | A5-09 | 0 時間の工数が既定で記録できる(従来は常に拒否)。工数管理の設定(必須項目・1日上限・未来日・終了課題)を有効にすると、全経路で工数の登録が拒否されることがある | 0 時間を拒否したい場合は設定「0時間の記録を許可する」をオフにする |
 | A13-03 | 工数の編集/削除は自分の分でも `edit_own_time_entries` が必要になり、他ユーザー分の記録は `log_time_for_other_users`、CSV インポートは `import_time_entries` / `import_issues` が必要になる(**マイグレーションが従来の権限を持つロールへ自動付与**するので既存ロールは変わらない。新規に作るロールでは付け忘れに注意) | ロール編集画面で新権限を付与する。カスタム権限セットを持つデプロイは付与結果を確認 |
+| A5-12 | コミットのキーワード設定が拡張された。ルールに進捗率・トラッカー条件、新設定の参照キーワード(既定 `*` で従来どおり)と他プロジェクト参照の許可(既定オンで従来どおり)。既定値は Redmine と異なる | 設定画面「リポジトリ」で変更できる。Redmine 既定に揃えるなら参照キーワードを `refs,references,IssueID`、他プロジェクト参照をオフにする |
 | A7-02 | `{{collapse}}` がネスト可能に。本文に隣接した `{{collapse}}` でプレースホルダ文字列が漏れる不具合を修正 | — |
 | A1-13 | 課題フォームの進捗率がスライダーからセレクトに | — |
 | A1-21 | 課題詳細のサブタスク/関連課題がリストから表になる | — |

@@ -111,6 +111,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $autofetch_changesets = false;
 
+    public string $commit_ref_keywords = '*';
+
+    public bool $commit_cross_project_ref = true;
+
     public bool $commit_logtime_enabled = false;
 
     public ?int $commit_logtime_activity_id = null;
@@ -273,6 +277,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->mail_handler_excluded_filenames = Setting::get('mail_handler_excluded_filenames', '');
         $this->mail_handler_preferred_body_part = Setting::get('mail_handler_preferred_body_part', 'plain');
         $this->autofetch_changesets = Setting::get('autofetch_changesets', false);
+        $this->commit_ref_keywords = Setting::get('commit_ref_keywords', '*');
+        $this->commit_cross_project_ref = Setting::get('commit_cross_project_ref', true);
         $this->commit_logtime_enabled = Setting::get('commit_logtime_enabled', false);
         $this->commit_logtime_activity_id = Setting::get('commit_logtime_activity_id');
         $this->enabled_scm_types = Setting::get('enabled_scm_types', array_map(fn (RepositoryType $type) => $type->value, RepositoryType::cases()));
@@ -345,7 +351,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function addFixingKeywordRule(): void
     {
-        $this->commit_fixing_keyword_rules[] = ['keywords' => '', 'status_id' => null];
+        $this->commit_fixing_keyword_rules[] = ['keywords' => '', 'status_id' => null, 'done_ratio' => null, 'if_tracker_id' => null];
     }
 
     public function removeFixingKeywordRule(int $index): void
@@ -356,7 +362,18 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function save(): void
     {
+        // A commit rule with keywords has to change something: a status or a
+        // done ratio.
+        $ruleChangeRules = [];
+
+        foreach ($this->commit_fixing_keyword_rules as $index => $rule) {
+            if (trim((string) ($rule['keywords'] ?? '')) !== '' && blank($rule['done_ratio'] ?? null)) {
+                $ruleChangeRules["commit_fixing_keyword_rules.{$index}.status_id"] = ['required', 'exists:issue_statuses,id'];
+            }
+        }
+
         $data = $this->validate([
+            ...$ruleChangeRules,
             'app_title' => ['required', 'string', 'max:255'],
             'welcome_text' => ['nullable', 'string', 'max:5000'],
             'default_issues_per_page' => ['required', 'integer', 'min:5', 'max:200'],
@@ -380,7 +397,11 @@ new #[Layout('components.layouts.app')] class extends Component
             'enabled_scm_types.*' => [Rule::in(array_map(fn (RepositoryType $type) => $type->value, RepositoryType::cases()))],
             'commit_fixing_keyword_rules' => ['array'],
             'commit_fixing_keyword_rules.*.keywords' => ['nullable', 'string', 'max:255'],
-            'commit_fixing_keyword_rules.*.status_id' => ['nullable', 'required_with:commit_fixing_keyword_rules.*.keywords', 'exists:issue_statuses,id'],
+            'commit_fixing_keyword_rules.*.status_id' => ['nullable', 'exists:issue_statuses,id'],
+            'commit_fixing_keyword_rules.*.done_ratio' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'commit_fixing_keyword_rules.*.if_tracker_id' => ['nullable', 'exists:trackers,id'],
+            'commit_ref_keywords' => ['nullable', 'string', 'max:255'],
+            'commit_cross_project_ref' => ['boolean'],
             'timelog_required_fields' => ['array'],
             'timelog_required_fields.*' => [Rule::in(array_keys(TimeLogConstraints::REQUIRABLE_FIELDS))],
             'timelog_accept_0_hours' => ['boolean'],
@@ -443,9 +464,16 @@ new #[Layout('components.layouts.app')] class extends Component
         // keywords before storing.
         $data['commit_fixing_keyword_rules'] = collect($data['commit_fixing_keyword_rules'])
             ->filter(fn (array $rule) => trim((string) ($rule['keywords'] ?? '')) !== '')
-            ->map(fn (array $rule) => ['keywords' => trim($rule['keywords']), 'status_id' => (int) $rule['status_id']])
+            ->map(fn (array $rule) => [
+                'keywords' => trim($rule['keywords']),
+                'status_id' => filled($rule['status_id'] ?? null) ? (int) $rule['status_id'] : null,
+                'done_ratio' => filled($rule['done_ratio'] ?? null) ? (int) $rule['done_ratio'] : null,
+                'if_tracker_id' => filled($rule['if_tracker_id'] ?? null) ? (int) $rule['if_tracker_id'] : null,
+            ])
             ->values()
             ->all();
+
+        $data['commit_ref_keywords'] = trim((string) ($data['commit_ref_keywords'] ?? ''));
 
         foreach ($data as $key => $value) {
             Setting::set($key, $value);
@@ -1073,6 +1101,19 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
+                <label class="block text-sm font-medium text-gray-700">課題を参照するキーワード(カンマ区切り)</label>
+                <input type="text" wire:model="commit_ref_keywords" placeholder="*"
+                    class="mt-1 block w-full max-w-md rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500"><code>*</code>を含めると、キーワードなしの<code>#123</code>もコミットに関連付けられます(Redmineの既定は refs,references,IssueID)。</p>
+                @error('commit_ref_keywords') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="commit_cross_project_ref" class="rounded border-gray-300">
+                他のプロジェクトの課題も参照・更新できるようにする
+            </label>
+
+            <div>
                 <span class="block text-sm font-medium text-gray-700 mb-1">コミットをステータス変更と結び付けるキーワード</span>
                 <p class="mb-2 text-xs text-gray-500">
                     各行はキーワード(カンマ区切りで複数指定可)と、コミットメッセージ内でその語の直後に<code>#123</code>があった場合の変更先ステータスの組です。行を削除するとそのキーワードは無効になります。
@@ -1093,6 +1134,20 @@ new #[Layout('components.layouts.app')] class extends Component
                                     @endforeach
                                 </select>
                                 @error("commit_fixing_keyword_rules.{$index}.status_id") <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="w-24">
+                                <input type="number" min="0" max="100" step="10" wire:model="commit_fixing_keyword_rules.{{ $index }}.done_ratio" placeholder="進捗%"
+                                    class="block w-full rounded-md border-gray-300 text-sm shadow-sm">
+                                @error("commit_fixing_keyword_rules.{$index}.done_ratio") <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="w-36">
+                                <select wire:model="commit_fixing_keyword_rules.{{ $index }}.if_tracker_id" class="block w-full rounded-md border-gray-300 text-sm shadow-sm">
+                                    <option value="">全トラッカー</option>
+                                    @foreach ($this->trackers as $tracker)
+                                        <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error("commit_fixing_keyword_rules.{$index}.if_tracker_id") <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                             </div>
                             <button type="button" wire:click="removeFixingKeywordRule({{ $index }})" class="mt-1.5 shrink-0 text-sm text-red-600 hover:underline">
                                 削除

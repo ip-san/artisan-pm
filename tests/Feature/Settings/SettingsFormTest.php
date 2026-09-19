@@ -216,7 +216,7 @@ test('an admin can restrict enabled SCM types and edit the commit fixing keyword
         ->assertHasNoErrors();
 
     expect(Setting::get('enabled_scm_types'))->toBe(['git'])
-        ->and(Setting::get('commit_fixing_keyword_rules'))->toBe([['keywords' => 'resolves, resolve', 'status_id' => $status->id]]);
+        ->and(Setting::get('commit_fixing_keyword_rules'))->toBe([['keywords' => 'resolves, resolve', 'status_id' => $status->id, 'done_ratio' => null, 'if_tracker_id' => null]]);
 });
 
 test('a commit fixing keyword rule with keywords requires a status', function () {
@@ -242,7 +242,7 @@ test('a commit fixing keyword rule with blank keywords is dropped rather than sa
         ->call('save')
         ->assertHasNoErrors();
 
-    expect(Setting::get('commit_fixing_keyword_rules'))->toBe([['keywords' => 'resolves', 'status_id' => $status->id]]);
+    expect(Setting::get('commit_fixing_keyword_rules'))->toBe([['keywords' => 'resolves', 'status_id' => $status->id, 'done_ratio' => null, 'if_tracker_id' => null]]);
 });
 
 test('addFixingKeywordRule appends an empty row and removeFixingKeywordRule removes it', function () {

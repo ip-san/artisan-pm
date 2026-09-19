@@ -21,18 +21,19 @@ use Illuminate\Validation\ValidationException;
  * processes what's landed since the previous sync, not the full history.
  *
  * Also honors a configurable list of fixing-keyword rules
- * (commit_fixing_keyword_rules setting: an array of {keywords, status_id}
+ * (commit_fixing_keyword_rules setting: an array of {keywords, status_id, done_ratio, if_tracker_id}
  * pairs) in the commit message: whichever rule's keyword list contains the
  * SPECIFIC keyword used in that commit determines the target status for
  * the issues it references — matches Redmine's Changeset#fix_issue, which
  * likewise looks up `Setting.commit_update_keywords_array.detect` by the
  * matched keyword rather than applying one global target. If no rules are
  * configured at all, falls back to the classic default (fixes/fix/closes/
- * close → the first closed status). Unlike Redmine's commit_update_keywords,
- * a rule has no if_tracker_id/done_ratio scoping — only keywords and a
- * target status_id — since this app never had that granularity to begin
- * with and it isn't exposed anywhere else (workflow field rules are the
- * closest analog, but those are a different, tracker/role-scoped system).
+ * close → the first closed status). A rule may also set done_ratio and
+ * be limited to one tracker (if_tracker_id), as Redmine's
+ * commit_update_keywords allows; the first rule matching the keyword and
+ * the issue's tracker wins.
+ * Which `#id`s a commit links to is governed by commit_ref_keywords
+ * (`*` = any, the default here) and commit_cross_project_ref.
  * An issue already closed is left alone, matching Redmine's own
  * `return if issue.closed?` guard, rather than only skipping issues
  * already at that exact target status. This only fires when the commit's
@@ -92,7 +93,7 @@ final class RepositorySyncService
                 ]);
             }
 
-            $issueIds = $this->extractIssueIds($entry->message);
+            $issueIds = $this->extractIssueIds($repository, $entry->message);
 
             if ($issueIds !== []) {
                 $changeset->issues()->sync($issueIds);
@@ -108,22 +109,80 @@ final class RepositorySyncService
     }
 
     /**
+     * The issues a commit message references. With the `*` wildcard in
+     * commit_ref_keywords (the default here) every `#id` counts; otherwise
+     * only ids that follow one of the reference or fixing keywords
+     * (Redmine's Changeset#scan_comment_for_issue_ids). Issues in other,
+     * unrelated projects are skipped unless commit_cross_project_ref is on.
+     *
      * @return array<int, int>
      */
-    private function extractIssueIds(string $message): array
+    private function extractIssueIds(Repository $repository, string $message): array
     {
-        preg_match_all('/#(\d+)/', $message, $matches);
+        $ids = [];
 
-        if ($matches[1] === []) {
+        if ($this->referenceKeywords()['any']) {
+            preg_match_all('/#(\d+)/', $message, $matches);
+            $ids = $matches[1];
+        } else {
+            $keywords = [...$this->referenceKeywords()['keywords'], ...$this->fixingKeywords()];
+
+            if ($keywords !== []) {
+                $pattern = implode('|', array_map(preg_quote(...), $keywords));
+
+                preg_match_all('/(?:^|[\s(\[,-])(?:'.$pattern.')[\s:]+(#\d+(?:[\s,;&]+#\d+)*)/i', $message, $lists);
+
+                foreach ($lists[1] as $list) {
+                    preg_match_all('/#(\d+)/', $list, $matches);
+                    array_push($ids, ...$matches[1]);
+                }
+            }
+        }
+
+        if ($ids === []) {
             return [];
         }
 
-        return Issue::query()->whereIn('id', array_unique($matches[1]))->pluck('id')->all();
+        return $this->referenceableIssueIds($repository, array_map('intval', array_unique($ids)));
+    }
+
+    /**
+     * @return array{any: bool, keywords: array<int, string>}
+     */
+    private function referenceKeywords(): array
+    {
+        $keywords = $this->splitKeywords((string) Setting::get('commit_ref_keywords', '*'));
+
+        return ['any' => in_array('*', $keywords, true), 'keywords' => array_values(array_diff($keywords, ['*']))];
+    }
+
+    /**
+     * Narrows issue ids to the ones a commit may reference: any existing
+     * issue when commit_cross_project_ref is on (the default here), else
+     * only issues of the repository's project, its ancestors or its
+     * descendants — Redmine's Changeset#find_referenced_issue_by_id.
+     *
+     * @param  array<int, int>  $ids
+     * @return array<int, int>
+     */
+    private function referenceableIssueIds(Repository $repository, array $ids): array
+    {
+        $query = Issue::query()->whereIn('id', $ids);
+
+        if (! (bool) Setting::get('commit_cross_project_ref', true)) {
+            $project = $repository->project;
+
+            $query->whereHas('project', fn ($related) => $related->where(fn ($either) => $either
+                ->where(fn ($inside) => $inside->where('_lft', '>=', $project->_lft)->where('_rgt', '<=', $project->_rgt))
+                ->orWhere(fn ($above) => $above->where('_lft', '<=', $project->_lft)->where('_rgt', '>=', $project->_rgt))));
+        }
+
+        return $query->pluck('id')->all();
     }
 
     private function applyFixingKeywords(Repository $repository, string $message, string $committer): void
     {
-        $matches = $this->matchFixingKeywords($message);
+        $matches = $this->matchFixingKeywords($repository, $message);
 
         if ($matches === []) {
             return;
@@ -144,13 +203,20 @@ final class RepositorySyncService
                 continue;
             }
 
-            if (! $this->authorization->can($actor, 'edit_issues', $issue->loadMissing('project')->project)) {
+            $rule = $this->ruleFor($match['keyword'], $issue);
+
+            if ($rule === null || ! $this->authorization->can($actor, 'edit_issues', $issue->loadMissing('project')->project)) {
                 continue;
             }
 
+            $changes = array_filter([
+                'status_id' => $rule['statusId'],
+                'done_ratio' => $rule['doneRatio'],
+            ], fn (?int $value) => $value !== null);
+
             app(IssueService::class)->update(
                 $issue,
-                ['status_id' => $match['statusId']],
+                $changes,
                 $actor,
                 'コミットメッセージのキーワードにより自動的にステータスが変更されました。',
             );
@@ -181,7 +247,8 @@ final class RepositorySyncService
             return;
         }
 
-        $issues = Issue::query()->whereIn('id', array_column($entries, 'issueId'))->get()->keyBy('id');
+        $referenceable = $this->referenceableIssueIds($repository, array_column($entries, 'issueId'));
+        $issues = Issue::query()->whereIn('id', $referenceable)->get()->keyBy('id');
 
         foreach ($entries as $entry) {
             $issue = $issues->get($entry['issueId']);
@@ -320,39 +387,32 @@ final class RepositorySyncService
     }
 
     /**
-     * Every #id referenced right after a fixing keyword, paired with the
-     * target status of whichever rule that specific keyword belongs to —
-     * a later occurrence of the same issue id (possibly under a different
-     * keyword/rule) overwrites the earlier one, so the last mention in the
-     * message wins for a given issue, same as a plain last-write-wins
-     * array merge would naturally produce.
+     * Every #id referenced right after a fixing keyword, with that keyword —
+     * a later mention of the same issue id (possibly under another keyword)
+     * overwrites the earlier one, so the last mention in the message wins.
+     * Which rule then applies (and whether its tracker condition holds) is
+     * decided per issue in ruleFor().
      *
-     * @return array<int, array{issueId: int, statusId: int}>
+     * @return array<int, array{issueId: int, keyword: string}>
      */
-    private function matchFixingKeywords(string $message): array
+    private function matchFixingKeywords(Repository $repository, string $message): array
     {
-        $keywordToStatusId = $this->keywordToStatusIdMap();
+        $keywords = $this->fixingKeywords();
 
-        if ($keywordToStatusId === []) {
+        if ($keywords === []) {
             return [];
         }
 
-        $pattern = implode('|', array_map(preg_quote(...), array_keys($keywordToStatusId)));
+        $pattern = implode('|', array_map(preg_quote(...), $keywords));
         preg_match_all('/\b('.$pattern.')\b\s+((?:#\d+[,\s]*)+)/i', $message, $matches, PREG_SET_ORDER);
 
         $results = [];
 
         foreach ($matches as $match) {
-            $statusId = $keywordToStatusId[mb_strtolower($match[1])] ?? null;
-
-            if ($statusId === null) {
-                continue;
-            }
-
             preg_match_all('/#(\d+)/', $match[2], $idMatches);
 
             foreach ($idMatches[1] as $id) {
-                $results[(int) $id] = ['issueId' => (int) $id, 'statusId' => $statusId];
+                $results[(int) $id] = ['issueId' => (int) $id, 'keyword' => mb_strtolower($match[1])];
             }
         }
 
@@ -360,35 +420,38 @@ final class RepositorySyncService
             return [];
         }
 
-        $validIds = Issue::query()->whereIn('id', array_keys($results))->pluck('id')->all();
+        $validIds = $this->referenceableIssueIds($repository, array_keys($results));
 
         return array_values(array_intersect_key($results, array_flip($validIds)));
     }
 
     /**
-     * Flattens the configured rules into a single keyword(lowercased) =>
-     * status_id lookup — when the same keyword appears in more than one
-     * rule, the first rule wins (array declaration order), matching
-     * Redmine's Array#detect returning the first matching rule.
-     *
-     * @return array<string, int>
+     * @return array<int, string>
      */
-    private function keywordToStatusIdMap(): array
+    private function fixingKeywords(): array
     {
-        $rules = $this->fixingKeywordRules();
-        $map = [];
-
-        foreach ($rules as $rule) {
-            foreach ($rule['keywords'] as $keyword) {
-                $map[$keyword] ??= $rule['statusId'];
-            }
-        }
-
-        return $map;
+        return array_values(array_unique(array_merge(...array_column($this->fixingKeywordRules(), 'keywords') ?: [[]])));
     }
 
     /**
-     * @return array<int, array{keywords: array<int, string>, statusId: int}>
+     * The first rule listing $keyword whose tracker condition (if any) fits
+     * the issue — Redmine's `commit_update_keywords_array.detect`.
+     *
+     * @return array{keywords: array<int, string>, statusId: ?int, doneRatio: ?int, trackerId: ?int}|null
+     */
+    private function ruleFor(string $keyword, Issue $issue): ?array
+    {
+        foreach ($this->fixingKeywordRules() as $rule) {
+            if (in_array($keyword, $rule['keywords'], true) && ($rule['trackerId'] === null || $rule['trackerId'] === $issue->tracker_id)) {
+                return $rule;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<int, array{keywords: array<int, string>, statusId: ?int, doneRatio: ?int, trackerId: ?int}>
      */
     private function fixingKeywordRules(): array
     {
@@ -401,20 +464,27 @@ final class RepositorySyncService
                 return [];
             }
 
-            return [['keywords' => $this->splitKeywords(self::DEFAULT_FIXING_KEYWORDS), 'statusId' => $closedStatusId]];
+            return [['keywords' => $this->splitKeywords(self::DEFAULT_FIXING_KEYWORDS), 'statusId' => $closedStatusId, 'doneRatio' => null, 'trackerId' => null]];
         }
 
         $rules = [];
 
         foreach ($configured as $rule) {
             $keywords = $this->splitKeywords((string) ($rule['keywords'] ?? ''));
-            $statusId = $rule['status_id'] ?? null;
+            $statusId = filled($rule['status_id'] ?? null) ? (int) $rule['status_id'] : null;
+            $doneRatio = filled($rule['done_ratio'] ?? null) ? (int) $rule['done_ratio'] : null;
 
-            if ($keywords === [] || $statusId === null) {
+            // A rule that changes nothing would only swallow its keywords.
+            if ($keywords === [] || ($statusId === null && $doneRatio === null)) {
                 continue;
             }
 
-            $rules[] = ['keywords' => $keywords, 'statusId' => (int) $statusId];
+            $rules[] = [
+                'keywords' => $keywords,
+                'statusId' => $statusId,
+                'doneRatio' => $doneRatio,
+                'trackerId' => filled($rule['if_tracker_id'] ?? null) ? (int) $rule['if_tracker_id'] : null,
+            ];
         }
 
         return $rules;
