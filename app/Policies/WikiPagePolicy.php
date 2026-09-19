@@ -98,18 +98,23 @@ final class WikiPagePolicy
         return $this->authorization->can($user, 'view_wiki_pages', $wikiPage->project);
     }
 
-    /**
-     * Adding/removing *other* users as watchers — distinct from watch(),
-     * which lets anyone with view access toggle their own watch state.
-     * Redmine has no dedicated "manage wiki watchers" permission, so this
-     * gates on edit_wiki_pages, matching the natural "can edit this page"
-     * boundary — mirrors IssuePolicy::manageWatchers()'s shape, gated on
-     * add_issue_watchers there since that permission already exists for
-     * issues.
-     */
-    public function manageWatchers(User $user, WikiPage $wikiPage): bool
+    public function viewWatchers(?User $user, WikiPage $wikiPage): bool
     {
-        return $this->authorization->can($user, 'edit_wiki_pages', $wikiPage->project);
+        return $this->authorization->can($user, 'view_wiki_page_watchers', $wikiPage->project);
+    }
+
+    /**
+     * Adding *other* users as watchers — distinct from watch(), which lets
+     * anyone with view access toggle their own watch state.
+     */
+    public function addWatchers(User $user, WikiPage $wikiPage): bool
+    {
+        return $this->authorization->can($user, 'add_wiki_page_watchers', $wikiPage->project);
+    }
+
+    public function deleteWatchers(User $user, WikiPage $wikiPage): bool
+    {
+        return $this->authorization->can($user, 'delete_wiki_page_watchers', $wikiPage->project);
     }
 
     /**

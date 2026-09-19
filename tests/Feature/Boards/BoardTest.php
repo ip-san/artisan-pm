@@ -410,7 +410,7 @@ test('a member with view_messages can watch and unwatch a topic', function () {
 
 test('a member with edit_messages can add another member as a watcher', function () {
     $project = Project::factory()->create();
-    $manager = boardMember($project, ['view_messages', 'edit_messages']);
+    $manager = boardMember($project, ['view_messages', 'view_message_watchers', 'add_message_watchers', 'delete_message_watchers', 'edit_messages']);
     $target = boardMember($project, ['view_messages']);
     $board = Board::factory()->for($project)->create();
     $topic = Message::factory()->for($board)->create();
@@ -442,7 +442,7 @@ test('a member without edit_messages cannot add another user as a topic watcher'
 
 test('a manager can remove another watcher from a topic', function () {
     $project = Project::factory()->create();
-    $manager = boardMember($project, ['view_messages', 'edit_messages']);
+    $manager = boardMember($project, ['view_messages', 'view_message_watchers', 'add_message_watchers', 'delete_message_watchers', 'edit_messages']);
     $watching = boardMember($project, ['view_messages']);
     $board = Board::factory()->for($project)->create();
     $topic = Message::factory()->for($board)->create();
@@ -457,7 +457,7 @@ test('a manager can remove another watcher from a topic', function () {
 
 test('a non-member of the project cannot be added as a topic watcher', function () {
     $project = Project::factory()->create();
-    $manager = boardMember($project, ['view_messages', 'edit_messages']);
+    $manager = boardMember($project, ['view_messages', 'view_message_watchers', 'add_message_watchers', 'delete_message_watchers', 'edit_messages']);
     $outsider = User::factory()->create();
     $board = Board::factory()->for($project)->create();
     $topic = Message::factory()->for($board)->create();

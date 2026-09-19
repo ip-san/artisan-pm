@@ -189,7 +189,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function addWatcher(): void
     {
-        $this->authorize('manageWatchers', $this->wikiPage);
+        $this->authorize('addWatchers', $this->wikiPage);
 
         $data = $this->validate([
             'newWatcherId' => ['required', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
@@ -204,7 +204,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function removeWatcher(int $userId): void
     {
-        $this->authorize('manageWatchers', $this->wikiPage);
+        $this->authorize('deleteWatchers', $this->wikiPage);
 
         $this->wikiPage->watchers()->where('user_id', $userId)->delete();
 
@@ -363,20 +363,20 @@ new #[Layout('components.layouts.app')] class extends Component
         {!! $this->renderedContent !!}
     </div>
 
-    @if ($wikiPage->watchers->isNotEmpty() || auth()->user()?->can('manageWatchers', $wikiPage))
+    @if (auth()->user()?->can('viewWatchers', $wikiPage) && ($wikiPage->watchers->isNotEmpty() || auth()->user()?->can('addWatchers', $wikiPage)))
         <h2 class="mt-4 text-sm font-semibold text-gray-900 mb-2">ウォッチャー ({{ $wikiPage->watchers->count() }})</h2>
         <ul class="mb-3 flex flex-wrap gap-2">
             @foreach ($wikiPage->watchers as $watcher)
                 <li class="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
                     {{ $watcher->user->name }}
-                    @can('manageWatchers', $wikiPage)
+                    @can('deleteWatchers', $wikiPage)
                         <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-gray-400 hover:text-red-600" title="ウォッチャーから削除">×</button>
                     @endcan
                 </li>
             @endforeach
         </ul>
 
-        @can('manageWatchers', $wikiPage)
+        @can('addWatchers', $wikiPage)
             @if ($this->watcherCandidates->isNotEmpty())
                 <form wire:submit="addWatcher" class="mb-4 flex items-end gap-2">
                     <div>

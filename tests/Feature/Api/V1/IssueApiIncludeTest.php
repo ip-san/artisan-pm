@@ -27,7 +27,7 @@ function includeTestIssueDefaults(): array
     ];
 }
 
-function includeTestMember(Project $project, array $permissions = ['view_issues']): User
+function includeTestMember(Project $project, array $permissions = ['view_issues', 'view_issue_watchers']): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create(['permissions' => $permissions]);

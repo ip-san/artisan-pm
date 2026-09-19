@@ -13,7 +13,7 @@ final class StoreWatcherRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('manageWatchers', $this->route('issue'));
+        return $this->user()->can('addWatchers', $this->route('issue'));
     }
 
     /**

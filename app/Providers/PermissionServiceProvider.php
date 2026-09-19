@@ -47,7 +47,9 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('set_issues_private', module: ProjectModuleKey::IssueTracking);
         $registry->register('move_issues', module: ProjectModuleKey::IssueTracking);
         $registry->register('copy_issues', module: ProjectModuleKey::IssueTracking);
+        $registry->register('view_issue_watchers', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('add_issue_watchers', module: ProjectModuleKey::IssueTracking);
+        $registry->register('delete_issue_watchers', module: ProjectModuleKey::IssueTracking);
         $registry->register('view_private_notes', module: ProjectModuleKey::IssueTracking, readOnly: true);
         $registry->register('set_notes_private', module: ProjectModuleKey::IssueTracking);
         $registry->register('edit_issue_notes', module: ProjectModuleKey::IssueTracking);
@@ -65,6 +67,9 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('rename_wiki_pages', module: ProjectModuleKey::Wiki);
         $registry->register('delete_wiki_pages', module: ProjectModuleKey::Wiki);
         $registry->register('protect_wiki_pages', module: ProjectModuleKey::Wiki);
+        $registry->register('view_wiki_page_watchers', module: ProjectModuleKey::Wiki, requirement: PermissionRequirement::None, readOnly: true);
+        $registry->register('add_wiki_page_watchers', module: ProjectModuleKey::Wiki);
+        $registry->register('delete_wiki_page_watchers', module: ProjectModuleKey::Wiki);
         $registry->register('export_wiki_pages', module: ProjectModuleKey::Wiki, readOnly: true);
         $registry->register('view_wiki_edits', module: ProjectModuleKey::Wiki, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('delete_wiki_pages_attachments', module: ProjectModuleKey::Wiki);
@@ -77,6 +82,9 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('delete_messages', module: ProjectModuleKey::Boards);
         $registry->register('delete_own_messages', module: ProjectModuleKey::Boards, requirement: PermissionRequirement::LoggedIn, readOnly: true);
         $registry->register('manage_boards', module: ProjectModuleKey::Boards);
+        $registry->register('view_message_watchers', module: ProjectModuleKey::Boards, requirement: PermissionRequirement::None, readOnly: true);
+        $registry->register('add_message_watchers', module: ProjectModuleKey::Boards);
+        $registry->register('delete_message_watchers', module: ProjectModuleKey::Boards);
 
         $registry->register('view_news', module: ProjectModuleKey::News, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('manage_news', module: ProjectModuleKey::News);

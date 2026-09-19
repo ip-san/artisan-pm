@@ -519,7 +519,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function addWatcher(): void
     {
-        $this->authorize('manageWatchers', $this->issue);
+        $this->authorize('addWatchers', $this->issue);
 
         // Scoped to the issue's OWN project, not $this->project: the two are
         // the same for any URL the app generates, but authorization here runs
@@ -541,7 +541,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function removeWatcher(int $userId): void
     {
-        $this->authorize('manageWatchers', $this->issue);
+        $this->authorize('deleteWatchers', $this->issue);
 
         $this->issue->watchers()->where('user_id', $userId)->delete();
 
@@ -848,20 +848,20 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     @endif
 
-    @if ($issue->watchers->isNotEmpty() || auth()->user()?->can('manageWatchers', $issue))
+    @if (auth()->user()?->can('viewWatchers', $issue) && ($issue->watchers->isNotEmpty() || auth()->user()?->can('addWatchers', $issue)))
         <h2 class="text-sm font-semibold text-gray-900 mb-2">ウォッチャー ({{ $issue->watchers->count() }})</h2>
         <ul class="mb-3 flex flex-wrap gap-2">
             @foreach ($issue->watchers as $watcher)
                 <li class="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
                     {{ $watcher->user->name }}
-                    @can('manageWatchers', $issue)
+                    @can('deleteWatchers', $issue)
                         <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-gray-400 hover:text-red-600" title="ウォッチャーから削除">×</button>
                     @endcan
                 </li>
             @endforeach
         </ul>
 
-        @can('manageWatchers', $issue)
+        @can('addWatchers', $issue)
             @if ($this->watcherCandidates->isNotEmpty())
                 <form wire:submit="addWatcher" class="mb-6 flex items-end gap-2">
                     <div>

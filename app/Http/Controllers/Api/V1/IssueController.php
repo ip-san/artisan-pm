@@ -152,6 +152,12 @@ final class IssueController extends Controller
         Gate::authorize('view', $issue);
 
         $includes = $this->parseIncludes($request, self::SHOW_INCLUDES);
+
+        // Watchers are listed only to callers holding view_issue_watchers.
+        if (! Gate::allows('viewWatchers', $issue)) {
+            $includes = array_values(array_diff($includes, ['watchers']));
+        }
+
         $request->attributes->set('issue_api_includes', $includes);
 
         $issue->load($this->relationsToLoad($includes));

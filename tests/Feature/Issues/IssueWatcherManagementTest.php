@@ -32,7 +32,7 @@ function watchableIssue(Project $project): Issue
 
 test('a member with add_issue_watchers can add another member as a watcher', function () {
     $project = Project::factory()->create();
-    $manager = watcherProjectMember($project, ['view_issues', 'add_issue_watchers']);
+    $manager = watcherProjectMember($project, ['view_issues', 'view_issue_watchers', 'add_issue_watchers', 'delete_issue_watchers']);
     $target = watcherProjectMember($project, ['view_issues']);
     $issue = watchableIssue($project);
 
@@ -62,7 +62,7 @@ test('a member without add_issue_watchers cannot add another user as a watcher',
 
 test('a manager can remove another watcher', function () {
     $project = Project::factory()->create();
-    $manager = watcherProjectMember($project, ['view_issues', 'add_issue_watchers']);
+    $manager = watcherProjectMember($project, ['view_issues', 'view_issue_watchers', 'add_issue_watchers', 'delete_issue_watchers']);
     $watching = watcherProjectMember($project, ['view_issues']);
     $issue = watchableIssue($project);
     $issue->watchers()->create(['user_id' => $watching->id]);
@@ -76,7 +76,7 @@ test('a manager can remove another watcher', function () {
 
 test('a non-member of the project cannot be added as a watcher', function () {
     $project = Project::factory()->create();
-    $manager = watcherProjectMember($project, ['view_issues', 'add_issue_watchers']);
+    $manager = watcherProjectMember($project, ['view_issues', 'view_issue_watchers', 'add_issue_watchers', 'delete_issue_watchers']);
     $outsider = User::factory()->create();
     $issue = watchableIssue($project);
 
@@ -94,7 +94,7 @@ test('a user who only belongs to the URL project cannot be added as a watcher of
     // project. Before this was scoped to $this->issue, a manager on the
     // owning project could attach any member of the unrelated URL project.
     $owner = Project::factory()->create();
-    $manager = watcherProjectMember($owner, ['view_issues', 'add_issue_watchers']);
+    $manager = watcherProjectMember($owner, ['view_issues', 'view_issue_watchers', 'add_issue_watchers', 'delete_issue_watchers']);
     $issue = watchableIssue($owner);
 
     $unrelated = Project::factory()->create();

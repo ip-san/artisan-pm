@@ -14,14 +14,9 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Matches Redmine's WatchersController#create/#destroy: both are bare
  * action endpoints (no resource body, 204 No Content — Redmine's own
- * render_api_ok resolves to the same), not a CRUD resource. Both actions
- * gate on manageWatchers (add_issue_watchers) — this app's IssuePolicy,
- * unlike Redmine's dynamically-built add_issue_watchers/
- * delete_issue_watchers pair, only ever defined the one permission and
- * reuses it for both add and remove (the same convention the existing
- * web UI's addWatcher()/removeWatcher() already follow), so this
- * endpoint doesn't invent a new permission Redmine has but nothing else
- * here references.
+ * render_api_ok resolves to the same), not a CRUD resource. Add gates on
+ * add_issue_watchers (IssuePolicy::addWatchers) and remove on
+ * delete_issue_watchers (deleteWatchers).
  */
 final class WatcherController extends Controller
 {
@@ -34,7 +29,7 @@ final class WatcherController extends Controller
 
     public function destroy(Issue $issue, User $user): JsonResponse
     {
-        Gate::authorize('manageWatchers', $issue);
+        Gate::authorize('deleteWatchers', $issue);
 
         $issue->watchers()->where('user_id', $user->id)->delete();
 

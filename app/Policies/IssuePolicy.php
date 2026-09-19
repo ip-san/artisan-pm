@@ -74,12 +74,25 @@ final class IssuePolicy
     }
 
     /**
-     * Adding/removing *other* users as watchers — distinct from watch(),
-     * which lets anyone with view access toggle their own watch state.
+     * Redmine's view_issue_watchers: seeing who watches the issue.
      */
-    public function manageWatchers(User $user, Issue $issue): bool
+    public function viewWatchers(?User $user, Issue $issue): bool
+    {
+        return $this->authorization->can($user, 'view_issue_watchers', $this->projectOf($issue));
+    }
+
+    /**
+     * Adding *other* users as watchers — distinct from watch(), which lets
+     * anyone with view access toggle their own watch state.
+     */
+    public function addWatchers(User $user, Issue $issue): bool
     {
         return $this->authorization->can($user, 'add_issue_watchers', $this->projectOf($issue));
+    }
+
+    public function deleteWatchers(User $user, Issue $issue): bool
+    {
+        return $this->authorization->can($user, 'delete_issue_watchers', $this->projectOf($issue));
     }
 
     public function transitionTo(User $user, Issue $issue, IssueStatus $status): bool

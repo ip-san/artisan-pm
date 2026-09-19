@@ -20,7 +20,7 @@ function wikiWatcherProjectMember(Project $project, array $permissions): User
 
 test('a member with edit_wiki_pages can add another member as a watcher', function () {
     $project = Project::factory()->create();
-    $manager = wikiWatcherProjectMember($project, ['view_wiki_pages', 'edit_wiki_pages']);
+    $manager = wikiWatcherProjectMember($project, ['view_wiki_pages', 'view_wiki_page_watchers', 'add_wiki_page_watchers', 'delete_wiki_page_watchers', 'edit_wiki_pages']);
     $target = wikiWatcherProjectMember($project, ['view_wiki_pages']);
     $page = WikiPage::factory()->for($project)->create();
 
@@ -50,7 +50,7 @@ test('a member without edit_wiki_pages cannot add another user as a watcher', fu
 
 test('a manager can remove another watcher from a wiki page', function () {
     $project = Project::factory()->create();
-    $manager = wikiWatcherProjectMember($project, ['view_wiki_pages', 'edit_wiki_pages']);
+    $manager = wikiWatcherProjectMember($project, ['view_wiki_pages', 'view_wiki_page_watchers', 'add_wiki_page_watchers', 'delete_wiki_page_watchers', 'edit_wiki_pages']);
     $watching = wikiWatcherProjectMember($project, ['view_wiki_pages']);
     $page = WikiPage::factory()->for($project)->create();
     $page->watchers()->create(['user_id' => $watching->id]);
@@ -64,7 +64,7 @@ test('a manager can remove another watcher from a wiki page', function () {
 
 test('a non-member of the project cannot be added as a wiki page watcher', function () {
     $project = Project::factory()->create();
-    $manager = wikiWatcherProjectMember($project, ['view_wiki_pages', 'edit_wiki_pages']);
+    $manager = wikiWatcherProjectMember($project, ['view_wiki_pages', 'view_wiki_page_watchers', 'add_wiki_page_watchers', 'delete_wiki_page_watchers', 'edit_wiki_pages']);
     $outsider = User::factory()->create();
     $page = WikiPage::factory()->for($project)->create();
 

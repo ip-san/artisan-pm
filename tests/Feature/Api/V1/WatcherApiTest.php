@@ -80,9 +80,9 @@ test('adding an already-watching user is idempotent', function () {
     expect(Watcher::where('watchable_id', $issue->id)->where('user_id', $target->id)->count())->toBe(1);
 });
 
-test('a member with add_issue_watchers can remove a watcher', function () {
+test('a member with delete_issue_watchers can remove a watcher', function () {
     $project = Project::factory()->create();
-    $manager = apiWatcherMember($project, ['view_issues', 'add_issue_watchers']);
+    $manager = apiWatcherMember($project, ['view_issues', 'delete_issue_watchers']);
     $watching = apiWatcherMember($project, ['view_issues']);
     $issue = Issue::factory()->for($project)->create();
     $issue->watchers()->create(['user_id' => $watching->id]);
