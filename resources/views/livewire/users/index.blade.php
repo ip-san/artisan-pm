@@ -1,22 +1,120 @@
 <?php
 
+use App\Concerns\InteractsWithQueryFilters;
 use App\Enums\UserStatus;
 use App\Models\Group;
 use App\Models\User;
 use App\Services\AccountDeletionService;
+use App\Support\Query\QueryFilterEngine;
+use App\Support\Query\UserFilterFieldRegistry;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use InteractsWithQueryFilters;
+
     /** @var array<int, string> */
     public array $selected = [];
+
+    /** @var array<int, string> */
+    #[Url]
+    public array $columns = [];
+
+    #[Url]
+    public ?string $sortKey = null;
+
+    #[Url]
+    public string $sortDirection = 'asc';
 
     public function mount(): void
     {
         $this->authorize('viewAny', User::class);
+
+        if ($this->columns === []) {
+            $this->columns = UserFilterFieldRegistry::defaultColumns();
+        }
+    }
+
+    #[Computed]
+    public function engine(): QueryFilterEngine
+    {
+        return new QueryFilterEngine(UserFilterFieldRegistry::all());
+    }
+
+    public function applyFilters(): void
+    {
+        $this->selected = [];
+        unset($this->users, $this->selectedUsers);
+    }
+
+    public function sortBy(string $key): void
+    {
+        if ($this->sortKey === $key) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortKey = $key;
+            $this->sortDirection = 'asc';
+        }
+    }
+
+    /**
+     * The chosen columns in the list's own order, limited to real ones.
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function visibleColumns(): array
+    {
+        $chosen = array_values(array_intersect(array_keys(UserFilterFieldRegistry::columns()), $this->columns));
+
+        return $chosen === [] ? UserFilterFieldRegistry::defaultColumns() : $chosen;
+    }
+
+    public function columnValue(User $user, string $key): string
+    {
+        return match ($key) {
+            'name' => $user->name,
+            'login' => $user->login,
+            'email' => $user->email,
+            'is_admin' => $user->is_admin ? '管理者' : '',
+            'status' => match ($user->status) {
+                UserStatus::Locked => 'ロック中',
+                UserStatus::Registered => '承認待ち',
+                default => '有効',
+            },
+            'auth_source_id' => $user->authSource !== null ? 'LDAP: '.$user->authSource->name : '',
+            'created_at' => $user->created_at?->format('Y-m-d H:i') ?? '',
+            'last_login_at' => $user->last_login_at?->format('Y-m-d H:i') ?? '',
+            default => '',
+        };
+    }
+
+    /**
+     * The filtered list as a CSV of the chosen columns (Redmine's users.csv),
+     * UTF-8 with a byte-order mark so Excel reads it correctly.
+     */
+    public function exportCsv(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $this->authorize('viewAny', User::class);
+
+        $columns = $this->visibleColumns;
+        $users = $this->users;
+
+        return response()->streamDownload(function () use ($columns, $users): void {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, array_map(fn ($key) => UserFilterFieldRegistry::columns()[$key], $columns));
+
+            foreach ($users as $user) {
+                fputcsv($handle, array_map(fn ($key) => $this->columnValue($user, $key), $columns));
+            }
+
+            fclose($handle);
+        }, 'users.csv');
     }
 
     /**
@@ -124,9 +222,16 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function users(): Collection
     {
-        return User::query()->with(['authSource', 'groups'])
-            ->where('status', '!=', UserStatus::Deleted)
-            ->orderBy('name')->get();
+        $query = User::query()->with(['authSource', 'groups'])
+            ->where('status', '!=', UserStatus::Deleted);
+
+        $query = $this->engine->applyFilters($query, $this->builtFilters());
+
+        if ($this->sortKey !== null && in_array($this->sortKey, array_keys(UserFilterFieldRegistry::columns()), true)) {
+            $query = $this->engine->applySort($query, [[$this->sortKey, $this->sortDirection]]);
+        }
+
+        return $query->orderBy('name')->get();
     }
 
     public function toggleLock(int $userId): void
@@ -210,43 +315,89 @@ new #[Layout('components.layouts.app')] class extends Component
         </a>
     </div>
 
-    <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
-        @foreach ($this->users as $user)
-            <li wire:key="user-row-{{ $user->id }}" x-on:contextmenu.prevent="showMenu($event, {{ $user->id }})"
-                class="flex items-center justify-between px-4 py-3 {{ in_array((string) $user->id, array_map('strval', $selected), true) ? 'bg-indigo-50' : '' }}">
-                <div>
-                    <input type="checkbox" wire:model.live="selected" value="{{ $user->id }}" class="mr-3 rounded border-gray-300">
-                    <a href="{{ route('users.show', $user) }}" class="font-medium text-gray-900 hover:underline">{{ $user->name }}</a>
-                    <span class="ml-2 text-xs text-gray-500">{{ $user->email }}</span>
-                    @if ($user->is_admin)
-                        <span class="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-700">管理者</span>
-                    @endif
-                    @if ($user->status === \App\Enums\UserStatus::Locked)
-                        <span class="ml-2 rounded bg-red-50 px-1.5 py-0.5 text-xs text-red-600">ロック中</span>
-                    @elseif ($user->status === \App\Enums\UserStatus::Registered)
-                        <span class="ml-2 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">承認待ち</span>
-                    @endif
-                    @if ($user->authSource)
-                        <span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">LDAP: {{ $user->authSource->name }}</span>
-                    @endif
-                </div>
-                <div class="flex gap-3">
-                    <a href="{{ route('users.edit', $user) }}" class="text-sm text-indigo-600 hover:underline">編集</a>
-                    @if ($user->status === \App\Enums\UserStatus::Registered)
-                        <button wire:click="approve({{ $user->id }})" wire:confirm="このユーザーを承認しますか?"
-                            class="text-sm text-green-600 hover:underline">
-                            承認
-                        </button>
-                    @endif
-                    @unless ($user->is(auth()->user()))
-                        <button wire:click="toggleLock({{ $user->id }})"
-                            wire:confirm="{{ $user->status === \App\Enums\UserStatus::Locked ? 'このユーザーのロックを解除しますか?' : 'このユーザーをロックしますか?' }}"
-                            class="text-sm {{ $user->status === \App\Enums\UserStatus::Locked ? 'text-green-600' : 'text-red-600' }} hover:underline">
-                            {{ $user->status === \App\Enums\UserStatus::Locked ? 'ロック解除' : 'ロック' }}
-                        </button>
-                    @endunless
-                </div>
-            </li>
-        @endforeach
-    </ul>
+    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+        <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
+
+        <div class="mt-3 flex flex-wrap items-center gap-3">
+            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">絞り込み適用</button>
+            <div class="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                表示列:
+                @foreach (\App\Support\Query\UserFilterFieldRegistry::columns() as $columnKey => $columnLabel)
+                    <label class="flex items-center gap-1" wire:key="user-column-{{ $columnKey }}">
+                        <input type="checkbox" wire:model.live="columns" value="{{ $columnKey }}" class="rounded border-gray-300">
+                        {{ $columnLabel }}
+                    </label>
+                @endforeach
+            </div>
+            <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">CSVエクスポート</button>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto rounded-md border border-gray-200 bg-white">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                <tr>
+                    <th class="px-4 py-2"></th>
+                    @foreach ($this->visibleColumns as $columnKey)
+                        <th wire:key="user-heading-{{ $columnKey }}" class="px-4 py-2">
+                            <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
+                                {{ \App\Support\Query\UserFilterFieldRegistry::columns()[$columnKey] }}
+                                @if ($sortKey === $columnKey)
+                                    <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                @endif
+                            </button>
+                        </th>
+                    @endforeach
+                    <th class="px-4 py-2"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                @forelse ($this->users as $user)
+                    <tr wire:key="user-row-{{ $user->id }}" x-on:contextmenu.prevent="showMenu($event, {{ $user->id }})"
+                        class="{{ in_array((string) $user->id, array_map('strval', $selected), true) ? 'bg-indigo-50' : '' }}">
+                        <td class="px-4 py-2">
+                            <input type="checkbox" wire:model.live="selected" value="{{ $user->id }}" class="rounded border-gray-300">
+                        </td>
+                        @foreach ($this->visibleColumns as $columnKey)
+                            <td wire:key="user-{{ $user->id }}-{{ $columnKey }}" class="px-4 py-2">
+                                @if ($columnKey === 'name')
+                                    <a href="{{ route('users.show', $user) }}" class="font-medium text-gray-900 hover:underline">{{ $user->name }}</a>
+                                @elseif ($columnKey === 'status' && $user->status === \App\Enums\UserStatus::Locked)
+                                    <span class="rounded bg-red-50 px-1.5 py-0.5 text-xs text-red-600">{{ $this->columnValue($user, $columnKey) }}</span>
+                                @elseif ($columnKey === 'status' && $user->status === \App\Enums\UserStatus::Registered)
+                                    <span class="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">{{ $this->columnValue($user, $columnKey) }}</span>
+                                @elseif ($columnKey === 'is_admin' && $user->is_admin)
+                                    <span class="rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-700">{{ $this->columnValue($user, $columnKey) }}</span>
+                                @else
+                                    {{ $this->columnValue($user, $columnKey) }}
+                                @endif
+                            </td>
+                        @endforeach
+                        <td class="px-4 py-2">
+                            <div class="flex justify-end gap-3">
+                                <a href="{{ route('users.edit', $user) }}" class="text-sm text-indigo-600 hover:underline">編集</a>
+                                @if ($user->status === \App\Enums\UserStatus::Registered)
+                                    <button wire:click="approve({{ $user->id }})" wire:confirm="このユーザーを承認しますか?"
+                                        class="text-sm text-green-600 hover:underline">
+                                        承認
+                                    </button>
+                                @endif
+                                @unless ($user->is(auth()->user()))
+                                    <button wire:click="toggleLock({{ $user->id }})"
+                                        wire:confirm="{{ $user->status === \App\Enums\UserStatus::Locked ? 'このユーザーのロックを解除しますか?' : 'このユーザーをロックしますか?' }}"
+                                        class="text-sm {{ $user->status === \App\Enums\UserStatus::Locked ? 'text-green-600' : 'text-red-600' }} hover:underline">
+                                        {{ $user->status === \App\Enums\UserStatus::Locked ? 'ロック解除' : 'ロック' }}
+                                    </button>
+                                @endunless
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="{{ count($this->visibleColumns) + 2 }}" class="px-4 py-6 text-center text-gray-500">該当するユーザーがいません。</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
