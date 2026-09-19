@@ -12,6 +12,7 @@ use App\Support\Attachments\AttachmentArchive;
 use App\Support\Avatar\UserAvatar;
 use App\Support\Mail\PublicUrl;
 use App\Support\Pagination\PageSize;
+use App\Support\Query\ListDefaults;
 use App\Support\Scm\CodesetConverter;
 use App\Support\Scm\DisplayLimits;
 use App\Support\TimeLog\TimeLogConstraints;
@@ -100,6 +101,14 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $cache_formatted_text = false;
 
     public string $new_item_menu_tab = '2';
+
+    /** @var array<int, string> */
+    public array $issue_list_default_totals = [];
+
+    /** @var array<int, string> */
+    public array $time_entry_list_default_columns = [];
+
+    public bool $time_entry_list_show_total = true;
 
     public bool $gravatar_enabled = false;
 
@@ -292,6 +301,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
         $this->cache_formatted_text = Setting::get('cache_formatted_text', false);
         $this->new_item_menu_tab = (string) Setting::get('new_item_menu_tab', '2');
+        $this->issue_list_default_totals = ListDefaults::issueTotals();
+        $this->time_entry_list_default_columns = ListDefaults::timeEntryColumns();
+        $this->time_entry_list_show_total = ListDefaults::timeEntriesShowHoursTotal();
         $this->gravatar_enabled = UserAvatar::gravatarEnabled();
         $this->gravatar_default = UserAvatar::defaultStyle();
         $this->host_name = (string) Setting::get('host_name', '');
@@ -458,6 +470,11 @@ new #[Layout('components.layouts.app')] class extends Component
             'search_results_per_page' => ['required', 'integer', 'min:1', 'max:200'],
             'cache_formatted_text' => ['boolean'],
             'new_item_menu_tab' => ['required', Rule::in(['0', '1', '2'])],
+            'issue_list_default_totals' => ['array'],
+            'issue_list_default_totals.*' => [Rule::in(array_keys(ListDefaults::ISSUE_TOTALS))],
+            'time_entry_list_default_columns' => ['array', 'min:1'],
+            'time_entry_list_default_columns.*' => [Rule::in(array_keys(ListDefaults::TIME_ENTRY_COLUMNS))],
+            'time_entry_list_show_total' => ['boolean'],
             'gravatar_enabled' => ['boolean'],
             'gravatar_default' => ['nullable', Rule::in(array_keys(UserAvatar::DEFAULT_STYLES))],
             'host_name' => ['nullable', 'string', 'max:255', 'regex:'.PublicUrl::HOST_PATTERN],
@@ -570,6 +587,13 @@ new #[Layout('components.layouts.app')] class extends Component
         $data['gravatar_default'] = (string) ($data['gravatar_default'] ?? '');
         $data['sys_api_key'] = trim((string) ($data['sys_api_key'] ?? ''));
         $data['repositories_encodings'] = trim((string) ($data['repositories_encodings'] ?? ''));
+
+        // Stored the way Redmine's time_entry_list_defaults is.
+        Setting::set('time_entry_list_defaults', [
+            'column_names' => array_values($data['time_entry_list_default_columns']),
+            'totalable_names' => $data['time_entry_list_show_total'] ? ['hours'] : [],
+        ]);
+        unset($data['time_entry_list_default_columns'], $data['time_entry_list_show_total']);
 
         foreach ($data as $key => $value) {
             Setting::set($key, $value);
@@ -780,6 +804,36 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="2">「+」ドロップダウン(課題・バージョン・お知らせなど)</option>
                 </select>
                 @error('new_item_menu_tab') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700">課題一覧で合計する項目</span>
+                <div class="mt-1 flex flex-wrap gap-4 text-sm text-gray-700">
+                    @foreach (\App\Support\Query\ListDefaults::ISSUE_TOTALS as $key => $label)
+                        <label class="flex items-center gap-1.5">
+                            <input type="checkbox" value="{{ $key }}" wire:model="issue_list_default_totals" class="rounded border-gray-300">
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('issue_list_default_totals.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <span class="block text-sm font-medium text-gray-700">工数一覧の初期表示列</span>
+                <div class="mt-1 flex flex-wrap gap-4 text-sm text-gray-700">
+                    @foreach (\App\Support\Query\ListDefaults::TIME_ENTRY_COLUMNS as $key => $label)
+                        <label class="flex items-center gap-1.5">
+                            <input type="checkbox" value="{{ $key }}" wire:model="time_entry_list_default_columns" class="rounded border-gray-300">
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+                <label class="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="time_entry_list_show_total" class="rounded border-gray-300">
+                    工数一覧に時間の合計を表示する
+                </label>
+                @error('time_entry_list_default_columns') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

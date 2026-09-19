@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Services\TimeEntryService;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Query\ListDefaults;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
 use Illuminate\Database\Eloquent\Builder;
@@ -98,6 +99,12 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('viewAny', [TimeEntry::class, $project]);
 
         $this->project = $project;
+
+        // Redmine's time_entry_list_defaults: the columns a list starts with
+        // (a `columns` URL parameter still wins).
+        if (! request()->has('columns')) {
+            $this->columns = ListDefaults::timeEntryColumns();
+        }
     }
 
     #[Computed]
@@ -518,7 +525,9 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — 工数</h1>
-            <p class="mt-1 text-sm text-gray-500">合計: {{ $this->totalHours }} 時間</p>
+            @if (ListDefaults::timeEntriesShowHoursTotal())
+                <p class="mt-1 text-sm text-gray-500">合計: {{ $this->totalHours }} 時間</p>
+            @endif
         </div>
         <div class="flex items-center gap-2">
             <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-gray-300 text-xs">
