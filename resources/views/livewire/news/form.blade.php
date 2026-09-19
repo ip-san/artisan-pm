@@ -1,6 +1,7 @@
 <?php
 
 use App\Events\NewsCreated;
+use App\Events\NewsUpdated;
 use App\Models\News;
 use App\Models\Project;
 use App\Support\Attachments\AttachmentValidationRules;
@@ -54,6 +55,8 @@ new #[Layout('components.layouts.app')] class extends Component
         if ($this->news) {
             $this->news->update($data);
             $news = $this->news;
+
+            NewsUpdated::dispatch($news);
         } else {
             $data['project_id'] = $this->project->id;
             $data['author_id'] = auth()->id();

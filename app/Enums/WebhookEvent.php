@@ -18,4 +18,7 @@ enum WebhookEvent: string
     case VersionCreated = 'version.created';
     case VersionUpdated = 'version.updated';
     case VersionDeleted = 'version.deleted';
+    case NewsCreated = 'news.created';
+    case NewsUpdated = 'news.updated';
+    case NewsDeleted = 'news.deleted';
 }

@@ -9,6 +9,9 @@ use App\Http\Requests\Api\V1\StoreNewsRequest;
 use App\Http\Requests\Api\V1\UpdateNewsRequest;
 use App\Http\Resources\Api\V1\NewsResource;
 use App\Events\NewsCommentCreated;
+use App\Events\NewsCreated;
+use App\Events\NewsDeleted;
+use App\Events\NewsUpdated;
 use App\Http\Resources\Api\V1\NewsCommentResource;
 use App\Models\News;
 use App\Models\NewsComment;
@@ -80,6 +83,11 @@ final class NewsController extends Controller
         $news->author()->associate($request->user());
         $news->save();
 
+        // The same follow-ups as the web form: the author watches their own
+        // announcement and the created event drives mail and webhooks.
+        $news->watchers()->create(['user_id' => $request->user()->id]);
+        NewsCreated::dispatch($news);
+
         return (new NewsResource($news->loadCount('comments')))->response()->setStatusCode(201);
     }
 
@@ -122,12 +130,16 @@ final class NewsController extends Controller
     {
         $news->update($request->validated());
 
+        NewsUpdated::dispatch($news);
+
         return new NewsResource($news->loadCount('comments'));
     }
 
     public function destroy(News $news): JsonResponse
     {
         Gate::authorize('delete', $news);
+
+        NewsDeleted::dispatch($news);
 
         $news->delete();
 

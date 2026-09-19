@@ -1,6 +1,7 @@
 <?php
 
 use App\Events\NewsCommentCreated;
+use App\Events\NewsDeleted;
 use App\Models\News;
 use App\Models\NewsComment;
 use App\Models\Project;
@@ -82,6 +83,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public function delete(): void
     {
         $this->authorize('delete', $this->news);
+
+        NewsDeleted::dispatch($this->news);
 
         $this->news->delete();
 

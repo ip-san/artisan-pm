@@ -109,7 +109,7 @@
 | 37a | A6-04b | A6-04 | M | todo |
 | A6-04b | 添付・関連の変更を実際にメール通知する(編集と同じ Journal に添付を含める、関連の追加/削除の Journal 通知) | A6-04 でメール本文は描画できるようにしたが、`IssueNotificationMail` に渡る Journal は `IssueService::update()` の `$detailsJournal` のみ。添付は `journalizeAttachment()`(`issues/form.blade.php:589`、`Api/V1/IssueController.php:295`)が update 後に別 Journal で記録し、`journalizeRelation()` も通知しない | `update()` が添付(Media 追加を update より前に行うか、添付一覧を引数で受ける)を同じ Journal の `attachment` 詳細に含め、メール送信条件にも加える。関連の追加/削除は独立した通知(Webhook を発火させない専用イベントまたは通知の直接送信)にする | **`IssueUpdated` を関連/添付で発火すると Webhook `issue.updated` も飛ぶため、専用の通知経路が必要**。フォームと API の 3 呼び出し元の順序変更を伴う | M | Journal「メール通知(課題)」 |
 | 38 | A5-11 / A6-07 | — | S | done(2026-09-20、default_users_hide_mail は A4-13 待ち) |
-| 39 | A12-01 | — | S | todo |
+| 39 | A12-01 | — | S | done(2026-09-20) |
 | 40 | A12-04 | — | S | todo |
 | 41 | A4-08 | — | S | todo |
 | 42 | A4-04 | — | S | todo |
