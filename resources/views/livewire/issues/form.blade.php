@@ -48,6 +48,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $copyWatchers = true;
 
+    /** @var array<int, int|string> Members to add as watchers when creating. */
+    public array $watcher_user_ids = [];
+
     public ?int $tracker_id = null;
 
     public ?int $status_id = null;
@@ -258,6 +261,28 @@ new #[Layout('components.layouts.app')] class extends Component
      * decide whether the source is linked and its attachments, subtasks and
      * watchers are carried over — see IssueService::finishCopy().
      */
+    /**
+     * Whether the form offers the watcher checkboxes: only when creating, and
+     * only to someone holding add_issue_watchers in the project.
+     */
+    #[Computed]
+    public function canAddWatchers(): bool
+    {
+        return $this->issue === null
+            && app(AuthorizationService::class)->can(auth()->user(), 'add_issue_watchers', $this->project);
+    }
+
+    /**
+     * The members who can be picked as watchers of a new issue.
+     *
+     * @return Collection<int, \App\Models\User>
+     */
+    #[Computed]
+    public function watcherOptions(): Collection
+    {
+        return $this->project->users()->where('users.status', \App\Enums\UserStatus::Active->value)->orderBy('users.name')->get();
+    }
+
     #[Computed]
     public function copySource(): ?Issue
     {
@@ -693,6 +718,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 : $this->defaultStatusIdForTracker($this->tracker_id);
             $issue = app(IssueService::class)->create($data, auth()->user(), $customFieldData);
 
+            // Only members the picker offered (a crafted id is dropped), and
+            // only for someone who may add watchers.
+            if ($this->canAddWatchers) {
+                $allowed = $this->watcherOptions->pluck('id')->map(fn ($id) => (int) $id);
+
+                foreach (collect($this->watcher_user_ids)->map(fn ($id) => (int) $id)->intersect($allowed)->unique() as $watcherId) {
+                    $issue->watchers()->firstOrCreate(['user_id' => $watcherId]);
+                }
+            }
+
             if ($this->copySource !== null) {
                 app(IssueService::class)->finishCopy(
                     $this->copySource,
@@ -941,6 +976,20 @@ new #[Layout('components.layouts.app')] class extends Component
                         :disabled="$this->isReadOnly('cf_'.$field->id) || ! $field->editableBy(auth()->user())" />
                 @endforeach
             </div>
+        @endif
+
+        @if ($this->canAddWatchers && $this->watcherOptions->isNotEmpty())
+            <fieldset class="rounded-md border border-gray-200 p-3" data-watcher-picker>
+                <legend class="px-1 text-sm font-medium text-gray-700">ウォッチャー</legend>
+                <div class="grid grid-cols-2 gap-1">
+                    @foreach ($this->watcherOptions as $candidate)
+                        <label class="flex items-center gap-2 text-sm text-gray-700" wire:key="watcher-option-{{ $candidate->id }}">
+                            <input type="checkbox" wire:model="watcher_user_ids" value="{{ $candidate->id }}" class="rounded border-gray-300">
+                            {{ $candidate->name }}
+                        </label>
+                    @endforeach
+                </div>
+            </fieldset>
         @endif
 
         @if ($this->copySource !== null)
