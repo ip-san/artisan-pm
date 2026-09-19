@@ -4,6 +4,8 @@ use App\Http\Controllers\AccountActivationController;
 use App\Http\Controllers\ActivityFeedController;
 use App\Http\Controllers\AttachmentBundleController;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\AttachmentInlineController;
+use App\Http\Controllers\AttachmentPreviewController;
 use App\Http\Controllers\AttachmentThumbnailController;
 use App\Http\Controllers\BoardAtomController;
 use App\Http\Controllers\IssueAtomController;
@@ -47,6 +49,10 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required'])->group(function
     Route::get('/attachments/{type}/{id}/download', AttachmentBundleController::class)->where('id', '[0-9]+')->name('attachments.download-all');
     Volt::route('/attachments/{type}/{id}/edit', 'attachments.edit-all')->where('id', '[0-9]+')->name('attachments.edit-all');
     Route::get('/attachments/{media}/thumb', AttachmentThumbnailController::class)->name('attachments.thumb')
+        ->withoutMiddleware('auth')->middleware('login.required');
+    Route::get('/attachments/{media}/preview', AttachmentPreviewController::class)->name('attachments.preview')
+        ->withoutMiddleware('auth')->middleware('login.required');
+    Route::get('/attachments/{media}/inline', AttachmentInlineController::class)->name('attachments.inline')
         ->withoutMiddleware('auth')->middleware('login.required');
 
     Volt::route('/my/page', 'my-page.index')->name('my-page.index');

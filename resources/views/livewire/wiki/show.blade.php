@@ -412,6 +412,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         <span class="flex items-center gap-2">
                             <span class="text-gray-500">{{ $media->human_readable_size }}</span>
                             <x-download-count :media="$media" />
+<x-attachment-preview-link :media="$media" />
                             @can('deleteAttachment', $wikiPage)
                                 <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
                                     class="text-red-600 hover:underline">削除</button>

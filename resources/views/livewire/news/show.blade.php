@@ -269,6 +269,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </a>
                         <span class="text-gray-500">({{ $media->human_readable_size }})</span>
                         <x-download-count :media="$media" />
+<x-attachment-preview-link :media="$media" />
                     </div>
                     @can('update', $news)
                         <div class="mt-1 flex items-center gap-2">
