@@ -94,6 +94,9 @@ Route::middleware(['rest-api.enabled', 'auth:api,api-key'])->group(function () {
     Route::put('/memberships/{membership}', [MembershipController::class, 'update'])->name('api.memberships.update');
     Route::delete('/memberships/{membership}', [MembershipController::class, 'destroy'])->name('api.memberships.destroy');
 
+    Route::get('/time_entries', [TimeEntryController::class, 'globalIndex'])->name('api.time_entries.global_index');
+    Route::get('/issues/{issue}/time_entries', [TimeEntryController::class, 'issueIndex'])->name('api.issues.time_entries.index');
+    Route::post('/issues/{issue}/time_entries', [TimeEntryController::class, 'storeForIssue'])->name('api.issues.time_entries.store');
     Route::get('/projects/{project}/time_entries', [TimeEntryController::class, 'index'])->name('api.time_entries.index');
     Route::post('/projects/{project}/time_entries', [TimeEntryController::class, 'store'])->name('api.time_entries.store');
     Route::get('/time_entries/{time_entry}', [TimeEntryController::class, 'show'])->name('api.time_entries.show');

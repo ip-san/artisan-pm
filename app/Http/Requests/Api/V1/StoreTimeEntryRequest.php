@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Models\Issue;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Support\Authorization\AuthorizationService;
@@ -13,14 +14,39 @@ use Illuminate\Validation\Rule;
 
 final class StoreTimeEntryRequest extends FormRequest
 {
+    /**
+     * The project the entry is logged in: the route's project, or — on
+     * /issues/{issue}/time_entries — the issue's own project.
+     */
+    private function targetProject(): Project
+    {
+        $issue = $this->route('issue');
+
+        return $issue instanceof Issue ? $issue->project : $this->route('project');
+    }
+
     public function authorize(): bool
     {
-        return $this->user()->can('create', [TimeEntry::class, $this->route('project')]);
+        $issue = $this->route('issue');
+
+        // Logging time against an issue the caller cannot see would confirm
+        // the issue exists, so it needs view access to the issue as well.
+        if ($issue instanceof Issue && ! $this->user()->can('view', $issue)) {
+            return false;
+        }
+
+        return $this->user()->can('create', [TimeEntry::class, $this->targetProject()]);
     }
 
     protected function prepareForValidation(): void
     {
         $this->merge(['spent_on' => $this->input('spent_on', now()->toDateString())]);
+
+        // On /issues/{issue}/time_entries the issue is the route's, whatever
+        // the body claims.
+        if (($issue = $this->route('issue')) instanceof Issue) {
+            $this->merge(['issue_id' => $issue->id]);
+        }
 
         // Defaults to the requester when omitted (mirrors the web form's
         // mount-time default), same as Redmine's TimeEntry.new(user:
@@ -31,8 +57,7 @@ final class StoreTimeEntryRequest extends FormRequest
         // edit_time_entries is reused for both.
         $this->merge(['user_id' => $this->input('user_id', $this->user()->id)]);
 
-        /** @var Project $project */
-        $project = $this->route('project');
+        $project = $this->targetProject();
 
         if (! app(AuthorizationService::class)->can($this->user(), 'edit_time_entries', $project)) {
             $this->merge(['user_id' => $this->user()->id]);
@@ -44,8 +69,7 @@ final class StoreTimeEntryRequest extends FormRequest
      */
     public function rules(): array
     {
-        /** @var Project $project */
-        $project = $this->route('project');
+        $project = $this->targetProject();
 
         return [
             'issue_id' => ['nullable', 'integer', Rule::exists('issues', 'id')->where('project_id', $project->id)],
