@@ -1,14 +1,19 @@
 <?php
 
+use App\Concerns\SelectsPageSize;
 use App\Models\News;
 use App\Models\Project;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use SelectsPageSize;
+    use WithPagination;
+
     public Project $project;
 
     public function mount(Project $project): void
@@ -19,12 +24,12 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * @return Collection<int, News>
+     * @return LengthAwarePaginator<int, News>
      */
     #[Computed]
-    public function newsItems(): Collection
+    public function newsItems(): LengthAwarePaginator
     {
-        return $this->project->news()->with('author')->withCount('comments')->latest()->get();
+        return $this->project->news()->with('author')->withCount('comments')->latest()->paginate($this->pageSize(10));
     }
 }; ?>
 
@@ -60,4 +65,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <li class="px-4 py-6 text-center text-sm text-gray-500">お知らせがありません。</li>
         @endforelse
     </ul>
+
+    <div class="mt-2 flex justify-end"><x-per-page-select :selected="$this->newsItems->perPage()" :total="$this->newsItems->total()" /></div>
+    {{ $this->newsItems->links() }}
 </div>

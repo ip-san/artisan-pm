@@ -1,6 +1,7 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
+use App\Concerns\SelectsPageSize;
 use App\Concerns\ReordersColumns;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
@@ -16,6 +17,7 @@ use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
@@ -24,10 +26,13 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
+    use SelectsPageSize;
+    use WithPagination;
     use ReordersColumns;
 
     /**
@@ -140,10 +145,16 @@ new #[Layout('components.layouts.app')] class extends Component
         return $query;
     }
 
+    /**
+     * One page of the filtered entries; the totals and the group subtotals
+     * below still cover every matching entry.
+     *
+     * @return LengthAwarePaginator<int, TimeEntry>
+     */
     #[Computed]
-    public function timeEntries(): EloquentCollection
+    public function timeEntries(): LengthAwarePaginator
     {
-        return $this->filteredTimeEntriesQuery()->get();
+        return $this->filteredTimeEntriesQuery()->paginate($this->pageSize(25));
     }
 
     /**
@@ -152,16 +163,42 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function groupedTimeEntries(): Collection
     {
+        $entries = $this->timeEntries->getCollection();
+
         if ($this->groupBy === null) {
-            return collect(['' => $this->timeEntries]);
+            return collect(['' => $entries]);
         }
 
-        return $this->timeEntries->groupBy(fn (TimeEntry $entry) => $this->columnValue($entry, $this->groupBy));
+        return $entries->groupBy(fn (TimeEntry $entry) => $this->columnValue($entry, $this->groupBy));
+    }
+
+    /**
+     * Entry count and hours of every group across all pages (Redmine's group
+     * totals), keyed like groupedTimeEntries. Only computed while grouping,
+     * which reads every matching entry.
+     *
+     * @return array<string, array{count: int, hours: string}>
+     */
+    #[Computed]
+    public function groupSubtotals(): array
+    {
+        if ($this->groupBy === null) {
+            return [];
+        }
+
+        return $this->filteredTimeEntriesQuery()->get()
+            ->groupBy(fn (TimeEntry $entry) => $this->columnValue($entry, $this->groupBy))
+            ->map(fn (EloquentCollection $entries) => [
+                'count' => $entries->count(),
+                'hours' => \App\Support\Format\Hours::format((float) $entries->sum('hours')),
+            ])
+            ->all();
     }
 
     public function applyFilters(): void
     {
-        unset($this->timeEntries, $this->groupedTimeEntries);
+        $this->resetPage();
+        unset($this->timeEntries, $this->groupedTimeEntries, $this->groupSubtotals);
     }
 
     public function sortBy(string $key): void
@@ -308,20 +345,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function totalHours(): string
     {
-        return $this->formatHours($this->timeEntries);
-    }
-
-    public function groupTotalHours(EloquentCollection $entries): string
-    {
-        return $this->formatHours($entries);
-    }
-
-    /**
-     * @param  EloquentCollection<int, TimeEntry>  $entries
-     */
-    private function formatHours(EloquentCollection $entries): string
-    {
-        return \App\Support\Format\Hours::format((float) $entries->sum('hours'));
+        return \App\Support\Format\Hours::format((float) $this->filteredTimeEntriesQuery()->reorder()->sum('time_entries.hours'));
     }
 
     #[Computed]
@@ -853,7 +877,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @php $groupKey = $groupLabel !== '' ? $groupLabel : '__ungrouped__'; @endphp
         @if ($groupBy !== null)
             <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-gray-900">
-                {{ $groupLabel ?: '(未設定)' }} ({{ $groupEntries->count() }}件 / {{ $this->groupTotalHours($groupEntries) }} 時間)
+                {{ $groupLabel ?: '(未設定)' }} ({{ $this->groupSubtotals[$groupLabel]['count'] ?? $groupEntries->count() }}件 / {{ $this->groupSubtotals[$groupLabel]['hours'] ?? '0' }} 時間)
             </h2>
         @endif
 
@@ -922,4 +946,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </table>
         </div>
     @endforeach
+
+    <div class="mt-2 flex justify-end"><x-per-page-select :selected="$this->timeEntries->perPage()" :total="$this->timeEntries->total()" /></div>
+    {{ $this->timeEntries->links() }}
 </div>

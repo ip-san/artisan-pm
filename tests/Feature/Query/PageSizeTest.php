@@ -8,6 +8,7 @@ use App\Models\News;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Support\Pagination\PageSize;
@@ -181,4 +182,62 @@ test('the settings form saves the page size options and rejects malformed ones',
         ->set('search_results_per_page', 0)
         ->call('save')
         ->assertHasErrors(['per_page_options', 'search_results_per_page']);
+});
+
+test('the project news list is paginated and follows the chosen size', function () {
+    Setting::set('per_page_options', '5,10');
+    $project = Project::factory()->create();
+    $user = pageSizeMember($project, ['view_project', 'view_news']);
+    News::factory(12)->for($project)->create();
+
+    $default = Livewire::actingAs($user)->test('news.index', ['project' => $project]);
+    expect($default->get('newsItems')->perPage())->toBe(10)
+        ->and($default->get('newsItems')->total())->toBe(12);
+
+    $small = Livewire::actingAs($user)->test('news.index', ['project' => $project])->set('perPage', 5);
+    expect($small->get('newsItems')->perPage())->toBe(5)->and($small->get('newsItems')->count())->toBe(5);
+});
+
+test('the time entry lists page their rows but total every matching entry', function () {
+    Setting::set('per_page_options', '5,10');
+    $project = Project::factory()->create();
+    $user = pageSizeMember($project, ['view_project', 'view_time_entries']);
+    TimeEntry::factory(12)->for($project)->create(['hours' => 2, 'user_id' => $user->id]);
+
+    $projectList = Livewire::actingAs($user)->test('time-entries.index', ['project' => $project])->set('perPage', 5);
+    expect($projectList->get('timeEntries')->count())->toBe(5)
+        ->and($projectList->get('timeEntries')->total())->toBe(12)
+        ->and($projectList->get('totalHours'))->toBe(\App\Support\Format\Hours::format(24.0));
+
+    $globalList = Livewire::actingAs($user)->test('time-entries.global-index')->set('perPage', 5);
+    expect($globalList->get('timeEntries')->count())->toBe(5)
+        ->and($globalList->get('timeEntries')->total())->toBe(12)
+        ->and($globalList->get('totalHours'))->toBe(\App\Support\Format\Hours::format(24.0));
+});
+
+test('group headings count every entry in the group, not only those on the page', function () {
+    Setting::set('per_page_options', '5,10');
+    $project = Project::factory()->create();
+    $user = pageSizeMember($project, ['view_project', 'view_time_entries']);
+    TimeEntry::factory(8)->for($project)->create(['hours' => 1, 'user_id' => $user->id]);
+
+    $list = Livewire::actingAs($user)->test('time-entries.index', ['project' => $project])
+        ->set('groupBy', 'user_id')->set('perPage', 5);
+
+    $subtotal = $list->get('groupSubtotals')[$user->displayName()];
+    expect($subtotal['count'])->toBe(8)
+        ->and($list->get('timeEntries')->count())->toBe(5);
+    $list->assertSee('8件');
+});
+
+test('the global time entry CSV still exports every matching entry', function () {
+    Setting::set('per_page_options', '5,10');
+    $project = Project::factory()->create();
+    $user = pageSizeMember($project, ['view_project', 'view_time_entries']);
+    TimeEntry::factory(12)->for($project)->create(['user_id' => $user->id, 'comments' => 'csvrow']);
+
+    $component = Livewire::actingAs($user)->test('time-entries.global-index')
+        ->set('perPage', 5)->set('columns', ['comments'])->call('exportCsv');
+    $csv = base64_decode($component->effects['download']['content']);
+    expect(substr_count($csv, 'csvrow'))->toBe(12);
 });
