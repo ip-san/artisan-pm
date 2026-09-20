@@ -198,7 +198,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $rules['user_id'] = ['required', Rule::exists('members', 'user_id')->where('project_id', $target->id)];
         }
 
-        $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
+        $rules = [...$rules, ...CustomField::formValidationRules($this->customFields, null, $this->targetProject)];
 
         $data = $this->validate($rules);
         $customFieldData = CustomField::filterEditableValues($this->customFields, $data['customFieldValues'] ?? [], auth()->user());
@@ -301,7 +301,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         @foreach ($this->customFields as $field)
-            <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" wire:key="time-entry-cf-{{ $field->id }}" />
+            <x-custom-field-input :field="$field" wire-model="customFieldValues" :project="$this->targetProject" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" wire:key="time-entry-cf-{{ $field->id }}" />
         @endforeach
 
         <div class="flex gap-3">

@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\CustomFields\FormatRegistry;
 use App\CustomFields\Formats\FormatContract;
+use App\CustomFields\Formats\ProjectScopedFormat;
 use App\Enums\CustomFieldDefaultValueMode;
 use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
@@ -23,7 +24,7 @@ use Spatie\EloquentSortable\SortableTrait;
 #[Fillable([
     'name', 'description', 'field_format', 'customized_type', 'is_required', 'multiple',
     'searchable', 'is_filter', 'editable', 'default_value', 'default_value_mode', 'min_length', 'max_length', 'regexp', 'ratio_interval',
-    'possible_values', 'position',
+    'possible_values', 'format_options', 'position',
 ])]
 final class CustomField extends Model implements Sortable
 {
@@ -101,6 +102,7 @@ final class CustomField extends Model implements Sortable
             'is_filter' => 'boolean',
             'editable' => 'boolean',
             'possible_values' => 'array',
+            'format_options' => 'array',
             'default_value_mode' => CustomFieldDefaultValueMode::class,
         ];
     }
@@ -180,6 +182,31 @@ final class CustomField extends Model implements Sortable
     }
 
     /**
+     * The choices for a record of $project: a `user` or `version` field offers
+     * the project's members / reachable versions, every other format the same
+     * choices everywhere. With no project (a record that has none, such as a
+     * user or a group) the choices are all the candidates.
+     *
+     * @return array<string, string>
+     */
+    public function optionsFor(?Project $project): array
+    {
+        $format = $this->format();
+
+        return $format instanceof ProjectScopedFormat ? $format->optionsFor($this, $project) : $format->options($this);
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    public function validationRulesFor(?Project $project): array
+    {
+        $format = $this->format();
+
+        return $format instanceof ProjectScopedFormat ? $format->rulesFor($this, $project) : $format->validationRules($this);
+    }
+
+    /**
      * Livewire validation rules for a form's customFieldValues property
      * covering $fields — the shared rule-building loop every
      * custom-field-capable form (issue/project/version/group/enumeration)
@@ -188,9 +215,10 @@ final class CustomField extends Model implements Sortable
      *
      * @param  Collection<int, CustomField>  $fields
      * @param  (callable(CustomField): bool)|null  $forceRequired
+     * @param  Project|null  $project  the project of the record, for a field whose choices depend on it
      * @return array<string, array<int, mixed>>
      */
-    public static function formValidationRules(Collection $fields, ?callable $forceRequired = null): array
+    public static function formValidationRules(Collection $fields, ?callable $forceRequired = null, ?Project $project = null): array
     {
         $rules = [];
 
@@ -201,9 +229,9 @@ final class CustomField extends Model implements Sortable
 
             if ($field->multiple) {
                 $rules[$key] = [$presence, 'array'];
-                $rules["{$key}.*"] = $field->format()->validationRules($field);
+                $rules["{$key}.*"] = $field->validationRulesFor($project);
             } else {
-                $rules[$key] = [$presence, ...$field->format()->validationRules($field)];
+                $rules[$key] = [$presence, ...$field->validationRulesFor($project)];
             }
         }
 

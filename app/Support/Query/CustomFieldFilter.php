@@ -38,7 +38,7 @@ final class CustomFieldFilter implements FilterableField
             CustomFieldFormat::Int, CustomFieldFormat::Float, CustomFieldFormat::Progressbar => FilterFieldType::Integer,
             CustomFieldFormat::Date => FilterFieldType::Date,
             CustomFieldFormat::Bool => FilterFieldType::Boolean,
-            CustomFieldFormat::List, CustomFieldFormat::Enumeration => FilterFieldType::Select,
+            CustomFieldFormat::List, CustomFieldFormat::Enumeration, CustomFieldFormat::User, CustomFieldFormat::Version => FilterFieldType::Select,
             CustomFieldFormat::String, CustomFieldFormat::Text, CustomFieldFormat::Link => FilterFieldType::Text,
         };
     }

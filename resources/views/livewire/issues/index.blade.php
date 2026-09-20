@@ -988,7 +988,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $common = $perIssue->map(fn (Collection $fields) => $fields->keys())->reduce(fn (?Collection $carry, Collection $ids) => $carry === null ? $ids : $carry->intersect($ids));
 
         return $perIssue->first()->only($common->all())
-            ->filter(fn (CustomField $field) => ! $field->multiple && $field->editableBy(auth()->user()))
+            ->filter(fn (CustomField $field) => ! $field->multiple && ! $field->format() instanceof \App\CustomFields\Formats\ProjectScopedFormat && $field->editableBy(auth()->user()))
             ->values();
     }
 

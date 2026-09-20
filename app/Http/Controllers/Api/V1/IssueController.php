@@ -186,6 +186,7 @@ final class IssueController extends Controller
             (new Issue)->forceFill(['project_id' => $project->id, 'tracker_id' => $data['tracker_id']])->relevantCustomFields(),
             $request->user(),
             requireAll: true,
+            project: $project,
         );
 
         $data['start_date'] = filled($data['start_date'] ?? null) ? $data['start_date'] : StartDateDefault::forApiAndMail();
@@ -224,7 +225,7 @@ final class IssueController extends Controller
         }
 
         try {
-            $customFieldData = CustomFieldPayload::extract($request, $issue->relevantCustomFields(), $request->user());
+            $customFieldData = CustomFieldPayload::extract($request, $issue->relevantCustomFields(), $request->user(), project: $issue->loadMissing('project')->project);
             $issue = app(IssueService::class)->update($issue, $data, $request->user(), customFieldData: $customFieldData, expectedLockVersion: $expectedLockVersion);
         } catch (StaleIssueUpdateException $exception) {
             return response()->json([

@@ -97,7 +97,7 @@ final class CustomFieldPayload
      *
      * @throws ValidationException
      */
-    public static function extract(Request $request, Collection $fields, ?User $user, bool $requireAll = false): array
+    public static function extract(Request $request, Collection $fields, ?User $user, bool $requireAll = false, ?Project $project = null): array
     {
         $items = $request->input('custom_fields');
 
@@ -128,7 +128,7 @@ final class CustomFieldPayload
 
         $checked = $requireAll ? $fields->filter(fn (CustomField $field) => $field->editableBy($user)) : $fields->whereIn('id', array_keys($values));
 
-        $validator = Validator::make(['custom_fields' => $values], collect(CustomField::formValidationRules($checked))
+        $validator = Validator::make(['custom_fields' => $values], collect(CustomField::formValidationRules($checked, null, $project))
             ->mapWithKeys(fn ($rules, $key) => [str_replace('customFieldValues.', 'custom_fields.', $key) => $rules])
             ->all());
 

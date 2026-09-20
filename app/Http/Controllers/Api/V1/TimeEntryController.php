@@ -117,7 +117,7 @@ final class TimeEntryController extends Controller
 
     public function storeForIssue(StoreTimeEntryRequest $request, Issue $issue): JsonResponse
     {
-        $customFieldData = CustomFieldPayload::extract($request, (new TimeEntry)->forceFill(['project_id' => $issue->project_id])->relevantCustomFields(), $request->user(), requireAll: true);
+        $customFieldData = CustomFieldPayload::extract($request, (new TimeEntry)->forceFill(['project_id' => $issue->project_id])->relevantCustomFields(), $request->user(), requireAll: true, project: $issue->project);
 
         $timeEntry = app(TimeEntryService::class)->create([
             ...$request->validated(),
@@ -138,7 +138,7 @@ final class TimeEntryController extends Controller
 
     public function store(StoreTimeEntryRequest $request, Project $project): JsonResponse
     {
-        $customFieldData = CustomFieldPayload::extract($request, (new TimeEntry)->forceFill(['project_id' => $project->id])->relevantCustomFields(), $request->user(), requireAll: true);
+        $customFieldData = CustomFieldPayload::extract($request, (new TimeEntry)->forceFill(['project_id' => $project->id])->relevantCustomFields(), $request->user(), requireAll: true, project: $project);
 
         $timeEntry = app(TimeEntryService::class)->create([...$request->validated(), 'project_id' => $project->id]);
         $timeEntry->setCustomFieldValues($customFieldData);
@@ -148,7 +148,7 @@ final class TimeEntryController extends Controller
 
     public function update(UpdateTimeEntryRequest $request, TimeEntry $timeEntry): TimeEntryResource
     {
-        $customFieldData = CustomFieldPayload::extract($request, $timeEntry->relevantCustomFields(), $request->user());
+        $customFieldData = CustomFieldPayload::extract($request, $timeEntry->relevantCustomFields(), $request->user(), project: $timeEntry->loadMissing('project')->project);
 
         $timeEntry = app(TimeEntryService::class)->update($timeEntry, $request->validated());
         $timeEntry->setCustomFieldValues($customFieldData);

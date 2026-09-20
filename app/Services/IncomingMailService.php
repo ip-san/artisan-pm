@@ -499,7 +499,7 @@ final class IncomingMailService
             foreach ($fields as $field) {
                 if (! array_key_exists($field->id, $values)
                     && preg_match('/^'.preg_quote($field->name, '/').'[ \t]*:[ \t]*(.+?)\s*$/iu', $line, $matches) === 1) {
-                    $value = $this->customFieldValueFromKeyword($field, trim($matches[1]));
+                    $value = $this->customFieldValueFromKeyword($field, trim($matches[1]), $project);
 
                     if ($value !== null) {
                         $values[$field->id] = $value;
@@ -545,9 +545,9 @@ final class IncomingMailService
      *
      * @return string|array<int, string>|null
      */
-    private function customFieldValueFromKeyword(CustomField $field, string $text): string|array|null
+    private function customFieldValueFromKeyword(CustomField $field, string $text, Project $project): string|array|null
     {
-        $options = $field->format()->options($field);
+        $options = $field->optionsFor($project);
         $parts = $field->multiple ? array_values(array_filter(array_map('trim', explode(',', $text)), fn (string $part) => $part !== '')) : [$text];
         $resolved = [];
 
@@ -562,7 +562,7 @@ final class IncomingMailService
                 default => $part,
             };
 
-            $valid = $value !== '' && Validator::make(['value' => $value], ['value' => $field->format()->validationRules($field)])->passes();
+            $valid = $value !== '' && Validator::make(['value' => $value], ['value' => $field->validationRulesFor($project)])->passes();
 
             if (! $valid) {
                 return null;

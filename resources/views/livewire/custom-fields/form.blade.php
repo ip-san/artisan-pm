@@ -51,6 +51,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $possibleValuesText = '';
 
+    /** @var array<int, int|string> roles a `user` field may pick members from (none = any) */
+    public array $userRoleIds = [];
+
+    /** @var array<int, string> version statuses a `version` field offers (none = any) */
+    public array $versionStatuses = [];
+
     /** @var array<int, array{id: ?int, name: string, active: bool, reassignTo: string}> */
     public array $enumerationOptions = [];
 
@@ -85,6 +91,8 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->description = (string) $customField->description;
             $this->editable = $customField->editable;
             $this->possibleValuesText = implode("\n", $customField->possible_values ?? []);
+            $this->userRoleIds = $customField->format_options['user_role'] ?? [];
+            $this->versionStatuses = $customField->format_options['version_status'] ?? [];
             $this->enumerationOptions = $customField->enumerationOptions
                 ->map(fn (CustomFieldEnumeration $option) => [
                     'id' => $option->id,
@@ -288,6 +296,10 @@ new #[Layout('components.layouts.app')] class extends Component
             'trackerIds.*' => ['exists:trackers,id'],
             'projectIds' => ['array'],
             'projectIds.*' => ['exists:projects,id'],
+            'userRoleIds' => ['array'],
+            'userRoleIds.*' => ['exists:roles,id'],
+            'versionStatuses' => ['array'],
+            'versionStatuses.*' => [Rule::enum(\App\Enums\VersionStatus::class)],
             'roleIds' => ['array'],
             'roleIds.*' => ['exists:roles,id'],
             'enumerationOptions.*.name' => ['nullable', 'string', 'max:60'],
@@ -321,6 +333,11 @@ new #[Layout('components.layouts.app')] class extends Component
             'description' => ($data['description'] ?? '') !== '' ? $data['description'] : null,
             'editable' => $data['editable'],
             'possible_values' => $possibleValues,
+            'format_options' => match ($fieldFormat) {
+                CustomFieldFormat::User->value => $data['userRoleIds'] !== [] ? ['user_role' => array_map('intval', $data['userRoleIds'])] : null,
+                CustomFieldFormat::Version->value => $data['versionStatuses'] !== [] ? ['version_status' => array_values($data['versionStatuses'])] : null,
+                default => null,
+            },
         ];
 
         if ($this->customField) {
@@ -399,6 +416,34 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">選択肢(1行に1つ)</label>
                 <textarea wire:model="possibleValuesText" rows="4"
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+            </div>
+        @endif
+
+        @if ($field_format === \App\Enums\CustomFieldFormat::User->value)
+            <div>
+                <span class="mb-2 block text-sm font-medium text-gray-700">選択できるロール(未選択=プロジェクトのメンバー全員)</span>
+                <div class="flex flex-wrap gap-3">
+                    @foreach ($this->roles as $role)
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" wire:model="userRoleIds" value="{{ $role->id }}" class="rounded border-gray-300">
+                            {{ $role->name }}
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+        @if ($field_format === \App\Enums\CustomFieldFormat::Version->value)
+            <div>
+                <span class="mb-2 block text-sm font-medium text-gray-700">選択できるバージョンのステータス(未選択=すべて)</span>
+                <div class="flex flex-wrap gap-3">
+                    @foreach (\App\Enums\VersionStatus::cases() as $status)
+                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" wire:model="versionStatuses" value="{{ $status->value }}" class="rounded border-gray-300">
+                            {{ $status->value }}
+                        </label>
+                    @endforeach
+                </div>
             </div>
         @endif
 

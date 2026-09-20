@@ -14,6 +14,8 @@ use App\CustomFields\Formats\LinkFormat;
 use App\CustomFields\Formats\ListFormat;
 use App\CustomFields\Formats\ProgressbarFormat;
 use App\CustomFields\Formats\StringFormat;
+use App\CustomFields\Formats\UserFormat;
+use App\CustomFields\Formats\VersionFormat;
 use App\CustomFields\Formats\TextFormat;
 use Illuminate\Support\ServiceProvider;
 
@@ -38,5 +40,7 @@ final class CustomFieldServiceProvider extends ServiceProvider
         $registry->register(new EnumerationFormat);
         $registry->register(new LinkFormat);
         $registry->register(new ProgressbarFormat);
+        $registry->register(new UserFormat);
+        $registry->register(new VersionFormat);
     }
 }

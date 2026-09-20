@@ -16,4 +16,6 @@ enum CustomFieldFormat: string
     case Enumeration = 'enumeration';
     case Link = 'link';
     case Progressbar = 'progressbar';
+    case User = 'user';
+    case Version = 'version';
 }

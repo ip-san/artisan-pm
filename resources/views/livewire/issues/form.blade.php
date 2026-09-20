@@ -673,6 +673,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $rules = [...$rules, ...CustomField::formValidationRules(
             $this->customFields,
             fn (CustomField $field) => $this->isRequired("cf_{$field->id}"),
+            $this->project,
         )];
 
         $data = $this->validate($rules);
@@ -1017,7 +1018,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->customFields->isNotEmpty())
             <div class="space-y-4 border-t border-gray-200 pt-4">
                 @foreach ($this->customFields as $field)
-                    <x-custom-field-input :field="$field" wire-model="customFieldValues"
+                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :project="$this->project"
                         :required="$field->is_required || $this->isRequired('cf_'.$field->id)"
                         :disabled="$this->isReadOnly('cf_'.$field->id) || ! $field->editableBy(auth()->user())" />
                 @endforeach
