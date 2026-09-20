@@ -156,3 +156,90 @@ test('the admin form saves the role and status options', function () {
     expect(CustomField::query()->where('name', 'Owner')->sole()->format_options)->toBe(['user_role' => [$role->id]])
         ->and(CustomField::query()->where('name', 'Target')->sole()->format_options)->toBe(['version_status' => ['open', 'locked']]);
 });
+
+test('the edit form is prefilled with the id, so the saved value survives a save', function () {
+    ['project' => $project, 'tracker' => $tracker, 'editor' => $editor, 'member' => $member] = recordListSetup();
+    $userField = recordListField($tracker, CustomFieldFormat::User);
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'author_id' => $editor->id]);
+    $issue->setCustomFieldValues([$userField->id => (string) $member->id]);
+
+    $component = Livewire::actingAs($editor)->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->assertSet("customFieldValues.{$userField->id}", (string) $member->id)
+        ->call('save')->assertHasNoErrors();
+
+    expect($issue->fresh()->customValue($userField))->toBe('Mia Member');
+});
+
+test('an issue list filter picks issues by the chosen user, and "me" means the viewer', function () {
+    ['project' => $project, 'tracker' => $tracker, 'editor' => $editor, 'member' => $member] = recordListSetup();
+    $field = recordListField($tracker, CustomFieldFormat::User);
+    $forMember = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'subject' => 'For member']);
+    $forEditor = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'subject' => 'For editor']);
+    $forMember->setCustomFieldValues([$field->id => (string) $member->id]);
+    $forEditor->setCustomFieldValues([$field->id => (string) $editor->id]);
+
+    $engine = new App\Support\Query\QueryFilterEngine(App\Support\Query\IssueFilterFieldRegistry::forProject($project));
+    $subjects = fn (string $value) => $engine->applyFilters(Issue::query(), ["cf_{$field->id}" => ['operator' => '=', 'values' => [$value]]])->pluck('subject')->all();
+
+    expect($subjects((string) $member->id))->toBe(['For member']);
+
+    $this->actingAs($editor);
+    expect($subjects('me'))->toBe(['For editor'])
+        ->and(array_keys($engine->field("cf_{$field->id}")->options()))->toContain('me');
+});
+
+test('the API sends the stored id and no possible_values for a user field', function () {
+    ['project' => $project, 'tracker' => $tracker, 'editor' => $editor, 'member' => $member] = recordListSetup();
+    $field = recordListField($tracker, CustomFieldFormat::User, ['name' => 'Reviewer']);
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $issue->setCustomFieldValues([$field->id => (string) $member->id]);
+    $admin = User::factory()->admin()->create();
+    Passport::actingAs($admin);
+
+    $value = collect($this->getJson("/api/v1/issues/{$issue->id}")->assertOk()->json('data.custom_fields'))->firstWhere('id', $field->id);
+    expect($value['value'])->toBe((string) $member->id);
+
+    $definition = collect($this->getJson('/api/v1/custom_fields')->assertOk()->json('data'))->firstWhere('id', $field->id);
+    expect($definition['possible_values'])->toBe([])->and($definition['field_format'])->toBe('user');
+});
+
+test('a change to the value is journaled with the names', function () {
+    ['project' => $project, 'tracker' => $tracker, 'editor' => $editor, 'member' => $member] = recordListSetup();
+    $field = recordListField($tracker, CustomFieldFormat::User, ['name' => 'Reviewer']);
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'author_id' => $editor->id]);
+
+    app(App\Services\IssueService::class)->update($issue, [], $editor, null, [$field->id => (string) $member->id]);
+
+    $detail = $issue->journals()->with('details')->get()->flatMap->details->firstWhere('property', 'cf');
+    expect($detail->new_value)->toBe('Mia Member');
+});
+
+test('an enumeration field is prefilled with the option id too', function () {
+    ['project' => $project, 'tracker' => $tracker, 'editor' => $editor] = recordListSetup();
+    $field = recordListField($tracker, CustomFieldFormat::Enumeration);
+    $option = App\Models\CustomFieldEnumeration::factory()->create(['custom_field_id' => $field->id, 'name' => 'Gold', 'active' => true]);
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'author_id' => $editor->id]);
+    $issue->setCustomFieldValues([$field->id => (string) $option->id]);
+
+    Livewire::actingAs($editor)->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->assertSet("customFieldValues.{$field->id}", (string) $option->id)
+        ->call('save')->assertHasNoErrors();
+});
+
+test('a multiple user field renders a multi-select and saves every chosen member', function () {
+    ['project' => $project, 'tracker' => $tracker, 'editor' => $editor, 'member' => $member] = recordListSetup();
+    $field = recordListField($tracker, CustomFieldFormat::User, ['multiple' => true, 'name' => 'Reviewers']);
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'author_id' => $editor->id]);
+
+    Livewire::actingAs($editor)->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->assertSeeHtml('data-multiple-choice')
+        ->set('customFieldValues', [$field->id => [(string) $member->id, (string) $editor->id]])
+        ->call('save')->assertHasNoErrors();
+
+    expect($issue->fresh()->customFieldValues()->where('custom_field_id', $field->id)->pluck('value_int')->sort()->values()->all())
+        ->toBe(collect([$member->id, $editor->id])->sort()->values()->all());
+
+    Livewire::actingAs($editor)->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->set('customFieldValues', [$field->id => [(string) User::factory()->create()->id]])
+        ->call('save')->assertHasErrors();
+});

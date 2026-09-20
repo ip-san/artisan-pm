@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Concerns;
 
 use App\Enums\CustomizableType;
+use App\Enums\CustomFieldFormat;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -63,11 +64,27 @@ trait HasCustomFields
 
         foreach ($fields as $field) {
             $values[$field->id] = $field->multiple
-                ? $this->customFieldValues->where('custom_field_id', $field->id)->map(fn (CustomFieldValue $value) => $value->value())->all()
-                : $this->customValue($field);
+                ? $this->customFieldValues->where('custom_field_id', $field->id)->map(fn (CustomFieldValue $value) => $this->formValueOf($field, $value))->all()
+                : ($this->customFieldValueFor($field) !== null ? $this->formValueOf($field, $this->customFieldValueFor($field)) : null);
         }
 
         return $values;
+    }
+
+    /**
+     * What a form's input holds for a stored value. A field whose choices are
+     * records (an enumeration option, a user, a version) shows the name on
+     * screen but its input is bound to the id, so the id is what prefills it.
+     */
+    private function formValueOf(CustomField $field, CustomFieldValue $value): mixed
+    {
+        if (in_array($field->field_format, [CustomFieldFormat::Enumeration, CustomFieldFormat::User, CustomFieldFormat::Version], true)) {
+            $stored = $value->{$field->format()->storageColumn()};
+
+            return $stored === null ? null : (string) $stored;
+        }
+
+        return $value->value();
     }
 
     /**

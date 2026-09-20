@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources\Api\V1;
 
+use App\CustomFields\Formats\ProjectScopedFormat;
 use App\Enums\CustomizableType;
 use App\Models\CustomField;
 use Illuminate\Http\Request;
@@ -52,7 +53,8 @@ final class CustomFieldResource extends JsonResource
             'editable' => $field->editable,
             'default_value' => $field->default_value,
             'default_value_mode' => $field->default_value_mode?->value,
-            'possible_values' => collect($field->format()->options($field))
+            // A user or version field's choices depend on the project (and would list every user), so none are given.
+            'possible_values' => collect($field->format() instanceof ProjectScopedFormat ? [] : $field->format()->options($field))
                 ->map(fn ($label, $value) => ['value' => (string) $value, 'label' => $label])
                 ->values()
                 ->all(),

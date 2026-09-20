@@ -13,13 +13,22 @@
     @if ($field->field_format === \App\Enums\CustomFieldFormat::Bool)
         <input type="checkbox" wire:model="{{ $path }}" @disabled($disabled) class="mt-1 rounded border-gray-300">
     @elseif (in_array($field->field_format, [\App\Enums\CustomFieldFormat::List, \App\Enums\CustomFieldFormat::Enumeration, \App\Enums\CustomFieldFormat::User, \App\Enums\CustomFieldFormat::Version], true))
-        <select wire:model="{{ $path }}" @disabled($disabled)
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            <option value="">選択してください</option>
-            @foreach ($field->optionsFor($project) as $value => $label)
-                <option value="{{ $value }}">{{ $label }}</option>
-            @endforeach
-        </select>
+        @if ($field->multiple)
+            <select multiple wire:model="{{ $path }}" @disabled($disabled) data-multiple-choice
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                @foreach ($field->optionsFor($project) as $value => $label)
+                    <option value="{{ $value }}">{{ $label }}</option>
+                @endforeach
+            </select>
+        @else
+            <select wire:model="{{ $path }}" @disabled($disabled)
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <option value="">選択してください</option>
+                @foreach ($field->optionsFor($project) as $value => $label)
+                    <option value="{{ $value }}">{{ $label }}</option>
+                @endforeach
+            </select>
+        @endif
     @elseif ($field->field_format === \App\Enums\CustomFieldFormat::Text)
         <textarea wire:model="{{ $path }}" rows="3" @disabled($disabled)
             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>

@@ -55,13 +55,20 @@ final class CustomFieldFilter implements FilterableField
 
     public function options(): array
     {
-        return $this->field->format()->options($this->field);
+        $options = $this->field->format()->options($this->field);
+
+        // A `user` field can be filtered by "me", the signed-in user.
+        return $this->field->field_format === CustomFieldFormat::User ? ['me' => '<< 自分 >>', ...$options] : $options;
     }
 
     public function apply(Builder $query, FilterOperator $operator, array $values): Builder
     {
         $column = $this->field->format()->storageColumn();
         $fieldId = $this->field->id;
+
+        if ($this->field->field_format === CustomFieldFormat::User) {
+            $values = array_map(fn ($value) => $value === 'me' ? (string) auth()->id() : $value, $values);
+        }
 
         return $query->whereHas(
             'customFieldValues',
