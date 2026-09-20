@@ -61,6 +61,7 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
 
     Volt::route('/my/page', 'my-page.index')->name('my-page.index');
     Volt::route('/profile', 'profile.index')->name('profile.index');
+    Volt::route('/my/webhooks', 'my-webhooks.index')->name('my-webhooks.index');
     Volt::route('/news', 'news.global-index')->name('news.global-index');
     Volt::route('/issues', 'issues.global-index')->name('issues.global-index');
     Volt::route('/time_entries', 'time-entries.global-index')->name('time-entries.global-index');
