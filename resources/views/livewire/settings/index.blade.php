@@ -158,6 +158,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $mail_handler_excluded_filenames = '';
 
+    public string $mail_handler_allow_override = 'all';
+
+    public string $mail_handler_project_from_subaddress = '';
+
     public string $mail_handler_preferred_body_part = 'plain';
 
     public bool $autofetch_changesets = false;
@@ -397,6 +401,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->incoming_mail_default_status_id = Setting::get('incoming_mail_default_status_id');
         $this->mail_handler_body_delimiters = Setting::get('mail_handler_body_delimiters', '');
         $this->mail_handler_excluded_filenames = Setting::get('mail_handler_excluded_filenames', '');
+        $this->mail_handler_allow_override = Setting::get('mail_handler_allow_override', 'all');
+        $this->mail_handler_project_from_subaddress = Setting::get('mail_handler_project_from_subaddress', '');
         $this->mail_handler_preferred_body_part = Setting::get('mail_handler_preferred_body_part', 'plain');
         $this->autofetch_changesets = Setting::get('autofetch_changesets', false);
         $this->repository_log_display_limit = Setting::get('repository_log_display_limit', PageSize::DEFAULT_REPOSITORY_LOG_LIMIT);
@@ -569,6 +575,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'incoming_mail_default_status_id' => ['nullable', 'exists:issue_statuses,id'],
             'mail_handler_body_delimiters' => ['nullable', 'string', 'max:1000'],
             'mail_handler_excluded_filenames' => ['nullable', 'string', 'max:1000'],
+            'mail_handler_allow_override' => ['nullable', 'string', 'max:1000'],
+            'mail_handler_project_from_subaddress' => ['nullable', 'string', 'max:255', 'regex:/^[^@\s]+@[^@\s]+$/'],
             'mail_handler_preferred_body_part' => ['required', 'in:plain,html'],
             'autofetch_changesets' => ['boolean'],
             'commit_logtime_enabled' => ['boolean'],
@@ -1527,6 +1535,22 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="text" wire:model="mail_handler_excluded_filenames" placeholder="例: *.ics, winmail.dat"
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('mail_handler_excluded_filenames') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">本文のキーワードで上書きを許す項目(カンマ区切り)</label>
+                <input type="text" wire:model="mail_handler_allow_override" placeholder="all"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500"><code>all</code> はすべて許可。例: <code>status, priority, assigned_to</code>(項目: status, priority, assigned_to, done_ratio, tracker, category, fixed_version, start_date, due_date, estimated_hours, private, parent_issue)。カスタムフィールドの行は常に有効です。</p>
+                @error('mail_handler_allow_override') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">サブアドレスからプロジェクトを決める(受信アドレス)</label>
+                <input type="text" wire:model="mail_handler_project_from_subaddress" placeholder="redmine@example.net"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">設定すると <code>redmine+識別子@example.net</code> 宛のメールがその識別子のプロジェクトの課題になります(件名の <code>[識別子]</code> より優先)。</p>
+                @error('mail_handler_project_from_subaddress') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
         </section>
 

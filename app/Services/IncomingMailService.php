@@ -7,6 +7,8 @@ namespace App\Services;
 use App\Enums\EnumerationType;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Enums\CustomizableType;
+use App\Models\CustomField;
 use App\Models\Journal;
 use App\Models\IssueStatus;
 use App\Models\Project;
@@ -17,7 +19,9 @@ use App\Support\Attachments\AttachmentUploader;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Mail\MessageIdentity;
 use App\Support\Mail\ParsedIncomingMail;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Throwable;
 use Webklex\PHPIMAP\ClientManager;
 use Webklex\PHPIMAP\Exceptions\ConnectionFailedException;
@@ -147,6 +151,7 @@ final class IncomingMailService
             fromEmail: (string) ($message->from[0]->mail ?? ''),
             attachments: $attachments,
             replyHeaders: array_map('strval', [...$message->in_reply_to->all(), ...$message->references->all()]),
+            recipients: array_values(array_filter(array_map(fn ($address) => (string) ($address->mail ?? ''), [...$message->to->all(), ...$message->cc->all()]))),
         );
     }
 
@@ -249,7 +254,7 @@ final class IncomingMailService
             return $this->receiveIssueReply((int) $matches[1], $mail, $author);
         }
 
-        $project = $this->resolveProject($mail->subject);
+        $project = $this->resolveProject($mail->subject, $mail->recipients);
 
         if ($project === null || ! $this->authorization->can($author, 'add_issues', $project)) {
             return null;
@@ -271,6 +276,8 @@ final class IncomingMailService
         $subject = mb_substr($this->stripProjectPrefix($mail->subject), 0, 255);
         ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $project, $author);
 
+        ['values' => $customFieldData, 'body' => $body] = $this->extractCustomFieldKeywords($body, $project, (int) ($keywordAttributes['tracker_id'] ?? $trackerId), $author);
+
         $issue = $this->issues->create([
             'project_id' => $project->id,
             'tracker_id' => $trackerId,
@@ -279,7 +286,7 @@ final class IncomingMailService
             'subject' => $subject !== '' ? $subject : '(no subject)',
             'description' => $body,
             ...$keywordAttributes,
-        ], $author);
+        ], $author, $customFieldData);
 
         foreach ($mail->attachments as $attachment) {
             if ($attachment['content'] === '') {
@@ -325,8 +332,9 @@ final class IncomingMailService
         }
 
         ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $issue->project, $author, $issue);
+        ['values' => $customFieldData, 'body' => $body] = $this->extractCustomFieldKeywords($body, $issue->project, (int) ($keywordAttributes['tracker_id'] ?? $issue->tracker_id), $author);
         $comment = trim($body);
-        $updated = $this->issues->update($issue, $keywordAttributes, $author, $comment !== '' ? $comment : null);
+        $updated = $this->issues->update($issue, $keywordAttributes, $author, $comment !== '' ? $comment : null, $customFieldData);
 
         foreach ($mail->attachments as $attachment) {
             if ($attachment['content'] === '') {
@@ -350,10 +358,23 @@ final class IncomingMailService
         return $updated;
     }
 
-    private function resolveProject(string $subject): ?Project
+    /**
+     * @param  array<int, string>  $recipients
+     */
+    private function resolveProject(string $subject, array $recipients = []): ?Project
     {
         // Eager-loaded here rather than left to createIssueFromMail()'s
         // ->trackers access, since every caller of resolveProject() needs it.
+        $identifier = $this->identifierFromSubaddress($recipients);
+
+        if ($identifier !== null) {
+            $project = Project::query()->with('trackers')->where('identifier', $identifier)->first();
+
+            if ($project !== null) {
+                return $project;
+            }
+        }
+
         if (preg_match('/^\[([^\]]+)\]/', $subject, $matches) === 1) {
             $project = Project::query()->with('trackers')->where('identifier', $matches[1])->first();
 
@@ -365,6 +386,35 @@ final class IncomingMailService
         $defaultProjectId = Setting::get('incoming_mail_default_project_id');
 
         return $defaultProjectId ? Project::with('trackers')->find($defaultProjectId) : null;
+    }
+
+    /**
+     * Redmine's project_from_subaddress: with the setting at
+     * "redmine@example.net", a mail sent to "redmine+support@example.net"
+     * targets the project whose identifier is "support" (the To and Cc
+     * addresses are checked in order).
+     *
+     * @param  array<int, string>  $recipients
+     */
+    private function identifierFromSubaddress(array $recipients): ?string
+    {
+        $configured = mb_strtolower(trim((string) Setting::get('mail_handler_project_from_subaddress', '')));
+
+        if (! str_contains($configured, '@')) {
+            return null;
+        }
+
+        [$local, $domain] = explode('@', $configured, 2);
+
+        foreach ($recipients as $recipient) {
+            $recipient = mb_strtolower(trim($recipient));
+
+            if (preg_match('/^'.preg_quote($local, '/').'\+([^@]+)@'.preg_quote($domain, '/').'$/', $recipient, $matches) === 1) {
+                return $matches[1];
+            }
+        }
+
+        return null;
     }
 
     private function stripProjectPrefix(string $subject): string
@@ -389,8 +439,11 @@ final class IncomingMailService
         $attributes = [];
         $kept = [];
 
+        $allowed = $this->overridableKeywords();
+
         foreach (explode("\n", $body) as $line) {
-            if (preg_match('/^(status|priority|assigned to|done ratio|tracker|category|fixed version|start date|due date|estimated hours|private|parent issue)\s*:\s*(.+?)\s*$/i', $line, $matches) === 1) {
+            if (preg_match('/^(status|priority|assigned to|done ratio|tracker|category|fixed version|start date|due date|estimated hours|private|parent issue)\s*:\s*(.+?)\s*$/i', $line, $matches) === 1
+                && $this->keywordAllowed(mb_strtolower($matches[1]), $allowed)) {
                 $keyword = mb_strtolower($matches[1]);
                 $value = $this->resolveKeywordValue($keyword, trim($matches[2]), $project, $author, $issue);
 
@@ -405,6 +458,142 @@ final class IncomingMailService
         }
 
         return ['attributes' => $attributes, 'body' => trim(implode("\n", $kept))];
+    }
+
+    /**
+     * Scans the body for "Custom field name: value" lines (Redmine's
+     * custom_field_values_from_keywords). Unlike the built-in keywords these
+     * are always honored, but only for a field the sender could fill in on the
+     * form: one of the issue's tracker and project, visible to the sender's
+     * roles, and editable. A value the field would not accept (not one of a
+     * list's options, not a number, ...) leaves its line in the body.
+     *
+     * @return array{values: array<int, mixed>, body: string}
+     */
+    private function extractCustomFieldKeywords(string $body, Project $project, int $trackerId, User $author): array
+    {
+        $fields = $this->keywordCustomFields($project, $trackerId, $author);
+
+        if ($fields->isEmpty()) {
+            return ['values' => [], 'body' => $body];
+        }
+
+        $values = [];
+        $kept = [];
+
+        foreach (explode("\n", $body) as $line) {
+            $matched = false;
+
+            foreach ($fields as $field) {
+                if (! array_key_exists($field->id, $values)
+                    && preg_match('/^'.preg_quote($field->name, '/').'[ \t]*:[ \t]*(.+?)\s*$/iu', $line, $matches) === 1) {
+                    $value = $this->customFieldValueFromKeyword($field, trim($matches[1]));
+
+                    if ($value !== null) {
+                        $values[$field->id] = $value;
+                        $matched = true;
+
+                        break;
+                    }
+                }
+            }
+
+            if (! $matched) {
+                $kept[] = $line;
+            }
+        }
+
+        return ['values' => $values, 'body' => trim(implode("\n", $kept))];
+    }
+
+    /**
+     * @return Collection<int, CustomField>
+     */
+    private function keywordCustomFields(Project $project, int $trackerId, User $author): Collection
+    {
+        $roles = $author->is_admin ? collect() : $this->authorization->rolesFor($author, $project);
+
+        return CustomField::query()
+            ->where('customized_type', CustomizableType::Issue)
+            ->whereHas('trackers', fn ($query) => $query->where('trackers.id', $trackerId))
+            ->with(['projects', 'roles'])
+            ->orderBy('position')
+            ->get()
+            ->filter(fn (CustomField $field) => $field->appliesToProject($project)
+                && ($author->is_admin || $field->visibleToRoles($roles))
+                && $field->editableBy($author))
+            ->values();
+    }
+
+    /**
+     * The stored value for what a "Field: value" line says, or null when the
+     * field would not take it. A field with fixed options is matched by its
+     * label (a multiple one takes a comma-separated list); a yes/no field
+     * takes yes/no/1/0/true/false.
+     *
+     * @return string|array<int, string>|null
+     */
+    private function customFieldValueFromKeyword(CustomField $field, string $text): string|array|null
+    {
+        $options = $field->format()->options($field);
+        $parts = $field->multiple ? array_values(array_filter(array_map('trim', explode(',', $text)), fn (string $part) => $part !== '')) : [$text];
+        $resolved = [];
+
+        foreach ($parts as $part) {
+            $value = match (true) {
+                $options !== [] => (string) (array_search(mb_strtolower($part), array_map('mb_strtolower', $options), true) ?: ''),
+                $field->field_format === \App\Enums\CustomFieldFormat::Bool => match (mb_strtolower($part)) {
+                    '1', 'yes', 'true' => '1',
+                    '0', 'no', 'false' => '0',
+                    default => '',
+                },
+                default => $part,
+            };
+
+            $valid = $value !== '' && Validator::make(['value' => $value], ['value' => $field->format()->validationRules($field)])->passes();
+
+            if (! $valid) {
+                return null;
+            }
+
+            $resolved[] = $value;
+        }
+
+        if ($resolved === []) {
+            return null;
+        }
+
+        return $field->multiple ? $resolved : $resolved[0];
+    }
+
+    /**
+     * Redmine's allow_override: the attributes a sender may set with a
+     * "Keyword: value" line. `all` (the default here, which keeps every
+     * keyword working as it did) or a comma-separated list such as
+     * "status, priority, assigned_to"; matching ignores case and treats
+     * spaces as underscores.
+     *
+     * @return array<int, string>
+     */
+    private function overridableKeywords(): array
+    {
+        return collect(explode(',', (string) Setting::get('mail_handler_allow_override', 'all')))
+            ->map(fn (string $name) => preg_replace('/\s+/', '_', mb_strtolower(trim($name))))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $allowed
+     */
+    private function keywordAllowed(string $keyword, array $allowed): bool
+    {
+        $name = str_replace(' ', '_', $keyword);
+
+        return in_array('all', $allowed, true)
+            || in_array($name, $allowed, true)
+            || ($keyword === 'private' && in_array('is_private', $allowed, true));
     }
 
     private function resolveKeywordValue(string $keyword, string $value, Project $project, User $author, ?Issue $issue = null): int|string|float|bool|null
