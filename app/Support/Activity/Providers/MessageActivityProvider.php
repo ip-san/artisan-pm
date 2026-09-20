@@ -9,13 +9,14 @@ use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
 use App\Support\Activity\ActivityProvider;
+use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Activity\OffByDefault;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use LogicException;
 
-final class MessageActivityProvider implements ActivityProvider, OffByDefault
+final class MessageActivityProvider implements MultiProjectActivityProvider, OffByDefault
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -33,19 +34,26 @@ final class MessageActivityProvider implements ActivityProvider, OffByDefault
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection
     {
-        if (! $this->authorization->can($viewer, 'view_messages', $project)) {
+        return $this->entriesForProjects(collect([$project]), $viewer, $from, $to);
+    }
+
+    public function entriesForProjects(Collection $projects, ?User $viewer, Carbon $from, Carbon $to): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_messages', $project))->keyBy('id');
+
+        if ($projects->isEmpty()) {
             return collect();
         }
 
         return Message::query()
-            ->whereHas('board', fn ($query) => $query->where('project_id', $project->id))
+            ->whereHas('board', fn ($query) => $query->whereIn('project_id', $projects->keys()))
             ->whereBetween('created_at', [$from, $to])
             ->with(['board', 'author', 'parent'])
             ->get()
             ->map(fn (Message $message) => new ActivityEntry(
                 type: $this->type(),
                 title: $message->isTopic() ? $message->subject : "{$message->board->name}: {$message->parent->subject}",
-                url: route('messages.show', [$project, $message->board, $message->isTopic() ? $message : $message->parent]),
+                url: route('messages.show', [$projects[$message->board->project_id], $message->board, $message->isTopic() ? $message : $message->parent]),
                 authorName: $message->author->displayName(),
                 occurredAt: $message->created_at ?? throw new LogicException('Message is missing created_at.'),
                 authorId: $message->author_id,

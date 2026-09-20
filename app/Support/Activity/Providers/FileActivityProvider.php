@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Version;
 use App\Support\Activity\ActivityEntry;
 use App\Support\Activity\ActivityProvider;
+use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Attachments\AttachmentUploader;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
@@ -21,7 +22,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * that is known (files uploaded before uploaders were recorded have no
  * author).
  */
-final class FileActivityProvider implements ActivityProvider
+final class FileActivityProvider implements MultiProjectActivityProvider
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -39,17 +40,24 @@ final class FileActivityProvider implements ActivityProvider
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection
     {
-        if (! $this->authorization->can($viewer, 'view_files', $project)) {
+        return $this->entriesForProjects(collect([$project]), $viewer, $from, $to);
+    }
+
+    public function entriesForProjects(Collection $projects, ?User $viewer, Carbon $from, Carbon $to): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_files', $project))->keyBy('id');
+
+        if ($projects->isEmpty()) {
             return collect();
         }
 
-        $versionIds = Version::query()->where('project_id', $project->id)->pluck('id');
+        $versionProjects = Version::query()->whereIn('project_id', $projects->keys())->pluck('project_id', 'id');
 
         $files = Media::query()
             ->where('collection_name', 'files')
             ->where(fn ($query) => $query
-                ->where(fn ($own) => $own->where('model_type', 'project')->where('model_id', $project->id))
-                ->orWhere(fn ($version) => $version->where('model_type', 'version')->whereIn('model_id', $versionIds)))
+                ->where(fn ($own) => $own->where('model_type', 'project')->whereIn('model_id', $projects->keys()))
+                ->orWhere(fn ($version) => $version->where('model_type', 'version')->whereIn('model_id', $versionProjects->keys())))
             ->whereBetween('created_at', [$from, $to])
             ->get();
 
@@ -58,8 +66,9 @@ final class FileActivityProvider implements ActivityProvider
             ->get()
             ->keyBy('id');
 
-        return $files->map(function (Media $media) use ($project, $uploaders) {
+        return $files->map(function (Media $media) use ($projects, $versionProjects, $uploaders) {
             $uploader = $uploaders->get($media->getCustomProperty(AttachmentUploader::PROPERTY));
+            $project = $projects[$media->model_type === 'project' ? $media->model_id : $versionProjects[$media->model_id]];
 
             return new ActivityEntry(
                 type: $this->type(),

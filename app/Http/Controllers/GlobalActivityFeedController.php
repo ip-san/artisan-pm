@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Support\Activity\ActivityProviderRegistry;
+use App\Support\Activity\CrossProjectEntries;
 use App\Support\Activity\OffByDefault;
 use Illuminate\Http\Response;
 
@@ -32,9 +33,7 @@ final class GlobalActivityFeedController extends Controller
 
         $projects = Project::query()->get()->filter(fn (Project $project) => $user?->can('view', $project))->values();
 
-        $entries = $projects
-            ->flatMap(fn (Project $project) => $providers->flatMap(fn ($provider) => $provider->entries($project, $user, $from, $to)))
-            ->sortByDesc('occurredAt')
+        $entries = CrossProjectEntries::collect($providers, $projects, $user, $from, $to)
             ->take(ActivityFeedController::limit())
             ->values();
 

@@ -3,6 +3,7 @@
 use App\Models\Project;
 use App\Models\Setting;
 use App\Support\Activity\ActivityProviderRegistry;
+use App\Support\Activity\CrossProjectEntries;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use App\Support\Activity\OffByDefault;
@@ -97,11 +98,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $activeProviders = $this->providers->filter(fn ($provider) => in_array($provider->type(), $this->activeTypes, true));
 
-        return $this->visibleProjects
-            ->flatMap(fn (Project $project) => $activeProviders
-                ->flatMap(fn ($provider) => $provider->entries($project, auth()->user(), $from, $to)))
-            ->sortByDesc('occurredAt')
-            ->values();
+        return CrossProjectEntries::collect($activeProviders, $this->visibleProjects, auth()->user(), $from, $to);
     }
 
     /**
@@ -111,6 +108,31 @@ new #[Layout('components.layouts.app')] class extends Component
     public function groupedEntries(): Collection
     {
         return $this->entries->groupBy(fn ($entry) => $entry->occurredAt->toDateString());
+    }
+
+    /**
+     * Moves the window back by its own length, ending the day before the
+     * current start (Redmine's "« 前の期間" link).
+     */
+    public function previousPeriod(): void
+    {
+        $this->shiftPeriod(-1);
+    }
+
+    public function nextPeriod(): void
+    {
+        $this->shiftPeriod(1);
+    }
+
+    private function shiftPeriod(int $direction): void
+    {
+        $from = Carbon::parse($this->from)->startOfDay();
+        $days = max(1, (int) $from->diffInDays(Carbon::parse($this->to)->startOfDay()) + 1);
+
+        $this->from = $from->addDays($direction * $days)->toDateString();
+        $this->to = Carbon::parse($this->to)->addDays($direction * $days)->toDateString();
+
+        unset($this->entries, $this->groupedEntries);
     }
 
     public function applyFilters(): void
@@ -170,4 +192,9 @@ new #[Layout('components.layouts.app')] class extends Component
     @empty
         <p class="text-sm text-gray-500">この期間の活動はありません。</p>
     @endforelse
+
+    <div class="mt-4 flex justify-between text-sm">
+        <button wire:click="previousPeriod" data-activity-previous class="text-indigo-600 hover:underline">« 前の期間</button>
+        <button wire:click="nextPeriod" data-activity-next class="text-indigo-600 hover:underline">次の期間 »</button>
+    </div>
 </div>

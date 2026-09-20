@@ -9,12 +9,13 @@ use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
 use App\Support\Activity\ActivityProvider;
+use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use LogicException;
 
-final class IssueActivityProvider implements ActivityProvider
+final class IssueActivityProvider implements MultiProjectActivityProvider
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -32,19 +33,26 @@ final class IssueActivityProvider implements ActivityProvider
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection
     {
-        if (! $this->authorization->can($viewer, 'view_issues', $project)) {
+        return $this->entriesForProjects(collect([$project]), $viewer, $from, $to);
+    }
+
+    public function entriesForProjects(Collection $projects, ?User $viewer, Carbon $from, Carbon $to): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_issues', $project))->keyBy('id');
+
+        if ($projects->isEmpty()) {
             return collect();
         }
 
         return Issue::query()
-            ->where('project_id', $project->id)
+            ->whereIn('project_id', $projects->keys())
             ->whereBetween('created_at', [$from, $to])
             ->with(['tracker', 'author'])
             ->get()
             ->map(fn (Issue $issue) => new ActivityEntry(
                 type: $this->type(),
                 title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
-                url: route('issues.show', [$project, $issue]),
+                url: route('issues.show', [$projects[$issue->project_id], $issue]),
                 authorName: $issue->author->displayName(),
                 occurredAt: $issue->created_at ?? throw new LogicException('Issue is missing created_at.'),
                 authorId: $issue->author_id,

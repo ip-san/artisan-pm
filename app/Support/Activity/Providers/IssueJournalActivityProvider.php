@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
 use App\Support\Activity\ActivityProvider;
+use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -25,7 +26,7 @@ use LogicException;
  * visibility feed, so it deliberately stays conservative rather than
  * per-viewer-filtering private note content into it.
  */
-final class IssueJournalActivityProvider implements ActivityProvider
+final class IssueJournalActivityProvider implements MultiProjectActivityProvider
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -43,12 +44,19 @@ final class IssueJournalActivityProvider implements ActivityProvider
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection
     {
-        if (! $this->authorization->can($viewer, 'view_issues', $project)) {
+        return $this->entriesForProjects(collect([$project]), $viewer, $from, $to);
+    }
+
+    public function entriesForProjects(Collection $projects, ?User $viewer, Carbon $from, Carbon $to): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_issues', $project))->keyBy('id');
+
+        if ($projects->isEmpty()) {
             return collect();
         }
 
         return Journal::query()
-            ->whereHas('issue', fn ($query) => $query->where('project_id', $project->id))
+            ->whereHas('issue', fn ($query) => $query->whereIn('project_id', $projects->keys()))
             ->where('private_notes', false)
             ->whereBetween('created_at', [$from, $to])
             ->with(['issue.tracker', 'user', 'details'])
@@ -57,7 +65,7 @@ final class IssueJournalActivityProvider implements ActivityProvider
             ->map(fn (Journal $journal) => new ActivityEntry(
                 type: $this->type(),
                 title: "{$journal->issue->tracker->name} #{$journal->issue->id}: {$journal->issue->subject}",
-                url: route('issues.show', [$project, $journal->issue]),
+                url: route('issues.show', [$projects[$journal->issue->project_id], $journal->issue]),
                 authorName: $journal->user->displayName(),
                 occurredAt: $journal->created_at ?? throw new LogicException('Journal is missing created_at.'),
                 authorId: $journal->user_id,

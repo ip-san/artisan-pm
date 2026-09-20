@@ -9,12 +9,13 @@ use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
 use App\Support\Activity\ActivityProvider;
+use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
-final class ChangesetActivityProvider implements ActivityProvider
+final class ChangesetActivityProvider implements MultiProjectActivityProvider
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -32,14 +33,21 @@ final class ChangesetActivityProvider implements ActivityProvider
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection
     {
-        if (! $this->authorization->can($viewer, 'view_changesets', $project)) {
+        return $this->entriesForProjects(collect([$project]), $viewer, $from, $to);
+    }
+
+    public function entriesForProjects(Collection $projects, ?User $viewer, Carbon $from, Carbon $to): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_changesets', $project))->keyBy('id');
+
+        if ($projects->isEmpty()) {
             return collect();
         }
 
         return Changeset::query()
-            ->whereHas('repository', fn ($query) => $query->where('project_id', $project->id))
+            ->whereHas('repository', fn ($query) => $query->whereIn('project_id', $projects->keys()))
             ->whereBetween('committed_on', [$from, $to])
-            ->with('repository.project')
+            ->with('repository')
             ->get()
             ->map(fn (Changeset $changeset) => new ActivityEntry(
                 type: $this->type(),

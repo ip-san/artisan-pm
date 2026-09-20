@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 function activityGlobalMember(Project $project, array $permissions): User
@@ -101,4 +102,54 @@ test('an issue entry carries its author\'s raw user id, not just the display nam
     $entry = Livewire::actingAs($user)->test('activity.global-index')->get('entries')->firstOrFail();
 
     expect($entry->authorId)->toBe($author->id);
+});
+
+test('each provider reads all the projects in one query', function () {
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_project', 'view_issues', 'view_news']]);
+
+    foreach (Project::factory(6)->create() as $project) {
+        Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+        Issue::factory()->for($project)->create(['created_at' => now()->subDay()]);
+        News::factory()->for($project)->create(['created_at' => now()->subDay()]);
+    }
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    $entries = Livewire::actingAs($user)->test('activity.global-index')->get('entries');
+    $queries = collect(DB::getQueryLog())->pluck('query');
+    DB::disableQueryLog();
+
+    $scans = fn (string $table) => $queries->filter(fn (string $sql) => str_starts_with($sql, "select * from \"{$table}\" where \"project_id\" in"))->count();
+
+    expect($entries)->toHaveCount(12)
+        ->and($scans('issues'))->toBe(1)
+        ->and($scans('news'))->toBe(1);
+});
+
+test('the entries of several projects keep each their own project link', function () {
+    $first = Project::factory()->create();
+    $second = Project::factory()->create();
+    $user = activityGlobalMember($first, ['view_project', 'view_issues']);
+    Member::factory()->for($second)->for($user)->create()
+        ->roles()->attach(Role::factory()->create(['permissions' => ['view_project', 'view_issues']]));
+    $inFirst = Issue::factory()->for($first)->create(['created_at' => now()->subDay()]);
+    $inSecond = Issue::factory()->for($second)->create(['created_at' => now()->subDay()]);
+
+    $urls = Livewire::actingAs($user)->test('activity.global-index')->get('entries')->pluck('url');
+
+    expect($urls)->toContain(route('issues.show', [$first, $inFirst]))
+        ->toContain(route('issues.show', [$second, $inSecond]));
+});
+
+test('the period buttons move the window by its own length', function () {
+    $project = Project::factory()->create();
+    $user = activityGlobalMember($project, ['view_project', 'view_issues']);
+
+    $component = Livewire::actingAs($user)->test('activity.global-index')
+        ->set('from', '2026-09-10')->set('to', '2026-09-16')
+        ->call('previousPeriod')
+        ->assertSet('from', '2026-09-03')->assertSet('to', '2026-09-09')
+        ->call('nextPeriod')->call('nextPeriod')
+        ->assertSet('from', '2026-09-17')->assertSet('to', '2026-09-23');
 });
