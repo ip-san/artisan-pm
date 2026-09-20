@@ -168,6 +168,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $mail_handler_api_enabled = false;
 
+    public bool $mail_handler_no_notification = false;
+
     public string $mail_handler_api_key = '';
 
     public bool $mail_handler_enable_regex_delimiters = false;
@@ -407,6 +409,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->autofetch_changesets = Setting::get('autofetch_changesets', false);
         $this->repository_log_display_limit = Setting::get('repository_log_display_limit', PageSize::DEFAULT_REPOSITORY_LOG_LIMIT);
         $this->mail_handler_api_enabled = (bool) Setting::get('mail_handler_api_enabled', false);
+        $this->mail_handler_no_notification = (bool) Setting::get('mail_handler_no_notification', false);
         $this->mail_handler_api_key = (string) Setting::get('mail_handler_api_key', '');
         $this->mail_handler_enable_regex_delimiters = (bool) Setting::get('mail_handler_enable_regex_delimiters', false);
         $this->mail_handler_enable_regex_excluded_filenames = (bool) Setting::get('mail_handler_enable_regex_excluded_filenames', false);
@@ -591,6 +594,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'commit_ref_keywords' => ['nullable', 'string', 'max:255'],
             'repository_log_display_limit' => ['required', 'integer', 'min:1', 'max:1000'],
             'mail_handler_api_enabled' => ['boolean'],
+            'mail_handler_no_notification' => ['boolean'],
             'mail_handler_api_key' => ['nullable', 'string', 'max:255'],
             'mail_handler_enable_regex_delimiters' => ['boolean'],
             'mail_handler_enable_regex_excluded_filenames' => ['boolean'],
@@ -1536,6 +1540,11 @@ new #[Layout('components.layouts.app')] class extends Component
                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('mail_handler_excluded_filenames') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" wire:model="mail_handler_no_notification" class="rounded border-gray-300">
+                受信メールで作成・更新した課題は通知メールを送らない
+            </label>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700">本文のキーワードで上書きを許す項目(カンマ区切り)</label>

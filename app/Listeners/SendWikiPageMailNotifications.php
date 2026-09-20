@@ -8,12 +8,17 @@ use App\Events\WikiPageCreated;
 use App\Events\WikiPageUpdated;
 use App\Notifications\WikiPageNotification;
 use App\Support\Mail\NotificationRecipients;
+use App\Support\Mail\MailSuppression;
 use Illuminate\Support\Facades\Notification;
 
 final class SendWikiPageMailNotifications
 {
     public function handle(WikiPageCreated|WikiPageUpdated $event): void
     {
+        if (MailSuppression::active()) {
+            return;
+        }
+
         // Matches Redmine's WikiContent#after_update only mailing when
         // saved_change_to_text? is true — a rename/move dispatches this
         // event (webhook subscribers want to know either way) but isn't a

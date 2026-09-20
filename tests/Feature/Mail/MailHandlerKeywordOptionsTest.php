@@ -162,3 +162,31 @@ test('the settings form saves the override list and the subaddress', function ()
         ->set('mail_handler_project_from_subaddress', 'no-at-sign')
         ->call('save')->assertHasErrors('mail_handler_project_from_subaddress');
 });
+
+test('a received mail notifies the members unless no_notification is on', function () {
+    [$project, $tracker] = keywordOptionsSetup();
+    $bystander = User::factory()->create(['mail_notification' => App\Enums\MailNotificationOption::All]);
+    Member::factory()->for($project)->for($bystander)->create()
+        ->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+
+    Illuminate\Support\Facades\Notification::fake();
+    app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('body', 'First'));
+    Illuminate\Support\Facades\Notification::assertSentTo($bystander, App\Notifications\IssueNotification::class);
+
+    Setting::set('mail_handler_no_notification', true);
+    Illuminate\Support\Facades\Notification::fake();
+    $issue = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('body', 'Second'));
+    Illuminate\Support\Facades\Notification::assertNothingSent();
+
+    // A reply is silent too, and the suppression ends with the mail.
+    app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('a reply', "Re: [Issue #{$issue->id}]"));
+    Illuminate\Support\Facades\Notification::assertNothingSent();
+    expect(App\Support\Mail\MailSuppression::active())->toBeFalse();
+});
+
+test('the settings form saves no_notification', function () {
+    Livewire\Livewire::actingAs(User::factory()->admin()->create())->test('settings.index')
+        ->set('mail_handler_no_notification', true)->call('save')->assertHasNoErrors();
+
+    expect(Setting::get('mail_handler_no_notification'))->toBeTrue();
+});

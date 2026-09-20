@@ -9,12 +9,17 @@ use App\Events\IssueJournalRecorded;
 use App\Events\IssueUpdated;
 use App\Notifications\IssueNotification;
 use App\Support\Mail\NotificationRecipients;
+use App\Support\Mail\MailSuppression;
 use Illuminate\Support\Facades\Notification;
 
 final class SendIssueMailNotifications
 {
     public function handle(IssueCreated|IssueUpdated|IssueJournalRecorded $event): void
     {
+        if (MailSuppression::active()) {
+            return;
+        }
+
         $isCreated = $event instanceof IssueCreated;
 
         $actor = $isCreated ? $event->issue->author : $event->actor;

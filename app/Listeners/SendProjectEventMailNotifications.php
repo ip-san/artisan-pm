@@ -9,6 +9,7 @@ use App\Events\MessagePosted;
 use App\Events\ProjectFilesAdded;
 use App\Notifications\ProjectEventNotification;
 use App\Support\Mail\NotificationRecipients;
+use App\Support\Mail\MailSuppression;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -20,6 +21,10 @@ final class SendProjectEventMailNotifications
 {
     public function handle(MessagePosted|DocumentAdded|ProjectFilesAdded $event): void
     {
+        if (MailSuppression::active()) {
+            return;
+        }
+
         $notification = match (true) {
             $event instanceof MessagePosted => $this->forMessage($event),
             $event instanceof DocumentAdded => $this->forDocument($event),

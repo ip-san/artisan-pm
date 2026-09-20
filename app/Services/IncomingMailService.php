@@ -17,6 +17,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Support\Attachments\AttachmentUploader;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Mail\MailSuppression;
 use App\Support\Mail\MessageIdentity;
 use App\Support\Mail\ParsedIncomingMail;
 use Illuminate\Support\Collection;
@@ -224,6 +225,15 @@ final class IncomingMailService
     }
 
     public function createIssueFromMail(ParsedIncomingMail $mail): ?Issue
+    {
+        // Redmine's no_notification: what a received mail creates or changes
+        // is not announced by mail.
+        return Setting::get('mail_handler_no_notification', false)
+            ? MailSuppression::during(fn () => $this->handleMail($mail))
+            : $this->handleMail($mail);
+    }
+
+    private function handleMail(ParsedIncomingMail $mail): ?Issue
     {
         // The sender may write from the primary address or an additional one.
         $author = User::query()->where('email', $mail->fromEmail)->first()

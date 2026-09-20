@@ -8,12 +8,17 @@ use App\Events\NewsCommentCreated;
 use App\Events\NewsCreated;
 use App\Notifications\NewsNotification;
 use App\Support\Mail\NotificationRecipients;
+use App\Support\Mail\MailSuppression;
 use Illuminate\Support\Facades\Notification;
 
 final class SendNewsMailNotifications
 {
     public function handle(NewsCreated|NewsCommentCreated $event): void
     {
+        if (MailSuppression::active()) {
+            return;
+        }
+
         $isCreated = $event instanceof NewsCreated;
         $news = $isCreated ? $event->news : $event->comment->news;
         $actor = $isCreated ? $event->news->author : $event->comment->author;
