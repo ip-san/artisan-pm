@@ -190,3 +190,20 @@ test('the settings form saves no_notification', function () {
 
     expect(Setting::get('mail_handler_no_notification'))->toBeTrue();
 });
+
+test('a mail issue gets no start date unless the API and mail switch is on', function () {
+    keywordOptionsSetup();
+
+    $off = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('body', 'Off'));
+    expect($off->start_date)->toBeNull();
+
+    Setting::set('default_issue_start_date_for_api_and_mail', true);
+    $on = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('body', 'On'));
+    $explicit = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail("Start date: 2026-01-02\nbody", 'Explicit'));
+
+    expect($on->start_date->toDateString())->toBe(today()->toDateString())
+        ->and($explicit->start_date->toDateString())->toBe('2026-01-02');
+
+    Setting::set('default_issue_start_date_to_creation_date', false);
+    expect(app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('body', 'Base off'))->start_date)->toBeNull();
+});

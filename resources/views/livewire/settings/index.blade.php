@@ -250,6 +250,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $default_issue_start_date_to_creation_date = true;
 
+    public bool $default_issue_start_date_for_api_and_mail = false;
+
     public ?int $default_issue_due_date_offset = null;
 
     /** @var array<int, string> */
@@ -388,6 +390,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->link_copied_issue = CopyOptions::linkMode();
         $this->copy_attachments_on_issue_copy = CopyOptions::attachmentsMode();
         $this->default_issue_start_date_to_creation_date = Setting::get('default_issue_start_date_to_creation_date', true);
+        $this->default_issue_start_date_for_api_and_mail = (bool) Setting::get('default_issue_start_date_for_api_and_mail', false);
         $this->default_issue_due_date_offset = Setting::get('default_issue_due_date_offset');
         $this->related_issues_default_columns = array_keys(RelatedIssueColumns::selected());
         $this->display_related_issues_table_headers = RelatedIssueColumns::showHeaders();
@@ -629,6 +632,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'link_copied_issue' => ['required', 'in:yes,no,ask'],
             'copy_attachments_on_issue_copy' => ['required', 'in:yes,no,ask'],
             'default_issue_start_date_to_creation_date' => ['boolean'],
+            'default_issue_start_date_for_api_and_mail' => ['boolean'],
             'default_issue_due_date_offset' => ['nullable', 'integer', 'min:0'],
             'related_issues_default_columns' => ['array'],
             'related_issues_default_columns.*' => [Rule::in(array_keys(RelatedIssueColumns::AVAILABLE))],
@@ -908,6 +912,11 @@ new #[Layout('components.layouts.app')] class extends Component
                     新規課題の開始日を作成日にする
                 </label>
                 <p class="mt-1 text-xs text-gray-500">無効の場合、開始日は自動設定されません(コピー元の課題がある場合はその開始日を引き継ぎます)。</p>
+                <label class="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="default_issue_start_date_for_api_and_mail" class="rounded border-gray-300">
+                    REST APIと受信メールで作る課題にも適用する
+                </label>
+                <p class="mt-1 text-xs text-gray-500">既定はオフです(オンにすると、開始日を省略した既存のAPIクライアントやメールの課題に開始日が付きます)。</p>
             </div>
 
             <div>

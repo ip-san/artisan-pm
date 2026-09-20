@@ -16,6 +16,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Services\IssueService;
 use App\Support\Api\CustomFieldPayload;
+use App\Support\Issues\StartDateDefault;
 use App\Support\Attachments\PendingUploadAttacher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -186,6 +187,8 @@ final class IssueController extends Controller
             $request->user(),
             requireAll: true,
         );
+
+        $data['start_date'] = filled($data['start_date'] ?? null) ? $data['start_date'] : StartDateDefault::forApiAndMail();
 
         $issue = app(IssueService::class)->create(
             [...$data, 'project_id' => $project->id, 'status_id' => $this->defaultStatusId()],

@@ -17,6 +17,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Support\Attachments\AttachmentUploader;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Issues\StartDateDefault;
 use App\Support\Mail\MailSuppression;
 use App\Support\Mail\MessageIdentity;
 use App\Support\Mail\ParsedIncomingMail;
@@ -295,6 +296,7 @@ final class IncomingMailService
             'priority_id' => $priorityId,
             'subject' => $subject !== '' ? $subject : '(no subject)',
             'description' => $body,
+            'start_date' => StartDateDefault::forApiAndMail(),
             ...$keywordAttributes,
         ], $author, $customFieldData);
 

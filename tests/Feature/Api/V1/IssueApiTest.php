@@ -381,3 +381,23 @@ test('a stale lock_version cannot be used to probe an issue the caller may not e
 
     $this->putJson("/api/v1/issues/{$issue->id}", ['lock_version' => 999])->assertForbidden();
 });
+
+test('an API-created issue only gets a start date when the API and mail switch is on', function () {
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'add_issues']);
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $priority = Enumeration::factory()->create(['is_default' => true]);
+    IssueStatus::factory()->create();
+    Passport::actingAs($user);
+
+    $create = fn (array $extra = []) => $this->postJson("/api/v1/projects/{$project->id}/issues", [
+        'tracker_id' => $tracker->id, 'priority_id' => $priority->id, 'subject' => 'Start date', ...$extra,
+    ])->assertCreated();
+
+    $create()->assertJsonPath('data.start_date', null);
+
+    App\Models\Setting::set('default_issue_start_date_for_api_and_mail', true);
+    $create()->assertJsonPath('data.start_date', today()->toDateString());
+    $create(['start_date' => '2026-02-03'])->assertJsonPath('data.start_date', '2026-02-03');
+});
