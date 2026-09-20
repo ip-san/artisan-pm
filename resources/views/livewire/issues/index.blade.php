@@ -204,6 +204,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $bulkComment = '';
 
+    /** @var array<int, mixed> custom field id => the value to set on every selected issue (blank = leave alone) */
+    public array $bulkCustomFieldValues = [];
+
     /**
      * Fields the bulk edit sets to "none" (only these three can be blank).
      *
@@ -916,7 +919,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return Issue::query()
             ->whereIn('id', $this->selected)
             ->where('project_id', $this->project->id)
-            ->with('status')
+            ->with(['status', 'project', 'customFieldValues'])
             ->get();
     }
 
@@ -964,6 +967,29 @@ new #[Layout('components.layouts.app')] class extends Component
     public function bulkCategories(): Collection
     {
         return $this->project->issueCategories()->orderBy('name')->get();
+    }
+
+    /**
+     * The custom fields the bulk edit can set: single-value ones every
+     * selected issue has (its tracker and project decide) and the viewer may
+     * see and edit.
+     *
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function bulkCustomFields(): Collection
+    {
+        $perIssue = $this->selectedIssues->map(fn (Issue $issue) => $issue->relevantCustomFields()->keyBy('id'));
+
+        if ($perIssue->isEmpty()) {
+            return collect();
+        }
+
+        $common = $perIssue->map(fn (Collection $fields) => $fields->keys())->reduce(fn (?Collection $carry, Collection $ids) => $carry === null ? $ids : $carry->intersect($ids));
+
+        return $perIssue->first()->only($common->all())
+            ->filter(fn (CustomField $field) => ! $field->multiple && $field->editableBy(auth()->user()))
+            ->values();
     }
 
     #[Computed]
@@ -1021,6 +1047,15 @@ new #[Layout('components.layouts.app')] class extends Component
             'bulkComment' => ['nullable', 'string'],
         ]);
 
+        // Only the fields given a value are validated and set.
+        $customFieldInput = collect($this->bulkCustomFieldValues)->filter(fn ($value) => filled($value))->only($this->bulkCustomFields->pluck('id')->all())->all();
+        $customFieldRules = collect(CustomField::formValidationRules($this->bulkCustomFields->whereIn('id', array_keys($customFieldInput))))
+            ->mapWithKeys(fn ($rules, $key) => [str_replace('customFieldValues.', 'bulkCustomFieldValues.', $key) => $rules])->all();
+
+        if ($customFieldRules !== []) {
+            $this->validate($customFieldRules);
+        }
+
         if ($data['bulkIsPrivate'] !== null && $data['bulkIsPrivate'] !== '') {
             foreach ($issues as $issue) {
                 $this->authorize('setPrivateOn', $issue);
@@ -1064,12 +1099,12 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         foreach ($issues as $issue) {
-            app(IssueService::class)->update($issue, $changes, auth()->user(), $this->bulkComment ?: null);
+            app(IssueService::class)->update($issue, $changes, auth()->user(), $this->bulkComment ?: null, $customFieldInput);
         }
 
         $count = $issues->count();
 
-        $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear']);
+        $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear', 'bulkCustomFieldValues']);
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
@@ -1678,6 +1713,32 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                 </div>
             </div>
+
+            @if ($this->bulkCustomFields->isNotEmpty())
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-bulk-custom-fields>
+                    @foreach ($this->bulkCustomFields as $field)
+                        <div wire:key="bulk-cf-{{ $field->id }}">
+                            <label class="block text-xs font-medium text-gray-700">{{ $field->name }}</label>
+                            @if (in_array($field->field_format, [\App\Enums\CustomFieldFormat::List, \App\Enums\CustomFieldFormat::Enumeration, \App\Enums\CustomFieldFormat::Bool], true))
+                                <select wire:model="bulkCustomFieldValues.{{ $field->id }}" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                                    <option value="">変更なし</option>
+                                    @if ($field->field_format === \App\Enums\CustomFieldFormat::Bool)
+                                        <option value="1">はい</option>
+                                        <option value="0">いいえ</option>
+                                    @else
+                                        @foreach ($field->format()->options($field) as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            @else
+                                <input type="text" wire:model="bulkCustomFieldValues.{{ $field->id }}" placeholder="変更なし" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                            @endif
+                            @error("bulkCustomFieldValues.{$field->id}") <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    @endforeach
+                </div>
+            @endif
 
             <div>
                 <label class="block text-xs font-medium text-gray-700">コメント(任意)</label>

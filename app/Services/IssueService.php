@@ -979,6 +979,10 @@ final class IssueService
      */
     private function customFieldSnapshot(Issue $issue): array
     {
+        // setCustomFieldValues() drops the loaded relation; reload it
+        // explicitly rather than lazily (lazy loading is disabled).
+        $issue->loadMissing('customFieldValues');
+
         return $issue->relevantCustomFields()
             ->mapWithKeys(fn (CustomField $field) => [$field->id => $this->normalizedCustomFieldValue($issue, $field)])
             ->all();
