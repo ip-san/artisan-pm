@@ -43,6 +43,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $mail_notification = '';
 
+    public string $language = '';
+
     public string $newAdditionalEmail = '';
 
     /** @var array<int, string> */
@@ -74,6 +76,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->name = auth()->user()->name;
         $this->email = auth()->user()->email;
         $this->mail_notification = auth()->user()->mail_notification->value;
+        $this->language = (string) auth()->user()->language;
         $this->notified_project_ids = array_map('strval', auth()->user()->notifiedProjectIds());
         $this->no_self_notified = auth()->user()->no_self_notified;
 
@@ -218,7 +221,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'notified_project_ids' => ['array'],
             'notified_project_ids.*' => [Rule::in($this->notifiableProjects->pluck('id')->map(fn ($id) => (string) $id)->all())],
             'no_self_notified' => ['boolean'],
+            'language' => ['nullable', Rule::in(array_keys(\App\Support\Locale\SupportedLocales::all()))],
         ]);
+        $data['language'] = ($data['language'] ?? '') !== '' ? $data['language'] : null;
 
         $projectIds = $data['mail_notification'] === MailNotificationOption::Selected->value ? $data['notified_project_ids'] ?? [] : [];
         unset($data['notified_project_ids']);
@@ -446,6 +451,17 @@ new #[Layout('components.layouts.app')] class extends Component
                     <button type="button" wire:click="addEmail" class="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">追加</button>
                 </div>
                 @error('newAdditionalEmail') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">{{ __('言語') }}</label>
+                <select wire:model="language" data-user-language class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('未設定(既定の言語)') }}</option>
+                    @foreach (\App\Support\Locale\SupportedLocales::all() as $code => $languageName)
+                        <option value="{{ $code }}">{{ $languageName }}</option>
+                    @endforeach
+                </select>
+                @error('language') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>

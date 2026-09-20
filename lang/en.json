@@ -1,0 +1,7 @@
+{
+    "言語": "Language",
+    "既定の言語": "Default language",
+    "ログインしていない利用者には常に既定の言語を使う": "Always use the default language for visitors who are not signed in",
+    "ログインしている利用者にも常に既定の言語を使う": "Always use the default language for signed-in users too",
+    "未設定(既定の言語)": "Not set (default language)"
+}

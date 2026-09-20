@@ -87,6 +87,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $app_title = '';
 
+    public string $default_language = '';
+
+    public bool $force_default_language_for_anonymous = false;
+
+    public bool $force_default_language_for_loggedin = false;
+
     public string $welcome_text = '';
 
     public int $default_issues_per_page = 25;
@@ -353,6 +359,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->login_required = Setting::get('login_required', true);
         $this->twofa = Setting::get('twofa', '0');
         $this->app_title = Setting::get('app_title', config('app.name'));
+        $this->default_language = \App\Support\Locale\SupportedLocales::default();
+        $this->force_default_language_for_anonymous = (bool) Setting::get('force_default_language_for_anonymous', false);
+        $this->force_default_language_for_loggedin = (bool) Setting::get('force_default_language_for_loggedin', false);
         $this->welcome_text = Setting::get('welcome_text', '');
         $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
         $this->activity_days_default = Setting::get('activity_days_default', 7);
@@ -546,6 +555,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $data = $this->validate([
             ...$ruleChangeRules,
             'app_title' => ['required', 'string', 'max:255'],
+            'default_language' => ['required', Rule::in(array_keys(\App\Support\Locale\SupportedLocales::all()))],
+            'force_default_language_for_anonymous' => ['boolean'],
+            'force_default_language_for_loggedin' => ['boolean'],
             'welcome_text' => ['nullable', 'string', 'max:5000'],
             'default_issues_per_page' => ['required', 'integer', 'min:5', 'max:200'],
             'activity_days_default' => ['required', 'integer', 'min:1', 'max:365'],
@@ -725,6 +737,24 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-gray-700">アプリケーション名</label>
                 <input type="text" wire:model="app_title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
                 @error('app_title') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">{{ __('既定の言語') }}</label>
+                <select wire:model="default_language" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Support\Locale\SupportedLocales::all() as $code => $languageName)
+                        <option value="{{ $code }}">{{ $languageName }}</option>
+                    @endforeach
+                </select>
+                @error('default_language') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="force_default_language_for_anonymous" class="rounded border-gray-300">
+                    {{ __('ログインしていない利用者には常に既定の言語を使う') }}
+                </label>
+                <label class="mt-1 flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" wire:model="force_default_language_for_loggedin" class="rounded border-gray-300">
+                    {{ __('ログインしている利用者にも常に既定の言語を使う') }}
+                </label>
             </div>
 
             <div>
