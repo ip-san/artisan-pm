@@ -3,6 +3,7 @@
 use App\Enums\QueryType;
 use App\Models\Query as SavedQuery;
 use App\Models\UserDashboardBlock;
+use App\Support\Dashboard\ConfigurableDashboardBlock;
 use App\Support\Dashboard\DashboardBlock;
 use App\Support\Dashboard\DashboardBlockRegistry;
 use App\Support\Dashboard\DashboardBlockRow;
@@ -23,6 +24,15 @@ new #[Layout('components.layouts.app')] class extends Component
      * @var array<int, string>
      */
     private const array DEFAULT_BLOCK_KEYS = ['assigned_issues', 'reported_issues', 'latest_news'];
+
+    /** Redmine's max_occurs for the issue query block: one saved query may be placed this often. */
+    private const int MAX_QUERY_BLOCK_OCCURRENCES = 3;
+
+    /** The block whose settings form is open. */
+    public ?int $settingsBlockId = null;
+
+    /** @var array<string, mixed> */
+    public array $settingsForm = [];
 
     public function mount(): void
     {
@@ -66,6 +76,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public function availableSavedQueries(): Collection
     {
         $activeKeys = $this->activeBlocks->pluck('block_key');
+        $fullKeys = $this->activeBlocks->countBy('block_key')
+            ->filter(fn (int $count) => $count >= self::MAX_QUERY_BLOCK_OCCURRENCES)->keys();
 
         return SavedQuery::query()
             ->where('type', QueryType::Issue->value)
@@ -76,7 +88,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->orderBy('name')
             ->get()
             ->filter(fn (SavedQuery $query) => $query->visibleTo(auth()->user()))
-            ->reject(fn (SavedQuery $query) => $activeKeys->contains(SavedIssueQueryBlock::keyFor($query)))
+            ->reject(fn (SavedQuery $query) => $fullKeys->contains(SavedIssueQueryBlock::keyFor($query)))
             ->values();
     }
 
@@ -125,10 +137,12 @@ new #[Layout('components.layouts.app')] class extends Component
             abort_unless(app(DashboardBlockRegistry::class)->find($key) !== null, 404);
         }
 
-        UserDashboardBlock::firstOrCreate(
-            ['user_id' => auth()->id(), 'block_key' => $key],
-            ['position' => $this->activeBlocks->count()],
-        );
+        $occurrences = UserDashboardBlock::where('user_id', auth()->id())->where('block_key', $key)->count();
+        $maxOccurrences = $queryId !== null ? self::MAX_QUERY_BLOCK_OCCURRENCES : 1;
+
+        if ($occurrences < $maxOccurrences) {
+            UserDashboardBlock::create(['user_id' => auth()->id(), 'block_key' => $key, 'position' => $this->activeBlocks->count()]);
+        }
 
         unset($this->activeBlocks, $this->availableBlocks, $this->availableSavedQueries, $this->savedQueriesByBlockKey);
     }
@@ -136,6 +150,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public function removeBlock(int $id): void
     {
         UserDashboardBlock::where('user_id', auth()->id())->where('id', $id)->delete();
+
+        if ($this->settingsBlockId === $id) {
+            $this->closeSettings();
+        }
 
         unset($this->activeBlocks, $this->availableBlocks, $this->availableSavedQueries, $this->savedQueriesByBlockKey);
     }
@@ -167,15 +185,80 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * @param  array<string, mixed>  $settings  the block's own settings
      * @return Collection<int, DashboardBlockRow>
      */
-    public function blockRows(string $key): Collection
+    public function blockRows(string $key, array $settings = []): Collection
     {
         if (SavedIssueQueryBlock::queryIdFromKey($key) !== null) {
-            return app(SavedIssueQueryBlock::class)->rows($this->savedQueriesByBlockKey->get($key), auth()->user());
+            return app(SavedIssueQueryBlock::class)->rows($this->savedQueriesByBlockKey->get($key), auth()->user(), $settings);
         }
 
-        return app(DashboardBlockRegistry::class)->find($key)?->rows(auth()->user()) ?? collect();
+        $block = app(DashboardBlockRegistry::class)->find($key);
+
+        return $block instanceof ConfigurableDashboardBlock
+            ? $block->rowsWithSettings(auth()->user(), $settings)
+            : ($block?->rows(auth()->user()) ?? collect());
+    }
+
+    /**
+     * The settings form of a block, or [] when it has none.
+     *
+     * @return array<string, array{label: string, type: string, options?: array<string, string>, placeholder?: string}>
+     */
+    public function settingFieldsFor(string $key): array
+    {
+        if (SavedIssueQueryBlock::queryIdFromKey($key) !== null) {
+            $sorts = [];
+
+            foreach (SavedIssueQueryBlock::SORTS as $column => $label) {
+                $sorts["{$column}:asc"] = "{$label}(昇順)";
+                $sorts["{$column}:desc"] = "{$label}(降順)";
+            }
+
+            return [
+                'columns' => ['label' => '表示する項目', 'type' => 'columns', 'options' => SavedIssueQueryBlock::COLUMNS],
+                'sort' => ['label' => '並び順(空欄はクエリの並び順)', 'type' => 'select', 'options' => $sorts],
+            ];
+        }
+
+        $block = app(DashboardBlockRegistry::class)->find($key);
+
+        return $block instanceof ConfigurableDashboardBlock ? $block->settingFields() : [];
+    }
+
+    public function openSettings(int $id): void
+    {
+        $block = $this->activeBlocks->firstWhere('id', $id);
+        abort_if($block === null, 404);
+
+        $this->settingsBlockId = $block->id;
+        $this->settingsForm = $block->settings ?? [];
+    }
+
+    public function closeSettings(): void
+    {
+        $this->reset('settingsBlockId', 'settingsForm');
+    }
+
+    public function saveSettings(): void
+    {
+        $block = $this->activeBlocks->firstWhere('id', $this->settingsBlockId);
+        abort_if($block === null, 404);
+
+        $key = $block->block_key;
+        $input = $this->settingsForm;
+
+        $settings = SavedIssueQueryBlock::queryIdFromKey($key) !== null
+            ? SavedIssueQueryBlock::normalizeSettings($input)
+            : (app(DashboardBlockRegistry::class)->find($key) instanceof ConfigurableDashboardBlock
+                ? app(DashboardBlockRegistry::class)->find($key)->normalizeSettings($input)
+                : []);
+
+        $block->update(['settings' => $settings === [] ? null : $settings]);
+
+        $this->closeSettings();
+        unset($this->activeBlocks);
     }
 
     public function blockLabel(string $key): string
@@ -199,14 +282,52 @@ new #[Layout('components.layouts.app')] class extends Component
                 class="cursor-move rounded-md border border-gray-200 bg-white">
                 <div class="flex items-center justify-between border-b border-gray-100 px-4 py-2">
                     <span class="text-sm font-semibold text-gray-900">{{ $this->blockLabel($block->block_key) }}</span>
-                    <div wire:sort:ignore>
+                    <div wire:sort:ignore class="flex items-center gap-3">
+                        @if ($this->settingFieldsFor($block->block_key) !== [])
+                            <button wire:click="openSettings({{ $block->id }})" data-block-settings class="text-xs text-gray-600 hover:underline">
+                                設定
+                            </button>
+                        @endif
                         <button wire:click="removeBlock({{ $block->id }})" class="text-xs text-red-600 hover:underline">
                             削除
                         </button>
                     </div>
                 </div>
+                @if ($settingsBlockId === $block->id)
+                    <form wire:submit="saveSettings" wire:sort:ignore data-block-settings-form class="space-y-3 border-b border-gray-100 bg-gray-50 px-4 py-3">
+                        @foreach ($this->settingFieldsFor($block->block_key) as $name => $field)
+                            <div wire:key="setting-{{ $block->id }}-{{ $name }}">
+                                <span class="block text-xs font-medium text-gray-700">{{ $field['label'] }}</span>
+                                @if ($field['type'] === 'number')
+                                    <input type="number" min="1" wire:model="settingsForm.{{ $name }}" placeholder="{{ $field['placeholder'] ?? '' }}"
+                                        class="mt-1 w-32 rounded-md border-gray-300 text-sm">
+                                @elseif ($field['type'] === 'select')
+                                    <select wire:model="settingsForm.{{ $name }}" class="mt-1 rounded-md border-gray-300 text-sm">
+                                        <option value=""></option>
+                                        @foreach ($field['options'] as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <div class="mt-1 flex flex-wrap gap-3">
+                                        @foreach ($field['options'] as $value => $label)
+                                            <label class="flex items-center gap-1 text-xs text-gray-700">
+                                                <input type="checkbox" wire:model="settingsForm.{{ $name }}" value="{{ $value }}" class="rounded border-gray-300">
+                                                {{ $label }}
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                        <div class="flex gap-3">
+                            <button type="submit" class="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500">保存</button>
+                            <button type="button" wire:click="closeSettings" class="text-xs text-gray-600 hover:underline">キャンセル</button>
+                        </div>
+                    </form>
+                @endif
                 <ul class="divide-y divide-gray-100">
-                    @forelse ($this->blockRows($block->block_key) as $row)
+                    @forelse ($this->blockRows($block->block_key, $block->settings ?? []) as $row)
                         <li class="px-4 py-2 text-sm">
                             <a href="{{ $row->url }}" class="text-indigo-600 hover:underline">{{ $row->title }}</a>
                             @if ($row->meta)

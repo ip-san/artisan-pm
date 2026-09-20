@@ -25,6 +25,38 @@ final class SavedIssueQueryBlock
 
     private const int MAX_ROWS = 10;
 
+    /**
+     * The extra fields a row can show after the title, in Redmine's
+     * "columns" setting; status alone is what the block showed before.
+     *
+     * @var array<string, string>
+     */
+    public const array COLUMNS = [
+        'project' => 'プロジェクト',
+        'tracker' => 'トラッカー',
+        'status' => 'ステータス',
+        'priority' => '優先度',
+        'assigned_to' => '担当者',
+        'author' => '作成者',
+        'start_date' => '開始日',
+        'due_date' => '期日',
+        'updated_at' => '更新日',
+    ];
+
+    /**
+     * Sort keys the block's own "sort" setting accepts, as `key:direction`.
+     *
+     * @var array<string, string>
+     */
+    public const array SORTS = [
+        'id' => 'ID',
+        'subject' => '題名',
+        'start_date' => '開始日',
+        'due_date' => '期日',
+        'created_at' => '作成日',
+        'updated_at' => '更新日',
+    ];
+
     public function __construct(
         private readonly AuthorizationService $authorization,
     ) {}
@@ -51,9 +83,10 @@ final class SavedIssueQueryBlock
      * query is gone, its project is inaccessible, or visibility was
      * revoked since the block was added.
      *
+     * @param  array<string, mixed>  $settings  the block's own columns/sort (see normalizeSettings())
      * @return Collection<int, DashboardBlockRow>
      */
-    public function rows(?Query $savedQuery, User $user): Collection
+    public function rows(?Query $savedQuery, User $user, array $settings = []): Collection
     {
         $project = $savedQuery?->project;
 
@@ -66,18 +99,24 @@ final class SavedIssueQueryBlock
         $builder = Issue::query()
             ->where('project_id', $project->id)
             ->visibleTo($user, $project)
-            ->with(['project', 'tracker', 'status']);
+            ->with(['project', 'tracker', 'status', 'priority', 'assignedTo', 'author']);
 
         $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project));
         $builder = $engine->applyFilters($builder, $savedQuery->filters);
 
+        $settings = self::normalizeSettings($settings);
         $sortCriteria = $savedQuery->sort_criteria ?? [];
 
-        if ($sortCriteria !== []) {
+        if (isset($settings['sort'])) {
+            [$column, $direction] = explode(':', $settings['sort']);
+            $builder->orderBy($column, $direction)->orderBy('id', $direction);
+        } elseif ($sortCriteria !== []) {
             $builder = $engine->applySort($builder, $sortCriteria);
         } else {
             $builder->orderByDesc('id');
         }
+
+        $columns = $settings['columns'] ?? ['status'];
 
         return $builder
             ->limit(self::MAX_ROWS)
@@ -85,7 +124,49 @@ final class SavedIssueQueryBlock
             ->map(fn (Issue $issue) => new DashboardBlockRow(
                 title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
                 url: route('issues.show', [$issue->project, $issue]),
-                meta: $issue->status->name,
+                meta: collect($columns)->map(fn (string $column) => $this->columnValue($issue, $column))->filter()->join(' / ') ?: null,
             ));
+    }
+
+    /**
+     * Keeps only known columns (in the canonical order) and a known sort;
+     * anything else is dropped.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array{columns?: array<int, string>, sort?: string}
+     */
+    public static function normalizeSettings(array $input): array
+    {
+        $settings = [];
+        $columns = array_values(array_intersect(array_keys(self::COLUMNS), (array) ($input['columns'] ?? [])));
+
+        if ($columns !== []) {
+            $settings['columns'] = $columns;
+        }
+
+        $sort = (string) ($input['sort'] ?? '');
+        [$column, $direction] = array_pad(explode(':', $sort, 2), 2, '');
+
+        if (array_key_exists($column, self::SORTS) && in_array($direction, ['asc', 'desc'], true)) {
+            $settings['sort'] = $sort;
+        }
+
+        return $settings;
+    }
+
+    private function columnValue(Issue $issue, string $column): string
+    {
+        return match ($column) {
+            'project' => $issue->project->name,
+            'tracker' => $issue->tracker->name,
+            'status' => $issue->status->name,
+            'priority' => (string) $issue->priority?->name,
+            'assigned_to' => (string) $issue->assignedTo?->displayName(),
+            'author' => (string) $issue->author?->displayName(),
+            'start_date' => (string) $issue->start_date?->toDateString(),
+            'due_date' => (string) $issue->due_date?->toDateString(),
+            'updated_at' => $issue->updated_at->toDateString(),
+            default => '',
+        };
     }
 }
