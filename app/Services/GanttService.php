@@ -15,17 +15,13 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Fetches a project's full issue tree, depth-first ordered, in a single
- * query via a recursive CTE — Issue's hierarchy is an adjacency list
- * (parent_id), and Eloquent has no query-builder support for recursive
- * queries, so this is unavoidably raw SQL. Table names are still pulled
- * from the models rather than hardcoded, so a rename doesn't silently
- * break this; the only genuinely dynamic input (project_id) is bound as
- * a parameter, never interpolated.
- *
- * Postgres-specific (array concatenation via ||, ORDER BY on an array
- * column for depth-first ordering) — matches the project's committed
- * choice of Postgres over portability.
+ * Fetches a project's full issue tree, depth-first ordered. Issue's
+ * hierarchy is an adjacency list (parent_id): one flat query loads the
+ * project's issues, and the ordering and depth are worked out in PHP, so
+ * this runs unchanged on PostgreSQL, MySQL/MariaDB and SQLite (a recursive
+ * CTE that orders by an accumulated path needs array types only PostgreSQL
+ * has). Table names are still pulled from the models rather than
+ * hardcoded, so a rename doesn't silently break this.
  */
 final class GanttService
 {
@@ -39,33 +35,17 @@ final class GanttService
         $trackers = (new Tracker)->getTable();
         $statuses = (new IssueStatus)->getTable();
 
-        $rows = DB::select(<<<SQL
-            WITH RECURSIVE issue_tree AS (
-                SELECT
-                    i.id, i.parent_id, i.subject, i.start_date, i.due_date, i.done_ratio,
-                    tr.name AS tracker_name, st.name AS status_name, st.is_closed,
-                    0 AS depth, ARRAY[i.id] AS tree_path
-                FROM {$issues} i
-                INNER JOIN {$trackers} tr ON tr.id = i.tracker_id
-                INNER JOIN {$statuses} st ON st.id = i.status_id
-                WHERE i.project_id = ? AND i.parent_id IS NULL
+        $rows = DB::table("{$issues} as i")
+            ->join("{$trackers} as tr", 'tr.id', '=', 'i.tracker_id')
+            ->join("{$statuses} as st", 'st.id', '=', 'i.status_id')
+            ->where('i.project_id', $project->id)
+            ->orderBy('i.id')
+            ->get([
+                'i.id', 'i.parent_id', 'i.subject', 'i.start_date', 'i.due_date', 'i.done_ratio',
+                'tr.name as tracker_name', 'st.name as status_name', 'st.is_closed',
+            ]);
 
-                UNION ALL
-
-                SELECT
-                    i.id, i.parent_id, i.subject, i.start_date, i.due_date, i.done_ratio,
-                    tr.name AS tracker_name, st.name AS status_name, st.is_closed,
-                    t.depth + 1, t.tree_path || i.id
-                FROM {$issues} i
-                INNER JOIN {$trackers} tr ON tr.id = i.tracker_id
-                INNER JOIN {$statuses} st ON st.id = i.status_id
-                INNER JOIN issue_tree t ON i.parent_id = t.id
-                WHERE i.project_id = ?
-            )
-            SELECT * FROM issue_tree ORDER BY tree_path
-            SQL, [$project->id, $project->id]);
-
-        $tree = collect($rows)->map(GanttRow::fromRow(...));
+        $tree = $this->orderDepthFirst($rows);
 
         if ($onlyIssueIds === null) {
             return $tree;
@@ -87,6 +67,47 @@ final class GanttService
         }
 
         return $tree->filter(fn (GanttRow $row) => isset($keep[$row->id]))->values();
+    }
+
+    /**
+     * Roots first, each followed by its descendants, siblings by id. An
+     * issue whose parent lives in another project is unreachable from any
+     * root of this project and is left out, as it always has been.
+     *
+     * @param  Collection<int, object>  $rows  this project's issues, ordered by id
+     * @return Collection<int, GanttRow>
+     */
+    private function orderDepthFirst(Collection $rows): Collection
+    {
+        $roots = [];
+        $childrenByParentId = [];
+
+        foreach ($rows as $row) {
+            if ($row->parent_id === null) {
+                $roots[] = $row;
+            } else {
+                $childrenByParentId[(int) $row->parent_id][] = $row;
+            }
+        }
+
+        $ordered = collect();
+        $pending = [];
+
+        foreach (array_reverse($roots) as $root) {
+            $pending[] = [$root, 0];
+        }
+
+        while ($pending !== []) {
+            [$row, $depth] = array_pop($pending);
+            $row->depth = $depth;
+            $ordered->push(GanttRow::fromRow($row));
+
+            foreach (array_reverse($childrenByParentId[(int) $row->id] ?? []) as $child) {
+                $pending[] = [$child, $depth + 1];
+            }
+        }
+
+        return $ordered;
     }
 
     /**

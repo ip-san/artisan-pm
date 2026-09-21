@@ -7,9 +7,9 @@ namespace App\Support\Gantt;
 use Illuminate\Support\Carbon;
 
 /**
- * One issue's Gantt-relevant data, hydrated from a raw recursive-CTE query
- * result row (see GanttService) — Eloquent's own casting doesn't apply to
- * DB::select() output, so dates arrive as strings and are parsed here.
+ * One issue's Gantt-relevant data, hydrated from a query-builder result row
+ * (see GanttService) — Eloquent's own casting doesn't apply to it, so dates
+ * arrive as strings and are parsed here.
  */
 final readonly class GanttRow
 {

@@ -327,9 +327,8 @@ final class Issue extends Model implements HasMedia
 
     /**
      * Every descendant issue's id (children, grandchildren, ...) via a
-     * recursive CTE — Issue's hierarchy is an adjacency list (parent_id),
-     * the same structural reason GanttService uses raw SQL for the
-     * whole-project tree; this is the single-issue equivalent.
+     * recursive CTE — Issue's hierarchy is an adjacency list (parent_id)
+     * and Eloquent has no query-builder support for recursive queries.
      *
      * @return Collection<int, int>
      */

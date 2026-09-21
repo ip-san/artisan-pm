@@ -81,5 +81,5 @@ test('is_default is not left unset for repositories that existed before the colu
 
     $migration->up();
 
-    expect(DB::table('repositories')->where('id', $id)->value('is_default'))->toBeTrue();
+    expect((bool) DB::table('repositories')->where('id', $id)->value('is_default'))->toBeTrue();
 });
