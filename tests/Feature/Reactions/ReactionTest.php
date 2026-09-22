@@ -206,7 +206,8 @@ function countQueriesByTable(callable $callback, array $tables): array
     DB::flushQueryLog();
     DB::enableQueryLog();
     $callback();
-    $queries = collect(DB::getQueryLog())->pluck('query');
+    // MySQL quotes identifiers with backticks, PostgreSQL/SQLite with double quotes.
+    $queries = collect(DB::getQueryLog())->pluck('query')->map(fn (string $sql) => str_replace('`', '"', $sql));
     DB::disableQueryLog();
 
     return collect($tables)

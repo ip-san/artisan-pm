@@ -79,6 +79,8 @@ final class CustomField extends Model implements Sortable
 
         self::updated(function (CustomField $field) {
             if ($field->wasChanged('multiple') && ! $field->multiple) {
+                // The ids are read first because MySQL refuses to delete from
+                // a table the same statement's subquery reads from.
                 $field->values()
                     ->whereExists(fn ($query) => $query
                         ->from('custom_field_values as newer')
@@ -86,7 +88,9 @@ final class CustomField extends Model implements Sortable
                         ->whereColumn('newer.customized_type', 'custom_field_values.customized_type')
                         ->whereColumn('newer.customized_id', 'custom_field_values.customized_id')
                         ->whereColumn('newer.id', '>', 'custom_field_values.id'))
-                    ->delete();
+                    ->pluck('id')
+                    ->chunk(1000)
+                    ->each(fn ($ids) => $field->values()->whereIn('id', $ids)->delete());
             }
         });
     }

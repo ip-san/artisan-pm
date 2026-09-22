@@ -4,6 +4,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Support\Plugins\Plugin;
 use App\Support\Plugins\PluginManager;
+use Illuminate\Support\Facades\View;
 use Livewire\Livewire;
 use Tests\Fixtures\Plugins\SamplePlugin\SamplePluginServiceProvider;
 
@@ -108,7 +109,8 @@ test('saving plugin settings ignores keys not in the declared defaults', functio
         'not_a_declared_key' => 'injected',
     ]);
 
-    expect(Setting::get('plugin_sample_plugin'))->toBe([
+    // toEqual: a MySQL JSON column returns its keys in its own order.
+    expect(Setting::get('plugin_sample_plugin'))->toEqual([
         'greeting' => 'Bonjour',
         'enabled' => true,
         'max_items' => 10,
@@ -127,7 +129,7 @@ test('PluginManager::settings falls back to declared defaults when nothing is st
 
 function registerCustomViewPlugin(?string $view): void
 {
-    Illuminate\Support\Facades\View::addNamespace('custom_view_plugin', base_path('tests/Fixtures/Plugins/CustomViewPlugin/views'));
+    View::addNamespace('custom_view_plugin', base_path('tests/Fixtures/Plugins/CustomViewPlugin/views'));
 
     app(PluginManager::class)->registerPlugin(
         new Plugin(id: 'custom_view_plugin', name: 'Custom View Plugin', author: 'Test', version: '1.0.0', requiresCoreVersion: '1.0.0', settingsView: $view),

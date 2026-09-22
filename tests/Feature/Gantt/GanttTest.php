@@ -65,6 +65,35 @@ test('the issue tree is returned depth-first with correct depths', function () {
         ->and($rows->pluck('depth')->all())->toBe([0, 1, 2, 0]);
 });
 
+test('a subtree stays together even when its children were created after the next root', function () {
+    $project = Project::factory()->create();
+    $defaults = ganttIssueDefaults();
+
+    $firstRoot = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'FirstRoot']);
+    $secondRoot = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'SecondRoot']);
+    $lateChild = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'LateChild', 'parent_id' => $firstRoot->id]);
+    $earlyGrandchildOfSecond = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'SecondChild', 'parent_id' => $secondRoot->id]);
+
+    $rows = app(GanttService::class)->issueTree($project);
+
+    expect($rows->pluck('id')->all())->toBe([$firstRoot->id, $lateChild->id, $secondRoot->id, $earlyGrandchildOfSecond->id])
+        ->and($rows->pluck('depth')->all())->toBe([0, 1, 0, 1]);
+});
+
+test('an issue whose parent belongs to another project is left out of the tree', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $defaults = ganttIssueDefaults();
+
+    $root = Issue::factory()->for($project)->create($defaults);
+    $foreignParent = Issue::factory()->for($otherProject)->create($defaults);
+    Issue::factory()->for($project)->create([...$defaults, 'parent_id' => $foreignParent->id]);
+
+    $rows = app(GanttService::class)->issueTree($project);
+
+    expect($rows->pluck('id')->all())->toBe([$root->id]);
+});
+
 test('an issue tree only includes issues from the given project', function () {
     $project = Project::factory()->create();
     $otherProject = Project::factory()->create();

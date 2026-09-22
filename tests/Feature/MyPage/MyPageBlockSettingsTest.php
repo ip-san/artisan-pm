@@ -1,11 +1,14 @@
 <?php
 
+use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Query;
 use App\Models\Role;
 use App\Models\TimeEntry;
+use App\Models\Tracker;
 use App\Models\User;
 use App\Models\UserDashboardBlock;
 use App\Support\Dashboard\SavedIssueQueryBlock;
@@ -56,9 +59,9 @@ test('another block can still be placed only once', function () {
 test('a query block shows the chosen columns and sorts as set', function () {
     [$user, $project, $query] = blockSettingsQuery();
     $defaults = [
-        'tracker_id' => App\Models\Tracker::factory()->create()->id,
-        'status_id' => App\Models\IssueStatus::factory()->create()->id,
-        'priority_id' => App\Models\Enumeration::factory()->create()->id,
+        'tracker_id' => Tracker::factory()->create()->id,
+        'status_id' => IssueStatus::factory()->create()->id,
+        'priority_id' => Enumeration::factory()->create()->id,
     ];
     $low = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'Alpha', 'due_date' => '2026-01-05']);
     $high = Issue::factory()->for($project)->create([...$defaults, 'subject' => 'Bravo', 'due_date' => '2026-01-01']);
@@ -72,7 +75,8 @@ test('a query block shows the chosen columns and sorts as set', function () {
         ->call('saveSettings')
         ->assertSet('settingsBlockId', null);
 
-    expect($block->fresh()->settings)->toBe(['columns' => ['project', 'due_date'], 'sort' => 'due_date:asc']);
+    // toEqual: a MySQL JSON column returns its keys in its own order.
+    expect($block->fresh()->settings)->toEqual(['columns' => ['project', 'due_date'], 'sort' => 'due_date:asc']);
 
     $rows = $component->instance()->blockRows($key, $block->fresh()->settings);
     expect($rows->pluck('title')->all()[0])->toContain("#{$high->id}")
@@ -83,11 +87,11 @@ test('a query block shows the chosen columns and sorts as set', function () {
 test('a block without settings keeps showing the status', function () {
     [$user, , $query] = blockSettingsQuery();
     $key = "issue_query:{$query->id}";
-    $status = App\Models\IssueStatus::factory()->create(['name' => 'Testing']);
+    $status = IssueStatus::factory()->create(['name' => 'Testing']);
     Issue::factory()->for($query->project)->create([
-        'tracker_id' => App\Models\Tracker::factory()->create()->id,
+        'tracker_id' => Tracker::factory()->create()->id,
         'status_id' => $status->id,
-        'priority_id' => App\Models\Enumeration::factory()->create()->id,
+        'priority_id' => Enumeration::factory()->create()->id,
     ]);
 
     $component = Livewire::actingAs($user)->test('my-page.index')->call('addBlock', $key);

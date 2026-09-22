@@ -95,12 +95,18 @@ final class CustomFieldFilter implements FilterableField
         $column = $this->field->format()->storageColumn();
         $descending = $direction === 'desc';
 
-        return $query->orderByRaw(
-            "(SELECT cfv.{$column} FROM custom_field_values cfv"
+        $value = "(SELECT cfv.{$column} FROM custom_field_values cfv"
             .' WHERE cfv.customized_type = ? AND cfv.customized_id = '.$model->getQualifiedKeyName()
-            .' AND cfv.custom_field_id = ? ORDER BY cfv.id DESC LIMIT 1) '
-            .($descending ? 'DESC NULLS LAST' : 'ASC NULLS FIRST'),
-            [$this->field->customized_type->value, $this->field->id],
+            .' AND cfv.custom_field_id = ? ORDER BY cfv.id DESC LIMIT 1)';
+        $order = $descending ? 'DESC' : 'ASC';
+        $bindings = [$this->field->customized_type->value, $this->field->id];
+
+        // "NULLS FIRST/LAST" is PostgreSQL-only, and PostgreSQL, MySQL and
+        // SQLite disagree on where NULL sorts by default, so blanks are
+        // ordered explicitly by a not-null flag ahead of the value.
+        return $query->orderByRaw(
+            "{$value} IS NOT NULL {$order}, {$value} {$order}",
+            [...$bindings, ...$bindings],
         );
     }
 

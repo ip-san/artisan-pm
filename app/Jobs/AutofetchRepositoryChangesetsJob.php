@@ -41,6 +41,10 @@ final class AutofetchRepositoryChangesetsJob implements ShouldBeUnique, ShouldQu
             return;
         }
 
-        Repository::query()->lazy()->each(fn (Repository $repository) => RepositorySyncJob::dispatch($repository));
+        // Same connection as this job, so a worker-less "sync" scheduler still
+        // syncs the repositories instead of parking them in a queue nobody drains.
+        $connection = $this->connection ?? config('queue.scheduler_connection');
+
+        Repository::query()->lazy()->each(fn (Repository $repository) => RepositorySyncJob::dispatch($repository)->onConnection($connection));
     }
 }

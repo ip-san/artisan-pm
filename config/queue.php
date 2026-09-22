@@ -17,6 +17,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Scheduler Queue Connection
+    |--------------------------------------------------------------------------
+    |
+    | The connection the scheduled jobs in routes/console.php (incoming mail,
+    | repository autofetch, housekeeping) run on. "sync" runs them inside the
+    | `schedule:run` process itself, so a single cron entry is enough and no
+    | queue worker is needed — the setup shared hosting allows. Set it to a
+    | real connection (e.g. "database") to hand them to `queue:work` instead.
+    |
+    */
+
+    'scheduler_connection' => env('SCHEDULER_QUEUE_CONNECTION', 'sync'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Queue Connections
     |--------------------------------------------------------------------------
     |

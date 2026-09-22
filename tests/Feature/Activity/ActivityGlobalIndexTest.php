@@ -117,7 +117,8 @@ test('each provider reads all the projects in one query', function () {
     DB::flushQueryLog();
     DB::enableQueryLog();
     $entries = Livewire::actingAs($user)->test('activity.global-index')->get('entries');
-    $queries = collect(DB::getQueryLog())->pluck('query');
+    // MySQL quotes identifiers with backticks, PostgreSQL/SQLite with double quotes.
+    $queries = collect(DB::getQueryLog())->pluck('query')->map(fn (string $sql) => str_replace('`', '"', $sql));
     DB::disableQueryLog();
 
     $scans = fn (string $table) => $queries->filter(fn (string $sql) => str_starts_with($sql, "select * from \"{$table}\" where \"project_id\" in"))->count();
