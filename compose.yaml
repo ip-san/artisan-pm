@@ -27,6 +27,12 @@ services:
             - mailpit
     pgsql:
         image: 'postgres:18-alpine'
+        # The schema has 70+ tables, and RefreshDatabase drops them all in one
+        # transaction per test — with `--parallel`, several such transactions
+        # run at once and exceed Postgres's default max_locks_per_transaction
+        # (64), failing with "out of shared memory". Raised well above what
+        # even a large `--processes` count needs.
+        command: postgres -c max_locks_per_transaction=256
         ports:
             - '${FORWARD_DB_PORT:-5432}:5432'
         environment:

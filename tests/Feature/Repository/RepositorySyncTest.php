@@ -30,40 +30,13 @@ function repositoryMember(Project $project, array $permissions = ['view_changese
     return $user;
 }
 
-/**
- * @param  array<int, string>  $commitMessages
- */
-function createTestGitRepo(array $commitMessages): string
-{
-    return createTestGitRepoWithCommitter('Test Committer', 'test@example.com', $commitMessages);
-}
-
-/**
- * @param  array<int, string>  $commitMessages
- */
-function createTestGitRepoWithCommitter(string $committerName, string $committerEmail, array $commitMessages): string
-{
-    $path = sys_get_temp_dir().'/scm-test-'.uniqid();
-    mkdir($path);
-
-    $run = fn (array $command) => Process::path($path)->timeout(10)->run($command)->throw();
-
-    $run(['git', 'init', '-q']);
-    $run(['git', 'config', 'user.email', $committerEmail]);
-    $run(['git', 'config', 'user.name', $committerName]);
-
-    foreach ($commitMessages as $i => $message) {
-        file_put_contents("{$path}/file{$i}.txt", "content {$i}\n");
-        $run(['git', 'add', '-A']);
-        $run(['git', 'commit', '-q', '-m', $message]);
-    }
-
-    return $path;
-}
-
 afterEach(function () {
-    Process::path(sys_get_temp_dir())->run(['find', '.', '-maxdepth', '1', '-name', 'scm-test-*', '-exec', 'rm', '-rf', '{}', ';']);
-    Process::path(config('scm.repositories_root'))->run(['find', '.', '-maxdepth', '1', '-name', 'allowed-*', '-exec', 'rm', '-rf', '{}', ';']);
+    // Scoped to this file's own "allowed-sync-*" prefix — a plain
+    // "allowed-*" wildcard would also catch RepositoryEncodingTest's
+    // "allowed-encoding-*" and SvnRepositorySyncTest's "allowed-svn-*"
+    // directories, and delete one mid-use when --parallel runs them
+    // in a different worker process at the same time.
+    Process::path(config('scm.repositories_root'))->run(['find', '.', '-maxdepth', '1', '-name', 'allowed-sync-*', '-exec', 'rm', '-rf', '{}', ';']);
 });
 
 test('syncing a repository records a changeset per commit, oldest first', function () {
@@ -502,7 +475,7 @@ test('only a member with manage_repository can configure the repository or trigg
     $project = Project::factory()->create();
     $viewer = repositoryMember($project);
     $manager = repositoryMember($project, ['view_changesets', 'manage_repository']);
-    $allowedPath = config('scm.repositories_root').'/allowed-'.uniqid();
+    $allowedPath = config('scm.repositories_root').'/allowed-sync-'.uniqid();
     mkdir($allowedPath);
     Process::path($allowedPath)->run(['git', 'init', '-q'])->throw();
 
