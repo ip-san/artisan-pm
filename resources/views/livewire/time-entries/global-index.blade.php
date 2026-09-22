@@ -372,35 +372,35 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-xl font-semibold text-gray-900">工数(全プロジェクト)</h1>
-            <p class="mt-1 text-sm text-gray-500">合計: {{ $this->totalHours }} 時間</p>
+            <h1 class="text-xl font-semibold text-neutral-900">工数(全プロジェクト)</h1>
+            <p class="mt-1 text-sm text-neutral-500">合計: {{ $this->totalHours }} 時間</p>
         </div>
     </div>
 
     {{-- Saved queries --}}
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
-        <span class="text-gray-500">保存済みクエリ:</span>
+        <span class="text-neutral-500">保存済みクエリ:</span>
         @forelse ($this->savedQueries as $savedQuery)
-            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50">
+            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
                 {{ $savedQuery->name }}
             </button>
         @empty
-            <span class="text-gray-400">なし</span>
+            <span class="text-neutral-400">なし</span>
         @endforelse
     </div>
 
     {{-- Filter builder --}}
-    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                 絞り込み適用
             </button>
 
-            <label class="flex items-center gap-2 text-sm text-gray-700">
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
                 グループ化:
-                <select wire:model.live="groupBy" class="rounded-md border-gray-300 text-sm">
+                <select wire:model.live="groupBy" class="rounded-md border-neutral-300 text-sm">
                     <option value="">なし</option>
                     <option value="project_id">プロジェクト</option>
                     <option value="user_id">担当者</option>
@@ -409,31 +409,31 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
             </label>
 
-            <div class="flex items-center gap-2 text-sm text-gray-700">
+            <div class="flex items-center gap-2 text-sm text-neutral-700">
                 表示列:
                 @foreach ($this->availableColumns as $key => $label)
                     <label class="flex items-center gap-1">
-                        <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-gray-300">
+                        <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-neutral-300">
                         {{ $label }}
                     </label>
                 @endforeach
             </div>
 
             @if ($this->canSaveQueries)
-                <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
+                <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">クエリを保存</button>
             @endif
 
-            <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-gray-300 text-xs">
+            <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-neutral-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
                 <option value="SJIS-win">Shift_JIS</option>
             </select>
-            <select wire:model="csvSeparator" title="区切り文字" class="rounded-md border-gray-300 text-xs">
+            <select wire:model="csvSeparator" title="区切り文字" class="rounded-md border-neutral-300 text-xs">
                 <option value=",">カンマ</option>
                 <option value=";">セミコロン</option>
                 <option value="{{ "\t" }}">タブ</option>
             </select>
-            <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">CSVエクスポート</button>
-            <a href="{{ route('time-entries.global-report') }}" class="text-sm text-indigo-600 hover:underline">レポート</a>
+            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">CSVエクスポート</button>
+            <a href="{{ route('time-entries.global-report') }}" class="text-sm text-brand-bold hover:underline">レポート</a>
         </div>
 
         @if ($showSaveForm)
@@ -447,18 +447,18 @@ new #[Layout('components.layouts.app')] class extends Component
     @foreach ($this->groupedTimeEntries as $groupLabel => $groupEntries)
         @php $groupKey = $groupLabel !== '' ? $groupLabel : '__ungrouped__'; @endphp
         @if ($groupBy !== null)
-            <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-gray-900">
+            <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-neutral-900">
                 {{ $groupLabel ?: '(未設定)' }} ({{ $this->groupSubtotals[$groupLabel]['count'] ?? $groupEntries->count() }}件 / {{ $this->groupSubtotals[$groupLabel]['hours'] ?? '0' }} 時間)
             </h2>
         @endif
 
-        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-gray-200 bg-white mb-4">
-            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-neutral-200 bg-white mb-4">
+            <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                     <tr>
                         @foreach ($columns as $columnKey)
                             <th wire:key="column-heading-{{ $columnKey }}" class="px-4 py-2">
-                                <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
+                                <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-neutral-900">
                                     {{ $this->availableColumns[$columnKey] ?? $columnKey }}
                                     @if ($sortKey === $columnKey)
                                         <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
@@ -469,14 +469,14 @@ new #[Layout('components.layouts.app')] class extends Component
                         <th class="px-4 py-2"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-neutral-100">
                     @forelse ($groupEntries as $entry)
                         <tr wire:key="time-entry-{{ $entry->id }}">
                             @foreach ($columns as $columnKey)
                                 <td wire:key="time-entry-{{ $entry->id }}-column-{{ $columnKey }}" class="px-4 py-2">
                                     @if ($columnKey === 'issue_id')
                                         @if ($entry->issue)
-                                            <a href="{{ route('issues.show', [$entry->project, $entry->issue]) }}" class="text-indigo-600 hover:underline">
+                                            <a href="{{ route('issues.show', [$entry->project, $entry->issue]) }}" class="text-brand-bold hover:underline">
                                                 #{{ $entry->issue->id }} {{ $entry->issue->subject }}
                                             </a>
                                         @else
@@ -489,16 +489,16 @@ new #[Layout('components.layouts.app')] class extends Component
                             @endforeach
                             <td class="px-4 py-2 whitespace-nowrap">
                                 @can('update', $entry)
-                                    <a href="{{ route('time-entries.edit', [$entry->project, $entry]) }}" class="text-indigo-600 hover:underline">編集</a>
+                                    <a href="{{ route('time-entries.edit', [$entry->project, $entry]) }}" class="text-brand-bold hover:underline">編集</a>
                                 @endcan
                                 @can('delete', $entry)
-                                    <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="この工数記録を削除しますか?" class="ml-2 text-red-600 hover:underline">削除</button>
+                                    <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="この工数記録を削除しますか?" class="ml-2 text-danger-bolder hover:underline">削除</button>
                                 @endcan
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ count($columns) + 1 }}" class="px-4 py-6 text-center text-gray-500">工数記録がありません。</td>
+                            <td colspan="{{ count($columns) + 1 }}" class="px-4 py-6 text-center text-neutral-500">工数記録がありません。</td>
                         </tr>
                     @endforelse
                 </tbody>

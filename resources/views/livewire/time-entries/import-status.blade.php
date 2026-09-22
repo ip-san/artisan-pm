@@ -29,16 +29,16 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-2xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">{{ $project->name }} — 工数CSVインポート状況</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — 工数CSVインポート状況</h1>
 
-    <div wire:poll.2s="refresh" class="rounded-md border border-gray-200 bg-white p-4">
-        <p class="text-sm text-gray-700 mb-2">{{ $import->original_filename }}</p>
+    <div wire:poll.2s="refresh" class="rounded-md border border-neutral-200 bg-white p-4">
+        <p class="text-sm text-neutral-700 mb-2">{{ $import->original_filename }}</p>
 
-        <div class="mb-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-            <div class="h-2 rounded-full bg-indigo-600" style="width: {{ $import->progressPercent() }}%"></div>
+        <div class="mb-2 h-2 w-full overflow-hidden rounded-full bg-neutral-200">
+            <div class="h-2 rounded-full bg-brand-bold" style="width: {{ $import->progressPercent() }}%"></div>
         </div>
 
-        <p class="text-sm text-gray-600">
+        <p class="text-sm text-neutral-600">
             @if ($import->status === ImportStatus::Pending)
                 実行を待機しています…
             @elseif ($import->status === ImportStatus::Processing)
@@ -52,8 +52,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($import->status->isFinished() && ! empty($import->errors))
             <div class="mt-4">
-                <h2 class="text-sm font-semibold text-gray-900 mb-2">エラー一覧</h2>
-                <ul class="max-h-64 space-y-1 overflow-y-auto text-xs text-red-600">
+                <h2 class="text-sm font-semibold text-neutral-900 mb-2">エラー一覧</h2>
+                <ul class="max-h-64 space-y-1 overflow-y-auto text-xs text-danger-bolder">
                     @foreach ($import->errors as $error)
                         <li>{{ $error['row'] }}行目: {{ $error['message'] }}</li>
                     @endforeach
@@ -62,7 +62,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         @if ($import->status->isFinished())
-            <a href="{{ route('time-entries.index', $project) }}" class="mt-4 inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <a href="{{ route('time-entries.index', $project) }}" class="mt-4 inline-block rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 工数一覧へ
             </a>
         @endif

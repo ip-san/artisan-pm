@@ -108,36 +108,36 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-2xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">
         {{ $document ? '文書を編集' : '新規文書' }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">タイトル</label>
-            <input type="text" wire:model="title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('title') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">タイトル</label>
+            <input type="text" wire:model="title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('title') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">カテゴリ</label>
-            <select wire:model="category_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">カテゴリ</label>
+            <select wire:model="category_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">なし</option>
                 @foreach ($this->categories as $category)
                     <option value="{{ $category->id }}">{{ $category->name }}</option>
                 @endforeach
             </select>
-            @error('category_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('category_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">説明</label>
-            <textarea wire:model="description" rows="6" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
-            @error('description') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">説明</label>
+            <textarea wire:model="description" rows="6" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
+            @error('description') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         @if ($this->customFields->isNotEmpty())
-            <div class="space-y-4 border-t border-gray-200 pt-4">
+            <div class="space-y-4 border-t border-neutral-200 pt-4">
                 @foreach ($this->customFields as $field)
                     <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" />
                 @endforeach
@@ -145,25 +145,25 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">添付ファイル</label>
-            <input type="file" wire:model="newAttachments" multiple class="mt-1 block w-full text-sm text-gray-700">
-            @error('newAttachments.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">添付ファイル</label>
+            <input type="file" wire:model="newAttachments" multiple class="mt-1 block w-full text-sm text-neutral-700">
+            @error('newAttachments.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
 
             @if ($document?->attachments()->isNotEmpty())
                 <ul class="mt-2 space-y-1">
                     @foreach ($document->attachments() as $media)
-                        <li class="text-sm text-gray-600">{{ $media->file_name }} ({{ $media->human_readable_size }})</li>
+                        <li class="text-sm text-neutral-600">{{ $media->file_name }} ({{ $media->human_readable_size }})</li>
                     @endforeach
                 </ul>
             @endif
         </div>
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
             <a href="{{ $document ? route('documents.show', [$project, $document]) : route('documents.index', $project) }}"
-                class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

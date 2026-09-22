@@ -40,25 +40,25 @@ new #[Layout('components.layouts.app')] class extends Component
 <div class="flex items-start gap-6">
 <div class="max-w-2xl flex-1">
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — Wiki(日付順)</h1>
-        <a href="{{ route('wiki.pages', $project) }}" class="text-sm text-indigo-600 hover:underline">
+        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — Wiki(日付順)</h1>
+        <a href="{{ route('wiki.pages', $project) }}" class="text-sm text-brand-bold hover:underline">
             タイトル順に戻る
         </a>
     </div>
 
     @forelse ($this->pagesByDate as $date => $pages)
-        <h2 class="mt-4 mb-1 text-sm font-semibold text-gray-900">{{ $date }}</h2>
-        <ul class="mb-2 divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
+        <h2 class="mt-4 mb-1 text-sm font-semibold text-neutral-900">{{ $date }}</h2>
+        <ul class="mb-2 divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
             @foreach ($pages as $page)
                 <li wire:key="wiki-date-{{ $page->id }}" class="px-4 py-2">
-                    <a href="{{ route('wiki.show', [$project, $page]) }}" class="text-indigo-600 hover:underline">
+                    <a href="{{ route('wiki.show', [$project, $page]) }}" class="text-brand-bold hover:underline">
                         {{ $page->title }}
                     </a>
                 </li>
             @endforeach
         </ul>
     @empty
-        <p class="px-4 py-6 text-center text-sm text-gray-500">Wikiページがありません。</p>
+        <p class="px-4 py-6 text-center text-sm text-neutral-500">Wikiページがありません。</p>
     @endforelse
 </div>
 

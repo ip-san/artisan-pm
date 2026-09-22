@@ -83,7 +83,7 @@ test('a diff is coloured by line kind', function () {
 
     $html = $this->actingAs($viewer)->get(route('attachments.preview', $diff))->assertOk()->getContent();
 
-    expect($html)->toContain('data-attachment-diff')->toContain('text-green-400">+new')->toContain('text-red-400">-old')->toContain('text-cyan-400">@@ -1 +1 @@');
+    expect($html)->toContain('data-attachment-diff')->toContain('text-success">+new')->toContain('text-danger-subtle">-old')->toContain('text-cyan-400">@@ -1 +1 @@');
 });
 
 test('a legacy-encoded text file is converted when an encoding is configured', function () {

@@ -246,12 +246,12 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-2xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">
         {{ $wikiPage ? "「{$wikiPage->title}」を編集" : '新規Wikiページ' }}
     </h1>
 
     @if ($sectionIndex !== null)
-        <p class="mb-4 rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-700">
+        <p class="mb-4 rounded-md bg-brand-subtlest px-3 py-2 text-sm text-brand-bolder">
             このセクションのみを編集しています。保存すると、このセクション以外の本文はそのまま維持されます。
         </p>
     @endif
@@ -259,58 +259,58 @@ new #[Layout('components.layouts.app')] class extends Component
     <form wire:submit="save" class="space-y-4" {!! \App\Support\Preferences\UserPreferences::unsavedWarningAttributes(auth()->user()) !!}>
         @if ($this->canRename)
             <div>
-                <label class="block text-sm font-medium text-gray-700">タイトル</label>
-                <input type="text" wire:model="title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('title') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="block text-sm font-medium text-neutral-700">タイトル</label>
+                <input type="text" wire:model="title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('title') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             @if ($wikiPage)
-                <label class="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" wire:model="redirectExistingLinks" class="rounded border-gray-300">
+                <label class="flex items-center gap-2 text-sm text-neutral-700">
+                    <input type="checkbox" wire:model="redirectExistingLinks" class="rounded border-neutral-300">
                     タイトルを変更した場合、旧タイトルへのリンクをリダイレクトする
                 </label>
             @endif
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">親ページ</label>
-                <select wire:model="parent_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <label class="block text-sm font-medium text-neutral-700">親ページ</label>
+                <select wire:model="parent_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">なし</option>
                     @foreach ($this->availableParents as $candidate)
                         <option value="{{ $candidate->id }}">{{ $candidate->title }}</option>
                     @endforeach
                 </select>
-                @error('parent_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('parent_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             @if ($wikiPage)
-                <label class="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" wire:model="is_start_page" @disabled($is_start_page) class="rounded border-gray-300">
+                <label class="flex items-center gap-2 text-sm text-neutral-700">
+                    <input type="checkbox" wire:model="is_start_page" @disabled($is_start_page) class="rounded border-neutral-300">
                     このページを開始ページに設定する
                 </label>
                 @if ($is_start_page)
-                    <p class="text-xs text-gray-500">既にこのプロジェクトの開始ページです。別のページを開始ページにするには、そのページの編集画面でこのチェックボックスを使ってください。</p>
+                    <p class="text-xs text-neutral-500">既にこのプロジェクトの開始ページです。別のページを開始ページにするには、そのページの編集画面でこのチェックボックスを使ってください。</p>
                 @endif
             @endif
         @else
-            <p class="text-sm text-gray-500">タイトル: {{ $title }}</p>
+            <p class="text-sm text-neutral-500">タイトル: {{ $title }}</p>
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">本文(Markdown)</label>
-            <textarea wire:model="text" rows="16" class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user(), 'font-mono') }} mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm"></textarea>
-            @error('text') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-            <p class="mt-1 text-xs text-gray-500">
+            <label class="block text-sm font-medium text-neutral-700">本文(Markdown)</label>
+            <textarea wire:model="text" rows="16" class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user(), 'font-mono') }} mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm"></textarea>
+            @error('text') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            <p class="mt-1 text-xs text-neutral-500">
                 「#123」で課題にリンク、「[[ページ名]]」または「[[ページ名|表示名]]」で他のWikiページにリンクできます。
             </p>
             <button type="button" wire:click="togglePreview"
-                class="mt-2 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                class="mt-2 rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">
                 {{ $showPreview ? 'プレビューを閉じる' : 'プレビュー' }}
             </button>
 
             @if ($showPreview)
-                <div class="prose prose-sm mt-2 max-w-none rounded-md border border-gray-200 bg-gray-50 p-4">
+                <div class="prose prose-sm mt-2 max-w-none rounded-md border border-neutral-200 bg-neutral-50 p-4">
                     @if (trim($text) === '')
-                        <p class="text-sm text-gray-400">(本文が空です)</p>
+                        <p class="text-sm text-neutral-400">(本文が空です)</p>
                     @else
                         {!! $this->previewHtml !!}
                     @endif
@@ -320,39 +320,39 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($wikiPage)
             <div>
-                <label class="block text-sm font-medium text-gray-700">コメント(任意)</label>
-                <input type="text" wire:model="comments" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <label class="block text-sm font-medium text-neutral-700">コメント(任意)</label>
+                <input type="text" wire:model="comments" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             </div>
         @endif
 
         @if ($this->canProtect)
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" wire:model="is_protected" class="rounded border-gray-300">
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" wire:model="is_protected" class="rounded border-neutral-300">
                 保護する(編集にはページ保護権限が必要になります)
             </label>
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">添付ファイル</label>
+            <label class="block text-sm font-medium text-neutral-700">添付ファイル</label>
             <input type="file" wire:model="newAttachments" multiple
-                class="mt-1 block w-full text-sm text-gray-700">
-            @error('newAttachments.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                class="mt-1 block w-full text-sm text-neutral-700">
+            @error('newAttachments.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
 
             @if ($wikiPage?->attachments()->isNotEmpty())
                 <ul class="mt-2 space-y-1">
                     @foreach ($wikiPage->attachments() as $media)
-                        <li class="text-sm text-gray-600">{{ $media->file_name }} ({{ $media->human_readable_size }})</li>
+                        <li class="text-sm text-neutral-600">{{ $media->file_name }} ({{ $media->human_readable_size }})</li>
                     @endforeach
                 </ul>
             @endif
         </div>
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
             <a href="{{ $wikiPage ? route('wiki.show', [$project, $wikiPage]) : route('wiki.pages', $project) }}"
-                class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

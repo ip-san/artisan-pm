@@ -233,17 +233,17 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-2xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">{{ $project->name }} — メンバー管理</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — メンバー管理</h1>
 
-    <form wire:submit="addMember" class="mb-8 space-y-3 rounded-md border border-gray-200 bg-white p-4">
+    <form wire:submit="addMember" class="mb-8 space-y-3 rounded-md border border-neutral-200 bg-white p-4">
         @unless ($editingMemberId)
             <div class="flex gap-4">
-                <label class="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="radio" wire:model.live="addType" value="user" class="border-gray-300">
+                <label class="flex items-center gap-2 text-sm text-neutral-700">
+                    <input type="radio" wire:model.live="addType" value="user" class="border-neutral-300">
                     ユーザー
                 </label>
-                <label class="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="radio" wire:model.live="addType" value="group" class="border-gray-300">
+                <label class="flex items-center gap-2 text-sm text-neutral-700">
+                    <input type="radio" wire:model.live="addType" value="group" class="border-neutral-300">
                     グループ
                 </label>
             </div>
@@ -251,77 +251,77 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($addType === 'group' && ! $editingMemberId)
             <div>
-                <label class="block text-sm font-medium text-gray-700">グループ</label>
-                <select wire:model="groupId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <label class="block text-sm font-medium text-neutral-700">グループ</label>
+                <select wire:model="groupId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">選択してください</option>
                     @foreach ($this->availableGroups as $group)
                         <option value="{{ $group->id }}">{{ $group->name }}</option>
                     @endforeach
                 </select>
-                @error('groupId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('groupId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         @elseif ($addType === 'group')
             <div>
-                <span class="block text-sm font-medium text-gray-700">グループ</span>
-                <p class="mt-1 text-sm text-gray-900">{{ $this->members->firstWhere('id', $editingMemberId)?->group?->name }}</p>
+                <span class="block text-sm font-medium text-neutral-700">グループ</span>
+                <p class="mt-1 text-sm text-neutral-900">{{ $this->members->firstWhere('id', $editingMemberId)?->group?->name }}</p>
             </div>
         @else
             <div class="relative">
-                <label class="block text-sm font-medium text-gray-700">ユーザー</label>
+                <label class="block text-sm font-medium text-neutral-700">ユーザー</label>
                 <input type="text" wire:model.live.debounce.300ms="userSearch" @disabled($editingMemberId !== null)
                     placeholder="名前またはメールアドレスで検索" autocomplete="off"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @if ($showUserDropdown)
-                    <ul class="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg">
+                    <ul class="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-white shadow-lg">
                         @forelse ($this->userCandidates as $candidate)
                             <li wire:key="user-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="selectUser({{ $candidate->id }})"
-                                    class="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
+                                    class="block w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50">
                                     {{ $candidate->name }} ({{ $candidate->email }})
                                 </button>
                             </li>
                         @empty
-                            <li class="px-3 py-2 text-sm text-gray-500">該当するユーザーがいません。</li>
+                            <li class="px-3 py-2 text-sm text-neutral-500">該当するユーザーがいません。</li>
                         @endforelse
                     </ul>
                 @endif
-                @error('selectedUserId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('selectedUserId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         @endif
 
         <div>
-            <span class="block text-sm font-medium text-gray-700 mb-1">ロール</span>
+            <span class="block text-sm font-medium text-neutral-700 mb-1">ロール</span>
             <div class="flex flex-wrap gap-3">
                 @foreach ($this->roles as $role)
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" wire:model="roleIds" value="{{ $role->id }}" class="rounded border-gray-300">
+                    <label class="flex items-center gap-2 text-sm text-neutral-700">
+                        <input type="checkbox" wire:model="roleIds" value="{{ $role->id }}" class="rounded border-neutral-300">
                         {{ $role->name }}
                     </label>
                 @endforeach
             </div>
-            @error('roleIds') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('roleIds') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div class="flex gap-2">
-            <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                 {{ $editingMemberId ? 'ロールを更新' : 'メンバーを追加' }}
             </button>
             @if ($editingMemberId)
-                <button type="button" wire:click="cancelEdit" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <button type="button" wire:click="cancelEdit" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     キャンセル
                 </button>
             @endif
         </div>
     </form>
 
-    <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
         @forelse ($this->members as $member)
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
                     @unless ($member->isForGroup())
                         <x-avatar :user="$member->user" :size="24" class="mr-2" />
                     @endunless
-                    <span class="font-medium text-gray-900">
+                    <span class="font-medium text-neutral-900">
                         @if ($member->isForGroup())
                             {{ $member->group->name }}(グループ)
                         @elseif ($member->user->isVisibleTo(auth()->user()))
@@ -330,22 +330,22 @@ new #[Layout('components.layouts.app')] class extends Component
                             {{ $member->user->displayName() }}
                         @endif
                     </span>
-                    <span class="ml-2 text-xs text-gray-500">
+                    <span class="ml-2 text-xs text-neutral-500">
                         {{ $member->roles->pluck('name')->join(', ') }}
                     </span>
                 </div>
                 <div class="flex gap-3">
-                    <button wire:click="editMember({{ $member->id }})" class="text-sm text-indigo-600 hover:underline">
+                    <button wire:click="editMember({{ $member->id }})" class="text-sm text-brand-bold hover:underline">
                         編集
                     </button>
                     <button wire:click="removeMember({{ $member->id }})" wire:confirm="このメンバーを削除しますか?"
-                        class="text-sm text-red-600 hover:underline">
+                        class="text-sm text-danger-bolder hover:underline">
                         削除
                     </button>
                 </div>
             </li>
         @empty
-            <li class="px-4 py-6 text-sm text-gray-500">メンバーがいません。</li>
+            <li class="px-4 py-6 text-sm text-neutral-500">メンバーがいません。</li>
         @endforelse
     </ul>
 </div>

@@ -63,30 +63,30 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6">
-        <p class="text-sm text-gray-500">
-            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+        <p class="text-sm text-neutral-500">
+            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
             /
-            <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $this->path])) }}" class="text-indigo-600 hover:underline">
+            <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $this->path])) }}" class="text-brand-bold hover:underline">
                 {{ $this->path }}
             </a>
         </p>
-        <h1 class="text-xl font-semibold text-gray-900 font-mono">注釈: {{ $this->path }}</h1>
+        <h1 class="text-xl font-semibold text-neutral-900 font-mono">注釈: {{ $this->path }}</h1>
     </div>
 
     @if ($this->lines === [])
-        <p class="text-sm text-gray-500">注釈を表示できません(バイナリファイル、または空のファイルの可能性があります)。</p>
+        <p class="text-sm text-neutral-500">注釈を表示できません(バイナリファイル、または空のファイルの可能性があります)。</p>
     @else
-        <div class="overflow-x-auto rounded-md border border-gray-200">
+        <div class="overflow-x-auto rounded-md border border-neutral-200">
             <table class="w-full text-xs">
                 <tbody>
                     @foreach ($this->lines as $index => $line)
                         @php $block = $this->blocks[$index]; @endphp
                         <tr id="L{{ $index + 1 }}" wire:key="blame-line-{{ $index }}"
-                            class="{{ $this::BLOCK_COLORS[$block['colorIndex']] }} {{ $block['isChange'] ? 'border-t border-gray-300' : '' }}">
-                            <td class="whitespace-nowrap px-2 py-0.5 text-right text-gray-400 select-none">{{ $index + 1 }}</td>
-                            <td class="whitespace-nowrap px-2 py-0.5 font-mono text-gray-500">{{ $block['showMeta'] ? substr($line->revision, 0, 8) : '' }}</td>
-                            <td class="whitespace-nowrap px-2 py-0.5 text-gray-600">{{ $block['showMeta'] ? $line->author : '' }}</td>
-                            <td class="px-2 py-0.5 font-mono text-gray-900"><pre class="whitespace-pre-wrap">{{ $line->content }}</pre></td>
+                            class="{{ $this::BLOCK_COLORS[$block['colorIndex']] }} {{ $block['isChange'] ? 'border-t border-neutral-300' : '' }}">
+                            <td class="whitespace-nowrap px-2 py-0.5 text-right text-neutral-400 select-none">{{ $index + 1 }}</td>
+                            <td class="whitespace-nowrap px-2 py-0.5 font-mono text-neutral-500">{{ $block['showMeta'] ? substr($line->revision, 0, 8) : '' }}</td>
+                            <td class="whitespace-nowrap px-2 py-0.5 text-neutral-600">{{ $block['showMeta'] ? $line->author : '' }}</td>
+                            <td class="px-2 py-0.5 font-mono text-neutral-900"><pre class="whitespace-pre-wrap">{{ $line->content }}</pre></td>
                         </tr>
                     @endforeach
                 </tbody>

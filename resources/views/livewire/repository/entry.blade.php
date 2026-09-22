@@ -66,28 +66,28 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6">
-        <p class="text-sm text-gray-500">
-            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+        <p class="text-sm text-neutral-500">
+            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
             /
-            <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $this->directoryPath])) }}" class="text-indigo-600 hover:underline">
+            <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $this->directoryPath])) }}" class="text-brand-bold hover:underline">
                 ファイル一覧
             </a>
         </p>
         <div class="flex items-center justify-between">
-            <h1 class="text-xl font-semibold text-gray-900 font-mono">{{ $path }}</h1>
+            <h1 class="text-xl font-semibold text-neutral-900 font-mono">{{ $path }}</h1>
             <div class="flex gap-2">
                 @unless ($this->isBinary)
                     <a href="{{ route($repository->routeName('repository.annotate'), $repository->routeParameters(['path' => $path])) }}"
-                        class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                         注釈
                     </a>
                 @endunless
                 <a href="{{ route($repository->routeName('repository.file-history'), $repository->routeParameters(['path' => $path])) }}"
-                    class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     履歴
                 </a>
                 <a href="{{ route($repository->routeName('repository.raw'), $repository->routeParameters(['path' => $path])) }}"
-                    class="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     ダウンロード
                 </a>
             </div>
@@ -95,10 +95,10 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($this->isBinary)
-        <p class="text-sm text-gray-500">バイナリファイルは表示できません。上の「ダウンロード」から取得してください。</p>
+        <p class="text-sm text-neutral-500">バイナリファイルは表示できません。上の「ダウンロード」から取得してください。</p>
     @elseif ($this->tooLargeToDisplay)
-        <p class="text-sm text-gray-500">ファイルが大きいため({{ number_format(\App\Support\Scm\DisplayLimits::maxFileSizeKb()) }}KBを超えています)表示できません。上の「ダウンロード」から取得してください。</p>
+        <p class="text-sm text-neutral-500">ファイルが大きいため({{ number_format(\App\Support\Scm\DisplayLimits::maxFileSizeKb()) }}KBを超えています)表示できません。上の「ダウンロード」から取得してください。</p>
     @else
-        <pre class="overflow-x-auto rounded-md border border-gray-200 bg-gray-900 p-4 text-xs text-gray-100">{{ $this->content }}</pre>
+        <pre class="overflow-x-auto rounded-md border border-neutral-200 bg-neutral-900 p-4 text-xs text-neutral-100">{{ $this->content }}</pre>
     @endif
 </div>

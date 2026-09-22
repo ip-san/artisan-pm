@@ -75,42 +75,42 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-3xl">
-    <p class="mb-2 text-sm text-gray-500">
-        <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+    <p class="mb-2 text-sm text-neutral-500">
+        <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
     </p>
 
-    <h1 class="mb-6 text-xl font-semibold text-gray-900">{{ $project->name }} — リポジトリ統計</h1>
+    <h1 class="mb-6 text-xl font-semibold text-neutral-900">{{ $project->name }} — リポジトリ統計</h1>
 
-    <div class="mb-8 rounded-md border border-gray-200 bg-white p-4">
-        <h2 class="mb-3 text-sm font-semibold text-gray-900">コミット数(合計 {{ $this->changesets->count() }} 件)</h2>
+    <div class="mb-8 rounded-md border border-neutral-200 bg-white p-4">
+        <h2 class="mb-3 text-sm font-semibold text-neutral-900">コミット数(合計 {{ $this->changesets->count() }} 件)</h2>
 
         @if ($this->changesets->isEmpty())
-            <p class="text-sm text-gray-500">コミットがありません。</p>
+            <p class="text-sm text-neutral-500">コミットがありません。</p>
         @else
-            <h3 class="mb-2 text-xs font-medium text-gray-500">作成者別</h3>
+            <h3 class="mb-2 text-xs font-medium text-neutral-500">作成者別</h3>
             <div class="mb-6 space-y-2">
                 @php $maxAuthorCount = $this->commitsByAuthor->max(); @endphp
                 @foreach ($this->commitsByAuthor as $committer => $count)
                     <div wire:key="author-{{ $committer }}" class="flex items-center gap-2 text-sm">
-                        <span class="w-40 shrink-0 truncate text-gray-700" title="{{ $committer }}">{{ $committer }}</span>
-                        <div class="h-3 flex-1 overflow-hidden rounded bg-gray-100">
-                            <div class="h-full bg-indigo-600" style="width: {{ $maxAuthorCount > 0 ? ($count / $maxAuthorCount) * 100 : 0 }}%"></div>
+                        <span class="w-40 shrink-0 truncate text-neutral-700" title="{{ $committer }}">{{ $committer }}</span>
+                        <div class="h-3 flex-1 overflow-hidden rounded bg-neutral-100">
+                            <div class="h-full bg-brand-bold" style="width: {{ $maxAuthorCount > 0 ? ($count / $maxAuthorCount) * 100 : 0 }}%"></div>
                         </div>
-                        <span class="w-10 shrink-0 text-right text-gray-500">{{ $count }}</span>
+                        <span class="w-10 shrink-0 text-right text-neutral-500">{{ $count }}</span>
                     </div>
                 @endforeach
             </div>
 
-            <h3 class="mb-2 text-xs font-medium text-gray-500">月別</h3>
+            <h3 class="mb-2 text-xs font-medium text-neutral-500">月別</h3>
             <div class="space-y-2">
                 @php $maxMonthCount = $this->commitsByMonth->max(); @endphp
                 @foreach ($this->commitsByMonth as $month => $count)
                     <div wire:key="month-{{ $month }}" class="flex items-center gap-2 text-sm">
-                        <span class="w-40 shrink-0 text-gray-700">{{ $month }}</span>
-                        <div class="h-3 flex-1 overflow-hidden rounded bg-gray-100">
-                            <div class="h-full bg-indigo-600" style="width: {{ $maxMonthCount > 0 ? ($count / $maxMonthCount) * 100 : 0 }}%"></div>
+                        <span class="w-40 shrink-0 text-neutral-700">{{ $month }}</span>
+                        <div class="h-3 flex-1 overflow-hidden rounded bg-neutral-100">
+                            <div class="h-full bg-brand-bold" style="width: {{ $maxMonthCount > 0 ? ($count / $maxMonthCount) * 100 : 0 }}%"></div>
                         </div>
-                        <span class="w-10 shrink-0 text-right text-gray-500">{{ $count }}</span>
+                        <span class="w-10 shrink-0 text-right text-neutral-500">{{ $count }}</span>
                     </div>
                 @endforeach
             </div>

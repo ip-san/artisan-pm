@@ -274,35 +274,35 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">マイページ</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">マイページ</h1>
 
     <ul wire:sort="reorder" class="space-y-4">
         @foreach ($this->activeBlocks as $block)
             <li wire:key="block-{{ $block->id }}" wire:sort:item="{{ $block->id }}"
-                class="cursor-move rounded-md border border-gray-200 bg-white">
-                <div class="flex items-center justify-between border-b border-gray-100 px-4 py-2">
-                    <span class="text-sm font-semibold text-gray-900">{{ $this->blockLabel($block->block_key) }}</span>
+                class="cursor-move rounded-md border border-neutral-200 bg-white">
+                <div class="flex items-center justify-between border-b border-neutral-100 px-4 py-2">
+                    <span class="text-sm font-semibold text-neutral-900">{{ $this->blockLabel($block->block_key) }}</span>
                     <div wire:sort:ignore class="flex items-center gap-3">
                         @if ($this->settingFieldsFor($block->block_key) !== [])
-                            <button wire:click="openSettings({{ $block->id }})" data-block-settings class="text-xs text-gray-600 hover:underline">
+                            <button wire:click="openSettings({{ $block->id }})" data-block-settings class="text-xs text-neutral-600 hover:underline">
                                 設定
                             </button>
                         @endif
-                        <button wire:click="removeBlock({{ $block->id }})" class="text-xs text-red-600 hover:underline">
+                        <button wire:click="removeBlock({{ $block->id }})" class="text-xs text-danger-bolder hover:underline">
                             削除
                         </button>
                     </div>
                 </div>
                 @if ($settingsBlockId === $block->id)
-                    <form wire:submit="saveSettings" wire:sort:ignore data-block-settings-form class="space-y-3 border-b border-gray-100 bg-gray-50 px-4 py-3">
+                    <form wire:submit="saveSettings" wire:sort:ignore data-block-settings-form class="space-y-3 border-b border-neutral-100 bg-neutral-50 px-4 py-3">
                         @foreach ($this->settingFieldsFor($block->block_key) as $name => $field)
                             <div wire:key="setting-{{ $block->id }}-{{ $name }}">
-                                <span class="block text-xs font-medium text-gray-700">{{ $field['label'] }}</span>
+                                <span class="block text-xs font-medium text-neutral-700">{{ $field['label'] }}</span>
                                 @if ($field['type'] === 'number')
                                     <input type="number" min="1" wire:model="settingsForm.{{ $name }}" placeholder="{{ $field['placeholder'] ?? '' }}"
-                                        class="mt-1 w-32 rounded-md border-gray-300 text-sm">
+                                        class="mt-1 w-32 rounded-md border-neutral-300 text-sm">
                                 @elseif ($field['type'] === 'select')
-                                    <select wire:model="settingsForm.{{ $name }}" class="mt-1 rounded-md border-gray-300 text-sm">
+                                    <select wire:model="settingsForm.{{ $name }}" class="mt-1 rounded-md border-neutral-300 text-sm">
                                         <option value=""></option>
                                         @foreach ($field['options'] as $value => $label)
                                             <option value="{{ $value }}">{{ $label }}</option>
@@ -311,8 +311,8 @@ new #[Layout('components.layouts.app')] class extends Component
                                 @else
                                     <div class="mt-1 flex flex-wrap gap-3">
                                         @foreach ($field['options'] as $value => $label)
-                                            <label class="flex items-center gap-1 text-xs text-gray-700">
-                                                <input type="checkbox" wire:model="settingsForm.{{ $name }}" value="{{ $value }}" class="rounded border-gray-300">
+                                            <label class="flex items-center gap-1 text-xs text-neutral-700">
+                                                <input type="checkbox" wire:model="settingsForm.{{ $name }}" value="{{ $value }}" class="rounded border-neutral-300">
                                                 {{ $label }}
                                             </label>
                                         @endforeach
@@ -321,21 +321,21 @@ new #[Layout('components.layouts.app')] class extends Component
                             </div>
                         @endforeach
                         <div class="flex gap-3">
-                            <button type="submit" class="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500">保存</button>
-                            <button type="button" wire:click="closeSettings" class="text-xs text-gray-600 hover:underline">キャンセル</button>
+                            <button type="submit" class="rounded-md bg-brand-bold px-3 py-1 text-xs font-medium text-white hover:bg-brand">保存</button>
+                            <button type="button" wire:click="closeSettings" class="text-xs text-neutral-600 hover:underline">キャンセル</button>
                         </div>
                     </form>
                 @endif
-                <ul class="divide-y divide-gray-100">
+                <ul class="divide-y divide-neutral-100">
                     @forelse ($this->blockRows($block->block_key, $block->settings ?? []) as $row)
                         <li class="px-4 py-2 text-sm">
-                            <a href="{{ $row->url }}" class="text-indigo-600 hover:underline">{{ $row->title }}</a>
+                            <a href="{{ $row->url }}" class="text-brand-bold hover:underline">{{ $row->title }}</a>
                             @if ($row->meta)
-                                <span class="text-gray-400">— {{ $row->meta }}</span>
+                                <span class="text-neutral-400">— {{ $row->meta }}</span>
                             @endif
                         </li>
                     @empty
-                        <li class="px-4 py-3 text-center text-sm text-gray-500">項目がありません。</li>
+                        <li class="px-4 py-3 text-center text-sm text-neutral-500">項目がありません。</li>
                     @endforelse
                 </ul>
             </li>
@@ -344,18 +344,18 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($this->availableBlocks->isNotEmpty() || $this->availableSavedQueries->isNotEmpty())
         <div class="mt-6">
-            <p class="mb-2 text-sm font-medium text-gray-700">ブロックを追加:</p>
+            <p class="mb-2 text-sm font-medium text-neutral-700">ブロックを追加:</p>
             <div class="flex flex-wrap gap-2">
                 @foreach ($this->availableBlocks as $block)
                     <button wire:click="addBlock('{{ $block->key() }}')"
-                        class="rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                        class="rounded-full border border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-50">
                         + {{ $block->label() }}
                     </button>
                 @endforeach
                 @foreach ($this->availableSavedQueries as $savedQuery)
                     <button wire:key="add-query-block-{{ $savedQuery->id }}"
                         wire:click="addBlock('{{ \App\Support\Dashboard\SavedIssueQueryBlock::keyFor($savedQuery) }}')"
-                        class="rounded-full border border-indigo-200 px-3 py-1 text-xs text-indigo-600 hover:bg-indigo-50">
+                        class="rounded-full border border-brand-subtle px-3 py-1 text-xs text-brand-bold hover:bg-brand-subtlest">
                         + クエリ: {{ $savedQuery->name }}
                     </button>
                 @endforeach

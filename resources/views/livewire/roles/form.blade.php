@@ -180,96 +180,96 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">
         {{ $role ? 'ロールを編集' : '新規ロール' }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">名前</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">課題の閲覧範囲</label>
-            <select wire:model="issuesVisibility" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">課題の閲覧範囲</label>
+            <select wire:model="issuesVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="all">すべての課題</option>
                 <option value="default">デフォルト</option>
                 <option value="own">自分が作成または担当する課題のみ</option>
             </select>
-            @error('issuesVisibility') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('issuesVisibility') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">工数の閲覧範囲</label>
-            <select wire:model="timeEntriesVisibility" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">工数の閲覧範囲</label>
+            <select wire:model="timeEntriesVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="all">すべての工数</option>
                 <option value="default">デフォルト</option>
                 <option value="own">自分の工数のみ</option>
             </select>
-            @error('timeEntriesVisibility') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('timeEntriesVisibility') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">ユーザーの閲覧範囲</label>
-            <select wire:model="usersVisibility" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">ユーザーの閲覧範囲</label>
+            <select wire:model="usersVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="all">すべてのアクティブなユーザー</option>
                 <option value="members_of_visible_projects">閲覧可能なプロジェクトのメンバーのみ</option>
             </select>
-            @error('usersVisibility') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-            <p class="mt-1 text-xs text-gray-500">
+            @error('usersVisibility') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            <p class="mt-1 text-xs text-neutral-500">
                 このロールを持つメンバーが、プロジェクトメンバー追加時のユーザー検索でどこまでの範囲のユーザーを検索できるかを制限します。
             </p>
         </div>
 
         @if ($role?->builtin !== \App\Enums\RoleBuiltin::Anonymous)
             <div>
-                <label class="block text-sm font-medium text-gray-700">既定の作業分類</label>
-                <select wire:model="defaultTimeEntryActivityId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <label class="block text-sm font-medium text-neutral-700">既定の作業分類</label>
+                <select wire:model="defaultTimeEntryActivityId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">なし</option>
                     @foreach ($this->sharedActivities as $activity)
                         <option value="{{ $activity->id }}">{{ $activity->name }}</option>
                     @endforeach
                 </select>
-                @error('defaultTimeEntryActivityId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                <p class="mt-1 text-xs text-gray-500">
+                @error('defaultTimeEntryActivityId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-neutral-500">
                     このロールを持つメンバーが工数を記録するとき、作業分類の初期値になります。
                 </p>
             </div>
         @endif
 
-        <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" wire:model="assignable" class="rounded border-gray-300">
+        <label class="flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" wire:model="assignable" class="rounded border-neutral-300">
             このロールを持つメンバーを課題の担当者として選択可能にする
         </label>
 
-        <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" wire:model.live="allRolesManaged" class="rounded border-gray-300">
+        <label class="flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" wire:model.live="allRolesManaged" class="rounded border-neutral-300">
             このロールを持つメンバーはプロジェクトメンバーのすべてのロールを管理できる
         </label>
 
         @unless ($allRolesManaged)
             <div>
-                <span class="block text-sm font-medium text-gray-700 mb-2">管理可能ロール(メンバー管理画面で割当/削除できるロール)</span>
+                <span class="block text-sm font-medium text-neutral-700 mb-2">管理可能ロール(メンバー管理画面で割当/削除できるロール)</span>
                 <div class="grid grid-cols-2 gap-2">
                     @foreach ($this->otherGivableRoles as $candidate)
-                        <label class="flex items-center gap-2 text-sm text-gray-700">
-                            <input type="checkbox" wire:model="managedRoleIds" value="{{ $candidate->id }}" class="rounded border-gray-300">
+                        <label class="flex items-center gap-2 text-sm text-neutral-700">
+                            <input type="checkbox" wire:model="managedRoleIds" value="{{ $candidate->id }}" class="rounded border-neutral-300">
                             {{ $candidate->name }}
                         </label>
                     @endforeach
                 </div>
-                @error('managedRoleIds') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('managedRoleIds') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         @endunless
 
         <div>
-            <span class="block text-sm font-medium text-gray-700 mb-2">権限</span>
+            <span class="block text-sm font-medium text-neutral-700 mb-2">権限</span>
             <div class="grid grid-cols-2 gap-2">
                 @foreach ($this->availablePermissions as $permission)
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" wire:model="permissions" value="{{ $permission }}" class="rounded border-gray-300">
+                    <label class="flex items-center gap-2 text-sm text-neutral-700">
+                        <input type="checkbox" wire:model="permissions" value="{{ $permission }}" class="rounded border-neutral-300">
                         {{ $permission }}
                     </label>
                 @endforeach
@@ -277,10 +277,10 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
-            <a href="{{ route('roles.index') }}" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <a href="{{ route('roles.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

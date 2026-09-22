@@ -128,7 +128,7 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">{{ $project->name }} — 課題レポート</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — 課題レポート</h1>
 
     @php
         $sections = [
@@ -147,38 +147,38 @@ new #[Layout('components.layouts.app')] class extends Component
         @foreach ($sections as $section)
             @php $grid = $section['grid']; @endphp
             <div class="overflow-x-auto">
-                <h2 class="mb-2 text-sm font-semibold text-gray-900">
+                <h2 class="mb-2 text-sm font-semibold text-neutral-900">
                     {{ $section['title'] }}
-                    <a href="{{ route('issues.report-details', [$project, $detailKeys[$section['column']]]) }}" class="ml-2 text-xs font-normal text-indigo-600 hover:underline">詳細</a>
+                    <a href="{{ route('issues.report-details', [$project, $detailKeys[$section['column']]]) }}" class="ml-2 text-xs font-normal text-brand-bold hover:underline">詳細</a>
                 </h2>
-                <table class="min-w-full border border-gray-200 bg-white text-sm">
+                <table class="min-w-full border border-neutral-200 bg-white text-sm">
                     <thead>
-                        <tr class="border-b border-gray-200 bg-gray-50">
-                            <th class="px-3 py-2 text-left font-medium text-gray-700"></th>
+                        <tr class="border-b border-neutral-200 bg-neutral-50">
+                            <th class="px-3 py-2 text-left font-medium text-neutral-700"></th>
                             @foreach ($this->statuses as $status)
-                                <th class="px-3 py-2 text-right font-medium text-gray-700">{{ $status->name }}</th>
+                                <th class="px-3 py-2 text-right font-medium text-neutral-700">{{ $status->name }}</th>
                             @endforeach
-                            <th class="px-3 py-2 text-right font-semibold text-gray-900">合計</th>
+                            <th class="px-3 py-2 text-right font-semibold text-neutral-900">合計</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($grid['rows'] as $row)
                             @php $rowTotal = array_sum($grid['counts'][$row['key']] ?? []); @endphp
-                            <tr class="border-b border-gray-100">
-                                <td class="px-3 py-2 text-gray-900">{{ $row['label'] }}</td>
+                            <tr class="border-b border-neutral-100">
+                                <td class="px-3 py-2 text-neutral-900">{{ $row['label'] }}</td>
                                 @foreach ($this->statuses as $status)
                                     @php $count = $grid['counts'][$row['key']][$status->id] ?? 0; @endphp
-                                    <td class="px-3 py-2 text-right text-gray-700">
+                                    <td class="px-3 py-2 text-right text-neutral-700">
                                         @if ($count > 0)
-                                            <a href="{{ $this->cellUrl($section['column'], $row['key'], $status->id) }}" class="text-indigo-600 hover:underline">{{ $count }}</a>
+                                            <a href="{{ $this->cellUrl($section['column'], $row['key'], $status->id) }}" class="text-brand-bold hover:underline">{{ $count }}</a>
                                         @else
                                             {{ $count }}
                                         @endif
                                     </td>
                                 @endforeach
-                                <td class="px-3 py-2 text-right font-semibold text-gray-900">
+                                <td class="px-3 py-2 text-right font-semibold text-neutral-900">
                                     @if ($rowTotal > 0)
-                                        <a href="{{ $this->cellUrl($section['column'], $row['key'], null) }}" class="text-indigo-600 hover:underline">{{ $rowTotal }}</a>
+                                        <a href="{{ $this->cellUrl($section['column'], $row['key'], null) }}" class="text-brand-bold hover:underline">{{ $rowTotal }}</a>
                                     @else
                                         {{ $rowTotal }}
                                     @endif
@@ -186,7 +186,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ $this->statuses->count() + 2 }}" class="px-3 py-4 text-center text-gray-500">
+                                <td colspan="{{ $this->statuses->count() + 2 }}" class="px-3 py-4 text-center text-neutral-500">
                                     データがありません。
                                 </td>
                             </tr>

@@ -88,33 +88,33 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="mb-6 text-xl font-semibold text-gray-900">{{ $pluginName }} の設定</h1>
+    <h1 class="mb-6 text-xl font-semibold text-neutral-900">{{ $pluginName }} の設定</h1>
 
     @if (session('status'))
-        <div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>
+        <div class="mb-4 rounded-md bg-success-subtlest p-3 text-sm text-success-bold">{{ session('status') }}</div>
     @endif
 
-    <form wire:submit="save" class="max-w-lg space-y-4 rounded-md border border-gray-200 bg-white p-4">
+    <form wire:submit="save" class="max-w-lg space-y-4 rounded-md border border-neutral-200 bg-white p-4">
         @if ($this->settingsView)
             @include($this->settingsView, ['values' => $values, 'pluginId' => $pluginId])
         @else
             @foreach ($values as $key => $value)
                 <div>
                     @if (is_bool($value))
-                        <label class="flex items-center gap-2 text-sm text-gray-700">
-                            <input type="checkbox" wire:model="values.{{ $key }}" class="rounded border-gray-300">
+                        <label class="flex items-center gap-2 text-sm text-neutral-700">
+                            <input type="checkbox" wire:model="values.{{ $key }}" class="rounded border-neutral-300">
                             {{ $key }}
                         </label>
                     @else
-                        <label class="block text-sm font-medium text-gray-700">{{ $key }}</label>
+                        <label class="block text-sm font-medium text-neutral-700">{{ $key }}</label>
                         <input type="text" wire:model="values.{{ $key }}"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                            class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @endif
                 </div>
             @endforeach
         @endif
 
-        <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+        <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
             保存
         </button>
     </form>

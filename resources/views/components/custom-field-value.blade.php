@@ -11,7 +11,7 @@
 @if ($value === null || $value === '')
     -
 @elseif ($field->field_format === \App\Enums\CustomFieldFormat::Link && ! $field->multiple)
-    <a href="{{ \App\CustomFields\Formats\LinkFormat::href($value) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">{{ $value }}</a>
+    <a href="{{ \App\CustomFields\Formats\LinkFormat::href($value) }}" target="_blank" rel="noopener noreferrer" class="text-brand-bold hover:underline">{{ $value }}</a>
 @else
     {{ $value }}
 @endif

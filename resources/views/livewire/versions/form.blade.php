@@ -135,67 +135,67 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">
         {{ $version ? 'バージョンを編集' : '新規バージョン' }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">名前</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">説明</label>
-            <textarea wire:model="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+            <label class="block text-sm font-medium text-neutral-700">説明</label>
+            <textarea wire:model="description" rows="3" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">ステータス</label>
-            <select wire:model="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">ステータス</label>
+            <select wire:model="status" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="open">オープン</option>
                 <option value="locked">ロック中</option>
                 <option value="closed">クローズ</option>
             </select>
-            @error('status') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('status') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">共有</label>
-            <select wire:model="sharing" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">共有</label>
+            <select wire:model="sharing" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @foreach ($this->allowedSharings as $option)
                     <option value="{{ $option->value }}">{{ $option->label() }}</option>
                 @endforeach
             </select>
-            <p class="mt-1 text-xs text-gray-500">このバージョンを他のプロジェクトの課題にも割り当て可能にする範囲を指定します。</p>
-            @error('sharing') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <p class="mt-1 text-xs text-neutral-500">このバージョンを他のプロジェクトの課題にも割り当て可能にする範囲を指定します。</p>
+            @error('sharing') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">期日</label>
-            <input type="date" wire:model="due_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('due_date') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">期日</label>
+            <input type="date" wire:model="due_date" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('due_date') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
-        <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" wire:model="defaultProjectVersion" class="rounded border-gray-300">
+        <label class="flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" wire:model="defaultProjectVersion" class="rounded border-neutral-300">
             このバージョンをプロジェクトの既定の対象バージョンにする
         </label>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">関連Wikiページ</label>
-            <select wire:model="wiki_page_title" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">関連Wikiページ</label>
+            <select wire:model="wiki_page_title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">なし</option>
                 @foreach ($this->wikiPages as $page)
                     <option value="{{ $page->title }}">{{ $page->title }}</option>
                 @endforeach
             </select>
-            @error('wiki_page_title') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('wiki_page_title') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         @if ($this->customFields->isNotEmpty())
-            <div class="space-y-4 border-t border-gray-200 pt-4">
+            <div class="space-y-4 border-t border-neutral-200 pt-4">
                 @foreach ($this->customFields as $field)
                     <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" />
                 @endforeach
@@ -203,10 +203,10 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
-            <a href="{{ route('versions.index', $project) }}" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <a href="{{ route('versions.index', $project) }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

@@ -13,10 +13,10 @@
 @if ($count > 1 || auth()->user()?->can('update', $container))
     <span {{ $attributes->merge(['class' => 'ml-3 text-xs font-normal']) }} data-attachment-bulk-links>
         @if ($count > 1)
-            <a href="{{ route('attachments.download-all', [$alias, $container->getKey()]) }}" class="text-indigo-600 hover:underline">すべてダウンロード</a>
+            <a href="{{ route('attachments.download-all', [$alias, $container->getKey()]) }}" class="text-brand-bold hover:underline">すべてダウンロード</a>
         @endif
         @can('update', $container)
-            <a href="{{ route('attachments.edit-all', [$alias, $container->getKey()]) }}" class="ml-2 text-indigo-600 hover:underline">まとめて編集</a>
+            <a href="{{ route('attachments.edit-all', [$alias, $container->getKey()]) }}" class="ml-2 text-brand-bold hover:underline">まとめて編集</a>
         @endcan
     </span>
 @endif

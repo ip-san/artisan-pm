@@ -71,48 +71,48 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-gray-900">ステータス管理</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">ステータス管理</h1>
         <div class="flex gap-2">
             @if ($this->usesStatusForDoneRatio)
                 <button wire:click="updateIssueDoneRatios"
                     wire:confirm="既存の全課題の進捗率を、現在のステータスの既定値で上書きします。よろしいですか?"
-                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     既存課題の進捗率を一括更新
                 </button>
             @endif
             <a href="{{ route('issue-statuses.create') }}"
-                class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                 新規ステータス
             </a>
         </div>
     </div>
 
     @if (session('status'))
-        <div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>
+        <div class="mb-4 rounded-md bg-success-subtlest p-3 text-sm text-success-bold">{{ session('status') }}</div>
     @endif
 
     @if (session('error'))
-        <div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{{ session('error') }}</div>
+        <div class="mb-4 rounded-md bg-danger-subtlest p-3 text-sm text-danger-bolder">{{ session('error') }}</div>
     @endif
 
-    <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
         @forelse ($this->statuses as $status)
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
-                    <span class="font-medium text-gray-900">{{ $status->name }}</span>
+                    <span class="font-medium text-neutral-900">{{ $status->name }}</span>
                     @if ($status->is_closed)
-                        <span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">完了扱い</span>
+                        <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">完了扱い</span>
                     @endif
-                    <span class="ml-2 text-xs text-gray-500">{{ $status->issues_count }} 課題</span>
+                    <span class="ml-2 text-xs text-neutral-500">{{ $status->issues_count }} 課題</span>
                 </div>
                 <div class="flex gap-3">
-                    <a href="{{ route('issue-statuses.edit', $status) }}" class="text-sm text-indigo-600 hover:underline">編集</a>
+                    <a href="{{ route('issue-statuses.edit', $status) }}" class="text-sm text-brand-bold hover:underline">編集</a>
                     <button wire:click="delete({{ $status->id }})" wire:confirm="このステータスを削除しますか?"
-                        class="text-sm text-red-600 hover:underline">削除</button>
+                        class="text-sm text-danger-bolder hover:underline">削除</button>
                 </div>
             </li>
         @empty
-            <li class="px-4 py-6 text-sm text-gray-500">ステータスがありません。</li>
+            <li class="px-4 py-6 text-sm text-neutral-500">ステータスがありません。</li>
         @endforelse
     </ul>
 </div>

@@ -305,10 +305,10 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">課題(全プロジェクト)</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">課題(全プロジェクト)</h1>
 
     <div class="mb-4 flex flex-wrap items-center gap-3">
-        <select wire:model.live="statusFilter" class="rounded-md border-gray-300 text-sm shadow-sm">
+        <select wire:model.live="statusFilter" class="rounded-md border-neutral-300 text-sm shadow-sm">
             <option value="open">未完了の課題</option>
             <option value="closed">完了した課題</option>
             <option value="all">すべての課題</option>
@@ -317,26 +317,26 @@ new #[Layout('components.layouts.app')] class extends Component
 
     {{-- Saved queries --}}
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
-        <span class="text-gray-500">保存済みクエリ:</span>
+        <span class="text-neutral-500">保存済みクエリ:</span>
         @forelse ($this->savedQueries as $savedQuery)
-            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50">
+            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
                 {{ $savedQuery->name }}
             </button>
         @empty
-            <span class="text-gray-400">なし</span>
+            <span class="text-neutral-400">なし</span>
         @endforelse
     </div>
 
-    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500">
+            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">
                 適用
             </button>
 
             @if ($this->canSaveQueries)
-                <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
+                <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">クエリを保存</button>
             @endif
         </div>
 
@@ -348,13 +348,13 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
     </div>
 
-    <div class="overflow-x-auto rounded-md border border-gray-200 bg-white">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
-            <thead class="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
+    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+        <table class="min-w-full divide-y divide-neutral-200 text-sm">
+            <thead class="bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500">
                 <tr>
                     @foreach ($columns as $column)
                         <th class="px-3 py-2">
-                            <button wire:click="sortBy('{{ $column }}')" class="flex items-center gap-1 hover:text-gray-900">
+                            <button wire:click="sortBy('{{ $column }}')" class="flex items-center gap-1 hover:text-neutral-900">
                                 {{ self::DISPLAY_COLUMNS[$column] ?? $column }}
                                 @if ($sortKey === $column)
                                     <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
@@ -364,13 +364,13 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-neutral-100">
                 @forelse ($this->issues as $issue)
-                    <tr wire:key="issue-{{ $issue->id }}" class="hover:bg-gray-50">
+                    <tr wire:key="issue-{{ $issue->id }}" class="hover:bg-neutral-50">
                         @foreach ($columns as $column)
-                            <td class="px-3 py-2 text-gray-700">
+                            <td class="px-3 py-2 text-neutral-700">
                                 @if ($column === 'subject')
-                                    <a href="{{ route('issues.show', [$issue->project, $issue]) }}" class="text-indigo-600 hover:underline">
+                                    <a href="{{ route('issues.show', [$issue->project, $issue]) }}" class="text-brand-bold hover:underline">
                                         #{{ $issue->id }} {{ $this->columnValue($issue, $column) }}
                                     </a>
                                 @else
@@ -381,7 +381,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ count($columns) }}" class="px-3 py-6 text-center text-gray-500">課題がありません。</td>
+                        <td colspan="{{ count($columns) }}" class="px-3 py-6 text-center text-neutral-500">課題がありません。</td>
                     </tr>
                 @endforelse
             </tbody>

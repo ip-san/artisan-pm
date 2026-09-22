@@ -187,49 +187,49 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-gray-900">カレンダー(全プロジェクト)</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">カレンダー(全プロジェクト)</h1>
         <div class="flex items-center gap-3">
-            <button wire:click="previousMonth" class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">‹</button>
-            <span class="text-sm font-medium text-gray-900">{{ $year }}年{{ $month }}月</span>
-            <button wire:click="nextMonth" class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">›</button>
+            <button wire:click="previousMonth" class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">‹</button>
+            <span class="text-sm font-medium text-neutral-900">{{ $year }}年{{ $month }}月</span>
+            <button wire:click="nextMonth" class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">›</button>
         </div>
     </div>
 
-    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3">
-            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                 絞り込み適用
             </button>
         </div>
     </div>
 
-    <div class="overflow-x-auto rounded-md border border-gray-200 bg-white">
-        <table class="min-w-full table-fixed divide-y divide-gray-200 text-sm">
-            <thead class="bg-gray-50 text-xs uppercase text-gray-500">
+    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+        <table class="min-w-full table-fixed divide-y divide-neutral-200 text-sm">
+            <thead class="bg-neutral-50 text-xs uppercase text-neutral-500">
                 <tr>
                     @foreach ($this->weekdayLabels as $label)
                         <th class="px-2 py-2 text-center">{{ $label }}</th>
                     @endforeach
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-neutral-100">
                 @foreach ($this->weeks as $week)
                     <tr wire:key="week-{{ $week[0]['date']->toDateString() }}" class="align-top">
                         @foreach ($week as $day)
                             <td wire:key="day-{{ $day['date']->toDateString() }}"
-                                class="h-28 px-2 py-1 {{ $day['isCurrentMonth'] ? 'bg-white' : 'bg-gray-50 text-gray-400' }}">
-                                <div class="text-xs {{ $day['date']->isToday() ? 'font-bold text-indigo-600' : 'text-gray-500' }}">
+                                class="h-28 px-2 py-1 {{ $day['isCurrentMonth'] ? 'bg-white' : 'bg-neutral-50 text-neutral-400' }}">
+                                <div class="text-xs {{ $day['date']->isToday() ? 'font-bold text-brand-bold' : 'text-neutral-500' }}">
                                     {{ $day['date']->day }}
                                 </div>
                                 <ul class="mt-1 space-y-0.5">
                                     @foreach ($day['entries'] as $entry)
                                         @if ($entry['marker'] === 'version')
                                             <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-version-{{ $entry['version']->id }}">
-                                                <span class="text-xs text-gray-400" title="バージョンの期日">📦</span>
+                                                <span class="text-xs text-neutral-400" title="バージョンの期日">📦</span>
                                                 <a href="{{ route('versions.roadmap', $entry['version']->project) }}#roadmap-version-{{ $entry['version']->id }}"
-                                                    class="text-xs text-indigo-600 hover:underline"
+                                                    class="text-xs text-brand-bold hover:underline"
                                                     title="{{ $entry['version']->project->name }} — バージョン: {{ $entry['version']->name }}">
                                                     {{ $entry['version']->project->identifier }} {{ $entry['version']->name }}
                                                 </a>
@@ -239,9 +239,9 @@ new #[Layout('components.layouts.app')] class extends Component
                                         @php $issue = $entry['issue']; @endphp
                                         <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-{{ $issue->id }}-{{ $entry['marker'] }}">
                                             @php [$markerLabel, $markerSymbol] = match ($entry['marker']) { 'start' => ['開始日', '▶'], 'due' => ['期日', '◀'], default => ['開始日=期日', '◆'] }; @endphp
-                                            <span class="text-xs text-gray-400" title="{{ $markerLabel }}">{{ $markerSymbol }}</span>
+                                            <span class="text-xs text-neutral-400" title="{{ $markerLabel }}">{{ $markerSymbol }}</span>
                                             <a href="{{ route('issues.show', [$issue->project, $issue]) }}"
-                                                class="text-xs text-indigo-600 hover:underline"
+                                                class="text-xs text-brand-bold hover:underline"
                                                 title="{{ $issue->project->name }} — {{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}">
                                                 {{ $issue->project->identifier }} #{{ $issue->id }} {{ $issue->subject }}
                                             </a>

@@ -104,33 +104,33 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-2xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">
         {{ $editingMessage ? 'メッセージを編集' : '新規トピック' }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">題名</label>
-            <input type="text" wire:model="subject" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('subject') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">題名</label>
+            <input type="text" wire:model="subject" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('subject') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">本文</label>
-            <textarea wire:model="content" rows="10" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
-            @error('content') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">本文</label>
+            <textarea wire:model="content" rows="10" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
+            @error('content') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">添付ファイル</label>
+            <label class="block text-sm font-medium text-neutral-700">添付ファイル</label>
             <input type="file" wire:model="newAttachments" multiple
-                class="mt-1 block w-full text-sm text-gray-700">
-            @error('newAttachments.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                class="mt-1 block w-full text-sm text-neutral-700">
+            @error('newAttachments.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
 
             @if ($editingMessage?->attachments()->isNotEmpty())
                 <ul class="mt-2 space-y-1">
                     @foreach ($editingMessage->attachments() as $media)
-                        <li class="text-sm text-gray-600">{{ $media->file_name }} ({{ $media->human_readable_size }})</li>
+                        <li class="text-sm text-neutral-600">{{ $media->file_name }} ({{ $media->human_readable_size }})</li>
                     @endforeach
                 </ul>
             @endif
@@ -138,23 +138,23 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($this->canManageFlags)
             <div class="flex gap-6">
-                <label class="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" wire:model="is_sticky" class="rounded border-gray-300">
+                <label class="flex items-center gap-2 text-sm text-neutral-700">
+                    <input type="checkbox" wire:model="is_sticky" class="rounded border-neutral-300">
                     固定表示
                 </label>
-                <label class="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" wire:model="is_locked" class="rounded border-gray-300">
+                <label class="flex items-center gap-2 text-sm text-neutral-700">
+                    <input type="checkbox" wire:model="is_locked" class="rounded border-neutral-300">
                     ロック(新しい返信を禁止)
                 </label>
             </div>
         @endif
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
             <a href="{{ $editingMessage ? route('messages.show', [$project, $board, $editingMessage->isTopic() ? $editingMessage : $editingMessage->parent]) : route('boards.show', [$project, $board]) }}"
-                class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

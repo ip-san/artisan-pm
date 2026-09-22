@@ -355,12 +355,12 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">ワークフロー管理</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">ワークフロー管理</h1>
 
-    <div class="mb-6 grid grid-cols-3 gap-4 rounded-md border border-gray-200 bg-white p-4">
+    <div class="mb-6 grid grid-cols-3 gap-4 rounded-md border border-neutral-200 bg-white p-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">トラッカー</label>
-            <select wire:model.live="tracker_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">トラッカー</label>
+            <select wire:model.live="tracker_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">選択してください</option>
                 @foreach ($this->trackers as $tracker)
                     <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
@@ -369,8 +369,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">ロール</label>
-            <select wire:model.live="role_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">ロール</label>
+            <select wire:model.live="role_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">選択してください</option>
                 @foreach ($this->roles as $role)
                     <option value="{{ $role->id }}">{{ $role->name }}</option>
@@ -379,8 +379,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">適用対象</label>
-            <select wire:model.live="context" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">適用対象</label>
+            <select wire:model.live="context" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="general">通常</option>
                 <option value="author">作成者の場合に追加</option>
                 <option value="assignee">担当者の場合に追加</option>
@@ -388,41 +388,41 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
-    <label class="mb-6 flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" wire:model.live="usedStatusesOnly" class="rounded border-gray-300">
+    <label class="mb-6 flex items-center gap-2 text-sm text-neutral-700">
+        <input type="checkbox" wire:model.live="usedStatusesOnly" class="rounded border-neutral-300">
         使用中のステータスのみ表示(選択したトラッカーで遷移が定義済みのステータスに限定)
     </label>
 
     @if ($tracker_id && $role_id)
         <form wire:submit="save" class="space-y-8">
-            <div class="overflow-x-auto rounded-md border border-gray-200 bg-white p-4">
-                <h2 class="mb-3 text-sm font-semibold text-gray-900">ステータス遷移(縦: 現在のステータス、横: 変更後のステータス)</h2>
+            <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white p-4">
+                <h2 class="mb-3 text-sm font-semibold text-neutral-900">ステータス遷移(縦: 現在のステータス、横: 変更後のステータス)</h2>
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr>
                             <th class="px-2 py-1 text-left"></th>
                             @foreach ($this->statuses as $newStatus)
-                                <th class="px-2 py-1 text-center text-xs text-gray-500">{{ $newStatus->name }}</th>
+                                <th class="px-2 py-1 text-center text-xs text-neutral-500">{{ $newStatus->name }}</th>
                             @endforeach
                         </tr>
                     </thead>
                     <tbody>
-                        <tr wire:key="transition-row-new" class="border-t border-gray-100 bg-gray-50" data-new-issue-row>
-                            <th class="px-2 py-1 text-left text-xs font-medium text-gray-700">(新規課題)</th>
+                        <tr wire:key="transition-row-new" class="border-t border-neutral-100 bg-neutral-50" data-new-issue-row>
+                            <th class="px-2 py-1 text-left text-xs font-medium text-neutral-700">(新規課題)</th>
                             @foreach ($this->statuses as $newStatus)
                                 <td class="px-2 py-1 text-center">
-                                    <input type="checkbox" wire:model="transitions.0-{{ $newStatus->id }}" class="rounded border-gray-300">
+                                    <input type="checkbox" wire:model="transitions.0-{{ $newStatus->id }}" class="rounded border-neutral-300">
                                 </td>
                             @endforeach
                         </tr>
                         @foreach ($this->statuses as $oldStatus)
-                            <tr wire:key="transition-row-{{ $oldStatus->id }}" class="border-t border-gray-100">
-                                <th class="px-2 py-1 text-left text-xs font-medium text-gray-700">{{ $oldStatus->name }}</th>
+                            <tr wire:key="transition-row-{{ $oldStatus->id }}" class="border-t border-neutral-100">
+                                <th class="px-2 py-1 text-left text-xs font-medium text-neutral-700">{{ $oldStatus->name }}</th>
                                 @foreach ($this->statuses as $newStatus)
                                     <td class="px-2 py-1 text-center">
                                         <input type="checkbox"
                                             wire:model="transitions.{{ $oldStatus->id }}-{{ $newStatus->id }}"
-                                            class="rounded border-gray-300">
+                                            class="rounded border-neutral-300">
                                     </td>
                                 @endforeach
                             </tr>
@@ -431,25 +431,25 @@ new #[Layout('components.layouts.app')] class extends Component
                 </table>
             </div>
 
-            <div class="overflow-x-auto rounded-md border border-gray-200 bg-white p-4">
-                <h2 class="mb-3 text-sm font-semibold text-gray-900">フィールドルール(縦: フィールド、横: ステータス)</h2>
+            <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white p-4">
+                <h2 class="mb-3 text-sm font-semibold text-neutral-900">フィールドルール(縦: フィールド、横: ステータス)</h2>
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr>
                             <th class="px-2 py-1 text-left"></th>
                             @foreach ($this->statuses as $status)
-                                <th class="px-2 py-1 text-center text-xs text-gray-500">{{ $status->name }}</th>
+                                <th class="px-2 py-1 text-center text-xs text-neutral-500">{{ $status->name }}</th>
                             @endforeach
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($this->fields as $fieldKey => $label)
-                            <tr wire:key="field-row-{{ $fieldKey }}" class="border-t border-gray-100">
-                                <th class="px-2 py-1 text-left text-xs font-medium text-gray-700">{{ $label }}</th>
+                            <tr wire:key="field-row-{{ $fieldKey }}" class="border-t border-neutral-100">
+                                <th class="px-2 py-1 text-left text-xs font-medium text-neutral-700">{{ $label }}</th>
                                 @foreach ($this->statuses as $status)
                                     <td class="px-2 py-1 text-center">
                                         <select wire:model="fieldRules.{{ $fieldKey }}-{{ $status->id }}"
-                                            class="rounded-md border-gray-300 text-xs">
+                                            class="rounded-md border-neutral-300 text-xs">
                                             <option value="">-</option>
                                             @foreach (\App\Enums\WorkflowFieldRuleType::cases() as $rule)
                                                 <option value="{{ $rule->value }}">{{ $rule === \App\Enums\WorkflowFieldRuleType::Required ? '必須' : '読取専用' }}</option>
@@ -463,72 +463,72 @@ new #[Layout('components.layouts.app')] class extends Component
                 </table>
             </div>
 
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
         </form>
     @else
-        <p class="text-sm text-gray-500">トラッカーとロールを選択してください。</p>
+        <p class="text-sm text-neutral-500">トラッカーとロールを選択してください。</p>
     @endif
 
-    <div class="mt-10 rounded-md border border-gray-200 bg-white p-4">
-        <h2 class="mb-4 text-sm font-semibold text-gray-900">ワークフローをコピー</h2>
+    <div class="mt-10 rounded-md border border-neutral-200 bg-white p-4">
+        <h2 class="mb-4 text-sm font-semibold text-neutral-900">ワークフローをコピー</h2>
 
         <form wire:submit="copyWorkflow" class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">コピー元トラッカー</label>
-                    <select wire:model="copySourceTrackerId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <label class="block text-sm font-medium text-neutral-700">コピー元トラッカー</label>
+                    <select wire:model="copySourceTrackerId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">選択してください</option>
                         <option value="any">--- コピー先と同じ ---</option>
                         @foreach ($this->trackers as $tracker)
                             <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
                         @endforeach
                     </select>
-                    @error('copySourceTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('copySourceTrackerId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">コピー元ロール</label>
-                    <select wire:model="copySourceRoleId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <label class="block text-sm font-medium text-neutral-700">コピー元ロール</label>
+                    <select wire:model="copySourceRoleId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">選択してください</option>
                         <option value="any">--- コピー先と同じ ---</option>
                         @foreach ($this->roles as $role)
                             <option value="{{ $role->id }}">{{ $role->name }}</option>
                         @endforeach
                     </select>
-                    @error('copySourceRoleId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('copySourceRoleId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <span class="block text-sm font-medium text-gray-700 mb-1">コピー先トラッカー</span>
-                    <div class="max-h-40 space-y-1 overflow-y-auto rounded-md border border-gray-200 p-2">
+                    <span class="block text-sm font-medium text-neutral-700 mb-1">コピー先トラッカー</span>
+                    <div class="max-h-40 space-y-1 overflow-y-auto rounded-md border border-neutral-200 p-2">
                         @foreach ($this->trackers as $tracker)
-                            <label class="flex items-center gap-2 text-sm text-gray-700">
-                                <input type="checkbox" wire:model="copyTargetTrackerIds" value="{{ $tracker->id }}" class="rounded border-gray-300">
+                            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                                <input type="checkbox" wire:model="copyTargetTrackerIds" value="{{ $tracker->id }}" class="rounded border-neutral-300">
                                 {{ $tracker->name }}
                             </label>
                         @endforeach
                     </div>
-                    @error('copyTargetTrackerIds') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('copyTargetTrackerIds') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <span class="block text-sm font-medium text-gray-700 mb-1">コピー先ロール</span>
-                    <div class="max-h-40 space-y-1 overflow-y-auto rounded-md border border-gray-200 p-2">
+                    <span class="block text-sm font-medium text-neutral-700 mb-1">コピー先ロール</span>
+                    <div class="max-h-40 space-y-1 overflow-y-auto rounded-md border border-neutral-200 p-2">
                         @foreach ($this->roles as $role)
-                            <label class="flex items-center gap-2 text-sm text-gray-700">
-                                <input type="checkbox" wire:model="copyTargetRoleIds" value="{{ $role->id }}" class="rounded border-gray-300">
+                            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                                <input type="checkbox" wire:model="copyTargetRoleIds" value="{{ $role->id }}" class="rounded border-neutral-300">
                                 {{ $role->name }}
                             </label>
                         @endforeach
                     </div>
-                    @error('copyTargetRoleIds') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('copyTargetRoleIds') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
             </div>
 
             <button type="submit" wire:confirm="コピー先の既存ワークフロー設定は上書きされます。よろしいですか?"
-                class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 コピー
             </button>
         </form>

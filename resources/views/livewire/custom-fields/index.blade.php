@@ -31,37 +31,37 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-gray-900">カスタムフィールド管理</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">カスタムフィールド管理</h1>
         <a href="{{ route('custom-fields.create') }}"
-            class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
             新規カスタムフィールド
         </a>
     </div>
 
-    <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
         @forelse ($this->customFields as $field)
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
-                    <span class="font-medium text-gray-900">{{ $field->name }}</span>
-                    <span class="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-600">{{ $field->customized_type->value }}</span>
-                    <span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{{ $field->field_format->value }}</span>
+                    <span class="font-medium text-neutral-900">{{ $field->name }}</span>
+                    <span class="ml-2 rounded bg-brand-subtlest px-1.5 py-0.5 text-xs text-brand-bold">{{ $field->customized_type->value }}</span>
+                    <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ $field->field_format->value }}</span>
                     @if ($field->is_required)
-                        <span class="ml-2 rounded bg-red-50 px-1.5 py-0.5 text-xs text-red-600">必須</span>
+                        <span class="ml-2 rounded bg-danger-subtlest px-1.5 py-0.5 text-xs text-danger-bolder">必須</span>
                     @endif
                     @if ($field->customized_type === \App\Enums\CustomizableType::Issue)
-                        <span class="ml-2 text-xs text-gray-500">
+                        <span class="ml-2 text-xs text-neutral-500">
                             {{ $field->trackers->pluck('name')->join(', ') ?: 'トラッカー未設定' }}
                         </span>
                     @endif
                 </div>
                 <div class="flex gap-3">
-                    <a href="{{ route('custom-fields.edit', $field) }}" class="text-sm text-indigo-600 hover:underline">編集</a>
+                    <a href="{{ route('custom-fields.edit', $field) }}" class="text-sm text-brand-bold hover:underline">編集</a>
                     <button wire:click="delete({{ $field->id }})" wire:confirm="このカスタムフィールドを削除しますか?"
-                        class="text-sm text-red-600 hover:underline">削除</button>
+                        class="text-sm text-danger-bolder hover:underline">削除</button>
                 </div>
             </li>
         @empty
-            <li class="px-4 py-6 text-sm text-gray-500">カスタムフィールドがありません。</li>
+            <li class="px-4 py-6 text-sm text-neutral-500">カスタムフィールドがありません。</li>
         @endforelse
     </ul>
 </div>

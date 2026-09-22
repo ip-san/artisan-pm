@@ -139,69 +139,69 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-4xl">
-    <p class="mb-2 text-sm text-gray-500">
-        <a href="{{ route($changeset->repository->routeName('repository.index'), $changeset->repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+    <p class="mb-2 text-sm text-neutral-500">
+        <a href="{{ route($changeset->repository->routeName('repository.index'), $changeset->repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
     </p>
 
-    <h1 class="mb-1 text-xl font-semibold text-gray-900 font-mono">{{ $changeset->shortRevision() }}</h1>
-    <p class="mb-4 text-sm text-gray-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</p>
+    <h1 class="mb-1 text-xl font-semibold text-neutral-900 font-mono">{{ $changeset->shortRevision() }}</h1>
+    <p class="mb-4 text-sm text-neutral-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</p>
 
-    <div class="rounded-md border border-gray-200 bg-white p-4 mb-4">
-        <div class="prose prose-sm max-w-none text-gray-800">{{ $changeset->commentsHtml() }}</div>
+    <div class="rounded-md border border-neutral-200 bg-white p-4 mb-4">
+        <div class="prose prose-sm max-w-none text-neutral-800">{{ $changeset->commentsHtml() }}</div>
     </div>
 
     @if ($changeset->issues->isNotEmpty() || $this->canManageRelatedIssues)
-        <h2 class="text-sm font-semibold text-gray-900 mb-2">関連課題</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">関連課題</h2>
         <ul class="mb-2 space-y-1">
             @forelse ($changeset->issues as $issue)
                 <li class="text-sm" wire:key="related-issue-{{ $issue->id }}">
-                    <a href="{{ route('issues.show', [$issue->project, $issue]) }}" class="text-indigo-600 hover:underline">
+                    <a href="{{ route('issues.show', [$issue->project, $issue]) }}" class="text-brand-bold hover:underline">
                         {{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}
                     </a>
-                    <span class="text-gray-500">({{ $issue->status->name }})</span>
+                    <span class="text-neutral-500">({{ $issue->status->name }})</span>
                     @if ($this->canManageRelatedIssues)
                         <button wire:click="removeRelatedIssue({{ $issue->id }})" wire:confirm="この課題との関連付けを解除しますか?"
-                            class="ml-1 text-xs text-red-600 hover:underline">解除</button>
+                            class="ml-1 text-xs text-danger-bolder hover:underline">解除</button>
                     @endif
                 </li>
             @empty
-                <li class="text-sm text-gray-500">関連付けられた課題はありません。</li>
+                <li class="text-sm text-neutral-500">関連付けられた課題はありません。</li>
             @endforelse
         </ul>
 
         @if ($this->canManageRelatedIssues)
             <form wire:submit="addRelatedIssue" class="mb-4 flex items-center gap-2">
                 <input type="text" wire:model="newIssueReference" placeholder="#123"
-                    class="w-28 rounded-md border-gray-300 text-sm shadow-sm">
-                <button type="submit" class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                    class="w-28 rounded-md border-neutral-300 text-sm shadow-sm">
+                <button type="submit" class="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">
                     課題を関連付け
                 </button>
-                @error('newIssueReference') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                @error('newIssueReference') <span class="text-sm text-danger-bolder">{{ $message }}</span> @enderror
             </form>
         @endif
     @endif
 
-    <h2 class="text-sm font-semibold text-gray-900 mb-2">変更されたファイル ({{ $changeset->files->count() }})</h2>
+    <h2 class="text-sm font-semibold text-neutral-900 mb-2">変更されたファイル ({{ $changeset->files->count() }})</h2>
     <ul class="mb-6 space-y-1">
         @foreach ($changeset->files as $file)
             <li class="font-mono text-sm">
-                <span class="inline-block w-4 text-gray-500">{{ $file->action }}</span>
+                <span class="inline-block w-4 text-neutral-500">{{ $file->action }}</span>
                 {{ $file->path }}
             </li>
         @endforeach
     </ul>
 
-    <h2 class="text-sm font-semibold text-gray-900 mb-2">
+    <h2 class="text-sm font-semibold text-neutral-900 mb-2">
         差分
         @if ($path !== '')
-            <span class="font-mono font-normal text-gray-500">({{ $path }})</span>
-            <a href="{{ route($changeset->repository->routeName('repository.show'), $changeset->repository->routeParameters(['changeset' => $changeset])) }}" class="ml-1 text-xs font-normal text-indigo-600 hover:underline">
+            <span class="font-mono font-normal text-neutral-500">({{ $path }})</span>
+            <a href="{{ route($changeset->repository->routeName('repository.show'), $changeset->repository->routeParameters(['changeset' => $changeset])) }}" class="ml-1 text-xs font-normal text-brand-bold hover:underline">
                 全体の差分を見る
             </a>
         @endif
     </h2>
     @if ($this->shownDiff['truncated'])
-        <p class="mb-2 text-sm text-amber-700">差分が大きいため、先頭{{ number_format(\App\Support\Scm\DisplayLimits::maxDiffLines()) }}行だけを表示しています。</p>
+        <p class="mb-2 text-sm text-warning-bold">差分が大きいため、先頭{{ number_format(\App\Support\Scm\DisplayLimits::maxDiffLines()) }}行だけを表示しています。</p>
     @endif
-    <pre class="overflow-x-auto rounded-md border border-gray-200 bg-gray-900 p-4 text-xs text-gray-100">{{ $this->shownDiff['text'] }}</pre>
+    <pre class="overflow-x-auto rounded-md border border-neutral-200 bg-neutral-900 p-4 text-xs text-neutral-100">{{ $this->shownDiff['text'] }}</pre>
 </div>

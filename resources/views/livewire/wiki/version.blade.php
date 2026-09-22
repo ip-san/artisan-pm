@@ -33,32 +33,32 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-3xl">
-    <p class="mb-2 text-sm text-gray-500">
-        <a href="{{ route('wiki.show', [$project, $wikiPage]) }}" class="text-indigo-600 hover:underline">
+    <p class="mb-2 text-sm text-neutral-500">
+        <a href="{{ route('wiki.show', [$project, $wikiPage]) }}" class="text-brand-bold hover:underline">
             {{ $wikiPage->title }}
         </a>
         —
-        <a href="{{ route('wiki.history', [$project, $wikiPage]) }}" class="text-indigo-600 hover:underline">
+        <a href="{{ route('wiki.history', [$project, $wikiPage]) }}" class="text-brand-bold hover:underline">
             履歴
         </a>
     </p>
 
-    <div class="mb-4 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+    <div class="mb-4 flex items-center justify-between rounded-md border border-warning-subtler bg-warning-subtlest px-4 py-2 text-sm text-warning-bolder">
         <span>
             これは v{{ $wikiPageVersion->version }} の過去バージョンです
             ({{ $wikiPageVersion->author->displayName() }} — {{ $wikiPageVersion->created_at->format('Y-m-d H:i') }})。
         </span>
         @can('update', $wikiPage)
             <a href="{{ route('wiki.edit', [$project, $wikiPage]) }}?version={{ $wikiPageVersion->version }}"
-                class="shrink-0 rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100">
+                class="shrink-0 rounded-md border border-warning-subtle bg-white px-3 py-1 text-xs font-medium text-warning-bolder hover:bg-warning-subtler">
                 このバージョンを復元
             </a>
         @endcan
     </div>
 
-    <h1 class="text-xl font-semibold text-gray-900 mb-4">{{ $wikiPage->title }}</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-4">{{ $wikiPage->title }}</h1>
 
-    <div class="prose prose-sm max-w-none rounded-md border border-gray-200 bg-white p-4">
+    <div class="prose prose-sm max-w-none rounded-md border border-neutral-200 bg-white p-4">
         {!! $this->renderedContent !!}
     </div>
 </div>

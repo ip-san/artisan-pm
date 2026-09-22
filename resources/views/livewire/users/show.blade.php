@@ -168,35 +168,35 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="mb-1 text-xl font-semibold text-gray-900">{{ $user->name }}</h1>
+    <h1 class="mb-1 text-xl font-semibold text-neutral-900">{{ $user->name }}</h1>
     @if ($user->status !== UserStatus::Active)
-        <span class="mb-4 inline-block rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{{ $user->status->value }}</span>
+        <span class="mb-4 inline-block rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">{{ $user->status->value }}</span>
     @endif
 
     <div class="mt-4 grid grid-cols-1 gap-8 md:grid-cols-2">
         <div>
-            <ul class="mb-6 space-y-1 text-sm text-gray-700">
-                <li><span class="text-gray-500">ログインID:</span> {{ $user->login }}</li>
+            <ul class="mb-6 space-y-1 text-sm text-neutral-700">
+                <li><span class="text-neutral-500">ログインID:</span> {{ $user->login }}</li>
                 @if (! $user->preference('hide_mail') || auth()->id() === $user->id || auth()->user()?->is_admin)
-                    <li><span class="text-gray-500">メールアドレス:</span> {{ $user->email }}</li>
+                    <li><span class="text-neutral-500">メールアドレス:</span> {{ $user->email }}</li>
                 @endif
-                <li><span class="text-gray-500">登録日:</span> {{ $user->created_at?->format('Y-m-d') }}</li>
+                <li><span class="text-neutral-500">登録日:</span> {{ $user->created_at?->format('Y-m-d') }}</li>
                 @if ($user->last_login_at)
-                    <li><span class="text-gray-500">最終ログイン:</span> {{ $user->last_login_at->format('Y-m-d H:i') }}</li>
+                    <li><span class="text-neutral-500">最終ログイン:</span> {{ $user->last_login_at->format('Y-m-d H:i') }}</li>
                 @endif
             </ul>
 
-            <h2 class="mb-2 text-sm font-semibold text-gray-900">課題</h2>
+            <h2 class="mb-2 text-sm font-semibold text-neutral-900">課題</h2>
             <table class="mb-6 w-full text-sm">
                 <thead>
-                    <tr class="border-b border-gray-200 text-left text-gray-500">
+                    <tr class="border-b border-neutral-200 text-left text-neutral-500">
                         <th class="py-1"></th>
                         <th class="py-1 text-right">未クローズ</th>
                         <th class="py-1 text-right">合計</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr class="border-b border-gray-100">
+                    <tr class="border-b border-neutral-100">
                         <td class="py-1">担当</td>
                         <td class="py-1 text-right">{{ $this->issueCounts['assigned']['open'] }}</td>
                         <td class="py-1 text-right">{{ $this->issueCounts['assigned']['total'] }}</td>
@@ -210,23 +210,23 @@ new #[Layout('components.layouts.app')] class extends Component
             </table>
 
             @if ($this->memberships->isNotEmpty())
-                <h2 class="mb-2 text-sm font-semibold text-gray-900">プロジェクト</h2>
+                <h2 class="mb-2 text-sm font-semibold text-neutral-900">プロジェクト</h2>
                 <table class="mb-6 w-full text-sm">
                     <thead>
-                        <tr class="border-b border-gray-200 text-left text-gray-500">
+                        <tr class="border-b border-neutral-200 text-left text-neutral-500">
                             <th class="py-1">プロジェクト</th>
                             <th class="py-1">ロール</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($this->memberships as $membership)
-                            <tr wire:key="membership-{{ $membership->id }}" class="border-b border-gray-100 last:border-b-0">
+                            <tr wire:key="membership-{{ $membership->id }}" class="border-b border-neutral-100 last:border-b-0">
                                 <td class="py-1">
-                                    <a href="{{ route('projects.show', $membership->project) }}" class="text-indigo-600 hover:underline">
+                                    <a href="{{ route('projects.show', $membership->project) }}" class="text-brand-bold hover:underline">
                                         {{ $membership->project->name }}
                                     </a>
                                 </td>
-                                <td class="py-1 text-gray-600">{{ $membership->roles->pluck('name')->join(', ') }}</td>
+                                <td class="py-1 text-neutral-600">{{ $membership->roles->pluck('name')->join(', ') }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -234,8 +234,8 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
 
             @if ($this->visibleGroups->isNotEmpty())
-                <h2 class="mb-2 text-sm font-semibold text-gray-900">グループ</h2>
-                <ul class="mb-6 space-y-1 text-sm text-gray-700">
+                <h2 class="mb-2 text-sm font-semibold text-neutral-900">グループ</h2>
+                <ul class="mb-6 space-y-1 text-sm text-neutral-700">
                     @foreach ($this->visibleGroups as $group)
                         <li>{{ $group->name }}</li>
                     @endforeach
@@ -245,12 +245,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div>
             @if ($this->recentActivity->isNotEmpty())
-                <h2 class="mb-2 text-sm font-semibold text-gray-900">最近の活動</h2>
+                <h2 class="mb-2 text-sm font-semibold text-neutral-900">最近の活動</h2>
                 <ul class="space-y-2">
                     @foreach ($this->recentActivity as $entry)
                         <li wire:key="activity-{{ $entry->type }}-{{ $entry->url }}-{{ $entry->occurredAt->timestamp }}" class="text-sm">
-                            <a href="{{ $entry->url }}" class="text-indigo-600 hover:underline">{{ $entry->title }}</a>
-                            <span class="text-gray-400">({{ $entry->occurredAt->format('Y-m-d') }})</span>
+                            <a href="{{ $entry->url }}" class="text-brand-bold hover:underline">{{ $entry->title }}</a>
+                            <span class="text-neutral-400">({{ $entry->occurredAt->format('Y-m-d') }})</span>
                         </li>
                     @endforeach
                 </ul>

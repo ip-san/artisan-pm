@@ -152,37 +152,37 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">{{ $project->name }} — ファイル</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — ファイル</h1>
 
     @if ($this->canManage)
-        <form wire:submit="upload" class="mb-6 flex flex-wrap items-end gap-3 rounded-md border border-gray-200 bg-white p-4">
+        <form wire:submit="upload" class="mb-6 flex flex-wrap items-end gap-3 rounded-md border border-neutral-200 bg-white p-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700">バージョン</label>
-                <select wire:model="version_id" class="mt-1 block rounded-md border-gray-300 text-sm">
+                <label class="block text-sm font-medium text-neutral-700">バージョン</label>
+                <select wire:model="version_id" class="mt-1 block rounded-md border-neutral-300 text-sm">
                     <option value="">プロジェクト全体(バージョンなし)</option>
                     @foreach ($this->versions as $version)
                         <option value="{{ $version->id }}">{{ $version->name }}</option>
                     @endforeach
                 </select>
-                @error('version_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('version_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">ファイル</label>
-                <input type="file" wire:model="newFiles" multiple class="mt-1 block text-sm text-gray-700">
-                @error('newFiles.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                @error('newFiles') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="block text-sm font-medium text-neutral-700">ファイル</label>
+                <input type="file" wire:model="newFiles" multiple class="mt-1 block text-sm text-neutral-700">
+                @error('newFiles.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+                @error('newFiles') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
-            <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                 アップロード
             </button>
         </form>
     @endif
 
-    <div class="mb-4 flex flex-wrap items-center gap-4 text-xs text-gray-500">
+    <div class="mb-4 flex flex-wrap items-center gap-4 text-xs text-neutral-500">
         <span>並び替え:</span>
         @foreach (['filename' => 'ファイル名', 'created_on' => '日付', 'size' => 'サイズ', 'downloads' => 'ダウンロード数'] as $key => $label)
             <button type="button" wire:click="sortFiles('{{ $key }}')"
-                class="hover:underline {{ $sortBy === $key ? 'font-semibold text-gray-900' : '' }}">
+                class="hover:underline {{ $sortBy === $key ? 'font-semibold text-neutral-900' : '' }}">
                 {{ $label }}
                 @if ($sortBy === $key)
                     {{ $sortDirection === 'asc' ? '▲' : '▼' }}
@@ -192,22 +192,22 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($this->project->files()->isNotEmpty() || $this->canManage)
-        <div class="mb-4 overflow-hidden rounded-md border border-gray-200 bg-white">
-            <div class="border-b border-gray-200 bg-gray-50 px-4 py-2">
-                <span class="text-sm font-medium text-gray-900">プロジェクト全体(バージョンなし)</span>
+        <div class="mb-4 overflow-hidden rounded-md border border-neutral-200 bg-white">
+            <div class="border-b border-neutral-200 bg-neutral-50 px-4 py-2">
+                <span class="text-sm font-medium text-neutral-900">プロジェクト全体(バージョンなし)</span>
             </div>
-            <ul class="divide-y divide-gray-100">
+            <ul class="divide-y divide-neutral-100">
                 @forelse ($this->sortedFiles($this->project->files()) as $media)
                     <li class="px-4 py-2 text-sm" wire:key="project-file-{{ $media->id }}">
                         <div class="flex items-center justify-between">
                             <span class="flex items-center gap-2">
                                 <x-attachment-thumbnail :media="$media" />
-                                <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                                <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-brand-bold hover:underline">
                                     {{ $media->file_name }}
                                 </a>
                             </span>
                             <span class="flex items-center gap-2">
-                                <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                                <span class="text-neutral-500">{{ $media->human_readable_size }}</span>
                                 <x-download-count :media="$media" />
 <x-attachment-preview-link :media="$media" />
                             </span>
@@ -215,41 +215,41 @@ new #[Layout('components.layouts.app')] class extends Component
                         @if ($this->canManage)
                             <div class="mt-1 flex items-center gap-2">
                                 <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
-                                    class="block w-full rounded-md border-gray-300 text-xs shadow-sm">
+                                    class="block w-full rounded-md border-neutral-300 text-xs shadow-sm">
                                 <button wire:click="updateAttachmentDescription({{ $media->id }})"
-                                    class="shrink-0 text-xs text-indigo-600 hover:underline">保存</button>
+                                    class="shrink-0 text-xs text-brand-bold hover:underline">保存</button>
                             </div>
                         @elseif ($media->getCustomProperty('description'))
-                            <p class="mt-1 text-xs text-gray-500">{{ $media->getCustomProperty('description') }}</p>
+                            <p class="mt-1 text-xs text-neutral-500">{{ $media->getCustomProperty('description') }}</p>
                         @endif
                     </li>
                 @empty
-                    <li class="px-4 py-3 text-sm text-gray-500">ファイルはありません。</li>
+                    <li class="px-4 py-3 text-sm text-neutral-500">ファイルはありません。</li>
                 @endforelse
             </ul>
         </div>
     @endif
 
     @forelse ($this->versions as $version)
-        <div wire:key="version-{{ $version->id }}" class="mb-4 overflow-hidden rounded-md border border-gray-200 bg-white">
-            <div class="border-b border-gray-200 bg-gray-50 px-4 py-2">
-                <span class="text-sm font-medium text-gray-900">{{ $version->name }}</span>
+        <div wire:key="version-{{ $version->id }}" class="mb-4 overflow-hidden rounded-md border border-neutral-200 bg-white">
+            <div class="border-b border-neutral-200 bg-neutral-50 px-4 py-2">
+                <span class="text-sm font-medium text-neutral-900">{{ $version->name }}</span>
                 @if ($version->due_date)
-                    <span class="ml-2 text-xs text-gray-500">期日: {{ $version->due_date->toDateString() }}</span>
+                    <span class="ml-2 text-xs text-neutral-500">期日: {{ $version->due_date->toDateString() }}</span>
                 @endif
             </div>
-            <ul class="divide-y divide-gray-100">
+            <ul class="divide-y divide-neutral-100">
                 @forelse ($this->sortedFiles($version->files()) as $media)
                     <li class="px-4 py-2 text-sm" wire:key="version-file-{{ $media->id }}">
                         <div class="flex items-center justify-between">
                             <span class="flex items-center gap-2">
                                 <x-attachment-thumbnail :media="$media" />
-                                <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                                <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-brand-bold hover:underline">
                                     {{ $media->file_name }}
                                 </a>
                             </span>
                             <span class="flex items-center gap-2">
-                                <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                                <span class="text-neutral-500">{{ $media->human_readable_size }}</span>
                                 <x-download-count :media="$media" />
 <x-attachment-preview-link :media="$media" />
                             </span>
@@ -257,20 +257,20 @@ new #[Layout('components.layouts.app')] class extends Component
                         @if ($this->canManage)
                             <div class="mt-1 flex items-center gap-2">
                                 <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
-                                    class="block w-full rounded-md border-gray-300 text-xs shadow-sm">
+                                    class="block w-full rounded-md border-neutral-300 text-xs shadow-sm">
                                 <button wire:click="updateAttachmentDescription({{ $media->id }})"
-                                    class="shrink-0 text-xs text-indigo-600 hover:underline">保存</button>
+                                    class="shrink-0 text-xs text-brand-bold hover:underline">保存</button>
                             </div>
                         @elseif ($media->getCustomProperty('description'))
-                            <p class="mt-1 text-xs text-gray-500">{{ $media->getCustomProperty('description') }}</p>
+                            <p class="mt-1 text-xs text-neutral-500">{{ $media->getCustomProperty('description') }}</p>
                         @endif
                     </li>
                 @empty
-                    <li class="px-4 py-3 text-sm text-gray-500">ファイルはありません。</li>
+                    <li class="px-4 py-3 text-sm text-neutral-500">ファイルはありません。</li>
                 @endforelse
             </ul>
         </div>
     @empty
-        <p class="text-sm text-gray-500">バージョンがありません。</p>
+        <p class="text-sm text-neutral-500">バージョンがありません。</p>
     @endforelse
 </div>

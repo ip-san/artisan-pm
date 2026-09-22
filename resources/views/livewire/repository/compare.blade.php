@@ -79,28 +79,28 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-4xl">
-    <p class="mb-2 text-sm text-gray-500">
-        <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+    <p class="mb-2 text-sm text-neutral-500">
+        <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
     </p>
 
-    <h1 class="mb-1 text-xl font-semibold text-gray-900 font-mono">
+    <h1 class="mb-1 text-xl font-semibold text-neutral-900 font-mono">
         {{ $fromChangeset->shortRevision() }} 〜 {{ $toChangeset->shortRevision() }}
     </h1>
-    <p class="mb-4 text-sm text-gray-500">
-        <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $fromChangeset])) }}" class="text-indigo-600 hover:underline">{{ $fromChangeset->shortRevision() }}</a>
+    <p class="mb-4 text-sm text-neutral-500">
+        <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $fromChangeset])) }}" class="text-brand-bold hover:underline">{{ $fromChangeset->shortRevision() }}</a>
         ({{ $fromChangeset->committed_on->format('Y-m-d H:i') }})
         から
-        <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $toChangeset])) }}" class="text-indigo-600 hover:underline">{{ $toChangeset->shortRevision() }}</a>
+        <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $toChangeset])) }}" class="text-brand-bold hover:underline">{{ $toChangeset->shortRevision() }}</a>
         ({{ $toChangeset->committed_on->format('Y-m-d H:i') }})
         までの差分
     </p>
 
     @if (trim($this->diff) === '')
-        <p class="text-sm text-gray-500">このリビジョン間に差分はありません。</p>
+        <p class="text-sm text-neutral-500">このリビジョン間に差分はありません。</p>
     @else
         @if ($this->shownDiff['truncated'])
-            <p class="mb-2 text-sm text-amber-700">差分が大きいため、先頭{{ number_format(\App\Support\Scm\DisplayLimits::maxDiffLines()) }}行だけを表示しています。</p>
+            <p class="mb-2 text-sm text-warning-bold">差分が大きいため、先頭{{ number_format(\App\Support\Scm\DisplayLimits::maxDiffLines()) }}行だけを表示しています。</p>
         @endif
-        <pre class="overflow-x-auto rounded-md border border-gray-200 bg-gray-900 p-4 text-xs text-gray-100">{{ $this->shownDiff['text'] }}</pre>
+        <pre class="overflow-x-auto rounded-md border border-neutral-200 bg-neutral-900 p-4 text-xs text-neutral-100">{{ $this->shownDiff['text'] }}</pre>
     @endif
 </div>

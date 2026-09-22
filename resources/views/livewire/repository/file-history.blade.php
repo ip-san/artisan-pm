@@ -69,33 +69,33 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6">
-        <p class="text-sm text-gray-500">
-            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+        <p class="text-sm text-neutral-500">
+            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
             /
-            <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $this->path])) }}" class="text-indigo-600 hover:underline">
+            <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $this->path])) }}" class="text-brand-bold hover:underline">
                 {{ $this->path }}
             </a>
         </p>
-        <h1 class="text-xl font-semibold text-gray-900 font-mono">履歴: {{ $this->path }}</h1>
+        <h1 class="text-xl font-semibold text-neutral-900 font-mono">履歴: {{ $this->path }}</h1>
     </div>
 
     @if ($this->changesets->isEmpty())
-        <p class="text-sm text-gray-500">このファイルの変更履歴が見つかりませんでした。</p>
+        <p class="text-sm text-neutral-500">このファイルの変更履歴が見つかりませんでした。</p>
     @else
         <ul class="space-y-2">
             @foreach ($this->changesets as $match)
                 @php $changeset = $match['changeset']; @endphp
-                <li wire:key="file-history-{{ $changeset->id }}" class="rounded-md border border-gray-200 bg-white p-3">
+                <li wire:key="file-history-{{ $changeset->id }}" class="rounded-md border border-neutral-200 bg-white p-3">
                     <div class="flex items-center gap-2">
-                        <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $changeset, 'path' => $match['path']])) }}" class="font-mono text-sm text-indigo-600 hover:underline">
+                        <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $changeset, 'path' => $match['path']])) }}" class="font-mono text-sm text-brand-bold hover:underline">
                             {{ $changeset->shortRevision() }}
                         </a>
-                        <span class="text-xs text-gray-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</span>
+                        <span class="text-xs text-neutral-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</span>
                         @if ($match['path'] !== $this->path)
-                            <span class="text-xs text-gray-400 font-mono">({{ $match['path'] }})</span>
+                            <span class="text-xs text-neutral-400 font-mono">({{ $match['path'] }})</span>
                         @endif
                     </div>
-                    <div class="prose prose-sm mt-1 max-w-none text-gray-800">{{ $changeset->commentsHtml() }}</div>
+                    <div class="prose prose-sm mt-1 max-w-none text-neutral-800">{{ $changeset->commentsHtml() }}</div>
                 </li>
             @endforeach
         </ul>

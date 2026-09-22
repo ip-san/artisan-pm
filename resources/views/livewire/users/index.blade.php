@@ -275,76 +275,76 @@ new #[Layout('components.layouts.app')] class extends Component
             $commonGroupIds = $selectedUsers->map(fn ($user) => $user->groups->pluck('id'))->reduce(fn ($carry, $ids) => $carry === null ? $ids : $carry->intersect($ids));
         @endphp
         <div x-show="menu.open" x-cloak x-on:click.stop x-bind:style="`left:${menu.x}px;top:${menu.y}px`" data-context-menu
-            class="fixed z-50 w-52 rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg">
+            class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg">
             @if ($selectedUsers->count() === 1)
-                <a href="{{ route('users.edit', $selectedUsers->first()) }}" class="block px-3 py-1.5 text-gray-700 hover:bg-gray-100">編集</a>
+                <a href="{{ route('users.edit', $selectedUsers->first()) }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">編集</a>
             @endif
             @if ($selectedUsers->every(fn ($user) => $user->status === \App\Enums\UserStatus::Locked))
-                <button type="button" wire:click="bulkSetLocked(false)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">ロック解除</button>
+                <button type="button" wire:click="bulkSetLocked(false)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">ロック解除</button>
             @else
-                <button type="button" wire:click="bulkSetLocked(true)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">ロック</button>
+                <button type="button" wire:click="bulkSetLocked(true)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">ロック</button>
             @endif
             @if ($this->groups->isNotEmpty())
                 <div class="group relative">
-                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-gray-700 group-hover:bg-gray-100">グループに追加 <span class="text-gray-400">›</span></span>
-                    <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg group-hover:block">
+                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">グループに追加 <span class="text-neutral-400">›</span></span>
+                    <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
                         @foreach ($this->groups as $group)
-                            <button type="button" wire:key="context-add-{{ $group->id }}" wire:click="addToGroup({{ $group->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">{{ $group->name }}</button>
+                            <button type="button" wire:key="context-add-{{ $group->id }}" wire:click="addToGroup({{ $group->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $group->name }}</button>
                         @endforeach
                     </div>
                 </div>
                 @if ($commonGroupIds->isNotEmpty())
                     <div class="group relative">
-                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-gray-700 group-hover:bg-gray-100">グループから外す <span class="text-gray-400">›</span></span>
-                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg group-hover:block">
+                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">グループから外す <span class="text-neutral-400">›</span></span>
+                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
                             @foreach ($this->groups->whereIn('id', $commonGroupIds->all()) as $group)
-                                <button type="button" wire:key="context-remove-{{ $group->id }}" wire:click="removeFromGroup({{ $group->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">{{ $group->name }}</button>
+                                <button type="button" wire:key="context-remove-{{ $group->id }}" wire:click="removeFromGroup({{ $group->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $group->name }}</button>
                             @endforeach
                         </div>
                     </div>
                 @endif
             @endif
-            <button type="button" wire:click="bulkDelete" wire:confirm="選択した{{ $selectedUsers->count() }}人のユーザーを削除します。この操作は取り消せません。よろしいですか?" x-on:click="menu.open = false" class="block w-full border-t border-gray-100 px-3 py-1.5 text-left text-red-700 hover:bg-red-50">削除</button>
+            <button type="button" wire:click="bulkDelete" wire:confirm="選択した{{ $selectedUsers->count() }}人のユーザーを削除します。この操作は取り消せません。よろしいですか?" x-on:click="menu.open = false" class="block w-full border-t border-neutral-100 px-3 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">削除</button>
         </div>
     @endif
 
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-gray-900">ユーザー管理</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">ユーザー管理</h1>
         <div class="flex gap-2">
-            <a href="{{ route('users.import') }}" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">CSVインポート</a>
+            <a href="{{ route('users.import') }}" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">CSVインポート</a>
             <a href="{{ route('users.create') }}"
-                class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                 新規ユーザー
             </a>
         </div>
     </div>
 
-    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">絞り込み適用</button>
-            <div class="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">絞り込み適用</button>
+            <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
                 表示列:
                 @foreach (\App\Support\Query\UserFilterFieldRegistry::columns() as $columnKey => $columnLabel)
                     <label class="flex items-center gap-1" wire:key="user-column-{{ $columnKey }}">
-                        <input type="checkbox" wire:model.live="columns" value="{{ $columnKey }}" class="rounded border-gray-300">
+                        <input type="checkbox" wire:model.live="columns" value="{{ $columnKey }}" class="rounded border-neutral-300">
                         {{ $columnLabel }}
                     </label>
                 @endforeach
             </div>
-            <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">CSVエクスポート</button>
+            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">CSVエクスポート</button>
         </div>
     </div>
 
-    <div class="overflow-x-auto rounded-md border border-gray-200 bg-white">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
-            <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+        <table class="min-w-full divide-y divide-neutral-200 text-sm">
+            <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                 <tr>
                     <th class="px-4 py-2"></th>
                     @foreach ($this->visibleColumns as $columnKey)
                         <th wire:key="user-heading-{{ $columnKey }}" class="px-4 py-2">
-                            <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
+                            <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-neutral-900">
                                 {{ \App\Support\Query\UserFilterFieldRegistry::columns()[$columnKey] }}
                                 @if ($sortKey === $columnKey)
                                     <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
@@ -355,23 +355,23 @@ new #[Layout('components.layouts.app')] class extends Component
                     <th class="px-4 py-2"></th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-neutral-100">
                 @forelse ($this->users as $user)
                     <tr wire:key="user-row-{{ $user->id }}" x-on:contextmenu.prevent="showMenu($event, {{ $user->id }})"
-                        class="{{ in_array((string) $user->id, array_map('strval', $selected), true) ? 'bg-indigo-50' : '' }}">
+                        class="{{ in_array((string) $user->id, array_map('strval', $selected), true) ? 'bg-brand-subtlest' : '' }}">
                         <td class="px-4 py-2">
-                            <input type="checkbox" wire:model.live="selected" value="{{ $user->id }}" class="rounded border-gray-300">
+                            <input type="checkbox" wire:model.live="selected" value="{{ $user->id }}" class="rounded border-neutral-300">
                         </td>
                         @foreach ($this->visibleColumns as $columnKey)
                             <td wire:key="user-{{ $user->id }}-{{ $columnKey }}" class="px-4 py-2">
                                 @if ($columnKey === 'name')
-                                    <a href="{{ route('users.show', $user) }}" class="font-medium text-gray-900 hover:underline">{{ $user->name }}</a>
+                                    <a href="{{ route('users.show', $user) }}" class="font-medium text-neutral-900 hover:underline">{{ $user->name }}</a>
                                 @elseif ($columnKey === 'status' && $user->status === \App\Enums\UserStatus::Locked)
-                                    <span class="rounded bg-red-50 px-1.5 py-0.5 text-xs text-red-600">{{ $this->columnValue($user, $columnKey) }}</span>
+                                    <span class="rounded bg-danger-subtlest px-1.5 py-0.5 text-xs text-danger-bolder">{{ $this->columnValue($user, $columnKey) }}</span>
                                 @elseif ($columnKey === 'status' && $user->status === \App\Enums\UserStatus::Registered)
-                                    <span class="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">{{ $this->columnValue($user, $columnKey) }}</span>
+                                    <span class="rounded bg-warning-subtlest px-1.5 py-0.5 text-xs text-warning-bold">{{ $this->columnValue($user, $columnKey) }}</span>
                                 @elseif ($columnKey === 'is_admin' && $user->is_admin)
-                                    <span class="rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-700">{{ $this->columnValue($user, $columnKey) }}</span>
+                                    <span class="rounded bg-brand-subtlest px-1.5 py-0.5 text-xs text-brand-bolder">{{ $this->columnValue($user, $columnKey) }}</span>
                                 @else
                                     {{ $this->columnValue($user, $columnKey) }}
                                 @endif
@@ -379,17 +379,17 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endforeach
                         <td class="px-4 py-2">
                             <div class="flex justify-end gap-3">
-                                <a href="{{ route('users.edit', $user) }}" class="text-sm text-indigo-600 hover:underline">編集</a>
+                                <a href="{{ route('users.edit', $user) }}" class="text-sm text-brand-bold hover:underline">編集</a>
                                 @if ($user->status === \App\Enums\UserStatus::Registered)
                                     <button wire:click="approve({{ $user->id }})" wire:confirm="このユーザーを承認しますか?"
-                                        class="text-sm text-green-600 hover:underline">
+                                        class="text-sm text-success-bold hover:underline">
                                         承認
                                     </button>
                                 @endif
                                 @unless ($user->is(auth()->user()))
                                     <button wire:click="toggleLock({{ $user->id }})"
                                         wire:confirm="{{ $user->status === \App\Enums\UserStatus::Locked ? 'このユーザーのロックを解除しますか?' : 'このユーザーをロックしますか?' }}"
-                                        class="text-sm {{ $user->status === \App\Enums\UserStatus::Locked ? 'text-green-600' : 'text-red-600' }} hover:underline">
+                                        class="text-sm {{ $user->status === \App\Enums\UserStatus::Locked ? 'text-success-bold' : 'text-danger-bolder' }} hover:underline">
                                         {{ $user->status === \App\Enums\UserStatus::Locked ? 'ロック解除' : 'ロック' }}
                                     </button>
                                 @endunless
@@ -398,7 +398,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ count($this->visibleColumns) + 2 }}" class="px-4 py-6 text-center text-gray-500">該当するユーザーがいません。</td>
+                        <td colspan="{{ count($this->visibleColumns) + 2 }}" class="px-4 py-6 text-center text-neutral-500">該当するユーザーがいません。</td>
                     </tr>
                 @endforelse
             </tbody>

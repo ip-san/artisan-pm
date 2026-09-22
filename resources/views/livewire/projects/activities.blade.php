@@ -80,28 +80,28 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">{{ $project->name }} — 作業分類</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — 作業分類</h1>
 
-    <p class="mb-4 text-sm text-gray-500">
+    <p class="mb-4 text-sm text-neutral-500">
         このプロジェクトで使用しない作業分類のチェックを外してください。名前の変更はできません(システム全体の値の管理は管理者設定から行います)。
     </p>
 
     @if (session('status'))
-        <div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>
+        <div class="mb-4 rounded-md bg-success-subtlest p-3 text-sm text-success-bold">{{ session('status') }}</div>
     @endif
 
     <form wire:submit="save" class="space-y-4">
-        <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
+        <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
             @foreach ($this->globalActivities as $activity)
                 <li class="flex items-center justify-between px-4 py-3">
-                    <span class="text-sm text-gray-900">
+                    <span class="text-sm text-neutral-900">
                         {{ $activity->name }}
                         @unless ($activity->active)
-                            <span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">システム全体で無効</span>
+                            <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">システム全体で無効</span>
                         @endunless
                     </span>
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" wire:model="active.{{ $activity->id }}" class="rounded border-gray-300">
+                    <label class="flex items-center gap-2 text-sm text-neutral-700">
+                        <input type="checkbox" wire:model="active.{{ $activity->id }}" class="rounded border-neutral-300">
                         有効
                     </label>
                 </li>
@@ -109,11 +109,11 @@ new #[Layout('components.layouts.app')] class extends Component
         </ul>
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
             <a href="{{ route('projects.show', $project) }}"
-                class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 戻る
             </a>
         </div>

@@ -783,58 +783,58 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="flex items-start justify-between mb-4">
         <div>
             @if ($issue->parent)
-                <p class="text-xs text-gray-500 mb-1">
-                    <span class="text-gray-400">親課題:</span>
-                    <a href="{{ route('issues.show', [$project, $issue->parent]) }}" class="text-indigo-600 hover:underline">
+                <p class="text-xs text-neutral-500 mb-1">
+                    <span class="text-neutral-400">親課題:</span>
+                    <a href="{{ route('issues.show', [$project, $issue->parent]) }}" class="text-brand-bold hover:underline">
                         {{ $issue->parent->tracker->name }} #{{ $issue->parent->id }} — {{ $issue->parent->subject }}
                     </a>
                 </p>
             @endif
-            <p class="text-sm text-gray-500">{{ $issue->tracker->name }} #{{ $issue->id }}</p>
-            <h1 class="text-xl font-semibold text-gray-900">
+            <p class="text-sm text-neutral-500">{{ $issue->tracker->name }} #{{ $issue->id }}</p>
+            <h1 class="text-xl font-semibold text-neutral-900">
                 {{ $issue->subject }}
                 @if ($issue->is_private)
-                    <span class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 align-middle text-xs font-normal text-gray-600">非公開</span>
+                    <span class="ml-1 rounded bg-neutral-100 px-1.5 py-0.5 align-middle text-xs font-normal text-neutral-600">非公開</span>
                 @endif
             </h1>
         </div>
         <div class="flex gap-2">
             @can('watch', $issue)
-                <button wire:click="toggleWatch" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <button wire:click="toggleWatch" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     {{ $issue->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
                 </button>
             @endcan
             @can('create', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.create', $project) }}?issue_id={{ $issue->id }}"
-                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     工数を記録
                 </a>
             @endcan
             <a href="{{ route('issues.pdf', [$project, $issue]) }}"
-                class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 PDF
             </a>
             @can('create', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.create', $project) }}?copy_from={{ $issue->id }}"
-                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     コピー
                 </a>
             @endcan
             @can('update', $issue)
                 <a href="{{ route('issues.edit', [$project, $issue]) }}"
-                    class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                     編集
                 </a>
             @endcan
             @can('delete', $issue)
                 @if ($this->loggedHoursForDeletion > 0)
                     <button wire:click="$set('confirmingDelete', true)"
-                        class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
+                        class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
                         削除
                     </button>
                 @else
                     <button wire:click="deleteIssue" wire:confirm="この課題を削除しますか?この操作は取り消せません。"
-                        class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
+                        class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
                         削除
                     </button>
                 @endif
@@ -844,31 +844,31 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($confirmingDelete && $this->loggedHoursForDeletion > 0)
         @can('delete', $issue)
-            <form wire:submit="deleteIssue" class="mb-6 space-y-3 rounded-md border border-red-200 bg-red-50 p-4">
-                <p class="text-sm font-medium text-red-800">
+            <form wire:submit="deleteIssue" class="mb-6 space-y-3 rounded-md border border-danger-subtler bg-danger-subtlest p-4">
+                <p class="text-sm font-medium text-danger-boldest">
                     この課題には {{ rtrim(rtrim(number_format($this->loggedHoursForDeletion, 2), '0'), '.') }} 時間の作業時間が記録されています。削除する課題の作業時間をどうしますか?
                 </p>
-                <label class="flex items-center gap-2 text-sm text-gray-700">
+                <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="radio" wire:model.live="timeEntryTodo" value="nullify">
                     課題との紐付けを外してプロジェクトに残す
                 </label>
-                <label class="flex items-center gap-2 text-sm text-gray-700">
+                <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="radio" wire:model.live="timeEntryTodo" value="destroy">
                     作業時間も一緒に削除する
                 </label>
-                <label class="flex items-center gap-2 text-sm text-gray-700">
+                <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="radio" wire:model.live="timeEntryTodo" value="reassign">
                     このプロジェクトの別の課題へ付け替える: #
                     <input type="number" min="1" wire:model="reassignToId" wire:focus="$set('timeEntryTodo', 'reassign')"
-                        class="w-24 rounded-md border-gray-300 text-sm">
+                        class="w-24 rounded-md border-neutral-300 text-sm">
                 </label>
-                @error('reassign_to_id') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('reassign_to_id') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <div class="flex gap-2">
-                    <button type="submit" class="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500">
+                    <button type="submit" class="rounded-md bg-danger-bolder px-3 py-2 text-sm font-medium text-white hover:bg-danger-subtle">
                         削除する
                     </button>
                     <button type="button" wire:click="$set('confirmingDelete', false)"
-                        class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                         キャンセル
                     </button>
                 </div>
@@ -878,30 +878,30 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @can('move', $issue)
         @if ($this->moveTargetProjects->isNotEmpty())
-            <form wire:submit="moveIssue" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-white p-4">
+            <form wire:submit="moveIssue" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-4">
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">別のプロジェクトへ移動</label>
-                    <select wire:model.live="moveToProjectId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                    <label class="block text-xs font-medium text-neutral-700">別のプロジェクトへ移動</label>
+                    <select wire:model.live="moveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                         <option value="">選択してください</option>
                         @foreach ($this->moveTargetProjects as $candidate)
                             <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
                         @endforeach
                     </select>
-                    @error('moveToProjectId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('moveToProjectId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 @if ($moveToProjectId)
                     <div>
-                        <label class="block text-xs font-medium text-gray-700">移動後のトラッカー</label>
-                        <select wire:model="moveToTrackerId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                        <label class="block text-xs font-medium text-neutral-700">移動後のトラッカー</label>
+                        <select wire:model="moveToTrackerId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                             <option value="">選択してください</option>
                             @foreach ($this->moveTargetTrackers as $candidateTracker)
                                 <option value="{{ $candidateTracker->id }}">{{ $candidateTracker->name }}</option>
                             @endforeach
                         </select>
-                        @error('moveToTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        @error('moveToTrackerId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                     </div>
                     <button type="submit" wire:confirm="移動するとカテゴリ・対象バージョン・親課題はリセットされます。よろしいですか?"
-                        class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                         移動
                     </button>
                 @endif
@@ -909,33 +909,33 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
     @endcan
 
-    <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-gray-200 bg-white p-4 text-sm mb-6">
-        <div><span class="text-gray-500">ステータス:</span> {{ $issue->status->name }}</div>
-        <div><span class="text-gray-500">優先度:</span> {{ $issue->priority->name }}</div>
-        <div><span class="text-gray-500">カテゴリ:</span> {{ $issue->category?->name ?? 'なし' }}</div>
-        <div><span class="text-gray-500">作成者:</span> <x-avatar :user="$issue->author" :size="18" /> {{ $issue->author->displayName() }}</div>
-        <div><span class="text-gray-500">担当者:</span> <x-avatar :user="$issue->assignedTo" :size="18" /> {{ $issue->assignedTo?->name ?? '未割当' }}</div>
-        <div><span class="text-gray-500">対象バージョン:</span> {{ $issue->fixedVersion?->name ?? 'なし' }}</div>
-        <div><span class="text-gray-500">進捗率:</span> {{ $issue->done_ratio }}%</div>
-        <div><span class="text-gray-500">開始日:</span> {{ $issue->start_date?->toDateString() ?? '-' }}</div>
-        <div><span class="text-gray-500">期日:</span> {{ $issue->due_date?->toDateString() ?? '-' }}</div>
+    <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-neutral-200 bg-white p-4 text-sm mb-6">
+        <div><span class="text-neutral-500">ステータス:</span> {{ $issue->status->name }}</div>
+        <div><span class="text-neutral-500">優先度:</span> {{ $issue->priority->name }}</div>
+        <div><span class="text-neutral-500">カテゴリ:</span> {{ $issue->category?->name ?? 'なし' }}</div>
+        <div><span class="text-neutral-500">作成者:</span> <x-avatar :user="$issue->author" :size="18" /> {{ $issue->author->displayName() }}</div>
+        <div><span class="text-neutral-500">担当者:</span> <x-avatar :user="$issue->assignedTo" :size="18" /> {{ $issue->assignedTo?->name ?? '未割当' }}</div>
+        <div><span class="text-neutral-500">対象バージョン:</span> {{ $issue->fixedVersion?->name ?? 'なし' }}</div>
+        <div><span class="text-neutral-500">進捗率:</span> {{ $issue->done_ratio }}%</div>
+        <div><span class="text-neutral-500">開始日:</span> {{ $issue->start_date?->toDateString() ?? '-' }}</div>
+        <div><span class="text-neutral-500">期日:</span> {{ $issue->due_date?->toDateString() ?? '-' }}</div>
         <div>
-            <span class="text-gray-500">予定工数:</span>
+            <span class="text-neutral-500">予定工数:</span>
             {{ $issue->estimated_hours !== null ? \App\Support\Format\Hours::format((float) $issue->estimated_hours).' 時間' : '-' }}
             @if (! $issue->isLeaf() && $issue->totalEstimatedHours() > 0)
-                <span class="text-gray-400">(合計: {{ \App\Support\Format\Hours::format($issue->totalEstimatedHours()) }} 時間)</span>
+                <span class="text-neutral-400">(合計: {{ \App\Support\Format\Hours::format($issue->totalEstimatedHours()) }} 時間)</span>
             @endif
         </div>
         @if ($issue->estimated_hours !== null)
             <div>
-                <span class="text-gray-500">残り工数(予定):</span>
+                <span class="text-neutral-500">残り工数(予定):</span>
                 {{ \App\Support\Format\Hours::format($issue->estimatedRemainingHours()) }} 時間
             </div>
         @endif
     </div>
 
     @if ($issue->description)
-        <div class="prose prose-sm max-w-none mb-6 rounded-md border border-gray-200 bg-white p-4">
+        <div class="prose prose-sm max-w-none mb-6 rounded-md border border-neutral-200 bg-white p-4">
             {!! $this->renderedDescription !!}
         </div>
     @endif
@@ -945,10 +945,10 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($this->customFieldDisplayValues->isNotEmpty())
-        <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-gray-200 bg-white p-4 text-sm mb-6">
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-neutral-200 bg-white p-4 text-sm mb-6">
             @foreach ($this->customFieldDisplayValues as $entry)
                 <div>
-                    <span class="text-gray-500">{{ $entry['field']->name }}:</span>
+                    <span class="text-neutral-500">{{ $entry['field']->name }}:</span>
                     <x-custom-field-value :field="$entry['field']" :value="$entry['value']" />
                 </div>
             @endforeach
@@ -956,13 +956,13 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if (auth()->user()?->can('viewWatchers', $issue) && ($issue->watchers->isNotEmpty() || auth()->user()?->can('addWatchers', $issue)))
-        <h2 class="text-sm font-semibold text-gray-900 mb-2">ウォッチャー ({{ $issue->watchers->count() }})</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">ウォッチャー ({{ $issue->watchers->count() }})</h2>
         <ul class="mb-3 flex flex-wrap gap-2">
             @foreach ($issue->watchers as $watcher)
-                <li class="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
+                <li class="flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700">
                     {{ $watcher->user->displayName() }}
                     @can('deleteWatchers', $issue)
-                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-gray-400 hover:text-red-600" title="ウォッチャーから削除">×</button>
+                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="ウォッチャーから削除">×</button>
                     @endcan
                 </li>
             @endforeach
@@ -972,18 +972,18 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($watcherSearch !== '' || $this->watcherCandidates->isNotEmpty())
                 <div class="mb-6  relative" data-watcher-search>
                     <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="ウォッチャーを追加(名前・メールで検索)..."
-                        class="block w-72 rounded-md border-gray-300 shadow-sm text-sm">
-                    <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-gray-200 bg-white text-sm shadow-sm">
+                        class="block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
+                    <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
                         @foreach ($this->watcherCandidates as $candidate)
                             <li wire:key="watcher-candidate-{{ $candidate->id }}">
-                                <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">
-                                    {{ $candidate->name }} <span class="text-xs text-gray-400">{{ $candidate->email }}</span>
+                                <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">
+                                    {{ $candidate->name }} <span class="text-xs text-neutral-400">{{ $candidate->email }}</span>
                                 </button>
                             </li>
                         @endforeach
                     </ul>
                 </div>
-                @error('newWatcherId') <p class="-mt-4 mb-6 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('newWatcherId') <p class="-mt-4 mb-6 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             @else
                 <div class="mb-6"></div>
             @endif
@@ -991,11 +991,11 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if ($issue->children->isNotEmpty())
-        <h2 class="text-sm font-semibold text-gray-900 mb-2">サブタスク</h2>
-        <div class="mb-6 overflow-x-auto rounded-md border border-gray-200 bg-white">
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">サブタスク</h2>
+        <div class="mb-6 overflow-x-auto rounded-md border border-neutral-200 bg-white">
             <table class="min-w-full text-sm" data-related-issues="subtasks">
                 @if (\App\Support\Issues\RelatedIssueColumns::showHeaders())
-                    <thead class="bg-gray-50 text-left text-xs text-gray-500">
+                    <thead class="bg-neutral-50 text-left text-xs text-neutral-500">
                         <tr>
                             <th class="px-3 py-2 font-medium">題名</th>
                             @foreach ($this->relatedColumns as $label)
@@ -1004,16 +1004,16 @@ new #[Layout('components.layouts.app')] class extends Component
                         </tr>
                     </thead>
                 @endif
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-neutral-100">
                     @foreach ($this->subtasks as $child)
                         <tr wire:key="subtask-{{ $child->id }}">
                             <td class="px-3 py-2">
-                                <a href="{{ route('issues.show', [$project, $child]) }}" class="text-indigo-600 hover:underline">
+                                <a href="{{ route('issues.show', [$project, $child]) }}" class="text-brand-bold hover:underline">
                                     {{ $child->tracker->name }} #{{ $child->id }} — {{ $child->subject }}
                                 </a>
                             </td>
                             @foreach ($this->relatedColumns as $key => $label)
-                                <td class="px-3 py-2 text-gray-500">{{ \App\Support\Issues\RelatedIssueColumns::value($child, $key) }}</td>
+                                <td class="px-3 py-2 text-neutral-500">{{ \App\Support\Issues\RelatedIssueColumns::value($child, $key) }}</td>
                             @endforeach
                         </tr>
                     @endforeach
@@ -1024,34 +1024,34 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @php $attachments = $issue->attachments(); @endphp
     @if ($attachments->isNotEmpty())
-        <h2 class="text-sm font-semibold text-gray-900 mb-2">添付ファイル<x-attachment-bulk-links :container="$issue" :count="$attachments->count()" /></h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">添付ファイル<x-attachment-bulk-links :container="$issue" :count="$attachments->count()" /></h2>
         <ul class="mb-6 space-y-1">
             @foreach ($attachments as $media)
                 <li class="py-1 text-sm" wire:key="issue-attachment-{{ $media->id }}">
                     <div class="flex items-center justify-between">
                         <span class="flex items-center gap-2">
                             <x-attachment-thumbnail :media="$media" />
-                            <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+                            <a href="{{ route('attachments.show', $media) }}" target="_blank" rel="noopener noreferrer" class="text-brand-bold hover:underline">
                                 {{ $media->file_name }}
                             </a>
                         </span>
-                        <span class="text-gray-500">{{ $media->human_readable_size }}</span>
+                        <span class="text-neutral-500">{{ $media->human_readable_size }}</span>
                         <x-download-count :media="$media" />
 <x-attachment-preview-link :media="$media" />
                         @can('update', $issue)
                             <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
-                                class="text-red-600 hover:underline">削除</button>
+                                class="text-danger-bolder hover:underline">削除</button>
                         @endcan
                     </div>
                     @can('update', $issue)
                         <div class="mt-1 flex items-center gap-2">
                             <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
-                                class="block w-full rounded-md border-gray-300 text-xs shadow-sm">
+                                class="block w-full rounded-md border-neutral-300 text-xs shadow-sm">
                             <button wire:click="updateAttachmentDescription({{ $media->id }})"
-                                class="shrink-0 text-xs text-indigo-600 hover:underline">保存</button>
+                                class="shrink-0 text-xs text-brand-bold hover:underline">保存</button>
                         </div>
                     @elseif ($media->getCustomProperty('description'))
-                        <p class="mt-1 text-xs text-gray-500">{{ $media->getCustomProperty('description') }}</p>
+                        <p class="mt-1 text-xs text-neutral-500">{{ $media->getCustomProperty('description') }}</p>
                     @endcan
                 </li>
             @endforeach
@@ -1059,12 +1059,12 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if ($this->relations->isNotEmpty() || auth()->user()?->can('manageRelations', $issue))
-        <h2 class="text-sm font-semibold text-gray-900 mb-2">関連課題</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">関連課題</h2>
         @if ($this->relations->isNotEmpty())
-            <div class="mb-4 overflow-x-auto rounded-md border border-gray-200 bg-white">
+            <div class="mb-4 overflow-x-auto rounded-md border border-neutral-200 bg-white">
                 <table class="min-w-full text-sm" data-related-issues="relations">
                     @if (\App\Support\Issues\RelatedIssueColumns::showHeaders())
-                        <thead class="bg-gray-50 text-left text-xs text-gray-500">
+                        <thead class="bg-neutral-50 text-left text-xs text-neutral-500">
                             <tr>
                                 <th class="px-3 py-2 font-medium">関連</th>
                                 <th class="px-3 py-2 font-medium">題名</th>
@@ -1075,27 +1075,27 @@ new #[Layout('components.layouts.app')] class extends Component
                             </tr>
                         </thead>
                     @endif
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody class="divide-y divide-neutral-100">
                         @foreach ($this->relations as $entry)
                             <tr wire:key="relation-{{ $entry['relation']->id }}">
-                                <td class="whitespace-nowrap px-3 py-2 text-gray-500">
+                                <td class="whitespace-nowrap px-3 py-2 text-neutral-500">
                                     {{ $entry['label'] }}
                                     @if ($entry['relation']->delay)
                                         <span>({{ $entry['relation']->delay }}日後)</span>
                                     @endif
                                 </td>
                                 <td class="px-3 py-2">
-                                    <a href="{{ route('issues.show', [$entry['other']->project, $entry['other']]) }}" class="text-indigo-600 hover:underline">
+                                    <a href="{{ route('issues.show', [$entry['other']->project, $entry['other']]) }}" class="text-brand-bold hover:underline">
                                         {{ $entry['other']->tracker->name }} #{{ $entry['other']->id }} — {{ $entry['other']->subject }}
                                     </a>
                                 </td>
                                 @foreach ($this->relatedColumns as $key => $label)
-                                    <td class="px-3 py-2 text-gray-500">{{ \App\Support\Issues\RelatedIssueColumns::value($entry['other'], $key) }}</td>
+                                    <td class="px-3 py-2 text-neutral-500">{{ \App\Support\Issues\RelatedIssueColumns::value($entry['other'], $key) }}</td>
                                 @endforeach
                                 <td class="px-3 py-2 text-right">
                                     @can('manageRelations', $issue)
                                         <button wire:click="deleteRelation({{ $entry['relation']->id }})" wire:confirm="この関連を削除しますか?"
-                                            class="text-red-600 hover:underline">削除</button>
+                                            class="text-danger-bolder hover:underline">削除</button>
                                     @endcan
                                 </td>
                             </tr>
@@ -1108,8 +1108,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @can('manageRelations', $issue)
             <form wire:submit="addRelation" class="mb-6 flex items-end gap-2">
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">関連種別</label>
-                    <select wire:model.live="relationType" class="mt-1 block rounded-md border-gray-300 shadow-sm text-sm">
+                    <label class="block text-xs font-medium text-neutral-700">関連種別</label>
+                    <select wire:model.live="relationType" class="mt-1 block rounded-md border-neutral-300 shadow-sm text-sm">
                         <option value="relates">関連</option>
                         <option value="blocks">ブロックする</option>
                         <option value="duplicates">重複する</option>
@@ -1118,19 +1118,19 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">課題ID</label>
+                    <label class="block text-xs font-medium text-neutral-700">課題ID</label>
                     <input type="number" wire:model="relatedIssueId" placeholder="例: 123"
-                        class="mt-1 block w-28 rounded-md border-gray-300 shadow-sm text-sm">
+                        class="mt-1 block w-28 rounded-md border-neutral-300 shadow-sm text-sm">
                 </div>
                 <div data-related-search>
-                    <label class="block text-xs font-medium text-gray-700">検索</label>
+                    <label class="block text-xs font-medium text-neutral-700">検索</label>
                     <input type="text" wire:model.live.debounce.250ms="relatedSearch" placeholder="#番号または件名..."
-                        class="mt-1 block w-56 rounded-md border-gray-300 shadow-sm text-sm">
+                        class="mt-1 block w-56 rounded-md border-neutral-300 shadow-sm text-sm">
                     @if ($this->relatedSuggestions->isNotEmpty())
-                        <ul class="absolute z-10 mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-gray-200 bg-white text-sm shadow-sm">
+                        <ul class="absolute z-10 mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
                             @foreach ($this->relatedSuggestions as $suggestion)
                                 <li wire:key="related-suggestion-{{ $suggestion->id }}">
-                                    <button type="button" wire:click="pickRelated({{ $suggestion->id }})" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">#{{ $suggestion->id }} {{ $suggestion->subject }}</button>
+                                    <button type="button" wire:click="pickRelated({{ $suggestion->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">#{{ $suggestion->id }} {{ $suggestion->subject }}</button>
                                 </li>
                             @endforeach
                         </ul>
@@ -1138,43 +1138,43 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @if (in_array($relationType, ['precedes', 'follows'], true))
                     <div>
-                        <label class="block text-xs font-medium text-gray-700">遅延日数</label>
+                        <label class="block text-xs font-medium text-neutral-700">遅延日数</label>
                         <input type="number" min="0" wire:model="relationDelay" placeholder="0"
-                            class="mt-1 block w-20 rounded-md border-gray-300 shadow-sm text-sm">
+                            class="mt-1 block w-20 rounded-md border-neutral-300 shadow-sm text-sm">
                     </div>
                 @endif
-                <button type="submit" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <button type="submit" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     追加
                 </button>
             </form>
-            @error('relatedIssueId') <p class="-mt-4 mb-6 text-sm text-red-600">{{ $message }}</p> @enderror
-            @error('relationType') <p class="-mt-4 mb-6 text-sm text-red-600">{{ $message }}</p> @enderror
-            @error('relationDelay') <p class="-mt-4 mb-6 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('relatedIssueId') <p class="-mt-4 mb-6 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            @error('relationType') <p class="-mt-4 mb-6 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            @error('relationDelay') <p class="-mt-4 mb-6 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         @endcan
     @endif
 
     @if ($issue->timeEntries->isNotEmpty() || (! $issue->isLeaf() && $issue->totalSpentHours() > 0))
-        <h2 class="text-sm font-semibold text-gray-900 mb-2">
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">
             工数 ({{ \App\Support\Format\Hours::format((float) $issue->timeEntries->sum('hours')) }} 時間)
             @if (! $issue->isLeaf())
-                <span class="font-normal text-gray-400">(合計: {{ \App\Support\Format\Hours::format($issue->totalSpentHours()) }} 時間)</span>
+                <span class="font-normal text-neutral-400">(合計: {{ \App\Support\Format\Hours::format($issue->totalSpentHours()) }} 時間)</span>
             @endif
         </h2>
         <ul class="mb-6 space-y-1">
             @foreach ($issue->timeEntries as $entry)
                 <li class="flex items-center justify-between text-sm">
                     <span>{{ $entry->spent_on->toDateString() }} — {{ $entry->user->displayName() }} — {{ $entry->activity->name }}</span>
-                    <span class="text-gray-500">{{ $entry->hours }} 時間</span>
+                    <span class="text-neutral-500">{{ $entry->hours }} 時間</span>
                 </li>
             @endforeach
         </ul>
     @endif
 
-    <h2 class="text-sm font-semibold text-gray-900 mb-2">履歴</h2>
-    <div class="mb-3 flex gap-1 border-b border-gray-200 text-sm" data-history-tabs>
+    <h2 class="text-sm font-semibold text-neutral-900 mb-2">履歴</h2>
+    <div class="mb-3 flex gap-1 border-b border-neutral-200 text-sm" data-history-tabs>
         @foreach ($this->historyTabs as $tabKey => $tabLabel)
             <button type="button" wire:click="setHistoryTab('{{ $tabKey }}')" wire:key="history-tab-{{ $tabKey }}"
-                class="{{ $this->activeHistoryTab === $tabKey ? 'border-b-2 border-indigo-600 font-semibold text-indigo-700' : 'text-gray-500 hover:text-gray-800' }} px-3 py-1.5">
+                class="{{ $this->activeHistoryTab === $tabKey ? 'border-b-2 border-brand-bold font-semibold text-brand-bolder' : 'text-neutral-500 hover:text-neutral-800' }} px-3 py-1.5">
                 {{ $tabLabel }}
             </button>
         @endforeach
@@ -1183,10 +1183,10 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($this->activeHistoryTab === 'changesets')
         <ul class="mb-6 space-y-2" data-history-changesets>
             @foreach ($issue->changesets as $changeset)
-                <li class="rounded-md border border-gray-200 bg-white p-3 text-sm" wire:key="issue-changeset-{{ $changeset->id }}">
-                    <a href="{{ route($changeset->repository->routeName('repository.show'), $changeset->repository->routeParameters(['changeset' => $changeset])) }}" class="font-mono text-indigo-600 hover:underline">{{ $changeset->shortRevision() }}</a>
-                    <span class="ml-2 text-xs text-gray-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</span>
-                    <div class="mt-1 text-gray-800">{{ $changeset->commentsHtml(firstLineOnly: true) }}</div>
+                <li class="rounded-md border border-neutral-200 bg-white p-3 text-sm" wire:key="issue-changeset-{{ $changeset->id }}">
+                    <a href="{{ route($changeset->repository->routeName('repository.show'), $changeset->repository->routeParameters(['changeset' => $changeset])) }}" class="font-mono text-brand-bold hover:underline">{{ $changeset->shortRevision() }}</a>
+                    <span class="ml-2 text-xs text-neutral-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</span>
+                    <div class="mt-1 text-neutral-800">{{ $changeset->commentsHtml(firstLineOnly: true) }}</div>
                 </li>
             @endforeach
         </ul>
@@ -1198,12 +1198,12 @@ new #[Layout('components.layouts.app')] class extends Component
             default => true,
         }) as $journal)
             @unless ($journal->isEmpty())
-                <li wire:key="journal-{{ $journal->id }}" class="rounded-md border border-gray-200 bg-white p-3 text-sm">
-                    <div class="text-gray-500 text-xs mb-1">
+                <li wire:key="journal-{{ $journal->id }}" class="rounded-md border border-neutral-200 bg-white p-3 text-sm">
+                    <div class="text-neutral-500 text-xs mb-1">
                         <x-avatar :user="$journal->user" :size="20" class="mr-1" />
                         {{ $journal->user->displayName() }} — {{ $journal->created_at->format('Y-m-d H:i') }}
                         @if ($journal->private_notes)
-                            <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-amber-700">非公開</span>
+                            <span class="ml-1 rounded bg-warning-subtler px-1.5 py-0.5 text-warning-bold">非公開</span>
                         @endif
                         @if ($journal->notes && $journal->updatedBy !== null)
                             <span class="ml-1 italic" data-journal-edited>({{ $journal->updatedBy->displayName() }} が編集 {{ $journal->updated_at->format('Y-m-d H:i') }})</span>
@@ -1212,13 +1212,13 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endif
                     </div>
                     @foreach ($journal->details as $detail)
-                        <div class="text-gray-600 text-xs">
+                        <div class="text-neutral-600 text-xs">
                             @if ($detail->property === 'attr' && $detail->prop_key === 'description')
                                 {{ $this->journalDetailLabel($detail) }}が更新されました
-                                <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-indigo-600 hover:underline">(差分)</a>
+                                <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-brand-bold hover:underline">(差分)</a>
                             @elseif ($this->isLongTextCustomFieldDetail($detail))
                                 {{ $this->journalDetailLabel($detail) }}が更新されました
-                                <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-indigo-600 hover:underline">(差分)</a>
+                                <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-brand-bold hover:underline">(差分)</a>
                             @elseif ($detail->property === 'attachment')
                                 添付ファイル「{{ $detail->new_value ?? $detail->old_value }}」が{{ $detail->new_value !== null ? '追加' : '削除' }}されました
                             @elseif ($detail->property === 'relation')
@@ -1231,27 +1231,27 @@ new #[Layout('components.layouts.app')] class extends Component
                     @if ($journal->notes)
                         @if ($editingJournalId === $journal->id)
                             <div class="mt-1 space-y-1">
-                                <textarea wire:model="editingJournalNotes" rows="3" class="block w-full rounded-md border-gray-300 text-sm shadow-sm"></textarea>
-                                @error('editingJournalNotes') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                                <textarea wire:model="editingJournalNotes" rows="3" class="block w-full rounded-md border-neutral-300 text-sm shadow-sm"></textarea>
+                                @error('editingJournalNotes') <p class="text-xs text-danger-bolder">{{ $message }}</p> @enderror
                                 @can('setNotesPrivate', $issue)
-                                    <label class="flex items-center gap-1.5 text-xs text-gray-700">
-                                        <input type="checkbox" wire:model="editingJournalPrivate" class="rounded border-gray-300">
+                                    <label class="flex items-center gap-1.5 text-xs text-neutral-700">
+                                        <input type="checkbox" wire:model="editingJournalPrivate" class="rounded border-neutral-300">
                                         非公開コメントにする
                                     </label>
                                 @endcan
                                 <div class="flex gap-2">
-                                    <button wire:click="saveJournalEdit" class="text-xs text-indigo-600 hover:underline">保存</button>
-                                    <button wire:click="cancelEditingJournal" class="text-xs text-gray-500 hover:underline">キャンセル</button>
+                                    <button wire:click="saveJournalEdit" class="text-xs text-brand-bold hover:underline">保存</button>
+                                    <button wire:click="cancelEditingJournal" class="text-xs text-neutral-500 hover:underline">キャンセル</button>
                                 </div>
                             </div>
                         @else
-                            <div class="prose prose-sm max-w-none mt-1 text-gray-800">{!! $this->renderedNotes($journal) !!}</div>
+                            <div class="prose prose-sm max-w-none mt-1 text-neutral-800">{!! $this->renderedNotes($journal) !!}</div>
                             <div class="mt-1 flex items-center gap-2">
                                 @can('addNotes', $issue)
-                                    <button wire:click="quote({{ $journal->id }})" class="text-xs text-indigo-600 hover:underline">引用</button>
+                                    <button wire:click="quote({{ $journal->id }})" class="text-xs text-brand-bold hover:underline">引用</button>
                                 @endcan
                                 @can('update', $journal)
-                                    <button wire:click="startEditingJournal({{ $journal->id }})" class="text-xs text-indigo-600 hover:underline">編集</button>
+                                    <button wire:click="startEditingJournal({{ $journal->id }})" class="text-xs text-brand-bold hover:underline">編集</button>
                                 @endcan
                                 <x-reaction-button :reactable="$journal" type="journal" />
                             </div>
@@ -1260,7 +1260,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </li>
             @endunless
         @empty
-            <li class="text-sm text-gray-500">履歴はありません。</li>
+            <li class="text-sm text-neutral-500">履歴はありません。</li>
         @endforelse
     </ul>
     @endif
@@ -1268,15 +1268,15 @@ new #[Layout('components.layouts.app')] class extends Component
     @can('addNotes', $issue)
         <form wire:submit="addComment" class="space-y-2">
             <textarea wire:model="comment" rows="3" placeholder="コメントを追加"
-                class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user()) }} block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
-            @error('comment') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+                class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user()) }} block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
+            @error('comment') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
             @can('setNotesPrivate', $issue)
-                <label class="flex items-center gap-1.5 text-sm text-gray-700">
+                <label class="flex items-center gap-1.5 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="commentIsPrivate">
                     非公開メモにする
                 </label>
             @endcan
-            <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                 コメントを追加
             </button>
         </form>

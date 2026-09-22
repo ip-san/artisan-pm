@@ -50,55 +50,97 @@
     --border-width-focused: 2px;
 
     /*
-     * Surface/text/border neutrals reuse this app's own gray scale — its
-     * already-dominant choice (658 uses of text-gray-700, 613 of
-     * border-gray-300 as of 2026-09-22) — rather than importing ADS's own
-     * neutral palette, whose exact current values this session could not
-     * fully verify from the published source (the fetch was truncated
-     * before reaching the color.text and color.border keys). Only the
-     * semantic names below follow ADS's shape.
+     * Neutral scale — a straight rename of this app's own gray scale
+     * (var() alias, same oklch values, zero visual change) to the name
+     * ADS uses for it. Introduced 2026-09-22 as the target of the
+     * app-wide bg-/text-/border-gray-* → bg-/text-/border-neutral-*
+     * migration (see git log for that commit) — every gray-N usage in
+     * resources/views was mechanically renamed to neutral-N, not
+     * collapsed into fewer tiers, so no gray distinction was lost.
      */
+    --color-neutral-50: var(--color-gray-50);
+    --color-neutral-100: var(--color-gray-100);
+    --color-neutral-200: var(--color-gray-200);
+    --color-neutral-300: var(--color-gray-300);
+    --color-neutral-400: var(--color-gray-400);
+    --color-neutral-500: var(--color-gray-500);
+    --color-neutral-600: var(--color-gray-600);
+    --color-neutral-700: var(--color-gray-700);
+    --color-neutral-800: var(--color-gray-800);
+    --color-neutral-900: var(--color-gray-900);
+
+    /* Surface/text/border semantics, expressed through the neutral scale
+     * above rather than hardcoding gray again. */
     --color-surface: var(--color-white);
-    --color-surface-sunken: var(--color-gray-50);
-    --color-surface-hovered: var(--color-gray-100);
-    --color-text-default: var(--color-gray-700);
-    --color-text-subtle: var(--color-gray-500);
-    --color-text-disabled: var(--color-gray-400);
-    --color-border-default: var(--color-gray-300);
-    --color-border-input: var(--color-gray-300);
+    --color-surface-sunken: var(--color-neutral-50);
+    --color-surface-hovered: var(--color-neutral-100);
+    --color-text-default: var(--color-neutral-700);
+    --color-text-subtle: var(--color-neutral-500);
+    --color-text-disabled: var(--color-neutral-400);
+    --color-border-default: var(--color-neutral-300);
+    --color-border-input: var(--color-neutral-300);
 
     /*
-     * Brand blue — this app's actual primary color today is indigo (101
-     * uses of bg-indigo-600 in resources/views); these tokens are
-     * reference-only until/unless that's deliberately changed.
+     * Brand blue — this app's actual primary color was indigo until the
+     * 2026-09-22 app-wide migration replaced every bg-/text-/border-
+     * indigo-* (and the handful of one-off blue-*) use with these tokens,
+     * so this is now a real, live visual change, not just a reference.
      * --color-brand is verified this session (@atlaskit/tokens
      * color.background.accent.blue.subtle). --color-brand-bold/-bolder
      * were NOT verified this session — they're Atlassian's commonly
      * published brand blue (often cited as B400/B500) from general
-     * knowledge; re-check against @atlaskit/tokens before using them for
-     * anything user-facing (e.g. primary buttons/links).
+     * knowledge, not the fetched source; re-check against
+     * @atlaskit/tokens if exact fidelity to the current ADS release
+     * matters. --color-brand-subtlest/-subtler/-subtle are derived tints
+     * of --color-brand-bold via color-mix() (indigo's 50/100/200/300
+     * previously had four tiers this app's own token set didn't have
+     * verified sources for) — treat these as a reasonable approximation,
+     * not a sourced value.
      */
+    --color-brand-subtlest: color-mix(in oklab, var(--color-brand-bold), white 92%);
+    --color-brand-subtler: color-mix(in oklab, var(--color-brand-bold), white 82%);
+    --color-brand-subtle: color-mix(in oklab, var(--color-brand-bold), white 55%);
     --color-brand: #669df1;
     --color-brand-bold: #0c66e4;
     --color-brand-bolder: #0055cc;
 
     /*
-     * Status colors — @atlaskit/tokens/atlassian-light (verified this
-     * session). Danger is the only one with its full subtlest→bolder
-     * scale confirmed; the rest only had one shade ("subtle") confirmed,
-     * so only that shade is included here — extend with the real
-     * bolder/subtlest values from @atlaskit/tokens before using these for
-     * a multi-tone UI (e.g. status badges), rather than deriving the
-     * missing steps from this one data point.
+     * Status colors — replaced every bg-/text-/border- red-* (→danger),
+     * green-* (→success), amber-* and orange-* (→warning) use app-wide on
+     * 2026-09-22. Values sourced from @atlaskit/tokens v18.2.1
+     * (atlassian-light, fetched this session) where noted; the rest are
+     * derived via color-mix() from the one sourced shade in that family
+     * and are approximations, not additional fetched data points.
+     *
+     * Deliberately NOT touched by that migration: the git-blame block
+     * palette (resources/views/livewire/repository/annotate.blade.php,
+     * BLOCK_COLORS) and one dark-background diff hunk-header color
+     * (resources/views/attachments/preview.blade.php, text-cyan-400) —
+     * both use color only to keep a set of things visually distinct from
+     * each other, not to signal status, so folding them into this
+     * semantic palette would remove the variety they exist for.
      */
-    --color-danger-subtlest: #ffeceb;
-    --color-danger-subtler: #ffd5d2;
-    --color-danger-subtle: #f87168;
-    --color-danger-bolder: #c9372c;
-    --color-success: #4bce97;
-    --color-warning: #fca700;
-    --color-caution: #eed12b;
-    --color-discovery: #c97cf4;
+    --color-danger-subtlest: #ffeceb; /* sourced */
+    --color-danger-subtler: #ffd5d2; /* sourced */
+    --color-danger-subtle: #f87168; /* sourced */
+    --color-danger-bolder: #c9372c; /* sourced */
+    --color-danger-boldest: color-mix(in oklab, var(--color-danger-bolder), black 35%); /* derived */
+
+    --color-success-subtlest: color-mix(in oklab, var(--color-success), white 88%); /* derived */
+    --color-success-subtler: color-mix(in oklab, var(--color-success), white 75%); /* derived */
+    --color-success: #4bce97; /* sourced */
+    --color-success-bold: color-mix(in oklab, var(--color-success), black 35%); /* derived */
+    --color-success-bolder: color-mix(in oklab, var(--color-success), black 55%); /* derived */
+
+    --color-warning-subtlest: color-mix(in oklab, var(--color-warning), white 88%); /* derived */
+    --color-warning-subtler: color-mix(in oklab, var(--color-warning), white 75%); /* derived */
+    --color-warning-subtle: color-mix(in oklab, var(--color-warning), white 40%); /* derived */
+    --color-warning: #fca700; /* sourced */
+    --color-warning-bold: color-mix(in oklab, var(--color-warning), black 30%); /* derived */
+    --color-warning-bolder: color-mix(in oklab, var(--color-warning), black 50%); /* derived */
+
+    --color-caution: #eed12b; /* sourced, not wired into the app-wide migration (no yellow-* usage found) */
+    --color-discovery: #c97cf4; /* sourced, not wired into the app-wide migration (no purple-* usage found) */
 }
 
 [x-cloak] {

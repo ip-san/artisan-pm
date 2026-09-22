@@ -1407,11 +1407,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($this->canBulkEdit && count($selected) > 0)
         <div x-show="menu.open" x-cloak x-on:click.stop x-bind:style="`left:${menu.x}px;top:${menu.y}px`" data-context-menu
-            class="fixed z-50 w-52 rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg">
+            class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg">
             @if (count($selected) === 1)
-                <a href="{{ route('issues.edit', [$project, $this->selectedIssues->first()]) }}" class="block px-3 py-1.5 text-gray-700 hover:bg-gray-100">編集</a>
+                <a href="{{ route('issues.edit', [$project, $this->selectedIssues->first()]) }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">編集</a>
             @else
-                <a href="#bulk-edit-form" x-on:click="menu.open = false" class="block px-3 py-1.5 text-gray-700 hover:bg-gray-100">一括編集</a>
+                <a href="#bulk-edit-form" x-on:click="menu.open = false" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">一括編集</a>
             @endif
 
             @foreach ([
@@ -1421,10 +1421,10 @@ new #[Layout('components.layouts.app')] class extends Component
             ] as $menuField => [$menuLabel, $menuOptions, $menuNone])
                 @if ($menuOptions->isNotEmpty())
                     <div class="group relative" wire:key="context-menu-{{ $menuField }}">
-                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-gray-700 group-hover:bg-gray-100">{{ $menuLabel }} <span class="text-gray-400">›</span></span>
-                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg group-hover:block">
+                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuLabel }} <span class="text-neutral-400">›</span></span>
+                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
                             @foreach ($menuOptions as $menuOption)
-                                <button type="button" wire:click="contextUpdate('{{ $menuField }}', '{{ $menuOption->id }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">{{ $menuOption->name }}</button>
+                                <button type="button" wire:click="contextUpdate('{{ $menuField }}', '{{ $menuOption->id }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $menuOption->name }}</button>
                             @endforeach
                         </div>
                     </div>
@@ -1438,50 +1438,50 @@ new #[Layout('components.layouts.app')] class extends Component
             ] as $menuField => [$menuLabel, $menuOptions, $menuNone])
                 @if ($menuOptions->isNotEmpty() || $menuField === 'assigned_to_id')
                     <div class="group relative" wire:key="context-menu-{{ $menuField }}">
-                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-gray-700 group-hover:bg-gray-100">{{ $menuLabel }} <span class="text-gray-400">›</span></span>
-                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg group-hover:block">
+                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuLabel }} <span class="text-neutral-400">›</span></span>
+                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
                             @if ($menuField === 'assigned_to_id' && $this->projectMembers->contains('id', auth()->id()))
-                                <button type="button" wire:click="contextUpdate('assigned_to_id', 'me')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">&lt;&lt; 自分 &gt;&gt;</button>
+                                <button type="button" wire:click="contextUpdate('assigned_to_id', 'me')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">&lt;&lt; 自分 &gt;&gt;</button>
                             @endif
                             @foreach ($menuOptions as $menuOption)
-                                <button type="button" wire:click="contextUpdate('{{ $menuField }}', '{{ $menuOption->id }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">{{ $menuOption->name }}</button>
+                                <button type="button" wire:click="contextUpdate('{{ $menuField }}', '{{ $menuOption->id }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $menuOption->name }}</button>
                             @endforeach
-                            <button type="button" wire:click="contextUpdate('{{ $menuField }}', 'none')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-500 hover:bg-gray-100">{{ $menuNone }}</button>
+                            <button type="button" wire:click="contextUpdate('{{ $menuField }}', 'none')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-500 hover:bg-neutral-100">{{ $menuNone }}</button>
                         </div>
                     </div>
                 @endif
             @endforeach
 
             <div class="group relative" wire:key="context-menu-done_ratio">
-                <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-gray-700 group-hover:bg-gray-100">進捗率 <span class="text-gray-400">›</span></span>
-                <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg group-hover:block">
+                <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">進捗率 <span class="text-neutral-400">›</span></span>
+                <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
                     @foreach (\App\Support\Issues\DoneRatioSteps::options() as $ratio)
-                        <button type="button" wire:click="contextUpdate('done_ratio', '{{ $ratio }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">{{ $ratio }}%</button>
+                        <button type="button" wire:click="contextUpdate('done_ratio', '{{ $ratio }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $ratio }}%</button>
                     @endforeach
                 </div>
             </div>
 
             @auth
-                <button type="button" wire:click="contextToggleWatch" x-on:click="menu.open = false" class="block w-full border-t border-gray-100 px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">ウォッチ / ウォッチをやめる</button>
+                <button type="button" wire:click="contextToggleWatch" x-on:click="menu.open = false" class="block w-full border-t border-neutral-100 px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">ウォッチ / ウォッチをやめる</button>
             @endauth
             @if (count($selected) === 1)
                 @php $menuIssue = $this->selectedIssues->first(); @endphp
                 @if (auth()->user()?->can('manageSubtasks', [\App\Models\Issue::class, $project]) && auth()->user()?->can('create', [\App\Models\Issue::class, $project]))
-                    <a href="{{ route('issues.create', $project) }}?parent_id={{ $menuIssue->id }}" class="block px-3 py-1.5 text-gray-700 hover:bg-gray-100">子課題を追加</a>
+                    <a href="{{ route('issues.create', $project) }}?parent_id={{ $menuIssue->id }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">子課題を追加</a>
                 @endif
                 @if (app(\App\Support\Authorization\AuthorizationService::class)->can(auth()->user(), 'log_time', $project))
-                    <a href="{{ route('time-entries.create', $project) }}?issue_id={{ $menuIssue->id }}" class="block px-3 py-1.5 text-gray-700 hover:bg-gray-100">作業時間を記録</a>
+                    <a href="{{ route('time-entries.create', $project) }}?issue_id={{ $menuIssue->id }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">作業時間を記録</a>
                 @endif
-                <button type="button" x-on:click="navigator.clipboard?.writeText('{{ route('issues.show', [$project, $menuIssue]) }}'); menu.open = false" class="block w-full px-3 py-1.5 text-left text-gray-700 hover:bg-gray-100">URLをコピー</button>
+                <button type="button" x-on:click="navigator.clipboard?.writeText('{{ route('issues.show', [$project, $menuIssue]) }}'); menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">URLをコピー</button>
             @endif
             @if ($this->canBulkCopy)
-                <a href="#bulk-copy-form" x-on:click="menu.open = false" class="block border-t border-gray-100 px-3 py-1.5 text-gray-700 hover:bg-gray-100">コピー</a>
+                <a href="#bulk-copy-form" x-on:click="menu.open = false" class="block border-t border-neutral-100 px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">コピー</a>
             @endif
             @if (auth()->user()?->can('delete', $this->selectedIssues->first()))
                 @if ($this->bulkDeleteHours > 0)
-                    <button type="button" wire:click="$set('confirmingBulkDelete', true)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-red-700 hover:bg-red-50">削除</button>
+                    <button type="button" wire:click="$set('confirmingBulkDelete', true)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">削除</button>
                 @else
-                    <button type="button" wire:click="applyBulkDelete" wire:confirm="選択した{{ count($selected) }}件の課題を削除します。この操作は取り消せません。よろしいですか?" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-red-700 hover:bg-red-50">削除</button>
+                    <button type="button" wire:click="applyBulkDelete" wire:confirm="選択した{{ count($selected) }}件の課題を削除します。この操作は取り消せません。よろしいですか?" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">削除</button>
                 @endif
             @endif
         </div>
@@ -1489,46 +1489,46 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — 課題</h1>
+            <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — 課題</h1>
             <div class="mt-2 flex gap-3 text-sm">
-                <button wire:click="$set('statusFilter', 'open')" class="{{ $statusFilter === 'open' ? 'font-semibold text-indigo-600' : 'text-gray-500' }}">未対応</button>
-                <button wire:click="$set('statusFilter', 'closed')" class="{{ $statusFilter === 'closed' ? 'font-semibold text-indigo-600' : 'text-gray-500' }}">完了</button>
-                <button wire:click="$set('statusFilter', 'all')" class="{{ $statusFilter === 'all' ? 'font-semibold text-indigo-600' : 'text-gray-500' }}">すべて</button>
+                <button wire:click="$set('statusFilter', 'open')" class="{{ $statusFilter === 'open' ? 'font-semibold text-brand-bold' : 'text-neutral-500' }}">未対応</button>
+                <button wire:click="$set('statusFilter', 'closed')" class="{{ $statusFilter === 'closed' ? 'font-semibold text-brand-bold' : 'text-neutral-500' }}">完了</button>
+                <button wire:click="$set('statusFilter', 'all')" class="{{ $statusFilter === 'all' ? 'font-semibold text-brand-bold' : 'text-neutral-500' }}">すべて</button>
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ $this->atomUrl }}" class="text-xs text-orange-600 hover:underline">Atom</a>
-            <a href="{{ route('issues.changes-atom', [$project, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-orange-600 hover:underline">変更履歴(Atom)</a>
-            <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-gray-300 text-xs">
+            <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
+            <a href="{{ route('issues.changes-atom', [$project, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">変更履歴(Atom)</a>
+            <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-neutral-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
                 <option value="SJIS-win">Shift_JIS</option>
             </select>
-            <select wire:model="csvSeparator" title="区切り文字" class="rounded-md border-gray-300 text-xs">
+            <select wire:model="csvSeparator" title="区切り文字" class="rounded-md border-neutral-300 text-xs">
                 <option value=",">カンマ</option>
                 <option value=";">セミコロン</option>
                 <option value="{{ "\t" }}">タブ</option>
             </select>
-            <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 CSVエクスポート
             </button>
-            <button wire:click="exportPdf" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <button wire:click="exportPdf" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 PDFエクスポート
             </button>
             @if ($this->issues->total() > ExportLimit::issues())
-                <span class="text-xs text-amber-700" data-export-limit-warning>エクスポートは先頭の{{ ExportLimit::issues() }}件までです</span>
+                <span class="text-xs text-warning-bold" data-export-limit-warning>エクスポートは先頭の{{ ExportLimit::issues() }}件までです</span>
             @endif
-            <a href="{{ route('issues.report', $project) }}" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <a href="{{ route('issues.report', $project) }}" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 レポート
             </a>
             @can('import', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.import', $project) }}"
-                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     CSVインポート
                 </a>
             @endcan
             @can('create', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.create', $project) }}"
-                    class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                     新規課題
                 </a>
             @endcan
@@ -1537,28 +1537,28 @@ new #[Layout('components.layouts.app')] class extends Component
 
     {{-- Saved queries --}}
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
-        <span class="text-gray-500">保存済みクエリ:</span>
+        <span class="text-neutral-500">保存済みクエリ:</span>
         @forelse ($this->savedQueries as $savedQuery)
-            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-gray-300 px-3 py-1 text-gray-700 hover:bg-gray-50">
+            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
                 {{ $savedQuery->name }}
             </button>
         @empty
-            <span class="text-gray-400">なし</span>
+            <span class="text-neutral-400">なし</span>
         @endforelse
     </div>
 
     {{-- Filter builder --}}
-    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                 絞り込み適用
             </button>
 
-            <label class="flex items-center gap-2 text-sm text-gray-700">
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
                 グループ化:
-                <select wire:model.live="groupBy" class="rounded-md border-gray-300 text-sm">
+                <select wire:model.live="groupBy" class="rounded-md border-neutral-300 text-sm">
                     <option value="">なし</option>
                     <option value="status_id">ステータス</option>
                     <option value="tracker_id">トラッカー</option>
@@ -1572,11 +1572,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
             </label>
 
-            <div class="flex items-center gap-2 text-sm text-gray-700">
+            <div class="flex items-center gap-2 text-sm text-neutral-700">
                 表示列:
                 @foreach ($this->availableColumns as $key => $label)
                     <label class="flex items-center gap-1" wire:key="column-option-{{ $key }}">
-                        <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-gray-300">
+                        <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-neutral-300">
                         {{ $label }}
                     </label>
                 @endforeach
@@ -1584,18 +1584,18 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <x-column-order :columns="$columns" :labels="$this->availableColumns" />
 
-            <div class="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+            <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
                 並べ替え(最大3列。列見出しのクリックは1列目のみ変更):
                 @foreach ([[2, 'sortKey2', 'sortDirection2'], [3, 'sortKey3', 'sortDirection3']] as [$level, $keyProp, $dirProp])
                     <span class="flex items-center gap-1">
                         {{ $level }}列目:
-                        <select wire:model.live="{{ $keyProp }}" class="rounded-md border-gray-300 text-sm">
+                        <select wire:model.live="{{ $keyProp }}" class="rounded-md border-neutral-300 text-sm">
                             <option value="">なし</option>
                             @foreach ($this->sortableColumns as $columnKey => $label)
                                 <option value="{{ $columnKey }}">{{ $label }}</option>
                             @endforeach
                         </select>
-                        <select wire:model.live="{{ $dirProp }}" class="rounded-md border-gray-300 text-sm">
+                        <select wire:model.live="{{ $dirProp }}" class="rounded-md border-neutral-300 text-sm">
                             <option value="asc">昇順</option>
                             <option value="desc">降順</option>
                         </select>
@@ -1604,7 +1604,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             @if ($this->canSaveQueries)
-                <button wire:click="$toggle('showSaveForm')" class="text-sm text-indigo-600 hover:underline">クエリを保存</button>
+                <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">クエリを保存</button>
             @endif
         </div>
 
@@ -1617,13 +1617,13 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($this->canBulkEdit && count($selected) > 0)
-        <form id="bulk-edit-form" wire:submit="applyBulkEdit" class="mb-4 space-y-3 rounded-md border border-indigo-200 bg-indigo-50 p-4">
-            <p class="text-sm font-medium text-gray-900">{{ count($selected) }}件を選択中 — 変更する項目だけ設定してください</p>
+        <form id="bulk-edit-form" wire:submit="applyBulkEdit" class="mb-4 space-y-3 rounded-md border border-brand-subtle bg-brand-subtlest p-4">
+            <p class="text-sm font-medium text-neutral-900">{{ count($selected) }}件を選択中 — 変更する項目だけ設定してください</p>
 
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">ステータス</label>
-                    <select wire:model="bulkStatusId" class="mt-1 block w-full rounded-md border-gray-300 text-sm"
+                    <label class="block text-xs font-medium text-neutral-700">ステータス</label>
+                    <select wire:model="bulkStatusId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm"
                         @if ($this->bulkStatusOptions->isEmpty()) disabled @endif>
                         <option value="">変更なし</option>
                         @foreach ($this->bulkStatusOptions as $status)
@@ -1632,8 +1632,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">優先度</label>
-                    <select wire:model="bulkPriorityId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                    <label class="block text-xs font-medium text-neutral-700">優先度</label>
+                    <select wire:model="bulkPriorityId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">変更なし</option>
                         @foreach ($this->priorities as $priority)
                             <option value="{{ $priority->id }}">{{ $priority->name }}</option>
@@ -1641,8 +1641,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">担当者</label>
-                    <select wire:model="bulkAssignedToId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                    <label class="block text-xs font-medium text-neutral-700">担当者</label>
+                    <select wire:model="bulkAssignedToId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">変更なし</option>
                         @foreach ($this->projectMembers as $member)
                             <option value="{{ $member->id }}">{{ $member->name }}</option>
@@ -1650,8 +1650,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">対象バージョン</label>
-                    <select wire:model="bulkFixedVersionId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                    <label class="block text-xs font-medium text-neutral-700">対象バージョン</label>
+                    <select wire:model="bulkFixedVersionId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">変更なし</option>
                         @foreach ($this->projectVersions as $version)
                             <option value="{{ $version->id }}">{{ $version->name }}</option>
@@ -1659,38 +1659,38 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">トラッカー</label>
-                    <select wire:model="bulkTrackerId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                    <label class="block text-xs font-medium text-neutral-700">トラッカー</label>
+                    <select wire:model="bulkTrackerId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">変更なし</option>
                         @foreach ($this->bulkTrackers as $tracker)
                             <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
                         @endforeach
                     </select>
-                    @error('bulkTrackerId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    @error('bulkTrackerId') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">カテゴリ</label>
-                    <select wire:model="bulkCategoryId" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                    <label class="block text-xs font-medium text-neutral-700">カテゴリ</label>
+                    <select wire:model="bulkCategoryId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">変更なし</option>
                         @foreach ($this->bulkCategories as $category)
                             <option value="{{ $category->id }}">{{ $category->name }}</option>
                         @endforeach
                     </select>
-                    @error('bulkCategoryId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    @error('bulkCategoryId') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">開始日</label>
-                    <input type="date" wire:model="bulkStartDate" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
-                    @error('bulkStartDate') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    <label class="block text-xs font-medium text-neutral-700">開始日</label>
+                    <input type="date" wire:model="bulkStartDate" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    @error('bulkStartDate') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">期日</label>
-                    <input type="date" wire:model="bulkDueDate" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
-                    @error('bulkDueDate') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    <label class="block text-xs font-medium text-neutral-700">期日</label>
+                    <input type="date" wire:model="bulkDueDate" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    @error('bulkDueDate') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">非公開</label>
-                    <select wire:model="bulkIsPrivate" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                    <label class="block text-xs font-medium text-neutral-700">非公開</label>
+                    <select wire:model="bulkIsPrivate" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">変更なし</option>
                         <option value="yes">非公開にする</option>
                         <option value="no">公開にする</option>
@@ -1698,14 +1698,14 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @can('manageSubtasks', [\App\Models\Issue::class, $project])
                     <div>
-                        <label class="block text-xs font-medium text-gray-700">親課題(番号)</label>
-                        <input type="number" wire:model="bulkParentId" placeholder="変更なし" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
-                        @error('bulkParentId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        <label class="block text-xs font-medium text-neutral-700">親課題(番号)</label>
+                        <input type="number" wire:model="bulkParentId" placeholder="変更なし" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                        @error('bulkParentId') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                     </div>
                 @endcan
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">進捗率</label>
-                    <select wire:model="bulkDoneRatio" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                    <label class="block text-xs font-medium text-neutral-700">進捗率</label>
+                    <select wire:model="bulkDoneRatio" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">変更なし</option>
                         @foreach (\App\Support\Issues\DoneRatioSteps::options() as $ratio)
                             <option value="{{ $ratio }}">{{ $ratio }}%</option>
@@ -1718,9 +1718,9 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-bulk-custom-fields>
                     @foreach ($this->bulkCustomFields as $field)
                         <div wire:key="bulk-cf-{{ $field->id }}">
-                            <label class="block text-xs font-medium text-gray-700">{{ $field->name }}</label>
+                            <label class="block text-xs font-medium text-neutral-700">{{ $field->name }}</label>
                             @if (in_array($field->field_format, [\App\Enums\CustomFieldFormat::List, \App\Enums\CustomFieldFormat::Enumeration, \App\Enums\CustomFieldFormat::Bool], true))
-                                <select wire:model="bulkCustomFieldValues.{{ $field->id }}" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                                <select wire:model="bulkCustomFieldValues.{{ $field->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                                     <option value="">変更なし</option>
                                     @if ($field->field_format === \App\Enums\CustomFieldFormat::Bool)
                                         <option value="1">はい</option>
@@ -1732,24 +1732,24 @@ new #[Layout('components.layouts.app')] class extends Component
                                     @endif
                                 </select>
                             @else
-                                <input type="text" wire:model="bulkCustomFieldValues.{{ $field->id }}" placeholder="変更なし" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                                <input type="text" wire:model="bulkCustomFieldValues.{{ $field->id }}" placeholder="変更なし" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                             @endif
-                            @error("bulkCustomFieldValues.{$field->id}") <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            @error("bulkCustomFieldValues.{$field->id}") <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                         </div>
                     @endforeach
                 </div>
             @endif
 
             <div>
-                <label class="block text-xs font-medium text-gray-700">コメント(任意)</label>
-                <textarea wire:model="bulkComment" rows="2" class="mt-1 block w-full rounded-md border-gray-300 text-sm"></textarea>
+                <label class="block text-xs font-medium text-neutral-700">コメント(任意)</label>
+                <textarea wire:model="bulkComment" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 text-sm"></textarea>
             </div>
 
             <div class="flex gap-2">
-                <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                     一括更新
                 </button>
-                <button type="button" wire:click="$set('selected', [])" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-white">
+                <button type="button" wire:click="$set('selected', [])" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-white">
                     選択解除
                 </button>
             </div>
@@ -1757,30 +1757,30 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if (count($selected) > 0 && auth()->user()?->can('move', $this->selectedIssues->first()) && $this->bulkMoveTargetProjects->isNotEmpty())
-        <form wire:submit="applyBulkMove" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-white p-4">
+        <form wire:submit="applyBulkMove" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-4">
             <div>
-                <label class="block text-xs font-medium text-gray-700">{{ count($selected) }}件を別のプロジェクトへ移動</label>
-                <select wire:model.live="bulkMoveToProjectId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                <label class="block text-xs font-medium text-neutral-700">{{ count($selected) }}件を別のプロジェクトへ移動</label>
+                <select wire:model.live="bulkMoveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                     <option value="">選択してください</option>
                     @foreach ($this->bulkMoveTargetProjects as $candidate)
                         <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
                     @endforeach
                 </select>
-                @error('bulkMoveToProjectId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('bulkMoveToProjectId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             @if ($bulkMoveToProjectId)
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">移動後のトラッカー</label>
-                    <select wire:model="bulkMoveToTrackerId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                    <label class="block text-xs font-medium text-neutral-700">移動後のトラッカー</label>
+                    <select wire:model="bulkMoveToTrackerId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                         <option value="">選択してください</option>
                         @foreach ($this->bulkMoveTargetTrackers as $candidateTracker)
                             <option value="{{ $candidateTracker->id }}">{{ $candidateTracker->name }}</option>
                         @endforeach
                     </select>
-                    @error('bulkMoveToTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('bulkMoveToTrackerId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <button type="submit" wire:confirm="移動するとカテゴリ・対象バージョン・親課題はリセットされます。よろしいですか?"
-                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     移動
                 </button>
             @endif
@@ -1788,50 +1788,50 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if (count($selected) > 0 && $this->canBulkCopy && $this->bulkCopyTargetProjects->isNotEmpty())
-        <form id="bulk-copy-form" wire:submit="applyBulkCopy" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-white p-4">
+        <form id="bulk-copy-form" wire:submit="applyBulkCopy" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-4">
             <div>
-                <label class="block text-xs font-medium text-gray-700">{{ count($selected) }}件をコピーして複製</label>
-                <select wire:model.live="bulkCopyToProjectId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                <label class="block text-xs font-medium text-neutral-700">{{ count($selected) }}件をコピーして複製</label>
+                <select wire:model.live="bulkCopyToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                     <option value="">選択してください</option>
                     @foreach ($this->bulkCopyTargetProjects as $candidate)
                         <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
                     @endforeach
                 </select>
-                @error('bulkCopyToProjectId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('bulkCopyToProjectId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             @if ($bulkCopyToProjectId)
                 <div>
-                    <label class="block text-xs font-medium text-gray-700">複製先のトラッカー</label>
-                    <select wire:model="bulkCopyToTrackerId" class="mt-1 block rounded-md border-gray-300 text-sm">
+                    <label class="block text-xs font-medium text-neutral-700">複製先のトラッカー</label>
+                    <select wire:model="bulkCopyToTrackerId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                         <option value="">選択してください</option>
                         @foreach ($this->bulkCopyTargetTrackers as $candidateTracker)
                             <option value="{{ $candidateTracker->id }}">{{ $candidateTracker->name }}</option>
                         @endforeach
                     </select>
-                    @error('bulkCopyToTrackerId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('bulkCopyToTrackerId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 @if (CopyOptions::attachmentsMode() === 'ask')
-                    <label class="flex items-center gap-1.5 text-xs text-gray-700">
-                        <input type="checkbox" wire:model="bulkCopyAttachments" class="rounded border-gray-300">
+                    <label class="flex items-center gap-1.5 text-xs text-neutral-700">
+                        <input type="checkbox" wire:model="bulkCopyAttachments" class="rounded border-neutral-300">
                         添付ファイルも複製
                     </label>
                 @endif
                 @if (CopyOptions::linkMode() === 'ask')
-                    <label class="flex items-center gap-1.5 text-xs text-gray-700">
-                        <input type="checkbox" wire:model="bulkCopyLink" class="rounded border-gray-300">
+                    <label class="flex items-center gap-1.5 text-xs text-neutral-700">
+                        <input type="checkbox" wire:model="bulkCopyLink" class="rounded border-neutral-300">
                         コピー元との関連を作る
                     </label>
                 @endif
-                <label class="flex items-center gap-1.5 text-xs text-gray-700">
-                    <input type="checkbox" wire:model="bulkCopyWatchers" class="rounded border-gray-300">
+                <label class="flex items-center gap-1.5 text-xs text-neutral-700">
+                    <input type="checkbox" wire:model="bulkCopyWatchers" class="rounded border-neutral-300">
                     ウォッチャーも複製
                 </label>
-                <label class="flex items-center gap-1.5 text-xs text-gray-700">
-                    <input type="checkbox" wire:model="bulkCopySubtasks" class="rounded border-gray-300">
+                <label class="flex items-center gap-1.5 text-xs text-neutral-700">
+                    <input type="checkbox" wire:model="bulkCopySubtasks" class="rounded border-neutral-300">
                     子課題も複製
                 </label>
                 <button type="submit"
-                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     複製
                 </button>
             @endif
@@ -1842,37 +1842,37 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="mb-4">
             @if ($this->bulkDeleteHours > 0)
                 <button type="button" wire:click="$set('confirmingBulkDelete', true)"
-                    class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
+                    class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
                     選択した{{ count($selected) }}件を削除
                 </button>
 
                 @if ($confirmingBulkDelete)
-                    <form wire:submit="applyBulkDelete" class="mt-3 space-y-3 rounded-md border border-red-200 bg-red-50 p-4">
-                        <p class="text-sm font-medium text-red-800">
+                    <form wire:submit="applyBulkDelete" class="mt-3 space-y-3 rounded-md border border-danger-subtler bg-danger-subtlest p-4">
+                        <p class="text-sm font-medium text-danger-boldest">
                             選択した課題には合計 {{ rtrim(rtrim(number_format($this->bulkDeleteHours, 2), '0'), '.') }} 時間の作業時間が記録されています。作業時間をどうしますか?
                         </p>
-                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <label class="flex items-center gap-2 text-sm text-neutral-700">
                             <input type="radio" wire:model.live="bulkTimeEntryTodo" value="nullify">
                             課題との紐付けを外してプロジェクトに残す
                         </label>
-                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <label class="flex items-center gap-2 text-sm text-neutral-700">
                             <input type="radio" wire:model.live="bulkTimeEntryTodo" value="destroy">
                             作業時間も一緒に削除する
                         </label>
-                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                        <label class="flex items-center gap-2 text-sm text-neutral-700">
                             <input type="radio" wire:model.live="bulkTimeEntryTodo" value="reassign">
                             このプロジェクトの別の課題へ付け替える: #
                             <input type="number" min="1" wire:model="bulkReassignToId" wire:focus="$set('bulkTimeEntryTodo', 'reassign')"
-                                class="w-24 rounded-md border-gray-300 text-sm">
+                                class="w-24 rounded-md border-neutral-300 text-sm">
                         </label>
-                        @error('bulkTimeEntryTodo') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
-                        @error('bulkReassignToId') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+                        @error('bulkTimeEntryTodo') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
+                        @error('bulkReassignToId') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                         <div class="flex gap-2">
-                            <button type="submit" class="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500">
+                            <button type="submit" class="rounded-md bg-danger-bolder px-3 py-2 text-sm font-medium text-white hover:bg-danger-subtle">
                                 削除する
                             </button>
                             <button type="button" wire:click="$set('confirmingBulkDelete', false)"
-                                class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                                 キャンセル
                             </button>
                         </div>
@@ -1881,7 +1881,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @else
                 <button type="button" wire:click="applyBulkDelete"
                     wire:confirm="選択した{{ count($selected) }}件の課題を削除します。この操作は取り消せません。よろしいですか?"
-                    class="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
+                    class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
                     選択した{{ count($selected) }}件を削除
                 </button>
             @endif
@@ -1889,7 +1889,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if (ListDefaults::issueTotals() !== [])
-        <p class="mb-2 text-xs text-gray-500" data-list-totals>
+        <p class="mb-2 text-xs text-neutral-500" data-list-totals>
             合計:
             @foreach (ListDefaults::issueTotals() as $totalKey)
                 @php
@@ -1906,10 +1906,10 @@ new #[Layout('components.layouts.app')] class extends Component
             $groupTotal = $this->groupTotals[$groupLabel] ?? null;
         @endphp
         @if ($groupBy !== null)
-            <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-gray-900">
+            <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-neutral-900">
                 {{ $groupLabel ?: '(未設定)' }} ({{ $groupTotal['count'] ?? $groupIssues->count() }})
                 @if ($groupTotal !== null)
-                    <span class="ml-2 text-xs font-normal text-gray-500">
+                    <span class="ml-2 text-xs font-normal text-neutral-500">
                         予定 {{ \App\Support\Format\Hours::format($groupTotal['estimated']) }} 時間
                         / 実績 {{ \App\Support\Format\Hours::format($groupTotal['spent']) }} 時間
                     </span>
@@ -1917,9 +1917,9 @@ new #[Layout('components.layouts.app')] class extends Component
             </h2>
         @endif
 
-        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-gray-200 bg-white mb-4">
-            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-neutral-200 bg-white mb-4">
+            <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                     <tr>
                         @if ($this->canBulkEdit)
                             <th class="px-4 py-2"></th>
@@ -1930,7 +1930,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 @if (in_array($columnKey, self::COMPUTED_HOUR_COLUMNS, true))
                                     {{ $this->availableColumns[$columnKey] ?? $columnKey }}
                                 @else
-                                    <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-gray-900">
+                                    <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-neutral-900">
                                         {{ $this->availableColumns[$columnKey] ?? $columnKey }}
                                         @if ($sortKey === $columnKey)
                                             <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
@@ -1941,19 +1941,19 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endforeach
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-neutral-100">
                     @forelse ($groupIssues as $issue)
-                        <tr wire:key="issue-row-{{ $issue->id }}" @if ($this->canBulkEdit) x-on:contextmenu.prevent="showMenu($event, {{ $issue->id }})" @endif class="{{ in_array((string) $issue->id, array_map('strval', $selected), true) ? 'bg-indigo-50' : '' }}">
+                        <tr wire:key="issue-row-{{ $issue->id }}" @if ($this->canBulkEdit) x-on:contextmenu.prevent="showMenu($event, {{ $issue->id }})" @endif class="{{ in_array((string) $issue->id, array_map('strval', $selected), true) ? 'bg-brand-subtlest' : '' }}">
                             @if ($this->canBulkEdit)
                                 <td class="px-4 py-2">
-                                    <input type="checkbox" wire:model="selected" value="{{ $issue->id }}" class="rounded border-gray-300">
+                                    <input type="checkbox" wire:model="selected" value="{{ $issue->id }}" class="rounded border-neutral-300">
                                 </td>
                             @endif
-                            <td class="px-4 py-2 text-gray-500">{{ $issue->id }}</td>
+                            <td class="px-4 py-2 text-neutral-500">{{ $issue->id }}</td>
                             @foreach (array_diff($columns, self::BLOCK_COLUMNS) as $columnKey)
                                 <td wire:key="issue-{{ $issue->id }}-column-{{ $columnKey }}" class="px-4 py-2">
                                     @if ($columnKey === 'subject')
-                                        <a href="{{ route('issues.show', [$project, $issue]) }}" class="text-indigo-600 hover:underline">
+                                        <a href="{{ route('issues.show', [$project, $issue]) }}" class="text-brand-bold hover:underline">
                                             {{ $issue->subject }}
                                         </a>
                                     @elseif (str_starts_with($columnKey, 'cf_'))
@@ -1968,9 +1968,9 @@ new #[Layout('components.layouts.app')] class extends Component
                         </tr>
                         @foreach (array_intersect(self::BLOCK_COLUMNS, $columns) as $blockKey)
                             @if (filled($this->columnValue($issue, $blockKey)))
-                                <tr wire:key="issue-{{ $issue->id }}-block-{{ $blockKey }}" class="bg-gray-50" data-block-column="{{ $blockKey }}">
-                                    <td colspan="{{ count($columns) + 2 }}" class="px-4 py-2 text-xs text-gray-600">
-                                        <span class="font-medium text-gray-500">{{ $this->availableColumns[$blockKey] }}:</span>
+                                <tr wire:key="issue-{{ $issue->id }}-block-{{ $blockKey }}" class="bg-neutral-50" data-block-column="{{ $blockKey }}">
+                                    <td colspan="{{ count($columns) + 2 }}" class="px-4 py-2 text-xs text-neutral-600">
+                                        <span class="font-medium text-neutral-500">{{ $this->availableColumns[$blockKey] }}:</span>
                                         <span class="whitespace-pre-line">{{ \Illuminate\Support\Str::limit($this->columnValue($issue, $blockKey), 600) }}</span>
                                     </td>
                                 </tr>
@@ -1978,7 +1978,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endforeach
                     @empty
                         <tr>
-                            <td colspan="{{ count($columns) + 2 }}" class="px-4 py-6 text-center text-gray-500">課題がありません。</td>
+                            <td colspan="{{ count($columns) + 2 }}" class="px-4 py-6 text-center text-neutral-500">課題がありません。</td>
                         </tr>
                     @endforelse
                 </tbody>

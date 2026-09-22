@@ -95,46 +95,46 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">
         {{ $webhook ? 'Webhookを編集' : '新規Webhook' }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">名前</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">URL</label>
-            <input type="text" wire:model="url" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('url') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">URL</label>
+            <input type="text" wire:model="url" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('url') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">
+            <label class="block text-sm font-medium text-neutral-700">
                 シークレット{{ $webhook ? '(変更する場合のみ入力)' : '(任意)' }}
             </label>
-            <input type="password" wire:model="secret" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            <p class="mt-1 text-xs text-gray-500">設定すると、送信するリクエストに署名が付与されます。</p>
+            <input type="password" wire:model="secret" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <p class="mt-1 text-xs text-neutral-500">設定すると、送信するリクエストに署名が付与されます。</p>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">所有ユーザー</label>
-            <select wire:model="user_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">所有ユーザー</label>
+            <select wire:model="user_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">なし(すべてのイベントを送信)</option>
                 @foreach ($this->owners as $owner)
                     <option value="{{ $owner->id }}">{{ $owner->name }}</option>
                 @endforeach
             </select>
-            <p class="mt-1 text-xs text-gray-500">選ぶと、そのユーザーが閲覧でき、かつプロジェクトで「Webhookの利用」権限を持つ対象のイベントだけを送信します。</p>
-            @error('user_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <p class="mt-1 text-xs text-neutral-500">選ぶと、そのユーザーが閲覧でき、かつプロジェクトで「Webhookの利用」権限を持つ対象のイベントだけを送信します。</p>
+            @error('user_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">対象プロジェクト</label>
-            <select wire:model="project_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">対象プロジェクト</label>
+            <select wire:model="project_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">全プロジェクト</option>
                 @foreach ($this->projects as $project)
                     <option value="{{ $project->id }}">{{ $project->name }}</option>
@@ -143,28 +143,28 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <span class="block text-sm font-medium text-gray-700 mb-2">イベント</span>
+            <span class="block text-sm font-medium text-neutral-700 mb-2">イベント</span>
             <div class="flex flex-wrap gap-3">
                 @foreach (WebhookEvent::cases() as $event)
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" wire:model="events" value="{{ $event->value }}" class="rounded border-gray-300">
+                    <label class="flex items-center gap-2 text-sm text-neutral-700">
+                        <input type="checkbox" wire:model="events" value="{{ $event->value }}" class="rounded border-neutral-300">
                         {{ $event->value }}
                     </label>
                 @endforeach
             </div>
-            @error('events') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('events') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
-        <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" wire:model="is_active" class="rounded border-gray-300">
+        <label class="flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" wire:model="is_active" class="rounded border-neutral-300">
             有効にする
         </label>
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
-            <a href="{{ route('webhooks.index') }}" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <a href="{{ route('webhooks.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

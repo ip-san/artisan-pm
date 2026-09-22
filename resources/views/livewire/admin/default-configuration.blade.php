@@ -48,28 +48,28 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-2xl">
-    <h1 class="mb-6 text-xl font-semibold text-gray-900">デフォルト設定のロード</h1>
+    <h1 class="mb-6 text-xl font-semibold text-neutral-900">デフォルト設定のロード</h1>
 
-    <p class="mb-4 text-sm text-gray-600">
+    <p class="mb-4 text-sm text-neutral-600">
         標準のロール(マネージャー・開発者・報告者)、トラッカー、課題ステータス、優先度、作業分類、ワークフローを登録します。
     </p>
 
     @if ($this->configured)
-        <p class="rounded-md bg-amber-50 p-3 text-sm text-amber-800" data-default-configuration="loaded">
+        <p class="rounded-md bg-warning-subtlest p-3 text-sm text-warning-bolder" data-default-configuration="loaded">
             すでに設定があるため、読み込みは行えません。
         </p>
     @else
         <form wire:submit="load" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700">言語</label>
-                <select wire:model="locale" class="mt-1 block w-full max-w-xs rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <label class="block text-sm font-medium text-neutral-700">言語</label>
+                <select wire:model="locale" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="ja">日本語</option>
                     <option value="en">English</option>
                 </select>
-                @error('locale') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('locale') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 デフォルト設定を読み込む
             </button>
         </form>

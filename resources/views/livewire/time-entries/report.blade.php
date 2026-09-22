@@ -190,35 +190,35 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6">
-        <h1 class="text-xl font-semibold text-gray-900">{{ $project ? $project->name.' — ' : '' }}工数レポート</h1>
-        <p class="mt-1 text-sm text-gray-500">合計: {{ number_format($this->report->grandTotal, 2) }} 時間</p>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ $project ? $project->name.' — ' : '' }}工数レポート</h1>
+        <p class="mt-1 text-sm text-neutral-500">合計: {{ number_format($this->report->grandTotal, 2) }} 時間</p>
     </div>
 
     {{-- Filter builder --}}
-    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-6">
-            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                 絞り込み適用
             </button>
 
-            <div class="flex items-center gap-2 text-sm text-gray-700">
+            <div class="flex items-center gap-2 text-sm text-neutral-700">
                 行の軸(最大3つ):
                 @foreach ($this->availableAxes as $axisKey => $axisOption)
                     <label class="flex items-center gap-1" wire:key="axis-{{ $axisKey }}">
                         <input type="checkbox" wire:click="toggleCriterion('{{ $axisKey }}')"
                             @checked(in_array($axisKey, $criteria, true))
                             @disabled(count($criteria) >= 3 && ! in_array($axisKey, $criteria, true))
-                            class="rounded border-gray-300">
+                            class="rounded border-neutral-300">
                         {{ $axisOption->label }}
                     </label>
                 @endforeach
             </div>
 
-            <label class="flex items-center gap-2 text-sm text-gray-700">
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
                 列の軸:
-                <select wire:model.live="period" class="rounded-md border-gray-300 text-sm">
+                <select wire:model.live="period" class="rounded-md border-neutral-300 text-sm">
                     @foreach (\App\Support\TimeReport\TimeReportPeriod::cases() as $periodOption)
                         <option value="{{ $periodOption->value }}">{{ $periodOption->label() }}</option>
                     @endforeach
@@ -228,56 +228,56 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     <div class="mb-3 flex items-center gap-2">
-        <select wire:model="csvEncoding" class="rounded-md border-gray-300 text-xs">
+        <select wire:model="csvEncoding" class="rounded-md border-neutral-300 text-xs">
             <option value="UTF-8">UTF-8</option>
             <option value="SJIS-win">Shift_JIS</option>
         </select>
-        <select wire:model="csvSeparator" class="rounded-md border-gray-300 text-xs">
+        <select wire:model="csvSeparator" class="rounded-md border-neutral-300 text-xs">
             <option value=",">カンマ</option>
             <option value=";">セミコロン</option>
             <option value="{{ "\t" }}">タブ</option>
         </select>
-        <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">CSVエクスポート</button>
+        <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">CSVエクスポート</button>
     </div>
 
     @if ($this->report->isEmpty())
-        <p class="text-sm text-gray-500">行の軸を1つ以上選択してください。該当する工数記録がない場合も表は空になります。</p>
+        <p class="text-sm text-neutral-500">行の軸を1つ以上選択してください。該当する工数記録がない場合も表は空になります。</p>
     @else
-        <div class="overflow-x-auto rounded-md border border-gray-200 bg-white">
-            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                <thead class="bg-gray-50">
+        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+            <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                <thead class="bg-neutral-50">
                     <tr>
                         @foreach ($this->selectedCriteria as $criterion)
-                            <th class="px-3 py-2 text-left font-medium text-gray-500">{{ $criterion->label }}</th>
+                            <th class="px-3 py-2 text-left font-medium text-neutral-500">{{ $criterion->label }}</th>
                         @endforeach
                         @foreach ($this->report->periods as $columnPeriod)
-                            <th class="px-3 py-2 text-right font-medium text-gray-500">{{ $columnPeriod['label'] }}</th>
+                            <th class="px-3 py-2 text-right font-medium text-neutral-500">{{ $columnPeriod['label'] }}</th>
                         @endforeach
-                        <th class="px-3 py-2 text-right font-medium text-gray-500">合計</th>
+                        <th class="px-3 py-2 text-right font-medium text-neutral-500">合計</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-neutral-100">
                     @foreach ($this->report->rows as $row)
                         <tr wire:key="report-row-{{ $loop->index }}">
                             @foreach ($row['labels'] as $label)
-                                <td class="px-3 py-2 text-gray-700">{{ $label }}</td>
+                                <td class="px-3 py-2 text-neutral-700">{{ $label }}</td>
                             @endforeach
                             @foreach ($this->report->periods as $columnPeriod)
-                                <td class="px-3 py-2 text-right tabular-nums text-gray-700">
+                                <td class="px-3 py-2 text-right tabular-nums text-neutral-700">
                                     {{ isset($row['cells'][$columnPeriod['key']]) ? number_format($row['cells'][$columnPeriod['key']], 2) : '' }}
                                 </td>
                             @endforeach
-                            <td class="px-3 py-2 text-right tabular-nums font-medium text-gray-900">{{ number_format($row['total'], 2) }}</td>
+                            <td class="px-3 py-2 text-right tabular-nums font-medium text-neutral-900">{{ number_format($row['total'], 2) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
-                <tfoot class="bg-gray-50">
+                <tfoot class="bg-neutral-50">
                     <tr>
-                        <th class="px-3 py-2 text-left font-medium text-gray-500" colspan="{{ count($this->selectedCriteria) }}">合計</th>
+                        <th class="px-3 py-2 text-left font-medium text-neutral-500" colspan="{{ count($this->selectedCriteria) }}">合計</th>
                         @foreach ($this->report->periods as $columnPeriod)
-                            <th class="px-3 py-2 text-right font-medium text-gray-900">{{ number_format($this->report->columnTotals[$columnPeriod['key']] ?? 0, 2) }}</th>
+                            <th class="px-3 py-2 text-right font-medium text-neutral-900">{{ number_format($this->report->columnTotals[$columnPeriod['key']] ?? 0, 2) }}</th>
                         @endforeach
-                        <th class="px-3 py-2 text-right font-medium text-gray-900">{{ number_format($this->report->grandTotal, 2) }}</th>
+                        <th class="px-3 py-2 text-right font-medium text-neutral-900">{{ number_format($this->report->grandTotal, 2) }}</th>
                     </tr>
                 </tfoot>
             </table>

@@ -26,14 +26,14 @@
 
 @if ($mode === '1')
     @if ($items->contains('label', '新しい課題'))
-        <a href="{{ route('issues.create', $project) }}" class="text-sm text-gray-600 hover:text-gray-900" data-new-item-menu="issue">新しい課題</a>
+        <a href="{{ route('issues.create', $project) }}" class="text-sm text-neutral-600 hover:text-neutral-900" data-new-item-menu="issue">新しい課題</a>
     @endif
 @elseif ($mode === '2' && $items->isNotEmpty())
     <details class="relative" data-new-item-menu="dropdown">
-        <summary class="cursor-pointer list-none rounded-md border border-gray-300 px-2 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50" title="新規作成">+</summary>
-        <ul class="absolute right-0 z-20 mt-1 w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+        <summary class="cursor-pointer list-none rounded-md border border-neutral-300 px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-50" title="新規作成">+</summary>
+        <ul class="absolute right-0 z-20 mt-1 w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
             @foreach ($items as $item)
-                <li><a href="{{ $item['url'] }}" class="block px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">{{ $item['label'] }}</a></li>
+                <li><a href="{{ $item['url'] }}" class="block px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">{{ $item['label'] }}</a></li>
             @endforeach
         </ul>
     </details>

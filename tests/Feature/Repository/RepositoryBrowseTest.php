@@ -159,7 +159,7 @@ test('the annotate view colours each revision block and shows the revision once 
         ->and($blocks[2]['isChange'])->toBeTrue()
         ->and($blocks[0]['colorIndex'])->not->toBe($blocks[2]['colorIndex']);
 
-    $component->assertSee('bg-red-50', false)->assertSee('bg-orange-50', false)->assertSee('border-t border-gray-300', false);
+    $component->assertSee('bg-red-50', false)->assertSee('bg-orange-50', false)->assertSee('border-t border-neutral-300', false);
 });
 
 test('a member without browse_repository is forbidden from annotating a file', function () {

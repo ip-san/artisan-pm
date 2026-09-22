@@ -48,43 +48,43 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">
         {{ $issueStatus ? 'ステータスを編集' : '新規ステータス' }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">名前</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
-        <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" wire:model="is_closed" class="rounded border-gray-300">
+        <label class="flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" wire:model="is_closed" class="rounded border-neutral-300">
             完了扱いのステータスにする
         </label>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">
+            <label class="block text-sm font-medium text-neutral-700">
                 既定の進捗率(%、任意)
             </label>
-            <select wire:model="default_done_ratio" class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <select wire:model="default_done_ratio" class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">未設定</option>
                 @foreach (\App\Support\Issues\DoneRatioSteps::options(current: $default_done_ratio) as $ratio)
                     <option value="{{ $ratio }}">{{ $ratio }} %</option>
                 @endforeach
             </select>
-            <p class="mt-1 text-xs text-gray-500">
+            <p class="mt-1 text-xs text-neutral-500">
                 設定「課題の進捗率」が「ステータスから算出」の場合、このステータスへ変更した課題の進捗率に自動反映されます。
             </p>
-            @error('default_done_ratio') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('default_done_ratio') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
-            <a href="{{ route('issue-statuses.index') }}" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <a href="{{ route('issue-statuses.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

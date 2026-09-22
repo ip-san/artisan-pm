@@ -183,65 +183,65 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">{{ $isNew ? 'リポジトリの追加' : 'リポジトリ設定' }}</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $isNew ? 'リポジトリの追加' : 'リポジトリ設定' }}</h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">種別</label>
-            <select wire:model="type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">種別</label>
+            <select wire:model="type" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @foreach ($this->enabledTypes as $case)
                     <option value="{{ $case->value }}">{{ $case->value }}</option>
                 @endforeach
             </select>
-            @error('type') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('type') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">パス</label>
+            <label class="block text-sm font-medium text-neutral-700">パス</label>
             <input type="text" wire:model="path" placeholder="/path/to/repo.git"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('path') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('path') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700">コミットログのエンコーディング</label>
+                <label class="block text-sm font-medium text-neutral-700">コミットログのエンコーディング</label>
                 <input type="text" wire:model="log_encoding" placeholder="空欄で全体設定を使用(例: SJIS-win)"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('log_encoding') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('log_encoding') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">パス名のエンコーディング</label>
+                <label class="block text-sm font-medium text-neutral-700">パス名のエンコーディング</label>
                 <input type="text" wire:model="path_encoding" placeholder="空欄でUTF-8/全体設定"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('path_encoding') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('path_encoding') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
-            <p class="mt-1 text-xs text-gray-500">
+            <p class="mt-1 text-xs text-neutral-500">
                 管理者が配置したリポジトリ用ディレクトリ({{ config('scm.repositories_root') }})配下のパスのみ指定できます。
             </p>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">識別子</label>
+            <label class="block text-sm font-medium text-neutral-700">識別子</label>
             @if ($this->identifierEditable())
                 <input type="text" wire:model="identifier" placeholder="main"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('identifier') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                <p class="mt-1 text-xs text-gray-500">
+                    class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('identifier') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-neutral-500">
                     プロジェクト内で複数のリポジトリを区別するためのURL用の名前です(半角英小文字・数字・ハイフン・アンダースコアのみ、数字のみは不可)。空欄のままにもできますが、一度設定すると変更できません。
                 </p>
             @else
-                <p class="mt-1 text-sm text-gray-700">{{ $identifier }}</p>
-                <p class="mt-1 text-xs text-gray-500">識別子は一度設定すると変更できません。</p>
+                <p class="mt-1 text-sm text-neutral-700">{{ $identifier }}</p>
+                <p class="mt-1 text-xs text-neutral-500">識別子は一度設定すると変更できません。</p>
             @endif
         </div>
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
             <a href="{{ $this->repository ? route($this->repository->routeName('repository.index'), $this->repository->routeParameters()) : route('repository.index', $project) }}"
-                class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

@@ -341,64 +341,64 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-2xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">
         {{ $project ? 'プロジェクトを編集' : '新規プロジェクト' }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">名前</label>
+            <label class="block text-sm font-medium text-neutral-700">名前</label>
             <input type="text" wire:model.live.debounce.400ms="name"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">識別子</label>
+            <label class="block text-sm font-medium text-neutral-700">識別子</label>
             <input type="text" wire:model="identifier"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('identifier') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('identifier') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">説明</label>
+            <label class="block text-sm font-medium text-neutral-700">説明</label>
             <textarea wire:model="description" rows="3"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"></textarea>
+                class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">ホームページ</label>
+            <label class="block text-sm font-medium text-neutral-700">ホームページ</label>
             <input type="text" wire:model="homepage"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('homepage') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('homepage') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         @if ($this->availableParents->isNotEmpty())
             <div>
-                <label class="block text-sm font-medium text-gray-700">親プロジェクト</label>
-                <select wire:model="parent_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <label class="block text-sm font-medium text-neutral-700">親プロジェクト</label>
+                <select wire:model="parent_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">なし(最上位プロジェクト)</option>
                     @foreach ($this->availableParents as $candidate)
                         <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
                     @endforeach
                 </select>
-                @error('parent_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('parent_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         @endif
 
         @if ($this->canSelectPublicity)
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" wire:model="is_public" class="rounded border-gray-300">
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" wire:model="is_public" class="rounded border-neutral-300">
                 公開プロジェクト(匿名/非メンバーに閲覧を許可しうる)
             </label>
         @endif
 
         <div>
-            <span class="block text-sm font-medium text-gray-700 mb-2">有効なモジュール</span>
+            <span class="block text-sm font-medium text-neutral-700 mb-2">有効なモジュール</span>
             <div class="grid grid-cols-2 gap-2">
                 @foreach (\App\Enums\ProjectModuleKey::cases() as $module)
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" wire:model="modules" value="{{ $module->value }}" class="rounded border-gray-300">
+                    <label class="flex items-center gap-2 text-sm text-neutral-700">
+                        <input type="checkbox" wire:model="modules" value="{{ $module->value }}" class="rounded border-neutral-300">
                         {{ $module->value }}
                     </label>
                 @endforeach
@@ -406,18 +406,18 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <span class="block text-sm font-medium text-gray-700 mb-2">使用するトラッカー</span>
+            <span class="block text-sm font-medium text-neutral-700 mb-2">使用するトラッカー</span>
             <div class="grid grid-cols-2 gap-2">
                 @foreach ($this->trackers as $tracker)
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" wire:model="trackerIds" value="{{ $tracker->id }}" class="rounded border-gray-300">
+                    <label class="flex items-center gap-2 text-sm text-neutral-700">
+                        <input type="checkbox" wire:model="trackerIds" value="{{ $tracker->id }}" class="rounded border-neutral-300">
                         {{ $tracker->name }}
                     </label>
                 @endforeach
             </div>
-            @error('trackerIds') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('trackerIds') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             @if ($this->trackers->isEmpty())
-                <p class="mt-1 text-xs text-amber-600">
+                <p class="mt-1 text-xs text-warning">
                     トラッカーが登録されていません。先に <a href="{{ route('trackers.create') }}" class="underline">トラッカーを作成</a> してください。
                 </p>
             @endif
@@ -426,40 +426,40 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($project)
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">既定の対象バージョン</label>
-                    <select wire:model="default_version_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <label class="block text-sm font-medium text-neutral-700">既定の対象バージョン</label>
+                    <select wire:model="default_version_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">なし</option>
                         @foreach ($this->defaultVersionOptions as $version)
                             <option value="{{ $version->id }}">{{ $version->name }}</option>
                         @endforeach
                     </select>
-                    @error('default_version_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('default_version_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">課題一覧の既定クエリ</label>
-                    <select wire:model="default_issue_query_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <label class="block text-sm font-medium text-neutral-700">課題一覧の既定クエリ</label>
+                    <select wire:model="default_issue_query_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">指定しない</option>
                         @foreach ($this->defaultQueryOptions as $query)
                             <option value="{{ $query->id }}">{{ $query->name }}</option>
                         @endforeach
                     </select>
-                    @error('default_issue_query_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('default_issue_query_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">既定の担当者</label>
-                    <select wire:model="default_assigned_to_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <label class="block text-sm font-medium text-neutral-700">既定の担当者</label>
+                    <select wire:model="default_assigned_to_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">なし</option>
                         @foreach ($this->defaultAssigneeOptions as $assignee)
                             <option value="{{ $assignee->id }}">{{ $assignee->name }}</option>
                         @endforeach
                     </select>
-                    @error('default_assigned_to_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('default_assigned_to_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
             </div>
         @endif
 
         @if ($this->customFields->isNotEmpty())
-            <div class="space-y-4 border-t border-gray-200 pt-4">
+            <div class="space-y-4 border-t border-neutral-200 pt-4">
                 @foreach ($this->customFields as $field)
                     <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" />
                 @endforeach
@@ -468,11 +468,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="flex gap-3">
             <button type="submit"
-                class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
             <a href="{{ $project ? route('projects.show', $project) : route('projects.index') }}"
-                class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

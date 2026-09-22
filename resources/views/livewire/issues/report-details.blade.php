@@ -148,43 +148,43 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — {{ IssueReport::title($detail) }}別の課題</h1>
-        <a href="{{ route('issues.report', $project) }}" class="text-sm text-indigo-600 hover:underline">課題レポートへ戻る</a>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — {{ IssueReport::title($detail) }}別の課題</h1>
+        <a href="{{ route('issues.report', $project) }}" class="text-sm text-brand-bold hover:underline">課題レポートへ戻る</a>
     </div>
 
     @if ($this->rows === [])
-        <p class="text-sm text-gray-500">データがありません。</p>
+        <p class="text-sm text-neutral-500">データがありません。</p>
     @else
         @php $totals = $this->totalFigures(); @endphp
         <div class="overflow-x-auto">
-            <table class="min-w-full border border-gray-200 bg-white text-sm">
+            <table class="min-w-full border border-neutral-200 bg-white text-sm">
                 <thead>
-                    <tr class="border-b border-gray-200 bg-gray-50">
+                    <tr class="border-b border-neutral-200 bg-neutral-50">
                         <th class="px-3 py-2"></th>
                         @foreach ($this->statuses as $status)
-                            <th class="px-3 py-2 text-right font-medium text-gray-700">{{ $status->name }}</th>
+                            <th class="px-3 py-2 text-right font-medium text-neutral-700">{{ $status->name }}</th>
                         @endforeach
-                        <th class="px-3 py-2 text-right font-semibold text-gray-900">未完了</th>
-                        <th class="px-3 py-2 text-right font-semibold text-gray-900">完了</th>
-                        <th class="px-3 py-2 text-right font-semibold text-gray-900">合計</th>
+                        <th class="px-3 py-2 text-right font-semibold text-neutral-900">未完了</th>
+                        <th class="px-3 py-2 text-right font-semibold text-neutral-900">完了</th>
+                        <th class="px-3 py-2 text-right font-semibold text-neutral-900">合計</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($this->rows as $row)
                         @php $figures = $this->rowFigures($row['key']); @endphp
-                        <tr wire:key="detail-row-{{ $row['key'] }}" class="border-b border-gray-100">
-                            <td class="px-3 py-2 text-gray-900">{{ $row['label'] }}</td>
+                        <tr wire:key="detail-row-{{ $row['key'] }}" class="border-b border-neutral-100">
+                            <td class="px-3 py-2 text-neutral-900">{{ $row['label'] }}</td>
                             @foreach ($this->statuses as $status)
-                                <td class="px-3 py-2 text-right text-gray-700">{{ $figures['statuses'][$status->id] }}</td>
+                                <td class="px-3 py-2 text-right text-neutral-700">{{ $figures['statuses'][$status->id] }}</td>
                             @endforeach
-                            <td class="px-3 py-2 text-right text-gray-700">{{ $figures['open'] }}</td>
-                            <td class="px-3 py-2 text-right text-gray-700">{{ $figures['closed'] }}</td>
-                            <td class="px-3 py-2 text-right font-semibold text-gray-900">{{ $figures['total'] }}</td>
+                            <td class="px-3 py-2 text-right text-neutral-700">{{ $figures['open'] }}</td>
+                            <td class="px-3 py-2 text-right text-neutral-700">{{ $figures['closed'] }}</td>
+                            <td class="px-3 py-2 text-right font-semibold text-neutral-900">{{ $figures['total'] }}</td>
                         </tr>
                     @endforeach
                 </tbody>
                 <tfoot>
-                    <tr class="border-t border-gray-300 bg-gray-50 font-semibold">
+                    <tr class="border-t border-neutral-300 bg-neutral-50 font-semibold">
                         <td class="px-3 py-2">合計</td>
                         @foreach ($this->statuses as $status)
                             <td class="px-3 py-2 text-right">{{ $totals['statuses'][$status->id] }}</td>
@@ -198,16 +198,16 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div class="mt-3 flex items-center gap-2">
-            <select wire:model="csvEncoding" class="rounded-md border-gray-300 text-xs">
+            <select wire:model="csvEncoding" class="rounded-md border-neutral-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
                 <option value="SJIS-win">Shift_JIS</option>
             </select>
-            <select wire:model="csvSeparator" class="rounded-md border-gray-300 text-xs">
+            <select wire:model="csvSeparator" class="rounded-md border-neutral-300 text-xs">
                 <option value=",">カンマ</option>
                 <option value=";">セミコロン</option>
                 <option value="{{ "\t" }}">タブ</option>
             </select>
-            <button wire:click="exportCsv" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">CSVエクスポート</button>
+            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">CSVエクスポート</button>
         </div>
     @endif
 </div>

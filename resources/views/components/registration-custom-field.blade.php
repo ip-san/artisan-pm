@@ -9,18 +9,18 @@
     $old = old("custom_fields.{$field->id}");
     $format = $field->field_format;
     $isChoice = in_array($format, [\App\Enums\CustomFieldFormat::List, \App\Enums\CustomFieldFormat::Enumeration], true);
-    $inputClass = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm';
+    $inputClass = 'mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm';
 @endphp
 
 <div>
-    <label class="block text-sm font-medium text-gray-700">
+    <label class="block text-sm font-medium text-neutral-700">
         {{ $field->name }}
-        @if ($field->is_required)<span class="text-red-500">*</span>@endif
+        @if ($field->is_required)<span class="text-danger-subtle">*</span>@endif
     </label>
 
     @if ($format === \App\Enums\CustomFieldFormat::Bool)
         <input type="hidden" name="{{ $name }}" value="0">
-        <input type="checkbox" name="{{ $name }}" value="1" @checked($old === '1' || $old === 1) class="mt-1 rounded border-gray-300">
+        <input type="checkbox" name="{{ $name }}" value="1" @checked($old === '1' || $old === 1) class="mt-1 rounded border-neutral-300">
     @elseif ($isChoice)
         <select name="{{ $name }}" @if ($field->multiple) multiple @endif class="{{ $inputClass }}">
             @unless ($field->multiple)
@@ -41,6 +41,6 @@
     @endif
 
     @if ($field->description)
-        <p class="mt-1 text-xs text-gray-500">{{ $field->description }}</p>
+        <p class="mt-1 text-xs text-neutral-500">{{ $field->description }}</p>
     @endif
 </div>

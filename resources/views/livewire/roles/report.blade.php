@@ -79,31 +79,31 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">権限レポート</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">権限レポート</h1>
 
     @if (session('status'))
-        <div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>
+        <div class="mb-4 rounded-md bg-success-subtlest p-3 text-sm text-success-bold">{{ session('status') }}</div>
     @endif
 
     <form wire:submit="save">
-        <div class="overflow-x-auto rounded-md border border-gray-200 bg-white">
+        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
             <table class="min-w-full text-sm">
                 <thead>
-                    <tr class="border-b border-gray-200 bg-gray-50">
-                        <th class="px-3 py-2 text-left font-medium text-gray-700">権限</th>
+                    <tr class="border-b border-neutral-200 bg-neutral-50">
+                        <th class="px-3 py-2 text-left font-medium text-neutral-700">権限</th>
                         @foreach ($this->roles as $role)
-                            <th class="px-3 py-2 text-center font-medium text-gray-700">{{ $role->name }}</th>
+                            <th class="px-3 py-2 text-center font-medium text-neutral-700">{{ $role->name }}</th>
                         @endforeach
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($this->allPermissionKeys as $permissionKey)
-                        <tr class="border-b border-gray-100">
-                            <td class="px-3 py-2 text-gray-900">{{ $permissionKey }}</td>
+                        <tr class="border-b border-neutral-100">
+                            <td class="px-3 py-2 text-neutral-900">{{ $permissionKey }}</td>
                             @foreach ($this->roles as $role)
                                 <td class="px-3 py-2 text-center">
                                     @if (array_key_exists($permissionKey, $this->matrix[$role->id]))
-                                        <input type="checkbox" wire:model="matrix.{{ $role->id }}.{{ $permissionKey }}" class="rounded border-gray-300">
+                                        <input type="checkbox" wire:model="matrix.{{ $role->id }}.{{ $permissionKey }}" class="rounded border-neutral-300">
                                     @endif
                                 </td>
                             @endforeach
@@ -114,10 +114,10 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div class="mt-4 flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
-            <a href="{{ route('roles.index') }}" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <a href="{{ route('roles.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

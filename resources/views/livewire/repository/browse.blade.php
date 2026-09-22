@@ -67,40 +67,40 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6">
-        <p class="text-sm text-gray-500">
-            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">リポジトリ</a>
+        <p class="text-sm text-neutral-500">
+            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
         </p>
-        <h1 class="text-xl font-semibold text-gray-900">ファイル一覧 (HEAD)</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">ファイル一覧 (HEAD)</h1>
     </div>
 
-    <nav class="mb-4 text-sm text-gray-600">
-        <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters()) }}" class="text-indigo-600 hover:underline">root</a>
+    <nav class="mb-4 text-sm text-neutral-600">
+        <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">root</a>
         @foreach ($this->breadcrumbs as $crumb)
             /
-            <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $crumb['path']])) }}" class="text-indigo-600 hover:underline">
+            <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $crumb['path']])) }}" class="text-brand-bold hover:underline">
                 {{ $crumb['name'] }}
             </a>
         @endforeach
     </nav>
 
-    <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
         @forelse ($this->entries as $entry)
             <li wire:key="tree-{{ $entry->path }}" class="flex items-center justify-between px-4 py-2 text-sm">
                 @if ($entry->isDirectory)
-                    <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-indigo-600 hover:underline">
+                    <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-brand-bold hover:underline">
                         📁 {{ $entry->name }}/
                     </a>
                 @else
-                    <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-indigo-600 hover:underline">
+                    <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-brand-bold hover:underline">
                         📄 {{ $entry->name }}
                     </a>
-                    <a href="{{ route($repository->routeName('repository.file-history'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-xs text-gray-500 hover:underline">
+                    <a href="{{ route($repository->routeName('repository.file-history'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-xs text-neutral-500 hover:underline">
                         履歴
                     </a>
                 @endif
             </li>
         @empty
-            <li class="px-4 py-6 text-center text-gray-500">ファイルがありません。</li>
+            <li class="px-4 py-6 text-center text-neutral-500">ファイルがありません。</li>
         @endforelse
     </ul>
 </div>

@@ -199,73 +199,73 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">
         {{ $user ? 'ユーザーを編集' : '新規ユーザー' }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">
+            <label class="block text-sm font-medium text-neutral-700">
                 {{ $auth_source_id ? 'ログインID(ディレクトリのuid)' : 'ログインID' }}
             </label>
-            <input type="text" wire:model="login" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('login') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <input type="text" wire:model="login" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('login') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">名前</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">メールアドレス</label>
-            <input type="email" wire:model="email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">メールアドレス</label>
+            <input type="email" wire:model="email" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('email') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">ステータス</label>
-            <select wire:model="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">ステータス</label>
+            <select wire:model="status" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @foreach (\App\Enums\UserStatus::cases() as $case)
                     <option value="{{ $case->value }}">{{ $case->value }}</option>
                 @endforeach
             </select>
-            @error('status') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('status') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
-        <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" wire:model="is_admin" class="rounded border-gray-300">
+        <label class="flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" wire:model="is_admin" class="rounded border-neutral-300">
             管理者にする
         </label>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">認証方式</label>
-            <select wire:model.live="auth_source_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+            <label class="block text-sm font-medium text-neutral-700">認証方式</label>
+            <select wire:model.live="auth_source_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">ローカルパスワード</option>
                 @foreach ($this->authSources as $source)
                     <option value="{{ $source->id }}">LDAP: {{ $source->name }}</option>
                 @endforeach
             </select>
-            @error('auth_source_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('auth_source_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         @if (! $auth_source_id)
             <div>
-                <label class="block text-sm font-medium text-gray-700">
+                <label class="block text-sm font-medium text-neutral-700">
                     パスワード{{ $user ? '(変更する場合のみ入力)' : '' }}
                 </label>
-                <input type="password" wire:model="password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('password') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <input type="password" wire:model="password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('password') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">パスワード(確認)</label>
-                <input type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <label class="block text-sm font-medium text-neutral-700">パスワード(確認)</label>
+                <input type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             </div>
 
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" wire:model="must_change_passwd" class="rounded border-gray-300">
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" wire:model="must_change_passwd" class="rounded border-neutral-300">
                 次回ログイン時にパスワードの変更を要求する
             </label>
 
@@ -273,7 +273,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div>
                     <button type="button" wire:click="sendPasswordReset"
                         wire:confirm="{{ $user->email }} 宛にパスワードリセットメールを送信しますか?"
-                        class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                         パスワードリセットメールを送信
                     </button>
                 </div>
@@ -284,14 +284,14 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <button type="button" wire:click="disableTwoFactor"
                     wire:confirm="{{ $user->email }} の二要素認証を無効にしますか?"
-                    class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     二要素認証を無効にする
                 </button>
             </div>
         @endif
 
         @if ($this->customFields->isNotEmpty())
-            <div class="space-y-4 border-t border-gray-200 pt-4">
+            <div class="space-y-4 border-t border-neutral-200 pt-4">
                 @foreach ($this->customFields as $field)
                     <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" />
                 @endforeach
@@ -299,14 +299,14 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         @if (session('status'))
-            <div class="rounded-md bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>
+            <div class="rounded-md bg-success-subtlest p-3 text-sm text-success-bold">{{ session('status') }}</div>
         @endif
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
-            <a href="{{ route('users.index') }}" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <a href="{{ route('users.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

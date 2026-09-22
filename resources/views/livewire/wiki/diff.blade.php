@@ -54,33 +54,33 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-3xl">
-    <p class="mb-2 text-sm text-gray-500">
-        <a href="{{ route('wiki.show', [$project, $wikiPage]) }}" class="text-indigo-600 hover:underline">
+    <p class="mb-2 text-sm text-neutral-500">
+        <a href="{{ route('wiki.show', [$project, $wikiPage]) }}" class="text-brand-bold hover:underline">
             {{ $wikiPage->title }}
         </a>
         —
-        <a href="{{ route('wiki.history', [$project, $wikiPage]) }}" class="text-indigo-600 hover:underline">
+        <a href="{{ route('wiki.history', [$project, $wikiPage]) }}" class="text-brand-bold hover:underline">
             履歴
         </a>
     </p>
 
-    <h1 class="text-xl font-semibold text-gray-900 mb-4">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-4">
         差分: v{{ $versionFrom->version }} → v{{ $versionTo->version }}
     </h1>
 
-    <p class="mb-4 text-xs text-gray-500">
+    <p class="mb-4 text-xs text-neutral-500">
         v{{ $versionFrom->version }} ({{ $versionFrom->author->displayName() }} — {{ $versionFrom->created_at->format('Y-m-d H:i') }})
         から
         v{{ $versionTo->version }} ({{ $versionTo->author->displayName() }} — {{ $versionTo->created_at->format('Y-m-d H:i') }})
         への変更
     </p>
 
-    <div class="whitespace-pre-wrap break-words rounded-md border border-gray-200 bg-white p-4 font-mono text-sm leading-relaxed">
+    <div class="whitespace-pre-wrap break-words rounded-md border border-neutral-200 bg-white p-4 font-mono text-sm leading-relaxed">
         @foreach ($this->diff as $chunk)
             @if ($chunk['type'] === 'add')
-                <ins class="bg-green-100 text-green-800 no-underline">{{ $chunk['text'] }}</ins>
+                <ins class="bg-success-subtler text-success-bolder no-underline">{{ $chunk['text'] }}</ins>
             @elseif ($chunk['type'] === 'del')
-                <del class="bg-red-100 text-red-800">{{ $chunk['text'] }}</del>
+                <del class="bg-danger-subtler text-danger-boldest">{{ $chunk['text'] }}</del>
             @else
                 {{ $chunk['text'] }}
             @endif

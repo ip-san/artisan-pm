@@ -136,107 +136,107 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">
         {{ $authSource ? '認証ソースを編集' : '新規認証ソース' }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">名前</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div class="grid grid-cols-3 gap-4">
             <div class="col-span-2">
-                <label class="block text-sm font-medium text-gray-700">ホスト</label>
-                <input type="text" wire:model="host" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('host') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="block text-sm font-medium text-neutral-700">ホスト</label>
+                <input type="text" wire:model="host" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('host') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">ポート</label>
-                <input type="number" wire:model="port" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('port') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="block text-sm font-medium text-neutral-700">ポート</label>
+                <input type="number" wire:model="port" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('port') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         </div>
 
-        <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" wire:model="use_tls" class="rounded border-gray-300">
+        <label class="flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" wire:model="use_tls" class="rounded border-neutral-300">
             TLSを使用する
         </label>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">ベースDN</label>
-            <input type="text" wire:model="base_dn" placeholder="dc=example,dc=com" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('base_dn') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">ベースDN</label>
+            <input type="text" wire:model="base_dn" placeholder="dc=example,dc=com" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('base_dn') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
-        <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
-            <p class="mb-2 text-xs text-gray-600">
+        <div class="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+            <p class="mb-2 text-xs text-neutral-600">
                 アカウントを空欄にすると、ログインIDから直接DNを組み立ててバインドします(direct bind)。
                 指定すると、このアカウントで検索した上でユーザーのDNとして再バインドします(search+bind)。
             </p>
             <div class="space-y-3">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">検索用アカウントDN(任意)</label>
-                    <input type="text" wire:model="account" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <label class="block text-sm font-medium text-neutral-700">検索用アカウントDN(任意)</label>
+                    <input type="text" wire:model="account" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">
+                    <label class="block text-sm font-medium text-neutral-700">
                         検索用アカウントのパスワード{{ $authSource ? '(変更する場合のみ入力)' : '' }}
                     </label>
-                    <input type="password" wire:model="account_password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                    <input type="password" wire:model="account_password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
             </div>
         </div>
 
         <div class="grid grid-cols-3 gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700">ログイン属性</label>
-                <input type="text" wire:model="attr_login" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('attr_login') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="block text-sm font-medium text-neutral-700">ログイン属性</label>
+                <input type="text" wire:model="attr_login" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('attr_login') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">氏名属性</label>
-                <input type="text" wire:model="attr_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('attr_name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="block text-sm font-medium text-neutral-700">氏名属性</label>
+                <input type="text" wire:model="attr_name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('attr_name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">メール属性</label>
-                <input type="text" wire:model="attr_mail" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('attr_mail') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="block text-sm font-medium text-neutral-700">メール属性</label>
+                <input type="text" wire:model="attr_mail" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('attr_mail') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">検索フィルタ(任意)</label>
-            <input type="text" wire:model="filter" placeholder="(memberOf=cn=staff,dc=example,dc=com)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm font-mono">
-            @error('filter') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-            <p class="mt-1 text-xs text-gray-500">
+            <label class="block text-sm font-medium text-neutral-700">検索フィルタ(任意)</label>
+            <input type="text" wire:model="filter" placeholder="(memberOf=cn=staff,dc=example,dc=com)" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm font-mono">
+            @error('filter') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            <p class="mt-1 text-xs text-neutral-500">
                 指定すると、ログイン時のディレクトリ検索にこのLDAPフィルタが常にAND条件として付加されます(例: 特定グループのメンバーのみログインを許可)。
             </p>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">タイムアウト(秒)</label>
-            <input type="number" wire:model="timeout" class="mt-1 block w-32 rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('timeout') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">タイムアウト(秒)</label>
+            <input type="number" wire:model="timeout" class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('timeout') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
-        <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" wire:model="onthefly_register" class="rounded border-gray-300">
+        <label class="flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" wire:model="onthefly_register" class="rounded border-neutral-300">
             未登録ユーザーの自動登録を許可する(初回ログイン時にアカウントを自動作成)
         </label>
 
         @if ($authSource)
-            <div class="rounded-md border border-gray-200 bg-gray-50 p-3">
+            <div class="rounded-md border border-neutral-200 bg-neutral-50 p-3">
                 <button type="button" wire:click="testConnection"
-                    class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    class="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     接続をテスト
                 </button>
-                <p class="mt-1 text-xs text-gray-500">保存済みの設定でテストします。未保存の変更はまず保存してください。</p>
+                <p class="mt-1 text-xs text-neutral-500">保存済みの設定でテストします。未保存の変更はまず保存してください。</p>
                 @if ($connectionTestPassed !== null)
-                    <p class="mt-2 text-sm {{ $connectionTestPassed ? 'text-green-700' : 'text-red-600' }}">
+                    <p class="mt-2 text-sm {{ $connectionTestPassed ? 'text-success-bold' : 'text-danger-bolder' }}">
                         {{ $connectionTestMessage }}
                     </p>
                 @endif
@@ -244,10 +244,10 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
-            <a href="{{ route('auth-sources.index') }}" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <a href="{{ route('auth-sources.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>

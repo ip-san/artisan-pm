@@ -329,56 +329,56 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-gray-900">{{ $project->name }} — ガントチャート</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — ガントチャート</h1>
         @if ($this->rangeStart !== null)
-            <button wire:click="exportPdf" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <button wire:click="exportPdf" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 PDF
             </button>
         @endif
     </div>
 
-    <div class="mb-4 rounded-md border border-gray-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3">
-            <button wire:click="applyFilters" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                 絞り込み適用
             </button>
         </div>
     </div>
 
     @if ($this->rangeStart === null)
-        <p class="text-sm text-gray-500">開始日・期日が設定された課題がありません。</p>
+        <p class="text-sm text-neutral-500">開始日・期日が設定された課題がありません。</p>
     @else
         @if ($this->rowsTruncated)
-            <p class="mb-2 text-sm text-amber-700">課題が多いため、先頭{{ number_format(self::itemsLimit()) }}件だけを表示しています。</p>
+            <p class="mb-2 text-sm text-warning-bold">課題が多いため、先頭{{ number_format(self::itemsLimit()) }}件だけを表示しています。</p>
         @endif
         @if ($this->monthsTruncated)
-            <p class="mb-2 text-sm text-amber-700">期間が長いため、開始から{{ self::monthsLimit() }}か月分だけを表示しています。</p>
+            <p class="mb-2 text-sm text-warning-bold">期間が長いため、開始から{{ self::monthsLimit() }}か月分だけを表示しています。</p>
         @endif
-        <div class="overflow-x-auto rounded-md border border-gray-200 bg-white">
+        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
             <div class="flex min-w-[900px]">
-                <div class="w-80 shrink-0 border-r border-gray-200">
-                    <div class="h-8 border-b border-gray-200 bg-gray-50"></div>
+                <div class="w-80 shrink-0 border-r border-neutral-200">
+                    <div class="h-8 border-b border-neutral-200 bg-neutral-50"></div>
                     @foreach ($this->rows as $row)
-                        <div wire:key="label-{{ $row->id }}" class="flex h-8 items-center border-b border-gray-100 px-2 text-sm"
+                        <div wire:key="label-{{ $row->id }}" class="flex h-8 items-center border-b border-neutral-100 px-2 text-sm"
                             style="padding-left: {{ 8 + $row->depth * 16 }}px">
-                            <a href="{{ route('issues.show', [$project, $row->id]) }}" class="truncate text-indigo-600 hover:underline">
+                            <a href="{{ route('issues.show', [$project, $row->id]) }}" class="truncate text-brand-bold hover:underline">
                                 {{ $row->trackerName }} #{{ $row->id }}: {{ $row->subject }}
                             </a>
                         </div>
                     @endforeach
                     @foreach ($this->versions as $version)
-                        <div wire:key="version-label-{{ $version->id }}" class="flex h-8 items-center border-b border-gray-100 px-2 text-sm text-gray-700">
+                        <div wire:key="version-label-{{ $version->id }}" class="flex h-8 items-center border-b border-neutral-100 px-2 text-sm text-neutral-700">
                             <span class="truncate">◆ {{ $version->name }}</span>
                         </div>
                     @endforeach
                 </div>
 
                 <div class="relative flex-1">
-                    <div class="relative h-8 border-b border-gray-200 bg-gray-50 text-xs text-gray-500">
+                    <div class="relative h-8 border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-500">
                         @foreach ($this->monthBands as $band)
-                            <div class="absolute top-0 flex h-8 items-center border-l border-gray-200 pl-1"
+                            <div class="absolute top-0 flex h-8 items-center border-l border-neutral-200 pl-1"
                                 style="left: {{ $band['leftPercent'] }}%; width: {{ $band['widthPercent'] }}%">
                                 {{ $band['label'] }}
                             </div>
@@ -386,12 +386,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
 
                     @foreach ($this->rows as $row)
-                        <div wire:key="row-{{ $row->id }}" class="relative h-8 border-b border-gray-100">
+                        <div wire:key="row-{{ $row->id }}" class="relative h-8 border-b border-neutral-100">
                             @if ($row->hasDateRange())
-                                <div class="absolute top-1.5 h-5 rounded {{ $row->isClosed ? 'bg-gray-400' : 'bg-indigo-400' }}"
+                                <div class="absolute top-1.5 h-5 rounded {{ $row->isClosed ? 'bg-neutral-400' : 'bg-brand' }}"
                                     style="left: {{ $this->barLeftPercent($row) }}%; width: {{ $this->barWidthPercent($row) }}%"
                                     title="{{ $row->subject }} ({{ $row->startDate->toDateString() }} 〜 {{ $row->dueDate->toDateString() }}, {{ $row->doneRatio }}%)">
-                                    <div class="h-full rounded bg-indigo-600" style="width: {{ $row->doneRatio }}%"></div>
+                                    <div class="h-full rounded bg-brand-bold" style="width: {{ $row->doneRatio }}%"></div>
                                 </div>
                             @endif
                         </div>
@@ -409,12 +409,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endif
 
                     @foreach ($this->versions as $version)
-                        <div wire:key="version-row-{{ $version->id }}" class="relative h-8 border-b border-gray-100">
-                            <div class="absolute top-1 flex h-6 -translate-x-1/2 items-center gap-1 text-amber-600"
+                        <div wire:key="version-row-{{ $version->id }}" class="relative h-8 border-b border-neutral-100">
+                            <div class="absolute top-1 flex h-6 -translate-x-1/2 items-center gap-1 text-warning"
                                 style="left: {{ $this->versionMarkerLeftPercent($version) }}%"
                                 title="{{ $version->name }} ({{ $version->due_date->toDateString() }}, {{ round($version->completedPercent()) }}%)">
                                 <span class="text-lg leading-none">◆</span>
-                                <span class="text-xs text-gray-500">{{ round($version->completedPercent()) }}%</span>
+                                <span class="text-xs text-neutral-500">{{ round($version->completedPercent()) }}%</span>
                             </div>
                         </div>
                     @endforeach

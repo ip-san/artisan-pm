@@ -144,86 +144,86 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-2xl space-y-6">
     <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-gray-900">マイWebhook</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">マイWebhook</h1>
         <button wire:click="startCreate" data-my-webhook-create
-            class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
             新規Webhook
         </button>
     </div>
 
-    <p class="text-sm text-gray-600">
+    <p class="text-sm text-neutral-600">
         自分が閲覧でき、かつ「Webhookの利用」権限を持つプロジェクトのイベントだけが送信されます。
     </p>
 
     @if ($editing)
-        <form wire:submit="save" class="space-y-4 rounded-md border border-gray-200 bg-white p-4" data-my-webhook-form>
+        <form wire:submit="save" class="space-y-4 rounded-md border border-neutral-200 bg-white p-4" data-my-webhook-form>
             <div>
-                <label class="block text-sm font-medium text-gray-700">URL</label>
-                <input type="text" wire:model="url" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-                @error('url') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="block text-sm font-medium text-neutral-700">URL</label>
+                <input type="text" wire:model="url" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('url') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">
+                <label class="block text-sm font-medium text-neutral-700">
                     シークレット{{ $editingId ? '(変更する場合のみ入力)' : '(任意)' }}
                 </label>
-                <input type="password" wire:model="secret" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <input type="password" wire:model="secret" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">対象プロジェクト</label>
-                <select wire:model="project_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                <label class="block text-sm font-medium text-neutral-700">対象プロジェクト</label>
+                <select wire:model="project_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">Webhookを利用できるすべてのプロジェクト</option>
                     @foreach ($this->projects as $project)
                         <option value="{{ $project->id }}">{{ $project->name }}</option>
                     @endforeach
                 </select>
-                @error('project_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('project_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <span class="mb-2 block text-sm font-medium text-gray-700">イベント</span>
+                <span class="mb-2 block text-sm font-medium text-neutral-700">イベント</span>
                 <div class="flex flex-wrap gap-3">
                     @foreach (WebhookEvent::cases() as $event)
-                        <label class="flex items-center gap-2 text-sm text-gray-700">
-                            <input type="checkbox" wire:model="events" value="{{ $event->value }}" class="rounded border-gray-300">
+                        <label class="flex items-center gap-2 text-sm text-neutral-700">
+                            <input type="checkbox" wire:model="events" value="{{ $event->value }}" class="rounded border-neutral-300">
                             {{ $event->value }}
                         </label>
                     @endforeach
                 </div>
-                @error('events') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('events') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" wire:model="is_active" class="rounded border-gray-300">
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" wire:model="is_active" class="rounded border-neutral-300">
                 有効にする
             </label>
 
             <div class="flex gap-3">
-                <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">保存</button>
-                <button type="button" wire:click="cancel" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">キャンセル</button>
+                <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">保存</button>
+                <button type="button" wire:click="cancel" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">キャンセル</button>
             </div>
         </form>
     @endif
 
-    <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
         @forelse ($this->webhooks as $webhook)
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
-                    <span class="font-medium text-gray-900">{{ $webhook->url }}</span>
-                    <span class="ml-2 text-xs text-gray-500">{{ $webhook->project?->name ?? '全プロジェクト' }}</span>
+                    <span class="font-medium text-neutral-900">{{ $webhook->url }}</span>
+                    <span class="ml-2 text-xs text-neutral-500">{{ $webhook->project?->name ?? '全プロジェクト' }}</span>
                     @if (! $webhook->is_active)
-                        <span class="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">無効</span>
+                        <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">無効</span>
                     @endif
                 </div>
                 <div class="flex gap-3">
-                    <button wire:click="startEdit({{ $webhook->id }})" class="text-sm text-indigo-600 hover:underline">編集</button>
+                    <button wire:click="startEdit({{ $webhook->id }})" class="text-sm text-brand-bold hover:underline">編集</button>
                     <button wire:click="delete({{ $webhook->id }})" wire:confirm="このWebhookを削除しますか?"
-                        class="text-sm text-red-600 hover:underline">削除</button>
+                        class="text-sm text-danger-bolder hover:underline">削除</button>
                 </div>
             </li>
         @empty
-            <li class="px-4 py-6 text-sm text-gray-500">Webhookがありません。</li>
+            <li class="px-4 py-6 text-sm text-neutral-500">Webhookがありません。</li>
         @endforelse
     </ul>
 </div>

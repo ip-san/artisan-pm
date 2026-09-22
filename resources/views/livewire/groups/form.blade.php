@@ -176,32 +176,32 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-xl">
-    <h1 class="text-xl font-semibold text-gray-900 mb-6">
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">
         {{ $group ? 'グループを編集' : '新規グループ' }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">名前</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
-            @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" wire:model="twofaRequired" class="rounded border-gray-300"
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" wire:model="twofaRequired" class="rounded border-neutral-300"
                     @disabled(! $this->twofaGroupSwitchEnabled)>
                 このグループのメンバーに二要素認証を必須にする
             </label>
             @if (\App\Models\Setting::get('twofa', '0') === '2')
-                <p class="mt-1 text-xs text-gray-500">二要素認証は全ユーザーに必須のため、この設定は不要です。</p>
+                <p class="mt-1 text-xs text-neutral-500">二要素認証は全ユーザーに必須のため、この設定は不要です。</p>
             @elseif (! $this->twofaGroupSwitchEnabled)
-                <p class="mt-1 text-xs text-gray-500">サイト設定の二要素認証が「任意」または「管理者のみ必須」のときに使えます。</p>
+                <p class="mt-1 text-xs text-neutral-500">サイト設定の二要素認証が「任意」または「管理者のみ必須」のときに使えます。</p>
             @endif
         </div>
 
         @if ($this->customFields->isNotEmpty())
-            <div class="space-y-4 border-t border-gray-200 pt-4">
+            <div class="space-y-4 border-t border-neutral-200 pt-4">
                 @foreach ($this->customFields as $field)
                     <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" />
                 @endforeach
@@ -209,10 +209,10 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
                 保存
             </button>
-            <a href="{{ route('groups.index') }}" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <a href="{{ route('groups.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 キャンセル
             </a>
         </div>
@@ -220,46 +220,46 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($group)
         <div class="mt-10">
-            <h2 class="text-sm font-semibold text-gray-900 mb-3">メンバー</h2>
+            <h2 class="text-sm font-semibold text-neutral-900 mb-3">メンバー</h2>
 
             <form wire:submit="addMember" class="mb-4 flex items-end gap-3">
                 <div class="relative flex-1">
-                    <label class="block text-sm font-medium text-gray-700">ユーザー</label>
+                    <label class="block text-sm font-medium text-neutral-700">ユーザー</label>
                     <input type="text" wire:model.live.debounce.300ms="userSearch"
                         placeholder="名前またはメールアドレスで検索" autocomplete="off"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm">
+                        class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @if ($showUserDropdown)
-                        <ul class="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg">
+                        <ul class="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-white shadow-lg">
                             @forelse ($this->userCandidates as $candidate)
                                 <li wire:key="user-candidate-{{ $candidate->id }}">
                                     <button type="button" wire:click="selectUser({{ $candidate->id }})"
-                                        class="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
+                                        class="block w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50">
                                         {{ $candidate->name }} ({{ $candidate->email }})
                                     </button>
                                 </li>
                             @empty
-                                <li class="px-3 py-2 text-sm text-gray-500">該当するユーザーがいません。</li>
+                                <li class="px-3 py-2 text-sm text-neutral-500">該当するユーザーがいません。</li>
                             @endforelse
                         </ul>
                     @endif
-                    @error('selectedUserId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('selectedUserId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
-                <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                     追加
                 </button>
             </form>
 
-            <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
+            <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
                 @forelse ($this->members as $member)
                     <li class="flex items-center justify-between px-4 py-3">
-                        <span class="text-sm text-gray-900">{{ $member->name }} ({{ $member->email }})</span>
+                        <span class="text-sm text-neutral-900">{{ $member->name }} ({{ $member->email }})</span>
                         <button wire:click="removeMember({{ $member->id }})" wire:confirm="このメンバーをグループから削除しますか?"
-                            class="text-sm text-red-600 hover:underline">
+                            class="text-sm text-danger-bolder hover:underline">
                             削除
                         </button>
                     </li>
                 @empty
-                    <li class="px-4 py-6 text-sm text-gray-500">メンバーがいません。</li>
+                    <li class="px-4 py-6 text-sm text-neutral-500">メンバーがいません。</li>
                 @endforelse
             </ul>
         </div>
