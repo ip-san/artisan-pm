@@ -6,6 +6,99 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /*
+     * Design tokens, added as groundwork for parity-checklist item A5-06
+     * (theme switching, currently `blocked(要承認)` in docs/redmine-gap-
+     * backlog.md). Named and scaled after the Atlassian Design System's
+     * published token package (`@atlaskit/tokens` v18.2.1, fetched
+     * 2026-09-22) as a reference, not a copy of Jira's UI.
+     *
+     * Purely additive: no existing bg-, text- or border- utility class
+     * anywhere in resources/views is touched, and nothing in the app consumes these
+     * tokens yet — adopting them view by view (and deciding whether to
+     * keep indigo as the brand color, see below) is a separate follow-up.
+     */
+
+    /* Spacing scale — values as published in
+     * @atlaskit/tokens/atlassian-spacing (verified this session). */
+    --spacing-025: 0.125rem; /* 2px */
+    --spacing-050: 0.25rem; /* 4px */
+    --spacing-075: 0.375rem; /* 6px */
+    --spacing-100: 0.5rem; /* 8px */
+    --spacing-150: 0.75rem; /* 12px */
+    --spacing-200: 1rem; /* 16px */
+    --spacing-250: 1.25rem; /* 20px */
+    --spacing-300: 1.5rem; /* 24px */
+    --spacing-400: 2rem; /* 32px */
+    --spacing-500: 2.5rem; /* 40px */
+    --spacing-600: 3rem; /* 48px */
+    --spacing-800: 4rem; /* 64px */
+    --spacing-1000: 5rem; /* 80px */
+
+    /* Corner radius — @atlaskit/tokens/atlassian-shape (verified). */
+    --radius-xsmall: 0.125rem; /* 2px */
+    --radius-small: 0.25rem; /* 4px */
+    --radius-medium: 0.375rem; /* 6px */
+    --radius-large: 0.5rem; /* 8px */
+    --radius-xlarge: 0.75rem; /* 12px */
+    --radius-xxlarge: 1rem; /* 16px */
+
+    /* Border width — @atlaskit/tokens/atlassian-shape (verified). */
+    --border-width-default: 1px;
+    --border-width-selected: 2px;
+    --border-width-focused: 2px;
+
+    /*
+     * Surface/text/border neutrals reuse this app's own gray scale — its
+     * already-dominant choice (658 uses of text-gray-700, 613 of
+     * border-gray-300 as of 2026-09-22) — rather than importing ADS's own
+     * neutral palette, whose exact current values this session could not
+     * fully verify from the published source (the fetch was truncated
+     * before reaching the color.text and color.border keys). Only the
+     * semantic names below follow ADS's shape.
+     */
+    --color-surface: var(--color-white);
+    --color-surface-sunken: var(--color-gray-50);
+    --color-surface-hovered: var(--color-gray-100);
+    --color-text-default: var(--color-gray-700);
+    --color-text-subtle: var(--color-gray-500);
+    --color-text-disabled: var(--color-gray-400);
+    --color-border-default: var(--color-gray-300);
+    --color-border-input: var(--color-gray-300);
+
+    /*
+     * Brand blue — this app's actual primary color today is indigo (101
+     * uses of bg-indigo-600 in resources/views); these tokens are
+     * reference-only until/unless that's deliberately changed.
+     * --color-brand is verified this session (@atlaskit/tokens
+     * color.background.accent.blue.subtle). --color-brand-bold/-bolder
+     * were NOT verified this session — they're Atlassian's commonly
+     * published brand blue (often cited as B400/B500) from general
+     * knowledge; re-check against @atlaskit/tokens before using them for
+     * anything user-facing (e.g. primary buttons/links).
+     */
+    --color-brand: #669df1;
+    --color-brand-bold: #0c66e4;
+    --color-brand-bolder: #0055cc;
+
+    /*
+     * Status colors — @atlaskit/tokens/atlassian-light (verified this
+     * session). Danger is the only one with its full subtlest→bolder
+     * scale confirmed; the rest only had one shade ("subtle") confirmed,
+     * so only that shade is included here — extend with the real
+     * bolder/subtlest values from @atlaskit/tokens before using these for
+     * a multi-tone UI (e.g. status badges), rather than deriving the
+     * missing steps from this one data point.
+     */
+    --color-danger-subtlest: #ffeceb;
+    --color-danger-subtler: #ffd5d2;
+    --color-danger-subtle: #f87168;
+    --color-danger-bolder: #c9372c;
+    --color-success: #4bce97;
+    --color-warning: #fca700;
+    --color-caution: #eed12b;
+    --color-discovery: #c97cf4;
 }
 
 [x-cloak] {
