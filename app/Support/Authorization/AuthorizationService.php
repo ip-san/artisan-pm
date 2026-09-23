@@ -33,25 +33,29 @@ final class AuthorizationService
             return true;
         }
 
+        if ($project === null || ! $this->projectAllows($permissionKey, $project)) {
+            return false;
+        }
+
+        return $this->rolesFor($user, $project)
+            ->contains(fn (Role $role) => $role->hasPermission($permissionKey));
+    }
+
+    /**
+     * Matches Redmine's Project#allows_to?: archived projects allow no
+     * action at all, and a closed project allows only permissions flagged
+     * read-only (`:read => true` in Redmine's preparation.rb) — add_issues
+     * and manage_members are blocked, while view_* and the project
+     * administration permissions Redmine flags as read (edit_project,
+     * close_project, delete_project, select_project_modules) stay usable,
+     * so a closed project can still be reopened, reconfigured or deleted.
+     * A permission of a disabled module is not allowed either.
+     */
+    private function projectAllows(string $permissionKey, Project $project): bool
+    {
         $permission = $this->permissions->get($permissionKey);
 
-        if ($permission === null) {
-            return false;
-        }
-
-        if ($project === null) {
-            return false;
-        }
-
-        // Matches Redmine's Project#allows_to?: archived projects allow no
-        // action at all, and a closed project allows only permissions
-        // flagged read-only (`:read => true` in Redmine's preparation.rb) —
-        // add_issues and manage_members are blocked, while view_* and the
-        // project administration permissions Redmine flags as read
-        // (edit_project, close_project, delete_project,
-        // select_project_modules) stay usable, so a closed project can still
-        // be reopened, reconfigured or deleted.
-        if ($project->isArchived()) {
+        if ($permission === null || $project->isArchived()) {
             return false;
         }
 
@@ -59,12 +63,103 @@ final class AuthorizationService
             return false;
         }
 
-        if ($permission->module !== null && ! $project->hasModule($permission->module)) {
-            return false;
+        return $permission->module === null || $project->hasModule($permission->module);
+    }
+
+    /**
+     * The trackers on which the user holds an issue permission in the
+     * project (Redmine's Role#permissions_all_trackers? /
+     * permissions_tracker_ids, unioned over every role the user has there —
+     * own, group-derived or inherited — as Issue.allowed_target_trackers and
+     * user_tracker_permission? do): null means every tracker, an empty
+     * collection means none (including when can() is false).
+     *
+     * @return Collection<int, int>|null
+     */
+    public function allowedTrackerIds(?User $user, Project $project, string $permissionKey): ?Collection
+    {
+        if ($user?->is_admin) {
+            return null;
         }
 
-        return $this->rolesFor($user, $project)
-            ->contains(fn (Role $role) => $role->hasPermission($permissionKey));
+        if (! $this->projectAllows($permissionKey, $project)) {
+            return collect();
+        }
+
+        $trackerIds = collect();
+
+        foreach ($this->rolesFor($user, $project) as $role) {
+            $roleTrackerIds = $role->trackerIdsFor($permissionKey);
+
+            if ($roleTrackerIds === null) {
+                return null;
+            }
+
+            $trackerIds = $trackerIds->merge($roleTrackerIds);
+        }
+
+        return $trackerIds->unique()->values();
+    }
+
+    /**
+     * Redmine's Issue#user_tracker_permission?: can() narrowed to the roles
+     * that grant the permission on this tracker.
+     */
+    public function canOnTracker(?User $user, string $permissionKey, Project $project, int $trackerId): bool
+    {
+        $trackerIds = $this->allowedTrackerIds($user, $project, $permissionKey);
+
+        return $trackerIds === null || $trackerIds->contains($trackerId);
+    }
+
+    /**
+     * What the user may see of the project's issues, as Redmine's
+     * Issue.visible_condition builds it: one rule per issues_visibility tier
+     * among the roles that hold view_issues, each limited to the trackers
+     * those roles allow view_issues on (null = every tracker). An issue is
+     * visible when any rule matches it; an empty array means no issue is.
+     *
+     * @return array<string, list<int>|null> keyed by IssueVisibility value
+     */
+    public function issueVisibilityRules(?User $user, Project $project): array
+    {
+        if ($user?->is_admin) {
+            return [IssueVisibility::All->value => null];
+        }
+
+        if (! $this->projectAllows('view_issues', $project)) {
+            return [];
+        }
+
+        $rules = [];
+
+        foreach ($this->rolesFor($user, $project) as $role) {
+            if (! $role->hasPermission('view_issues')) {
+                continue;
+            }
+
+            $tier = $role->issues_visibility->value;
+
+            if (array_key_exists($tier, $rules) && $rules[$tier] === null) {
+                continue;
+            }
+
+            $trackerIds = $role->trackerIdsFor('view_issues');
+            $rules[$tier] = $trackerIds === null
+                ? null
+                : array_values(array_unique([...($rules[$tier] ?? []), ...$trackerIds]));
+        }
+
+        // Every tier includes what "own" shows and "default" adds only
+        // public issues, so the broadest tier over every tracker makes
+        // the narrower ones redundant.
+        if (array_key_exists(IssueVisibility::All->value, $rules) && $rules[IssueVisibility::All->value] === null) {
+            return [IssueVisibility::All->value => null];
+        }
+
+        ksort($rules);
+
+        return $rules;
     }
 
     /**

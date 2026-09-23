@@ -28,4 +28,15 @@ class RoleFactory extends Factory
             'permissions' => $permissions,
         ]);
     }
+
+    /**
+     * Limits one of the role's issue permissions to the given trackers
+     * (Redmine's Role#set_permission_trackers).
+     *
+     * @param  array<int>  $trackerIds
+     */
+    public function limitedToTrackers(string $permission, array $trackerIds): static
+    {
+        return $this->afterMaking(fn (Role $role) => $role->setPermissionTrackers($permission, $trackerIds));
+    }
 }

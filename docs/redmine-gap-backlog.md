@@ -199,7 +199,10 @@
 | 102 | A1-18 | — | M | done(2026-09-20、ガント/表示は暦日のまま) |
 | 103 | A1-19 | A1-18 | M | done(2026-09-20) |
 | 104 | A1-22 | — | S | done(2026-09-20、更新日時は既存の updated_at を使用) |
-| 105 | A1-27 | — | M | todo(2026-09-24 承認: 設計メモの推奨案) |
+| 105 | A1-27 | — | M | wip(2026-09-24、A1-27a〜c に分割) |
+| 105a | A1-27a | — | S | done(2026-09-24、`roles.settings`・`AuthorizationService::allowedTrackerIds()`・ロール編集画面の権限×トラッカー表。判定への適用は b/c) |
+| 105b | A1-27b | A1-27a | M | todo |
+| 105c | A1-27c | A1-27a | M | todo |
 | 106 | A1-28 | — | M〜L | todo(2026-09-24 承認: 設計メモの推奨案) |
 | 107 | A1-29 | — | S〜M | done(2026-09-20) |
 | 108 | A2-03 | — | M | done(2026-09-24、A2-03a〜c。API は A11-18) |
@@ -314,7 +317,7 @@
 | A1-24 | トラッカーの `is_in_chlog`(変更履歴に表示) | `trackers` に列なし | 列+フォームのチェックボックス。バージョン詳細の課題一覧で絞り込みに使用 | 優先度低 | S | Trackers 節 |
 | A1-25 | 新規課題時のワークフロー遷移(`old_status_id IS NULL` の行) | `WorkflowService.php:51` は `old_status_id = 現在ステータス` のみ参照。`IssueService::create()` はワークフローを見ずトラッカー既定ステータスを採用 | 新規課題フォームのステータス選択肢を「`old_status_id IS NULL` かつ該当ロール」の遷移先に制限。管理画面(`workflows/edit.blade.php`)に「新規課題」行を追加 | チェックリスト §0 項目 10 で既知 | M | Issue Statuses / Workflow 節 |
 | A1-26 | ワークフローコピーの省略記法(トラッカーまたはロールを「全て」指定) | コピー元・コピー先とも明示選択必須 | コピーフォームに「全トラッカー」「全ロール」選択肢を追加し二重ループでコピー | — | S | 「ワークフローのコピー」 |
-| A1-27 | ロール×トラッカー単位の課題権限(`roles.settings` の `permissions_all_trackers`/`permissions_tracker_ids`) | `roles` テーブルに `settings` なし。`roles/form.blade.php` に tracker の記述なし | `settings` JSON 列を追加し、`add_issues`/`view_issues`/`edit_issues`/`delete_issues` ごとに「全トラッカー or 選択トラッカー」を設定。`IssuePolicy` と `Issue::scopeVisibleTo()` にトラッカー条件を追加 | 可視性スコープの変更は Atom/API/マイページに波及 | M | ロール・権限 節 |
+| A1-27 | ロール×トラッカー単位の課題権限(`roles.settings` の `permissions_all_trackers`/`permissions_tracker_ids`) | **A1-27a done(2026-09-24)**: `roles.settings`(JSON、空=全トラッカー)、`Role::trackerIdsFor()`/`setPermissionTrackers()`、`AuthorizationService::allowedTrackerIds()`/`canOnTracker()`/`issueVisibilityRules()`、ロール編集画面の権限×トラッカー表(`roles/form.blade.php`、コピーも引き継ぐ)。判定への適用は A1-27b(view_issues)/A1-27c(add/edit/notes/delete) | `settings` JSON 列を追加し、`add_issues`/`view_issues`/`edit_issues`/`delete_issues` ごとに「全トラッカー or 選択トラッカー」を設定。`IssuePolicy` と `Issue::scopeVisibleTo()` にトラッカー条件を追加 | 可視性スコープの変更は Atom/API/マイページに波及 | M | ロール・権限 節 |
 | A1-28 | CSV インポート: カスタムフィールド列、遅延付き関連、`unique_id` による親子/関連の遅延解決 | `ImportIssuesJob::mapRowToAttributes()` は CF・関連未対応 | CF は `Issue::relevantCustomFields()` の認可コンテキスト(`auth()->user()`)をジョブ内で実行ユーザーに差し替える設計が必要。`unique_id` は2パス(先に全行作成→後で親/関連を解決) | **設計メモ必須**(認可コンテキストの扱い) | M〜L | 「マッピング可能な列」「カテゴリ/バージョンの自動作成…」 |
 | A1-29 | 課題一覧の PDF エクスポート(`issues/index` の `format=pdf`)と `issues_export_limit` 設定 | PDF は課題単体(`routes/web.php:96` `issues.pdf`)・Wiki・ガントのみ | 現在のフィルタ/列を反映した一覧 PDF を dompdf で生成。CSV/PDF とも `issues_export_limit` で件数を打ち切り | `resources/views/pdf/issue.blade.php` のスタイルを流用 | S〜M | 「PDFエクスポート・Atomフィード」 |
 | A1-30 | Atom フィードへの現在のフィルタ/ソート反映 | `IssueAtomController` は「未クローズ・最近更新」固定 | 一覧画面の Atom リンクに現在のクエリ文字列を付与し、`QueryFilterEngine` で同条件を適用 | 旧: 意図的簡略化 | S | Issues本体「Atom フィード」 |

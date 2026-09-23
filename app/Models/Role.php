@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use LogicException;
 
-#[Fillable(['name', 'builtin', 'permissions', 'position', 'issues_visibility', 'time_entries_visibility', 'users_visibility', 'assignable', 'all_roles_managed', 'default_time_entry_activity_id'])]
+#[Fillable(['name', 'builtin', 'permissions', 'settings', 'position', 'issues_visibility', 'time_entries_visibility', 'users_visibility', 'assignable', 'all_roles_managed', 'default_time_entry_activity_id'])]
 final class Role extends Model
 {
     /** @use HasFactory<RoleFactory> */
@@ -44,6 +44,7 @@ final class Role extends Model
         return [
             'builtin' => RoleBuiltin::class,
             'permissions' => 'array',
+            'settings' => 'array',
             'issues_visibility' => IssueVisibility::class,
             'time_entries_visibility' => TimeEntryVisibility::class,
             'users_visibility' => UsersVisibility::class,
@@ -130,5 +131,87 @@ final class Role extends Model
     public function hasPermission(string $permission): bool
     {
         return in_array($permission, $this->permissionKeys(), true);
+    }
+
+    /**
+     * The issue permissions that can be limited to some trackers — the
+     * columns of Redmine's roles/_form.html.erb tracker table.
+     *
+     * @return list<string>
+     */
+    public static function trackerPermissionKeys(): array
+    {
+        return ['view_issues', 'add_issues', 'edit_issues', 'add_issue_notes', 'delete_issues'];
+    }
+
+    /**
+     * Redmine's Role#permissions_all_trackers?: false when the role lacks
+     * the permission, otherwise true unless the permission was explicitly
+     * limited to selected trackers (a missing setting means all trackers).
+     */
+    public function permissionsAllTrackers(string $permission): bool
+    {
+        if (! $this->hasPermission($permission)) {
+            return false;
+        }
+
+        return ($this->settings['permissions_all_trackers'][$permission] ?? true) !== false;
+    }
+
+    /**
+     * The trackers explicitly selected for the permission (Redmine's
+     * Role#permissions_tracker_ids(permission)); only meaningful when
+     * permissionsAllTrackers() is false.
+     *
+     * @return list<int>
+     */
+    public function permissionTrackerIds(string $permission): array
+    {
+        return array_values(array_map('intval', (array) ($this->settings['permissions_tracker_ids'][$permission] ?? [])));
+    }
+
+    /**
+     * The trackers the role grants the permission on: null for all
+     * trackers, a (possibly empty) list otherwise — empty as well when the
+     * role doesn't hold the permission at all.
+     *
+     * @return list<int>|null
+     */
+    public function trackerIdsFor(string $permission): ?array
+    {
+        if (! $this->hasPermission($permission)) {
+            return [];
+        }
+
+        return $this->permissionsAllTrackers($permission) ? null : $this->permissionTrackerIds($permission);
+    }
+
+    /**
+     * Redmine's Role#permissions_tracker?: the role grants the permission on
+     * this tracker, explicitly or through "all trackers".
+     */
+    public function allowsPermissionOnTracker(string $permission, int $trackerId): bool
+    {
+        $trackerIds = $this->trackerIdsFor($permission);
+
+        return $trackerIds === null || in_array($trackerId, $trackerIds, true);
+    }
+
+    /**
+     * Redmine's Role#set_permission_trackers: null for all trackers,
+     * otherwise the selected tracker ids. Not saved.
+     *
+     * @param  array<int|string>|null  $trackerIds
+     */
+    public function setPermissionTrackers(string $permission, ?array $trackerIds): static
+    {
+        $settings = $this->settings ?? [];
+        $settings['permissions_all_trackers'][$permission] = $trackerIds === null;
+        $settings['permissions_tracker_ids'][$permission] = $trackerIds === null
+            ? []
+            : array_values(array_unique(array_map('intval', $trackerIds)));
+        $this->settings = $settings;
+
+        return $this;
     }
 }

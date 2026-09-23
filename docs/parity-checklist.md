@@ -273,6 +273,7 @@
 | ロール一覧/作成/編集(権限チェックボックス) | done | Anonymous/Non-member向けの権限フィルタも正しく機能 |
 | ロール削除 | done | **使用中は削除不可(2026-09-24、A3-03c)**: Redmine の `Role#check_deletable`/`RolesController#destroy` に合わせ、メンバー(直接・グループ・親からの継承)が持つロールと組み込みロールは削除できない。一覧は「このロールは使用中です。削除できません。」と該当プロジェクト(メンバー画面へのリンク)を表示し、組み込みロールには削除ボタンを出さない。モデルの `deleting` でも拒否(従来は削除でき、ロールを失ったメンバーが残りえた)。テスト: `RoleManagementTest.php` |
 | ロールのコピー作成 | done(2026-07-21) | 一覧の「コピー」リンクが`?copy_from=<id>`付きで新規ロールフォームを開き、名前(「〜のコピー」接尾辞)と権限をプリフィル。builtin種別はコピーされない(このフォーム自体がbuiltinを一切設定しないため) |
+| ロール×トラッカー単位の課題権限(`permissions_all_trackers`/`permissions_tracker_ids`) | partial(2026-09-24、A1-27a) | Redmine の `roles/_form.html.erb` の「課題トラッキング」表と同じく、`view_issues`/`add_issues`/`edit_issues`/`add_issue_notes`/`delete_issues` ごとに「全トラッカー」か選択トラッカーかをロール編集画面で設定(`roles.settings` JSON、未設定=全トラッカーなので既存ロールは従来どおり)。ロールのコピーも引き継ぐ。複数ロール(グループ経由・継承を含む)は権限ごとに和集合(`AuthorizationService::allowedTrackerIds()`)。**判定への適用は未(A1-27b/c)**。テスト: `RoleTrackerPermissionsTest.php` |
 | 課題の閲覧範囲(全て/デフォルト/自分のみ) | done(2026-07-21) | ロール編集フォームにセレクトを追加。詳細は §Issues本体参照 |
 | 工数エントリ閲覧範囲 | done(2026-07-21) | `Role.time_entries_visibility`(all/default/own)。課題閲覧範囲と同一パターンで`TimeEntryPolicy::view`と一覧クエリに適用 |
 | ユーザー閲覧範囲 | done(2026-07-30) | `Role.users_visibility`(all/members_of_visible_projects)。詳細は§0.5「ユーザー閲覧範囲」行参照 |

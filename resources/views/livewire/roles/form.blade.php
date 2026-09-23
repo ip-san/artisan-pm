@@ -7,6 +7,7 @@ use App\Enums\UsersVisibility;
 use App\Enums\EnumerationType;
 use App\Models\Enumeration;
 use App\Models\Role;
+use App\Models\Tracker;
 use App\Support\Permissions\PermissionRegistry;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -38,6 +39,22 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int> */
     public array $managedRoleIds = [];
 
+    /**
+     * Redmine's role[permissions_all_trackers]: per issue permission,
+     * whether it applies to every tracker.
+     *
+     * @var array<string, bool>
+     */
+    public array $permissionsAllTrackers = [];
+
+    /**
+     * Redmine's role[permissions_tracker_ids]: per issue permission, the
+     * trackers it is limited to when not all trackers.
+     *
+     * @var array<string, array<int|string>>
+     */
+    public array $permissionTrackerIds = [];
+
     public function mount(?Role $role = null): void
     {
         if ($role?->exists) {
@@ -53,10 +70,25 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->defaultTimeEntryActivityId = $role->default_time_entry_activity_id;
             $this->allRolesManaged = $role->all_roles_managed;
             $this->managedRoleIds = $role->managedRoles->pluck('id')->all();
+            $this->fillTrackerPermissions($role);
         } else {
             $this->authorize('create', Role::class);
 
+            $this->fillTrackerPermissions(null);
             $this->prefillFromCopySource();
+        }
+    }
+
+    /**
+     * Seeds the permission × tracker table from a role (or "all trackers"
+     * for a new one).
+     */
+    private function fillTrackerPermissions(?Role $role): void
+    {
+        foreach (Role::trackerPermissionKeys() as $permission) {
+            $limited = $role !== null && $role->hasPermission($permission) && ! $role->permissionsAllTrackers($permission);
+            $this->permissionsAllTrackers[$permission] = ! $limited;
+            $this->permissionTrackerIds[$permission] = $limited ? $role->permissionTrackerIds($permission) : [];
         }
     }
 
@@ -89,6 +121,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->defaultTimeEntryActivityId = $source->default_time_entry_activity_id;
         $this->allRolesManaged = $source->all_roles_managed;
         $this->managedRoleIds = $source->managedRoles->pluck('id')->all();
+        $this->fillTrackerPermissions($source);
     }
 
     /**
@@ -139,6 +172,29 @@ new #[Layout('components.layouts.app')] class extends Component
             ->get();
     }
 
+    /**
+     * Every tracker, in order — the rows of the permission × tracker table.
+     *
+     * @return Collection<int, Tracker>
+     */
+    #[Computed]
+    public function trackers(): Collection
+    {
+        return Tracker::query()->orderBy('position')->get();
+    }
+
+    /**
+     * The issue permissions this role can hold that can be limited to
+     * trackers — the table's columns.
+     *
+     * @return list<string>
+     */
+    #[Computed]
+    public function trackerPermissions(): array
+    {
+        return array_values(array_intersect(Role::trackerPermissionKeys(), $this->availablePermissions));
+    }
+
     public function save(): void
     {
         $data = $this->validate([
@@ -162,6 +218,17 @@ new #[Layout('components.layouts.app')] class extends Component
             : $data['defaultTimeEntryActivityId'];
         $data['all_roles_managed'] = $this->allRolesManaged;
         unset($data['issuesVisibility'], $data['timeEntriesVisibility'], $data['usersVisibility'], $data['managedRoleIds'], $data['defaultTimeEntryActivityId']);
+
+        $role = $this->role ?? new Role;
+        $trackerIds = $this->trackers->pluck('id')->all();
+
+        foreach (Role::trackerPermissionKeys() as $permission) {
+            $role->setPermissionTrackers($permission, ($this->permissionsAllTrackers[$permission] ?? true)
+                ? null
+                : array_values(array_intersect(array_map('intval', $this->permissionTrackerIds[$permission] ?? []), $trackerIds)));
+        }
+
+        $data['settings'] = $role->settings;
 
         if ($this->role) {
             $this->role->update($data);
@@ -269,12 +336,59 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="grid grid-cols-2 gap-2">
                 @foreach ($this->availablePermissions as $permission)
                     <label class="flex items-center gap-2 text-sm text-neutral-700">
-                        <input type="checkbox" wire:model="permissions" value="{{ $permission }}" class="rounded border-neutral-300">
+                        <input type="checkbox" wire:model.live="permissions" value="{{ $permission }}" class="rounded border-neutral-300">
                         {{ $permission }}
                     </label>
                 @endforeach
             </div>
         </div>
+
+        @if ($this->trackerPermissions !== [])
+            <div>
+                <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('課題トラッキング') }}</span>
+                <p class="mb-2 text-xs text-neutral-500">
+                    {{ __('課題の権限ごとに、対象とするトラッカーを限定できます。') }}
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm" data-testid="role-tracker-permissions">
+                        <thead>
+                            <tr class="border-b border-neutral-200">
+                                <th class="px-2 py-1 text-left font-medium text-neutral-700">{{ __('トラッカー') }}</th>
+                                @foreach ($this->trackerPermissions as $permission)
+                                    <th class="px-2 py-1 text-center font-medium text-neutral-700 {{ in_array($permission, $permissions, true) ? '' : 'text-neutral-400' }}">{{ $permission }}</th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-neutral-100">
+                                <td class="px-2 py-1 font-semibold text-neutral-800">{{ __('全トラッカー') }}</td>
+                                @foreach ($this->trackerPermissions as $permission)
+                                    <td class="px-2 py-1 text-center">
+                                        <input type="checkbox" wire:model.live="permissionsAllTrackers.{{ $permission }}"
+                                            @disabled(! in_array($permission, $permissions, true))
+                                            aria-label="{{ __('全トラッカー') }} {{ $permission }}"
+                                            class="rounded border-neutral-300">
+                                    </td>
+                                @endforeach
+                            </tr>
+                            @foreach ($this->trackers as $tracker)
+                                <tr class="border-b border-neutral-100">
+                                    <td class="px-2 py-1 text-neutral-700">{{ $tracker->name }}</td>
+                                    @foreach ($this->trackerPermissions as $permission)
+                                        <td class="px-2 py-1 text-center">
+                                            <input type="checkbox" wire:model="permissionTrackerIds.{{ $permission }}" value="{{ $tracker->id }}"
+                                                @disabled(! in_array($permission, $permissions, true) || ($permissionsAllTrackers[$permission] ?? true))
+                                                aria-label="{{ $tracker->name }} {{ $permission }}"
+                                                class="rounded border-neutral-300">
+                                        </td>
+                                    @endforeach
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
