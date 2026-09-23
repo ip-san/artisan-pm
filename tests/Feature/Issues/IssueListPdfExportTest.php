@@ -103,3 +103,17 @@ test('the settings page saves the limit and rejects out-of-range values', functi
     Livewire::actingAs($admin)->test('settings.index')->set('issues_export_limit', 0)->call('save')->assertHasErrors(['issues_export_limit']);
     Livewire::actingAs($admin)->test('settings.index')->set('issues_export_limit', ExportLimit::MAXIMUM + 1)->call('save')->assertHasErrors(['issues_export_limit']);
 });
+
+test('the PDF view is written in the current language', function () {
+    app()->setLocale('en');
+
+    $html = view('pdf.issues', [
+        'project' => Project::factory()->create(['name' => 'Alpha']),
+        'headings' => [__('題名')],
+        'rows' => collect([['id' => 7, 'cells' => ['First'], 'blocks' => []]]),
+        'total' => 9,
+    ])->render();
+
+    expect($html)->toContain('Alpha - Issues')->toContain('Subject')->toContain('1 issue(s)')->toContain('(the first of 9)')
+        ->not->toContain('全9件');
+});

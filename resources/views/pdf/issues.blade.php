@@ -16,8 +16,8 @@
     </style>
 </head>
 <body>
-    <h1>{{ $project->name }} - 課題</h1>
-    <p class="meta">{{ now()->toDateString() }}時点 / {{ count($rows) }}件@if ($total > count($rows)) (全{{ $total }}件のうち先頭)@endif</p>
+    <h1>{{ __(':project - 課題', ['project' => $project->name]) }}</h1>
+    <p class="meta">{{ __(':date時点 / :count件', ['date' => now()->toDateString(), 'count' => count($rows)]) }}@if ($total > count($rows)) {{ __('(全:total件のうち先頭)', ['total' => $total]) }}@endif</p>
 
     <table>
         <thead>

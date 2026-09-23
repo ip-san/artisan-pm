@@ -25,24 +25,24 @@
 
     <table class="attrs">
         <tr>
-            <td class="label">ステータス</td><td>{{ $issue->status->name }}</td>
-            <td class="label">優先度</td><td>{{ $issue->priority->name }}</td>
+            <td class="label">{{ __('ステータス') }}</td><td>{{ $issue->status->name }}</td>
+            <td class="label">{{ __('優先度') }}</td><td>{{ $issue->priority->name }}</td>
         </tr>
         <tr>
-            <td class="label">担当者</td><td>{{ $issue->assignedTo?->name ?? '-' }}</td>
-            <td class="label">カテゴリ</td><td>{{ $issue->category?->name ?? '-' }}</td>
+            <td class="label">{{ __('担当者') }}</td><td>{{ $issue->assignedTo?->name ?? '-' }}</td>
+            <td class="label">{{ __('カテゴリ') }}</td><td>{{ $issue->category?->name ?? '-' }}</td>
         </tr>
         <tr>
-            <td class="label">対象バージョン</td><td>{{ $issue->fixedVersion?->name ?? '-' }}</td>
-            <td class="label">進捗率</td><td>{{ $issue->done_ratio }}%</td>
+            <td class="label">{{ __('対象バージョン') }}</td><td>{{ $issue->fixedVersion?->name ?? '-' }}</td>
+            <td class="label">{{ __('進捗率') }}</td><td>{{ $issue->done_ratio }}%</td>
         </tr>
         <tr>
-            <td class="label">開始日</td><td>{{ $issue->start_date?->toDateString() ?? '-' }}</td>
-            <td class="label">期日</td><td>{{ $issue->due_date?->toDateString() ?? '-' }}</td>
+            <td class="label">{{ __('開始日') }}</td><td>{{ $issue->start_date?->toDateString() ?? '-' }}</td>
+            <td class="label">{{ __('期日') }}</td><td>{{ $issue->due_date?->toDateString() ?? '-' }}</td>
         </tr>
         <tr>
-            <td class="label">予定工数</td><td>{{ $issue->estimated_hours ?? '-' }}</td>
-            <td class="label">親課題</td><td>{{ $issue->parent ? "#{$issue->parent->id} {$issue->parent->subject}" : '-' }}</td>
+            <td class="label">{{ __('予定工数') }}</td><td>{{ $issue->estimated_hours ?? '-' }}</td>
+            <td class="label">{{ __('親課題') }}</td><td>{{ $issue->parent ? "#{$issue->parent->id} {$issue->parent->subject}" : '-' }}</td>
         </tr>
         @foreach ($customFieldValues as $entry)
             <tr>
@@ -52,12 +52,12 @@
     </table>
 
     @if ($descriptionHtml !== null)
-        <div class="section-title">説明</div>
+        <div class="section-title">{{ __('説明') }}</div>
         <div class="prose">{!! $descriptionHtml !!}</div>
     @endif
 
     @if ($notes->isNotEmpty())
-        <div class="section-title">履歴</div>
+        <div class="section-title">{{ __('履歴') }}</div>
         @foreach ($notes as $entry)
             <div class="note">
                 <div class="note-meta">{{ $entry['journal']->user->displayName() }} — {{ $entry['journal']->created_at->format('Y-m-d H:i') }}</div>
