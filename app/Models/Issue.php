@@ -588,13 +588,19 @@ final class Issue extends Model implements HasMedia
     {
         foreach ($rules as $tier => $trackerIds) {
             $query->orWhere(function (Builder $rule) use ($tier, $trackerIds, $userId): void {
+                // Without a user there is no author/assignee match: comparing
+                // to null would become "IS NULL" and match unassigned issues.
                 match (IssueVisibility::from($tier)) {
                     IssueVisibility::All => null,
-                    IssueVisibility::Default => $rule->where(fn ($q) => $q->where($rule->qualifyColumn('is_private'), false)
-                        ->orWhere($rule->qualifyColumn('author_id'), $userId)
-                        ->orWhere($rule->qualifyColumn('assigned_to_id'), $userId)),
-                    IssueVisibility::Own => $rule->where(fn ($q) => $q->where($rule->qualifyColumn('author_id'), $userId)
-                        ->orWhere($rule->qualifyColumn('assigned_to_id'), $userId)),
+                    IssueVisibility::Default => $userId === null
+                        ? $rule->where($rule->qualifyColumn('is_private'), false)
+                        : $rule->where(fn ($q) => $q->where($rule->qualifyColumn('is_private'), false)
+                            ->orWhere($rule->qualifyColumn('author_id'), $userId)
+                            ->orWhere($rule->qualifyColumn('assigned_to_id'), $userId)),
+                    IssueVisibility::Own => $userId === null
+                        ? $rule->whereRaw('1 = 0')
+                        : $rule->where(fn ($q) => $q->where($rule->qualifyColumn('author_id'), $userId)
+                            ->orWhere($rule->qualifyColumn('assigned_to_id'), $userId)),
                 };
 
                 if ($trackerIds !== null) {

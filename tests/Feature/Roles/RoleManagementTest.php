@@ -157,3 +157,17 @@ test('an unused role can be deleted, a builtin one cannot', function () {
     expect(Role::query()->find($unused->id))->toBeNull()
         ->and(Role::query()->find($builtin->id))->not->toBeNull();
 });
+
+test('the Anonymous role form hides the issue visibility setting and keeps its value (A1-38)', function () {
+    $admin = User::factory()->admin()->create();
+    $anonymous = Role::factory()->create(['builtin' => RoleBuiltin::Anonymous->value, 'issues_visibility' => 'all']);
+    $custom = Role::factory()->create();
+
+    Livewire::actingAs($admin)->test('roles.form', ['role' => $anonymous])
+        ->assertDontSee(__('課題の閲覧範囲'))
+        ->call('save');
+
+    Livewire::actingAs($admin)->test('roles.form', ['role' => $custom])->assertSee(__('課題の閲覧範囲'));
+
+    expect($anonymous->refresh()->issues_visibility->value)->toBe('all');
+});

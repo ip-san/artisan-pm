@@ -150,6 +150,10 @@ final class AuthorizationService
                 : array_values(array_unique([...($rules[$tier] ?? []), ...$trackerIds]));
         }
 
+        if ($user === null) {
+            return $this->anonymousIssueVisibilityRules($rules);
+        }
+
         // Every tier includes what "own" shows and "default" adds only
         // public issues, so the broadest tier over every tracker makes
         // the narrower ones redundant.
@@ -160,6 +164,35 @@ final class AuthorizationService
         ksort($rules);
 
         return $rules;
+    }
+
+    /**
+     * Redmine's visible_condition / visible? ignore issues_visibility for a
+     * visitor who isn't logged in and show only public issues, whatever the
+     * Anonymous role's tier. Every tier therefore collapses into "default"
+     * (public issues; an anonymous visitor is never an author or assignee)
+     * over the union of the tiers' trackers.
+     *
+     * @param  array<string, list<int>|null>  $rules
+     * @return array<string, list<int>|null>
+     */
+    private function anonymousIssueVisibilityRules(array $rules): array
+    {
+        if ($rules === []) {
+            return [];
+        }
+
+        $trackerIds = [];
+
+        foreach ($rules as $tierTrackerIds) {
+            if ($tierTrackerIds === null) {
+                return [IssueVisibility::Default->value => null];
+            }
+
+            $trackerIds = [...$trackerIds, ...$tierTrackerIds];
+        }
+
+        return [IssueVisibility::Default->value => array_values(array_unique($trackerIds))];
     }
 
     /**

@@ -258,15 +258,18 @@ new #[Layout('components.layouts.app')] class extends Component
             @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
-        <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('課題の閲覧範囲') }}</label>
-            <select wire:model="issuesVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <option value="all">{{ __('すべての課題') }}</option>
-                <option value="default">{{ __('デフォルト') }}</option>
-                <option value="own">{{ __('自分が作成または担当する課題のみ') }}</option>
-            </select>
-            @error('issuesVisibility') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
-        </div>
+        {{-- A visitor who isn't logged in only ever sees public issues (Redmine hides this for the Anonymous role). --}}
+        @if ($role?->builtin !== \App\Enums\RoleBuiltin::Anonymous)
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('課題の閲覧範囲') }}</label>
+                <select wire:model="issuesVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <option value="all">{{ __('すべての課題') }}</option>
+                    <option value="default">{{ __('デフォルト') }}</option>
+                    <option value="own">{{ __('自分が作成または担当する課題のみ') }}</option>
+                </select>
+                @error('issuesVisibility') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+        @endif
 
         <div>
             <label class="block text-sm font-medium text-neutral-700">{{ __('工数の閲覧範囲') }}</label>
