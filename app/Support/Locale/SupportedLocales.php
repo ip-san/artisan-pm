@@ -32,7 +32,8 @@ final class SupportedLocales
 
     /**
      * What the app shows when nothing else applies: the setting, or the
-     * configured locale (English until an administrator picks otherwise).
+     * configured locale (Japanese, `APP_LOCALE`, until an administrator
+     * picks otherwise).
      */
     public static function default(): string
     {

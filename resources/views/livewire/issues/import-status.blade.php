@@ -29,7 +29,7 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-2xl">
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — CSVインポート状況</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — {{ __('CSVインポート状況') }}</h1>
 
     <div wire:poll.2s="refresh" class="rounded-md border border-neutral-200 bg-white p-4">
         <p class="text-sm text-neutral-700 mb-2">{{ $import->original_filename }}</p>
@@ -40,22 +40,22 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <p class="text-sm text-neutral-600">
             @if ($import->status === ImportStatus::Pending)
-                実行を待機しています…
+                {{ __('実行を待機しています…') }}
             @elseif ($import->status === ImportStatus::Processing)
-                処理中: {{ $import->processed_rows }} / {{ $import->total_rows ?? '?' }} 件
+                {{ __('処理中: :processed / :total 件', ['processed' => $import->processed_rows, 'total' => $import->total_rows ?? '?']) }}
             @elseif ($import->status === ImportStatus::Completed)
-                完了しました。成功 {{ $import->imported_count }} 件 / 失敗 {{ $import->failed_count }} 件
+                {{ __('完了しました。成功 :imported 件 / 失敗 :failed 件', ['imported' => $import->imported_count, 'failed' => $import->failed_count]) }}
             @elseif ($import->status === ImportStatus::Failed)
-                インポートに失敗しました。
+                {{ __('インポートに失敗しました。') }}
             @endif
         </p>
 
         @if ($import->status->isFinished() && ! empty($import->errors))
             <div class="mt-4">
-                <h2 class="text-sm font-semibold text-neutral-900 mb-2">エラー一覧</h2>
+                <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('エラー一覧') }}</h2>
                 <ul class="max-h-64 space-y-1 overflow-y-auto text-xs text-danger-bolder">
                     @foreach ($import->errors as $error)
-                        <li>{{ $error['row'] }}行目: {{ $error['message'] }}</li>
+                        <li>{{ __(':row行目: :message', ['row' => $error['row'], 'message' => $error['message']]) }}</li>
                     @endforeach
                 </ul>
             </div>
@@ -63,7 +63,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($import->status->isFinished())
             <a href="{{ route('issues.index', $project) }}" class="mt-4 inline-block rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                課題一覧へ
+                {{ __('課題一覧へ') }}
             </a>
         @endif
     </div>

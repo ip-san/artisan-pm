@@ -18,14 +18,15 @@ function localeRequest(?string $acceptLanguage): Request
     return $request;
 }
 
-test('the default language is English until the setting says otherwise', function () {
-    expect(SupportedLocales::default())->toBe('en');
+test('the default language is Japanese until the setting says otherwise', function () {
+    expect(config('app.locale'))->toBe('ja')
+        ->and(SupportedLocales::default())->toBe('ja');
 
-    Setting::set('default_language', 'ja');
-    expect(SupportedLocales::default())->toBe('ja');
+    Setting::set('default_language', 'en');
+    expect(SupportedLocales::default())->toBe('en');
 
     Setting::set('default_language', 'fr');
-    expect(SupportedLocales::default())->toBe('en');
+    expect(SupportedLocales::default())->toBe('ja');
 });
 
 test('a signed-in user gets their own language unless the default is forced', function () {

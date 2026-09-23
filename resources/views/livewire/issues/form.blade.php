@@ -633,7 +633,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
                     while ($ancestorId !== null) {
                         if ($ancestorId === $this->issue->id) {
-                            $fail('選択した課題はこの課題自身またはその子孫であるため、親に設定できません。');
+                            $fail(__('選択した課題はこの課題自身またはその子孫であるため、親に設定できません。'));
 
                             return;
                         }
@@ -739,7 +739,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     $this->commentIsPrivate && auth()->user()->can('setNotesPrivate', $this->issue),
                 );
             } catch (StaleIssueUpdateException) {
-                $this->addError('lockVersion', 'この課題は他のユーザーによって更新されています。ページを再読み込みして最新の内容を確認してから、再度保存してください。');
+                $this->addError('lockVersion', __('この課題は他のユーザーによって更新されています。ページを再読み込みして最新の内容を確認してから、再度保存してください。'));
 
                 return;
             }
@@ -810,7 +810,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-2xl">
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">
-        {{ $issue ? "#{$issue->id} を編集" : '新規課題' }}
+        {{ $issue ? __('#:id を編集', ['id' => $issue->id]) : __('新規課題') }}
     </h1>
 
     @error('lockVersion')
@@ -820,7 +820,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <form wire:submit="save" class="space-y-4" {!! \App\Support\Preferences\UserPreferences::unsavedWarningAttributes(auth()->user()) !!}>
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">トラッカー</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('トラッカー') }}</label>
                 <select wire:model.live="tracker_id" @disabled($this->isReadOnly('tracker_id'))
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach ($this->projectTrackers as $tracker)
@@ -832,7 +832,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             @if (! $issue && $this->initialStatuses->count() > 1)
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">ステータス</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
                     <select wire:model="status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm" data-initial-status>
                         @foreach ($this->initialStatuses as $status)
                             <option value="{{ $status->id }}">{{ $status->name }}</option>
@@ -844,7 +844,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             @if ($issue)
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">ステータス</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
                     <select wire:model="status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         @foreach ($allowedStatuses as $status)
                             <option value="{{ $status->id }}">{{ $status->name }}</option>
@@ -857,7 +857,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div>
             <label class="block text-sm font-medium text-neutral-700">
-                題名 @if ($this->isRequired('subject'))<span class="text-danger-subtle">*</span>@endif
+                {{ __('題名') }} @if ($this->isRequired('subject'))<span class="text-danger-subtle">*</span>@endif
             </label>
             <input type="text" wire:model="subject" @disabled($this->isReadOnly('subject'))
                 class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
@@ -866,18 +866,18 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @unless ($this->isCoreFieldDisabled('description'))
             <div>
-                <label class="block text-sm font-medium text-neutral-700">説明</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('説明') }}</label>
                 <textarea wire:model="description" rows="4" @disabled($this->isReadOnly('description'))
                     class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user()) }} mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
                 <button type="button" wire:click="togglePreview"
                     class="mt-2 rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">
-                    {{ $showPreview ? 'プレビューを閉じる' : 'プレビュー' }}
+                    {{ $showPreview ? __('プレビューを閉じる') : __('プレビュー') }}
                 </button>
 
                 @if ($showPreview)
                     <div class="prose prose-sm mt-2 max-w-none rounded-md border border-neutral-200 bg-neutral-50 p-4">
                         @if (trim($description) === '')
-                            <p class="text-sm text-neutral-400">(本文が空です)</p>
+                            <p class="text-sm text-neutral-400">{{ __('(本文が空です)') }}</p>
                         @else
                             {!! $this->previewHtml !!}
                         @endif
@@ -889,7 +889,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="grid grid-cols-2 gap-4">
             @unless ($this->isCoreFieldDisabled('priority_id'))
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">優先度</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('優先度') }}</label>
                     <select wire:model="priority_id" @disabled($this->isReadOnly('priority_id') || $this->priorityIsDerived)
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         @foreach ($this->priorities as $priority)
@@ -897,7 +897,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endforeach
                     </select>
                     @if ($this->priorityIsDerived)
-                        <p class="mt-1 text-xs text-neutral-500">未クローズの子課題のうち最高優先度から自動算出されます。</p>
+                        <p class="mt-1 text-xs text-neutral-500">{{ __('未クローズの子課題のうち最高優先度から自動算出されます。') }}</p>
                     @endif
                 </div>
             @endunless
@@ -905,17 +905,17 @@ new #[Layout('components.layouts.app')] class extends Component
             @unless ($this->isCoreFieldDisabled('assigned_to_id'))
                 <div>
                     <label class="block text-sm font-medium text-neutral-700">
-                        担当者
+                        {{ __('担当者') }}
                         @if (! $this->isReadOnly('assigned_to_id') && $assigned_to_id !== auth()->id() && $this->projectMembers->contains('id', auth()->id()))
                             <button type="button" wire:click="$set('assigned_to_id', {{ auth()->id() }})"
                                 class="ml-1 text-xs font-normal text-brand-bold hover:underline">
-                                自分に割り当てる
+                                {{ __('自分に割り当てる') }}
                             </button>
                         @endif
                     </label>
                     <select wire:model="assigned_to_id" @disabled($this->isReadOnly('assigned_to_id'))
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                        <option value="">未割当</option>
+                        <option value="">{{ __('未割当') }}</option>
                         @foreach ($this->projectMembers as $member)
                             <option value="{{ $member->id }}">{{ $member->name }}</option>
                         @endforeach
@@ -928,27 +928,27 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="grid grid-cols-2 gap-4">
                 @unless ($this->isCoreFieldDisabled('start_date'))
                     <div>
-                        <label class="block text-sm font-medium text-neutral-700">開始日</label>
+                        <label class="block text-sm font-medium text-neutral-700">{{ __('開始日') }}</label>
                         <input type="date" wire:model="start_date" @disabled($this->isReadOnly('start_date') || $this->datesAreDerived)
                             class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     </div>
                 @endunless
                 @unless ($this->isCoreFieldDisabled('due_date'))
                     <div>
-                        <label class="block text-sm font-medium text-neutral-700">期日</label>
+                        <label class="block text-sm font-medium text-neutral-700">{{ __('期日') }}</label>
                         <input type="date" wire:model="due_date" @disabled($this->isReadOnly('due_date') || $this->datesAreDerived)
                             class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     </div>
                 @endunless
             </div>
             @if ($this->datesAreDerived)
-                <p class="-mt-3 text-xs text-neutral-500">子課題の開始日〜期日の範囲から自動算出されます。</p>
+                <p class="-mt-3 text-xs text-neutral-500">{{ __('子課題の開始日〜期日の範囲から自動算出されます。') }}</p>
             @endif
         @endif
 
         @unless ($this->isCoreFieldDisabled('estimated_hours'))
             <div>
-                <label class="block text-sm font-medium text-neutral-700">予定工数(時間)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('予定工数(時間)') }}</label>
                 <input type="number" step="0.01" min="0" wire:model="estimated_hours"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('estimated_hours') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
@@ -959,10 +959,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="grid grid-cols-2 gap-4">
                 @unless ($this->isCoreFieldDisabled('category_id'))
                     <div>
-                        <label class="block text-sm font-medium text-neutral-700">カテゴリ</label>
+                        <label class="block text-sm font-medium text-neutral-700">{{ __('カテゴリ') }}</label>
                         <select wire:model.live="category_id" @disabled($this->isReadOnly('category_id'))
                             class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                            <option value="">なし</option>
+                            <option value="">{{ __('なし') }}</option>
                             @foreach ($this->projectCategories as $category)
                                 <option value="{{ $category->id }}">{{ $category->name }}</option>
                             @endforeach
@@ -973,10 +973,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
                 @unless ($this->isCoreFieldDisabled('fixed_version_id'))
                     <div>
-                        <label class="block text-sm font-medium text-neutral-700">対象バージョン</label>
+                        <label class="block text-sm font-medium text-neutral-700">{{ __('対象バージョン') }}</label>
                         <select wire:model="fixed_version_id" @disabled($this->isReadOnly('fixed_version_id'))
                             class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                            <option value="">なし</option>
+                            <option value="">{{ __('なし') }}</option>
                             @foreach ($this->projectVersions as $version)
                                 <option value="{{ $version->id }}">{{ $version->project_id === $project->id ? $version->name : "{$version->project->name} - {$version->name}" }}</option>
                             @endforeach
@@ -988,11 +988,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($this->canManageSubtasks() && ! $this->isCoreFieldDisabled('parent_id'))
             <div>
-                <label class="block text-sm font-medium text-neutral-700">親課題ID</label>
-                <input type="number" wire:model="parent_id" placeholder="例: 123"
+                <label class="block text-sm font-medium text-neutral-700">{{ __('親課題ID') }}</label>
+                <input type="number" wire:model="parent_id" placeholder="{{ __('例: 123') }}"
                     class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <div data-parent-search>
-                    <input type="text" wire:model.live.debounce.250ms="parentSearch" placeholder="#番号または件名で検索..."
+                    <input type="text" wire:model.live.debounce.250ms="parentSearch" placeholder="{{ __('#番号または件名で検索...') }}"
                         class="mt-2 block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
                     @if ($this->parentSuggestions->isNotEmpty())
                         <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
@@ -1011,7 +1011,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->canSetPrivate())
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="is_private" class="rounded border-neutral-300">
-                非公開課題にする(作成者・担当者と、閲覧範囲が「すべて」のロールのみ閲覧可能)
+                {{ __('非公開課題にする(作成者・担当者と、閲覧範囲が「すべて」のロールのみ閲覧可能)') }}
             </label>
         @endif
 
@@ -1027,7 +1027,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($this->canAddWatchers && $this->watcherOptions->isNotEmpty())
             <fieldset class="rounded-md border border-neutral-200 p-3" data-watcher-picker>
-                <legend class="px-1 text-sm font-medium text-neutral-700">ウォッチャー</legend>
+                <legend class="px-1 text-sm font-medium text-neutral-700">{{ __('ウォッチャー') }}</legend>
                 <div class="grid grid-cols-2 gap-1">
                     @foreach ($this->watcherOptions as $candidate)
                         <label class="flex items-center gap-2 text-sm text-neutral-700" wire:key="watcher-option-{{ $candidate->id }}">
@@ -1041,36 +1041,36 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($this->copySource !== null)
             <div class="space-y-1 rounded-md border border-neutral-200 bg-neutral-50 p-3" data-copy-options>
-                <p class="text-sm font-medium text-neutral-700">#{{ $this->copySource->id }} からのコピー</p>
+                <p class="text-sm font-medium text-neutral-700">{{ __('#:id からのコピー', ['id' => $this->copySource->id]) }}</p>
                 @if (CopyOptions::linkMode() === 'ask')
                     <label class="flex items-center gap-2 text-sm text-neutral-700">
                         <input type="checkbox" wire:model="copyLink" class="rounded border-neutral-300">
-                        コピー元との関連を作る
+                        {{ __('コピー元との関連を作る') }}
                     </label>
                 @endif
                 @if (CopyOptions::attachmentsMode() === 'ask' && $this->copySource->getMedia('attachments')->isNotEmpty())
                     <label class="flex items-center gap-2 text-sm text-neutral-700">
                         <input type="checkbox" wire:model="copyAttachments" class="rounded border-neutral-300">
-                        添付ファイルをコピーする
+                        {{ __('添付ファイルをコピーする') }}
                     </label>
                 @endif
                 @if ($this->copySource->children_count > 0)
                     <label class="flex items-center gap-2 text-sm text-neutral-700">
                         <input type="checkbox" wire:model="copySubtasks" class="rounded border-neutral-300">
-                        子課題をコピーする
+                        {{ __('子課題をコピーする') }}
                     </label>
                 @endif
                 @if ($this->copySourceHasWatchers)
                     <label class="flex items-center gap-2 text-sm text-neutral-700">
                         <input type="checkbox" wire:model="copyWatchers" class="rounded border-neutral-300">
-                        ウォッチャーをコピーする
+                        {{ __('ウォッチャーをコピーする') }}
                     </label>
                 @endif
             </div>
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">添付ファイル</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
             <input type="file" wire:model="newAttachments" multiple
                 class="mt-1 block w-full text-sm text-neutral-700">
             @error('newAttachments.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
@@ -1088,7 +1088,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($issue)
             @unless ($this->isCoreFieldDisabled('done_ratio'))
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">進捗率</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('進捗率') }}</label>
                     <select wire:model="done_ratio" class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm sm:text-sm"
                         @disabled($this->doneRatioIsStatusDerived || $this->doneRatioIsParentDerived)>
                         @foreach (\App\Support\Issues\DoneRatioSteps::options(current: $done_ratio) as $ratio)
@@ -1096,40 +1096,40 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endforeach
                     </select>
                     @if ($this->doneRatioIsStatusDerived)
-                        <p class="mt-1 text-xs text-neutral-500">設定によりステータスから自動算出されます。</p>
+                        <p class="mt-1 text-xs text-neutral-500">{{ __('設定によりステータスから自動算出されます。') }}</p>
                     @elseif ($this->doneRatioIsParentDerived)
-                        <p class="mt-1 text-xs text-neutral-500">子課題の進捗率(予定工数で重み付け)から自動算出されます。</p>
+                        <p class="mt-1 text-xs text-neutral-500">{{ __('子課題の進捗率(予定工数で重み付け)から自動算出されます。') }}</p>
                     @endif
                 </div>
             @endunless
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">コメント</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('コメント') }}</label>
                 <textarea wire:model="comment" rows="3"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"
-                    placeholder="変更内容についてのコメント(任意)"></textarea>
+                    placeholder="{{ __('変更内容についてのコメント(任意)') }}"></textarea>
                 @can('setNotesPrivate', $issue)
                     <label class="mt-1 flex items-center gap-1.5 text-sm text-neutral-700">
                         <input type="checkbox" wire:model="commentIsPrivate">
-                        非公開メモにする
+                        {{ __('非公開メモにする') }}
                     </label>
                 @endcan
             </div>
 
             @if ($this->canLogTime)
                 <fieldset class="rounded-md border border-neutral-200 p-4">
-                    <legend class="px-1 text-sm font-medium text-neutral-700">工数を記録</legend>
+                    <legend class="px-1 text-sm font-medium text-neutral-700">{{ __('工数を記録') }}</legend>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-medium text-neutral-700">時間</label>
+                            <label class="block text-xs font-medium text-neutral-700">{{ __('時間') }}</label>
                             <input type="number" step="0.01" wire:model="logTimeHours"
                                 class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                             @error('logTimeHours') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-neutral-700">作業分類</label>
+                            <label class="block text-xs font-medium text-neutral-700">{{ __('作業分類') }}</label>
                             <select wire:model="logTimeActivityId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
-                                <option value="">選択してください</option>
+                                <option value="">{{ __('選択してください') }}</option>
                                 @foreach ($this->timeEntryActivities as $activity)
                                     <option value="{{ $activity->id }}">{{ $activity->name }}</option>
                                 @endforeach
@@ -1138,7 +1138,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </div>
                     </div>
                     <div class="mt-4">
-                        <label class="block text-xs font-medium text-neutral-700">工数のコメント</label>
+                        <label class="block text-xs font-medium text-neutral-700">{{ __('工数のコメント') }}</label>
                         <input type="text" wire:model="logTimeComments"
                             class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         @error('logTimeComments') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
@@ -1149,11 +1149,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                保存
+                {{ __('保存') }}
             </button>
             <a href="{{ $issue ? route('issues.show', [$project, $issue]) : route('issues.index', $project) }}"
                 class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                キャンセル
+                {{ __('キャンセル') }}
             </a>
         </div>
     </form>

@@ -59,6 +59,29 @@ new #[Layout('components.layouts.app')] class extends Component
         'done_ratio' => '進捗率',
     ];
 
+    /**
+     * Translated header labels for DISPLAY_COLUMNS (constants can't call __()).
+     *
+     * @return array<string, string>
+     */
+    public function displayColumnLabels(): array
+    {
+        return [
+            'project_id' => __('プロジェクト'),
+            'tracker_id' => __('トラッカー'),
+            'status_id' => __('ステータス'),
+            'priority_id' => __('優先度'),
+            'subject' => __('題名'),
+            'assigned_to_id' => __('担当者'),
+            'author_id' => __('作成者'),
+            'fixed_version_id' => __('対象バージョン'),
+            'start_date' => __('開始日'),
+            'due_date' => __('期日'),
+            'created_at' => __('作成日'),
+            'done_ratio' => __('進捗率'),
+        ];
+    }
+
     #[Url]
     public string $statusFilter = 'open';
 
@@ -190,9 +213,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'status_id' => $issue->status->name,
             'priority_id' => $issue->priority->name,
             'subject' => $issue->subject,
-            'assigned_to_id' => $issue->assignedTo?->name ?? '未割当',
+            'assigned_to_id' => $issue->assignedTo?->name ?? __('未割当'),
             'author_id' => $issue->author->displayName(),
-            'fixed_version_id' => $issue->fixedVersion?->name ?? 'なし',
+            'fixed_version_id' => $issue->fixedVersion?->name ?? __('なし'),
             'start_date' => $issue->start_date?->toDateString() ?? '',
             'due_date' => $issue->due_date?->toDateString() ?? '',
             'created_at' => $issue->created_at->toDateString(),
@@ -273,7 +296,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'showSaveForm']);
         unset($this->savedQueries);
-        session()->flash('status', 'クエリを保存しました。');
+        session()->flash('status', __('クエリを保存しました。'));
     }
 
     public function loadQuery(int $queryId): void
@@ -305,25 +328,25 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">課題(全プロジェクト)</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('課題(全プロジェクト)') }}</h1>
 
     <div class="mb-4 flex flex-wrap items-center gap-3">
         <select wire:model.live="statusFilter" class="rounded-md border-neutral-300 text-sm shadow-sm">
-            <option value="open">未完了の課題</option>
-            <option value="closed">完了した課題</option>
-            <option value="all">すべての課題</option>
+            <option value="open">{{ __('未完了の課題') }}</option>
+            <option value="closed">{{ __('完了した課題') }}</option>
+            <option value="all">{{ __('すべての課題') }}</option>
         </select>
     </div>
 
     {{-- Saved queries --}}
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
-        <span class="text-neutral-500">保存済みクエリ:</span>
+        <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
         @forelse ($this->savedQueries as $savedQuery)
             <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
                 {{ $savedQuery->name }}
             </button>
         @empty
-            <span class="text-neutral-400">なし</span>
+            <span class="text-neutral-400">{{ __('なし') }}</span>
         @endforelse
     </div>
 
@@ -332,11 +355,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
             <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">
-                適用
+                {{ __('適用') }}
             </button>
 
             @if ($this->canSaveQueries)
-                <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">クエリを保存</button>
+                <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
             @endif
         </div>
 
@@ -355,7 +378,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @foreach ($columns as $column)
                         <th class="px-3 py-2">
                             <button wire:click="sortBy('{{ $column }}')" class="flex items-center gap-1 hover:text-neutral-900">
-                                {{ self::DISPLAY_COLUMNS[$column] ?? $column }}
+                                {{ $this->displayColumnLabels()[$column] ?? $column }}
                                 @if ($sortKey === $column)
                                     <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
                                 @endif
@@ -381,7 +404,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ count($columns) }}" class="px-3 py-6 text-center text-neutral-500">課題がありません。</td>
+                        <td colspan="{{ count($columns) }}" class="px-3 py-6 text-center text-neutral-500">{{ __('課題がありません。') }}</td>
                     </tr>
                 @endforelse
             </tbody>

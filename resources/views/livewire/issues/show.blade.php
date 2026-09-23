@@ -38,21 +38,24 @@ new #[Layout('components.layouts.app')] class extends Component
      * source issue it reads "コピー先" (copy destination), viewed from
      * the copy it reads "コピー元" (copy source).
      *
-     * @var array<string, array{from: string, to: string}>
+     * @return array<string, array{from: string, to: string}>
      */
-    private const array RELATION_LABELS = [
-        'relates' => ['from' => '関連', 'to' => '関連'],
-        'blocks' => ['from' => 'ブロックする', 'to' => 'ブロックされている'],
-        'duplicates' => ['from' => '重複する', 'to' => '重複されている'],
-        'precedes' => ['from' => '先行', 'to' => '先行'],
-        'follows' => ['from' => '後続', 'to' => '後続'],
-        'copied_to' => ['from' => 'コピー先', 'to' => 'コピー元'],
-    ];
+    private function relationLabels(): array
+    {
+        return [
+            'relates' => ['from' => __('関連'), 'to' => __('関連')],
+            'blocks' => ['from' => __('ブロックする'), 'to' => __('ブロックされている')],
+            'duplicates' => ['from' => __('重複する'), 'to' => __('重複されている')],
+            'precedes' => ['from' => __('先行'), 'to' => __('先行')],
+            'follows' => ['from' => __('後続'), 'to' => __('後続')],
+            'copied_to' => ['from' => __('コピー先'), 'to' => __('コピー元')],
+        ];
+    }
 
     /**
      * Maps a relation journal's prop_key (including the reversed names
      * Redmine writes on the receiving end, e.g. "blocked") back to the
-     * [type, side] pair used to index RELATION_LABELS above.
+     * [type, side] pair used to index relationLabels() above.
      *
      * @var array<string, array{0: string, 1: string}>
      */
@@ -158,16 +161,18 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->issue->relationsFrom->pluck('to')->concat($this->issue->relationsTo->pluck('from'))->all()
         ))->loadMissing($with);
 
+        $labels = $this->relationLabels();
+
         $from = $this->issue->relationsFrom->map(fn (IssueRelation $relation) => [
             'relation' => $relation,
             'other' => $relation->to,
-            'label' => self::RELATION_LABELS[$relation->relation_type->value]['from'],
+            'label' => $labels[$relation->relation_type->value]['from'],
         ]);
 
         $to = $this->issue->relationsTo->map(fn (IssueRelation $relation) => [
             'relation' => $relation,
             'other' => $relation->from,
-            'label' => self::RELATION_LABELS[$relation->relation_type->value]['to'],
+            'label' => $labels[$relation->relation_type->value]['to'],
         ]);
 
         return $from->concat($to)->sortBy(fn (array $entry) => $entry['relation']->id);
@@ -234,13 +239,13 @@ new #[Layout('components.layouts.app')] class extends Component
                     }
 
                     if ($other->project_id !== $this->issue->project_id && ! Setting::get('cross_project_issue_relations', false)) {
-                        $fail('プロジェクトをまたぐ関連付けは許可されていません。');
+                        $fail(__('プロジェクトをまたぐ関連付けは許可されていません。'));
 
                         return;
                     }
 
                     if ($this->issue->descendantIds()->contains($other->id) || $other->descendantIds()->contains($this->issue->id)) {
-                        $fail('親子・祖先/子孫関係にある課題同士は関連付けできません。');
+                        $fail(__('親子・祖先/子孫関係にある課題同士は関連付けできません。'));
 
                         return;
                     }
@@ -253,7 +258,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             ->exists();
 
                         if ($reverseExists) {
-                            $fail('この関連は既に登録されています。');
+                            $fail(__('この関連は既に登録されています。'));
                         }
                     }
 
@@ -265,16 +270,16 @@ new #[Layout('components.layouts.app')] class extends Component
                             ->exists();
 
                         if ($reverseBlocks) {
-                            $fail('循環したブロック関係は作成できません。');
+                            $fail(__('循環したブロック関係は作成できません。'));
                         }
                     }
 
                     if ($this->relationType === 'precedes' && IssueRelation::wouldCreateCycle($this->issue, $other)) {
-                        $fail('先行関係が循環しています。');
+                        $fail(__('先行関係が循環しています。'));
                     }
 
                     if ($this->relationType === 'follows' && IssueRelation::wouldCreateCycle($other, $this->issue)) {
-                        $fail('先行関係が循環しています。');
+                        $fail(__('先行関係が循環しています。'));
                     }
                 },
             ],
@@ -382,7 +387,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         [$type, $side] = self::RELATION_JOURNAL_KEYS[$propKey] ?? [null, null];
 
-        return $type !== null ? self::RELATION_LABELS[$type][$side] : $propKey;
+        return $type !== null ? $this->relationLabels()[$type][$side] : $propKey;
     }
 
     /**
@@ -511,10 +516,10 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function historyTabs(): array
     {
-        $tabs = UserPreferences::HISTORY_TABS;
+        $tabs = array_map(fn (string $label): string => __($label), UserPreferences::HISTORY_TABS);
 
         if ($this->issue->changesets->isNotEmpty() && auth()->user()?->can('viewAny', [Repository::class, $this->project])) {
-            $tabs['changesets'] = 'チェンジセット';
+            $tabs['changesets'] = __('チェンジセット');
         }
 
         return $tabs;
@@ -713,7 +718,7 @@ new #[Layout('components.layouts.app')] class extends Component
             // A value the panel never offers can only be a tampered request:
             // refuse it rather than guessing (nothing has been deleted yet).
             if ($requested === null) {
-                $this->addError('timeEntryTodo', '作業時間の扱いが不正です。');
+                $this->addError('timeEntryTodo', __('作業時間の扱いが不正です。'));
 
                 return;
             }
@@ -784,7 +789,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div>
             @if ($issue->parent)
                 <p class="text-xs text-neutral-500 mb-1">
-                    <span class="text-neutral-400">親課題:</span>
+                    <span class="text-neutral-400">{{ __('親課題:') }}</span>
                     <a href="{{ route('issues.show', [$project, $issue->parent]) }}" class="text-brand-bold hover:underline">
                         {{ $issue->parent->tracker->name }} #{{ $issue->parent->id }} — {{ $issue->parent->subject }}
                     </a>
@@ -794,20 +799,20 @@ new #[Layout('components.layouts.app')] class extends Component
             <h1 class="text-xl font-semibold text-neutral-900">
                 {{ $issue->subject }}
                 @if ($issue->is_private)
-                    <span class="ml-1 rounded bg-neutral-100 px-1.5 py-0.5 align-middle text-xs font-normal text-neutral-600">非公開</span>
+                    <span class="ml-1 rounded bg-neutral-100 px-1.5 py-0.5 align-middle text-xs font-normal text-neutral-600">{{ __('非公開') }}</span>
                 @endif
             </h1>
         </div>
         <div class="flex gap-2">
             @can('watch', $issue)
                 <button wire:click="toggleWatch" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    {{ $issue->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
+                    {{ $issue->isWatchedBy(auth()->user()) ? __('ウォッチ解除') : __('ウォッチ') }}
                 </button>
             @endcan
             @can('create', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.create', $project) }}?issue_id={{ $issue->id }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    工数を記録
+                    {{ __('工数を記録') }}
                 </a>
             @endcan
             <a href="{{ route('issues.pdf', [$project, $issue]) }}"
@@ -817,25 +822,25 @@ new #[Layout('components.layouts.app')] class extends Component
             @can('create', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.create', $project) }}?copy_from={{ $issue->id }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    コピー
+                    {{ __('コピー') }}
                 </a>
             @endcan
             @can('update', $issue)
                 <a href="{{ route('issues.edit', [$project, $issue]) }}"
                     class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                    編集
+                    {{ __('編集') }}
                 </a>
             @endcan
             @can('delete', $issue)
                 @if ($this->loggedHoursForDeletion > 0)
                     <button wire:click="$set('confirmingDelete', true)"
                         class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
-                        削除
+                        {{ __('削除') }}
                     </button>
                 @else
-                    <button wire:click="deleteIssue" wire:confirm="この課題を削除しますか?この操作は取り消せません。"
+                    <button wire:click="deleteIssue" wire:confirm="{{ __('この課題を削除しますか?この操作は取り消せません。') }}"
                         class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
-                        削除
+                        {{ __('削除') }}
                     </button>
                 @endif
             @endcan
@@ -846,30 +851,30 @@ new #[Layout('components.layouts.app')] class extends Component
         @can('delete', $issue)
             <form wire:submit="deleteIssue" class="mb-6 space-y-3 rounded-md border border-danger-subtler bg-danger-subtlest p-4">
                 <p class="text-sm font-medium text-danger-boldest">
-                    この課題には {{ rtrim(rtrim(number_format($this->loggedHoursForDeletion, 2), '0'), '.') }} 時間の作業時間が記録されています。削除する課題の作業時間をどうしますか?
+                    {{ __('この課題には :hours 時間の作業時間が記録されています。削除する課題の作業時間をどうしますか?', ['hours' => rtrim(rtrim(number_format($this->loggedHoursForDeletion, 2), '0'), '.')]) }}
                 </p>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="radio" wire:model.live="timeEntryTodo" value="nullify">
-                    課題との紐付けを外してプロジェクトに残す
+                    {{ __('課題との紐付けを外してプロジェクトに残す') }}
                 </label>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="radio" wire:model.live="timeEntryTodo" value="destroy">
-                    作業時間も一緒に削除する
+                    {{ __('作業時間も一緒に削除する') }}
                 </label>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="radio" wire:model.live="timeEntryTodo" value="reassign">
-                    このプロジェクトの別の課題へ付け替える: #
+                    {{ __('このプロジェクトの別の課題へ付け替える:') }} #
                     <input type="number" min="1" wire:model="reassignToId" wire:focus="$set('timeEntryTodo', 'reassign')"
                         class="w-24 rounded-md border-neutral-300 text-sm">
                 </label>
                 @error('reassign_to_id') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <div class="flex gap-2">
                     <button type="submit" class="rounded-md bg-danger-bolder px-3 py-2 text-sm font-medium text-white hover:bg-danger-subtle">
-                        削除する
+                        {{ __('削除する') }}
                     </button>
                     <button type="button" wire:click="$set('confirmingDelete', false)"
                         class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                        キャンセル
+                        {{ __('キャンセル') }}
                     </button>
                 </div>
             </form>
@@ -880,9 +885,9 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->moveTargetProjects->isNotEmpty())
             <form wire:submit="moveIssue" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-4">
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">別のプロジェクトへ移動</label>
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('別のプロジェクトへ移動') }}</label>
                     <select wire:model.live="moveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
-                        <option value="">選択してください</option>
+                        <option value="">{{ __('選択してください') }}</option>
                         @foreach ($this->moveTargetProjects as $candidate)
                             <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
                         @endforeach
@@ -891,18 +896,18 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @if ($moveToProjectId)
                     <div>
-                        <label class="block text-xs font-medium text-neutral-700">移動後のトラッカー</label>
+                        <label class="block text-xs font-medium text-neutral-700">{{ __('移動後のトラッカー') }}</label>
                         <select wire:model="moveToTrackerId" class="mt-1 block rounded-md border-neutral-300 text-sm">
-                            <option value="">選択してください</option>
+                            <option value="">{{ __('選択してください') }}</option>
                             @foreach ($this->moveTargetTrackers as $candidateTracker)
                                 <option value="{{ $candidateTracker->id }}">{{ $candidateTracker->name }}</option>
                             @endforeach
                         </select>
                         @error('moveToTrackerId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                     </div>
-                    <button type="submit" wire:confirm="移動するとカテゴリ・対象バージョン・親課題はリセットされます。よろしいですか?"
+                    <button type="submit" wire:confirm="{{ __('移動するとカテゴリ・対象バージョン・親課題はリセットされます。よろしいですか?') }}"
                         class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                        移動
+                        {{ __('移動') }}
                     </button>
                 @endif
             </form>
@@ -910,26 +915,26 @@ new #[Layout('components.layouts.app')] class extends Component
     @endcan
 
     <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-neutral-200 bg-white p-4 text-sm mb-6">
-        <div><span class="text-neutral-500">ステータス:</span> {{ $issue->status->name }}</div>
-        <div><span class="text-neutral-500">優先度:</span> {{ $issue->priority->name }}</div>
-        <div><span class="text-neutral-500">カテゴリ:</span> {{ $issue->category?->name ?? 'なし' }}</div>
-        <div><span class="text-neutral-500">作成者:</span> <x-avatar :user="$issue->author" :size="18" /> {{ $issue->author->displayName() }}</div>
-        <div><span class="text-neutral-500">担当者:</span> <x-avatar :user="$issue->assignedTo" :size="18" /> {{ $issue->assignedTo?->name ?? '未割当' }}</div>
-        <div><span class="text-neutral-500">対象バージョン:</span> {{ $issue->fixedVersion?->name ?? 'なし' }}</div>
-        <div><span class="text-neutral-500">進捗率:</span> {{ $issue->done_ratio }}%</div>
-        <div><span class="text-neutral-500">開始日:</span> {{ $issue->start_date?->toDateString() ?? '-' }}</div>
-        <div><span class="text-neutral-500">期日:</span> {{ $issue->due_date?->toDateString() ?? '-' }}</div>
+        <div><span class="text-neutral-500">{{ __('ステータス:') }}</span> {{ $issue->status->name }}</div>
+        <div><span class="text-neutral-500">{{ __('優先度:') }}</span> {{ $issue->priority->name }}</div>
+        <div><span class="text-neutral-500">{{ __('カテゴリ:') }}</span> {{ $issue->category?->name ?? __('なし') }}</div>
+        <div><span class="text-neutral-500">{{ __('作成者:') }}</span> <x-avatar :user="$issue->author" :size="18" /> {{ $issue->author->displayName() }}</div>
+        <div><span class="text-neutral-500">{{ __('担当者:') }}</span> <x-avatar :user="$issue->assignedTo" :size="18" /> {{ $issue->assignedTo?->name ?? __('未割当') }}</div>
+        <div><span class="text-neutral-500">{{ __('対象バージョン:') }}</span> {{ $issue->fixedVersion?->name ?? __('なし') }}</div>
+        <div><span class="text-neutral-500">{{ __('進捗率:') }}</span> {{ $issue->done_ratio }}%</div>
+        <div><span class="text-neutral-500">{{ __('開始日:') }}</span> {{ $issue->start_date?->toDateString() ?? '-' }}</div>
+        <div><span class="text-neutral-500">{{ __('期日:') }}</span> {{ $issue->due_date?->toDateString() ?? '-' }}</div>
         <div>
-            <span class="text-neutral-500">予定工数:</span>
-            {{ $issue->estimated_hours !== null ? \App\Support\Format\Hours::format((float) $issue->estimated_hours).' 時間' : '-' }}
+            <span class="text-neutral-500">{{ __('予定工数:') }}</span>
+            {{ $issue->estimated_hours !== null ? __(':hours 時間', ['hours' => \App\Support\Format\Hours::format((float) $issue->estimated_hours)]) : '-' }}
             @if (! $issue->isLeaf() && $issue->totalEstimatedHours() > 0)
-                <span class="text-neutral-400">(合計: {{ \App\Support\Format\Hours::format($issue->totalEstimatedHours()) }} 時間)</span>
+                <span class="text-neutral-400">{{ __('(合計: :hours 時間)', ['hours' => \App\Support\Format\Hours::format($issue->totalEstimatedHours())]) }}</span>
             @endif
         </div>
         @if ($issue->estimated_hours !== null)
             <div>
-                <span class="text-neutral-500">残り工数(予定):</span>
-                {{ \App\Support\Format\Hours::format($issue->estimatedRemainingHours()) }} 時間
+                <span class="text-neutral-500">{{ __('残り工数(予定):') }}</span>
+                {{ __(':hours 時間', ['hours' => \App\Support\Format\Hours::format($issue->estimatedRemainingHours())]) }}
             </div>
         @endif
     </div>
@@ -956,13 +961,13 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if (auth()->user()?->can('viewWatchers', $issue) && ($issue->watchers->isNotEmpty() || auth()->user()?->can('addWatchers', $issue)))
-        <h2 class="text-sm font-semibold text-neutral-900 mb-2">ウォッチャー ({{ $issue->watchers->count() }})</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('ウォッチャー (:count)', ['count' => $issue->watchers->count()]) }}</h2>
         <ul class="mb-3 flex flex-wrap gap-2">
             @foreach ($issue->watchers as $watcher)
                 <li class="flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700">
                     {{ $watcher->user->displayName() }}
                     @can('deleteWatchers', $issue)
-                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="ウォッチャーから削除">×</button>
+                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
                     @endcan
                 </li>
             @endforeach
@@ -971,7 +976,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @can('addWatchers', $issue)
             @if ($watcherSearch !== '' || $this->watcherCandidates->isNotEmpty())
                 <div class="mb-6  relative" data-watcher-search>
-                    <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="ウォッチャーを追加(名前・メールで検索)..."
+                    <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="{{ __('ウォッチャーを追加(名前・メールで検索)...') }}"
                         class="block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
                     <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
                         @foreach ($this->watcherCandidates as $candidate)
@@ -991,13 +996,13 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if ($issue->children->isNotEmpty())
-        <h2 class="text-sm font-semibold text-neutral-900 mb-2">サブタスク</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('サブタスク') }}</h2>
         <div class="mb-6 overflow-x-auto rounded-md border border-neutral-200 bg-white">
             <table class="min-w-full text-sm" data-related-issues="subtasks">
                 @if (\App\Support\Issues\RelatedIssueColumns::showHeaders())
                     <thead class="bg-neutral-50 text-left text-xs text-neutral-500">
                         <tr>
-                            <th class="px-3 py-2 font-medium">題名</th>
+                            <th class="px-3 py-2 font-medium">{{ __('題名') }}</th>
                             @foreach ($this->relatedColumns as $label)
                                 <th class="px-3 py-2 font-medium">{{ $label }}</th>
                             @endforeach
@@ -1024,7 +1029,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @php $attachments = $issue->attachments(); @endphp
     @if ($attachments->isNotEmpty())
-        <h2 class="text-sm font-semibold text-neutral-900 mb-2">添付ファイル<x-attachment-bulk-links :container="$issue" :count="$attachments->count()" /></h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('添付ファイル') }}<x-attachment-bulk-links :container="$issue" :count="$attachments->count()" /></h2>
         <ul class="mb-6 space-y-1">
             @foreach ($attachments as $media)
                 <li class="py-1 text-sm" wire:key="issue-attachment-{{ $media->id }}">
@@ -1039,16 +1044,16 @@ new #[Layout('components.layouts.app')] class extends Component
                         <x-download-count :media="$media" />
 <x-attachment-preview-link :media="$media" />
                         @can('update', $issue)
-                            <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
-                                class="text-danger-bolder hover:underline">削除</button>
+                            <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="{{ __('この添付ファイルを削除しますか?') }}"
+                                class="text-danger-bolder hover:underline">{{ __('削除') }}</button>
                         @endcan
                     </div>
                     @can('update', $issue)
                         <div class="mt-1 flex items-center gap-2">
-                            <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
+                            <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="{{ __('説明(任意)') }}"
                                 class="block w-full rounded-md border-neutral-300 text-xs shadow-sm">
                             <button wire:click="updateAttachmentDescription({{ $media->id }})"
-                                class="shrink-0 text-xs text-brand-bold hover:underline">保存</button>
+                                class="shrink-0 text-xs text-brand-bold hover:underline">{{ __('保存') }}</button>
                         </div>
                     @elseif ($media->getCustomProperty('description'))
                         <p class="mt-1 text-xs text-neutral-500">{{ $media->getCustomProperty('description') }}</p>
@@ -1059,15 +1064,15 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if ($this->relations->isNotEmpty() || auth()->user()?->can('manageRelations', $issue))
-        <h2 class="text-sm font-semibold text-neutral-900 mb-2">関連課題</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('関連課題') }}</h2>
         @if ($this->relations->isNotEmpty())
             <div class="mb-4 overflow-x-auto rounded-md border border-neutral-200 bg-white">
                 <table class="min-w-full text-sm" data-related-issues="relations">
                     @if (\App\Support\Issues\RelatedIssueColumns::showHeaders())
                         <thead class="bg-neutral-50 text-left text-xs text-neutral-500">
                             <tr>
-                                <th class="px-3 py-2 font-medium">関連</th>
-                                <th class="px-3 py-2 font-medium">題名</th>
+                                <th class="px-3 py-2 font-medium">{{ __('関連') }}</th>
+                                <th class="px-3 py-2 font-medium">{{ __('題名') }}</th>
                                 @foreach ($this->relatedColumns as $label)
                                     <th class="px-3 py-2 font-medium">{{ $label }}</th>
                                 @endforeach
@@ -1081,7 +1086,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 <td class="whitespace-nowrap px-3 py-2 text-neutral-500">
                                     {{ $entry['label'] }}
                                     @if ($entry['relation']->delay)
-                                        <span>({{ $entry['relation']->delay }}日後)</span>
+                                        <span>({{ __(':days日後', ['days' => $entry['relation']->delay]) }})</span>
                                     @endif
                                 </td>
                                 <td class="px-3 py-2">
@@ -1094,8 +1099,8 @@ new #[Layout('components.layouts.app')] class extends Component
                                 @endforeach
                                 <td class="px-3 py-2 text-right">
                                     @can('manageRelations', $issue)
-                                        <button wire:click="deleteRelation({{ $entry['relation']->id }})" wire:confirm="この関連を削除しますか?"
-                                            class="text-danger-bolder hover:underline">削除</button>
+                                        <button wire:click="deleteRelation({{ $entry['relation']->id }})" wire:confirm="{{ __('この関連を削除しますか?') }}"
+                                            class="text-danger-bolder hover:underline">{{ __('削除') }}</button>
                                     @endcan
                                 </td>
                             </tr>
@@ -1108,23 +1113,23 @@ new #[Layout('components.layouts.app')] class extends Component
         @can('manageRelations', $issue)
             <form wire:submit="addRelation" class="mb-6 flex items-end gap-2">
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">関連種別</label>
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('関連種別') }}</label>
                     <select wire:model.live="relationType" class="mt-1 block rounded-md border-neutral-300 shadow-sm text-sm">
-                        <option value="relates">関連</option>
-                        <option value="blocks">ブロックする</option>
-                        <option value="duplicates">重複する</option>
-                        <option value="precedes">先行</option>
-                        <option value="follows">後続</option>
+                        <option value="relates">{{ __('関連') }}</option>
+                        <option value="blocks">{{ __('ブロックする') }}</option>
+                        <option value="duplicates">{{ __('重複する') }}</option>
+                        <option value="precedes">{{ __('先行') }}</option>
+                        <option value="follows">{{ __('後続') }}</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">課題ID</label>
-                    <input type="number" wire:model="relatedIssueId" placeholder="例: 123"
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('課題ID') }}</label>
+                    <input type="number" wire:model="relatedIssueId" placeholder="{{ __('例: 123') }}"
                         class="mt-1 block w-28 rounded-md border-neutral-300 shadow-sm text-sm">
                 </div>
                 <div data-related-search>
-                    <label class="block text-xs font-medium text-neutral-700">検索</label>
-                    <input type="text" wire:model.live.debounce.250ms="relatedSearch" placeholder="#番号または件名..."
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('検索') }}</label>
+                    <input type="text" wire:model.live.debounce.250ms="relatedSearch" placeholder="{{ __('#番号または件名...') }}"
                         class="mt-1 block w-56 rounded-md border-neutral-300 shadow-sm text-sm">
                     @if ($this->relatedSuggestions->isNotEmpty())
                         <ul class="absolute z-10 mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
@@ -1138,13 +1143,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @if (in_array($relationType, ['precedes', 'follows'], true))
                     <div>
-                        <label class="block text-xs font-medium text-neutral-700">遅延日数</label>
+                        <label class="block text-xs font-medium text-neutral-700">{{ __('遅延日数') }}</label>
                         <input type="number" min="0" wire:model="relationDelay" placeholder="0"
                             class="mt-1 block w-20 rounded-md border-neutral-300 shadow-sm text-sm">
                     </div>
                 @endif
                 <button type="submit" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    追加
+                    {{ __('追加') }}
                 </button>
             </form>
             @error('relatedIssueId') <p class="-mt-4 mb-6 text-sm text-danger-bolder">{{ $message }}</p> @enderror
@@ -1155,22 +1160,22 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($issue->timeEntries->isNotEmpty() || (! $issue->isLeaf() && $issue->totalSpentHours() > 0))
         <h2 class="text-sm font-semibold text-neutral-900 mb-2">
-            工数 ({{ \App\Support\Format\Hours::format((float) $issue->timeEntries->sum('hours')) }} 時間)
+            {{ __('工数 (:hours 時間)', ['hours' => \App\Support\Format\Hours::format((float) $issue->timeEntries->sum('hours'))]) }}
             @if (! $issue->isLeaf())
-                <span class="font-normal text-neutral-400">(合計: {{ \App\Support\Format\Hours::format($issue->totalSpentHours()) }} 時間)</span>
+                <span class="font-normal text-neutral-400">{{ __('(合計: :hours 時間)', ['hours' => \App\Support\Format\Hours::format($issue->totalSpentHours())]) }}</span>
             @endif
         </h2>
         <ul class="mb-6 space-y-1">
             @foreach ($issue->timeEntries as $entry)
                 <li class="flex items-center justify-between text-sm">
                     <span>{{ $entry->spent_on->toDateString() }} — {{ $entry->user->displayName() }} — {{ $entry->activity->name }}</span>
-                    <span class="text-neutral-500">{{ $entry->hours }} 時間</span>
+                    <span class="text-neutral-500">{{ __(':hours 時間', ['hours' => $entry->hours]) }}</span>
                 </li>
             @endforeach
         </ul>
     @endif
 
-    <h2 class="text-sm font-semibold text-neutral-900 mb-2">履歴</h2>
+    <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('履歴') }}</h2>
     <div class="mb-3 flex gap-1 border-b border-neutral-200 text-sm" data-history-tabs>
         @foreach ($this->historyTabs as $tabKey => $tabLabel)
             <button type="button" wire:click="setHistoryTab('{{ $tabKey }}')" wire:key="history-tab-{{ $tabKey }}"
@@ -1203,28 +1208,28 @@ new #[Layout('components.layouts.app')] class extends Component
                         <x-avatar :user="$journal->user" :size="20" class="mr-1" />
                         {{ $journal->user->displayName() }} — {{ $journal->created_at->format('Y-m-d H:i') }}
                         @if ($journal->private_notes)
-                            <span class="ml-1 rounded bg-warning-subtler px-1.5 py-0.5 text-warning-bold">非公開</span>
+                            <span class="ml-1 rounded bg-warning-subtler px-1.5 py-0.5 text-warning-bold">{{ __('非公開') }}</span>
                         @endif
                         @if ($journal->notes && $journal->updatedBy !== null)
-                            <span class="ml-1 italic" data-journal-edited>({{ $journal->updatedBy->displayName() }} が編集 {{ $journal->updated_at->format('Y-m-d H:i') }})</span>
+                            <span class="ml-1 italic" data-journal-edited>{{ __('(:user が編集 :time)', ['user' => $journal->updatedBy->displayName(), 'time' => $journal->updated_at->format('Y-m-d H:i')]) }}</span>
                         @elseif ($journal->notes && ! $journal->updated_at->equalTo($journal->created_at))
-                            <span class="ml-1 italic">(編集済み)</span>
+                            <span class="ml-1 italic">{{ __('(編集済み)') }}</span>
                         @endif
                     </div>
                     @foreach ($journal->details as $detail)
                         <div class="text-neutral-600 text-xs">
                             @if ($detail->property === 'attr' && $detail->prop_key === 'description')
-                                {{ $this->journalDetailLabel($detail) }}が更新されました
-                                <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-brand-bold hover:underline">(差分)</a>
+                                {{ __(':labelが更新されました', ['label' => $this->journalDetailLabel($detail)]) }}
+                                <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-brand-bold hover:underline">{{ __('(差分)') }}</a>
                             @elseif ($this->isLongTextCustomFieldDetail($detail))
-                                {{ $this->journalDetailLabel($detail) }}が更新されました
-                                <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-brand-bold hover:underline">(差分)</a>
+                                {{ __(':labelが更新されました', ['label' => $this->journalDetailLabel($detail)]) }}
+                                <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-brand-bold hover:underline">{{ __('(差分)') }}</a>
                             @elseif ($detail->property === 'attachment')
-                                添付ファイル「{{ $detail->new_value ?? $detail->old_value }}」が{{ $detail->new_value !== null ? '追加' : '削除' }}されました
+                                {{ $detail->new_value !== null ? __('添付ファイル「:name」が追加されました', ['name' => $detail->new_value]) : __('添付ファイル「:name」が削除されました', ['name' => $detail->old_value]) }}
                             @elseif ($detail->property === 'relation')
-                                関連「{{ $this->relationJournalLabel($detail->prop_key) }} #{{ $detail->new_value ?? $detail->old_value }}」が{{ $detail->new_value !== null ? '追加' : '削除' }}されました
+                                {{ $detail->new_value !== null ? __('関連「:relation #:id」が追加されました', ['relation' => $this->relationJournalLabel($detail->prop_key), 'id' => $detail->new_value]) : __('関連「:relation #:id」が削除されました', ['relation' => $this->relationJournalLabel($detail->prop_key), 'id' => $detail->old_value]) }}
                             @else
-                                {{ $this->journalDetailLabel($detail) }}: {{ $detail->old_value ?? '(未設定)' }} → {{ $detail->new_value ?? '(未設定)' }}
+                                {{ $this->journalDetailLabel($detail) }}: {{ $detail->old_value ?? __('(未設定)') }} → {{ $detail->new_value ?? __('(未設定)') }}
                             @endif
                         </div>
                     @endforeach
@@ -1236,22 +1241,22 @@ new #[Layout('components.layouts.app')] class extends Component
                                 @can('setNotesPrivate', $issue)
                                     <label class="flex items-center gap-1.5 text-xs text-neutral-700">
                                         <input type="checkbox" wire:model="editingJournalPrivate" class="rounded border-neutral-300">
-                                        非公開コメントにする
+                                        {{ __('非公開コメントにする') }}
                                     </label>
                                 @endcan
                                 <div class="flex gap-2">
-                                    <button wire:click="saveJournalEdit" class="text-xs text-brand-bold hover:underline">保存</button>
-                                    <button wire:click="cancelEditingJournal" class="text-xs text-neutral-500 hover:underline">キャンセル</button>
+                                    <button wire:click="saveJournalEdit" class="text-xs text-brand-bold hover:underline">{{ __('保存') }}</button>
+                                    <button wire:click="cancelEditingJournal" class="text-xs text-neutral-500 hover:underline">{{ __('キャンセル') }}</button>
                                 </div>
                             </div>
                         @else
                             <div class="prose prose-sm max-w-none mt-1 text-neutral-800">{!! $this->renderedNotes($journal) !!}</div>
                             <div class="mt-1 flex items-center gap-2">
                                 @can('addNotes', $issue)
-                                    <button wire:click="quote({{ $journal->id }})" class="text-xs text-brand-bold hover:underline">引用</button>
+                                    <button wire:click="quote({{ $journal->id }})" class="text-xs text-brand-bold hover:underline">{{ __('引用') }}</button>
                                 @endcan
                                 @can('update', $journal)
-                                    <button wire:click="startEditingJournal({{ $journal->id }})" class="text-xs text-brand-bold hover:underline">編集</button>
+                                    <button wire:click="startEditingJournal({{ $journal->id }})" class="text-xs text-brand-bold hover:underline">{{ __('編集') }}</button>
                                 @endcan
                                 <x-reaction-button :reactable="$journal" type="journal" />
                             </div>
@@ -1260,24 +1265,24 @@ new #[Layout('components.layouts.app')] class extends Component
                 </li>
             @endunless
         @empty
-            <li class="text-sm text-neutral-500">履歴はありません。</li>
+            <li class="text-sm text-neutral-500">{{ __('履歴はありません。') }}</li>
         @endforelse
     </ul>
     @endif
 
     @can('addNotes', $issue)
         <form wire:submit="addComment" class="space-y-2">
-            <textarea wire:model="comment" rows="3" placeholder="コメントを追加"
+            <textarea wire:model="comment" rows="3" placeholder="{{ __('コメントを追加') }}"
                 class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user()) }} block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('comment') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
             @can('setNotesPrivate', $issue)
                 <label class="flex items-center gap-1.5 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="commentIsPrivate">
-                    非公開メモにする
+                    {{ __('非公開メモにする') }}
                 </label>
             @endcan
             <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                コメントを追加
+                {{ __('コメントを追加') }}
             </button>
         </form>
     @endcan

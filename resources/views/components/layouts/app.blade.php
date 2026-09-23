@@ -27,48 +27,48 @@
                         <a href="{{ route('projects.index') }}" class="font-semibold text-neutral-900">{{ $appTitle }}</a>
                         @auth
                             <x-project-jump-box />
-                            <a href="{{ route('my-page.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">マイページ</a>
-                            <a href="{{ route('projects.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">プロジェクト</a>
-                            <a href="{{ route('issues.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">課題</a>
-                            <a href="{{ route('time-entries.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">工数</a>
-                            <a href="{{ route('news.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">お知らせ</a>
-                            <a href="{{ route('calendar.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">カレンダー</a>
-                            <a href="{{ route('activity.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">活動</a>
-                            <a href="{{ route('search.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">検索</a>
+                            <a href="{{ route('my-page.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('マイページ') }}</a>
+                            <a href="{{ route('projects.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('プロジェクト') }}</a>
+                            <a href="{{ route('issues.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('課題') }}</a>
+                            <a href="{{ route('time-entries.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('工数') }}</a>
+                            <a href="{{ route('news.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('お知らせ') }}</a>
+                            <a href="{{ route('calendar.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('カレンダー') }}</a>
+                            <a href="{{ route('activity.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('活動') }}</a>
+                            <a href="{{ route('search.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('検索') }}</a>
                             @can('viewAny', \App\Models\Role::class)
-                                <a href="{{ route('roles.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">ロール管理</a>
+                                <a href="{{ route('roles.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('ロール管理') }}</a>
                             @endcan
                             @can('viewAny', \App\Models\Group::class)
-                                <a href="{{ route('groups.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">グループ管理</a>
+                                <a href="{{ route('groups.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('グループ管理') }}</a>
                             @endcan
                             @can('viewAny', \App\Models\CustomField::class)
-                                <a href="{{ route('custom-fields.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">カスタムフィールド管理</a>
+                                <a href="{{ route('custom-fields.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('カスタムフィールド管理') }}</a>
                             @endcan
                             @can('manage', \App\Models\Setting::class)
-                                <a href="{{ route('settings.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">設定</a>
-                                <a href="{{ route('plugins.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">プラグイン</a>
-                                <a href="{{ route('admin.info') }}" class="text-sm text-neutral-600 hover:text-neutral-900">情報</a>
+                                <a href="{{ route('settings.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('設定') }}</a>
+                                <a href="{{ route('plugins.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('プラグイン') }}</a>
+                                <a href="{{ route('admin.info') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('情報') }}</a>
                             @endcan
                             @can('viewAny', \App\Models\AuthSource::class)
-                                <a href="{{ route('auth-sources.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">LDAP認証</a>
+                                <a href="{{ route('auth-sources.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('LDAP認証') }}</a>
                             @endcan
                             @can('viewAny', \App\Models\Webhook::class)
                                 <a href="{{ route('webhooks.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">Webhook</a>
                             @endcan
                             @can('viewAny', \App\Models\User::class)
-                                <a href="{{ route('users.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">ユーザー管理</a>
+                                <a href="{{ route('users.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('ユーザー管理') }}</a>
                             @endcan
                             @can('viewAny', \App\Models\Tracker::class)
-                                <a href="{{ route('trackers.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">トラッカー管理</a>
+                                <a href="{{ route('trackers.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('トラッカー管理') }}</a>
                             @endcan
                             @can('viewAny', \App\Models\IssueStatus::class)
-                                <a href="{{ route('issue-statuses.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">ステータス管理</a>
+                                <a href="{{ route('issue-statuses.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('ステータス管理') }}</a>
                             @endcan
                             @can('manage', \App\Models\WorkflowTransition::class)
-                                <a href="{{ route('workflows.edit') }}" class="text-sm text-neutral-600 hover:text-neutral-900">ワークフロー管理</a>
+                                <a href="{{ route('workflows.edit') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('ワークフロー管理') }}</a>
                             @endcan
                             @can('viewAny', \App\Models\Enumeration::class)
-                                <a href="{{ route('enumerations.index', \App\Enums\EnumerationType::IssuePriority->value) }}" class="text-sm text-neutral-600 hover:text-neutral-900">値の一覧</a>
+                                <a href="{{ route('enumerations.index', \App\Enums\EnumerationType::IssuePriority->value) }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('値の一覧') }}</a>
                             @endcan
                             @foreach (app(\App\Support\Plugins\PluginManager::class)->menuItems('nav') as $item)
                                 <a href="{{ $item->url }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ $item->label }}</a>
@@ -83,11 +83,11 @@
                             <a href="{{ route('profile.index') }}" class="text-neutral-500 hover:text-neutral-900">{{ auth()->user()->name }}</a>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
-                                <button type="submit" class="text-neutral-600 hover:text-neutral-900">ログアウト</button>
+                                <button type="submit" class="text-neutral-600 hover:text-neutral-900">{{ __('ログアウト') }}</button>
                             </form>
                         @else
-                            <a href="{{ route('login') }}" class="text-neutral-600 hover:text-neutral-900">ログイン</a>
-                            <a href="{{ route('register') }}" class="text-neutral-600 hover:text-neutral-900">登録</a>
+                            <a href="{{ route('login') }}" class="text-neutral-600 hover:text-neutral-900">{{ __('ログイン') }}</a>
+                            <a href="{{ route('register') }}" class="text-neutral-600 hover:text-neutral-900">{{ __('登録') }}</a>
                         @endauth
                     </div>
                 </div>

@@ -120,7 +120,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $encoding = in_array($this->csvEncoding, ['UTF-8', 'SJIS-win'], true) ? $this->csvEncoding : 'UTF-8';
         $separator = in_array($this->csvSeparator, [',', ';', "\t"], true) ? $this->csvSeparator : ',';
 
-        $lines = [array_merge([''], $this->statuses->pluck('name')->all(), ['未完了', '完了', '合計'])];
+        $lines = [array_merge([''], $this->statuses->pluck('name')->all(), [__('未完了'), __('完了'), __('合計')])];
 
         foreach ($this->rows as $row) {
             $figures = $this->rowFigures($row['key']);
@@ -128,7 +128,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $totals = $this->totalFigures();
-        $lines[] = array_merge(['合計'], array_values($totals['statuses']), [$totals['open'], $totals['closed'], $totals['total']]);
+        $lines[] = array_merge([__('合計')], array_values($totals['statuses']), [$totals['open'], $totals['closed'], $totals['total']]);
 
         return response()->streamDownload(function () use ($lines, $encoding, $separator): void {
             $handle = fopen('php://output', 'w');
@@ -148,12 +148,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — {{ IssueReport::title($detail) }}別の課題</h1>
-        <a href="{{ route('issues.report', $project) }}" class="text-sm text-brand-bold hover:underline">課題レポートへ戻る</a>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — {{ __(':title別の課題', ['title' => IssueReport::title($detail)]) }}</h1>
+        <a href="{{ route('issues.report', $project) }}" class="text-sm text-brand-bold hover:underline">{{ __('課題レポートへ戻る') }}</a>
     </div>
 
     @if ($this->rows === [])
-        <p class="text-sm text-neutral-500">データがありません。</p>
+        <p class="text-sm text-neutral-500">{{ __('データがありません。') }}</p>
     @else
         @php $totals = $this->totalFigures(); @endphp
         <div class="overflow-x-auto">
@@ -164,9 +164,9 @@ new #[Layout('components.layouts.app')] class extends Component
                         @foreach ($this->statuses as $status)
                             <th class="px-3 py-2 text-right font-medium text-neutral-700">{{ $status->name }}</th>
                         @endforeach
-                        <th class="px-3 py-2 text-right font-semibold text-neutral-900">未完了</th>
-                        <th class="px-3 py-2 text-right font-semibold text-neutral-900">完了</th>
-                        <th class="px-3 py-2 text-right font-semibold text-neutral-900">合計</th>
+                        <th class="px-3 py-2 text-right font-semibold text-neutral-900">{{ __('未完了') }}</th>
+                        <th class="px-3 py-2 text-right font-semibold text-neutral-900">{{ __('完了') }}</th>
+                        <th class="px-3 py-2 text-right font-semibold text-neutral-900">{{ __('合計') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -185,7 +185,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </tbody>
                 <tfoot>
                     <tr class="border-t border-neutral-300 bg-neutral-50 font-semibold">
-                        <td class="px-3 py-2">合計</td>
+                        <td class="px-3 py-2">{{ __('合計') }}</td>
                         @foreach ($this->statuses as $status)
                             <td class="px-3 py-2 text-right">{{ $totals['statuses'][$status->id] }}</td>
                         @endforeach
@@ -203,11 +203,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 <option value="SJIS-win">Shift_JIS</option>
             </select>
             <select wire:model="csvSeparator" class="rounded-md border-neutral-300 text-xs">
-                <option value=",">カンマ</option>
-                <option value=";">セミコロン</option>
-                <option value="{{ "\t" }}">タブ</option>
+                <option value=",">{{ __('カンマ') }}</option>
+                <option value=";">{{ __('セミコロン') }}</option>
+                <option value="{{ "\t" }}">{{ __('タブ') }}</option>
             </select>
-            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">CSVエクスポート</button>
+            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('CSVエクスポート') }}</button>
         </div>
     @endif
 </div>

@@ -128,17 +128,17 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — 課題レポート</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — {{ __('課題レポート') }}</h1>
 
     @php
         $sections = [
-            ['title' => 'トラッカー別', 'column' => 'tracker_id', 'grid' => $this->trackerGrid],
-            ['title' => '優先度別', 'column' => 'priority_id', 'grid' => $this->priorityGrid],
-            ['title' => 'カテゴリ別', 'column' => 'category_id', 'grid' => $this->categoryGrid],
-            ['title' => '対象バージョン別', 'column' => 'fixed_version_id', 'grid' => $this->versionGrid],
-            ['title' => '担当者別', 'column' => 'assigned_to_id', 'grid' => $this->assigneeGrid],
-            ['title' => '作成者別', 'column' => 'author_id', 'grid' => $this->authorGrid],
-            ...(in_array('subproject', $this->report->dimensions(), true) ? [['title' => 'サブプロジェクト別', 'column' => 'project_id', 'grid' => $this->subprojectGrid]] : []),
+            ['title' => __('トラッカー別'), 'column' => 'tracker_id', 'grid' => $this->trackerGrid],
+            ['title' => __('優先度別'), 'column' => 'priority_id', 'grid' => $this->priorityGrid],
+            ['title' => __('カテゴリ別'), 'column' => 'category_id', 'grid' => $this->categoryGrid],
+            ['title' => __('対象バージョン別'), 'column' => 'fixed_version_id', 'grid' => $this->versionGrid],
+            ['title' => __('担当者別'), 'column' => 'assigned_to_id', 'grid' => $this->assigneeGrid],
+            ['title' => __('作成者別'), 'column' => 'author_id', 'grid' => $this->authorGrid],
+            ...(in_array('subproject', $this->report->dimensions(), true) ? [['title' => __('サブプロジェクト別'), 'column' => 'project_id', 'grid' => $this->subprojectGrid]] : []),
         ];
         $detailKeys = ['tracker_id' => 'tracker', 'priority_id' => 'priority', 'category_id' => 'category', 'version' => 'version', 'fixed_version_id' => 'version', 'assigned_to_id' => 'assigned_to', 'author_id' => 'author', 'project_id' => 'subproject'];
     @endphp
@@ -149,7 +149,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="overflow-x-auto">
                 <h2 class="mb-2 text-sm font-semibold text-neutral-900">
                     {{ $section['title'] }}
-                    <a href="{{ route('issues.report-details', [$project, $detailKeys[$section['column']]]) }}" class="ml-2 text-xs font-normal text-brand-bold hover:underline">詳細</a>
+                    <a href="{{ route('issues.report-details', [$project, $detailKeys[$section['column']]]) }}" class="ml-2 text-xs font-normal text-brand-bold hover:underline">{{ __('詳細') }}</a>
                 </h2>
                 <table class="min-w-full border border-neutral-200 bg-white text-sm">
                     <thead>
@@ -158,7 +158,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             @foreach ($this->statuses as $status)
                                 <th class="px-3 py-2 text-right font-medium text-neutral-700">{{ $status->name }}</th>
                             @endforeach
-                            <th class="px-3 py-2 text-right font-semibold text-neutral-900">合計</th>
+                            <th class="px-3 py-2 text-right font-semibold text-neutral-900">{{ __('合計') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -187,7 +187,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @empty
                             <tr>
                                 <td colspan="{{ $this->statuses->count() + 2 }}" class="px-3 py-4 text-center text-neutral-500">
-                                    データがありません。
+                                    {{ __('データがありません。') }}
                                 </td>
                             </tr>
                         @endforelse
