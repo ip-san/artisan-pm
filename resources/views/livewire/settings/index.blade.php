@@ -325,6 +325,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $new_project_user_role_id = null;
 
+    public ?int $default_project_query = null;
+
     /** @var array<string> */
     public array $notified_events = [];
 
@@ -472,6 +474,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->default_projects_tracker_ids = Setting::get('default_projects_tracker_ids', []);
         $this->sequential_project_identifiers = Setting::get('sequential_project_identifiers', false);
         $this->new_project_user_role_id = Setting::get('new_project_user_role_id');
+        $this->default_project_query = filled(Setting::get('default_project_query')) ? (int) Setting::get('default_project_query') : null;
         $this->notified_events = Setting::get('notified_events', NotificationRecipients::defaultNotifiedEvents());
         $this->mail_from = Setting::get('mail_from', '');
         $this->plain_text_mail = Setting::get('plain_text_mail', false);
@@ -684,6 +687,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_projects_tracker_ids.*' => ['exists:trackers,id'],
             'sequential_project_identifiers' => ['boolean'],
             'new_project_user_role_id' => ['nullable', 'exists:roles,id'],
+            'default_project_query' => ['nullable', Rule::exists('queries', 'id')->where('type', QueryType::Project->value)->where('visibility', QueryVisibility::Public->value)->whereNull('project_id')],
             'notified_events' => ['array'],
             'notified_events.*' => [Rule::in(array_keys(self::notifiedEvents()))],
             'mail_from' => ['nullable', 'email', 'max:255'],
@@ -1173,6 +1177,18 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                 </select>
                 @error('new_project_user_role_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('プロジェクト一覧の既定クエリ') }}</label>
+                <select wire:model="default_project_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('指定しない') }}</option>
+                    @foreach (\App\Models\Query::query()->where('type', \App\Enums\QueryType::Project->value)->where('visibility', \App\Enums\QueryVisibility::Public->value)->whereNull('project_id')->orderBy('name')->get() as $query)
+                        <option value="{{ $query->id }}">{{ $query->name }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('個人設定の既定がないときに使われます。公開クエリのみ選べます。') }}</p>
+                @error('default_project_query') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         </section>
 

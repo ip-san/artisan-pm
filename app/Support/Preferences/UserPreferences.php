@@ -113,6 +113,7 @@ final class UserPreferences
             'recently_used_project_ids' => [],
             'auto_watch_on' => self::validAutoWatch(Setting::get('default_users_auto_watch_on', self::DEFAULT_AUTO_WATCH_ON)),
             'default_issue_query' => null,
+            'default_project_query' => null,
             'activity_scope' => [],
         ];
     }
@@ -145,7 +146,7 @@ final class UserPreferences
                 'warn_on_leaving_unsaved', 'hide_mail', 'notify_about_high_priority_issues' => (bool) $value,
                 'textarea_font' => array_key_exists((string) $value, self::TEXTAREA_FONTS) ? (string) $value : '',
                 'auto_watch_on' => self::validAutoWatch($value),
-                'default_issue_query' => filled($value) ? (int) $value : null,
+                'default_issue_query', 'default_project_query' => filled($value) ? (int) $value : null,
                 'history_default_tab' => array_key_exists((string) $value, self::HISTORY_TABS) ? (string) $value : 'history',
                 'activity_scope' => array_values(array_unique(array_map('strval', is_array($value) ? $value : []))),
                 'recently_used_projects' => max(0, min(10, (int) $value)),

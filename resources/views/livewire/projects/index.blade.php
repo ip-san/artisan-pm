@@ -3,17 +3,23 @@
 use App\Concerns\InteractsWithQueryFilters;
 use App\Concerns\ReordersColumns;
 use App\Concerns\SelectsPageSize;
+use App\Enums\QueryType;
+use App\Enums\QueryVisibility;
 use App\Models\CustomField;
 use App\Models\Project;
+use App\Models\Query as SavedQuery;
+use App\Models\Role;
 use App\Models\Setting;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use App\Support\Query\CustomFieldFilter;
+use App\Support\Query\DefaultProjectQuery;
 use App\Support\Query\ProjectFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -53,8 +59,19 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public string $sortDirection = 'asc';
 
+    public string $newQueryName = '';
+
+    public string $newQueryVisibility = 'private';
+
+    /** @var array<int, int> */
+    public array $newQueryRoleIds = [];
+
+    public bool $showSaveForm = false;
+
     public function mount(): void
     {
+        $this->applyDefaultQuery();
+
         if ($this->columns === []) {
             $this->columns = ProjectFilterFieldRegistry::defaultColumns();
         }
@@ -307,6 +324,127 @@ new #[Layout('components.layouts.app')] class extends Component
         };
     }
 
+    /**
+     * Redmine's ProjectQuery.default: a visit that names no filter, sort or
+     * columns of its own opens on the user's or the site's default query.
+     */
+    private function applyDefaultQuery(): void
+    {
+        if (request()->hasAny(['columns', 'sortKey', 'activeFilterKeys', 'search', 'statusFilter', 'bookmarkedOnly'])) {
+            return;
+        }
+
+        $query = DefaultProjectQuery::for(auth()->user());
+
+        if ($query !== null) {
+            $this->loadQuery($query->id);
+        }
+    }
+
+    /**
+     * @return Collection<int, SavedQuery>
+     */
+    #[Computed]
+    public function savedQueries(): Collection
+    {
+        return SavedQuery::visibleGlobally(QueryType::Project, auth()->user());
+    }
+
+    /**
+     * Whether the viewer may save queries (Redmine's save_queries).
+     */
+    #[Computed]
+    public function canSaveQueries(): bool
+    {
+        return app(AuthorizationService::class)->canGlobally(auth()->user(), 'save_queries');
+    }
+
+    /**
+     * Project queries are global, so only administrators may share one
+     * (Query::resolveVisibility() with no project).
+     */
+    #[Computed]
+    public function canManagePublicQueries(): bool
+    {
+        return (bool) auth()->user()?->is_admin;
+    }
+
+    /**
+     * @return Collection<int, Role>
+     */
+    #[Computed]
+    public function availableRoles(): Collection
+    {
+        return Role::query()->givable()->get();
+    }
+
+    public function saveQuery(): void
+    {
+        abort_unless($this->canSaveQueries, 403);
+
+        $data = $this->validate([
+            'newQueryName' => ['required', 'string', 'max:255'],
+            'newQueryVisibility' => ['required', Rule::enum(QueryVisibility::class)],
+            'newQueryRoleIds' => $this->newQueryVisibility === QueryVisibility::Roles->value ? ['required', 'array', 'min:1'] : ['array'],
+            'newQueryRoleIds.*' => ['exists:roles,id'],
+        ]);
+
+        $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], null);
+
+        $query = SavedQuery::create([
+            'name' => $data['newQueryName'],
+            'type' => QueryType::Project->value,
+            'user_id' => auth()->id(),
+            'project_id' => null,
+            'visibility' => $visibility,
+            'filters' => $this->builtFilters(),
+            'column_names' => $this->visibleColumns,
+            'sort_criteria' => $this->sortKey !== null ? [[$this->sortKey, $this->sortDirection]] : [],
+            'group_by' => null,
+        ]);
+
+        if ($visibility === QueryVisibility::Roles->value) {
+            $query->roles()->sync($data['newQueryRoleIds']);
+        }
+
+        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'showSaveForm']);
+        unset($this->savedQueries);
+        session()->flash('status', __('クエリを保存しました。'));
+    }
+
+    public function loadQuery(int $queryId): void
+    {
+        $query = SavedQuery::query()
+            ->where('type', QueryType::Project->value)
+            ->whereNull('project_id')
+            ->find($queryId);
+
+        abort_if($query === null, 404);
+        abort_unless($query->visibleTo(auth()->user()), 403);
+
+        $this->activeFilterKeys = array_keys($query->filters ?? []);
+        $this->filterOperators = [];
+        $this->filterValues = [];
+
+        foreach ($query->filters ?? [] as $key => $filter) {
+            $this->filterOperators[$key] = $filter['operator'];
+            $this->filterValues[$key] = $filter['values'] ?? [];
+        }
+
+        $this->columns = $query->column_names ?? [];
+        $this->search = '';
+        $this->statusFilter = 'all';
+        $this->sortKey = null;
+        $this->sortDirection = 'asc';
+
+        if (isset($query->sort_criteria[0])) {
+            [$this->sortKey, $this->sortDirection] = $query->sort_criteria[0];
+        }
+
+        $this->resetPage();
+        unset($this->projects, $this->isFiltering, $this->visibleColumns);
+    }
+
     public function toggleBookmark(int $projectId): void
     {
         abort_unless($this->visibleProjectIds->contains($projectId), 404);
@@ -363,6 +501,17 @@ new #[Layout('components.layouts.app')] class extends Component
         </label>
     </div>
 
+    <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
+        @forelse ($this->savedQueries as $savedQuery)
+            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
+                {{ $savedQuery->name }}
+            </button>
+        @empty
+            <span class="text-neutral-400">{{ __('なし') }}</span>
+        @endforelse
+    </div>
+
     <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
@@ -380,7 +529,17 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($sortKey !== null)
                 <button wire:click="clearSort" class="text-sm text-brand-bold hover:underline">{{ __('並べ替えを解除') }}</button>
             @endif
+            @if ($this->canSaveQueries)
+                <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
+            @endif
         </div>
+
+        @if ($showSaveForm)
+            <x-saved-query-save-form
+                :can-manage-public-queries="$this->canManagePublicQueries"
+                :visibility="$newQueryVisibility"
+                :roles="$this->availableRoles" />
+        @endif
 
         <div class="mt-3">
             <x-column-order :columns="$this->visibleColumns" :labels="$this->availableColumns" />

@@ -71,6 +71,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $default_issue_query = null;
 
+    public ?int $default_project_query = null;
+
     public function mount(): void
     {
         $this->name = auth()->user()->name;
@@ -80,7 +82,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->notified_project_ids = array_map('strval', auth()->user()->notifiedProjectIds());
         $this->no_self_notified = auth()->user()->no_self_notified;
 
-        foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'notify_about_high_priority_issues', 'recently_used_projects', 'history_default_tab', 'auto_watch_on', 'default_issue_query'] as $key) {
+        foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'notify_about_high_priority_issues', 'recently_used_projects', 'history_default_tab', 'auto_watch_on', 'default_issue_query', 'default_project_query'] as $key) {
             $this->{$key} = auth()->user()->preference($key) ?? $this->{$key};
         }
     }
@@ -103,6 +105,18 @@ new #[Layout('components.layouts.app')] class extends Component
             ->values();
     }
 
+    /**
+     * Saved project queries the user may pick as the project list's
+     * starting query — Redmine's default_project_query.
+     *
+     * @return Collection<int, SavedQuery>
+     */
+    #[Computed]
+    public function projectQueries(): Collection
+    {
+        return SavedQuery::visibleGlobally(QueryType::Project, auth()->user());
+    }
+
     public function savePreferences(): void
     {
         $data = $this->validate([
@@ -116,6 +130,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'auto_watch_on' => ['array'],
             'auto_watch_on.*' => [Rule::in(array_keys(UserPreferences::AUTO_WATCH_ON))],
             'default_issue_query' => ['nullable', Rule::in($this->issueQueries->pluck('id')->all())],
+            'default_project_query' => ['nullable', Rule::in($this->projectQueries->pluck('id')->all())],
         ]);
 
         UserPreferences::save(auth()->user(), $data);
@@ -655,6 +670,17 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                 </select>
                 @error('default_issue_query') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('既定のプロジェクトクエリ') }}</label>
+                <select wire:model="default_project_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('指定しない') }}</option>
+                    @foreach ($this->projectQueries as $query)
+                        <option value="{{ $query->id }}">{{ $query->name }}</option>
+                    @endforeach
+                </select>
+                @error('default_project_query') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
