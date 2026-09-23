@@ -7,7 +7,10 @@ namespace App\Support\Query;
 use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
 use App\Enums\IssueRelationType;
+use App\Models\Group;
+use App\Models\Member;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
 use Closure;
@@ -39,6 +42,9 @@ final class IssueExtraFilterFields
     /** @var ?array<int, string> */
     private ?array $visibleProjectOptions = null;
 
+    /** @var ?array<int, string> */
+    private ?array $visibleGroupOptions = null;
+
     /**
      * @param  Closure(): Collection<int, Project>  $scopeProjects  the projects whose issues the list covers, resolved only when a filter needs them
      */
@@ -62,6 +68,15 @@ final class IssueExtraFilterFields
             $this->parentId(),
             $this->childId(),
             ...$this->relationFilters(),
+            $this->watcherId(),
+            $this->updatedBy(),
+            $this->lastUpdatedBy(),
+            $this->memberOfGroup(),
+            $this->assignedToRole(),
+            $this->authorGroup(),
+            $this->authorRole(),
+            $this->attachment(),
+            $this->attachmentDescription(),
         ]));
     }
 
@@ -72,7 +87,11 @@ final class IssueExtraFilterFields
             __('説明'),
             FilterFieldType::Text,
             self::textOperators(),
-            fn (Builder $query, FilterOperator $operator, array $values) => self::applyText($query, $query->qualifyColumn('description'), $operator, $values),
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                self::applyText($query, $query->qualifyColumn('description'), $operator, $values);
+
+                return $query;
+            },
         );
     }
 
@@ -402,6 +421,388 @@ final class IssueExtraFilterFields
     }
 
     /**
+     * Redmine's sql_for_watcher_id_field, offered only to a signed-in
+     * viewer. "Me" always works; other users only match on issues of
+     * projects where the viewer holds view_issue_watchers, and are only
+     * offered as choices when the viewer holds it somewhere in the list.
+     */
+    private function watcherId(): ?FilterableField
+    {
+        $viewer = $this->viewer;
+
+        if ($viewer === null) {
+            return null;
+        }
+
+        return new CallbackFilter(
+            'watcher_id',
+            __('ウォッチャー'),
+            FilterFieldType::Select,
+            self::userOperators(),
+            function (Builder $query, FilterOperator $operator, array $values) use ($viewer): Builder {
+                if ($values === []) {
+                    return $query;
+                }
+
+                $ids = $this->userIds($values);
+                $mine = array_values(array_intersect($ids, [$viewer->id]));
+                $others = array_values(array_diff($ids, [$viewer->id]));
+                $watcherProjectIds = $others === [] ? collect() : $this->projectIdsWith('view_issue_watchers');
+                $projectColumn = $query->qualifyColumn('project_id');
+
+                $watching = fn (Builder $watchers) => $watchers->where(function (Builder $who) use ($mine, $others, $watcherProjectIds, $projectColumn): void {
+                    $who->whereRaw('1 = 0');
+
+                    if ($mine !== []) {
+                        $who->orWhereIn('watchers.user_id', $mine);
+                    }
+
+                    if ($others !== [] && $watcherProjectIds->isNotEmpty()) {
+                        $who->orWhere(fn (Builder $permitted) => $permitted->whereIn('watchers.user_id', $others)->whereIn($projectColumn, $watcherProjectIds));
+                    }
+                });
+
+                return self::isNegative($operator)
+                    ? $query->whereDoesntHave('watchers', $watching)
+                    : $query->whereHas('watchers', $watching);
+            },
+            fn () => ['me' => __('<< 自分 >>')] + ($this->projectIdsWith('view_issue_watchers')->isNotEmpty() ? $this->userOptions() : []),
+        );
+    }
+
+    /**
+     * Redmine's sql_for_updated_by_field: someone wrote one of the
+     * journals the viewer may read.
+     */
+    private function updatedBy(): FilterableField
+    {
+        return new CallbackFilter(
+            'updated_by',
+            __('更新者'),
+            FilterFieldType::Select,
+            self::userOperators(),
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                if ($values === []) {
+                    return $query;
+                }
+
+                $ids = $this->userIds($values);
+                $journal = fn (QueryBuilder $journals) => $this->readableJournals($journals, $query)->whereIn('journals.user_id', $ids);
+
+                return self::isNegative($operator) ? $query->whereNotExists($journal) : $query->whereExists($journal);
+            },
+            fn () => $this->userOptionsWithMe(),
+        );
+    }
+
+    /**
+     * Redmine's sql_for_last_updated_by_field: the author of the newest
+     * journal the viewer may read.
+     */
+    private function lastUpdatedBy(): FilterableField
+    {
+        return new CallbackFilter(
+            'last_updated_by',
+            __('最終更新者'),
+            FilterFieldType::Select,
+            self::userOperators(),
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                if ($values === []) {
+                    return $query;
+                }
+
+                $ids = $this->userIds($values);
+                $journal = fn (QueryBuilder $journals) => $this->readableJournals($journals, $query, 'last_journals')
+                    ->whereIn('last_journals.user_id', $ids)
+                    ->where('last_journals.id', '=', fn (QueryBuilder $newest) => $this->readableJournals($newest, $query)->select($newest->raw('MAX(journals.id)')));
+
+                return self::isNegative($operator) ? $query->whereNotExists($journal) : $query->whereExists($journal);
+            },
+            fn () => $this->userOptionsWithMe(),
+        );
+    }
+
+    /**
+     * Redmine's sql_for_member_of_group_field: the assignee belongs to
+     * one of the groups (none/any: to no group / to some group). Only
+     * groups the viewer can see are offered or honoured.
+     */
+    private function memberOfGroup(): FilterableField
+    {
+        return new CallbackFilter(
+            'member_of_group',
+            __('担当者のグループ'),
+            FilterFieldType::Select,
+            [...self::userOperators(), FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                $column = $query->qualifyColumn('assigned_to_id');
+
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                $groupIds = in_array($operator, [FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], true)
+                    ? null
+                    : array_values(array_intersect(self::idList($values), array_keys($this->visibleGroupOptions())));
+
+                return self::whereUserInGroups($query, $column, $groupIds, in_array($operator, [FilterOperator::NotEquals, FilterOperator::NotIn, FilterOperator::IsEmpty], true));
+            },
+            fn () => $this->visibleGroupOptions(),
+        );
+    }
+
+    /**
+     * Redmine's sql_for_assigned_to_role_field: the assignee holds one of
+     * the roles in the issue's project (none/any: is not / is a member of
+     * it at all). A group membership counts for its users.
+     */
+    private function assignedToRole(): FilterableField
+    {
+        return new CallbackFilter(
+            'assigned_to_role',
+            __('担当者のロール'),
+            FilterFieldType::Select,
+            [...self::userOperators(), FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
+            fn (Builder $query, FilterOperator $operator, array $values) => $this->applyRole($query, 'assigned_to_id', $operator, $values),
+            fn () => self::roleOptions(),
+        );
+    }
+
+    /**
+     * Redmine's author.group filter (keyed author_group here: a dot would
+     * split the key in the list's URL state).
+     */
+    private function authorGroup(): FilterableField
+    {
+        return new CallbackFilter(
+            'author_group',
+            __('作成者のグループ'),
+            FilterFieldType::Select,
+            self::userOperators(),
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                if ($values === []) {
+                    return $query;
+                }
+
+                $groupIds = array_values(array_intersect(self::idList($values), array_keys($this->visibleGroupOptions())));
+
+                return self::whereUserInGroups($query, $query->qualifyColumn('author_id'), $groupIds, self::isNegative($operator));
+            },
+            fn () => $this->visibleGroupOptions(),
+        );
+    }
+
+    /**
+     * Redmine's author.role filter (keyed author_role here).
+     */
+    private function authorRole(): FilterableField
+    {
+        return new CallbackFilter(
+            'author_role',
+            __('作成者のロール'),
+            FilterFieldType::Select,
+            self::userOperators(),
+            fn (Builder $query, FilterOperator $operator, array $values) => $this->applyRole($query, 'author_id', $operator, $values),
+            fn () => self::roleOptions(),
+        );
+    }
+
+    /**
+     * Redmine's sql_for_attachment_field: an attachment whose file name
+     * contains the text (none/any: no attachment / some attachment).
+     */
+    private function attachment(): FilterableField
+    {
+        return new CallbackFilter(
+            'attachment',
+            __('添付ファイル'),
+            FilterFieldType::Text,
+            self::textOperators(),
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                $matching = function (Builder $media) use ($operator, $values): void {
+                    $media->where('collection_name', 'attachments');
+
+                    if ($operator->requiresValue()) {
+                        self::applyText($media, 'file_name', FilterOperator::Contains, $values);
+                    }
+                };
+
+                return in_array($operator, [FilterOperator::NotContains, FilterOperator::IsEmpty], true)
+                    ? $query->whereDoesntHave('media', $matching)
+                    : $query->whereHas('media', $matching);
+            },
+        );
+    }
+
+    /**
+     * Redmine's sql_for_attachment_description_field: every operator asks
+     * for an attachment — one whose description contains the text, has a
+     * description not containing it, has any description, or has none.
+     */
+    private function attachmentDescription(): FilterableField
+    {
+        return new CallbackFilter(
+            'attachment_description',
+            __('添付ファイルの説明'),
+            FilterFieldType::Text,
+            self::textOperators(),
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                $column = 'custom_properties->description';
+
+                return $query->whereHas('media', function (Builder $media) use ($operator, $values, $column): void {
+                    $media->where('collection_name', 'attachments');
+
+                    if ($operator === FilterOperator::NotContains) {
+                        self::applyText($media, $column, FilterOperator::IsNotEmpty, []);
+                    }
+
+                    self::applyText($media, $column, $operator, $values);
+                });
+            },
+        );
+    }
+
+    /**
+     * Redmine's sql_for_assigned_to_role_field / sql_for_author_role_field.
+     * The negated operators, as in Redmine, also match an issue with
+     * nobody in $userColumn.
+     *
+     * @param  Builder<*>  $query
+     * @param  array<int, mixed>  $values
+     * @return Builder<*>
+     */
+    private function applyRole(Builder $query, string $userColumn, FilterOperator $operator, array $values): Builder
+    {
+        if ($operator->requiresValue() && $values === []) {
+            return $query;
+        }
+
+        $roleIds = in_array($operator, [FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], true) ? null : self::idList($values);
+        $userColumn = $query->qualifyColumn($userColumn);
+        $projectColumn = $query->qualifyColumn('project_id');
+
+        $membership = function (QueryBuilder $members) use ($userColumn, $projectColumn, $roleIds): void {
+            $members->select($members->raw('1'))
+                ->from('members')
+                ->whereColumn('members.project_id', $projectColumn)
+                ->where(fn (QueryBuilder $principal) => $principal->whereColumn('members.user_id', $userColumn)
+                    ->orWhereIn('members.group_id', fn (QueryBuilder $groups) => $groups->select('group_user.group_id')->from('group_user')->whereColumn('group_user.user_id', $userColumn)));
+
+            if ($roleIds !== null) {
+                $members->whereExists(fn (QueryBuilder $memberRoles) => $memberRoles->select($memberRoles->raw('1'))
+                    ->from('member_roles')
+                    ->whereColumn('member_roles.member_id', 'members.id')
+                    ->whereIn('member_roles.role_id', $roleIds));
+            }
+        };
+
+        if (! in_array($operator, [FilterOperator::NotEquals, FilterOperator::NotIn, FilterOperator::IsEmpty], true)) {
+            return $query->whereExists($membership);
+        }
+
+        return $query->where(fn (Builder $outside) => $outside->whereNull($userColumn)->orWhereNotExists($membership));
+    }
+
+    /**
+     * The users in $column belong to one of $groupIds (null: to any
+     * group), or, negated, the column is empty or they belong to none.
+     *
+     * @param  Builder<*>  $query
+     * @param  ?array<int, int>  $groupIds
+     * @return Builder<*>
+     */
+    private static function whereUserInGroups(Builder $query, string $column, ?array $groupIds, bool $negated): Builder
+    {
+        $groupUsers = fn (QueryBuilder $members) => $members->select('group_user.user_id')
+            ->from('group_user')
+            ->when($groupIds !== null, fn (QueryBuilder $chosen) => $chosen->whereIn('group_user.group_id', $groupIds ?? []));
+
+        return $negated
+            ? $query->where(fn (Builder $outside) => $outside->whereNull($column)->orWhereNotIn($column, $groupUsers))
+            : $query->whereIn($column, $groupUsers);
+    }
+
+    /**
+     * User ids from filter values, "me" standing for the viewer.
+     *
+     * @param  array<int, mixed>  $values
+     * @return array<int, int>
+     */
+    private function userIds(array $values): array
+    {
+        return array_values(array_unique(array_map(
+            fn ($value) => $value === 'me' ? (int) $this->viewer?->id : (int) $value,
+            $values,
+        )));
+    }
+
+    /**
+     * The members of the projects the list covers.
+     *
+     * @return array<int|string, string>
+     */
+    private function userOptions(): array
+    {
+        return $this->scopeProjects()
+            ->flatMap(fn (Project $project) => $project->users)
+            ->unique('id')
+            ->sortBy('name')
+            ->pluck('name', 'id')
+            ->all();
+    }
+
+    /**
+     * @return array<int|string, string>
+     */
+    private function userOptionsWithMe(): array
+    {
+        return ($this->viewer !== null ? ['me' => __('<< 自分 >>')] : []) + $this->userOptions();
+    }
+
+    /**
+     * The groups the viewer may see (Redmine's Group.visible): every group
+     * for someone who sees users site-wide, otherwise the groups that are
+     * members of a project the viewer can see.
+     *
+     * @return array<int, string>
+     */
+    private function visibleGroupOptions(): array
+    {
+        if ($this->visibleGroupOptions !== null) {
+            return $this->visibleGroupOptions;
+        }
+
+        $groups = Group::query()->orderBy('name');
+
+        if (! $this->authorization->hasSiteWideUserVisibility($this->viewer)) {
+            $groups->whereIn('id', Member::query()->select('group_id')->whereNotNull('group_id')->whereIn('project_id', $this->authorization->visibleProjectIds($this->viewer)));
+        }
+
+        return $this->visibleGroupOptions = $groups->pluck('name', 'id')->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function roleOptions(): array
+    {
+        return Role::query()->givable()->pluck('name', 'id')->all();
+    }
+
+    private static function isNegative(FilterOperator $operator): bool
+    {
+        return in_array($operator, [FilterOperator::NotEquals, FilterOperator::NotIn], true);
+    }
+
+    /**
      * Journals of the outer query's issue that the viewer may read —
      * Redmine's Journal.visible_notes_condition: public notes, the
      * viewer's own private notes, and private notes in projects where the
@@ -409,11 +810,11 @@ final class IssueExtraFilterFields
      *
      * @param  Builder<*>  $issues
      */
-    private function readableJournals(QueryBuilder $journals, Builder $issues): QueryBuilder
+    private function readableJournals(QueryBuilder $journals, Builder $issues, string $alias = 'journals'): QueryBuilder
     {
         $journals->select($journals->raw('1'))
-            ->from('journals')
-            ->whereColumn('journals.issue_id', $issues->getModel()->getQualifiedKeyName());
+            ->from($alias === 'journals' ? 'journals' : "journals as {$alias}")
+            ->whereColumn("{$alias}.issue_id", $issues->getModel()->getQualifiedKeyName());
 
         if ($this->viewer?->is_admin) {
             return $journals;
@@ -422,11 +823,11 @@ final class IssueExtraFilterFields
         $privateNoteProjectIds = $this->projectIdsWith('view_private_notes');
         $projectColumn = $issues->qualifyColumn('project_id');
 
-        return $journals->where(function (QueryBuilder $visible) use ($privateNoteProjectIds, $projectColumn): void {
-            $visible->where('journals.private_notes', false);
+        return $journals->where(function (QueryBuilder $visible) use ($privateNoteProjectIds, $projectColumn, $alias): void {
+            $visible->where("{$alias}.private_notes", false);
 
             if ($this->viewer !== null) {
-                $visible->orWhere('journals.user_id', $this->viewer->id);
+                $visible->orWhere("{$alias}.user_id", $this->viewer->id);
             }
 
             if ($privateNoteProjectIds->isNotEmpty()) {
@@ -461,15 +862,12 @@ final class IssueExtraFilterFields
      * Text matching as Redmine's :text filters: "none" and "any" treat an
      * empty string like a missing value.
      *
-     * @template TBuilder of Builder<*>|QueryBuilder
-     *
-     * @param  TBuilder  $query
+     * @param  Builder<*>|QueryBuilder  $query
      * @param  array<int, mixed>  $values
-     * @return TBuilder
      */
-    private static function applyText(Builder|QueryBuilder $query, string $column, FilterOperator $operator, array $values): Builder|QueryBuilder
+    private static function applyText(Builder|QueryBuilder $query, string $column, FilterOperator $operator, array $values): void
     {
-        return match ($operator) {
+        match ($operator) {
             FilterOperator::IsEmpty => $query->where(fn ($blank) => $blank->whereNull($column)->orWhere($column, '')),
             FilterOperator::IsNotEmpty => $query->whereNotNull($column)->where($column, '<>', ''),
             default => $values === [] ? $query : $query->where(
@@ -520,6 +918,17 @@ final class IssueExtraFilterFields
     private static function textOperators(): array
     {
         return [FilterOperator::Contains, FilterOperator::NotContains, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty];
+    }
+
+    /**
+     * Redmine's :list operators on people (= and !), plus their
+     * multi-value forms.
+     *
+     * @return array<int, FilterOperator>
+     */
+    private static function userOperators(): array
+    {
+        return [FilterOperator::Equals, FilterOperator::NotEquals, FilterOperator::In, FilterOperator::NotIn];
     }
 
     /**
