@@ -120,7 +120,7 @@ final class ImportTimeEntriesJob implements ShouldQueue
 
         $issueRef = $this->mapped($record, $mapping, 'issue');
         $issue = $issueRef !== null
-            ? Issue::query()->where('project_id', $this->import->project_id)->find((int) ltrim($issueRef, '#'))
+            ? Issue::query()->where('project_id', $this->import->project_id)->visibleTo($this->import->user, $this->import->project)->find((int) ltrim($issueRef, '#'))
             : null;
 
         if ($issueRef !== null && $issue === null) {

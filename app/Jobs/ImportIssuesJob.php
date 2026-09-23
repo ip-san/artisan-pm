@@ -182,7 +182,7 @@ final class ImportIssuesJob implements ShouldQueue
         // to this project, matching the manual form's parent_id rule.
         $parentRef = $this->mapped($record, $mapping, 'parent');
         $parent = $parentRef !== null
-            ? Issue::query()->where('project_id', $this->import->project_id)->find((int) ltrim($parentRef, '#'))
+            ? Issue::query()->where('project_id', $this->import->project_id)->visibleTo($this->import->user, $this->import->project)->find((int) ltrim($parentRef, '#'))
             : null;
 
         if ($parentRef !== null && $parent === null) {

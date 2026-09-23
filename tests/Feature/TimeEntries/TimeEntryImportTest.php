@@ -13,7 +13,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
-function timeEntryImportMember(Project $project, array $permissions = ['view_time_entries', 'log_time', 'import_time_entries']): User
+function timeEntryImportMember(Project $project, array $permissions = ['view_time_entries', 'log_time', 'import_time_entries', 'view_issues']): User
 {
     $role = Role::factory()->create(['permissions' => $permissions]);
     $user = User::factory()->create();

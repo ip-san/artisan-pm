@@ -3,12 +3,15 @@
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Setting;
+use App\Models\User;
 use App\Models\WikiPage;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Support\Facades\Cache;
 
 beforeEach(function () {
     Cache::flush();
+    // "#123" links render only for a reader who may see the issue.
+    $this->actingAs(User::factory()->admin()->create());
 });
 
 function paddedMarkdown(string $head, int $bytes = 2200): string
@@ -84,7 +87,7 @@ test('a change to the text produces a fresh render', function () {
 test('pages using include or child_pages are never cached', function () {
     Setting::set('cache_formatted_text', true);
     $project = Project::factory()->create();
-    $author = App\Models\User::factory()->create();
+    $author = User::factory()->create();
     $target = WikiPage::factory()->for($project)->create(['title' => 'Target']);
     $target->versions()->create(['author_id' => $author->id, 'text' => 'Original body', 'version' => 2]);
     $renderer = app(WikiMarkdownRenderer::class);
@@ -98,7 +101,7 @@ test('pages using include or child_pages are never cached', function () {
 });
 
 test('the settings page saves cache_formatted_text', function () {
-    $admin = App\Models\User::factory()->admin()->create();
+    $admin = User::factory()->admin()->create();
 
     Livewire\Livewire::actingAs($admin)->test('settings.index')
         ->assertSet('cache_formatted_text', false)

@@ -11,6 +11,7 @@ use App\Enums\IssueRelationType;
 use App\Enums\ProjectStatus;
 use App\Enums\VersionStatus;
 use App\Models\Group;
+use App\Models\Issue;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
@@ -262,9 +263,12 @@ final class IssueExtraFilterFields
             function (Builder $query, FilterOperator $operator, array $values): Builder {
                 $table = $query->getModel()->getTable();
                 $key = $query->getModel()->getQualifiedKeyName();
+                // Only subtasks the viewer may see count, so the filter never
+                // tells anything about the others.
                 $children = fn (QueryBuilder $children) => $children->select($children->raw('1'))
                     ->from("{$table} as subtasks")
-                    ->whereColumn('subtasks.parent_id', $key);
+                    ->whereColumn('subtasks.parent_id', $key)
+                    ->whereIn('subtasks.id', $this->visibleIssueIds());
 
                 if ($operator === FilterOperator::IsEmpty) {
                     return $query->whereNotExists($children);
@@ -278,7 +282,7 @@ final class IssueExtraFilterFields
                     return $query;
                 }
 
-                $ids = self::idList($values);
+                $ids = $this->visibleAmong(self::idList($values));
 
                 if ($ids === []) {
                     return $query->whereRaw('1 = 0');
@@ -396,7 +400,10 @@ final class IssueExtraFilterFields
                     $relations->select($relations->raw('1'))
                         ->from('issue_relations')
                         ->where('issue_relations.relation_type', $type)
-                        ->whereColumn("issue_relations.{$ownSide}", $issueKey),
+                        ->whereColumn("issue_relations.{$ownSide}", $issueKey)
+                        // A relation to an issue the viewer may not see
+                        // doesn't count, as it isn't shown either.
+                        ->whereIn("issue_relations.{$relatedSide}", $this->visibleIssueIds()),
                     "issue_relations.{$relatedSide}",
                 ));
             }
@@ -405,6 +412,26 @@ final class IssueExtraFilterFields
         $negated = in_array($operator, [FilterOperator::NotEquals, FilterOperator::NoIssuesInProject, FilterOperator::NoOpenIssues, FilterOperator::IsEmpty], true);
 
         return $negated ? $query->whereNot($related) : $query->where($related);
+    }
+
+    /**
+     * The ids of every issue the viewer may see, as a subquery — relation
+     * and subtask filters only look at those.
+     *
+     * @return Builder<Issue>
+     */
+    private function visibleIssueIds(): Builder
+    {
+        return Issue::query()->select('issues.id')->visible($this->viewer);
+    }
+
+    /**
+     * @param  array<int, int>  $ids
+     * @return array<int, int>
+     */
+    private function visibleAmong(array $ids): array
+    {
+        return $ids === [] ? [] : Issue::query()->visible($this->viewer)->whereIn('issues.id', $ids)->pluck('issues.id')->all();
     }
 
     /**

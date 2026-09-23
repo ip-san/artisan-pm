@@ -58,6 +58,10 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->authorize('create', [TimeEntry::class, $project]);
 
             $this->issue_id = request()->integer('issue_id') ?: null;
+
+            if ($this->issue_id !== null && ! $this->projectIssues->contains('id', $this->issue_id)) {
+                $this->issue_id = null;
+            }
             $this->user_id = auth()->id();
             $this->activity_id = $project->defaultActivityId(auth()->user());
             $this->spent_on = now()->toDateString();
@@ -103,6 +107,8 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->issue_id = null;
         }
 
+        unset($this->projectIssues, $this->hiddenCurrentIssueId);
+
         if (! $this->activities->contains('id', $this->activity_id)) {
             $this->activity_id = $this->targetProject->defaultActivityId(auth()->user());
         }
@@ -143,10 +149,11 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function projectIssues(): Collection
     {
-        $issues = $this->targetProject->issues()->orderByDesc('id')->limit(100)->get();
+        $visible = $this->targetProject->issues()->visibleTo(auth()->user(), $this->targetProject);
+        $issues = $visible->clone()->orderByDesc('id')->limit(100)->get();
 
         if ($this->issue_id !== null && ! $issues->contains('id', $this->issue_id)) {
-            $selected = $this->targetProject->issues()->find($this->issue_id);
+            $selected = $visible->clone()->find($this->issue_id);
 
             if ($selected !== null) {
                 $issues->prepend($selected);
@@ -154,6 +161,23 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         return $issues;
+    }
+
+    /**
+     * The entry's current issue when the user may no longer see it: kept
+     * as it is (shown by number only), as Redmine keeps an unchanged
+     * issue_id, but never offered for another entry.
+     */
+    #[Computed]
+    public function hiddenCurrentIssueId(): ?int
+    {
+        $currentId = $this->timeEntry?->issue_id;
+
+        if ($currentId === null || $this->timeEntry->project_id !== $this->targetProject->id || $this->projectIssues->contains('id', $currentId)) {
+            return null;
+        }
+
+        return $currentId;
     }
 
     /**
@@ -187,7 +211,12 @@ new #[Layout('components.layouts.app')] class extends Component
         abort_if($this->project_id !== null && $this->project_id !== $target->id, 403);
 
         $rules = [
-            'issue_id' => ['nullable', Rule::exists('issues', 'id')->where('project_id', $target->id)],
+            // Redmine's TimeEntry#safe_attributes=: the issue must be one the
+            // user may see (or the entry's unchanged current issue).
+            'issue_id' => ['nullable', Rule::in([
+                ...$this->targetProject->issues()->visibleTo(auth()->user(), $target)->whereKey((int) $this->issue_id)->pluck('issues.id')->all(),
+                ...array_filter([$this->hiddenCurrentIssueId]),
+            ])],
             'activity_id' => ['required', Rule::in($this->activities->pluck('id')->all())],
             'hours' => ['required', 'numeric', 'min:0', 'max:1000'],
             'spent_on' => ['required', 'date'],
@@ -248,6 +277,9 @@ new #[Layout('components.layouts.app')] class extends Component
             <label class="block text-sm font-medium text-neutral-700">{{ __('課題') }}</label>
             <select wire:model="issue_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">{{ __('なし(プロジェクト全体)') }}</option>
+                @if ($this->hiddenCurrentIssueId !== null)
+                    <option value="{{ $this->hiddenCurrentIssueId }}">#{{ $this->hiddenCurrentIssueId }}</option>
+                @endif
                 @foreach ($this->projectIssues as $issue)
                     <option value="{{ $issue->id }}">#{{ $issue->id }} {{ $issue->subject }}</option>
                 @endforeach

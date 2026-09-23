@@ -94,7 +94,20 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->changeset->issues()->attach($issue->id);
         $this->changeset->load(self::RELATED_ISSUE_RELATIONS);
+        unset($this->visibleRelatedIssues);
         $this->reset('newIssueReference');
+    }
+
+    /**
+     * The linked issues the viewer may see — Redmine's
+     * `@changeset.issues.visible`.
+     *
+     * @return \Illuminate\Support\Collection<int, Issue>
+     */
+    #[Computed]
+    public function visibleRelatedIssues(): \Illuminate\Support\Collection
+    {
+        return Issue::filterVisible($this->changeset->issues, auth()->user());
     }
 
     public function removeRelatedIssue(int $issueId): void
@@ -103,6 +116,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->changeset->issues()->detach($issueId);
         $this->changeset->load(self::RELATED_ISSUE_RELATIONS);
+        unset($this->visibleRelatedIssues);
     }
 
     /**
@@ -150,10 +164,10 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="prose prose-sm max-w-none text-neutral-800">{{ $changeset->commentsHtml() }}</div>
     </div>
 
-    @if ($changeset->issues->isNotEmpty() || $this->canManageRelatedIssues)
+    @if ($this->visibleRelatedIssues->isNotEmpty() || $this->canManageRelatedIssues)
         <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('関連課題') }}</h2>
         <ul class="mb-2 space-y-1">
-            @forelse ($changeset->issues as $issue)
+            @forelse ($this->visibleRelatedIssues as $issue)
                 <li class="text-sm" wire:key="related-issue-{{ $issue->id }}">
                     <a href="{{ route('issues.show', [$issue->project, $issue]) }}" class="text-brand-bold hover:underline">
                         {{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}

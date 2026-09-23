@@ -10,7 +10,7 @@ use App\Models\User;
 use App\Models\Version;
 use Livewire\Livewire;
 
-function globalCalendarMember(Project $project, array $permissions = ['view_calendar']): User
+function globalCalendarMember(Project $project, array $permissions = ['view_calendar', 'view_issues']): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create(['permissions' => $permissions]);

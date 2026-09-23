@@ -189,7 +189,8 @@ test('no filter lets an API key user reach an issue they cannot see', function (
         expect(array_intersect(advancedApiIds($user, $uri), $forbidden))->toBe([], $uri);
     }
 
-    expect(advancedApiIds($user, "/api/v1/issues?f[]=relates&op[relates]=*"))->toBe([$visible->id]);
+    // A1-27b: the relation to the hidden issue doesn't count either.
+    expect(advancedApiIds($user, '/api/v1/issues?f[]=relates&op[relates]=*'))->toBe([]);
 
     $this->withHeaders(['X-Redmine-API-Key' => $user->regenerateApiKey()])
         ->getJson("/api/v1/projects/{$hiddenProject->id}/issues?f[]=subject&op[subject]=~&v[subject][]=needle")

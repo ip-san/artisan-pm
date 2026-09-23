@@ -254,7 +254,8 @@ test('deleting a page moves its children to the top level', function () {
 
 test('wiki page content renders issue and wiki-link references', function () {
     $project = Project::factory()->create();
-    $user = wikiMember($project, ['view_wiki_pages']);
+    // The issue link is only rendered for a reader who may see the issue.
+    $user = wikiMember($project, ['view_wiki_pages', 'view_issues']);
     $target = WikiPage::factory()->for($project)->create(['title' => 'Target Page']);
     $issue = Issue::factory()->for($project)->create();
 

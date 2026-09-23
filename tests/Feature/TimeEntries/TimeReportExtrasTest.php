@@ -17,7 +17,7 @@ use Livewire\Livewire;
 function reportExtrasMember(Project $project, string $visibility = 'all'): User
 {
     $user = User::factory()->create();
-    Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_time_entries', 'log_time'], 'time_entries_visibility' => $visibility]));
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_time_entries', 'log_time', 'view_issues'], 'time_entries_visibility' => $visibility]));
 
     return $user;
 }

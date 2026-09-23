@@ -27,6 +27,7 @@ final class AssignedIssuesBlock implements DashboardBlock
     public function rows(User $user): Collection
     {
         return Issue::query()
+            ->visible($user)
             ->where('assigned_to_id', $user->id)
             ->whereHas('status', fn ($query) => $query->where('is_closed', false))
             ->with(['project', 'tracker'])

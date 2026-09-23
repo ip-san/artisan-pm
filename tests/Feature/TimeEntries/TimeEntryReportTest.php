@@ -12,7 +12,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use Livewire\Livewire;
 
-function timeEntryReportMember(Project $project, array $permissions = ['log_time', 'view_time_entries'], string $timeEntriesVisibility = 'all'): User
+function timeEntryReportMember(Project $project, array $permissions = ['log_time', 'view_time_entries', 'view_issues'], string $timeEntriesVisibility = 'all'): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create(['permissions' => $permissions, 'time_entries_visibility' => $timeEntriesVisibility]);

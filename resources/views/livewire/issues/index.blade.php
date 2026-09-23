@@ -286,7 +286,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 collect($this->columns)->contains(fn (string $column) => str_starts_with($column, 'cf_')),
                 fn (Builder $q) => $q->with('customFieldValues.customField')
             )
-            ->when(in_array('relations', $this->columns, true), fn (Builder $q) => $q->with(['relationsFrom', 'relationsTo']))
+            // Redmine's Issue.load_visible_relations: only relations whose
+            // other issue the viewer may see.
+            ->when(in_array('relations', $this->columns, true), fn (Builder $q) => $q->with([
+                'relationsFrom' => fn ($relations) => $relations->whereIn('issue_to_id', Issue::query()->select('issues.id')->visible(auth()->user())),
+                'relationsTo' => fn ($relations) => $relations->whereIn('issue_from_id', Issue::query()->select('issues.id')->visible(auth()->user())),
+            ]))
             ->when(in_array('attachments', $this->columns, true), fn (Builder $q) => $q->with('media'))
             ->when(in_array('watchers', $this->columns, true), fn (Builder $q) => $q->with('watchers.user'))
             ->when(in_array('project_id', $this->columns, true), fn (Builder $q) => $q->with('project'))
@@ -971,6 +976,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return Issue::query()
             ->whereIn('id', $this->selected)
             ->where('project_id', $this->project->id)
+            ->visibleTo(auth()->user(), $this->project)
             ->with(['status', 'project', 'customFieldValues'])
             ->get();
     }
@@ -1090,6 +1096,13 @@ new #[Layout('components.layouts.app')] class extends Component
             'bulkParentId' => ['nullable', Rule::exists('issues', 'id')->where('project_id', $this->project->id), function (string $attribute, mixed $value, \Closure $fail) use ($issues): void {
                 // A parent may not be one of the issues being edited, nor
                 // anything below them (that would loop the tree).
+                // Redmine's parent_issue_id=: only an issue the user may see.
+                if (! Issue::query()->whereKey((int) $value)->visibleTo(auth()->user(), $this->project)->exists()) {
+                    $fail(__('課題が見つかりません。'));
+
+                    return;
+                }
+
                 $forbidden = $issues->pluck('id')->merge($issues->flatMap(fn (Issue $issue) => $issue->descendantIds()));
 
                 if ($forbidden->contains((int) $value)) {
@@ -1172,7 +1185,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         abort_unless($this->canBulkEdit, 403);
 
-        $issue = Issue::query()->where('project_id', $this->project->id)->find($issueId);
+        $issue = Issue::query()->where('project_id', $this->project->id)->visibleTo(auth()->user(), $this->project)->find($issueId);
 
         abort_if($issue === null, 404);
 

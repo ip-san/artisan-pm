@@ -111,13 +111,15 @@ test('relation filters can ask for related issues in a project the viewer can se
     $other = Project::factory()->create();
     $hidden = Project::factory()->private()->create();
     $viewer = relationFilterMember($project);
+    Member::factory()->for($other)->for($viewer)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
     [$toOther, $toHidden, $toSame, $same] = Issue::factory()->for($project)->count(4)->create()->all();
     relate($toOther, Issue::factory()->for($other)->create(), IssueRelationType::Relates);
     relate($toHidden, Issue::factory()->for($hidden)->create(), IssueRelationType::Relates);
     relate($toSame, $same, IssueRelationType::Relates);
 
     expect(relationFilter($project, $viewer, 'relates', FilterOperator::AnyIssuesInProject, [(string) $other->id]))->toBe([$toOther->id])
-        ->and(relationFilter($project, $viewer, 'relates', FilterOperator::AnyIssuesNotInProject, [(string) $project->id]))->toBe([$toOther->id, $toHidden->id])
+        // A1-27b: a relation to an issue the viewer can't see never counts.
+        ->and(relationFilter($project, $viewer, 'relates', FilterOperator::AnyIssuesNotInProject, [(string) $project->id]))->toBe([$toOther->id])
         ->and(relationFilter($project, $viewer, 'relates', FilterOperator::NoIssuesInProject, [(string) $project->id]))->toBe([$toOther->id, $toHidden->id])
         ->and(relationFilter($project, $viewer, 'relates', FilterOperator::AnyIssuesInProject, [(string) $hidden->id]))->toBe([])
         ->and(array_keys(IssueFilterFieldRegistry::forProject($project, $viewer)->get('relates')->options()))->not->toContain($hidden->id);
@@ -191,4 +193,21 @@ test('matching issues from another project or invisible issues never reach the l
 
         expect($issues->pluck('id')->all())->toBe([$visible->id]);
     }
+});
+
+test('relation and subtask filters ignore issues the viewer cannot see (A1-27b)', function () {
+    $project = Project::factory()->create();
+    $hidden = Project::factory()->private()->create();
+    $viewer = relationFilterMember($project);
+    [$blocker, $parent] = Issue::factory()->for($project)->count(2)->create()->all();
+    $hiddenIssue = Issue::factory()->for($hidden)->create();
+    relate($blocker, $hiddenIssue, IssueRelationType::Blocks);
+    $hiddenIssue->update(['parent_id' => $parent->id]);
+
+    expect(relationFilter($project, $viewer, 'blocks', FilterOperator::IsNotEmpty))->toBe([])
+        ->and(relationFilter($project, $viewer, 'blocks', FilterOperator::Equals, [(string) $hiddenIssue->id]))->toBe([])
+        ->and(relationFilter($project, $viewer, 'blocks', FilterOperator::IsEmpty))->toBe([$blocker->id, $parent->id])
+        ->and(relationFilter($project, $viewer, 'child_id', FilterOperator::IsNotEmpty))->toBe([])
+        ->and(relationFilter($project, $viewer, 'child_id', FilterOperator::Equals, [(string) $hiddenIssue->id]))->toBe([])
+        ->and(relationFilter($project, $viewer, 'child_id', FilterOperator::Contains, [(string) $hiddenIssue->id]))->toBe([]);
 });

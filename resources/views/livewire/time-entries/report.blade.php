@@ -124,7 +124,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function report(): TimeReportTable
     {
-        return app(TimeReportBuilder::class)->build($this->filteredTimeEntriesQuery(), $this->selectedCriteria, $this->selectedPeriod);
+        return app(TimeReportBuilder::class)->build($this->filteredTimeEntriesQuery(), $this->selectedCriteria, $this->selectedPeriod, auth()->user());
     }
 
     public function toggleCriterion(string $key): void

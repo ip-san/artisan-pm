@@ -33,7 +33,8 @@ test('the preview is hidden until toggled', function () {
 test('toggling the preview renders the current text as Markdown', function () {
     $project = Project::factory()->create();
     $issue = Issue::factory()->for($project)->create();
-    $user = wikiPreviewMember($project);
+    // The issue link is only rendered for a reader who may see the issue.
+    $user = wikiPreviewMember($project, ['view_wiki_pages', 'edit_wiki_pages', 'view_issues']);
 
     $component = Livewire::actingAs($user)
         ->test('wiki.form', ['project' => $project])

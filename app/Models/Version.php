@@ -69,6 +69,39 @@ final class Version extends Model implements HasMedia
         return $this->hasMany(Issue::class, 'fixed_version_id');
     }
 
+    private bool $restrictedToViewer = false;
+
+    private ?User $visibilityViewer = null;
+
+    /**
+     * A copy whose issue counts, progress and hours only cover the issues
+     * $viewer may see — Redmine's Version#visible_fixed_issues, which the
+     * roadmap, version pages and Gantt display. Without it every fixed
+     * issue counts (what isCompleted() and the like need).
+     */
+    public function asSeenBy(?User $viewer): static
+    {
+        $clone = clone $this;
+        $clone->restrictedToViewer = true;
+        $clone->visibilityViewer = $viewer;
+
+        return $clone;
+    }
+
+    /**
+     * @return HasMany<Issue, $this>
+     */
+    private function fixedIssues(): HasMany
+    {
+        $issues = $this->issues();
+
+        if ($this->restrictedToViewer) {
+            $issues->visible($this->visibilityViewer);
+        }
+
+        return $issues;
+    }
+
     public static function customizableType(): CustomizableType
     {
         return CustomizableType::Version;
@@ -139,7 +172,7 @@ final class Version extends Model implements HasMedia
      */
     public function estimatedHours(): float
     {
-        return (float) $this->issues()->whereDoesntHave('children')->sum('estimated_hours');
+        return (float) $this->fixedIssues()->whereDoesntHave('children')->sum('estimated_hours');
     }
 
     /**
@@ -149,7 +182,7 @@ final class Version extends Model implements HasMedia
      */
     public function estimatedRemainingHours(): float
     {
-        return $this->issues()
+        return $this->fixedIssues()
             ->whereDoesntHave('children')
             ->get(['estimated_hours', 'done_ratio'])
             ->sum(fn (Issue $issue) => ((float) ($issue->estimated_hours ?? 0)) * (100 - $issue->done_ratio) / 100);
@@ -164,7 +197,7 @@ final class Version extends Model implements HasMedia
     public function spentHours(): float
     {
         return (float) TimeEntry::query()
-            ->whereIn('issue_id', $this->issues()->pluck('id'))
+            ->whereIn('issue_id', $this->fixedIssues()->pluck('id'))
             ->sum('hours');
     }
 
@@ -200,11 +233,11 @@ final class Version extends Model implements HasMedia
      */
     public function issueCounts(?Collection $trackerIds = null): array
     {
-        $closed = $this->issues()
+        $closed = $this->fixedIssues()
             ->whereHas('status', fn ($query) => $query->where('is_closed', true))
             ->when($trackerIds !== null, fn ($query) => $query->whereIn('tracker_id', $trackerIds))
             ->count();
-        $open = $this->issues()
+        $open = $this->fixedIssues()
             ->whereHas('status', fn ($query) => $query->where('is_closed', false))
             ->when($trackerIds !== null, fn ($query) => $query->whereIn('tracker_id', $trackerIds))
             ->count();
@@ -243,7 +276,7 @@ final class Version extends Model implements HasMedia
      */
     public function completedPercent(?Collection $trackerIds = null): float
     {
-        $issues = $this->issues()
+        $issues = $this->fixedIssues()
             ->when($trackerIds !== null, fn ($query) => $query->whereIn('tracker_id', $trackerIds))
             ->get(['estimated_hours', 'done_ratio', 'status_id'])
             ->load('status');

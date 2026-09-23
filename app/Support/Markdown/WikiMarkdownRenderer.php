@@ -167,6 +167,8 @@ final class WikiMarkdownRenderer
             $page?->id ?? 0,
             (int) Setting::get('wiki_tablesort_enabled', false),
             app()->getLocale(),
+            // "#123" links depend on what the reader may see.
+            preg_match('/#\d/', $text) === 1 ? (auth()->id() ?? 0) : 0,
             $attachmentSignature,
             $text,
         ]));
@@ -192,12 +194,12 @@ final class WikiMarkdownRenderer
                     'prefix' => '#',
                     'pattern' => '\d+',
                     'generator' => function (Mention $mention) {
-                        $issue = Issue::query()
-                            ->select(['id', 'project_id', 'subject'])
-                            ->with('project:id,identifier')
-                            ->find((int) $mention->getIdentifier());
+                        $issue = Issue::query()->with('project')->find((int) $mention->getIdentifier());
 
-                        if ($issue === null) {
+                        // Redmine links only an issue the reader may see
+                        // (Issue.visible.find_by_id); any other "#123" stays
+                        // plain text.
+                        if ($issue === null || ! Gate::allows('view', $issue)) {
                             return null;
                         }
 

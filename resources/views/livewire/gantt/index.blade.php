@@ -70,11 +70,12 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $filters = $this->builtFilters();
 
+        $visibleIssues = Issue::query()->where('project_id', $this->project->id)->visibleTo(auth()->user(), $this->project);
         $matchedIds = $filters === []
             ? null
-            : $this->engine->applyFilters(Issue::query()->where('project_id', $this->project->id), $filters)->pluck('id');
+            : $this->engine->applyFilters($visibleIssues->clone(), $filters)->pluck('id');
 
-        return app(GanttService::class)->issueTree($this->project, $matchedIds);
+        return app(GanttService::class)->issueTree($this->project, $matchedIds, $visibleIssues->pluck('id'));
     }
 
     /**
@@ -412,9 +413,9 @@ new #[Layout('components.layouts.app')] class extends Component
                         <div wire:key="version-row-{{ $version->id }}" class="relative h-8 border-b border-neutral-100">
                             <div class="absolute top-1 flex h-6 -translate-x-1/2 items-center gap-1 text-warning"
                                 style="left: {{ $this->versionMarkerLeftPercent($version) }}%"
-                                title="{{ $version->name }} ({{ $version->due_date->toDateString() }}, {{ round($version->completedPercent()) }}%)">
+                                title="{{ $version->name }} ({{ $version->due_date->toDateString() }}, {{ round($version->asSeenBy(auth()->user())->completedPercent()) }}%)">
                                 <span class="text-lg leading-none">◆</span>
-                                <span class="text-xs text-neutral-500">{{ round($version->completedPercent()) }}%</span>
+                                <span class="text-xs text-neutral-500">{{ round($version->asSeenBy(auth()->user())->completedPercent()) }}%</span>
                             </div>
                         </div>
                     @endforeach

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Support\TimeReport;
 
+use App\Models\Issue;
 use App\Models\TimeEntry;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -26,8 +29,9 @@ final class TimeReportBuilder
     /**
      * @param  Builder<TimeEntry>  $baseQuery  Already scoped/filtered (project, visibility, etc.) — this method only adds grouping/joins on top.
      * @param  array<int, TimeReportAxis>  $criteria  Deduped, capped to 3 by the caller — matching Redmine's `@criteria[0, 3]`.
+     * @param  User|null  $viewer  the issue attributes (tracker, status, issue custom fields, ...) are only read from issues the viewer may see, as Redmine's TimeEntry.left_join_issue joins `Issue.visible_condition`; entries on other issues fall under "(none)"
      */
-    public function build(Builder $baseQuery, array $criteria, TimeReportPeriod $period): TimeReportTable
+    public function build(Builder $baseQuery, array $criteria, TimeReportPeriod $period, ?User $viewer = null): TimeReportTable
     {
         if ($criteria === []) {
             return TimeReportTable::empty();
@@ -46,7 +50,9 @@ final class TimeReportBuilder
         $query = (clone $baseQuery)
             ->when(
                 collect($criteria)->contains(fn (TimeReportAxis $axis) => $axis->needsIssueJoin),
-                fn (Builder $q) => $q->leftJoin('issues', 'time_entries.issue_id', '=', 'issues.id'),
+                fn (Builder $q) => $q->leftJoin('issues', fn (JoinClause $join) => $join
+                    ->on('time_entries.issue_id', '=', 'issues.id')
+                    ->whereIn('issues.id', Issue::query()->select('issues.id')->visible($viewer))),
             );
 
         foreach ($criteria as $axis) {

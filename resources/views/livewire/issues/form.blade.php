@@ -625,6 +625,15 @@ new #[Layout('components.layouts.app')] class extends Component
                 'nullable',
                 Rule::exists('issues', 'id')->where('project_id', $this->project->id),
                 function (string $attribute, mixed $value, \Closure $fail): void {
+                    // Redmine's parent_issue_id=: the parent must be an issue
+                    // the user may see, unless it is left unchanged.
+                    if ($value !== null && (int) $value !== $this->issue?->parent_id
+                        && ! Issue::query()->whereKey((int) $value)->visibleTo(auth()->user(), $this->project)->exists()) {
+                        $fail(__('課題が見つかりません。'));
+
+                        return;
+                    }
+
                     if ($value === null || $this->issue === null) {
                         return;
                     }

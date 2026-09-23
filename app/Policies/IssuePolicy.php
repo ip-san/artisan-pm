@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use App\Enums\IssueVisibility;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
@@ -24,22 +23,13 @@ final class IssuePolicy
         return $this->authorization->can($user, 'view_issues', $project);
     }
 
+    /**
+     * Redmine's Issue#visible?: a role holding view_issues whose visibility
+     * tier and tracker limits match the issue (Issue::isVisibleTo()).
+     */
     public function view(?User $user, Issue $issue): bool
     {
-        if (! $this->authorization->can($user, 'view_issues', $this->projectOf($issue))) {
-            return false;
-        }
-
-        return match ($this->authorization->issueVisibilityFor($user, $this->projectOf($issue))) {
-            IssueVisibility::All => true,
-            IssueVisibility::Default => ! $issue->is_private || $this->isAuthorOrAssignee($user, $issue),
-            IssueVisibility::Own => $this->isAuthorOrAssignee($user, $issue),
-        };
-    }
-
-    private function isAuthorOrAssignee(?User $user, Issue $issue): bool
-    {
-        return $user !== null && ($issue->author_id === $user->id || $issue->assigned_to_id === $user->id);
+        return $issue->isVisibleTo($user);
     }
 
     public function import(User $user, Project $project): bool

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Models\Issue;
 use App\Models\TimeEntry;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -37,7 +38,13 @@ final class UpdateTimeEntryRequest extends FormRequest
         $project = $timeEntry->project;
 
         return [
-            'issue_id' => ['sometimes', 'nullable', 'integer', Rule::exists('issues', 'id')->where('project_id', $project->id)],
+            // Redmine's TimeEntry#safe_attributes=: only an issue the caller
+            // may see, unless it is the entry's unchanged current issue.
+            'issue_id' => ['sometimes', 'nullable', 'integer', Rule::exists('issues', 'id')->where('project_id', $project->id), function (string $attribute, mixed $value, \Closure $fail) use ($project, $timeEntry): void {
+                if ((int) $value !== $timeEntry->issue_id && ! Issue::query()->whereKey((int) $value)->visibleTo($this->user(), $project)->exists()) {
+                    $fail(__('課題が見つかりません。'));
+                }
+            }],
             // Not scoped to project membership — see StoreTimeEntryRequest
             // for why (log_time/log_time_for_other_users can be held without an
             // actual members row, via a non-member role or admin bypass).

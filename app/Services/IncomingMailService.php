@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CustomFieldFormat;
+use App\Enums\CustomizableType;
 use App\Enums\EnumerationType;
+use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
-use App\Enums\CustomizableType;
-use App\Models\CustomField;
-use App\Models\Journal;
 use App\Models\IssueStatus;
+use App\Models\Journal;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Tracker;
@@ -339,7 +340,7 @@ final class IncomingMailService
     {
         $issue = Issue::query()->find($issueId);
 
-        if ($issue === null || ! $this->authorization->can($author, 'edit_issues', $issue->project)) {
+        if ($issue === null || ! $issue->isVisibleTo($author) || ! $this->authorization->can($author, 'edit_issues', $issue->project)) {
             return null;
         }
 
@@ -554,7 +555,7 @@ final class IncomingMailService
         foreach ($parts as $part) {
             $value = match (true) {
                 $options !== [] => (string) (array_search(mb_strtolower($part), array_map('mb_strtolower', $options), true) ?: ''),
-                $field->field_format === \App\Enums\CustomFieldFormat::Bool => match (mb_strtolower($part)) {
+                $field->field_format === CustomFieldFormat::Bool => match (mb_strtolower($part)) {
                     '1', 'yes', 'true' => '1',
                     '0', 'no', 'false' => '0',
                     default => '',
@@ -615,7 +616,7 @@ final class IncomingMailService
         }
 
         if ($keyword === 'parent issue') {
-            return $this->resolveParentIssueKeyword($value, $project, $issue);
+            return $this->resolveParentIssueKeyword($value, $project, $author, $issue);
         }
 
         if ($keyword === 'done ratio') {
@@ -680,7 +681,7 @@ final class IncomingMailService
      * issue, which can never already have descendants, so no cycle check
      * is needed there.
      */
-    private function resolveParentIssueKeyword(string $value, Project $project, ?Issue $issue): ?int
+    private function resolveParentIssueKeyword(string $value, Project $project, User $author, ?Issue $issue): ?int
     {
         $parentId = (int) preg_replace('/\D/', '', $value);
 
@@ -688,7 +689,7 @@ final class IncomingMailService
             return null;
         }
 
-        $parent = Issue::query()->where('id', $parentId)->where('project_id', $project->id)->first();
+        $parent = Issue::query()->where('id', $parentId)->where('project_id', $project->id)->visibleTo($author, $project)->first();
 
         if ($parent === null) {
             return null;

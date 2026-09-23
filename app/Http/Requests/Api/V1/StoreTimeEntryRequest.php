@@ -70,7 +70,12 @@ final class StoreTimeEntryRequest extends FormRequest
         $project = $this->targetProject();
 
         return [
-            'issue_id' => ['nullable', 'integer', Rule::exists('issues', 'id')->where('project_id', $project->id)],
+            // Redmine's TimeEntry#safe_attributes=: only an issue the caller may see.
+            'issue_id' => ['nullable', 'integer', Rule::exists('issues', 'id')->where('project_id', $project->id), function (string $attribute, mixed $value, \Closure $fail) use ($project): void {
+                if (! Issue::query()->whereKey((int) $value)->visibleTo($this->user(), $project)->exists()) {
+                    $fail(__('課題が見つかりません。'));
+                }
+            }],
             // Not scoped to project membership (unlike the web form's
             // canManageOthers dropdown, which only ever offers actual
             // members): the requester's own default value must always

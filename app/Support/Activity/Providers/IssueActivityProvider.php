@@ -44,7 +44,7 @@ final class IssueActivityProvider implements MultiProjectActivityProvider
         }
 
         return Issue::query()
-            ->whereIn('project_id', $projects->keys())
+            ->visibleToAcrossProjects($viewer, $projects->values())
             ->whereBetween('created_at', [$from, $to])
             ->with(['tracker', 'author'])
             ->get()

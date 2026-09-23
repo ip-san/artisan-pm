@@ -84,10 +84,11 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="space-y-6">
         @foreach ($this->versions as $version)
             @php
-                $counts = $version->issueCounts($this->roadmapTrackerIds);
+                $seen = $version->asSeenBy(auth()->user());
+                $counts = $seen->issueCounts($this->roadmapTrackerIds);
                 $total = $counts['open'] + $counts['closed'];
-                $closedPercent = $version->closedPercent($counts);
-                $completedPercent = $version->completedPercent($this->roadmapTrackerIds);
+                $closedPercent = $seen->closedPercent($counts);
+                $completedPercent = $seen->completedPercent($this->roadmapTrackerIds);
             @endphp
             <article id="roadmap-version-{{ $version->id }}" wire:key="roadmap-version-{{ $version->id }}" class="rounded-md border border-neutral-200 bg-white p-4">
                 <div class="flex items-center justify-between">

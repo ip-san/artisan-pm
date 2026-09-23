@@ -67,7 +67,7 @@ enum TimeReportCriterion: string
     /**
      * This native criterion as a report axis.
      */
-    public function axis(): TimeReportAxis
+    public function axis(?User $viewer = null): TimeReportAxis
     {
         return new TimeReportAxis(
             key: $this->value,
@@ -82,7 +82,14 @@ enum TimeReportCriterion: string
                 self::User => User::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
                 self::Tracker => Tracker::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
                 self::Activity => Enumeration::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
-                self::Issue => Issue::query()->whereIn('id', $ids)->get()->mapWithKeys(fn (Issue $issue) => [$issue->id => "#{$issue->id} {$issue->subject}"])->all(),
+                // Redmine's format_criteria_value: an issue the viewer may
+                // not see is shown by number only.
+                self::Issue => (function () use ($ids, $viewer): array {
+                    $issues = Issue::query()->whereIn('id', $ids)->with('project')->get();
+                    $visibleIds = Issue::filterVisible($issues, $viewer)->pluck('id')->flip();
+
+                    return $issues->mapWithKeys(fn (Issue $issue) => [$issue->id => $visibleIds->has($issue->id) ? "#{$issue->id} {$issue->subject}" : "#{$issue->id}"])->all();
+                })(),
             },
         );
     }

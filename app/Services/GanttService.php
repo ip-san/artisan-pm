@@ -27,9 +27,10 @@ final class GanttService
 {
     /**
      * @param  Collection<int, int>|null  $onlyIssueIds  restrict the tree to these issues (plus their ancestors, kept so depth and grouping stay coherent); null returns the full tree
+     * @param  Collection<int, int>|null  $visibleIssueIds  the issues the viewer may see (Issue::scopeVisibleTo()); the others are left out entirely, and an issue whose parent is left out is drawn as a root — null draws every issue
      * @return Collection<int, GanttRow>
      */
-    public function issueTree(Project $project, ?Collection $onlyIssueIds = null): Collection
+    public function issueTree(Project $project, ?Collection $onlyIssueIds = null, ?Collection $visibleIssueIds = null): Collection
     {
         $issues = (new Issue)->getTable();
         $trackers = (new Tracker)->getTable();
@@ -44,6 +45,16 @@ final class GanttService
                 'i.id', 'i.parent_id', 'i.subject', 'i.start_date', 'i.due_date', 'i.done_ratio',
                 'tr.name as tracker_name', 'st.name as status_name', 'st.is_closed',
             ]);
+
+        if ($visibleIssueIds !== null) {
+            $visible = array_flip($visibleIssueIds->map(fn ($id) => (int) $id)->all());
+            $rows = $rows->filter(fn (object $row) => isset($visible[(int) $row->id]))->values();
+            $rows->each(function (object $row) use ($visible): void {
+                if ($row->parent_id !== null && ! isset($visible[(int) $row->parent_id])) {
+                    $row->parent_id = null;
+                }
+            });
+        }
 
         $tree = $this->orderDepthFirst($rows);
 

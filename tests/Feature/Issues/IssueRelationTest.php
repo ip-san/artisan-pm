@@ -92,8 +92,10 @@ test('a duplicate relation is rejected', function () {
 
 test('a relation cannot be created to an issue the user cannot view', function () {
     // Cross-project relations are allowed here specifically so this
-    // exercises the authorize('view') check rather than being rejected
-    // earlier by the cross-project restriction (covered separately below).
+    // exercises the visibility check rather than being rejected by the
+    // cross-project restriction (covered separately below). Since A1-27b
+    // the visibility check runs first, as a "not found" validation error,
+    // so no other message can describe the unseen issue.
     Setting::set('cross_project_issue_relations', true);
 
     $project = Project::factory()->create();
@@ -106,7 +108,7 @@ test('a relation cannot be created to an issue the user cannot view', function (
         ->test('issues.show', ['project' => $project, 'issue' => $issue])
         ->set('relatedIssueId', $foreignIssue->id)
         ->call('addRelation')
-        ->assertForbidden();
+        ->assertHasErrors('relatedIssueId');
 
     expect(IssueRelation::count())->toBe(0);
 });

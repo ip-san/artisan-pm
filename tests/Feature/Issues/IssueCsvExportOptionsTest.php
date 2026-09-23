@@ -88,6 +88,9 @@ test('the relations column lists each relation with its label and the related is
     $project = Project::factory()->create();
     $otherProject = Project::factory()->create();
     $user = csvExportMember($project);
+    // The related issues must be visible to the user to be listed (A1-27b,
+    // Redmine's load_visible_relations).
+    Member::factory()->for($otherProject)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
     $issue = Issue::factory()->for($project)->create(['subject' => 'Main issue']);
     // In a separate project so they don't also appear as rows in this
     // export — only their ids in the relations column are being tested.
@@ -105,6 +108,25 @@ test('the relations column lists each relation with its label and the related is
             "{$project->identifier}-issues.csv",
             "\xEF\xBB\xBF".csvRow(['題名', '関連するチケット'])
                 .csvRow(['Main issue', "ブロックする #{$blocked->id}, ブロックされている #{$blocker->id}"])
+        );
+});
+
+test('the relations column leaves out relations to issues the user cannot see', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create(['is_public' => false]);
+    $user = csvExportMember($project);
+    $issue = Issue::factory()->for($project)->create(['subject' => 'Main issue']);
+    $hidden = Issue::factory()->for($otherProject)->create();
+    IssueRelation::create(['issue_from_id' => $issue->id, 'issue_to_id' => $hidden->id, 'relation_type' => 'blocks']);
+
+    Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('statusFilter', 'all')
+        ->set('columns', ['subject', 'relations'])
+        ->call('exportCsv')
+        ->assertFileDownloaded(
+            "{$project->identifier}-issues.csv",
+            "\xEF\xBB\xBF".csvRow(['題名', '関連するチケット']).csvRow(['Main issue', ''])
         );
 });
 

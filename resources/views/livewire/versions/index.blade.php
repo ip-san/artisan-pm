@@ -117,9 +117,9 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                 </div>
                 <div class="mt-2 flex gap-4 text-xs text-neutral-500">
-                    <span>{{ __('予定工数: :hours 時間', ['hours' => \App\Support\Format\Hours::format($version->estimatedHours())]) }}</span>
-                    <span>{{ __('実績工数: :hours 時間', ['hours' => \App\Support\Format\Hours::format($version->spentHours())]) }}</span>
-                    <span>{{ __('残工数: :hours 時間', ['hours' => \App\Support\Format\Hours::format($version->estimatedRemainingHours())]) }}</span>
+                    <span>{{ __('予定工数: :hours 時間', ['hours' => \App\Support\Format\Hours::format($version->asSeenBy(auth()->user())->estimatedHours())]) }}</span>
+                    <span>{{ __('実績工数: :hours 時間', ['hours' => \App\Support\Format\Hours::format($version->asSeenBy(auth()->user())->spentHours())]) }}</span>
+                    <span>{{ __('残工数: :hours 時間', ['hours' => \App\Support\Format\Hours::format($version->asSeenBy(auth()->user())->estimatedRemainingHours())]) }}</span>
                 </div>
             </li>
         @empty

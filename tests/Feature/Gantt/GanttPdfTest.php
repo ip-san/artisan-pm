@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Models\Version;
 use Livewire\Livewire;
 
-function ganttPdfMember(Project $project, array $permissions = ['view_gantt']): User
+function ganttPdfMember(Project $project, array $permissions = ['view_gantt', 'view_issues']): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create(['permissions' => $permissions]);

@@ -436,34 +436,36 @@ final class Issue extends Model implements HasMedia
 
     /**
      * Narrows a query to the issues $user is allowed to see in $project,
-     * per the project's configured issue visibility (all / default / own).
-     * Shared by the issue list and My Page's saved-query blocks so the two
-     * don't drift on what "visible" means.
+     * per Redmine's Issue.visible_condition: every role holding view_issues
+     * contributes its issue visibility (all / default / own) limited to the
+     * trackers it allows view_issues on, and an issue is visible when any
+     * role's rule matches. Shared by every issue list, feed and block so
+     * they don't drift on what "visible" means.
      *
      * @param  Builder<Issue>  $query
      * @return Builder<Issue>
      */
     public function scopeVisibleTo(Builder $query, ?User $user, Project $project): Builder
     {
-        $userId = $user?->id;
+        $rules = app(AuthorizationService::class)->issueVisibilityRules($user, $project);
 
-        return match (app(AuthorizationService::class)->issueVisibilityFor($user, $project)) {
-            IssueVisibility::All => $query,
-            IssueVisibility::Default => $query->where(fn ($q) => $q->where('is_private', false)
-                ->orWhere('author_id', $userId)
-                ->orWhere('assigned_to_id', $userId)),
-            IssueVisibility::Own => $query->where(fn ($q) => $q->where('author_id', $userId)->orWhere('assigned_to_id', $userId)),
-        };
+        if ($rules === [IssueVisibility::All->value => null]) {
+            return $query;
+        }
+
+        if ($rules === []) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(fn (Builder $outer) => self::applyVisibilityRules($outer, $rules, $user?->id));
     }
 
     /**
-     * Cross-project variant of scopeVisibleTo() — a user can have "all
-     * issues" visibility in one project and "own issues only" in
-     * another, so $projects is bucketed by each project's own visibility
-     * tier and each bucket gets its matching WHERE, rather than applying
-     * one tier across every project. $projects is expected to already be
-     * pre-filtered to ones the user can view at all (Project policy
-     * viewAny) — this only adds the per-issue visibility tier within them.
+     * Cross-project variant of scopeVisibleTo() — a user can see every
+     * issue in one project, only their own in another and only some
+     * trackers in a third, so $projects is bucketed by each project's own
+     * visibility rules and each bucket gets its matching WHERE. Projects
+     * where the user can't view issues at all drop out.
      *
      * @param  Builder<Issue>  $query
      * @param  Collection<int, Project>  $projects
@@ -471,38 +473,146 @@ final class Issue extends Model implements HasMedia
      */
     public function scopeVisibleToAcrossProjects(Builder $query, ?User $user, Collection $projects): Builder
     {
-        if ($projects->isEmpty()) {
+        $authorization = app(AuthorizationService::class);
+        $buckets = [];
+
+        foreach ($projects as $project) {
+            $rules = $authorization->issueVisibilityRules($user, $project);
+
+            if ($rules === []) {
+                continue;
+            }
+
+            $signature = json_encode($rules);
+            $buckets[$signature] ??= ['rules' => $rules, 'projectIds' => []];
+            $buckets[$signature]['projectIds'][] = $project->id;
+        }
+
+        if ($buckets === []) {
             return $query->whereRaw('1 = 0');
         }
 
-        $authorization = app(AuthorizationService::class);
         $userId = $user?->id;
 
-        $byTier = $projects->groupBy(
-            fn (Project $project) => $authorization->issueVisibilityFor($user, $project)->value
-        );
+        return $query->where(function (Builder $outer) use ($buckets, $userId): void {
+            foreach ($buckets as $bucket) {
+                if ($bucket['rules'] === [IssueVisibility::All->value => null]) {
+                    $outer->orWhereIn($outer->qualifyColumn('project_id'), $bucket['projectIds']);
 
-        $allIds = $byTier->get(IssueVisibility::All->value, collect())->pluck('id');
-        $defaultIds = $byTier->get(IssueVisibility::Default->value, collect())->pluck('id');
-        $ownIds = $byTier->get(IssueVisibility::Own->value, collect())->pluck('id');
+                    continue;
+                }
 
-        return $query->where(function (Builder $outer) use ($allIds, $defaultIds, $ownIds, $userId): void {
-            if ($allIds->isNotEmpty()) {
-                $outer->orWhereIn('project_id', $allIds);
-            }
-
-            if ($defaultIds->isNotEmpty()) {
-                $outer->orWhere(fn ($q) => $q->whereIn('project_id', $defaultIds)
-                    ->where(fn ($q2) => $q2->where('is_private', false)
-                        ->orWhere('author_id', $userId)
-                        ->orWhere('assigned_to_id', $userId)));
-            }
-
-            if ($ownIds->isNotEmpty()) {
-                $outer->orWhere(fn ($q) => $q->whereIn('project_id', $ownIds)
-                    ->where(fn ($q2) => $q2->where('author_id', $userId)->orWhere('assigned_to_id', $userId)));
+                $outer->orWhere(fn (Builder $inBucket) => $inBucket
+                    ->whereIn($inBucket->qualifyColumn('project_id'), $bucket['projectIds'])
+                    ->where(fn (Builder $matching) => self::applyVisibilityRules($matching, $bucket['rules'], $userId)));
             }
         });
+    }
+
+    /**
+     * Redmine's Issue.visible(user): the issues $user may see in any
+     * project — every project they can see (public or a member of), each
+     * with its own visibility rules.
+     *
+     * @param  Builder<Issue>  $query
+     * @return Builder<Issue>
+     */
+    public function scopeVisible(Builder $query, ?User $user): Builder
+    {
+        $projects = Project::query()->whereIn('id', app(AuthorizationService::class)->visibleProjectIds($user))->get();
+
+        return $query->visibleToAcrossProjects($user, $projects);
+    }
+
+    /**
+     * Keeps the loaded issues $user may see (Redmine's `.select(&:visible?)`),
+     * resolving each project's visibility rules once.
+     *
+     * @template TCollection of Collection<int, Issue>
+     *
+     * @param  TCollection  $issues
+     * @return TCollection
+     */
+    public static function filterVisible(Collection $issues, ?User $user): Collection
+    {
+        $authorization = app(AuthorizationService::class);
+        $rulesByProject = [];
+
+        return $issues->filter(function (?Issue $issue) use ($authorization, $user, &$rulesByProject): bool {
+            if ($issue === null) {
+                return false;
+            }
+
+            $rulesByProject[$issue->project_id] ??= $authorization->issueVisibilityRules($user, $issue->loadMissing('project')->project);
+
+            return $issue->matchesVisibilityRules($rulesByProject[$issue->project_id], $user);
+        })->values();
+    }
+
+    /**
+     * ORs one condition per visibility tier, each limited to its trackers.
+     *
+     * @param  Builder<Issue>  $query
+     * @param  array<string, list<int>|null>  $rules
+     */
+    private static function applyVisibilityRules(Builder $query, array $rules, ?int $userId): void
+    {
+        foreach ($rules as $tier => $trackerIds) {
+            $query->orWhere(function (Builder $rule) use ($tier, $trackerIds, $userId): void {
+                match (IssueVisibility::from($tier)) {
+                    IssueVisibility::All => null,
+                    IssueVisibility::Default => $rule->where(fn ($q) => $q->where($rule->qualifyColumn('is_private'), false)
+                        ->orWhere($rule->qualifyColumn('author_id'), $userId)
+                        ->orWhere($rule->qualifyColumn('assigned_to_id'), $userId)),
+                    IssueVisibility::Own => $rule->where(fn ($q) => $q->where($rule->qualifyColumn('author_id'), $userId)
+                        ->orWhere($rule->qualifyColumn('assigned_to_id'), $userId)),
+                };
+
+                if ($trackerIds !== null) {
+                    $trackerIds === []
+                        ? $rule->whereRaw('1 = 0')
+                        : $rule->whereIn($rule->qualifyColumn('tracker_id'), $trackerIds);
+                }
+            });
+        }
+    }
+
+    /**
+     * Redmine's Issue#visible?: the same rules as scopeVisibleTo(), checked
+     * against one loaded issue.
+     */
+    public function isVisibleTo(?User $user): bool
+    {
+        return $this->matchesVisibilityRules(
+            app(AuthorizationService::class)->issueVisibilityRules($user, $this->loadMissing('project')->project),
+            $user,
+        );
+    }
+
+    /**
+     * @param  array<string, list<int>|null>  $rules  see AuthorizationService::issueVisibilityRules()
+     */
+    private function matchesVisibilityRules(array $rules, ?User $user): bool
+    {
+        $isAuthorOrAssignee = $user !== null && ($this->author_id === $user->id || $this->assigned_to_id === $user->id);
+
+        foreach ($rules as $tier => $trackerIds) {
+            if ($trackerIds !== null && ! in_array((int) $this->tracker_id, $trackerIds, true)) {
+                continue;
+            }
+
+            $matches = match (IssueVisibility::from($tier)) {
+                IssueVisibility::All => true,
+                IssueVisibility::Default => ! $this->is_private || $isAuthorOrAssignee,
+                IssueVisibility::Own => $isAuthorOrAssignee,
+            };
+
+            if ($matches) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

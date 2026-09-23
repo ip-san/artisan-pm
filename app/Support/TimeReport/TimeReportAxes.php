@@ -41,7 +41,7 @@ final class TimeReportAxes
         $axes = [];
 
         foreach (TimeReportCriterion::cases() as $criterion) {
-            $axes[$criterion->value] = $criterion->axis();
+            $axes[$criterion->value] = $criterion->axis($viewer);
         }
 
         if ($includeProject && $projects !== null) {

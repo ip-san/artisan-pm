@@ -119,6 +119,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $query = Issue::query()
             ->where('project_id', $this->project->id)
+            ->visibleTo(auth()->user(), $this->project)
             ->where(fn ($query) => $query
                 ->whereBetween('start_date', $range)
                 ->orWhereBetween('due_date', $range))

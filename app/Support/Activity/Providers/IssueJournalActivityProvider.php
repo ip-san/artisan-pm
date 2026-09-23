@@ -55,7 +55,7 @@ final class IssueJournalActivityProvider implements MultiProjectActivityProvider
         }
 
         return Journal::query()
-            ->whereHas('issue', fn ($query) => $query->whereIn('project_id', $projects->keys()))
+            ->whereHas('issue', fn ($query) => $query->visibleToAcrossProjects($viewer, $projects->values()))
             ->where('private_notes', false)
             ->whereBetween('created_at', [$from, $to])
             ->with(['issue.tracker', 'user', 'details'])

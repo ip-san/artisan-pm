@@ -27,6 +27,7 @@ final class WatchedIssuesBlock implements DashboardBlock
     public function rows(User $user): Collection
     {
         return Issue::query()
+            ->visible($user)
             ->whereHas('watchers', fn ($query) => $query->where('user_id', $user->id))
             ->with(['project', 'tracker'])
             ->latest()

@@ -121,7 +121,10 @@ test('each provider reads all the projects in one query', function () {
     $queries = collect(DB::getQueryLog())->pluck('query')->map(fn (string $sql) => str_replace('`', '"', $sql));
     DB::disableQueryLog();
 
-    $scans = fn (string $table) => $queries->filter(fn (string $sql) => str_starts_with($sql, "select * from \"{$table}\" where \"project_id\" in"))->count();
+    // Issues go through the visibility scope (A1-27b), which qualifies the
+    // column and wraps the per-project conditions in parentheses.
+    $scans = fn (string $table) => $queries->filter(fn (string $sql) => str_starts_with($sql, "select * from \"{$table}\" where \"project_id\" in")
+        || str_starts_with($sql, "select * from \"{$table}\" where (\"{$table}\".\"project_id\" in"))->count();
 
     expect($entries)->toHaveCount(12)
         ->and($scans('issues'))->toBe(1)

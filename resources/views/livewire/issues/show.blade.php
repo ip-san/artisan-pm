@@ -163,13 +163,19 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $labels = $this->relationLabels();
 
-        $from = $this->issue->relationsFrom->map(fn (IssueRelation $relation) => [
+        // Redmine keeps only relations whose other issue the viewer may see.
+        $visibleIds = Issue::filterVisible(
+            $this->issue->relationsFrom->pluck('to')->concat($this->issue->relationsTo->pluck('from'))->filter()->unique('id')->values(),
+            auth()->user(),
+        )->pluck('id')->flip();
+
+        $from = $this->issue->relationsFrom->filter(fn (IssueRelation $relation) => $visibleIds->has($relation->issue_to_id))->map(fn (IssueRelation $relation) => [
             'relation' => $relation,
             'other' => $relation->to,
             'label' => $labels[$relation->relation_type->value]['from'],
         ]);
 
-        $to = $this->issue->relationsTo->map(fn (IssueRelation $relation) => [
+        $to = $this->issue->relationsTo->filter(fn (IssueRelation $relation) => $visibleIds->has($relation->issue_from_id))->map(fn (IssueRelation $relation) => [
             'relation' => $relation,
             'other' => $relation->from,
             'label' => $labels[$relation->relation_type->value]['to'],
@@ -198,7 +204,22 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function subtasks(): \Illuminate\Database\Eloquent\Collection
     {
-        return $this->issue->children->loadMissing(RelatedIssueColumns::relationsFor(array_keys($this->relatedColumns)));
+        // Redmine lists `issue.descendants.visible`: a subtask the viewer
+        // may not see is left out.
+        return new \Illuminate\Database\Eloquent\Collection(Issue::filterVisible($this->issue->children, auth()->user())->all())
+            ->loadMissing(RelatedIssueColumns::relationsFor(array_keys($this->relatedColumns)));
+    }
+
+    /**
+     * The parent, when the viewer may see it — Redmine shows only visible
+     * ancestors above the subject.
+     */
+    #[Computed]
+    public function visibleParent(): ?Issue
+    {
+        $parent = $this->issue->parent;
+
+        return $parent !== null && $parent->isVisibleTo(auth()->user()) ? $parent : null;
     }
 
     /**
@@ -235,6 +256,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     $other = Issue::find($value);
 
                     if ($other === null) {
+                        return;
+                    }
+
+                    // Checked first, so the messages below never describe an
+                    // issue the user may not see.
+                    if (! $other->isVisibleTo(auth()->user())) {
+                        $fail(__('課題が見つかりません。'));
+
                         return;
                     }
 
@@ -787,11 +816,11 @@ new #[Layout('components.layouts.app')] class extends Component
 <div class="max-w-3xl">
     <div class="flex items-start justify-between mb-4">
         <div>
-            @if ($issue->parent)
+            @if ($this->visibleParent)
                 <p class="text-xs text-neutral-500 mb-1">
                     <span class="text-neutral-400">{{ __('親課題:') }}</span>
-                    <a href="{{ route('issues.show', [$project, $issue->parent]) }}" class="text-brand-bold hover:underline">
-                        {{ $issue->parent->tracker->name }} #{{ $issue->parent->id }} — {{ $issue->parent->subject }}
+                    <a href="{{ route('issues.show', [$this->visibleParent->project, $this->visibleParent]) }}" class="text-brand-bold hover:underline">
+                        {{ $this->visibleParent->tracker->name }} #{{ $this->visibleParent->id }} — {{ $this->visibleParent->subject }}
                     </a>
                 </p>
             @endif
@@ -995,7 +1024,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endcan
     @endif
 
-    @if ($issue->children->isNotEmpty())
+    @if ($this->subtasks->isNotEmpty())
         <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('サブタスク') }}</h2>
         <div class="mb-6 overflow-x-auto rounded-md border border-neutral-200 bg-white">
             <table class="min-w-full text-sm" data-related-issues="subtasks">

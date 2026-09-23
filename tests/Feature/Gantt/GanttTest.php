@@ -13,7 +13,7 @@ use App\Models\Version;
 use App\Services\GanttService;
 use Livewire\Livewire;
 
-function ganttMember(Project $project, array $permissions = ['view_gantt']): User
+function ganttMember(Project $project, array $permissions = ['view_gantt', 'view_issues']): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create(['permissions' => $permissions]);

@@ -27,6 +27,7 @@ final class ReportedIssuesBlock implements DashboardBlock
     public function rows(User $user): Collection
     {
         return Issue::query()
+            ->visible($user)
             ->where('author_id', $user->id)
             ->with(['project', 'tracker'])
             ->latest()

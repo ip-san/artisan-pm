@@ -42,7 +42,7 @@
         </tr>
         <tr>
             <td class="label">{{ __('予定工数') }}</td><td>{{ $issue->estimated_hours ?? '-' }}</td>
-            <td class="label">{{ __('親課題') }}</td><td>{{ $issue->parent ? "#{$issue->parent->id} {$issue->parent->subject}" : '-' }}</td>
+            <td class="label">{{ __('親課題') }}</td><td>{{ $issue->parent ? ($issue->parent->isVisibleTo(auth()->user()) ? "#{$issue->parent->id} {$issue->parent->subject}" : "#{$issue->parent->id}") : '-' }}</td>
         </tr>
         @foreach ($customFieldValues as $entry)
             <tr>

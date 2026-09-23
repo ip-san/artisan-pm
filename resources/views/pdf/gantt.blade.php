@@ -64,7 +64,7 @@
             @php $top = $rowHeight * ($versionOffset + $loop->index); @endphp
             <div class="label" style="top: {{ $top }}px">◆ {{ $version->name }}</div>
             <div class="timeline-row" style="top: {{ $top }}px">
-                <div class="milestone" style="left: {{ $versionPositions[$version->id] }}%">◆ {{ round($version->completedPercent()) }}%</div>
+                <div class="milestone" style="left: {{ $versionPositions[$version->id] }}%">◆ {{ round($version->asSeenBy(auth()->user())->completedPercent()) }}%</div>
             </div>
         @endforeach
     </div>
