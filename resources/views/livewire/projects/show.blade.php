@@ -276,7 +276,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @can('delete', $project)
-        <div class="mb-6 rounded-md border border-danger-subtler bg-danger-subtlest p-4">
+        <div id="project-delete" class="mb-6 rounded-md border border-danger-subtler bg-danger-subtlest p-4">
             <h2 class="text-sm font-semibold text-danger-boldest">{{ __('プロジェクトの削除') }}</h2>
             <p class="mt-1 text-xs text-danger-bolder">
                 @if ($project->isLeaf())

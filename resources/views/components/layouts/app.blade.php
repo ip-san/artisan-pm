@@ -45,6 +45,7 @@
                                 <a href="{{ route('custom-fields.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('カスタムフィールド管理') }}</a>
                             @endcan
                             @can('manage', \App\Models\Setting::class)
+                                <a href="{{ route('admin.projects') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('プロジェクト管理') }}</a>
                                 <a href="{{ route('settings.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('設定') }}</a>
                                 <a href="{{ route('plugins.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('プラグイン') }}</a>
                                 <a href="{{ route('admin.info') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('情報') }}</a>

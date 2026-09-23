@@ -12,7 +12,6 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Markdown\WikiMarkdownRenderer;
-use App\Support\Query\CustomFieldFilter;
 use App\Support\Query\DefaultProjectQuery;
 use App\Support\Query\ProjectFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
@@ -244,20 +243,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private function applySort(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
     {
-        if ($this->sortKey === null || ! array_key_exists($this->sortKey, $this->availableColumns)) {
-            return $query;
-        }
-
-        $direction = $this->sortDirection === 'desc' ? 'desc' : 'asc';
-
-        if (str_starts_with($this->sortKey, 'cf_')) {
-            $field = ProjectFilterFieldRegistry::customFields(auth()->user())->firstWhere('id', (int) substr($this->sortKey, 3));
-
-            return $field !== null ? (new CustomFieldFilter($field))->applySort($query, $direction) : $query;
-        }
-
-        // Redmine sorts the parent column by tree position (lft).
-        return $query->orderBy($this->sortKey === 'parent_id' ? '_lft' : $this->sortKey, $direction);
+        return ProjectFilterFieldRegistry::applySort($query, $this->sortKey, $this->sortDirection, auth()->user());
     }
 
     /**

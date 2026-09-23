@@ -12,6 +12,7 @@ use App\Models\CustomField;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
@@ -65,6 +66,31 @@ final class ProjectFilterFieldRegistry
             ->map(fn (CustomField $field): FilterableField => new CustomFieldFilter($field));
 
         return collect($nativeFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key());
+    }
+
+    /**
+     * Orders a project query by one of the columns() keys; an unknown key
+     * leaves it unsorted. Shared by the project list and the admin one.
+     *
+     * @param  Builder<Project>  $query
+     * @return Builder<Project>
+     */
+    public static function applySort(Builder $query, ?string $sortKey, string $direction, ?User $viewer): Builder
+    {
+        if ($sortKey === null || ! array_key_exists($sortKey, self::columns($viewer))) {
+            return $query;
+        }
+
+        $direction = $direction === 'desc' ? 'desc' : 'asc';
+
+        if (str_starts_with($sortKey, 'cf_')) {
+            $field = self::customFields($viewer)->firstWhere('id', (int) substr($sortKey, 3));
+
+            return $field !== null ? (new CustomFieldFilter($field))->applySort($query, $direction) : $query;
+        }
+
+        // Redmine sorts the parent column by tree position (lft).
+        return $query->orderBy($sortKey === 'parent_id' ? '_lft' : $sortKey, $direction);
     }
 
     /**

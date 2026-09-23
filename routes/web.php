@@ -2,17 +2,17 @@
 
 use App\Http\Controllers\AccountActivationController;
 use App\Http\Controllers\ActivityFeedController;
-use App\Http\Controllers\GlobalActivityFeedController;
-use App\Http\Controllers\MailHandlerController;
 use App\Http\Controllers\AttachmentBundleController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AttachmentInlineController;
 use App\Http\Controllers\AttachmentPreviewController;
 use App\Http\Controllers\AttachmentThumbnailController;
 use App\Http\Controllers\BoardAtomController;
+use App\Http\Controllers\GlobalActivityFeedController;
 use App\Http\Controllers\IssueAtomController;
 use App\Http\Controllers\IssueChangesAtomController;
 use App\Http\Controllers\IssuePdfController;
+use App\Http\Controllers\MailHandlerController;
 use App\Http\Controllers\NewsAtomController;
 use App\Http\Controllers\RepositoryRawController;
 use App\Http\Controllers\SysController;
@@ -268,6 +268,7 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Volt::route('/custom-fields/{customField}/edit', 'custom-fields.form')->name('custom-fields.edit');
 
     Volt::route('/settings', 'settings.index')->name('settings.index');
+    Volt::route('/admin/projects', 'admin.projects')->name('admin.projects');
     Volt::route('/admin/info', 'admin.info')->name('admin.info');
     Volt::route('/admin/default_configuration', 'admin.default-configuration')->name('admin.default-configuration');
 
