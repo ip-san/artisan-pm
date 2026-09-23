@@ -13,8 +13,17 @@
     <div class="min-h-full">
         <nav class="bg-white border-b border-neutral-200">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div class="flex h-14 items-center justify-between">
-                    <div class="flex items-center gap-6">
+                <div class="flex h-14 items-center justify-between gap-4">
+                    {{--
+                        overflow-x-auto + whitespace-nowrap: an admin with every permission sees ~20 links here,
+                        which don't fit this row's width. Without whitespace-nowrap, a flex item can still shrink
+                        below its text's full width because the text is allowed to wrap — for these Japanese
+                        labels (no spaces to break on) that means wrapping one character per line, which is what
+                        was happening here before this fix. Forcing nowrap makes each link's minimum width its
+                        full text width instead, so once the row can't fit them all, it scrolls horizontally
+                        instead of squeezing labels into unreadable vertical columns.
+                    --}}
+                    <div class="flex items-center gap-6 overflow-x-auto whitespace-nowrap">
                         <a href="{{ route('projects.index') }}" class="font-semibold text-neutral-900">{{ $appTitle }}</a>
                         @auth
                             <x-project-jump-box />
@@ -66,7 +75,7 @@
                             @endforeach
                         @endauth
                     </div>
-                    <div class="flex items-center gap-4 text-sm">
+                    <div class="flex shrink-0 items-center gap-4 text-sm whitespace-nowrap">
                         @auth
                             @if (($currentProject = request()->route('project')) instanceof \App\Models\Project)
                                 <x-new-item-menu :project="$currentProject" />
