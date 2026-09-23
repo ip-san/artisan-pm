@@ -185,11 +185,15 @@ final class IssueExtraFilterFields
         return new CallbackFilter(
             'issue_id',
             __('課題番号'),
-            FilterFieldType::Integer,
+            FilterFieldType::IdList,
             [FilterOperator::Equals, FilterOperator::GreaterOrEqual, FilterOperator::LessOrEqual, FilterOperator::Between],
             function (Builder $query, FilterOperator $operator, array $values): Builder {
                 if ($operator !== FilterOperator::Equals) {
-                    return FilterOperatorApplier::apply($query, $query->getModel()->getQualifiedKeyName(), $operator, $values);
+                    // A comparison takes one number per value; a list typed
+                    // before switching operator must not reach the SQL as is.
+                    $numbers = array_values(array_filter(array_map(fn ($value) => self::idList([$value])[0] ?? null, $values), fn (?int $id) => $id !== null));
+
+                    return $numbers === [] ? $query : FilterOperatorApplier::apply($query, $query->getModel()->getQualifiedKeyName(), $operator, $numbers);
                 }
 
                 if ($values === []) {
@@ -213,7 +217,7 @@ final class IssueExtraFilterFields
         return new CallbackFilter(
             'parent_id',
             __('親課題'),
-            FilterFieldType::Integer,
+            FilterFieldType::IdList,
             self::treeOperators(),
             function (Builder $query, FilterOperator $operator, array $values): Builder {
                 $column = $query->qualifyColumn('parent_id');
@@ -253,7 +257,7 @@ final class IssueExtraFilterFields
         return new CallbackFilter(
             'child_id',
             __('サブタスク'),
-            FilterFieldType::Integer,
+            FilterFieldType::IdList,
             self::treeOperators(),
             function (Builder $query, FilterOperator $operator, array $values): Builder {
                 $table = $query->getModel()->getTable();
@@ -335,7 +339,7 @@ final class IssueExtraFilterFields
             ->map(fn (array $relation, string $key) => new CallbackFilter(
                 $key,
                 $relation[0],
-                FilterFieldType::Integer,
+                FilterFieldType::IdList,
                 [
                     FilterOperator::Equals, FilterOperator::NotEquals,
                     FilterOperator::AnyIssuesInProject, FilterOperator::AnyIssuesNotInProject, FilterOperator::NoIssuesInProject,

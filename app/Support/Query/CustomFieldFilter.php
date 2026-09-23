@@ -47,7 +47,7 @@ final class CustomFieldFilter implements FilterableField
     {
         return match ($this->type()) {
             FilterFieldType::Text => [FilterOperator::Contains, FilterOperator::NotContains, FilterOperator::Equals, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
-            FilterFieldType::Integer, FilterFieldType::Date => [FilterOperator::Equals, FilterOperator::GreaterOrEqual, FilterOperator::LessOrEqual, FilterOperator::Between, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
+            FilterFieldType::Integer, FilterFieldType::IdList, FilterFieldType::Date => [FilterOperator::Equals, FilterOperator::GreaterOrEqual, FilterOperator::LessOrEqual, FilterOperator::Between, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
             FilterFieldType::Boolean => [FilterOperator::Equals],
             FilterFieldType::Select => [FilterOperator::Equals, FilterOperator::In, FilterOperator::NotIn, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
         };
