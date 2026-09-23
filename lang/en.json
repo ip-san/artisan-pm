@@ -1260,6 +1260,7 @@
     "課題一覧の既定表示列": "Default columns displayed on the issue list",
     "課題一覧へ": "Back to issues",
     "課題作成日を基準にした日数(負数で過去の日付)。": "Number of days relative to the issue creation date (negative for a past date).",
+    "課題番号": "Issue",
     "識別子": "Identifier",
     "識別子が一致しません。": "The identifier does not match.",
     "識別子は一度設定すると変更できません。": "Once saved, the identifier cannot be changed.",

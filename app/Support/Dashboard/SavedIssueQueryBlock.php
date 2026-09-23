@@ -138,7 +138,7 @@ final class SavedIssueQueryBlock
             ->visibleTo($user, $project)
             ->with(['project', 'tracker', 'status', 'priority', 'assignedTo', 'author']);
 
-        $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project));
+        $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, $user));
         $builder = $engine->applyFilters($builder, $savedQuery->filters);
 
         $settings = self::normalizeSettings($settings);

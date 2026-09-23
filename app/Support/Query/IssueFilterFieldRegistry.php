@@ -12,6 +12,9 @@ use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\IssueStatus;
 use App\Models\Project;
+use App\Models\User;
+use App\Support\Authorization\AuthorizationService;
+use App\Support\Issues\SubprojectScope;
 use Illuminate\Support\Collection;
 
 /**
@@ -19,14 +22,20 @@ use Illuminate\Support\Collection;
  * list — native columns plus that project's applicable custom fields —
  * keyed by field key so QueryFilterEngine can resolve stored filter/sort/
  * group definitions against it.
+ *
+ * Some filters depend on who is looking (Redmine offers is_private only to
+ * someone who may set it, for instance); $viewer defaults to the signed-in
+ * user.
  */
 final class IssueFilterFieldRegistry
 {
     /**
      * @return Collection<string, FilterableField>
      */
-    public static function forProject(Project $project): Collection
+    public static function forProject(Project $project, ?User $viewer = null): Collection
     {
+        $viewer ??= auth()->user();
+
         $selectOperators = self::selectOperators();
         $dateOperators = self::dateOperators();
         $textOperators = self::textOperators();
@@ -60,7 +69,9 @@ final class IssueFilterFieldRegistry
             ->filter(fn (CustomField $field) => $field->appliesToProject($project))
             ->map(fn (CustomField $field): FilterableField => new CustomFieldFilter($field));
 
-        return collect($nativeFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key());
+        $extraFields = (new IssueExtraFilterFields(fn () => SubprojectScope::projectsForIssues($project, $viewer), $viewer, app(AuthorizationService::class)))->fields();
+
+        return collect($nativeFields)->concat($extraFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key());
     }
 
     /**
@@ -76,8 +87,10 @@ final class IssueFilterFieldRegistry
      * @param  Collection<int, Project>  $projects
      * @return Collection<string, FilterableField>
      */
-    public static function forProjects(Collection $projects): Collection
+    public static function forProjects(Collection $projects, ?User $viewer = null): Collection
     {
+        $viewer ??= auth()->user();
+
         $selectOperators = self::selectOperators();
         $dateOperators = self::dateOperators();
         $textOperators = self::textOperators();
@@ -117,7 +130,9 @@ final class IssueFilterFieldRegistry
             ->filter(fn (CustomField $field) => $projects->contains(fn (Project $project) => $field->appliesToProject($project)))
             ->map(fn (CustomField $field): FilterableField => new CustomFieldFilter($field));
 
-        return collect($nativeFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key());
+        $extraFields = (new IssueExtraFilterFields(fn () => $projects, $viewer, app(AuthorizationService::class)))->fields();
+
+        return collect($nativeFields)->concat($extraFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key());
     }
 
     /**
