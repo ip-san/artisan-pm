@@ -6,6 +6,7 @@ namespace App\Support\Query;
 
 use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
+use App\Enums\IssueRelationType;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
@@ -35,6 +36,9 @@ final class IssueExtraFilterFields
     /** @var ?Collection<int, Project> */
     private ?Collection $resolvedScopeProjects = null;
 
+    /** @var ?array<int, string> */
+    private ?array $visibleProjectOptions = null;
+
     /**
      * @param  Closure(): Collection<int, Project>  $scopeProjects  the projects whose issues the list covers, resolved only when a filter needs them
      */
@@ -56,6 +60,8 @@ final class IssueExtraFilterFields
             $this->isPrivate(),
             $this->issueId(),
             $this->parentId(),
+            $this->childId(),
+            ...$this->relationFilters(),
         ]));
     }
 
@@ -206,6 +212,193 @@ final class IssueExtraFilterFields
                     : $query->whereIn($column, $ids);
             },
         );
+    }
+
+    /**
+     * Redmine's sql_for_child_id_field ("tree" filter): "is" matches the
+     * parents of the given issues, "contains" every ancestor of them;
+     * none/any test whether the issue has subtasks.
+     */
+    private function childId(): FilterableField
+    {
+        return new CallbackFilter(
+            'child_id',
+            __('サブタスク'),
+            FilterFieldType::Integer,
+            self::treeOperators(),
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                $table = $query->getModel()->getTable();
+                $key = $query->getModel()->getQualifiedKeyName();
+                $children = fn (QueryBuilder $children) => $children->select($children->raw('1'))
+                    ->from("{$table} as subtasks")
+                    ->whereColumn('subtasks.parent_id', $key);
+
+                if ($operator === FilterOperator::IsEmpty) {
+                    return $query->whereNotExists($children);
+                }
+
+                if ($operator === FilterOperator::IsNotEmpty) {
+                    return $query->whereExists($children);
+                }
+
+                if ($values === []) {
+                    return $query;
+                }
+
+                $ids = self::idList($values);
+
+                if ($ids === []) {
+                    return $query->whereRaw('1 = 0');
+                }
+
+                if ($operator === FilterOperator::Contains) {
+                    $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+
+                    return $query->whereRaw(
+                        "{$key} IN (WITH RECURSIVE tree_ancestors AS ("
+                        ."SELECT parent_id AS id FROM {$table} WHERE id IN ({$placeholders}) AND parent_id IS NOT NULL"
+                        ." UNION SELECT parent.parent_id FROM {$table} parent INNER JOIN tree_ancestors ON parent.id = tree_ancestors.id WHERE parent.parent_id IS NOT NULL"
+                        .') SELECT id FROM tree_ancestors)',
+                        $ids,
+                    );
+                }
+
+                return $query->whereIn($key, fn (QueryBuilder $parents) => $parents->select('parent_id')
+                    ->from($table)
+                    ->whereIn('id', $ids)
+                    ->whereNotNull('parent_id'));
+            },
+        );
+    }
+
+    /**
+     * One filter per relation name, as Redmine's IssueRelation::TYPES —
+     * both directions of each stored type ("blocks" and "blocked"), and
+     * "copied_from" for the reverse of copied_to.
+     *
+     * @return array<int, FilterableField>
+     */
+    private function relationFilters(): array
+    {
+        $blocks = IssueRelationType::Blocks->value;
+        $duplicates = IssueRelationType::Duplicates->value;
+        $precedes = IssueRelationType::Precedes->value;
+        $follows = IssueRelationType::Follows->value;
+        $copiedTo = IssueRelationType::CopiedTo->value;
+        $relates = IssueRelationType::Relates->value;
+
+        // [stored relation_type, the issue's own side, the related side].
+        // This app stores "follows" rows as they were entered (Redmine
+        // turns them into "precedes"), so precedes/follows read both.
+        $relations = [
+            'relates' => [__('関連'), [[$relates, 'issue_from_id', 'issue_to_id'], [$relates, 'issue_to_id', 'issue_from_id']]],
+            'duplicates' => [__('重複する'), [[$duplicates, 'issue_from_id', 'issue_to_id']]],
+            'duplicated' => [__('重複されている'), [[$duplicates, 'issue_to_id', 'issue_from_id']]],
+            'blocks' => [__('ブロックする'), [[$blocks, 'issue_from_id', 'issue_to_id']]],
+            'blocked' => [__('ブロックされている'), [[$blocks, 'issue_to_id', 'issue_from_id']]],
+            'precedes' => [__('先行'), [[$precedes, 'issue_from_id', 'issue_to_id'], [$follows, 'issue_to_id', 'issue_from_id']]],
+            'follows' => [__('後続'), [[$follows, 'issue_from_id', 'issue_to_id'], [$precedes, 'issue_to_id', 'issue_from_id']]],
+            'copied_to' => [__('コピー先'), [[$copiedTo, 'issue_from_id', 'issue_to_id']]],
+            'copied_from' => [__('コピー元'), [[$copiedTo, 'issue_to_id', 'issue_from_id']]],
+        ];
+
+        return collect($relations)
+            ->map(fn (array $relation, string $key) => new CallbackFilter(
+                $key,
+                $relation[0],
+                FilterFieldType::Integer,
+                [
+                    FilterOperator::Equals, FilterOperator::NotEquals,
+                    FilterOperator::AnyIssuesInProject, FilterOperator::AnyIssuesNotInProject, FilterOperator::NoIssuesInProject,
+                    FilterOperator::AnyOpenIssues, FilterOperator::NoOpenIssues,
+                    FilterOperator::IsEmpty, FilterOperator::IsNotEmpty,
+                ],
+                fn (Builder $query, FilterOperator $operator, array $values) => $this->applyRelation($query, $relation[1], $operator, $values),
+                fn () => $this->visibleProjectOptions(),
+            ))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Redmine's sql_for_relations. "is not", "none", "no issues in
+     * project" and "no open issues" are the negation of their positive
+     * counterpart.
+     *
+     * @param  Builder<*>  $query
+     * @param  array<int, array{0: string, 1: string, 2: string}>  $forms
+     * @param  array<int, mixed>  $values
+     * @return Builder<*>
+     */
+    private function applyRelation(Builder $query, array $forms, FilterOperator $operator, array $values): Builder
+    {
+        if ($operator->requiresValue() && $values === []) {
+            return $query;
+        }
+
+        if (in_array($operator, [FilterOperator::Equals, FilterOperator::NotEquals], true) && self::idList($values) === []) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $issueKey = $query->getModel()->getQualifiedKeyName();
+        $table = $query->getModel()->getTable();
+
+        $constraint = match ($operator) {
+            FilterOperator::Equals, FilterOperator::NotEquals => fn (QueryBuilder $relations, string $related) => $relations->whereIn($related, self::idList($values)),
+            FilterOperator::AnyIssuesInProject, FilterOperator::NoIssuesInProject, FilterOperator::AnyIssuesNotInProject => fn (QueryBuilder $relations, string $related) => $relations
+                ->join("{$table} as related_issues", 'related_issues.id', '=', $related)
+                ->where(fn (QueryBuilder $inProject) => $operator === FilterOperator::AnyIssuesNotInProject
+                    ? $inProject->whereNotIn('related_issues.project_id', $this->chosenProjectIds($values))
+                    : $inProject->whereIn('related_issues.project_id', $this->chosenProjectIds($values))),
+            FilterOperator::AnyOpenIssues, FilterOperator::NoOpenIssues => fn (QueryBuilder $relations, string $related) => $relations
+                ->join("{$table} as related_issues", 'related_issues.id', '=', $related)
+                ->join('issue_statuses as related_statuses', 'related_statuses.id', '=', 'related_issues.status_id')
+                ->where('related_statuses.is_closed', false),
+            default => fn (QueryBuilder $relations, string $related) => $relations,
+        };
+
+        $related = function (Builder $any) use ($forms, $issueKey, $constraint): void {
+            foreach ($forms as [$type, $ownSide, $relatedSide]) {
+                $any->orWhereExists(fn (QueryBuilder $relations) => $constraint(
+                    $relations->select($relations->raw('1'))
+                        ->from('issue_relations')
+                        ->where('issue_relations.relation_type', $type)
+                        ->whereColumn("issue_relations.{$ownSide}", $issueKey),
+                    "issue_relations.{$relatedSide}",
+                ));
+            }
+        };
+
+        $negated = in_array($operator, [FilterOperator::NotEquals, FilterOperator::NoIssuesInProject, FilterOperator::NoOpenIssues, FilterOperator::IsEmpty], true);
+
+        return $negated ? $query->whereNot($related) : $query->where($related);
+    }
+
+    /**
+     * The chosen project, kept only when the viewer may see it — a hand-
+     * written URL must not probe projects the viewer cannot see.
+     *
+     * @param  array<int, mixed>  $values
+     * @return array<int, int>
+     */
+    private function chosenProjectIds(array $values): array
+    {
+        return array_values(array_intersect(self::idList($values), array_keys($this->visibleProjectOptions())));
+    }
+
+    /**
+     * The projects the viewer can see, for the relation filters' project
+     * operators (Redmine's all_projects_values).
+     *
+     * @return array<int, string>
+     */
+    private function visibleProjectOptions(): array
+    {
+        return $this->visibleProjectOptions ??= Project::query()
+            ->whereIn('id', $this->authorization->visibleProjectIds($this->viewer))
+            ->orderBy('_lft')
+            ->pluck('name', 'id')
+            ->all();
     }
 
     /**

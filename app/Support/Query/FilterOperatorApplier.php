@@ -27,7 +27,7 @@ final class FilterOperatorApplier
         // A filter still waiting for its value (an operator picked, the
         // field left blank) matches everything, like Redmine's — it must not
         // reach the query builder as `column >= NULL`, which throws.
-        if ($values === [] && ! in_array($operator, [FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], true)) {
+        if ($values === [] && $operator->requiresValue()) {
             return $query;
         }
 
@@ -50,6 +50,10 @@ final class FilterOperatorApplier
             FilterOperator::InTheLastDays => $query->where(
                 $column, '>=', now()->subDays((int) ($values[0] ?? 0))->startOfDay()
             ),
+            // The relation operators mean nothing for a plain column; no
+            // column field offers them.
+            FilterOperator::AnyOpenIssues, FilterOperator::NoOpenIssues,
+            FilterOperator::AnyIssuesInProject, FilterOperator::AnyIssuesNotInProject, FilterOperator::NoIssuesInProject => $query,
         };
     }
 

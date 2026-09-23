@@ -34,8 +34,16 @@
                     @endforeach
                 </select>
 
-                @if (($filterOperators[$key] ?? null) !== \App\Enums\FilterOperator::IsEmpty->value && ($filterOperators[$key] ?? null) !== \App\Enums\FilterOperator::IsNotEmpty->value)
-                    @if ($field->type() === \App\Enums\FilterFieldType::Select && $field->options() !== [])
+                @php $selectedOperator = \App\Enums\FilterOperator::tryFrom($filterOperators[$key] ?? ''); @endphp
+                @if ($selectedOperator?->requiresValue() ?? true)
+                    @if ($selectedOperator?->takesProject())
+                        <select wire:model="filterValues.{{ $key }}.0" class="rounded-md border-neutral-300 text-sm">
+                            <option value="">{{ __('選択してください') }}</option>
+                            @foreach ($field->options() as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    @elseif ($field->type() === \App\Enums\FilterFieldType::Select && $field->options() !== [])
                         @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::In->value || ($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::NotIn->value)
                             <select wire:model="filterValues.{{ $key }}" multiple class="min-w-[10rem] rounded-md border-neutral-300 text-sm">
                                 @foreach ($field->options() as $value => $label)
