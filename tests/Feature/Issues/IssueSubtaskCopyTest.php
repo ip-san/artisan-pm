@@ -121,6 +121,7 @@ test('a subtask the actor cannot see is not copied', function () {
     ['source' => $source, 'target' => $target, 'tracker' => $tracker] = subtaskCopySetup();
     $actor = User::factory()->create();
     Member::factory()->for($source)->for($actor)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues', 'copy_issues'], 'issues_visibility' => 'default']));
+    Member::factory()->for($target)->for($actor)->create()->roles()->attach(Role::factory()->create(['permissions' => ['add_issues']]));
     $root = subtaskCopyIssue($source, $tracker);
     subtaskCopyIssue($source, $tracker, ['parent_id' => $root->id, 'subject' => 'public']);
     subtaskCopyIssue($source, $tracker, ['parent_id' => $root->id, 'subject' => 'secret', 'is_private' => true, 'author_id' => User::factory()->create()->id]);

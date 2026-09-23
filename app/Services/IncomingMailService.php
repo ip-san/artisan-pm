@@ -23,6 +23,7 @@ use App\Support\Mail\MailSuppression;
 use App\Support\Mail\MessageIdentity;
 use App\Support\Mail\ParsedIncomingMail;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
@@ -274,7 +275,9 @@ final class IncomingMailService
 
         $trackerId = (int) Setting::get('incoming_mail_default_tracker_id', 0);
 
-        if (! $project->trackers->contains('id', $trackerId)) {
+        // Redmine's allowed_target_trackers: the sender must be allowed to
+        // create issues with the tracker (A1-27c).
+        if (! Issue::allowedTargetTrackers($project, $author)->contains('id', $trackerId)) {
             return null;
         }
 
@@ -331,21 +334,31 @@ final class IncomingMailService
     /**
      * Adds the mail body as a comment on an existing issue, matching
      * Redmine's MailHandler#receive_issue_reply. Any attachments on the
-     * reply are added too, same as a fresh-issue mail. Gated by
-     * edit_issues — the same permission the web edit form (which is
-     * where the comment field lives) already requires, since this app
-     * has no separate "add note" permission distinct from it.
+     * reply are added too, same as a fresh-issue mail. Gated like
+     * Redmine: the sender must see the issue and hold add_issue_notes on
+     * its tracker (edit_issues on it still works too, as before); keyword
+     * attribute changes need the edit permission.
      */
     private function receiveIssueReply(int $issueId, ParsedIncomingMail $mail, User $author): ?Issue
     {
         $issue = Issue::query()->find($issueId);
 
-        if ($issue === null || ! $issue->isVisibleTo($author) || ! $this->authorization->can($author, 'edit_issues', $issue->project)) {
+        // Redmine's receive_issue_reply: the sender must see the issue and
+        // may add notes on its tracker (notes_addable?, or edit it as this
+        // app always allowed); keyword lines only change attributes for a
+        // sender who may edit the issue.
+        if ($issue === null || ! $issue->isVisibleTo($author)
+            || (! Gate::forUser($author)->allows('addNotes', $issue) && ! Gate::forUser($author)->allows('update', $issue))) {
             return null;
         }
 
         ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $issue->project, $author, $issue);
         ['values' => $customFieldData, 'body' => $body] = $this->extractCustomFieldKeywords($body, $issue->project, (int) ($keywordAttributes['tracker_id'] ?? $issue->tracker_id), $author);
+
+        if (! Gate::forUser($author)->allows('update', $issue)) {
+            $keywordAttributes = [];
+            $customFieldData = [];
+        }
         $comment = trim($body);
         $updated = $this->issues->update($issue, $keywordAttributes, $author, $comment !== '' ? $comment : null, $customFieldData);
 
@@ -659,7 +672,9 @@ final class IncomingMailService
             // the same boundary the manual issue form enforces, so a
             // keyword line can't assign a tracker/category/version that
             // doesn't actually belong to this project.
-            'tracker' => $project->trackers->first(fn (Tracker $tracker) => strcasecmp($tracker->name, $value) === 0)?->id,
+            // Only a tracker the sender may use (Redmine's
+            // allowed_target_trackers, plus the replied issue's own).
+            'tracker' => Issue::allowedTargetTrackers($project, $author, $issue?->tracker_id)->first(fn (Tracker $tracker) => strcasecmp($tracker->name, $value) === 0)?->id,
             'category' => $project->issueCategories()->whereRaw('LOWER(name) = ?', [mb_strtolower($value)])->value('id'),
             'fixed version' => $project->versions()->whereRaw('LOWER(name) = ?', [mb_strtolower($value)])->value('id'),
             default => null,

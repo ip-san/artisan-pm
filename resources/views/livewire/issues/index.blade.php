@@ -1015,7 +1015,8 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function bulkTrackers(): Collection
     {
-        return $this->project->trackers()->orderBy('position')->get();
+        // Redmine's bulk edit / context menu offer allowed_target_trackers.
+        return Issue::allowedTargetTrackers($this->project, auth()->user());
     }
 
     /**
@@ -1284,7 +1285,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $target = $this->bulkMoveTargetProjects->firstWhere('id', $this->bulkMoveToProjectId);
 
-        return $target?->loadMissing('trackers')->trackers ?? collect();
+        return $target !== null ? Issue::allowedTargetTrackers($target, auth()->user()) : collect();
     }
 
     public function applyBulkMove(): void
@@ -1424,7 +1425,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $target = $this->bulkCopyTargetProjects->firstWhere('id', $this->bulkCopyToProjectId);
 
-        return $target?->loadMissing('trackers')->trackers ?? collect();
+        return $target !== null ? Issue::allowedTargetTrackers($target, auth()->user()) : collect();
     }
 
     public function applyBulkCopy(): void

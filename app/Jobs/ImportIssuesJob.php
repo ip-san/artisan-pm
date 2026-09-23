@@ -66,7 +66,10 @@ final class ImportIssuesJob implements ShouldQueue
         $imported = 0;
 
         $defaults = [
-            'tracker' => $this->import->project->trackers()->orderBy('position')->first(),
+            // Redmine's IssueImport#allowed_target_trackers: the trackers the
+            // importing user may create issues with.
+            'trackers' => $allowedTrackers = Issue::allowedTargetTrackers($this->import->project, $this->import->user),
+            'tracker' => $allowedTrackers->first(),
             'status' => IssueStatus::query()->orderBy('position')->first(),
             'priority' => Enumeration::query()->ofType(EnumerationType::IssuePriority)->where('is_default', true)->first(),
             // Computed once rather than per row — the permission doesn't
@@ -115,7 +118,7 @@ final class ImportIssuesJob implements ShouldQueue
     /**
      * @param  array<string, mixed>  $record
      * @param  array<string, string>  $mapping
-     * @param  array<string, Tracker|IssueStatus|Enumeration|bool|null>  $defaults
+     * @param  array<string, mixed>  $defaults
      * @return array<string, mixed>
      */
     private function mapRowToAttributes(array $record, array $mapping, array $defaults): array
@@ -127,7 +130,7 @@ final class ImportIssuesJob implements ShouldQueue
         }
 
         $trackerName = $this->mapped($record, $mapping, 'tracker');
-        $tracker = ($trackerName !== null ? Tracker::query()->where('name', $trackerName)->first() : null) ?? $defaults['tracker'];
+        $tracker = ($trackerName !== null ? $defaults['trackers']->first(fn (Tracker $candidate) => $candidate->name === $trackerName) : null) ?? $defaults['tracker'];
 
         $statusName = $this->mapped($record, $mapping, 'status');
         $status = ($statusName !== null ? IssueStatus::query()->where('name', $statusName)->first() : null) ?? $defaults['status'];

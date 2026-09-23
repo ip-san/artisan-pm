@@ -161,7 +161,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 }
             }
 
-            $this->tracker_id = $project->trackers->first()?->id;
+            $this->tracker_id = Issue::allowedTargetTrackers($project, auth()->user())->first()?->id;
             $this->priority_id = Enumeration::query()
                 ->ofType(EnumerationType::IssuePriority)
                 ->where('is_default', true)
@@ -430,10 +430,14 @@ new #[Layout('components.layouts.app')] class extends Component
         return app(WikiMarkdownRenderer::class)->render($this->description, $this->project, $this->issue?->attachments());
     }
 
+    /**
+     * Redmine's allowed_target_trackers: the trackers the user's add_issues
+     * roles allow, plus the edited issue's current tracker.
+     */
     #[Computed]
     public function projectTrackers(): Collection
     {
-        return $this->project->trackers;
+        return Issue::allowedTargetTrackers($this->project, auth()->user(), $this->issue?->getOriginal('tracker_id'));
     }
 
     #[Computed]
@@ -614,7 +618,7 @@ new #[Layout('components.layouts.app')] class extends Component
             // crafted request can't attach an issue to another project's
             // tracker/version, assign it to a non-member, or set a priority_id
             // that's actually a different enumeration type's row.
-            'tracker_id' => ['required', Rule::exists('project_tracker', 'tracker_id')->where('project_id', $this->project->id)],
+            'tracker_id' => ['required', Rule::in($this->projectTrackers->pluck('id')->all())],
             'priority_id' => ['required', Rule::exists('enumerations', 'id')->where('type', EnumerationType::IssuePriority->value)],
             'category_id' => ['nullable', Rule::exists('issue_categories', 'id')->where('project_id', $this->project->id)],
             'subject' => ['required', 'string', 'max:255'],

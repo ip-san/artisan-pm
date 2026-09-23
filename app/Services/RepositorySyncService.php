@@ -205,7 +205,7 @@ final class RepositorySyncService
 
             $rule = $this->ruleFor($match['keyword'], $issue);
 
-            if ($rule === null || ! $this->authorization->can($actor, 'edit_issues', $issue->loadMissing('project')->project)) {
+            if ($rule === null || ! $this->authorization->canOnTracker($actor, 'edit_issues', $issue->loadMissing('project')->project, (int) $issue->tracker_id)) {
                 continue;
             }
 

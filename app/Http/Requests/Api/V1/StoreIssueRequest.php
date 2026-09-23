@@ -30,7 +30,9 @@ final class StoreIssueRequest extends FormRequest
             // Scoped to this project so a crafted request can't attach an
             // issue to a tracker/version/assignee outside it — mirrors the
             // same rules in issues/form.blade.php's save() method.
-            'tracker_id' => ['required', Rule::exists('project_tracker', 'tracker_id')->where('project_id', $project->id)],
+            // Redmine's allowed_target_trackers: a project tracker the
+            // caller's add_issues roles allow.
+            'tracker_id' => ['required', Rule::in(Issue::allowedTargetTrackers($project, $this->user())->pluck('id')->all())],
             'priority_id' => ['required', Rule::exists('enumerations', 'id')->where('type', EnumerationType::IssuePriority->value)],
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],

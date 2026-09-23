@@ -676,7 +676,8 @@ final class IssueService
      * descendants top-down and copies each one under the copy of its
      * parent (a skipped subtask takes its whole subtree with it, since its
      * children have no copied parent to hang from). Each subtask keeps its
-     * own tracker, so one the target project doesn't use is skipped; the
+     * own tracker, so one the target project doesn't use, or the actor may
+     * not create issues with, is skipped; the
      * version survives only when it is open and reachable from the target
      * project, the category only inside the same project, and the assignee
      * only while active and a member of the target project. Subtasks the
@@ -687,7 +688,9 @@ final class IssueService
     {
         $source->loadMissing('project');
         $reachableVersionIds = $targetProject->sharedVersions()->pluck('id');
-        $trackerIds = $targetProject->trackers()->pluck('trackers.id');
+        // Redmine's validate_permissions on a copy: only trackers the actor
+        // may create issues with (allowed_target_trackers).
+        $trackerIds = Issue::allowedTargetTrackers($targetProject, $actor)->pluck('id');
         $copiedIds = [$source->id => $copy];
         $queue = [$source->id];
 

@@ -69,35 +69,50 @@ final class IssuePolicy
         return $this->authorization->can($user, 'manage_subtasks', $project);
     }
 
+    /**
+     * add_issues on the project; when the user's roles limit add_issues to
+     * some trackers, one of them must be enabled in the project (Redmine
+     * offers "new issue" only when Issue.allowed_target_trackers is not
+     * empty).
+     */
     public function create(User $user, Project $project): bool
     {
-        return $this->authorization->can($user, 'add_issues', $project);
+        if (! $this->authorization->can($user, 'add_issues', $project)) {
+            return false;
+        }
+
+        return $this->authorization->allowedTrackerIds($user, $project, 'add_issues') === null
+            || Issue::allowedTargetTrackers($project, $user)->isNotEmpty();
     }
 
     /**
      * Redmine's Issue#attributes_editable?: edit_issues for any issue, or
-     * edit_own_issues for one you authored.
+     * edit_own_issues for one you authored — each on the issue's tracker
+     * (user_tracker_permission?).
      */
     public function update(User $user, Issue $issue): bool
     {
         $project = $this->projectOf($issue);
 
-        return $this->authorization->can($user, 'edit_issues', $project)
-            || ($issue->author_id === $user->id && $this->authorization->can($user, 'edit_own_issues', $project));
+        return $this->authorization->canOnTracker($user, 'edit_issues', $project, (int) $issue->tracker_id)
+            || ($issue->author_id === $user->id && $this->authorization->canOnTracker($user, 'edit_own_issues', $project, (int) $issue->tracker_id));
     }
 
     /**
-     * Redmine's add_issue_notes: commenting on an issue, with or without the
-     * right to change its fields.
+     * Redmine's Issue#notes_addable?: add_issue_notes on the issue's
+     * tracker, with or without the right to change its fields.
      */
     public function addNotes(User $user, Issue $issue): bool
     {
-        return $this->authorization->can($user, 'add_issue_notes', $this->projectOf($issue));
+        return $this->authorization->canOnTracker($user, 'add_issue_notes', $this->projectOf($issue), (int) $issue->tracker_id);
     }
 
+    /**
+     * Redmine's Issue#deletable?: delete_issues on the issue's tracker.
+     */
     public function delete(User $user, Issue $issue): bool
     {
-        return $this->authorization->can($user, 'delete_issues', $this->projectOf($issue));
+        return $this->authorization->canOnTracker($user, 'delete_issues', $this->projectOf($issue), (int) $issue->tracker_id);
     }
 
     public function watch(User $user, Issue $issue): bool
@@ -156,7 +171,7 @@ final class IssuePolicy
     public function copy(User $user, Issue $issue, Project $targetProject): bool
     {
         return $this->authorization->can($user, 'copy_issues', $this->projectOf($issue))
-            && $this->authorization->can($user, 'add_issues', $targetProject);
+            && $this->create($user, $targetProject);
     }
 
     /**

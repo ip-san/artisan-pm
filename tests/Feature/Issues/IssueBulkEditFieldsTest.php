@@ -38,7 +38,9 @@ function bulkFieldsIssue(Project $project, Tracker $tracker, array $attributes =
 }
 
 test('bulk edit changes tracker, category and dates', function () {
-    ['project' => $project, 'user' => $user, 'tracker' => $tracker] = bulkFieldsSetup();
+    // Changing the tracker offers the trackers add_issues allows (Redmine's
+    // allowed_target_trackers, A1-27c).
+    ['project' => $project, 'user' => $user, 'tracker' => $tracker] = bulkFieldsSetup(['view_project', 'view_issues', 'edit_issues', 'add_issues', 'manage_subtasks', 'set_issues_private']);
     $other = Tracker::factory()->create();
     $project->trackers()->attach($other);
     $category = IssueCategory::factory()->for($project)->create();

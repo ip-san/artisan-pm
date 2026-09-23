@@ -525,6 +525,35 @@ final class Issue extends Model implements HasMedia
     }
 
     /**
+     * Redmine's Issue.allowed_target_trackers: the project's trackers the
+     * user may create issues with — those their add_issues roles allow
+     * (every tracker for admins and "all trackers" roles), plus the issue's
+     * current tracker so an edit can keep it.
+     *
+     * @return Collection<int, Tracker>
+     */
+    public static function allowedTargetTrackers(Project $project, ?User $user, ?int $currentTrackerId = null): Collection
+    {
+        $trackers = $project->trackers()->orderBy('position')->get();
+
+        if ($user?->is_admin) {
+            return $trackers;
+        }
+
+        $allowedIds = app(AuthorizationService::class)->allowedTrackerIds($user, $project, 'add_issues');
+
+        if ($allowedIds === null) {
+            return $trackers;
+        }
+
+        if ($currentTrackerId !== null) {
+            $allowedIds = $allowedIds->push($currentTrackerId);
+        }
+
+        return $trackers->whereIn('id', $allowedIds->all())->values();
+    }
+
+    /**
      * Keeps the loaded issues $user may see (Redmine's `.select(&:visible?)`),
      * resolving each project's visibility rules once.
      *

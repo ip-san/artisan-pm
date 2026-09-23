@@ -27,7 +27,9 @@ final class UpdateIssueRequest extends FormRequest
         $projectId = $issue->project_id;
 
         return [
-            'tracker_id' => ['sometimes', Rule::exists('project_tracker', 'tracker_id')->where('project_id', $projectId)],
+            // Redmine's allowed_target_trackers: a tracker the caller's
+            // add_issues roles allow, or the issue's current one.
+            'tracker_id' => ['sometimes', Rule::in(Issue::allowedTargetTrackers($issue->loadMissing('project')->project, $this->user(), (int) $issue->tracker_id)->pluck('id')->all())],
             'status_id' => ['sometimes', 'exists:issue_statuses,id'],
             'priority_id' => ['sometimes', Rule::exists('enumerations', 'id')->where('type', EnumerationType::IssuePriority->value)],
             'subject' => ['sometimes', 'string', 'max:255'],

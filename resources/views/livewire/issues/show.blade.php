@@ -793,7 +793,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $target = $this->moveTargetProjects->firstWhere('id', $this->moveToProjectId);
 
-        return $target?->trackers ?? collect();
+        return $target !== null ? Issue::allowedTargetTrackers($target, auth()->user()) : collect();
     }
 
     public function moveIssue(): void
