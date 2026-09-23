@@ -18,10 +18,10 @@ use App\Models\User;
 use App\Models\WikiPage;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Search\SearchResult;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * Searches across every searchable module in one or more projects,
@@ -91,6 +91,34 @@ final class SearchService
             ->merge($hasOwnText ? $this->searchChangesets($projects, $viewer, $words, $allWords) : [])
             ->merge($hasOwnText ? $this->searchProjects($projects, $words, $allWords, $titlesOnly) : [])
             ->sortByDesc('updatedAt')
+            ->values();
+    }
+
+    /**
+     * Every issue of $projects (those where $viewer holds view_issues)
+     * whose subject, description or searchable custom field value matches
+     * $query — the issue search without its per-type cap, for the issue
+     * list's "any searchable" filter (Redmine's sql_for_any_searchable_field
+     * uses the search fetcher's ids the same way). Attachments are left
+     * out, as there. Whether the viewer may see each issue is left to the
+     * caller's own visibility scope.
+     *
+     * @param  Collection<int, Project>  $projects
+     * @return Collection<int, int>
+     */
+    public function issueIdsMatching(Collection $projects, ?User $viewer, string $query, bool $allWords = true): Collection
+    {
+        $words = preg_split('/\s+/u', trim($query), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $projectIds = $this->projectIdsPermitting($projects, $viewer, 'view_issues');
+
+        if ($words === [] || $projectIds->isEmpty()) {
+            return collect();
+        }
+
+        return $this->whereWordsMatch(Issue::query()->whereIn('project_id', $projectIds), ['subject', 'description'], $words, $allWords)
+            ->pluck('id')
+            ->merge($this->issueIdsMatchingSearchableCustomFields($projectIds, $words, $allWords))
+            ->unique()
             ->values();
     }
 

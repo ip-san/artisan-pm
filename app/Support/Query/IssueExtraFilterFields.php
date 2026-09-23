@@ -7,11 +7,14 @@ namespace App\Support\Query;
 use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
 use App\Enums\IssueRelationType;
+use App\Enums\ProjectStatus;
+use App\Enums\VersionStatus;
 use App\Models\Group;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\SearchService;
 use App\Support\Authorization\AuthorizationService;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -47,11 +50,13 @@ final class IssueExtraFilterFields
 
     /**
      * @param  Closure(): Collection<int, Project>  $scopeProjects  the projects whose issues the list covers, resolved only when a filter needs them
+     * @param  ?Project  $listProject  the project whose list it is, null for the cross-project list
      */
     public function __construct(
         private readonly Closure $scopeProjects,
         private readonly ?User $viewer,
         private readonly AuthorizationService $authorization,
+        private readonly ?Project $listProject = null,
     ) {}
 
     /**
@@ -77,6 +82,11 @@ final class IssueExtraFilterFields
             $this->authorRole(),
             $this->attachment(),
             $this->attachmentDescription(),
+            $this->fixedVersionDueDate(),
+            $this->fixedVersionStatus(),
+            $this->projectStatus(),
+            $this->spentTime(),
+            $this->anySearchable(),
         ]));
     }
 
@@ -666,6 +676,168 @@ final class IssueExtraFilterFields
 
                     self::applyText($media, $column, $operator, $values);
                 });
+            },
+        );
+    }
+
+    /**
+     * Redmine's fixed_version.due_date (keyed fixed_version_due_date): the
+     * target version's due date. "None" also matches an issue without a
+     * target version, as in Redmine.
+     */
+    private function fixedVersionDueDate(): FilterableField
+    {
+        return new CallbackFilter(
+            'fixed_version_due_date',
+            __('対象バージョンの期日'),
+            FilterFieldType::Date,
+            [FilterOperator::Equals, FilterOperator::GreaterOrEqual, FilterOperator::LessOrEqual, FilterOperator::Between, FilterOperator::InTheLastDays, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                $dueDate = fn (Builder $versions) => FilterOperatorApplier::apply($versions, 'versions.due_date', $operator, $values);
+
+                return $operator === FilterOperator::IsEmpty
+                    ? $query->where(fn (Builder $none) => $none->whereNull($none->qualifyColumn('fixed_version_id'))->orWhereHas('fixedVersion', $dueDate))
+                    : $query->whereHas('fixedVersion', $dueDate);
+            },
+        );
+    }
+
+    /**
+     * Redmine's fixed_version.status (keyed fixed_version_status). "Is
+     * not" also matches an issue without a target version, as in Redmine.
+     */
+    private function fixedVersionStatus(): FilterableField
+    {
+        return new CallbackFilter(
+            'fixed_version_status',
+            __('対象バージョンのステータス'),
+            FilterFieldType::Select,
+            self::userOperators(),
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                if ($values === []) {
+                    return $query;
+                }
+
+                $statuses = fn (Builder $versions) => $versions->whereIn('versions.status', array_map('strval', $values));
+
+                return self::isNegative($operator)
+                    ? $query->where(fn (Builder $other) => $other->whereNull($other->qualifyColumn('fixed_version_id'))->orWhereDoesntHave('fixedVersion', $statuses))
+                    : $query->whereHas('fixedVersion', $statuses);
+            },
+            fn () => [
+                VersionStatus::Open->value => __('オープン'),
+                VersionStatus::Locked->value => __('ロック中'),
+                VersionStatus::Closed->value => __('クローズ'),
+            ],
+        );
+    }
+
+    /**
+     * Redmine's project.status (keyed project_status), offered on the
+     * cross-project list and on a project that has subprojects.
+     */
+    private function projectStatus(): ?FilterableField
+    {
+        if ($this->listProject !== null && $this->listProject->_rgt - $this->listProject->_lft <= 1) {
+            return null;
+        }
+
+        return new CallbackFilter(
+            'project_status',
+            __('プロジェクトのステータス'),
+            FilterFieldType::Select,
+            self::userOperators(),
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                if ($values === []) {
+                    return $query;
+                }
+
+                $statuses = fn (Builder $projects) => $projects->whereIn('projects.status', array_map('strval', $values));
+
+                return self::isNegative($operator)
+                    ? $query->whereDoesntHave('project', $statuses)
+                    : $query->whereHas('project', $statuses);
+            },
+            fn () => [
+                ProjectStatus::Active->value => __('アクティブ'),
+                ProjectStatus::Closed->value => __('クローズ'),
+            ],
+        );
+    }
+
+    /**
+     * Redmine's sql_for_spent_time_field: the hours logged on the issue
+     * itself ("none"/"any": no hours / some hours). Offered only to a
+     * viewer who may see time entries (on the list's project, or anywhere
+     * for the cross-project list).
+     */
+    private function spentTime(): ?FilterableField
+    {
+        $allowed = $this->listProject !== null
+            ? $this->authorization->can($this->viewer, 'view_time_entries', $this->listProject)
+            : $this->authorization->canGlobally($this->viewer, 'view_time_entries');
+
+        if (! $allowed) {
+            return null;
+        }
+
+        return new CallbackFilter(
+            'spent_time',
+            __('作業時間'),
+            FilterFieldType::Integer,
+            [FilterOperator::Equals, FilterOperator::GreaterOrEqual, FilterOperator::LessOrEqual, FilterOperator::Between, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                if ($operator->requiresValue() && ($values === [] || ($operator === FilterOperator::Between && count($values) < 2))) {
+                    return $query;
+                }
+
+                $hours = 'COALESCE((SELECT SUM(time_entries.hours) FROM time_entries WHERE time_entries.issue_id = '.$query->getModel()->getQualifiedKeyName().'), 0)';
+                $first = round((float) ($values[0] ?? 0), 2);
+
+                return match ($operator) {
+                    FilterOperator::IsEmpty => $query->whereRaw("{$hours} = 0"),
+                    FilterOperator::IsNotEmpty => $query->whereRaw("{$hours} > 0"),
+                    FilterOperator::GreaterOrEqual => $query->whereRaw("{$hours} >= ?", [$first]),
+                    FilterOperator::LessOrEqual => $query->whereRaw("{$hours} <= ?", [$first]),
+                    FilterOperator::Between => $query->whereRaw("{$hours} BETWEEN ? AND ?", [$first, round((float) $values[1], 2)]),
+                    default => $query->whereRaw("{$hours} = ?", [$first]),
+                };
+            },
+        );
+    }
+
+    /**
+     * Redmine's sql_for_any_searchable_field: the issues the issue search
+     * finds in the projects the list covers — every word ("contains"), or
+     * none of them ("does not contain").
+     */
+    private function anySearchable(): FilterableField
+    {
+        return new CallbackFilter(
+            'any_searchable',
+            __('検索可能な項目'),
+            FilterFieldType::Text,
+            [FilterOperator::Contains, FilterOperator::NotContains],
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                $text = trim((string) ($values[0] ?? ''));
+
+                if ($text === '') {
+                    return $query;
+                }
+
+                $negated = $operator === FilterOperator::NotContains;
+                $ids = app(SearchService::class)->issueIdsMatching($this->scopeProjects(), $this->viewer, $text, allWords: ! $negated);
+                $key = $query->getModel()->getQualifiedKeyName();
+
+                if ($ids->isEmpty()) {
+                    return $negated ? $query : $query->whereRaw('1 = 0');
+                }
+
+                return $negated ? $query->whereNotIn($key, $ids) : $query->whereIn($key, $ids);
             },
         );
     }

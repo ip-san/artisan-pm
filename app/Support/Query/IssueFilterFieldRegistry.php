@@ -69,7 +69,7 @@ final class IssueFilterFieldRegistry
             ->filter(fn (CustomField $field) => $field->appliesToProject($project))
             ->map(fn (CustomField $field): FilterableField => new CustomFieldFilter($field));
 
-        $extraFields = (new IssueExtraFilterFields(fn () => SubprojectScope::projectsForIssues($project, $viewer), $viewer, app(AuthorizationService::class)))->fields();
+        $extraFields = (new IssueExtraFilterFields(fn () => SubprojectScope::projectsForIssues($project, $viewer), $viewer, app(AuthorizationService::class), $project))->fields();
 
         return collect($nativeFields)->concat($extraFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key());
     }
