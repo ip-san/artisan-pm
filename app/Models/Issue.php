@@ -473,11 +473,11 @@ final class Issue extends Model implements HasMedia
      */
     public function scopeVisibleToAcrossProjects(Builder $query, ?User $user, Collection $projects): Builder
     {
-        $authorization = app(AuthorizationService::class);
+        $rulesByProject = app(AuthorizationService::class)->issueVisibilityRulesByProject($user, $projects);
         $buckets = [];
 
         foreach ($projects as $project) {
-            $rules = $authorization->issueVisibilityRules($user, $project);
+            $rules = $rulesByProject[$project->id];
 
             if ($rules === []) {
                 continue;
@@ -519,9 +519,7 @@ final class Issue extends Model implements HasMedia
      */
     public function scopeVisible(Builder $query, ?User $user): Builder
     {
-        $projects = Project::query()->whereIn('id', app(AuthorizationService::class)->visibleProjectIds($user))->get();
-
-        return $query->visibleToAcrossProjects($user, $projects);
+        return $query->visibleToAcrossProjects($user, app(AuthorizationService::class)->issueProjects($user));
     }
 
     /**

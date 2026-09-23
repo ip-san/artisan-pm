@@ -20,9 +20,39 @@ use Illuminate\Support\Collection;
  * Single source of truth for "can this user do this permission, optionally
  * scoped to a project". Policies delegate here rather than re-implementing
  * role/module resolution themselves.
+ *
+ * Bound as a scoped instance (PermissionServiceProvider), so the issue
+ * visibility memo below lives for one request or job. Any write query in
+ * that request flushes it (see flushCache()), so a membership, role, group
+ * or project change made earlier in the same request is always seen.
  */
 final class AuthorizationService
 {
+    /**
+     * @var array<string, array<string, list<int>|null>>
+     */
+    private array $issueVisibilityRulesCache = [];
+
+    /**
+     * @var array<string, Collection<int, Project>>
+     */
+    private array $issueProjectsCache = [];
+
+    /**
+     * @var array<string, Collection<int, Role>> keyed "userId:projectId"
+     */
+    private array $memberRolesCache = [];
+
+    /**
+     * @var array<int, Collection<int, int>> keyed by user id
+     */
+    private array $groupIdsCache = [];
+
+    /**
+     * @var array<string, Collection<int, Role>> keyed by RoleBuiltin value
+     */
+    private array $builtinRolesCache = [];
+
     public function __construct(
         private readonly PermissionRegistry $permissions,
     ) {}
@@ -127,6 +157,77 @@ final class AuthorizationService
             return [IssueVisibility::All->value => null];
         }
 
+        // is_public and status are read from the instance, so an unsaved
+        // change to them never reuses a rule set built without it.
+        $key = implode(':', [$user?->id ?? 'anonymous', $project->id, (int) $project->is_public, $project->status?->value ?? '']);
+
+        if ($project->id === null) {
+            return $this->resolveIssueVisibilityRules($user, $project);
+        }
+
+        return $this->issueVisibilityRulesCache[$key] ??= $this->resolveIssueVisibilityRules($user, $project);
+    }
+
+    /**
+     * issueVisibilityRules() for many projects at once, keyed by project id:
+     * the user's memberships in all of them are loaded in one query rather
+     * than one per project.
+     *
+     * @param  Collection<int, Project>  $projects
+     * @return array<int, array<string, list<int>|null>>
+     */
+    public function issueVisibilityRulesByProject(?User $user, Collection $projects): array
+    {
+        if ($user !== null && ! $user->is_admin) {
+            $this->prefetchMemberRoles($user, $projects);
+        }
+
+        $rulesByProject = [];
+
+        foreach ($projects as $project) {
+            $rulesByProject[$project->id] = $this->issueVisibilityRules($user, $project);
+        }
+
+        return $rulesByProject;
+    }
+
+    /**
+     * The projects Issue::scopeVisible() looks through for $user (every
+     * project they can see, as visibleProjectIds() resolves it), with their
+     * modules loaded, memoized like issueVisibilityRules().
+     *
+     * @return Collection<int, Project>
+     */
+    public function issueProjects(?User $user): Collection
+    {
+        $key = $user === null ? 'anonymous' : $user->id.':'.(int) $user->is_admin;
+
+        return $this->issueProjectsCache[$key] ??= Project::query()
+            ->whereIn('id', $this->visibleProjectIds($user))
+            ->with('moduleAssignments')
+            ->get();
+    }
+
+    /**
+     * Forgets the memoized issue visibility. Called on every write query
+     * and rolled-back transaction (PermissionServiceProvider): anything
+     * from a new member or role to a module switch can change the rules,
+     * and several of those writes (pivot attaches) fire no model event.
+     */
+    public function flushCache(): void
+    {
+        $this->issueVisibilityRulesCache = [];
+        $this->issueProjectsCache = [];
+        $this->memberRolesCache = [];
+        $this->groupIdsCache = [];
+        $this->builtinRolesCache = [];
+    }
+
+    /**
+     * @return array<string, list<int>|null>
+     */
+    private function resolveIssueVisibilityRules(?User $user, Project $project): array
+    {
         if (! $this->projectAllows('view_issues', $project)) {
             return [];
         }
@@ -244,9 +345,7 @@ final class AuthorizationService
     public function rolesFor(?User $user, Project $project): Collection
     {
         if ($user === null) {
-            return $project->is_public
-                ? Role::query()->where('builtin', RoleBuiltin::Anonymous)->get()
-                : collect();
+            return $project->is_public ? $this->builtinRoles(RoleBuiltin::Anonymous) : collect();
         }
 
         $memberRoles = $this->memberRolesFor($user, $project);
@@ -255,43 +354,20 @@ final class AuthorizationService
             return $memberRoles;
         }
 
-        return $project->is_public
-            ? Role::query()->where('builtin', RoleBuiltin::NonMember)->get()
-            : collect();
+        return $project->is_public ? $this->builtinRoles(RoleBuiltin::NonMember) : collect();
     }
 
     /**
-     * The most permissive issues_visibility across every role a user holds
-     * in this project (All > Default > Own) — uses rolesFor() rather than
-     * memberRolesFor() directly so guests/non-members correctly consult
-     * their builtin role's own setting instead of always resolving to All.
+     * @return Collection<int, Role>
      */
-    public function issueVisibilityFor(?User $user, Project $project): IssueVisibility
+    private function builtinRoles(RoleBuiltin $builtin): Collection
     {
-        if ($user?->is_admin) {
-            return IssueVisibility::All;
-        }
-
-        $roles = $this->rolesFor($user, $project);
-
-        if ($roles->isEmpty()) {
-            return IssueVisibility::All;
-        }
-
-        if ($roles->contains(fn (Role $role) => $role->issues_visibility === IssueVisibility::All)) {
-            return IssueVisibility::All;
-        }
-
-        if ($roles->contains(fn (Role $role) => $role->issues_visibility === IssueVisibility::Default)) {
-            return IssueVisibility::Default;
-        }
-
-        return IssueVisibility::Own;
+        return $this->builtinRolesCache[$builtin->value] ??= Role::query()->where('builtin', $builtin)->get();
     }
 
     /**
-     * Same broadest-wins resolution as issueVisibilityFor(), for
-     * time_entries_visibility.
+     * The most permissive time_entries_visibility across every role a
+     * member holds in this project (All wins over Own).
      */
     public function timeEntryVisibilityFor(?User $user, Project $project): TimeEntryVisibility
     {
@@ -478,16 +554,54 @@ final class AuthorizationService
      */
     private function memberRolesFor(User $user, Project $project): Collection
     {
-        $groupIds = $user->groups()->pluck('groups.id');
+        // A project being created has no members yet.
+        if ($project->id === null) {
+            return (new Role)->newCollection();
+        }
 
-        return Role::query()
-            ->whereHas('members', function ($query) use ($user, $project, $groupIds) {
-                $query->where('project_id', $project->id)
-                    ->where(function ($member) use ($user, $groupIds) {
-                        $member->where('user_id', $user->id)
-                            ->orWhereIn('group_id', $groupIds);
-                    });
-            })
-            ->get();
+        if (! isset($this->memberRolesCache[$user->id.':'.$project->id])) {
+            $this->prefetchMemberRoles($user, collect([$project]));
+        }
+
+        return $this->memberRolesCache[$user->id.':'.$project->id];
+    }
+
+    /**
+     * Loads the roles the user holds in each of $projects (directly or
+     * through a group, inherited ones included) with one query, into the
+     * memo memberRolesFor() reads.
+     *
+     * @param  Collection<int, Project>  $projects
+     */
+    private function prefetchMemberRoles(User $user, Collection $projects): void
+    {
+        $projectIds = $projects->pluck('id')
+            ->filter()
+            ->reject(fn (int $projectId) => isset($this->memberRolesCache[$user->id.':'.$projectId]))
+            ->unique()
+            ->values();
+
+        if ($projectIds->isEmpty()) {
+            return;
+        }
+
+        $groupIds = $this->groupIdsCache[$user->id] ??= $user->groups()->pluck('groups.id');
+
+        $members = Member::query()
+            ->whereIn('project_id', $projectIds)
+            ->where(fn ($member) => $member->where('user_id', $user->id)->orWhereIn('group_id', $groupIds))
+            ->with('roles')
+            ->get()
+            ->groupBy('project_id');
+
+        foreach ($projectIds as $projectId) {
+            $roles = collect($members->get($projectId) ?? [])
+                ->flatMap(fn (Member $member) => $member->roles)
+                ->unique('id')
+                ->sortBy('id')
+                ->values();
+
+            $this->memberRolesCache[$user->id.':'.$projectId] = (new Role)->newCollection($roles->all());
+        }
     }
 }

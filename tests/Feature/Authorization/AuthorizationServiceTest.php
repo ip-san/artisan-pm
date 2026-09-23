@@ -110,31 +110,35 @@ test('unknown permission keys are always denied', function () {
     expect(authService()->can($admin, 'not_a_real_permission', $project))->toBeFalse();
 });
 
-test('a role with own-only issue visibility restricts issueVisibilityFor to Own', function () {
+test('a role with own-only issue visibility restricts issueVisibilityRules to Own', function () {
     $project = Project::factory()->create();
     $user = User::factory()->create();
-    $role = Role::factory()->create(['issues_visibility' => IssueVisibility::Own->value]);
+    $role = Role::factory()->create(['permissions' => ['view_issues'], 'issues_visibility' => IssueVisibility::Own->value]);
     Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
 
-    expect(authService()->issueVisibilityFor($user, $project))->toBe(IssueVisibility::Own);
+    expect(authService()->issueVisibilityRules($user, $project))->toBe([IssueVisibility::Own->value => null]);
 });
 
 test('holding any role with All visibility wins over an Own-only role', function () {
     $project = Project::factory()->create();
     $user = User::factory()->create();
-    $ownRole = Role::factory()->create(['issues_visibility' => IssueVisibility::Own->value]);
-    $allRole = Role::factory()->create(['issues_visibility' => IssueVisibility::All->value]);
+    $ownRole = Role::factory()->create(['permissions' => ['view_issues'], 'issues_visibility' => IssueVisibility::Own->value]);
+    $allRole = Role::factory()->create(['permissions' => ['view_issues'], 'issues_visibility' => IssueVisibility::All->value]);
     $member = Member::factory()->for($project)->for($user)->create();
     $member->roles()->attach([$ownRole->id, $allRole->id]);
 
-    expect(authService()->issueVisibilityFor($user, $project))->toBe(IssueVisibility::All);
+    expect(authService()->issueVisibilityRules($user, $project))->toBe([IssueVisibility::All->value => null]);
 });
 
-test('a non-member on a public project gets All issue visibility', function () {
+test('a non-member on a public project gets the NonMember role\'s issue visibility, or none without that role', function () {
     $project = Project::factory()->create();
     $user = User::factory()->create();
 
-    expect(authService()->issueVisibilityFor($user, $project))->toBe(IssueVisibility::All);
+    expect(authService()->issueVisibilityRules($user, $project))->toBe([]);
+
+    Role::factory()->create(['builtin' => RoleBuiltin::NonMember->value, 'permissions' => ['view_issues'], 'issues_visibility' => IssueVisibility::Default->value]);
+
+    expect(authService()->issueVisibilityRules($user, $project))->toBe([IssueVisibility::Default->value => null]);
 });
 
 test('hasSiteWideUserVisibility is always true for admins', function () {

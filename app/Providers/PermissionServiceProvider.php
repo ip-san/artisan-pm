@@ -6,7 +6,12 @@ namespace App\Providers;
 
 use App\Enums\PermissionRequirement;
 use App\Enums\ProjectModuleKey;
+use App\Support\Authorization\AuthorizationService;
 use App\Support\Permissions\PermissionRegistry;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\Events\TransactionRolledBack;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -20,10 +25,13 @@ final class PermissionServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(PermissionRegistry::class);
+        $this->app->scoped(AuthorizationService::class);
     }
 
     public function boot(): void
     {
+        $this->flushAuthorizationCacheOnWrites();
+
         $registry = $this->app->make(PermissionRegistry::class);
 
         $registry->register('view_project', requirement: PermissionRequirement::None, readOnly: true);
@@ -121,5 +129,27 @@ final class PermissionServiceProvider extends ServiceProvider
 
         $registry->register('view_calendar', module: ProjectModuleKey::Calendar, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('view_gantt', module: ProjectModuleKey::Gantt, requirement: PermissionRequirement::None, readOnly: true);
+    }
+
+    /**
+     * AuthorizationService memoizes issue visibility for the request; any
+     * write (including pivot attaches, which fire no model event) or
+     * rolled-back transaction may change what it resolved, so it starts over.
+     */
+    private function flushAuthorizationCacheOnWrites(): void
+    {
+        $flush = function (): void {
+            if ($this->app->resolved(AuthorizationService::class)) {
+                $this->app->make(AuthorizationService::class)->flushCache();
+            }
+        };
+
+        DB::listen(function (QueryExecuted $query) use ($flush): void {
+            if (preg_match('/^\s*(insert|update|delete|truncate|merge)\b/i', $query->sql) === 1) {
+                $flush();
+            }
+        });
+
+        Event::listen(TransactionRolledBack::class, $flush);
     }
 }
