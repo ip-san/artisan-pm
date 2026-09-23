@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use LogicException;
 
 #[Fillable(['name', 'builtin', 'permissions', 'position', 'issues_visibility', 'time_entries_visibility', 'users_visibility', 'assignable', 'all_roles_managed', 'default_time_entry_activity_id'])]
 final class Role extends Model
@@ -74,6 +75,27 @@ final class Role extends Model
     public function scopeGivable(Builder $query): Builder
     {
         return $query->whereNull('builtin')->orderBy('position');
+    }
+
+    /**
+     * Redmine's Role#check_deletable (before_destroy): a builtin role, or
+     * one still held by any member — directly, through a group or inherited
+     * from a parent project — cannot be deleted, so deleting a role never
+     * leaves members without roles. The roles screen says why; this is the
+     * backstop.
+     */
+    protected static function booted(): void
+    {
+        self::deleting(function (Role $role): void {
+            if (! $role->isDeletable()) {
+                throw new LogicException('Cannot delete a builtin role or a role in use.');
+            }
+        });
+    }
+
+    public function isDeletable(): bool
+    {
+        return $this->builtin === null && ! $this->members()->exists();
     }
 
     /**

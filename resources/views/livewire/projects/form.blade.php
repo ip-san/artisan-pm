@@ -104,6 +104,23 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * Redmine's project form warns a non-administrator who is a member of
+     * the parent before they untick "inherit members" on a project that
+     * inherits: their own access here may come only from the parent.
+     */
+    #[Computed]
+    public function warnsBeforeLeavingInheritance(): bool
+    {
+        $user = auth()->user();
+        $parent = $this->project?->loadMissing('parent')->parent;
+
+        return $user !== null && ! $user->is_admin
+            && $this->project?->inherit_members === true
+            && $parent !== null
+            && app(\App\Support\Authorization\AuthorizationService::class)->isMemberOf($user, $parent);
+    }
+
+    /**
      * Whether the publicity checkbox is offered (select_project_publicity).
      */
     #[Computed]
@@ -401,7 +418,11 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <label class="flex items-center gap-2 text-sm text-neutral-700">
-            <input type="checkbox" wire:model="inherit_members" class="rounded border-neutral-300">
+            <input type="checkbox" wire:model="inherit_members" class="rounded border-neutral-300"
+                @if ($this->warnsBeforeLeavingInheritance)
+                    x-data x-on:click="if (! $el.checked && ! confirm(@js(__('一部またはすべての権限を自分自身から剥奪しようとしているため、このプロジェクトを編集できなくなる可能性があります。本当に続けますか?')))) { $event.preventDefault() }"
+                    data-confirm-leaving-inheritance
+                @endif>
             {{ __('メンバーを継承') }}
         </label>
 

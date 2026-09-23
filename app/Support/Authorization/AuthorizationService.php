@@ -98,6 +98,15 @@ final class AuthorizationService
     }
 
     /**
+     * Whether the user holds a membership in the project, directly or
+     * through a group — Redmine's User#member_of?.
+     */
+    public function isMemberOf(User $user, Project $project): bool
+    {
+        return $this->memberRolesFor($user, $project)->isNotEmpty();
+    }
+
+    /**
      * Resolves in tiers: guests get the Anonymous builtin role on public
      * projects; members get their assigned role(s); everyone else falls
      * back to the NonMember builtin role, again only on public projects.

@@ -512,3 +512,24 @@ test('a subproject created with inherit members starts with the parent members, 
         ])
         ->and(array_keys(inheritanceRoleRows($child, $colleague)))->toBe([$parentRole->id]);
 });
+
+test('a non-administrator member of the parent is warned before unticking "inherit members"', function () {
+    $parent = Project::factory()->create(['is_public' => false]);
+    $manager = User::factory()->create();
+    addInheritanceMember($parent, $manager, [Role::factory()->create(['permissions' => ['view_project', 'edit_project']])]);
+    $child = Project::factory()->create(['parent_id' => $parent->id, 'is_public' => false, 'inherit_members' => true]);
+    $plain = Project::factory()->create(['parent_id' => $parent->id, 'is_public' => false]);
+    addInheritanceMember($plain, $manager, [Role::factory()->create(['permissions' => ['view_project', 'edit_project']])]);
+
+    $outsider = User::factory()->create();
+    addInheritanceMember($child, $outsider, [Role::factory()->create(['permissions' => ['view_project', 'edit_project']])]);
+
+    Livewire::actingAs($manager)->test('projects.form', ['project' => $child])
+        ->assertSeeHtml('data-confirm-leaving-inheritance');
+    Livewire::actingAs(User::factory()->admin()->create())->test('projects.form', ['project' => $child])
+        ->assertDontSeeHtml('data-confirm-leaving-inheritance');
+    Livewire::actingAs($manager)->test('projects.form', ['project' => $plain])
+        ->assertDontSeeHtml('data-confirm-leaving-inheritance');
+    Livewire::actingAs($outsider)->test('projects.form', ['project' => $child])
+        ->assertDontSeeHtml('data-confirm-leaving-inheritance');
+});

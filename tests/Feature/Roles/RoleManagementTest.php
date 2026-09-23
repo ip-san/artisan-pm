@@ -2,6 +2,8 @@
 
 use App\Enums\IssueVisibility;
 use App\Enums\RoleBuiltin;
+use App\Models\Member;
+use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use Livewire\Livewire;
@@ -125,4 +127,33 @@ test('re-enabling all_roles_managed clears any previously selected managed roles
         ->call('save');
 
     expect($role->fresh()->managedRoles)->toBeEmpty();
+});
+
+test('a role held by members cannot be deleted and the refusal names their projects', function () {
+    $admin = User::factory()->admin()->create();
+    $role = Role::factory()->create(['name' => 'In use']);
+    $project = Project::factory()->create(['name' => 'Holding project']);
+    Member::factory()->for($project)->for(User::factory()->create())->create()->roles()->attach($role);
+
+    Livewire::actingAs($admin)->test('roles.index')
+        ->call('delete', $role->id)
+        ->assertHasErrors('delete')
+        ->assertSee('このロールは使用中です。削除できません。')
+        ->assertSee('Holding project');
+
+    expect(Role::query()->find($role->id))->not->toBeNull()
+        ->and(fn () => $role->delete())->toThrow(LogicException::class);
+});
+
+test('an unused role can be deleted, a builtin one cannot', function () {
+    $admin = User::factory()->admin()->create();
+    $unused = Role::factory()->create();
+    $builtin = Role::factory()->create(['builtin' => RoleBuiltin::NonMember]);
+
+    Livewire::actingAs($admin)->test('roles.index')
+        ->call('delete', $unused->id)->assertHasNoErrors()
+        ->call('delete', $builtin->id)->assertHasErrors('delete');
+
+    expect(Role::query()->find($unused->id))->toBeNull()
+        ->and(Role::query()->find($builtin->id))->not->toBeNull();
 });
