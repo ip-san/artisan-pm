@@ -42,8 +42,8 @@ final class RegisterResponse implements RegisterResponseContract
             $request->session()->regenerateToken();
 
             $message = Setting::get('self_registration', 'automatic') === 'email'
-                ? '確認メールを送信しました。メール内のリンクからアカウントを有効化してください。'
-                : '登録を受け付けました。管理者の承認をお待ちください。';
+                ? __('確認メールを送信しました。メール内のリンクからアカウントを有効化してください。')
+                : __('登録を受け付けました。管理者の承認をお待ちください。');
 
             return $request->wantsJson()
                 ? new JsonResponse('', 201)

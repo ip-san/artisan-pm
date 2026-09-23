@@ -16,7 +16,7 @@ final class BoolFormat implements FormatContract
 
     public function label(): string
     {
-        return '真偽値';
+        return __('真偽値');
     }
 
     public function storageColumn(): string

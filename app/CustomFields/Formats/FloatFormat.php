@@ -16,7 +16,7 @@ final class FloatFormat implements FormatContract
 
     public function label(): string
     {
-        return '小数';
+        return __('小数');
     }
 
     public function storageColumn(): string

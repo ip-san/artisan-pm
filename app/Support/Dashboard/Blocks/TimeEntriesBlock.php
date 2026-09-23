@@ -21,12 +21,12 @@ final class TimeEntriesBlock implements ConfigurableDashboardBlock
 
     public function label(): string
     {
-        return '最近の工数';
+        return __('最近の工数');
     }
 
     public function settingFields(): array
     {
-        return ['days' => ['label' => '表示する日数(空欄は期間を限らない)', 'type' => 'number', 'placeholder' => '7']];
+        return ['days' => ['label' => __('表示する日数(空欄は期間を限らない)'), 'type' => 'number', 'placeholder' => '7']];
     }
 
     public function normalizeSettings(array $input): array

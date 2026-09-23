@@ -16,7 +16,7 @@ final class DateFormat implements FormatContract
 
     public function label(): string
     {
-        return '日付';
+        return __('日付');
     }
 
     public function storageColumn(): string

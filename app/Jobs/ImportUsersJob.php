@@ -13,11 +13,12 @@ use App\Models\User;
 use App\Models\UserImport;
 use App\Rules\AllowedEmailDomain;
 use App\Rules\UniqueUserValueIgnoringCase;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -52,7 +53,7 @@ final class ImportUsersJob implements ShouldQueue
         if (! $disk->exists($this->import->file_path)) {
             $this->import->update([
                 'status' => ImportStatus::Failed,
-                'errors' => [['row' => 0, 'message' => 'アップロードされたファイルが見つかりません。']],
+                'errors' => [['row' => 0, 'message' => __('アップロードされたファイルが見つかりません。')]],
             ]);
 
             return;
@@ -125,7 +126,7 @@ final class ImportUsersJob implements ShouldQueue
     /**
      * @param  array<string, mixed>  $record
      * @param  array<string, string>  $mapping
-     * @param  \Illuminate\Support\Collection<int, CustomField>  $customFields
+     * @param  Collection<int, CustomField>  $customFields
      */
     private function createUser(array $record, array $mapping, $customFields): User
     {
@@ -136,7 +137,7 @@ final class ImportUsersJob implements ShouldQueue
         $status = $statusRaw !== null ? self::statusFrom($statusRaw) : UserStatus::Active;
 
         if ($status === null) {
-            throw new RuntimeException("ステータス「{$statusRaw}」は使えません(有効/承認待ち/ロック中)。");
+            throw new RuntimeException(__('ステータス「:status」は使えません(有効/承認待ち/ロック中)。', ['status' => $statusRaw]));
         }
 
         $password = $this->mapped($record, $mapping, 'password');

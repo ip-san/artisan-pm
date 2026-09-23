@@ -18,14 +18,29 @@ use Illuminate\Contracts\Validation\ValidationRule;
 final class RequiredPasswordCharacterClasses implements ValidationRule
 {
     /**
-     * @var array<string, array{pattern: string, message: string}>
+     * @var array<string, array{pattern: string}>
      */
     public const array CLASSES = [
-        'uppercase' => ['pattern' => '/[A-Z]/', 'message' => '英大文字(A-Z)'],
-        'lowercase' => ['pattern' => '/[a-z]/', 'message' => '英小文字(a-z)'],
-        'digits' => ['pattern' => '/[0-9]/', 'message' => '数字(0-9)'],
-        'special_chars' => ['pattern' => '/[!-\/:-@\[-`{-~]/', 'message' => '記号(!, $, % など)'],
+        'uppercase' => ['pattern' => '/[A-Z]/'],
+        'lowercase' => ['pattern' => '/[a-z]/'],
+        'digits' => ['pattern' => '/[0-9]/'],
+        'special_chars' => ['pattern' => '/[!-\/:-@\[-`{-~]/'],
     ];
+
+    /**
+     * The translated label of each character class, keyed like CLASSES.
+     *
+     * @return array<string, string>
+     */
+    public static function labels(): array
+    {
+        return [
+            'uppercase' => __('英大文字(A-Z)'),
+            'lowercase' => __('英小文字(a-z)'),
+            'digits' => __('数字(0-9)'),
+            'special_chars' => __('記号(!, $, % など)'),
+        ];
+    }
 
     /**
      * The classes the administrator currently requires, unknown stored
@@ -52,10 +67,10 @@ final class RequiredPasswordCharacterClasses implements ValidationRule
 
         $missing = collect(self::required())
             ->reject(fn (string $class) => preg_match(self::CLASSES[$class]['pattern'], $password) === 1)
-            ->map(fn (string $class) => self::CLASSES[$class]['message']);
+            ->map(fn (string $class) => self::labels()[$class]);
 
         if ($missing->isNotEmpty()) {
-            $fail('パスワードには'.$missing->join('、').'を含めてください。');
+            $fail(__('パスワードには:classesを含めてください。', ['classes' => $missing->join(__('、'))]));
         }
     }
 }

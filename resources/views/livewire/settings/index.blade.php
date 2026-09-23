@@ -905,7 +905,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <span class="block text-sm font-medium text-neutral-700">{{ __('非稼働日(曜日)') }}</span>
                 <div class="mt-1 flex flex-wrap gap-3">
-                    @foreach (['1' => __('月'), '2' => __('火'), '3' => __('水'), '4' => __('木'), '5' => __('金'), '6' => __('土'), '7' => __('日')] as $weekday => $weekdayLabel)
+                    @foreach (collect(range(1, 7))->mapWithKeys(fn (int $day): array => [(string) $day => \App\Support\Locale\SupportedLocales::weekdayName($day)]) as $weekday => $weekdayLabel)
                         <label class="flex items-center gap-1 text-sm text-neutral-700" wire:key="non-working-{{ $weekday }}">
                             <input type="checkbox" wire:model="non_working_week_days" value="{{ $weekday }}" class="rounded border-neutral-300">
                             {{ $weekdayLabel }}
@@ -981,7 +981,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('関連課題・サブタスクの表示列') }}</span>
                 <div class="grid grid-cols-2 gap-2">
-                    @foreach (RelatedIssueColumns::AVAILABLE as $key => $label)
+                    @foreach (RelatedIssueColumns::labels() as $key => $label)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
                             <input type="checkbox" wire:model="related_issues_default_columns" value="{{ $key }}" class="rounded border-neutral-300">
                             {{ $label }}
@@ -1045,7 +1045,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ __('メールアドレスを他のユーザーに表示しない') }}
                 </label>
                 <div class="mt-1 flex flex-wrap gap-4 text-sm text-neutral-700">
-                    @foreach (\App\Support\Preferences\UserPreferences::AUTO_WATCH_ON as $value => $label)
+                    @foreach (\App\Support\Preferences\UserPreferences::autoWatchOnLabels() as $value => $label)
                         <label class="flex items-center gap-1.5">
                             <input type="checkbox" value="{{ $value }}" wire:model="default_users_auto_watch_on" class="rounded border-neutral-300">
                             {{ __(':itemをウォッチ', ['item' => $label]) }}
@@ -1058,7 +1058,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="block text-sm font-medium text-neutral-700">{{ __('時間の表示形式') }}</label>
                 <select wire:model="timespan_format" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    @foreach (\App\Support\Format\Hours::FORMATS as $value => $label)
+                    @foreach (\App\Support\Format\Hours::formatLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
                 </select>
@@ -1068,7 +1068,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <span class="block text-sm font-medium text-neutral-700">{{ __('課題一覧で合計する項目') }}</span>
                 <div class="mt-1 flex flex-wrap gap-4 text-sm text-neutral-700">
-                    @foreach (\App\Support\Query\ListDefaults::ISSUE_TOTALS as $key => $label)
+                    @foreach (\App\Support\Query\ListDefaults::issueTotalLabels() as $key => $label)
                         <label class="flex items-center gap-1.5">
                             <input type="checkbox" value="{{ $key }}" wire:model="issue_list_default_totals" class="rounded border-neutral-300">
                             {{ $label }}
@@ -1081,7 +1081,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <span class="block text-sm font-medium text-neutral-700">{{ __('工数一覧の初期表示列') }}</span>
                 <div class="mt-1 flex flex-wrap gap-4 text-sm text-neutral-700">
-                    @foreach (\App\Support\Query\ListDefaults::TIME_ENTRY_COLUMNS as $key => $label)
+                    @foreach (\App\Support\Query\ListDefaults::timeEntryColumnLabels() as $key => $label)
                         <label class="flex items-center gap-1.5">
                             <input type="checkbox" value="{{ $key }}" wire:model="time_entry_list_default_columns" class="rounded border-neutral-300">
                             {{ $label }}
@@ -1102,7 +1102,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </label>
                 <p class="mt-1 text-xs text-neutral-500">{{ __('有効にすると、ユーザーのメールアドレスのハッシュが gravatar.com に送られ、閲覧者のブラウザが画像を直接取得します。無効のときはイニシャルのアイコンを表示します。') }}</p>
                 <select wire:model="gravatar_default" class="mt-2 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    @foreach (\App\Support\Avatar\UserAvatar::DEFAULT_STYLES as $value => $label)
+                    @foreach (\App\Support\Avatar\UserAvatar::defaultStyleLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
                 </select>
@@ -1284,10 +1284,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('パスワードに必ず含める文字種') }}</span>
                 <div class="grid grid-cols-2 gap-2">
-                    @foreach (RequiredPasswordCharacterClasses::CLASSES as $key => $class)
+                    @foreach (RequiredPasswordCharacterClasses::labels() as $key => $label)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
                             <input type="checkbox" wire:model="password_required_char_classes" value="{{ $key }}" class="rounded border-neutral-300">
-                            {{ $class['message'] }}
+                            {{ $label }}
                         </label>
                     @endforeach
                 </div>
@@ -1432,7 +1432,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <span class="block text-sm font-medium text-neutral-700">{{ __('必須にする項目') }}</span>
                 <div class="mt-1 flex gap-4 text-sm text-neutral-700">
-                    @foreach (\App\Support\TimeLog\TimeLogConstraints::REQUIRABLE_FIELDS as $field => $label)
+                    @foreach (\App\Support\TimeLog\TimeLogConstraints::requirableFieldLabels() as $field => $label)
                         <label class="flex items-center gap-1.5">
                             <input type="checkbox" value="{{ $field }}" wire:model="timelog_required_fields" class="rounded border-neutral-300">
                             {{ $label }}

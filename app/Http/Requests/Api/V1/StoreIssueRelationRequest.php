@@ -57,13 +57,13 @@ final class StoreIssueRelationRequest extends FormRequest
                     // but invisible one produce different, correctly
                     // distinct responses (422 vs 403).
                     if ($other->project_id !== $issue->project_id && Setting::get('cross_project_issue_relations', false) !== true) {
-                        $fail('プロジェクトをまたぐ関連付けは許可されていません。');
+                        $fail(__('プロジェクトをまたぐ関連付けは許可されていません。'));
 
                         return;
                     }
 
                     if ($issue->descendantIds()->contains($other->id) || $other->descendantIds()->contains($issue->id)) {
-                        $fail('親子・祖先/子孫関係にある課題同士は関連付けできません。');
+                        $fail(__('親子・祖先/子孫関係にある課題同士は関連付けできません。'));
 
                         return;
                     }
@@ -76,7 +76,7 @@ final class StoreIssueRelationRequest extends FormRequest
                             ->exists();
 
                         if ($reverseExists) {
-                            $fail('この関連は既に登録されています。');
+                            $fail(__('この関連は既に登録されています。'));
                         }
                     }
 
@@ -88,16 +88,16 @@ final class StoreIssueRelationRequest extends FormRequest
                             ->exists();
 
                         if ($reverseBlocks) {
-                            $fail('循環したブロック関係は作成できません。');
+                            $fail(__('循環したブロック関係は作成できません。'));
                         }
                     }
 
                     if ($relationType === 'precedes' && IssueRelation::wouldCreateCycle($issue, $other)) {
-                        $fail('先行関係が循環しています。');
+                        $fail(__('先行関係が循環しています。'));
                     }
 
                     if ($relationType === 'follows' && IssueRelation::wouldCreateCycle($other, $issue)) {
-                        $fail('先行関係が循環しています。');
+                        $fail(__('先行関係が循環しています。'));
                     }
                 },
             ],

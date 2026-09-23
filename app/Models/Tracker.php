@@ -40,6 +40,27 @@ final class Tracker extends Model implements Sortable
         'priority_id' => '優先度',
     ];
 
+    /**
+     * DISABLABLE_CORE_FIELDS' labels, translated for display.
+     *
+     * @return array<string, string>
+     */
+    public static function disablableCoreFieldLabels(): array
+    {
+        return [
+            'assigned_to_id' => __('担当者'),
+            'category_id' => __('カテゴリ'),
+            'fixed_version_id' => __('対象バージョン'),
+            'parent_id' => __('親課題'),
+            'start_date' => __('開始日'),
+            'due_date' => __('期日'),
+            'estimated_hours' => __('予定工数'),
+            'done_ratio' => __('進捗率'),
+            'description' => __('説明'),
+            'priority_id' => __('優先度'),
+        ];
+    }
+
     /** @var array{order_column_name: string, sort_when_creating: bool} */
     public array $sortable = [
         'order_column_name' => 'position',

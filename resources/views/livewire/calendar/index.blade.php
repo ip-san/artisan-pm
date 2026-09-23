@@ -62,7 +62,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function weekdayLabels(): array
     {
-        $labels = [__('日'), __('月'), __('火'), __('水'), __('木'), __('金'), __('土')];
+        $labels = array_map(fn (int $day): string => \App\Support\Locale\SupportedLocales::weekdayName($day), [7, 1, 2, 3, 4, 5, 6]);
 
         return [...array_slice($labels, $this->startOfWeek), ...array_slice($labels, 0, $this->startOfWeek)];
     }

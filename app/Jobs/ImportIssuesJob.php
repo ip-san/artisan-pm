@@ -50,7 +50,7 @@ final class ImportIssuesJob implements ShouldQueue
         if (! $disk->exists($this->import->file_path)) {
             $this->import->update([
                 'status' => ImportStatus::Failed,
-                'errors' => [['row' => 0, 'message' => 'アップロードされたファイルが見つかりません。']],
+                'errors' => [['row' => 0, 'message' => __('アップロードされたファイルが見つかりません。')]],
             ]);
 
             return;
@@ -123,7 +123,7 @@ final class ImportIssuesJob implements ShouldQueue
         $subject = trim((string) $this->mapped($record, $mapping, 'subject'));
 
         if ($subject === '') {
-            throw new RuntimeException('題名が空です。');
+            throw new RuntimeException(__('題名が空です。'));
         }
 
         $trackerName = $this->mapped($record, $mapping, 'tracker');
@@ -138,7 +138,7 @@ final class ImportIssuesJob implements ShouldQueue
             : null) ?? $defaults['priority'];
 
         if ($tracker === null || $status === null || $priority === null) {
-            throw new RuntimeException('トラッカー・ステータス・優先度のいずれかを特定できません。');
+            throw new RuntimeException(__('トラッカー・ステータス・優先度のいずれかを特定できません。'));
         }
 
         // Scoped to project members — an email matching some other user in
@@ -186,7 +186,7 @@ final class ImportIssuesJob implements ShouldQueue
             : null;
 
         if ($parentRef !== null && $parent === null) {
-            throw new RuntimeException("親課題 {$parentRef} が見つかりません。");
+            throw new RuntimeException(__('親課題 :issue が見つかりません。', ['issue' => $parentRef]));
         }
 
         // Only honored when the importing user actually has permission to

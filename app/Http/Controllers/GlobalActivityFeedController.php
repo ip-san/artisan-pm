@@ -39,7 +39,7 @@ final class GlobalActivityFeedController extends Controller
 
         $xml = view('feeds.atom', [
             'entries' => $entries,
-            'title' => config('app.name').' - '.'活動',
+            'title' => config('app.name').' - '.__('活動'),
             'alternateUrl' => route('activity.global-index'),
         ])->render();
 

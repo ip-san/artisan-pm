@@ -61,6 +61,43 @@ final class SavedIssueQueryBlock
         private readonly AuthorizationService $authorization,
     ) {}
 
+    /**
+     * COLUMNS with its labels translated, for display.
+     *
+     * @return array<string, string>
+     */
+    public static function columnLabels(): array
+    {
+        return [
+            'project' => __('プロジェクト'),
+            'tracker' => __('トラッカー'),
+            'status' => __('ステータス'),
+            'priority' => __('優先度'),
+            'assigned_to' => __('担当者'),
+            'author' => __('作成者'),
+            'start_date' => __('開始日'),
+            'due_date' => __('期日'),
+            'updated_at' => __('更新日'),
+        ];
+    }
+
+    /**
+     * SORTS with its labels translated, for display.
+     *
+     * @return array<string, string>
+     */
+    public static function sortLabels(): array
+    {
+        return [
+            'id' => 'ID',
+            'subject' => __('題名'),
+            'start_date' => __('開始日'),
+            'due_date' => __('期日'),
+            'created_at' => __('作成日'),
+            'updated_at' => __('更新日'),
+        ];
+    }
+
     public static function keyFor(Query $query): string
     {
         return self::KEY_PREFIX.$query->id;

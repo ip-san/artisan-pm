@@ -211,13 +211,13 @@ new #[Layout('components.layouts.app')] class extends Component
         if (SavedIssueQueryBlock::queryIdFromKey($key) !== null) {
             $sorts = [];
 
-            foreach (SavedIssueQueryBlock::SORTS as $column => $label) {
+            foreach (SavedIssueQueryBlock::sortLabels() as $column => $label) {
                 $sorts["{$column}:asc"] = __(':label(昇順)', ['label' => $label]);
                 $sorts["{$column}:desc"] = __(':label(降順)', ['label' => $label]);
             }
 
             return [
-                'columns' => ['label' => __('表示する項目'), 'type' => 'columns', 'options' => SavedIssueQueryBlock::COLUMNS],
+                'columns' => ['label' => __('表示する項目'), 'type' => 'columns', 'options' => SavedIssueQueryBlock::columnLabels()],
                 'sort' => ['label' => __('並び順(空欄はクエリの並び順)'), 'type' => 'select', 'options' => $sorts],
             ];
         }

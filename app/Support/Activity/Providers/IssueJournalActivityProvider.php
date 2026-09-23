@@ -8,7 +8,6 @@ use App\Models\Journal;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
-use App\Support\Activity\ActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
@@ -39,7 +38,7 @@ final class IssueJournalActivityProvider implements MultiProjectActivityProvider
 
     public function label(): string
     {
-        return '課題の更新';
+        return __('課題の更新');
     }
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection

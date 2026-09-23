@@ -25,6 +25,6 @@ final class AccountActivationController extends Controller
         $user->status = UserStatus::Active;
         $user->save();
 
-        return redirect()->route('login')->with('status', 'アカウントを有効化しました。ログインしてください。');
+        return redirect()->route('login')->with('status', __('アカウントを有効化しました。ログインしてください。'));
     }
 }

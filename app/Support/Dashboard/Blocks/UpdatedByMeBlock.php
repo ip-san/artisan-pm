@@ -27,7 +27,7 @@ final class UpdatedByMeBlock implements DashboardBlock
 
     public function label(): string
     {
-        return '自分が更新した課題';
+        return __('自分が更新した課題');
     }
 
     public function rows(User $user): Collection

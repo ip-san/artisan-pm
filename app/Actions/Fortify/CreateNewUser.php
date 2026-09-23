@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Actions\Fortify;
 
-use App\Enums\UserStatus;
 use App\Enums\CustomizableType;
+use App\Enums\UserStatus;
 use App\Models\CustomField;
 use App\Models\Setting;
 use App\Models\User;
+use App\Notifications\ConfirmAccountRegistration;
 use App\Rules\AllowedEmailDomain;
 use App\Rules\UniqueUserValueIgnoringCase;
-use App\Notifications\ConfirmAccountRegistration;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
@@ -66,7 +66,7 @@ final class CreateNewUser implements CreatesNewUsers
 
         if ($mode === 'disabled') {
             throw ValidationException::withMessages([
-                'email' => 'このサイトではアカウント登録を受け付けていません。',
+                'email' => __('このサイトではアカウント登録を受け付けていません。'),
             ]);
         }
 

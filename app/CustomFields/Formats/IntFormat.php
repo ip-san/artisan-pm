@@ -16,7 +16,7 @@ final class IntFormat implements FormatContract
 
     public function label(): string
     {
-        return '整数';
+        return __('整数');
     }
 
     public function storageColumn(): string

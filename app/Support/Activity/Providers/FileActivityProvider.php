@@ -8,7 +8,6 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\Version;
 use App\Support\Activity\ActivityEntry;
-use App\Support\Activity\ActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Attachments\AttachmentUploader;
 use App\Support\Authorization\AuthorizationService;
@@ -35,7 +34,7 @@ final class FileActivityProvider implements MultiProjectActivityProvider
 
     public function label(): string
     {
-        return 'ファイル';
+        return __('ファイル');
     }
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection

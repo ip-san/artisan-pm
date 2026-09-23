@@ -30,7 +30,7 @@ final class ProgressbarFormat implements FormatContract
 
     public function label(): string
     {
-        return '進捗率(0〜100)';
+        return __('進捗率(0〜100)');
     }
 
     public function storageColumn(): string

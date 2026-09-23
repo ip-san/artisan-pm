@@ -36,7 +36,7 @@ final class ActivityBlock implements DashboardBlock
 
     public function label(): string
     {
-        return '最近のアクティビティ';
+        return __('最近のアクティビティ');
     }
 
     public function rows(User $user): Collection

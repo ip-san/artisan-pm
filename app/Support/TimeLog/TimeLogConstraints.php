@@ -18,8 +18,30 @@ use Illuminate\Validation\ValidationException;
  */
 final class TimeLogConstraints
 {
-    /** The fields `timelog_required_fields` may name. */
+    /** The fields `timelog_required_fields` may name (keys); use requirableFieldLabels() to show them. */
     public const array REQUIRABLE_FIELDS = ['issue_id' => '課題', 'comments' => 'コメント'];
+
+    /**
+     * The translated label of each requirable field, keyed like REQUIRABLE_FIELDS.
+     *
+     * @return array<string, string>
+     */
+    public static function requirableFieldLabels(): array
+    {
+        return [
+            'issue_id' => __('課題'),
+            'comments' => __('コメント'),
+        ];
+    }
+
+    /** The "cannot be blank" message for a required field. */
+    private static function requiredFieldMessage(string $field): string
+    {
+        return match ($field) {
+            'issue_id' => __('課題を入力してください。'),
+            default => __('コメントを入力してください。'),
+        };
+    }
 
     /**
      * @return array<int, string>
@@ -71,7 +93,7 @@ final class TimeLogConstraints
 
         foreach (self::requiredFields() as $field) {
             if (blank($value($field))) {
-                $errors[$field][] = self::REQUIRABLE_FIELDS[$field].'を入力してください。';
+                $errors[$field][] = self::requiredFieldMessage($field);
             }
         }
 
@@ -80,7 +102,7 @@ final class TimeLogConstraints
 
         if ($hours !== null && $hoursChanged) {
             if ((float) $hours === 0.0 && ! self::acceptsZeroHours()) {
-                $errors['hours'][] = '0時間は記録できません。';
+                $errors['hours'][] = __('0時間は記録できません。');
             }
 
             $max = self::maxHoursPerDay();
@@ -93,7 +115,7 @@ final class TimeLogConstraints
                     ->sum('hours');
 
                 if ($logged + (float) $hours > $max) {
-                    $errors['hours'][] = sprintf('この日の工数の上限(%s時間)を超えます。すでに%s時間記録されています。', self::format($max), self::format($logged));
+                    $errors['hours'][] = __('この日の工数の上限(:max時間)を超えます。すでに:logged時間記録されています。', ['max' => self::format($max), 'logged' => self::format($logged)]);
                 }
             }
         }
@@ -102,14 +124,14 @@ final class TimeLogConstraints
         $dateChanged = $existing === null || (array_key_exists('spent_on', $attributes) && substr((string) $attributes['spent_on'], 0, 10) !== $existing->spent_on->toDateString());
 
         if ($spentOn !== null && $dateChanged && ! self::acceptsFutureDates() && substr((string) $spentOn, 0, 10) > now()->toDateString()) {
-            $errors['spent_on'][] = '未来の日付には工数を記録できません。';
+            $errors['spent_on'][] = __('未来の日付には工数を記録できません。');
         }
 
         $issueId = $value('issue_id');
 
         if ($issueId !== null && ! self::acceptsClosedIssues()
             && Issue::query()->whereKey($issueId)->whereHas('status', fn ($status) => $status->where('is_closed', true))->exists()) {
-            $errors['issue_id'][] = '終了した課題には工数を記録できません。';
+            $errors['issue_id'][] = __('終了した課題には工数を記録できません。');
         }
 
         if ($errors !== []) {

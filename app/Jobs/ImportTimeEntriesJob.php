@@ -46,7 +46,7 @@ final class ImportTimeEntriesJob implements ShouldQueue
         if (! $disk->exists($this->import->file_path)) {
             $this->import->update([
                 'status' => ImportStatus::Failed,
-                'errors' => [['row' => 0, 'message' => 'アップロードされたファイルが見つかりません。']],
+                'errors' => [['row' => 0, 'message' => __('アップロードされたファイルが見つかりません。')]],
             ]);
 
             return;
@@ -100,13 +100,13 @@ final class ImportTimeEntriesJob implements ShouldQueue
         $hours = $this->mapped($record, $mapping, 'hours');
 
         if ($hours === null || ! is_numeric($hours) || (float) $hours <= 0) {
-            throw new RuntimeException('時間が空または不正です。');
+            throw new RuntimeException(__('時間が空または不正です。'));
         }
 
         $spentOn = $this->mapped($record, $mapping, 'spent_on');
 
         if ($spentOn === null || $spentOn === '') {
-            throw new RuntimeException('日付が空です。');
+            throw new RuntimeException(__('日付が空です。'));
         }
 
         $activityName = $this->mapped($record, $mapping, 'activity');
@@ -115,7 +115,7 @@ final class ImportTimeEntriesJob implements ShouldQueue
             : null) ?? $defaultActivity;
 
         if ($activity === null) {
-            throw new RuntimeException('作業分類を特定できません。');
+            throw new RuntimeException(__('作業分類を特定できません。'));
         }
 
         $issueRef = $this->mapped($record, $mapping, 'issue');
@@ -124,7 +124,7 @@ final class ImportTimeEntriesJob implements ShouldQueue
             : null;
 
         if ($issueRef !== null && $issue === null) {
-            throw new RuntimeException("課題 {$issueRef} が見つかりません。");
+            throw new RuntimeException(__('課題 :issue が見つかりません。', ['issue' => $issueRef]));
         }
 
         // Scoped to project members — a mapped "user" column matching some

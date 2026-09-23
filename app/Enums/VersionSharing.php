@@ -19,11 +19,11 @@ enum VersionSharing: string
     public function label(): string
     {
         return match ($this) {
-            self::None => '共有しない',
-            self::Descendants => 'サブプロジェクトと共有',
-            self::Hierarchy => 'プロジェクト階層全体と共有',
-            self::Tree => 'プロジェクトツリー全体と共有',
-            self::System => '全プロジェクトと共有',
+            self::None => __('共有しない'),
+            self::Descendants => __('サブプロジェクトと共有'),
+            self::Hierarchy => __('プロジェクト階層全体と共有'),
+            self::Tree => __('プロジェクトツリー全体と共有'),
+            self::System => __('全プロジェクトと共有'),
         };
     }
 }

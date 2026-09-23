@@ -47,7 +47,7 @@ final class EnforceSessionTimeout
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return redirect()->route('login')->with('status', 'セッションがタイムアウトしました。再度ログインしてください。');
+            return redirect()->route('login')->with('status', __('セッションがタイムアウトしました。再度ログインしてください。'));
         }
 
         $request->session()->put('last_activity_at', now()->timestamp);

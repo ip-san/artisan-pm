@@ -45,6 +45,50 @@ final class UserPreferences
     ];
 
     /**
+     * COMMENTS_SORTING with its labels translated, for display.
+     *
+     * @return array<string, string>
+     */
+    public static function commentsSortingLabels(): array
+    {
+        return ['asc' => __('古い順'), 'desc' => __('新しい順')];
+    }
+
+    /**
+     * TEXTAREA_FONTS with its labels translated, for display.
+     *
+     * @return array<string, string>
+     */
+    public static function textareaFontLabels(): array
+    {
+        return ['' => __('標準'), 'monospace' => __('等幅'), 'proportional' => __('プロポーショナル')];
+    }
+
+    /**
+     * HISTORY_TABS with its labels translated, for display.
+     *
+     * @return array<string, string>
+     */
+    public static function historyTabLabels(): array
+    {
+        return ['history' => __('すべて'), 'notes' => __('コメント'), 'properties' => __('プロパティ変更')];
+    }
+
+    /**
+     * AUTO_WATCH_ON with its labels translated, for display.
+     *
+     * @return array<string, string>
+     */
+    public static function autoWatchOnLabels(): array
+    {
+        return [
+            'issue_created' => __('自分が作成した課題'),
+            'issue_contributed_to' => __('自分がコメント・更新した課題'),
+            'issue_assigned_to_me' => __('自分が担当になった課題'),
+        ];
+    }
+
+    /**
      * What accounts auto-watch until an administrator or the user says
      * otherwise: this app's original behavior (Redmine's own default is
      * just issue_created).

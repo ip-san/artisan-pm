@@ -30,10 +30,10 @@ final class SystemInfo
     public function versions(): array
     {
         return [
-            'アプリケーション' => (string) config('app.name'),
+            __('アプリケーション') => (string) config('app.name'),
             'Laravel' => Application::VERSION,
             'PHP' => PHP_VERSION,
-            'データベース' => $this->databaseVersion(),
+            __('データベース') => $this->databaseVersion(),
             'OS' => php_uname('s').' '.php_uname('r'),
         ];
     }
@@ -44,14 +44,14 @@ final class SystemInfo
     public function environment(): array
     {
         return [
-            '環境 (APP_ENV)' => (string) config('app.env'),
-            'デバッグモード' => config('app.debug') ? '有効' : '無効',
+            __('環境 (APP_ENV)') => (string) config('app.env'),
+            __('デバッグモード') => config('app.debug') ? __('有効') : __('無効'),
             'APP_URL' => (string) config('app.url'),
-            'タイムゾーン' => (string) config('app.timezone'),
-            'キャッシュ' => (string) config('cache.default'),
-            'セッション' => (string) config('session.driver'),
-            'メール送信' => (string) config('mail.default'),
-            'ファイル保存先' => (string) config('media-library.disk_name'),
+            __('タイムゾーン') => (string) config('app.timezone'),
+            __('キャッシュ') => (string) config('cache.default'),
+            __('セッション') => (string) config('session.driver'),
+            __('メール送信') => (string) config('mail.default'),
+            __('ファイル保存先') => (string) config('media-library.disk_name'),
         ];
     }
 
@@ -66,22 +66,22 @@ final class SystemInfo
             $path = base_path($relative);
 
             $checks[] = [
-                'name' => "{$relative} への書き込み",
+                'name' => __(':path への書き込み', ['path' => $relative]),
                 'ok' => is_dir($path) && is_writable($path),
-                'detail' => is_dir($path) ? (is_writable($path) ? '書き込み可' : '書き込み不可') : 'ディレクトリがありません',
+                'detail' => is_dir($path) ? (is_writable($path) ? __('書き込み可') : __('書き込み不可')) : __('ディレクトリがありません'),
             ];
         }
 
         foreach (['git' => ['git', '--version'], 'svn' => ['svn', '--version', '--quiet']] as $name => $command) {
             $version = $this->commandOutput($command);
 
-            $checks[] = ['name' => "{$name} コマンド", 'ok' => $version !== null, 'detail' => $version ?? '見つかりません(この種別のリポジトリは使えません)'];
+            $checks[] = ['name' => __(':name コマンド', ['name' => $name]), 'ok' => $version !== null, 'detail' => $version ?? __('見つかりません(この種別のリポジトリは使えません)')];
         }
 
         $checks[] = $this->imageCheck();
 
         foreach (['mbstring', 'zip', 'pdo_pgsql', 'gd'] as $extension) {
-            $checks[] = ['name' => "PHP拡張 {$extension}", 'ok' => extension_loaded($extension), 'detail' => extension_loaded($extension) ? '有効' : '無効'];
+            $checks[] = ['name' => __('PHP拡張 :extension', ['extension' => $extension]), 'ok' => extension_loaded($extension), 'detail' => extension_loaded($extension) ? __('有効') : __('無効')];
         }
 
         return $checks;
@@ -107,9 +107,9 @@ final class SystemInfo
             $driver = DB::connection()->getDriverName();
             $version = DB::selectOne('select version() as version');
 
-            return $driver.' — '.($version->version ?? '不明');
+            return $driver.' — '.($version->version ?? __('不明'));
         } catch (Throwable) {
-            return '接続できません';
+            return __('接続できません');
         }
     }
 
@@ -121,14 +121,14 @@ final class SystemInfo
         $magick = $this->commandOutput(['magick', '-version']) ?? $this->commandOutput(['convert', '-version']);
 
         if ($magick !== null) {
-            return ['name' => '画像処理 (ImageMagick)', 'ok' => true, 'detail' => strtok($magick, "\n") ?: $magick];
+            return ['name' => __('画像処理 (ImageMagick)'), 'ok' => true, 'detail' => strtok($magick, "\n") ?: $magick];
         }
 
         if (extension_loaded('imagick')) {
-            return ['name' => '画像処理 (ImageMagick)', 'ok' => true, 'detail' => 'PHP拡張 imagick'];
+            return ['name' => __('画像処理 (ImageMagick)'), 'ok' => true, 'detail' => __('PHP拡張 :extension', ['extension' => 'imagick'])];
         }
 
-        return ['name' => '画像処理 (ImageMagick)', 'ok' => extension_loaded('gd'), 'detail' => extension_loaded('gd') ? 'ImageMagick はなく GD で代替' : '見つかりません(サムネイルは作られません)'];
+        return ['name' => __('画像処理 (ImageMagick)'), 'ok' => extension_loaded('gd'), 'detail' => extension_loaded('gd') ? __('ImageMagick はなく GD で代替') : __('見つかりません(サムネイルは作られません)')];
     }
 
     /**
@@ -150,7 +150,7 @@ final class SystemInfo
 
         $output = trim($result->output()."\n".$result->errorOutput());
 
-        return $output !== '' ? trim(strtok($output, "\n") ?: $output) : 'あり';
+        return $output !== '' ? trim(strtok($output, "\n") ?: $output) : __('あり');
     }
 
     private function countRows(string $table): ?int

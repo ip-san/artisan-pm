@@ -26,7 +26,7 @@ final class LinkFormat implements FormatContract
 
     public function label(): string
     {
-        return 'リンク';
+        return __('リンク');
     }
 
     public function storageColumn(): string

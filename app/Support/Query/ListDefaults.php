@@ -39,6 +39,37 @@ final class ListDefaults
     ];
 
     /**
+     * ISSUE_TOTALS' labels, translated for display.
+     *
+     * @return array<string, string>
+     */
+    public static function issueTotalLabels(): array
+    {
+        return [
+            'estimated_hours' => __('予定工数'),
+            'spent_hours' => __('実績工数'),
+            'estimated_remaining_hours' => __('残り工数(予定)'),
+        ];
+    }
+
+    /**
+     * TIME_ENTRY_COLUMNS' labels, translated for display.
+     *
+     * @return array<string, string>
+     */
+    public static function timeEntryColumnLabels(): array
+    {
+        return [
+            'spent_on' => __('日付'),
+            'user_id' => __('担当者'),
+            'activity_id' => __('作業分類'),
+            'issue_id' => __('課題'),
+            'comments' => __('コメント'),
+            'hours' => __('時間'),
+        ];
+    }
+
+    /**
      * @return array<int, string> keys of ISSUE_TOTALS, in that order
      */
     public static function issueTotals(): array

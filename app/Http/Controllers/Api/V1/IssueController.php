@@ -16,8 +16,8 @@ use App\Models\Project;
 use App\Models\User;
 use App\Services\IssueService;
 use App\Support\Api\CustomFieldPayload;
-use App\Support\Issues\StartDateDefault;
 use App\Support\Attachments\PendingUploadAttacher;
+use App\Support\Issues\StartDateDefault;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
@@ -229,7 +229,7 @@ final class IssueController extends Controller
             $issue = app(IssueService::class)->update($issue, $data, $request->user(), customFieldData: $customFieldData, expectedLockVersion: $expectedLockVersion);
         } catch (StaleIssueUpdateException $exception) {
             return response()->json([
-                'message' => '課題が他のユーザーによって更新されています。最新の内容を取得して、もう一度やり直してください。',
+                'message' => __('課題が他のユーザーによって更新されています。最新の内容を取得して、もう一度やり直してください。'),
                 'errors' => ['lock_version' => ['The issue was modified after the given lock_version was read.']],
                 'lock_version' => $exception->issue->lock_version,
             ], 409);

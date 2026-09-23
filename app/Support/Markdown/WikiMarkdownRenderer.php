@@ -8,9 +8,10 @@ use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\WikiPage;
-use DOMDocument;
 use DOMElement;
 use DOMXPath;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
@@ -18,8 +19,6 @@ use League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension;
 use League\CommonMark\Extension\Mention\Mention;
 use League\CommonMark\Extension\Mention\MentionExtension;
 use League\CommonMark\Extension\TableOfContents\TableOfContentsExtension;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Gate;
 use League\CommonMark\MarkdownConverter;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -167,6 +166,7 @@ final class WikiMarkdownRenderer
             $project?->id ?? 0,
             $page?->id ?? 0,
             (int) Setting::get('wiki_tablesort_enabled', false),
+            app()->getLocale(),
             $attachmentSignature,
             $text,
         ]));
@@ -294,7 +294,7 @@ final class WikiMarkdownRenderer
             $placeholder = 'COLLAPSE-MACRO-PLACEHOLDER-'.count($blocks);
 
             $blocks[$placeholder] = [
-                'label' => $opening !== '' ? $opening : '表示',
+                'label' => $opening !== '' ? $opening : __('表示'),
                 'body' => $this->renderMarkdown(
                     implode("\n", array_slice($lines, $index + 1, $closingIndex - $index - 1)),
                     $project,
@@ -439,11 +439,11 @@ final class WikiMarkdownRenderer
         // A page the reader may not see is reported as missing, so its
         // existence is not revealed either.
         if ($target === null || ($targetProject->isNot($project) && ! Gate::forUser(auth()->user())->allows('view', $target))) {
-            return '<p>'.e("ページ「{$title}」が見つかりません。").'</p>';
+            return '<p>'.e(__('ページ「:title」が見つかりません。', ['title' => $title])).'</p>';
         }
 
         if (in_array($target->id, $includedPageIds, true)) {
-            return '<p>'.e("「{$title}」の循環インクルードが検出されました。").'</p>';
+            return '<p>'.e(__('「:title」の循環インクルードが検出されました。', ['title' => $title])).'</p>';
         }
 
         $html = $this->renderMarkdown(

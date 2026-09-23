@@ -20,10 +20,10 @@ enum TimeReportPeriod: string
     public function label(): string
     {
         return match ($this) {
-            self::Year => '年',
-            self::Month => '月',
-            self::Week => '週',
-            self::Day => '日',
+            self::Year => __('年'),
+            self::Month => __('月'),
+            self::Week => __('週'),
+            self::Day => __('日'),
         };
     }
 
@@ -50,7 +50,7 @@ enum TimeReportPeriod: string
         return match ($this) {
             self::Year => $key,
             self::Month => $key,
-            self::Week => str_replace('-', '年第', $key).'週',
+            self::Week => __(':year年第:week週', array_combine(['year', 'week'], array_pad(explode('-', $key, 2), 2, ''))),
             self::Day => $key,
         };
     }

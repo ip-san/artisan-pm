@@ -8,7 +8,6 @@ use App\Models\Issue;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
-use App\Support\Activity\ActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
@@ -28,7 +27,7 @@ final class IssueActivityProvider implements MultiProjectActivityProvider
 
     public function label(): string
     {
-        return '課題';
+        return __('課題');
     }
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection

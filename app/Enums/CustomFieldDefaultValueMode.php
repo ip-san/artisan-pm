@@ -19,8 +19,8 @@ enum CustomFieldDefaultValueMode: string
     public function label(): string
     {
         return match ($this) {
-            self::FixedDate => '絶対日付',
-            self::DateOffset => '相対日付(今日からの日数)',
+            self::FixedDate => __('絶対日付'),
+            self::DateOffset => __('相対日付(今日からの日数)'),
         };
     }
 }

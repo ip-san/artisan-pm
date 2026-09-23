@@ -28,7 +28,7 @@ final class UserFormat implements ProjectScopedFormat
 
     public function label(): string
     {
-        return 'ユーザー';
+        return __('ユーザー');
     }
 
     public function storageColumn(): string

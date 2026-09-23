@@ -28,18 +28,18 @@ enum FilterOperator: string
     public function label(): string
     {
         return match ($this) {
-            self::Equals => 'が次の値',
-            self::NotEquals => 'が次の値ではない',
-            self::In => 'がいずれかに含まれる',
-            self::NotIn => 'がいずれにも含まれない',
-            self::Contains => 'に次を含む',
-            self::NotContains => 'に次を含まない',
-            self::IsEmpty => 'が未設定',
-            self::IsNotEmpty => 'が設定されている',
-            self::GreaterOrEqual => 'が次の値以上',
-            self::LessOrEqual => 'が次の値以下',
-            self::Between => 'が次の範囲内',
-            self::InTheLastDays => '過去n日以内',
+            self::Equals => __('が次の値'),
+            self::NotEquals => __('が次の値ではない'),
+            self::In => __('がいずれかに含まれる'),
+            self::NotIn => __('がいずれにも含まれない'),
+            self::Contains => __('に次を含む'),
+            self::NotContains => __('に次を含まない'),
+            self::IsEmpty => __('が未設定'),
+            self::IsNotEmpty => __('が設定されている'),
+            self::GreaterOrEqual => __('が次の値以上'),
+            self::LessOrEqual => __('が次の値以下'),
+            self::Between => __('が次の範囲内'),
+            self::InTheLastDays => __('過去n日以内'),
         };
     }
 

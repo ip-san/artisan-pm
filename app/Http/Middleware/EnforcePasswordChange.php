@@ -23,7 +23,7 @@ final class EnforcePasswordChange
 
         if ($user !== null && $request->routeIs('profile.index') === false && $user->mustChangePassword()) {
             return redirect()->route('profile.index')
-                ->with('status', 'パスワードを変更してください。変更するまで他のページは利用できません。');
+                ->with('status', __('パスワードを変更してください。変更するまで他のページは利用できません。'));
         }
 
         return $next($request);

@@ -16,7 +16,7 @@ final class TextFormat implements FormatContract
 
     public function label(): string
     {
-        return 'テキスト';
+        return __('テキスト');
     }
 
     public function storageColumn(): string

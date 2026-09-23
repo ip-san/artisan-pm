@@ -28,18 +28,18 @@ final class UploadController extends Controller
         $content = $request->getContent();
 
         if ($content === '') {
-            return response()->json(['errors' => ['アップロードするファイルの内容がありません。']], 422);
+            return response()->json(['errors' => [__('アップロードするファイルの内容がありません。')]], 422);
         }
 
         if (strlen($content) > AttachmentValidationRules::maxSizeInBytes()) {
-            return response()->json(['errors' => ['ファイルサイズが上限を超えています。']], 422);
+            return response()->json(['errors' => [__('ファイルサイズが上限を超えています。')]], 422);
         }
 
         $filename = (string) ($request->query('filename') ?: Str::random(16));
         $extension = pathinfo($filename, PATHINFO_EXTENSION);
 
         if ($extension !== '' && ! AttachmentValidationRules::isExtensionAllowed($extension)) {
-            return response()->json(['errors' => ['このファイル形式は許可されていません。']], 422);
+            return response()->json(['errors' => [__('このファイル形式は許可されていません。')]], 422);
         }
 
         $tempPath = tempnam(sys_get_temp_dir(), 'upload-');

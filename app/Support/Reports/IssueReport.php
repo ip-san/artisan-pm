@@ -44,7 +44,16 @@ final class IssueReport
 
     public static function title(string $dimension): string
     {
-        return self::DIMENSIONS[$dimension][0];
+        return match ($dimension) {
+            'tracker' => __('トラッカー'),
+            'priority' => __('優先度'),
+            'category' => __('カテゴリ'),
+            'version' => __('対象バージョン'),
+            'assigned_to' => __('担当者'),
+            'author' => __('作成者'),
+            'subproject' => __('サブプロジェクト'),
+            default => self::DIMENSIONS[$dimension][0],
+        };
     }
 
     public static function column(string $dimension): string
@@ -148,7 +157,7 @@ final class IssueReport
         $rows = $this->rows($dimension)->map(fn ($row) => ['key' => $row->id, 'label' => $row->name])->all();
 
         if (self::hasNoneRow($dimension) && array_key_exists('none', $counts)) {
-            $rows[] = ['key' => 'none', 'label' => 'なし'];
+            $rows[] = ['key' => 'none', 'label' => __('なし')];
         }
 
         return $rows;

@@ -21,7 +21,7 @@ final class LatestNewsBlock implements DashboardBlock
 
     public function label(): string
     {
-        return '最新のお知らせ';
+        return __('最新のお知らせ');
     }
 
     /**

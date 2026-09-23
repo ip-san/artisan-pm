@@ -168,10 +168,10 @@ new #[Layout('components.layouts.app')] class extends Component
         <div>
             <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('非表示にするフィールド(このトラッカーの課題フォームから除外)') }}</span>
             <div class="grid grid-cols-2 gap-2">
-                @foreach (\App\Models\Tracker::DISABLABLE_CORE_FIELDS as $key => $label)
+                @foreach (\App\Models\Tracker::disablableCoreFieldLabels() as $key => $label)
                     <label class="flex items-center gap-2 text-sm text-neutral-700">
                         <input type="checkbox" wire:model="disabled_core_fields" value="{{ $key }}" class="rounded border-neutral-300">
-                        {{ __($label) }}
+                        {{ $label }}
                     </label>
                 @endforeach
             </div>

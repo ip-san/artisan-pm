@@ -8,7 +8,6 @@ use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
-use App\Support\Activity\ActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Activity\OffByDefault;
 use App\Support\Authorization\AuthorizationService;
@@ -28,7 +27,7 @@ final class TimeEntryActivityProvider implements MultiProjectActivityProvider, O
 
     public function label(): string
     {
-        return '工数';
+        return __('工数');
     }
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection
@@ -51,7 +50,7 @@ final class TimeEntryActivityProvider implements MultiProjectActivityProvider, O
             ->get()
             ->map(fn (TimeEntry $entry) => new ActivityEntry(
                 type: $this->type(),
-                title: "{$entry->hours}時間 ({$entry->activity->name})".($entry->issue ? " — #{$entry->issue->id} {$entry->issue->subject}" : ''),
+                title: __(':hours時間 (:activity)', ['hours' => $entry->hours, 'activity' => $entry->activity->name]).($entry->issue ? " — #{$entry->issue->id} {$entry->issue->subject}" : ''),
                 url: $entry->issue ? route('issues.show', [$projects[$entry->project_id], $entry->issue]) : route('time-entries.index', $projects[$entry->project_id]),
                 authorName: $entry->user->displayName(),
                 occurredAt: $entry->spent_on,

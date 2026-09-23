@@ -588,7 +588,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="block text-sm font-medium text-neutral-700">{{ __('課題のコメントの並び順') }}</label>
                 <select wire:model="comments_sorting" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    @foreach (\App\Support\Preferences\UserPreferences::COMMENTS_SORTING as $value => $label)
+                    @foreach (\App\Support\Preferences\UserPreferences::commentsSortingLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
                 </select>
@@ -598,7 +598,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="block text-sm font-medium text-neutral-700">{{ __('課題の履歴の初期タブ') }}</label>
                 <select wire:model="history_default_tab" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    @foreach (\App\Support\Preferences\UserPreferences::HISTORY_TABS as $value => $label)
+                    @foreach (\App\Support\Preferences\UserPreferences::historyTabLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
                 </select>
@@ -607,7 +607,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="block text-sm font-medium text-neutral-700">{{ __('テキストエリアのフォント') }}</label>
                 <select wire:model="textarea_font" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    @foreach (\App\Support\Preferences\UserPreferences::TEXTAREA_FONTS as $value => $label)
+                    @foreach (\App\Support\Preferences\UserPreferences::textareaFontLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
                 </select>
@@ -637,7 +637,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <span class="block text-sm font-medium text-neutral-700">{{ __('自動的にウォッチする課題') }}</span>
                 <div class="mt-1 flex flex-wrap gap-4 text-sm text-neutral-700">
-                    @foreach (\App\Support\Preferences\UserPreferences::AUTO_WATCH_ON as $value => $label)
+                    @foreach (\App\Support\Preferences\UserPreferences::autoWatchOnLabels() as $value => $label)
                         <label class="flex items-center gap-1.5">
                             <input type="checkbox" value="{{ $value }}" wire:model="auto_watch_on" class="rounded border-neutral-300">
                             {{ $label }}

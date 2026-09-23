@@ -17,7 +17,7 @@ final class ListFormat implements FormatContract
 
     public function label(): string
     {
-        return 'リスト選択';
+        return __('リスト選択');
     }
 
     public function storageColumn(): string

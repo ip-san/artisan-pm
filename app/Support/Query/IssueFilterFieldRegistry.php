@@ -34,20 +34,20 @@ final class IssueFilterFieldRegistry
 
         /** @var array<int, FilterableField> $nativeFields */
         $nativeFields = [
-            new NativeColumnFilter('status_id', 'ステータス', 'status_id', FilterFieldType::Select, $selectOperators, fn () => IssueStatus::query()->orderBy('position')->pluck('name', 'id')->all()),
-            new NativeColumnFilter('tracker_id', 'トラッカー', 'tracker_id', FilterFieldType::Select, $selectOperators, fn () => $project->trackers->pluck('name', 'id')->all()),
-            new NativeColumnFilter('priority_id', '優先度', 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
-            new NativeColumnFilter('category_id', 'カテゴリ', 'category_id', FilterFieldType::Select, $selectOperators, fn () => $project->issueCategories->pluck('name', 'id')->all()),
-            new NativeColumnFilter('assigned_to_id', '担当者', 'assigned_to_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
-            new NativeColumnFilter('author_id', '作成者', 'author_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
-            new NativeColumnFilter('fixed_version_id', '対象バージョン', 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $project->versions->pluck('name', 'id')->all()),
-            new NativeColumnFilter('subject', '題名', 'subject', FilterFieldType::Text, $textOperators),
-            new NativeColumnFilter('start_date', '開始日', 'start_date', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('due_date', '期日', 'due_date', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('created_at', '作成日', 'created_at', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('updated_at', '更新日', 'updated_at', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('closed_on', '終了日', 'closed_on', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('done_ratio', '進捗率', 'done_ratio', FilterFieldType::Integer, $integerOperators),
+            new NativeColumnFilter('status_id', __('ステータス'), 'status_id', FilterFieldType::Select, $selectOperators, fn () => IssueStatus::query()->orderBy('position')->pluck('name', 'id')->all()),
+            new NativeColumnFilter('tracker_id', __('トラッカー'), 'tracker_id', FilterFieldType::Select, $selectOperators, fn () => $project->trackers->pluck('name', 'id')->all()),
+            new NativeColumnFilter('priority_id', __('優先度'), 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
+            new NativeColumnFilter('category_id', __('カテゴリ'), 'category_id', FilterFieldType::Select, $selectOperators, fn () => $project->issueCategories->pluck('name', 'id')->all()),
+            new NativeColumnFilter('assigned_to_id', __('担当者'), 'assigned_to_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
+            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
+            new NativeColumnFilter('fixed_version_id', __('対象バージョン'), 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $project->versions->pluck('name', 'id')->all()),
+            new NativeColumnFilter('subject', __('題名'), 'subject', FilterFieldType::Text, $textOperators),
+            new NativeColumnFilter('start_date', __('開始日'), 'start_date', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('due_date', __('期日'), 'due_date', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('updated_at', __('更新日'), 'updated_at', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('closed_on', __('終了日'), 'closed_on', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('done_ratio', __('進捗率'), 'done_ratio', FilterFieldType::Integer, $integerOperators),
         ];
 
         $customFields = CustomField::query()
@@ -92,19 +92,19 @@ final class IssueFilterFieldRegistry
 
         /** @var array<int, FilterableField> $nativeFields */
         $nativeFields = [
-            new NativeColumnFilter('project_id', 'プロジェクト', 'project_id', FilterFieldType::Select, $selectOperators, fn () => $projects->pluck('name', 'id')->all()),
-            new NativeColumnFilter('status_id', 'ステータス', 'status_id', FilterFieldType::Select, $selectOperators, fn () => IssueStatus::query()->orderBy('position')->pluck('name', 'id')->all()),
-            new NativeColumnFilter('tracker_id', 'トラッカー', 'tracker_id', FilterFieldType::Select, $selectOperators, fn () => $trackers->pluck('name', 'id')->all()),
-            new NativeColumnFilter('priority_id', '優先度', 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
-            new NativeColumnFilter('category_id', 'カテゴリ', 'category_id', FilterFieldType::Select, $selectOperators, fn () => $categories->pluck('name', 'id')->all()),
-            new NativeColumnFilter('assigned_to_id', '担当者', 'assigned_to_id', FilterFieldType::Select, $selectOperators, fn () => $users->pluck('name', 'id')->all()),
-            new NativeColumnFilter('author_id', '作成者', 'author_id', FilterFieldType::Select, $selectOperators, fn () => $users->pluck('name', 'id')->all()),
-            new NativeColumnFilter('fixed_version_id', '対象バージョン', 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $versions->pluck('name', 'id')->all()),
-            new NativeColumnFilter('subject', '題名', 'subject', FilterFieldType::Text, $textOperators),
-            new NativeColumnFilter('start_date', '開始日', 'start_date', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('due_date', '期日', 'due_date', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('created_at', '作成日', 'created_at', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('done_ratio', '進捗率', 'done_ratio', FilterFieldType::Integer, $integerOperators),
+            new NativeColumnFilter('project_id', __('プロジェクト'), 'project_id', FilterFieldType::Select, $selectOperators, fn () => $projects->pluck('name', 'id')->all()),
+            new NativeColumnFilter('status_id', __('ステータス'), 'status_id', FilterFieldType::Select, $selectOperators, fn () => IssueStatus::query()->orderBy('position')->pluck('name', 'id')->all()),
+            new NativeColumnFilter('tracker_id', __('トラッカー'), 'tracker_id', FilterFieldType::Select, $selectOperators, fn () => $trackers->pluck('name', 'id')->all()),
+            new NativeColumnFilter('priority_id', __('優先度'), 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
+            new NativeColumnFilter('category_id', __('カテゴリ'), 'category_id', FilterFieldType::Select, $selectOperators, fn () => $categories->pluck('name', 'id')->all()),
+            new NativeColumnFilter('assigned_to_id', __('担当者'), 'assigned_to_id', FilterFieldType::Select, $selectOperators, fn () => $users->pluck('name', 'id')->all()),
+            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => $users->pluck('name', 'id')->all()),
+            new NativeColumnFilter('fixed_version_id', __('対象バージョン'), 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $versions->pluck('name', 'id')->all()),
+            new NativeColumnFilter('subject', __('題名'), 'subject', FilterFieldType::Text, $textOperators),
+            new NativeColumnFilter('start_date', __('開始日'), 'start_date', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('due_date', __('期日'), 'due_date', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('done_ratio', __('進捗率'), 'done_ratio', FilterFieldType::Integer, $integerOperators),
         ];
 
         $customFields = CustomField::query()

@@ -26,7 +26,7 @@ final class EnumerationFormat implements FormatContract
 
     public function label(): string
     {
-        return '選択肢(管理された一覧)';
+        return __('選択肢(管理された一覧)');
     }
 
     public function storageColumn(): string

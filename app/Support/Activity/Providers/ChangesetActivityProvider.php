@@ -8,7 +8,6 @@ use App\Models\Changeset;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
-use App\Support\Activity\ActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
@@ -28,7 +27,7 @@ final class ChangesetActivityProvider implements MultiProjectActivityProvider
 
     public function label(): string
     {
-        return 'リポジトリ';
+        return __('リポジトリ');
     }
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection

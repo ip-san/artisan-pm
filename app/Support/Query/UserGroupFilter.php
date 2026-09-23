@@ -21,7 +21,7 @@ final class UserGroupFilter implements FilterableField
 
     public function label(): string
     {
-        return '所属グループ';
+        return __('所属グループ');
     }
 
     public function type(): FilterFieldType

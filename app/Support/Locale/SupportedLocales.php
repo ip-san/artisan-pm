@@ -6,6 +6,7 @@ namespace App\Support\Locale;
 
 use App\Models\Setting;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 
 /**
@@ -61,5 +62,15 @@ final class SupportedLocales
         }
 
         return self::default();
+    }
+
+    /**
+     * The short name of an ISO weekday (1 = Monday … 7 = Sunday) in the
+     * current language: 月 / Mon. Taken from Carbon rather than lang/*.json,
+     * where 月 and 日 already mean "month" and "day".
+     */
+    public static function weekdayName(int $isoWeekday): string
+    {
+        return CarbonImmutable::create(2026, 1, 4)->addDays($isoWeekday % 7)->locale(app()->getLocale())->isoFormat('ddd');
     }
 }

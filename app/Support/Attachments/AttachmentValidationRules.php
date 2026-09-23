@@ -57,7 +57,7 @@ final class AttachmentValidationRules
             }
 
             if (! self::isExtensionAllowed($value->getClientOriginalExtension())) {
-                $fail('このファイル形式は許可されていません。');
+                $fail(__('このファイル形式は許可されていません。'));
             }
         };
     }

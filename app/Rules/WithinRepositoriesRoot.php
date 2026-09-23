@@ -32,7 +32,7 @@ final class WithinRepositoriesRoot implements ValidationRule
         $root = realpath((string) config('scm.repositories_root'));
 
         if ($root === false) {
-            $fail('リポジトリの保存先ディレクトリが存在しません。管理者に連絡してください。');
+            $fail(__('リポジトリの保存先ディレクトリが存在しません。管理者に連絡してください。'));
 
             return;
         }
@@ -40,7 +40,7 @@ final class WithinRepositoriesRoot implements ValidationRule
         $target = realpath($value);
 
         if ($target === false || ($target !== $root && ! str_starts_with($target, $root.DIRECTORY_SEPARATOR))) {
-            $fail('リポジトリのパスは許可されたディレクトリ配下にある必要があります。');
+            $fail(__('リポジトリのパスは許可されたディレクトリ配下にある必要があります。'));
         }
     }
 }

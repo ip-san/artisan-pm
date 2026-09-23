@@ -27,7 +27,7 @@ final class AllowedEmailDomain implements ValidationRule
         }
 
         if (! EmailDomainPolicy::allows($email)) {
-            $fail('このメールアドレスのドメインでは登録できません。');
+            $fail(__('このメールアドレスのドメインでは登録できません。'));
         }
     }
 }

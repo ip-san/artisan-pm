@@ -25,6 +25,19 @@ final class Hours
         self::MINUTES => '時:分(1:30)',
     ];
 
+    /**
+     * FORMATS with its labels translated, for display.
+     *
+     * @return array<string, string>
+     */
+    public static function formatLabels(): array
+    {
+        return [
+            self::DECIMAL => __('小数(1.50)'),
+            self::MINUTES => __('時:分(1:30)'),
+        ];
+    }
+
     public static function timespanFormat(): string
     {
         $format = (string) Setting::get('timespan_format', self::DECIMAL);

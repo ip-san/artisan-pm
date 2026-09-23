@@ -27,7 +27,7 @@ final class EnforceTwofaRequired
 
         if ($user !== null && $request->routeIs('profile.index') === false && $user->mustActivateTwoFactor()) {
             return redirect()->route('profile.index')
-                ->with('status', '管理者の設定により、二要素認証の設定が必須になっています。設定を完了してください。');
+                ->with('status', __('管理者の設定により、二要素認証の設定が必須になっています。設定を完了してください。'));
         }
 
         return $next($request);

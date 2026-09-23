@@ -8,18 +8,17 @@ use App\Models\Tracker;
 use App\Models\User;
 
 /**
- * Every view: those translated so far (A14-01b) have __() calls with the
- * Japanese original as the key, the others have none to check.
+ * Every view and PHP class: those translated so far (A14-01b) call __() with
+ * the Japanese original as the key, the others have none to check.
  *
  * @return list<string>
  */
-function translatedViews(): array
+function translatableFiles(): array
 {
-    $views = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path('views'), FilesystemIterator::SKIP_DOTS));
-
-    return collect(iterator_to_array($views))
+    return collect([resource_path('views'), app_path()])
+        ->flatMap(fn (string $root): array => iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS))))
         ->map(fn (SplFileInfo $file): string => $file->getPathname())
-        ->filter(fn (string $path): bool => str_ends_with($path, '.blade.php'))
+        ->filter(fn (string $path): bool => str_ends_with($path, '.php'))
         ->values()->all();
 }
 
@@ -32,7 +31,8 @@ function englishTranslations(): array
 }
 
 /**
- * The literal keys of every __('…') call in a file.
+ * The literal Japanese keys of every __('…') call in a file (English keys,
+ * such as Fortify's, fall back to themselves).
  *
  * @return list<string>
  */
@@ -40,7 +40,10 @@ function translationKeysIn(string $path): array
 {
     preg_match_all("/__\\(\\s*'((?:[^'\\\\]|\\\\.)*)'/u", file_get_contents($path), $matches);
 
-    return array_map(fn (string $key): string => stripslashes($key), $matches[1]);
+    return collect($matches[1])
+        ->map(fn (string $key): string => stripslashes($key))
+        ->filter(fn (string $key): bool => preg_match('/[\\p{Han}\\p{Hiragana}\\p{Katakana}]/u', $key) === 1)
+        ->values()->all();
 }
 
 /**
@@ -55,14 +58,14 @@ function placeholdersIn(string $text): array
     return $names;
 }
 
-test('every translated key in the translated views has an English entry', function () {
+test('every translated key in the views and classes has an English entry', function () {
     $english = englishTranslations();
     $missing = [];
 
-    foreach (translatedViews() as $view) {
-        foreach (translationKeysIn($view) as $key) {
+    foreach (translatableFiles() as $file) {
+        foreach (translationKeysIn($file) as $key) {
             if (! array_key_exists($key, $english)) {
-                $missing[] = basename($view).': '.$key;
+                $missing[] = basename($file).': '.$key;
             }
         }
     }

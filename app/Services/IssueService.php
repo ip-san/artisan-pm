@@ -115,11 +115,11 @@ final class IssueService
                 : Issue::query()->where('project_id', $issue->project_id)->find($reassignToIssueId);
 
             if ($reassignTo === null) {
-                throw ValidationException::withMessages(['reassign_to_id' => 'このプロジェクトに存在する課題を指定してください。']);
+                throw ValidationException::withMessages(['reassign_to_id' => __('このプロジェクトに存在する課題を指定してください。')]);
             }
 
             if ($reassignTo->is($issue)) {
-                throw ValidationException::withMessages(['reassign_to_id' => '削除する課題自身には付け替えできません。']);
+                throw ValidationException::withMessages(['reassign_to_id' => __('削除する課題自身には付け替えできません。')]);
             }
         }
 

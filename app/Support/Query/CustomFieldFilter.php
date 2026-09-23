@@ -58,7 +58,7 @@ final class CustomFieldFilter implements FilterableField
         $options = $this->field->format()->options($this->field);
 
         // A `user` field can be filtered by "me", the signed-in user.
-        return $this->field->field_format === CustomFieldFormat::User ? ['me' => '<< 自分 >>', ...$options] : $options;
+        return $this->field->field_format === CustomFieldFormat::User ? ['me' => __('<< 自分 >>'), ...$options] : $options;
     }
 
     public function apply(Builder $query, FilterOperator $operator, array $values): Builder

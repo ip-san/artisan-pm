@@ -36,6 +36,27 @@ final class RelatedIssueColumns
     ];
 
     /**
+     * AVAILABLE with its labels translated, for display.
+     *
+     * @return array<string, string>
+     */
+    public static function labels(): array
+    {
+        return [
+            'status_id' => __('ステータス'),
+            'priority_id' => __('優先度'),
+            'category_id' => __('カテゴリ'),
+            'assigned_to_id' => __('担当者'),
+            'author_id' => __('作成者'),
+            'fixed_version_id' => __('対象バージョン'),
+            'start_date' => __('開始日'),
+            'due_date' => __('期日'),
+            'created_at' => __('作成日'),
+            'done_ratio' => __('進捗率'),
+        ];
+    }
+
+    /**
      * Redmine's config/settings.yml default.
      *
      * @var array<int, string>
@@ -53,7 +74,7 @@ final class RelatedIssueColumns
         $configured = Setting::get('related_issues_default_columns', self::DEFAULT);
 
         return array_intersect_key(
-            self::AVAILABLE,
+            self::labels(),
             array_flip(is_array($configured) ? $configured : self::DEFAULT),
         );
     }

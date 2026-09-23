@@ -16,7 +16,7 @@ final class StringFormat implements FormatContract
 
     public function label(): string
     {
-        return '文字列';
+        return __('文字列');
     }
 
     public function storageColumn(): string

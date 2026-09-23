@@ -516,7 +516,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function historyTabs(): array
     {
-        $tabs = array_map(fn (string $label): string => __($label), UserPreferences::HISTORY_TABS);
+        $tabs = UserPreferences::historyTabLabels();
 
         if ($this->issue->changesets->isNotEmpty() && auth()->user()?->can('viewAny', [Repository::class, $this->project])) {
             $tabs['changesets'] = __('チェンジセット');

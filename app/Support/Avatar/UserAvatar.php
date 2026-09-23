@@ -32,6 +32,25 @@ final class UserAvatar
         'initials' => 'イニシャル',
     ];
 
+    /**
+     * DEFAULT_STYLES with its labels translated, for display.
+     *
+     * @return array<string, string>
+     */
+    public static function defaultStyleLabels(): array
+    {
+        return [
+            '' => __('Gravatar標準'),
+            'mm' => __('ミステリーパーソン'),
+            'identicon' => 'Identicon',
+            'monsterid' => 'Monster',
+            'wavatar' => 'Wavatar',
+            'retro' => 'Retro',
+            'robohash' => 'Robohash',
+            'initials' => __('イニシャル'),
+        ];
+    }
+
     public static function gravatarEnabled(): bool
     {
         return (bool) Setting::get('gravatar_enabled', false);

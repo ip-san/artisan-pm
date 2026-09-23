@@ -10,6 +10,7 @@ use App\Models\CustomField;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Models\User;
+use App\Support\Authorization\AuthorizationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Collection;
@@ -82,7 +83,7 @@ final class TimeReportAxes
         // A field is offered when some project in scope shows it to the viewer.
         return $fields->filter(function (CustomField $field) use ($viewer, $projects) {
             foreach ($projects ?? collect() as $project) {
-                if ($field->appliesToProject($project) && ($viewer?->is_admin || $field->visibleToRoles(app(\App\Support\Authorization\AuthorizationService::class)->rolesFor($viewer, $project)))) {
+                if ($field->appliesToProject($project) && ($viewer?->is_admin || $field->visibleToRoles(app(AuthorizationService::class)->rolesFor($viewer, $project)))) {
                     return true;
                 }
             }
@@ -98,7 +99,7 @@ final class TimeReportAxes
     {
         return new TimeReportAxis(
             key: 'project',
-            label: 'プロジェクト',
+            label: __('プロジェクト'),
             expression: 'time_entries.project_id',
             needsIssueJoin: false,
             join: null,
@@ -114,7 +115,7 @@ final class TimeReportAxes
 
         return new TimeReportAxis(
             key: ($onTimeEntry ? 'cf_time_' : 'cf_issue_').$field->id,
-            label: $field->name.($onTimeEntry ? '' : '(課題)'),
+            label: $onTimeEntry ? $field->name : __(':name(課題)', ['name' => $field->name]),
             expression: "{$alias}.{$column}",
             needsIssueJoin: ! $onTimeEntry,
             join: function (Builder $query) use ($field, $alias, $onTimeEntry): void {
@@ -126,7 +127,7 @@ final class TimeReportAxes
             },
             labels: fn (Collection $values) => $values->mapWithKeys(fn ($value) => [
                 $value => match (true) {
-                    $field->field_format === CustomFieldFormat::Bool => $value ? 'はい' : 'いいえ',
+                    $field->field_format === CustomFieldFormat::Bool => $value ? __('はい') : __('いいえ'),
                     default => (string) $field->format()->castValue($value, $field),
                 },
             ])->all(),

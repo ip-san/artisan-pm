@@ -40,7 +40,7 @@ final class WikiSectionEditLinkInjector
             $link = $document->createElement('a');
             $link->setAttribute('href', "{$editUrl}?section=".($index + 1));
             $link->setAttribute('class', 'section-edit ml-2 text-xs font-normal text-indigo-600 no-underline hover:underline');
-            $link->textContent = '編集';
+            $link->textContent = __('編集');
             $heading->appendChild($link);
         }
 

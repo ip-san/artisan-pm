@@ -29,7 +29,7 @@ final class AttachmentBundleController extends Controller
         abort_if($attachments->isEmpty(), 404);
 
         if (AttachmentArchive::exceedsLimit($attachments)) {
-            return redirect()->back()->with('error', sprintf('添付ファイルの合計サイズが上限(%sKB)を超えているため、まとめてダウンロードできません。', number_format(AttachmentArchive::maxSizeKb())));
+            return redirect()->back()->with('error', __('添付ファイルの合計サイズが上限(:sizeKB)を超えているため、まとめてダウンロードできません。', ['size' => number_format(AttachmentArchive::maxSizeKb())]));
         }
 
         $zipPath = AttachmentArchive::build($attachments);

@@ -36,13 +36,13 @@ enum TimeReportCriterion: string
     public function label(): string
     {
         return match ($this) {
-            self::Status => 'ステータス',
-            self::Version => 'バージョン',
-            self::Category => 'カテゴリ',
-            self::User => '担当者',
-            self::Tracker => 'トラッカー',
-            self::Activity => '作業分類',
-            self::Issue => '課題',
+            self::Status => __('ステータス'),
+            self::Version => __('バージョン'),
+            self::Category => __('カテゴリ'),
+            self::User => __('担当者'),
+            self::Tracker => __('トラッカー'),
+            self::Activity => __('作業分類'),
+            self::Issue => __('課題'),
         };
     }
 

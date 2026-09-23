@@ -29,19 +29,19 @@ final class UserFilterFieldRegistry
 
         /** @var array<int, FilterableField> $fields */
         $fields = [
-            new NativeColumnFilter('status', 'ステータス', 'status', FilterFieldType::Select, $choice, fn () => [
-                UserStatus::Active->value => '有効',
-                UserStatus::Registered->value => '承認待ち',
-                UserStatus::Locked->value => 'ロック中',
+            new NativeColumnFilter('status', __('ステータス'), 'status', FilterFieldType::Select, $choice, fn () => [
+                UserStatus::Active->value => __('有効'),
+                UserStatus::Registered->value => __('承認待ち'),
+                UserStatus::Locked->value => __('ロック中'),
             ]),
-            new NativeColumnFilter('auth_source_id', '認証方式', 'auth_source_id', FilterFieldType::Select, [...$choice, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], fn () => AuthSource::query()->orderBy('name')->pluck('name', 'id')->all()),
+            new NativeColumnFilter('auth_source_id', __('認証方式'), 'auth_source_id', FilterFieldType::Select, [...$choice, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], fn () => AuthSource::query()->orderBy('name')->pluck('name', 'id')->all()),
             new UserGroupFilter,
-            new NativeColumnFilter('name', '名前', 'name', FilterFieldType::Text, $text),
-            new NativeColumnFilter('login', 'ログインID', 'login', FilterFieldType::Text, $text),
-            new NativeColumnFilter('email', 'メールアドレス', 'email', FilterFieldType::Text, $text),
-            new NativeColumnFilter('is_admin', '管理者', 'is_admin', FilterFieldType::Boolean, [FilterOperator::Equals]),
-            new NativeColumnFilter('created_at', '登録日', 'created_at', FilterFieldType::Date, $date),
-            new NativeColumnFilter('last_login_at', '最終ログイン', 'last_login_at', FilterFieldType::Date, $date),
+            new NativeColumnFilter('name', __('名前'), 'name', FilterFieldType::Text, $text),
+            new NativeColumnFilter('login', __('ログインID'), 'login', FilterFieldType::Text, $text),
+            new NativeColumnFilter('email', __('メールアドレス'), 'email', FilterFieldType::Text, $text),
+            new NativeColumnFilter('is_admin', __('管理者'), 'is_admin', FilterFieldType::Boolean, [FilterOperator::Equals]),
+            new NativeColumnFilter('created_at', __('登録日'), 'created_at', FilterFieldType::Date, $date),
+            new NativeColumnFilter('last_login_at', __('最終ログイン'), 'last_login_at', FilterFieldType::Date, $date),
         ];
 
         return collect($fields)->keyBy(fn (FilterableField $field) => $field->key());
@@ -53,14 +53,14 @@ final class UserFilterFieldRegistry
     public static function columns(): array
     {
         return [
-            'name' => '名前',
-            'login' => 'ログインID',
-            'email' => 'メールアドレス',
-            'is_admin' => '管理者',
-            'status' => 'ステータス',
-            'auth_source_id' => '認証方式',
-            'created_at' => '登録日',
-            'last_login_at' => '最終ログイン',
+            'name' => __('名前'),
+            'login' => __('ログインID'),
+            'email' => __('メールアドレス'),
+            'is_admin' => __('管理者'),
+            'status' => __('ステータス'),
+            'auth_source_id' => __('認証方式'),
+            'created_at' => __('登録日'),
+            'last_login_at' => __('最終ログイン'),
         ];
     }
 

@@ -242,7 +242,7 @@
 | 138f | A14-01b5 | A14-01b | M | done(2026-09-23) |
 | 138g | A14-01b6 | A14-01b | M | todo |
 | 138h | A14-01b7 | A14-01b | S〜M | todo |
-| 138i | A14-01b8 | A14-01b | M | todo |
+| 138i | A14-01b8 | A14-01b | M | done(2026-09-23、メール関連の `app/Mail`・`app/Notifications`・通知リスナーは A14-01b6 へ) |
 | 139 | B'-02 | 承認 | M | blocked(要承認: MediaLibrary 設計) |
 | 140 | B'-03 | 承認 | S〜M | blocked(要承認: ScmAdapter 設計) |
 | 141 | B'-01 | 承認 | M×3 | blocked(要承認: hg/cvs/bzr バイナリ追加) |
@@ -514,7 +514,7 @@
 | A14-01b5 | 置換と英訳: 管理画面(ユーザー/グループ/ロール/トラッカー/ステータス/ワークフロー/カスタムフィールド/値の一覧/設定/LDAP/プラグイン/情報)とマイページ・活動・ガント・カレンダー・検索・プロフィール・認証画面 | 2026-09-23 実施(Webhook・添付・リポジトリも含む)。2FA の送信ボタンは見出しの「認証」と英訳を分けるため「認証する」に変更。`TranslationCoverageTest` は全ビューを走査するように変更 | 同上 | A14-01b で分離 | M | 「多言語」 |
 | A14-01b6 | 置換と英訳: メール(`resources/views/mail/*`、件名)。受信者ごとの言語で送る(`Mailable::locale()`) | 未着手 | 受信者の `language` で `->locale()` を指定。キューのジョブ内でもロケールが効くことをテスト | A14-01b で分離 | M | 「多言語」 |
 | A14-01b7 | 置換と英訳: PDF・CSV の見出し、Atom フィード | 課題レポートの詳細 CSV のみ A14-01b1 で `__()` 済み(英語の利用者には英語の見出し) | 同上 | A14-01b で分離 | S〜M | 「多言語」 |
-| A14-01b8 | 置換と英訳: enum の `label()` と PHP 側のラベル表(`ListDefaults::ISSUE_TOTALS`、`RelatedIssueColumns`、`UserPreferences::HISTORY_TABS`、`IssueReport::title()`、`IssueFilterFieldRegistry` の項目名・演算子、`IssueNotificationMail` の関連ラベル) | 課題画面でもこれらの表から出る文言は日本語のまま(A14-01b1 の対象外) | 定数は `__()` を呼べないため、ラベルを返すメソッドに置き換える(A14-01b1 の `displayColumns()`/`relationLabels()` と同じ) | A14-01b で分離 | M | 「多言語」 |
+| A14-01b8 | 置換と英訳: enum の `label()` と PHP 側のラベル表(`ListDefaults::ISSUE_TOTALS`、`RelatedIssueColumns`、`UserPreferences::HISTORY_TABS`、`IssueReport::title()`、`IssueFilterFieldRegistry` の項目名・演算子、`IssueNotificationMail` の関連ラベル) | 2026-09-23 実施。キーを検証・照合に使う定数(`ListDefaults::ISSUE_TOTALS`、`Tracker::DISABLABLE_CORE_FIELDS`、`UserPreferences::*`、`RelatedIssueColumns::AVAILABLE` など)は残し、表示用に `__()` を返すメソッドを追加。CSV インポートの値の別名(有効/ロック中/はい など)、DB に保存される自動生成の注記・削除済みユーザー名、プラグインの開発者向け説明は訳さない。曜日名は `月`/`日`(月/日の単位)と衝突するため Carbon から取る(`SupportedLocales::weekdayName()`)。Wiki の整形済みHTMLキャッシュのキーにロケールを追加。インポートの行エラーはジョブ実行時のロケール(既定の言語)で保存される | 定数は `__()` を呼べないため、ラベルを返すメソッドに置き換える(A14-01b1 の `displayColumns()`/`relationLabels()` と同じ) | A14-01b で分離 | M | 「多言語」 |
 | A14-02 | ユーザータイムゾーン・日付/時刻形式 | A4-12 | — | — | M |
 | A14-03 | テーマ切替(`ui_theme`) | Tailwind 単一テーマ | A5-06 | — | M |
 | A14-04 | 管理 → 情報(`admin/info`: バージョン・環境・チェックリスト(ファイル書込可否・ImageMagick・SCM バイナリ有無)) | なし(`admin.info` grep 0件) | `/admin/info` に PHP/Laravel/DB バージョン、`storage/` 書込可否、`git`/`svn` バイナリ有無、キュー/スケジューラ稼働状況を表示 | 管理者専用 | S |
@@ -814,7 +814,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 ### (c) 追加・訂正した行
 
 - **フォローアップ行(実装済み)**: A1-05b、A1-06b、A1-10a〜c、A2-07b、A8-02b、A9-03b、A9-04b、A12-02b、A12-06b、A12-06d、A13-05b、A14-01a。
-- **フォローアップ行(未着手)**: A14-01b6〜b8(メール、PDF/CSV、PHP 側のラベル表。画面の置換 A14-01b1〜b5 は 2026-09-23 に実施)。
+- **フォローアップ行(未着手)**: A14-01b6(メール)、A14-01b7(PDF/CSV/Atom)。画面の置換 A14-01b1〜b5 と PHP 側のラベル A14-01b8 は 2026-09-23 に実施。
 - **バックログ自身の訂正(§C)**: C-24〜C-28、C-30(Redmine 7.0 に無い、または既に実装済みだった主張)。
 - **実装中に見つけた不具合(修正済み)**: C-29(CSV エクスポートの数式インジェクション、`CsvCell` で対策)、C-31(管理された一覧のカスタムフィールドの編集フォームの初期値)ほか。
 

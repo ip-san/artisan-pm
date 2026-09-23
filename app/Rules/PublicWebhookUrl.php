@@ -22,13 +22,13 @@ final class PublicWebhookUrl implements ValidationRule
         $host = is_array($parts) ? trim((string) ($parts['host'] ?? ''), '[]') : '';
 
         if (! in_array(strtolower((string) ($parts['scheme'] ?? '')), ['http', 'https'], true) || $host === '') {
-            $fail('URLはhttpまたはhttpsで指定してください。');
+            $fail(__('URLはhttpまたはhttpsで指定してください。'));
 
             return;
         }
 
         if (strtolower($host) === 'localhost' || str_ends_with(strtolower($host), '.localhost')) {
-            $fail('内部ネットワークのアドレスは指定できません。');
+            $fail(__('内部ネットワークのアドレスは指定できません。'));
 
             return;
         }
@@ -39,7 +39,7 @@ final class PublicWebhookUrl implements ValidationRule
 
         foreach ($addresses as $address) {
             if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
-                $fail('内部ネットワークのアドレスは指定できません。');
+                $fail(__('内部ネットワークのアドレスは指定できません。'));
 
                 return;
             }

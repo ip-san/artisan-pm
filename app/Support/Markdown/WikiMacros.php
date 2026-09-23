@@ -8,8 +8,6 @@ use App\Models\Issue;
 use App\Models\Project;
 use App\Models\WikiPage;
 use Closure;
-use DOMDocument;
-use DOMElement;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -150,7 +148,7 @@ final class WikiMacros
     private static function recentPages(MacroCall $call): string
     {
         if ($call->project === null) {
-            return self::error('{{recent_pages}} はプロジェクトのWikiでのみ使えます。');
+            return self::error(__('{{recent_pages}} はプロジェクトのWikiでのみ使えます。'));
         }
 
         $limit = max(1, min(100, (int) ($call->positional()[0] ?? 10)));
@@ -170,7 +168,7 @@ final class WikiMacros
         $issue = $id > 0 ? Issue::query()->with(['project', 'tracker', 'status'])->find($id) : null;
 
         if ($issue === null || ! (auth()->user()?->can('view', $issue) ?? false)) {
-            return self::error("課題 #{$id} が見つかりません。");
+            return self::error(__('課題 #:id が見つかりません。', ['id' => $id]));
         }
 
         $options = $call->options();
@@ -192,7 +190,7 @@ final class WikiMacros
         $media = $call->attachments?->sortByDesc('created_at')->first(fn (Media $candidate) => strcasecmp($candidate->file_name, $filename) === 0);
 
         if ($media === null) {
-            return self::error("添付ファイル「{$filename}」が見つかりません。");
+            return self::error(__('添付ファイル「:filename」が見つかりません。', ['filename' => $filename]));
         }
 
         $options = $call->options();
@@ -215,7 +213,7 @@ final class WikiMacros
         $root = $title !== null ? $call->project->wikiPages()->where('title', $title)->first() : $call->page;
 
         if ($root === null) {
-            return $title !== null ? self::error("ページ「{$title}」が見つかりません。") : '<p>{{child_pages}}</p>';
+            return $title !== null ? self::error(__('ページ「:title」が見つかりません。', ['title' => $title])) : '<p>{{child_pages}}</p>';
         }
 
         $html = '';

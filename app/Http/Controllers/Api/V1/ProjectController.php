@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Support\Api\CustomFieldPayload;
+use App\Enums\CustomizableType;
 use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreProjectRequest;
 use App\Http\Requests\Api\V1\UpdateProjectRequest;
 use App\Http\Resources\Api\V1\ProjectResource;
+use App\Models\CustomField;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Tracker;
+use App\Support\Api\CustomFieldPayload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
@@ -70,7 +72,7 @@ final class ProjectController extends Controller
         // A project that does not exist yet has no roles to hide fields from.
         $customFieldData = CustomFieldPayload::extract(
             $request,
-            \App\Models\CustomField::query()->where('customized_type', \App\Enums\CustomizableType::Project)->orderBy('position')->get(),
+            CustomField::query()->where('customized_type', CustomizableType::Project)->orderBy('position')->get(),
             $request->user(),
             requireAll: true,
         );
@@ -144,7 +146,7 @@ final class ProjectController extends Controller
 
         if ($blockedTrackerNames->isNotEmpty()) {
             throw ValidationException::withMessages([
-                'tracker_ids' => 'このプロジェクトの課題で使用中のため外せません: '.$blockedTrackerNames->join(', '),
+                'tracker_ids' => __('このプロジェクトの課題で使用中のため外せません: :trackers', ['trackers' => $blockedTrackerNames->join(', ')]),
             ]);
         }
     }

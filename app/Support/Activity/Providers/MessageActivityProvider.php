@@ -8,7 +8,6 @@ use App\Models\Message;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
-use App\Support\Activity\ActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Activity\OffByDefault;
 use App\Support\Authorization\AuthorizationService;
@@ -29,7 +28,7 @@ final class MessageActivityProvider implements MultiProjectActivityProvider, Off
 
     public function label(): string
     {
-        return 'フォーラム';
+        return __('フォーラム');
     }
 
     public function entries(Project $project, ?User $viewer, Carbon $from, Carbon $to): Collection

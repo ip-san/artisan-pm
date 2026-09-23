@@ -21,7 +21,7 @@ final class DocumentsBlock implements DashboardBlock
 
     public function label(): string
     {
-        return '最新の文書';
+        return __('最新の文書');
     }
 
     /**

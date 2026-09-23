@@ -21,7 +21,7 @@ final class WatchedIssuesBlock implements DashboardBlock
 
     public function label(): string
     {
-        return 'ウォッチ中の課題';
+        return __('ウォッチ中の課題');
     }
 
     public function rows(User $user): Collection

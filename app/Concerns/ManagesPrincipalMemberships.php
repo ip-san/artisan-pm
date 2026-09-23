@@ -111,7 +111,7 @@ trait ManagesPrincipalMemberships
                 : ['required', Rule::in($this->membershipProjects->pluck('id')->all())],
             'membershipRoleIds' => ['required', 'array', 'min:1'],
             'membershipRoleIds.*' => [Rule::in($this->membershipRoles->pluck('id')->all())],
-        ], attributes: ['membershipRoleIds' => 'ロール', 'membershipProjectId' => 'プロジェクト']);
+        ], attributes: ['membershipRoleIds' => __('ロール'), 'membershipProjectId' => __('プロジェクト')]);
 
         $project = Project::query()->findOrFail($data['membershipProjectId']);
 

@@ -10,6 +10,7 @@ use App\Models\Issue;
 use App\Models\Journal;
 use App\Models\Project;
 use App\Models\Setting;
+use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -56,7 +57,7 @@ final class IssueChangesAtomController extends Controller
 
         $xml = view('feeds.issue-changes', [
             'journals' => $journals,
-            'title' => ($project !== null ? $project->name : (string) Setting::get('app_title', config('app.name'))).': 変更の詳細',
+            'title' => ($project !== null ? $project->name : (string) Setting::get('app_title', config('app.name'))).': '.__('変更の詳細'),
             'alternateUrl' => $project !== null ? route('issues.index', $project) : route('issues.global-index'),
             'details' => fn (Journal $journal) => $this->describe($journal, $customFieldNames),
         ])->render();
@@ -64,7 +65,7 @@ final class IssueChangesAtomController extends Controller
         return response($xml, 200, ['Content-Type' => 'application/atom+xml; charset=utf-8']);
     }
 
-    private function mayRead(Journal $journal, ?\App\Models\User $user, AuthorizationService $authorization): bool
+    private function mayRead(Journal $journal, ?User $user, AuthorizationService $authorization): bool
     {
         if (! $journal->private_notes) {
             return true;
@@ -87,7 +88,7 @@ final class IssueChangesAtomController extends Controller
             ->map(function ($detail) use ($customFieldNames): string {
                 $label = match ($detail->property) {
                     'cf' => $customFieldNames[(int) $detail->prop_key] ?? $detail->prop_key,
-                    'attachment' => '添付ファイル',
+                    'attachment' => __('添付ファイル'),
                     'relation' => IssueNotificationMail::RELATION_LABELS[$detail->prop_key] ?? $detail->prop_key,
                     default => IssueNotificationMail::ATTRIBUTE_LABELS[$detail->prop_key] ?? $detail->prop_key,
                 };
@@ -97,8 +98,8 @@ final class IssueChangesAtomController extends Controller
 
                 return match (true) {
                     $old !== null && $new !== null => "{$label}: {$old} → {$new}",
-                    $new !== null => "{$label}: {$new} を追加",
-                    default => "{$label}: {$old} を削除",
+                    $new !== null => __(':label: :value を追加', ['label' => $label, 'value' => $new]),
+                    default => __(':label: :value を削除', ['label' => $label, 'value' => $old]),
                 };
             })
             ->values()

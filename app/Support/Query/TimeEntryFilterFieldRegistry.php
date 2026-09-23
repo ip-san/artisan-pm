@@ -28,10 +28,10 @@ final class TimeEntryFilterFieldRegistry
 
         /** @var array<int, FilterableField> $fields */
         $fields = [
-            new NativeColumnFilter('user_id', '担当者', 'user_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
-            new NativeColumnFilter('activity_id', '作業分類', 'activity_id', FilterFieldType::Select, $selectOperators, fn () => $project->activities(includeInactive: true)->pluck('name', 'id')->all()),
-            new NativeColumnFilter('spent_on', '日付', 'spent_on', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('hours', '時間', 'hours', FilterFieldType::Integer, $integerOperators),
+            new NativeColumnFilter('user_id', __('担当者'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
+            new NativeColumnFilter('activity_id', __('作業分類'), 'activity_id', FilterFieldType::Select, $selectOperators, fn () => $project->activities(includeInactive: true)->pluck('name', 'id')->all()),
+            new NativeColumnFilter('spent_on', __('日付'), 'spent_on', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('hours', __('時間'), 'hours', FilterFieldType::Integer, $integerOperators),
         ];
 
         return collect($fields)->keyBy(fn (FilterableField $field) => $field->key());
@@ -57,11 +57,11 @@ final class TimeEntryFilterFieldRegistry
 
         /** @var array<int, FilterableField> $fields */
         $fields = [
-            new NativeColumnFilter('project_id', 'プロジェクト', 'project_id', FilterFieldType::Select, $selectOperators, fn () => $projects->pluck('name', 'id')->all()),
-            new NativeColumnFilter('user_id', '担当者', 'user_id', FilterFieldType::Select, $selectOperators, fn () => $users->pluck('name', 'id')->all()),
-            new NativeColumnFilter('activity_id', '作業分類', 'activity_id', FilterFieldType::Select, $selectOperators, fn () => $activities->pluck('name', 'id')->all()),
-            new NativeColumnFilter('spent_on', '日付', 'spent_on', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('hours', '時間', 'hours', FilterFieldType::Integer, $integerOperators),
+            new NativeColumnFilter('project_id', __('プロジェクト'), 'project_id', FilterFieldType::Select, $selectOperators, fn () => $projects->pluck('name', 'id')->all()),
+            new NativeColumnFilter('user_id', __('担当者'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => $users->pluck('name', 'id')->all()),
+            new NativeColumnFilter('activity_id', __('作業分類'), 'activity_id', FilterFieldType::Select, $selectOperators, fn () => $activities->pluck('name', 'id')->all()),
+            new NativeColumnFilter('spent_on', __('日付'), 'spent_on', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('hours', __('時間'), 'hours', FilterFieldType::Integer, $integerOperators),
         ];
 
         return collect($fields)->keyBy(fn (FilterableField $field) => $field->key());

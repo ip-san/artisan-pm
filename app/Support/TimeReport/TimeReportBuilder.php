@@ -80,7 +80,7 @@ final class TimeReportBuilder
             if (! isset($buckets[$rowKey])) {
                 $buckets[$rowKey] = [
                     'labels' => array_map(
-                        fn (TimeReportAxis $axis, $v) => $labelResolvers[$axis->key][$v ?? ''] ?? '(なし)',
+                        fn (TimeReportAxis $axis, $v) => $labelResolvers[$axis->key][$v ?? ''] ?? __('(なし)'),
                         $criteria,
                         $values,
                     ),

@@ -62,7 +62,7 @@ final class LdapAuthenticator
         }
 
         if (! $connection->auth()->attempt($source->account, $source->account_password)) {
-            throw new LdapConnectionTestException('検索用アカウントでの認証に失敗しました。');
+            throw new LdapConnectionTestException(__('検索用アカウントでの認証に失敗しました。'));
         }
     }
 

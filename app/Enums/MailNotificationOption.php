@@ -22,12 +22,12 @@ enum MailNotificationOption: string
     public function label(): string
     {
         return match ($this) {
-            self::All => 'すべてのイベントを通知',
-            self::Selected => '選択したプロジェクトのイベントと、自分の関与するイベントのみ通知',
-            self::OnlyMyEvents => '自分の関与するイベントのみ通知(作成者・担当者・ウォッチャー)',
-            self::OnlyAssigned => '自分が担当者のイベントのみ通知',
-            self::OnlyOwner => '自分が作成者のイベントのみ通知',
-            self::None => '通知しない',
+            self::All => __('すべてのイベントを通知'),
+            self::Selected => __('選択したプロジェクトのイベントと、自分の関与するイベントのみ通知'),
+            self::OnlyMyEvents => __('自分の関与するイベントのみ通知(作成者・担当者・ウォッチャー)'),
+            self::OnlyAssigned => __('自分が担当者のイベントのみ通知'),
+            self::OnlyOwner => __('自分が作成者のイベントのみ通知'),
+            self::None => __('通知しない'),
         };
     }
 }

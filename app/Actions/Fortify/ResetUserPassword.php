@@ -27,7 +27,7 @@ final class ResetUserPassword implements ResetsUserPasswords
         // user or one that now authenticates against an external directory
         // (LDAP) must not be able to set a local password with it.
         if (! $user->isActive() || $user->auth_source_id !== null) {
-            throw ValidationException::withMessages(['email' => 'このアカウントのパスワードは再設定できません。']);
+            throw ValidationException::withMessages(['email' => __('このアカウントのパスワードは再設定できません。')]);
         }
 
         Validator::make($input, [

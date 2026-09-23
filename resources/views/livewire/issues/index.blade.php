@@ -1901,7 +1901,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @php
                     $totalValue = ['estimated_hours' => 'estimated', 'spent_hours' => 'spent', 'estimated_remaining_hours' => 'remaining'][$totalKey];
                 @endphp
-                {{ $loop->first ? '' : '/ ' }}{{ ListDefaults::ISSUE_TOTALS[$totalKey] }} {{ __(':hours 時間', ['hours' => \App\Support\Format\Hours::format($this->listTotals[$totalValue])]) }}
+                {{ $loop->first ? '' : '/ ' }}{{ ListDefaults::issueTotalLabels()[$totalKey] }} {{ __(':hours 時間', ['hours' => \App\Support\Format\Hours::format($this->listTotals[$totalValue])]) }}
             @endforeach
         </p>
     @endif

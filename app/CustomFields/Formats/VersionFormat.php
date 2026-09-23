@@ -28,7 +28,7 @@ final class VersionFormat implements ProjectScopedFormat
 
     public function label(): string
     {
-        return 'バージョン';
+        return __('バージョン');
     }
 
     public function storageColumn(): string

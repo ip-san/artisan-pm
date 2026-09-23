@@ -98,3 +98,12 @@ test('the settings form saves the default language and the two force options', f
     Livewire::actingAs(User::factory()->admin()->create())->test('settings.index')
         ->set('default_language', 'fr')->call('save')->assertHasErrors('default_language');
 });
+
+test('weekday names follow the current language', function () {
+    app()->setLocale('ja');
+    expect(SupportedLocales::weekdayName(1))->toBe('月')->and(SupportedLocales::weekdayName(7))->toBe('日');
+
+    app()->setLocale('en');
+    expect(SupportedLocales::weekdayName(1))->toBe('Mon')->and(SupportedLocales::weekdayName(7))->toBe('Sun')
+        ->and(__('月'))->toBe('Month')->and(__('日'))->toBe('Day');
+});
