@@ -10,6 +10,7 @@ use App\Enums\FilterOperator;
 use App\Enums\ProjectStatus;
 use App\Models\CustomField;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -23,6 +24,16 @@ use Illuminate\Support\Collection;
  */
 final class ProjectFilterFieldRegistry
 {
+    /**
+     * @var array<int, string>
+     */
+    public const array DEFAULT_COLUMNS = ['name', 'identifier', 'description'];
+
+    /**
+     * @var array<int, string>
+     */
+    public const array DISPLAY_TYPES = ['board', 'list'];
+
     /**
      * @param  Collection<int, int>  $visibleProjectIds  the parent filter only offers projects the viewer can see
      * @return Collection<string, FilterableField>
@@ -91,13 +102,33 @@ final class ProjectFilterFieldRegistry
     }
 
     /**
-     * Redmine's project_list_defaults column_names default.
+     * The columns a fresh list starts with: the setting
+     * `project_list_defaults` (stored like Redmine's, as
+     * `{column_names: [...]}`), limited to native columns, or Redmine's
+     * default of name, identifier and description.
      *
      * @return array<int, string>
      */
     public static function defaultColumns(): array
     {
-        return ['name', 'identifier', 'description'];
+        $stored = Setting::get('project_list_defaults', []);
+        $configured = is_array($stored) ? ($stored['column_names'] ?? null) : null;
+        $valid = is_array($configured)
+            ? array_values(array_unique(array_filter($configured, fn ($key) => is_string($key) && array_key_exists($key, self::nativeColumns()))))
+            : [];
+
+        return $valid !== [] ? $valid : self::DEFAULT_COLUMNS;
+    }
+
+    /**
+     * Redmine's `project_list_display_type`: `board` (cards, its default)
+     * or `list` (a table).
+     */
+    public static function defaultDisplayType(): string
+    {
+        $configured = Setting::get('project_list_display_type', 'board');
+
+        return in_array($configured, self::DISPLAY_TYPES, true) ? $configured : 'board';
     }
 
     /**

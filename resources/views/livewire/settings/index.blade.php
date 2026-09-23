@@ -18,6 +18,7 @@ use App\Support\Mail\PublicUrl;
 use App\Support\Pagination\PageSize;
 use App\Support\Preferences\UserPreferences;
 use App\Support\Query\ListDefaults;
+use App\Support\Query\ProjectFilterFieldRegistry;
 use App\Support\Scm\CodesetConverter;
 use App\Support\Scm\DisplayLimits;
 use App\Support\TimeLog\TimeLogConstraints;
@@ -327,6 +328,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $default_project_query = null;
 
+    public string $project_list_display_type = 'board';
+
+    /** @var array<int, string> */
+    public array $project_list_default_columns = [];
+
     /** @var array<string> */
     public array $notified_events = [];
 
@@ -475,6 +481,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->sequential_project_identifiers = Setting::get('sequential_project_identifiers', false);
         $this->new_project_user_role_id = Setting::get('new_project_user_role_id');
         $this->default_project_query = filled(Setting::get('default_project_query')) ? (int) Setting::get('default_project_query') : null;
+        $this->project_list_display_type = ProjectFilterFieldRegistry::defaultDisplayType();
+        $this->project_list_default_columns = ProjectFilterFieldRegistry::defaultColumns();
         $this->notified_events = Setting::get('notified_events', NotificationRecipients::defaultNotifiedEvents());
         $this->mail_from = Setting::get('mail_from', '');
         $this->plain_text_mail = Setting::get('plain_text_mail', false);
@@ -687,6 +695,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_projects_tracker_ids.*' => ['exists:trackers,id'],
             'sequential_project_identifiers' => ['boolean'],
             'new_project_user_role_id' => ['nullable', 'exists:roles,id'],
+            'project_list_display_type' => ['required', Rule::in(ProjectFilterFieldRegistry::DISPLAY_TYPES)],
+            'project_list_default_columns' => ['array', 'min:1'],
+            'project_list_default_columns.*' => [Rule::in(array_keys(ProjectFilterFieldRegistry::nativeColumns()))],
             'default_project_query' => ['nullable', Rule::exists('queries', 'id')->where('type', QueryType::Project->value)->where('visibility', QueryVisibility::Public->value)->whereNull('project_id')],
             'notified_events' => ['array'],
             'notified_events.*' => [Rule::in(array_keys(self::notifiedEvents()))],
@@ -727,6 +738,10 @@ new #[Layout('components.layouts.app')] class extends Component
             'totalable_names' => $data['time_entry_list_show_total'] ? ['hours'] : [],
         ]);
         unset($data['time_entry_list_default_columns'], $data['time_entry_list_show_total']);
+
+        // Stored the way Redmine's project_list_defaults is.
+        Setting::set('project_list_defaults', ['column_names' => array_values($data['project_list_default_columns'])]);
+        unset($data['project_list_default_columns']);
 
         foreach ($data as $key => $value) {
             Setting::set($key, $value);
@@ -1177,6 +1192,36 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                 </select>
                 @error('new_project_user_role_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+
+            <h3 class="border-t border-neutral-100 pt-4 text-sm font-semibold text-neutral-900">{{ __('プロジェクト一覧の既定') }}</h3>
+
+            <div>
+                <span class="block text-sm font-medium text-neutral-700">{{ __('プロジェクト一覧の表示形式') }}</span>
+                <div class="mt-1 flex flex-wrap gap-4 text-sm text-neutral-700">
+                    <label class="flex items-center gap-1.5">
+                        <input type="radio" value="board" wire:model="project_list_display_type" class="border-neutral-300">
+                        {{ __('ボード') }}
+                    </label>
+                    <label class="flex items-center gap-1.5">
+                        <input type="radio" value="list" wire:model="project_list_display_type" class="border-neutral-300">
+                        {{ __('一覧') }}
+                    </label>
+                </div>
+                @error('project_list_display_type') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <span class="block text-sm font-medium text-neutral-700">{{ __('プロジェクト一覧の初期表示列') }}</span>
+                <div class="mt-1 flex flex-wrap gap-4 text-sm text-neutral-700">
+                    @foreach (\App\Support\Query\ProjectFilterFieldRegistry::nativeColumns() as $key => $label)
+                        <label class="flex items-center gap-1.5">
+                            <input type="checkbox" value="{{ $key }}" wire:model="project_list_default_columns" class="rounded border-neutral-300">
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('project_list_default_columns') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>

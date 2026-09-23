@@ -31,7 +31,10 @@ use Livewire\WithPagination;
  * ProjectQuery: filters, column choice and sorting over every project the
  * viewer can see. With no filter and no sort it shows the whole tree
  * (nested-set order, indented); as soon as a filter or a sort is in play it
- * becomes a flat, paginated list, like Redmine's list display.
+ * becomes a flat, paginated list, like Redmine's list display. Both
+ * displays share that rule: `board` shows each project as a card, `list`
+ * as a table row with the chosen columns (Redmine's display_type; the
+ * default comes from the setting project_list_display_type).
  */
 new #[Layout('components.layouts.app')] class extends Component
 {
@@ -58,6 +61,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     #[Url]
     public string $sortDirection = 'asc';
+
+    /**
+     * `board` or `list`; null means the site default.
+     */
+    #[Url(as: 'display_type')]
+    public ?string $displayType = null;
 
     public string $newQueryName = '';
 
@@ -151,6 +160,20 @@ new #[Layout('components.layouts.app')] class extends Component
         return $chosen === [] ? ProjectFilterFieldRegistry::defaultColumns() : array_values(array_unique($chosen));
     }
 
+    #[Computed]
+    public function effectiveDisplayType(): string
+    {
+        return in_array($this->displayType, ProjectFilterFieldRegistry::DISPLAY_TYPES, true)
+            ? $this->displayType
+            : ProjectFilterFieldRegistry::defaultDisplayType();
+    }
+
+    public function setDisplayType(string $type): void
+    {
+        $this->displayType = in_array($type, ProjectFilterFieldRegistry::DISPLAY_TYPES, true) ? $type : null;
+        unset($this->effectiveDisplayType);
+    }
+
     /**
      * @return Collection<int, int>
      */
@@ -170,7 +193,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->search !== ''
             || $this->statusFilter !== 'all'
             || $this->builtFilters() !== []
-            || $this->sortKey !== null;
+            || ($this->sortKey !== null && array_key_exists($this->sortKey, $this->availableColumns));
     }
 
     /**
@@ -502,7 +525,13 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
-        <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
+        <span class="inline-flex overflow-hidden rounded-md border border-neutral-300" role="group" aria-label="{{ __('表示形式') }}">
+            <button type="button" wire:click="setDisplayType('board')" aria-pressed="{{ $this->effectiveDisplayType === 'board' ? 'true' : 'false' }}"
+                class="px-3 py-1 {{ $this->effectiveDisplayType === 'board' ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50' }}">{{ __('ボード') }}</button>
+            <button type="button" wire:click="setDisplayType('list')" aria-pressed="{{ $this->effectiveDisplayType === 'list' ? 'true' : 'false' }}"
+                class="border-l border-neutral-300 px-3 py-1 {{ $this->effectiveDisplayType === 'list' ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50' }}">{{ __('一覧') }}</button>
+        </span>
+        <span class="ml-2 text-neutral-500">{{ __('保存済みクエリ:') }}</span>
         @forelse ($this->savedQueries as $savedQuery)
             <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
                 {{ $savedQuery->name }}
@@ -517,15 +546,17 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
             <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">{{ __('絞り込み適用') }}</button>
-            <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-                {{ __('表示列:') }}
-                @foreach ($this->availableColumns as $columnKey => $columnLabel)
-                    <label class="flex items-center gap-1" wire:key="project-column-{{ $columnKey }}">
-                        <input type="checkbox" wire:model.live="columns" value="{{ $columnKey }}" class="rounded border-neutral-300">
-                        {{ $columnLabel }}
-                    </label>
-                @endforeach
-            </div>
+            @if ($this->effectiveDisplayType === 'list')
+                <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+                    {{ __('表示列:') }}
+                    @foreach ($this->availableColumns as $columnKey => $columnLabel)
+                        <label class="flex items-center gap-1" wire:key="project-column-{{ $columnKey }}">
+                            <input type="checkbox" wire:model.live="columns" value="{{ $columnKey }}" class="rounded border-neutral-300">
+                            {{ $columnLabel }}
+                        </label>
+                    @endforeach
+                </div>
+            @endif
             @if ($sortKey !== null)
                 <button wire:click="clearSort" class="text-sm text-brand-bold hover:underline">{{ __('並べ替えを解除') }}</button>
             @endif
@@ -541,64 +572,95 @@ new #[Layout('components.layouts.app')] class extends Component
                 :roles="$this->availableRoles" />
         @endif
 
-        <div class="mt-3">
-            <x-column-order :columns="$this->visibleColumns" :labels="$this->availableColumns" />
-        </div>
+        @if ($this->effectiveDisplayType === 'list')
+            <div class="mt-3">
+                <x-column-order :columns="$this->visibleColumns" :labels="$this->availableColumns" />
+            </div>
+        @endif
     </div>
 
-    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
-        <table class="min-w-full divide-y divide-neutral-200 text-sm">
-            <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
-                <tr>
-                    @foreach ($this->visibleColumns as $columnKey)
-                        <th wire:key="project-heading-{{ $columnKey }}" class="px-4 py-2">
-                            <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-neutral-900">
-                                {{ $this->availableColumns[$columnKey] }}
-                                @if ($sortKey === $columnKey)
-                                    <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                                @endif
-                            </button>
-                        </th>
-                    @endforeach
-                    <th class="px-4 py-2"></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-neutral-100">
-                @forelse ($this->projects as $project)
-                    <tr wire:key="project-row-{{ $project->id }}">
-                        @foreach ($this->visibleColumns as $columnKey)
-                            <td wire:key="project-{{ $project->id }}-{{ $columnKey }}" class="px-4 py-2 align-top"
-                                @if ($loop->first) style="padding-left: {{ 16 + ($project->display_level ?? 0) * 16 }}px" @endif>
-                                @if ($columnKey === 'name')
-                                    <a href="{{ route('projects.show', $project) }}" class="font-medium text-brand-bold hover:underline">{{ $project->name }}</a>
-                                    @unless ($project->is_public)
-                                        <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ __('非公開') }}</span>
-                                    @endunless
-                                @elseif ($columnKey === 'homepage' && $project->homepageUrl() !== null)
-                                    <a href="{{ $project->homepageUrl() }}" class="text-brand-bold hover:underline" rel="noopener">{{ $project->homepage }}</a>
-                                @elseif ($columnKey === 'parent_id' && $project->parent !== null && $this->visibleProjectIds->contains($project->parent->id))
-                                    <a href="{{ route('projects.show', $project->parent) }}" class="text-brand-bold hover:underline">{{ $project->parent->name }}</a>
-                                @else
-                                    {{ $this->columnValue($project, $columnKey) }}
-                                @endif
-                            </td>
-                        @endforeach
-                        <td class="px-4 py-2 text-right">
-                            <button wire:click="toggleBookmark({{ $project->id }})" wire:key="bookmark-{{ $project->id }}"
-                                class="shrink-0 text-lg leading-none {{ $this->bookmarkedProjectIds->contains($project->id) ? 'text-warning' : 'text-neutral-300 hover:text-neutral-400' }}"
-                                title="{{ __('ブックマーク') }}">
-                                ★
-                            </button>
-                        </td>
-                    </tr>
-                @empty
+    @if ($this->effectiveDisplayType === 'board')
+        <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white" data-display="board">
+            @forelse ($this->projects as $project)
+                <li wire:key="project-card-{{ $project->id }}" class="flex items-start justify-between px-4 py-3" style="padding-left: {{ 16 + ($project->display_level ?? 0) * 16 }}px">
+                    <div class="min-w-0">
+                        <a href="{{ route('projects.show', $project) }}" class="font-medium text-brand-bold hover:underline">{{ $project->name }}</a>
+                        <span class="ml-2 text-xs text-neutral-500">{{ $project->identifier }}</span>
+                        @unless ($project->is_public)
+                            <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ __('非公開') }}</span>
+                        @endunless
+                        @if ($project->status !== \App\Enums\ProjectStatus::Active)
+                            <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ $this->columnValue($project, 'status') }}</span>
+                        @endif
+                        @if ($project->description)
+                            <p class="mt-1 text-sm text-neutral-600">{{ $this->columnValue($project, 'description') }}</p>
+                        @endif
+                    </div>
+                    <button wire:click="toggleBookmark({{ $project->id }})" wire:key="bookmark-{{ $project->id }}"
+                        class="shrink-0 text-lg leading-none {{ $this->bookmarkedProjectIds->contains($project->id) ? 'text-warning' : 'text-neutral-300 hover:text-neutral-400' }}"
+                        title="{{ __('ブックマーク') }}">
+                        ★
+                    </button>
+                </li>
+            @empty
+                <li class="px-4 py-6 text-sm text-neutral-500">{{ __('プロジェクトがありません。') }}</li>
+            @endforelse
+        </ul>
+    @else
+        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+            <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                     <tr>
-                        <td colspan="{{ count($this->visibleColumns) + 1 }}" class="px-4 py-6 text-sm text-neutral-500">{{ __('プロジェクトがありません。') }}</td>
+                        @foreach ($this->visibleColumns as $columnKey)
+                            <th wire:key="project-heading-{{ $columnKey }}" class="px-4 py-2">
+                                <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-neutral-900">
+                                    {{ $this->availableColumns[$columnKey] }}
+                                    @if ($sortKey === $columnKey)
+                                        <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                    @endif
+                                </button>
+                            </th>
+                        @endforeach
+                        <th class="px-4 py-2"></th>
                     </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody class="divide-y divide-neutral-100">
+                    @forelse ($this->projects as $project)
+                        <tr wire:key="project-row-{{ $project->id }}">
+                            @foreach ($this->visibleColumns as $columnKey)
+                                <td wire:key="project-{{ $project->id }}-{{ $columnKey }}" class="px-4 py-2 align-top"
+                                    @if ($loop->first) style="padding-left: {{ 16 + ($project->display_level ?? 0) * 16 }}px" @endif>
+                                    @if ($columnKey === 'name')
+                                        <a href="{{ route('projects.show', $project) }}" class="font-medium text-brand-bold hover:underline">{{ $project->name }}</a>
+                                        @unless ($project->is_public)
+                                            <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ __('非公開') }}</span>
+                                        @endunless
+                                    @elseif ($columnKey === 'homepage' && $project->homepageUrl() !== null)
+                                        <a href="{{ $project->homepageUrl() }}" class="text-brand-bold hover:underline" rel="noopener">{{ $project->homepage }}</a>
+                                    @elseif ($columnKey === 'parent_id' && $project->parent !== null && $this->visibleProjectIds->contains($project->parent->id))
+                                        <a href="{{ route('projects.show', $project->parent) }}" class="text-brand-bold hover:underline">{{ $project->parent->name }}</a>
+                                    @else
+                                        {{ $this->columnValue($project, $columnKey) }}
+                                    @endif
+                                </td>
+                            @endforeach
+                            <td class="px-4 py-2 text-right">
+                                <button wire:click="toggleBookmark({{ $project->id }})" wire:key="bookmark-{{ $project->id }}"
+                                    class="shrink-0 text-lg leading-none {{ $this->bookmarkedProjectIds->contains($project->id) ? 'text-warning' : 'text-neutral-300 hover:text-neutral-400' }}"
+                                    title="{{ __('ブックマーク') }}">
+                                    ★
+                                </button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="{{ count($this->visibleColumns) + 1 }}" class="px-4 py-6 text-sm text-neutral-500">{{ __('プロジェクトがありません。') }}</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    @endif
 
     @if ($this->projects instanceof \Illuminate\Contracts\Pagination\Paginator)
         <div class="mt-4">

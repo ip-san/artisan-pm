@@ -6,6 +6,7 @@ use App\Models\CustomField;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\Paginator;
 use Livewire\Livewire;
@@ -70,6 +71,7 @@ test('a project custom field can be used as a filter and as a column', function 
     $user = User::factory()->create();
 
     $component = Livewire::actingAs($user)->test('projects.index')
+        ->set('displayType', 'list')
         ->set('columns', ['name', "cf_{$field->id}"])
         ->set('activeFilterKeys', ["cf_{$field->id}"])
         ->set('filterOperators', ["cf_{$field->id}" => '='])
@@ -86,6 +88,7 @@ test('a role-restricted project custom field is offered to neither the filters n
     $user = User::factory()->create();
 
     $component = Livewire::actingAs($user)->test('projects.index')
+        ->set('displayType', 'list')
         ->set('columns', ['name', "cf_{$field->id}"])
         ->set('activeFilterKeys', ["cf_{$field->id}"])
         ->set('filterOperators', ["cf_{$field->id}" => '='])
@@ -127,7 +130,7 @@ test('the chosen columns are shown and default to name, identifier and descripti
     Project::factory()->create(['name' => 'Columned', 'homepage' => 'https://example.test/home']);
     $user = User::factory()->create();
 
-    $component = Livewire::actingAs($user)->test('projects.index');
+    $component = Livewire::actingAs($user)->test('projects.index')->set('displayType', 'list');
     expect($component->get('visibleColumns'))->toBe(['name', 'identifier', 'description']);
     $component->assertDontSee('https://example.test/home');
 
@@ -140,6 +143,7 @@ test('the parent column does not name a parent the viewer cannot see', function 
     $user = User::factory()->create();
 
     Livewire::actingAs($user)->test('projects.index')
+        ->set('displayType', 'list')
         ->set('columns', ['name', 'parent_id'])
         ->assertSee('Open Child')
         ->assertDontSee('Secret Parent');
@@ -204,4 +208,57 @@ test('the parent filter only offers projects the viewer can see', function () {
     $options = Livewire::actingAs($user)->test('projects.index')->get('engine')->field('parent_id')->options();
 
     expect($options)->toBe([$visible->id => 'Open Parent']);
+});
+
+test('the list opens in the display type chosen in the settings and can be switched', function () {
+    Project::factory()->create(['name' => 'Switchable', 'homepage' => 'https://example.test/switch']);
+    $user = User::factory()->create();
+
+    $component = Livewire::actingAs($user)->test('projects.index')->set('columns', ['name', 'homepage']);
+    expect($component->get('effectiveDisplayType'))->toBe('board');
+    $component->assertSee('Switchable')->assertDontSee('https://example.test/switch');
+
+    $component->call('setDisplayType', 'list')->assertSee('https://example.test/switch');
+    expect($component->get('displayType'))->toBe('list');
+
+    $component->call('setDisplayType', 'bogus');
+    expect($component->get('effectiveDisplayType'))->toBe('board');
+
+    Setting::set('project_list_display_type', 'list');
+    expect(Livewire::actingAs($user)->test('projects.index')->get('effectiveDisplayType'))->toBe('list');
+});
+
+test('the board keeps the tree indentation when nothing is filtered', function () {
+    $root = Project::factory()->create(['name' => 'Board Root']);
+    Project::factory()->create(['name' => 'Board Child', 'parent_id' => $root->id]);
+    $user = User::factory()->create();
+
+    Livewire::actingAs($user)->test('projects.index')
+        ->assertSeeHtmlInOrder(['padding-left: 16px', 'Board Root', 'padding-left: 32px', 'Board Child']);
+});
+
+test('the default columns come from the project_list_defaults setting', function () {
+    Setting::set('project_list_defaults', ['column_names' => ['identifier', 'status', 'nonsense']]);
+    $user = User::factory()->create();
+
+    expect(Livewire::actingAs($user)->test('projects.index')->get('visibleColumns'))->toBe(['identifier', 'status']);
+});
+
+test('the settings page stores the project list display type and default columns', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)->test('settings.index')
+        ->assertSet('project_list_display_type', 'board')
+        ->assertSet('project_list_default_columns', ['name', 'identifier', 'description'])
+        ->set('project_list_display_type', 'list')
+        ->set('project_list_default_columns', ['name', 'homepage'])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('project_list_display_type'))->toBe('list')
+        ->and(Setting::get('project_list_defaults'))->toBe(['column_names' => ['name', 'homepage']]);
+
+    Livewire::actingAs($admin)->test('settings.index')->set('project_list_display_type', 'grid')->call('save')->assertHasErrors(['project_list_display_type']);
+    Livewire::actingAs($admin)->test('settings.index')->set('project_list_default_columns', ['password'])->call('save')->assertHasErrors(['project_list_default_columns.0']);
+    Livewire::actingAs($admin)->test('settings.index')->set('project_list_default_columns', [])->call('save')->assertHasErrors(['project_list_default_columns']);
 });
