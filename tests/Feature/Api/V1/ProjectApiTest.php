@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ProjectStatus;
+use App\Enums\VersionStatus;
 use App\Models\Issue;
 use App\Models\Member;
 use App\Models\Project;
@@ -389,7 +390,7 @@ test('the API can set and clear the default version and assignee', function () {
 
 test('the API refuses a closed or foreign version and a non-assignable user', function () {
     [$project, $admin] = projectDefaultsSetup();
-    $closed = Version::factory()->for($project)->create(['status' => App\Enums\VersionStatus::Closed]);
+    $closed = Version::factory()->for($project)->create(['status' => VersionStatus::Closed]);
     $foreign = Version::factory()->for(Project::factory()->create())->create();
     $outsider = User::factory()->create();
     $nonAssignable = User::factory()->create();
@@ -409,7 +410,7 @@ test('the API refuses a closed or foreign version and a non-assignable user', fu
 
 test('an unrelated update keeps a default version that has since been closed', function () {
     [$project, $admin] = projectDefaultsSetup();
-    $version = Version::factory()->for($project)->create(['status' => App\Enums\VersionStatus::Closed]);
+    $version = Version::factory()->for($project)->create(['status' => VersionStatus::Closed]);
     $project->update(['default_version_id' => $version->id]);
 
     Passport::actingAs($admin);
@@ -426,4 +427,37 @@ test('a non-string default id is rejected', function () {
 
     $this->putJson("/api/v1/projects/{$project->id}", ['default_version_id' => 'abc'])->assertUnprocessable();
     $this->putJson("/api/v1/projects/{$project->id}", ['default_assigned_to_id' => ['x']])->assertUnprocessable();
+});
+
+test('inherit_members is exposed and can be set, copying the parent members', function () {
+    $parent = Project::factory()->create();
+    $child = Project::factory()->create(['parent_id' => $parent->id]);
+    $user = User::factory()->create();
+    Member::factory()->for($parent)->for($user)->create()->roles()->attach(Role::factory()->create());
+
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $this->getJson("/api/v1/projects/{$child->id}")->assertOk()->assertJsonPath('data.inherit_members', false);
+
+    $this->putJson("/api/v1/projects/{$child->id}", ['inherit_members' => true])
+        ->assertOk()
+        ->assertJsonPath('data.inherit_members', true);
+
+    expect($child->users()->pluck('users.id')->all())->toBe([$user->id]);
+});
+
+test('inherit_members is ignored for a requester who cannot see the parent', function () {
+    $parent = Project::factory()->create(['is_public' => false]);
+    $child = Project::factory()->create(['parent_id' => $parent->id, 'is_public' => false]);
+    Member::factory()->for($parent)->create()->roles()->attach(Role::factory()->create());
+    $editor = User::factory()->create();
+    Member::factory()->for($child)->for($editor)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_project', 'edit_project']]));
+
+    Passport::actingAs($editor);
+
+    $this->putJson("/api/v1/projects/{$child->id}", ['inherit_members' => true])
+        ->assertOk()
+        ->assertJsonPath('data.inherit_members', false);
+
+    expect($child->members()->count())->toBe(1);
 });

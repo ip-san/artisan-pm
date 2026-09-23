@@ -72,6 +72,7 @@ final class UpdateProjectRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'homepage' => ['nullable', 'string', 'max:255'],
             'is_public' => ['boolean'],
+            'inherit_members' => ['boolean'],
             // Excludes the project itself and its own descendants —
             // either would create a cycle in the nested set, matching
             // availableParents()'s exclusion in the web form.

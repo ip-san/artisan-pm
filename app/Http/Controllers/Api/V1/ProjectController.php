@@ -69,6 +69,11 @@ final class ProjectController extends Controller
 
         $data['is_public'] ??= Setting::get('default_projects_public', true);
 
+        // As in the web form: ignored unless the requester can see the parent.
+        if (! Project::mayChooseInheritMembers($request->user(), $data['parent_id'] ?? null)) {
+            unset($data['inherit_members']);
+        }
+
         // A project that does not exist yet has no roles to hide fields from.
         $customFieldData = CustomFieldPayload::extract(
             $request,
@@ -107,6 +112,10 @@ final class ProjectController extends Controller
 
         if (! Project::mayChoosePublicity($request->user(), $project)) {
             unset($data['is_public']);
+        }
+
+        if (! Project::mayChooseInheritMembers($request->user(), array_key_exists('parent_id', $data) ? $data['parent_id'] : $project->parent_id)) {
+            unset($data['inherit_members']);
         }
 
         $customFieldData = CustomFieldPayload::extract($request, $project->relevantCustomFields(), $request->user());

@@ -207,7 +207,7 @@
 | 114 | A3-03 | — | M | done(2026-09-24、A3-03a/b。REST の `inherited` は A11-16) |
 | 114a | A3-03a | — | M | done(2026-09-24、親のメンバー変更の伝播・継承行の保護・移動/新規作成は A3-03b) |
 | 114b | A3-03b | A3-03a | M | done(2026-09-24) |
-| 115 | A11-16 | A3-03 | S | todo(依存の A3-03 完了) |
+| 115 | A11-16 | A3-03 | S | done(2026-09-24) |
 | 116 | A3-09 | — | M | done(2026-09-20) |
 | 117 | A4-01 | — | M | done(2026-09-20、must_change_passwd と通知は未対応) |
 | 118 | A4-02 | — | M | done(2026-09-20) |
@@ -481,7 +481,7 @@
 | A11-13 | カスタムフィールドの `is_filter` フラグ(フィルタとして使えるかを CF ごとに制御) | `custom_fields` に列なし(migration grep 0件)。全 CF がフィルタ対象 | 列+フォーム+`IssueFilterFieldRegistry` で判定 | Web 側の機能でもある | S | カスタムフィールド 節 |
 | A11-14 | `PUT /my/account.json` の password/2FA/通知設定/CF、`GET /my/api_key`、`POST /my/api_key`(リセット) | name/email のみ | フィールド拡張。API キーはプロフィール画面で再生成できるため Resource に露出のみ | sudo mode は B-08 | S | REST API「My account」 |
 | A11-15 | `jsonp_enabled`(JSONP コールバック) | なし | 設定+`callback` パラメータ対応ミドルウェア | 優先度低・セキュリティ注意 | S | — |
-| A11-16 | Memberships の `inherited_from` | 概念なし | A3-03 実装後に露出 | — | S | REST API「Memberships」 |
+| A11-16 | Memberships の `inherited_from` | 2026-09-24 完了。`MembershipResource` に `inherited_role_ids`(`role_ids` のうち親から継承したもの。Redmine はロール配列の各要素に `inherited: true`、本アプリは既存の扁平な形に合わせた)。あわせて Projects API に `inherit_members` の読み書き(Redmine の `projects/show.api.rsb` と `safe_attributes`: 親を閲覧できない利用者の指定は無視) | A3-03 実装後に露出 | — | S | REST API「Memberships」 |
 | A11-18 | `GET /projects.json` のクエリ対応(Redmine は `ProjectQuery` のフィルタ・`limit`/`offset` を API にも適用) | `Api/V1/ProjectController::index` は全件を名前順に取得して `Gate::allows('view')` で絞るのみ(2026-09-24、A2-03a で確認) | `ProjectFilterFieldRegistry`+`visibleProjectIds(..., 'view_project')` を API 一覧にも適用し、`limit`/`offset` を受け付ける | A2-03a の基盤上に | S | REST API「Projects」 |
 
 ### A-12. 拡張性(プラグイン / Webhook / 受信メール)

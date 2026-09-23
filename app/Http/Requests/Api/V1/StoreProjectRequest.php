@@ -43,6 +43,7 @@ final class StoreProjectRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'homepage' => ['nullable', 'string', 'max:255'],
             'is_public' => ['boolean'],
+            'inherit_members' => ['boolean'],
             'parent_id' => ['nullable', 'exists:projects,id'],
             'tracker_ids' => ['required', 'array', 'min:1'],
             'tracker_ids.*' => ['exists:trackers,id'],

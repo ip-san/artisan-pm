@@ -687,6 +687,22 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * Whether the user may set inherit_members on a project under this
+     * parent — Redmine's safe_attributes: only someone who can see the
+     * parent whose members would be copied.
+     */
+    public static function mayChooseInheritMembers(User $user, ?int $parentId): bool
+    {
+        if ($parentId === null) {
+            return true;
+        }
+
+        $parent = self::query()->find($parentId);
+
+        return $parent !== null && $user->can('view', $parent);
+    }
+
+    /**
      * Matches Redmine's Project#add_default_member, called only for
      * non-admin creators (an admin already sees every project regardless
      * of membership). No-op when there is no givable role to grant at

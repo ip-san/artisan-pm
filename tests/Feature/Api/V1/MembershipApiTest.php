@@ -226,3 +226,30 @@ test('a manager cannot remove a member holding a role outside their managed set'
 
     expect(Member::find($member->id))->not->toBeNull();
 });
+
+test('memberships expose which of their roles were inherited from the parent project', function () {
+    $parent = Project::factory()->create();
+    $child = Project::factory()->create(['parent_id' => $parent->id]);
+    $user = User::factory()->create();
+    $inherited = Role::factory()->create();
+    $own = Role::factory()->create();
+    Member::factory()->for($parent)->for($user)->create()->roles()->attach($inherited);
+    $child->update(['inherit_members' => true]);
+    $childMember = Member::query()->where('project_id', $child->id)->where('user_id', $user->id)->firstOrFail();
+    $childMember->syncDirectRoles([$own->id]);
+
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $this->getJson("/api/v1/memberships/{$childMember->id}")
+        ->assertOk()
+        ->assertJsonPath('data.inherited_role_ids', [$inherited->id])
+        ->assertJsonPath('data.role_ids', fn (array $ids) => collect($ids)->sort()->values()->all() === collect([$inherited->id, $own->id])->sort()->values()->all());
+
+    $listed = collect($this->getJson("/api/v1/projects/{$child->id}/memberships")->assertOk()->json('data'))->firstWhere('id', $childMember->id);
+
+    expect($listed['inherited_role_ids'])->toBe([$inherited->id]);
+
+    $parentMember = Member::query()->where('project_id', $parent->id)->firstOrFail();
+
+    $this->getJson("/api/v1/memberships/{$parentMember->id}")->assertJsonPath('data.inherited_role_ids', []);
+});

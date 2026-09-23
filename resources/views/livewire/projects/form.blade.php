@@ -304,7 +304,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         // Redmine's safe_attributes: inherit_members may only be set by
         // someone who can see the parent whose members it would copy.
-        if ($data['parent_id'] !== null && ! auth()->user()->can('view', Project::findOrFail($data['parent_id']))) {
+        if (! Project::mayChooseInheritMembers(auth()->user(), $data['parent_id'])) {
             if ($this->project) {
                 unset($data['inherit_members']);
             } else {
