@@ -90,24 +90,24 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-xl">
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">
-        {{ $enumeration ? '編集' : '新規作成' }}
+        {{ $enumeration ? __('編集') : __('新規作成') }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <label class="flex items-center gap-2 text-sm text-neutral-700">
             <input type="checkbox" wire:model="is_default" class="rounded border-neutral-300">
-            既定値にする
+            {{ __('既定値にする') }}
         </label>
 
         <label class="flex items-center gap-2 text-sm text-neutral-700">
             <input type="checkbox" wire:model="active" class="rounded border-neutral-300">
-            有効にする
+            {{ __('有効にする') }}
         </label>
 
         @if ($this->customFields->isNotEmpty())
@@ -120,10 +120,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                保存
+                {{ __('保存') }}
             </button>
             <a href="{{ route('enumerations.index', $type->value) }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                キャンセル
+                {{ __('キャンセル') }}
             </a>
         </div>
     </form>

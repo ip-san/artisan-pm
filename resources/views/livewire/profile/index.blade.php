@@ -120,7 +120,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         UserPreferences::save(auth()->user(), $data);
 
-        session()->flash('status', '個人設定を保存しました。');
+        session()->flash('status', __('個人設定を保存しました。'));
     }
 
     /**
@@ -174,14 +174,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     $address = mb_strtolower((string) $value);
 
                     if ($address === mb_strtolower($user->email) || EmailAddress::query()->whereRaw('lower(address) = ?', [$address])->exists()) {
-                        $fail('このメールアドレスは既に登録されています。');
+                        $fail(__('このメールアドレスは既に登録されています。'));
                     }
                 },
             ],
         ]);
 
         if ($user->additionalEmails()->count() >= $limit) {
-            $this->addError('newAdditionalEmail', "追加できるメールアドレスは{$limit}件までです。");
+            $this->addError('newAdditionalEmail', __('追加できるメールアドレスは:limit件までです。', ['limit' => $limit]));
 
             return;
         }
@@ -232,7 +232,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $user->setNotifiedProjectIds($projectIds);
         $this->notified_project_ids = array_map('strval', $projectIds);
 
-        session()->flash('status', 'プロフィールを更新しました。');
+        session()->flash('status', __('プロフィールを更新しました。'));
     }
 
     public function updatePassword(): void
@@ -249,7 +249,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $user->forceFill(['password' => Hash::make($data['password']), 'must_change_passwd' => false])->save();
 
         $this->reset('current_password', 'password', 'password_confirmation');
-        session()->flash('status', 'パスワードを変更しました。');
+        session()->flash('status', __('パスワードを変更しました。'));
     }
 
     public function enableTwoFactor(): void
@@ -281,7 +281,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->reset('code');
         unset($this->twoFactorEnabled, $this->twoFactorPendingConfirmation, $this->recoveryCodes);
-        session()->flash('status', '二要素認証を有効にしました。');
+        session()->flash('status', __('二要素認証を有効にしました。'));
     }
 
     public function disableTwoFactor(): void
@@ -293,7 +293,7 @@ new #[Layout('components.layouts.app')] class extends Component
         app(DisableTwoFactorAuthentication::class)(auth()->user());
 
         unset($this->twoFactorEnabled, $this->twoFactorPendingConfirmation, $this->recoveryCodes);
-        session()->flash('status', '二要素認証を無効にしました。');
+        session()->flash('status', __('二要素認証を無効にしました。'));
     }
 
     public function regenerateRecoveryCodes(): void
@@ -305,7 +305,7 @@ new #[Layout('components.layouts.app')] class extends Component
         app(GenerateNewRecoveryCodes::class)(auth()->user());
 
         unset($this->recoveryCodes);
-        session()->flash('status', 'リカバリーコードを再生成しました。');
+        session()->flash('status', __('リカバリーコードを再生成しました。'));
     }
 
     /**
@@ -323,7 +323,7 @@ new #[Layout('components.layouts.app')] class extends Component
         auth()->user()->regenerateApiKey();
 
         unset($this->apiKey);
-        session()->flash('status', 'APIキーを再生成しました。');
+        session()->flash('status', __('APIキーを再生成しました。'));
     }
 
     /**
@@ -400,7 +400,7 @@ new #[Layout('components.layouts.app')] class extends Component
         auth()->user()->regenerateAtomKey();
 
         unset($this->atomKey);
-        session()->flash('status', 'Atomキーをリセットしました。');
+        session()->flash('status', __('Atomキーをリセットしました。'));
     }
 
     #[Computed]
@@ -417,38 +417,38 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-2xl space-y-8">
-    <h1 class="text-xl font-semibold text-neutral-900">アカウント設定</h1>
+    <h1 class="text-xl font-semibold text-neutral-900">{{ __('アカウント設定') }}</h1>
 
     <section class="rounded-md border border-neutral-200 bg-white p-4">
-        <h2 class="mb-4 text-sm font-semibold text-neutral-900">プロフィール</h2>
+        <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('プロフィール') }}</h2>
 
         <form wire:submit="updateProfile" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">名前</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
                 <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">メールアドレス</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('メールアドレス') }}</label>
                 <input type="email" wire:model="email" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('email') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div data-additional-emails>
-                <label class="block text-sm font-medium text-neutral-700">追加のメールアドレス</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('追加のメールアドレス') }}</label>
                 @foreach ($this->additionalEmails as $additional)
                     <div class="mt-1 flex items-center gap-3 text-sm" wire:key="additional-email-{{ $additional->id }}">
                         <span class="text-neutral-900">{{ $additional->address }}</span>
                         <button type="button" wire:click="toggleEmailNotify({{ $additional->id }})" class="text-xs {{ $additional->notify ? 'text-success-bold' : 'text-neutral-500' }} hover:underline">
-                            通知{{ $additional->notify ? 'あり' : 'なし' }}
+                            {{ $additional->notify ? __('通知あり') : __('通知なし') }}
                         </button>
-                        <button type="button" wire:click="removeEmail({{ $additional->id }})" wire:confirm="このメールアドレスを削除しますか?" class="text-xs text-danger-bolder hover:underline">削除</button>
+                        <button type="button" wire:click="removeEmail({{ $additional->id }})" wire:confirm="{{ __('このメールアドレスを削除しますか?') }}" class="text-xs text-danger-bolder hover:underline">{{ __('削除') }}</button>
                     </div>
                 @endforeach
                 <div class="mt-2 flex items-center gap-2">
-                    <input type="email" wire:model="newAdditionalEmail" placeholder="追加するメールアドレス" class="block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <button type="button" wire:click="addEmail" class="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">追加</button>
+                    <input type="email" wire:model="newAdditionalEmail" placeholder="{{ __('追加するメールアドレス') }}" class="block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <button type="button" wire:click="addEmail" class="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">{{ __('追加') }}</button>
                 </div>
                 @error('newAdditionalEmail') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -465,7 +465,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">メール通知</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('メール通知') }}</label>
                 <select wire:model="mail_notification" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach ($this->notificationOptions as $option)
                         <option value="{{ $option->value }}">{{ $option->label() }}</option>
@@ -476,118 +476,117 @@ new #[Layout('components.layouts.app')] class extends Component
 
             @if ($mail_notification === \App\Enums\MailNotificationOption::Selected->value)
                 <fieldset class="rounded-md border border-neutral-200 p-3" data-notified-projects>
-                    <legend class="px-1 text-sm font-medium text-neutral-700">通知を受け取るプロジェクト</legend>
+                    <legend class="px-1 text-sm font-medium text-neutral-700">{{ __('通知を受け取るプロジェクト') }}</legend>
                     @foreach ($this->notifiableProjects as $notifiable)
                         <label class="flex items-center gap-2 text-sm text-neutral-700" wire:key="notified-project-{{ $notifiable->id }}">
                             <input type="checkbox" wire:model="notified_project_ids" value="{{ $notifiable->id }}" class="rounded border-neutral-300">
                             {{ $notifiable->name }}
                         </label>
                     @endforeach
-                    <p class="mt-1 text-xs text-neutral-500">選択していないプロジェクトでは、自分が作成者・担当者・ウォッチャーの課題だけが通知されます。</p>
+                    <p class="mt-1 text-xs text-neutral-500">{{ __('選択していないプロジェクトでは、自分が作成者・担当者・ウォッチャーの課題だけが通知されます。') }}</p>
                 </fieldset>
             @endif
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="no_self_notified" class="rounded border-neutral-300">
-                    自分自身が行った変更については通知メールを送信しない
+                    {{ __('自分自身が行った変更については通知メールを送信しない') }}
                 </label>
             </div>
 
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                保存
+                {{ __('保存') }}
             </button>
         </form>
     </section>
 
     @if (auth()->user()->auth_source_id === null)
         <section class="rounded-md border border-neutral-200 bg-white p-4">
-            <h2 class="mb-4 text-sm font-semibold text-neutral-900">パスワード変更</h2>
+            <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('パスワード変更') }}</h2>
 
             <form wire:submit="updatePassword" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">現在のパスワード</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('現在のパスワード') }}</label>
                     <input type="password" wire:model="current_password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('current_password') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">新しいパスワード</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('新しいパスワード') }}</label>
                     <input type="password" wire:model="password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('password') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">新しいパスワード(確認)</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('新しいパスワード(確認)') }}</label>
                     <input type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
 
                 <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                    変更
+                    {{ __('変更') }}
                 </button>
             </form>
         </section>
     @else
         <section class="rounded-md border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
-            このアカウントはLDAP認証(「{{ auth()->user()->authSource?->name }}」)でログインしているため、
-            パスワードはこのアプリからは変更できません。
+            {{ __('このアカウントはLDAP認証(「:name」)でログインしているため、パスワードはこのアプリからは変更できません。', ['name' => auth()->user()->authSource?->name]) }}
         </section>
     @endif
 
     <section class="rounded-md border border-neutral-200 bg-white p-4">
-        <h2 class="mb-4 text-sm font-semibold text-neutral-900">二要素認証</h2>
+        <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('二要素認証') }}</h2>
 
         @if ($this->twoFactorEnabled)
-            <p class="mb-4 text-sm text-success-bold">二要素認証は有効です。</p>
+            <p class="mb-4 text-sm text-success-bold">{{ __('二要素認証は有効です。') }}</p>
 
             <div class="mb-4">
-                <p class="mb-2 text-sm font-medium text-neutral-700">リカバリーコード</p>
+                <p class="mb-2 text-sm font-medium text-neutral-700">{{ __('リカバリーコード') }}</p>
                 <ul class="grid grid-cols-2 gap-1 rounded-md bg-neutral-50 p-3 font-mono text-xs text-neutral-700">
                     @foreach ($this->recoveryCodes as $recoveryCode)
                         <li>{{ $recoveryCode }}</li>
                     @endforeach
                 </ul>
-                <button wire:click="regenerateRecoveryCodes" wire:confirm="リカバリーコードを再生成しますか?古いコードは無効になります。"
+                <button wire:click="regenerateRecoveryCodes" wire:confirm="{{ __('リカバリーコードを再生成しますか?古いコードは無効になります。') }}"
                     class="mt-2 text-sm text-brand-bold hover:underline">
-                    再生成
+                    {{ __('再生成') }}
                 </button>
             </div>
 
-            <button wire:click="disableTwoFactor" wire:confirm="二要素認証を無効にしますか?"
+            <button wire:click="disableTwoFactor" wire:confirm="{{ __('二要素認証を無効にしますか?') }}"
                 class="rounded-md border border-danger-subtle px-4 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
-                無効にする
+                {{ __('無効にする') }}
             </button>
         @elseif ($this->twoFactorPendingConfirmation)
             <p class="mb-4 text-sm text-neutral-600">
-                認証アプリでQRコードを読み取り、表示された6桁のコードを入力して有効化を完了してください。
+                {{ __('認証アプリでQRコードを読み取り、表示された6桁のコードを入力して有効化を完了してください。') }}
             </p>
 
             <div class="mb-4">{!! $this->qrCodeSvg !!}</div>
 
             <form wire:submit="confirmTwoFactor" class="flex items-end gap-3">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">認証コード</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('認証コード') }}</label>
                     <input type="text" wire:model="code" inputmode="numeric" class="mt-1 block w-40 rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('code') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                    確認して有効化
+                    {{ __('確認して有効化') }}
                 </button>
             </form>
         @else
-            <p class="mb-4 text-sm text-neutral-600">二要素認証は無効です。</p>
+            <p class="mb-4 text-sm text-neutral-600">{{ __('二要素認証は無効です。') }}</p>
 
             <button wire:click="enableTwoFactor" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                有効にする
+                {{ __('有効にする') }}
             </button>
         @endif
     </section>
 
     <section class="rounded-md border border-neutral-200 bg-white p-4" data-preferences>
-        <h2 class="mb-4 text-sm font-semibold text-neutral-900">個人設定</h2>
+        <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('個人設定') }}</h2>
         <form wire:submit="savePreferences" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">課題のコメントの並び順</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('課題のコメントの並び順') }}</label>
                 <select wire:model="comments_sorting" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Preferences\UserPreferences::COMMENTS_SORTING as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
@@ -597,7 +596,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">課題の履歴の初期タブ</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('課題の履歴の初期タブ') }}</label>
                 <select wire:model="history_default_tab" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Preferences\UserPreferences::HISTORY_TABS as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
@@ -606,7 +605,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">テキストエリアのフォント</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('テキストエリアのフォント') }}</label>
                 <select wire:model="textarea_font" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Preferences\UserPreferences::TEXTAREA_FONTS as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
@@ -616,27 +615,27 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="warn_on_leaving_unsaved" class="rounded border-neutral-300">
-                保存せずにページを離れるとき警告する
+                {{ __('保存せずにページを離れるとき警告する') }}
             </label>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="hide_mail" class="rounded border-neutral-300">
-                メールアドレスを他のユーザーに表示しない
+                {{ __('メールアドレスを他のユーザーに表示しない') }}
             </label>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="notify_about_high_priority_issues" class="rounded border-neutral-300">
-                優先度が既定より高い課題は、通知設定に関わらずメールで知らせる
+                {{ __('優先度が既定より高い課題は、通知設定に関わらずメールで知らせる') }}
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">プロジェクト移動に表示する最近使ったプロジェクトの数</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('プロジェクト移動に表示する最近使ったプロジェクトの数') }}</label>
                 <input type="number" min="0" max="10" wire:model="recently_used_projects" class="mt-1 block w-24 rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('recently_used_projects') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700">自動的にウォッチする課題</span>
+                <span class="block text-sm font-medium text-neutral-700">{{ __('自動的にウォッチする課題') }}</span>
                 <div class="mt-1 flex flex-wrap gap-4 text-sm text-neutral-700">
                     @foreach (\App\Support\Preferences\UserPreferences::AUTO_WATCH_ON as $value => $label)
                         <label class="flex items-center gap-1.5">
@@ -648,9 +647,9 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">既定の課題クエリ</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('既定の課題クエリ') }}</label>
                 <select wire:model="default_issue_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="">指定しない</option>
+                    <option value="">{{ __('指定しない') }}</option>
                     @foreach ($this->issueQueries as $query)
                         <option value="{{ $query->id }}">{{ $query->name }}</option>
                     @endforeach
@@ -658,61 +657,60 @@ new #[Layout('components.layouts.app')] class extends Component
                 @error('default_issue_query') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
-            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">保存</button>
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
         </form>
     </section>
 
     @if (\App\Models\Setting::get('webhooks_enabled', true) && app(\App\Support\Authorization\AuthorizationService::class)->canGlobally(auth()->user(), 'use_webhooks'))
         <section class="rounded-md border border-neutral-200 bg-white p-4">
             <h2 class="mb-2 text-sm font-semibold text-neutral-900">Webhook</h2>
-            <a href="{{ route('my-webhooks.index') }}" class="text-sm text-brand-bold hover:underline">自分のWebhookを管理する</a>
+            <a href="{{ route('my-webhooks.index') }}" class="text-sm text-brand-bold hover:underline">{{ __('自分のWebhookを管理する') }}</a>
         </section>
     @endif
 
     <section class="rounded-md border border-neutral-200 bg-white p-4">
-        <h2 class="mb-4 text-sm font-semibold text-neutral-900">APIキー</h2>
+        <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('APIキー') }}</h2>
         <p class="mb-4 text-sm text-neutral-600">
-            スクリプトやcronジョブなど、OAuth2の認可コードフローを使わずにREST APIを呼び出したい場合に使用します。
-            <code>X-Redmine-API-Key</code>ヘッダー、<code>key</code>クエリパラメータ、またはHTTP Basic認証のユーザー名として指定できます。
+            {{ __('スクリプトやcronジョブなど、OAuth2の認可コードフローを使わずにREST APIを呼び出したい場合に使用します。') }}
+            {!! __(':headerヘッダー、:paramクエリパラメータ、またはHTTP Basic認証のユーザー名として指定できます。', ['header' => '<code>X-Redmine-API-Key</code>', 'param' => '<code>key</code>']) !!}
         </p>
 
         @if ($this->apiKey)
             <p class="mb-2 break-all rounded-md bg-neutral-50 p-3 font-mono text-sm text-neutral-800">{{ $this->apiKey }}</p>
         @else
-            <p class="mb-2 text-sm text-neutral-500">APIキーはまだ生成されていません。</p>
+            <p class="mb-2 text-sm text-neutral-500">{{ __('APIキーはまだ生成されていません。') }}</p>
         @endif
 
-        <button wire:click="regenerateApiKey" wire:confirm="APIキーを再生成しますか?古いキーは無効になります。"
+        <button wire:click="regenerateApiKey" wire:confirm="{{ __('APIキーを再生成しますか?古いキーは無効になります。') }}"
             class="text-sm text-brand-bold hover:underline">
-            {{ $this->apiKey ? '再生成' : '生成' }}
+            {{ $this->apiKey ? __('再生成') : __('生成') }}
         </button>
     </section>
 
     <section class="rounded-md border border-neutral-200 bg-white p-4">
-        <h2 class="mb-4 text-sm font-semibold text-neutral-900">Atomキー</h2>
+        <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('Atomキー') }}</h2>
         <p class="mb-4 text-sm text-neutral-600">
-            フィードリーダーなどログインできない環境からAtomフィードを購読するためのキーです。
-            フィードのURLに <code>?key=</code> として付けて使います(画面上のAtomリンクには自動で付いています)。
+            {{ __('フィードリーダーなどログインできない環境からAtomフィードを購読するためのキーです。') }}
+            {!! __('フィードのURLに :param として付けて使います(画面上のAtomリンクには自動で付いています)。', ['param' => '<code>?key=</code>']) !!}
         </p>
         <p class="mb-2 break-all rounded-md bg-neutral-50 p-3 font-mono text-sm text-neutral-800" data-atom-key>{{ $this->atomKey }}</p>
-        <button wire:click="resetAtomKey" wire:confirm="Atomキーをリセットしますか?古いキーを使った購読は読めなくなります。"
+        <button wire:click="resetAtomKey" wire:confirm="{{ __('Atomキーをリセットしますか?古いキーを使った購読は読めなくなります。') }}"
             class="text-sm text-brand-bold hover:underline">
-            リセット
+            {{ __('リセット') }}
         </button>
     </section>
 
     @if ($this->accountDeletable)
         <section class="rounded-md border border-danger-subtle bg-danger-subtlest p-4">
-            <h2 class="mb-2 text-sm font-semibold text-danger-boldest">アカウントの削除</h2>
+            <h2 class="mb-2 text-sm font-semibold text-danger-boldest">{{ __('アカウントの削除') }}</h2>
             <p class="mb-4 text-sm text-danger-bolder">
-                アカウントを削除すると、二度と元に戻せません。参加していたすべてのプロジェクトから外れ、
-                個人のウォッチ・非公開のカスタムクエリは削除されます。作成した課題・コメント・Wikiページ等はそのまま残ります。
+                {{ __('アカウントを削除すると、二度と元に戻せません。参加していたすべてのプロジェクトから外れ、個人のウォッチ・非公開のカスタムクエリは削除されます。作成した課題・コメント・Wikiページ等はそのまま残ります。') }}
             </p>
 
             <button wire:click="deleteAccount"
-                wire:confirm="本当にアカウントを削除しますか?この操作は元に戻せません。"
+                wire:confirm="{{ __('本当にアカウントを削除しますか?この操作は元に戻せません。') }}"
                 class="rounded-md border border-danger-subtle bg-white px-4 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
-                アカウントを削除する
+                {{ __('アカウントを削除する') }}
             </button>
         </section>
     @endif

@@ -48,42 +48,48 @@ new #[Layout('components.layouts.app')] class extends Component
      * unlike Redmine's own issue_list_default_columns which allows them
      * — they're per-tracker and not a stable install-wide default.
      *
-     * @var array<string, string>
+     * @return array<string, string>
      */
-    public const array ISSUE_LIST_COLUMNS = [
-        'tracker_id' => 'トラッカー',
-        'status_id' => 'ステータス',
-        'priority_id' => '優先度',
-        'subject' => '題名',
-        'category_id' => 'カテゴリ',
-        'assigned_to_id' => '担当者',
-        'author_id' => '作成者',
-        'fixed_version_id' => '対象バージョン',
-        'start_date' => '開始日',
-        'due_date' => '期日',
-        'created_at' => '作成日',
-        'done_ratio' => '進捗率',
-    ];
+    public static function issueListColumns(): array
+    {
+        return [
+            'tracker_id' => __('トラッカー'),
+            'status_id' => __('ステータス'),
+            'priority_id' => __('優先度'),
+            'subject' => __('題名'),
+            'category_id' => __('カテゴリ'),
+            'assigned_to_id' => __('担当者'),
+            'author_id' => __('作成者'),
+            'fixed_version_id' => __('対象バージョン'),
+            'start_date' => __('開始日'),
+            'due_date' => __('期日'),
+            'created_at' => __('作成日'),
+            'done_ratio' => __('進捗率'),
+        ];
+    }
 
     /**
      * The events an administrator can switch mail on for; each key is checked
      * by NotificationRecipients before anything is sent. Add a key here in the
      * same commit that wires its listener.
      *
-     * @var array<string, string>
+     * @return array<string, string>
      */
-    public const array NOTIFIED_EVENTS = [
-        'issue_added' => '課題が作成されたとき',
-        'issue_updated' => '課題が更新されたとき',
-        'issue_note_added' => '課題にコメントが追加されたとき(「更新」を選んでいなくても通知)',
-        'wiki_content_added' => 'Wikiページが追加されたとき',
-        'wiki_content_updated' => 'Wikiページが更新されたとき',
-        'news_added' => 'お知らせが投稿されたとき',
-        'news_comment_added' => 'お知らせにコメントが投稿されたとき',
-        'message_posted' => 'フォーラムにメッセージが投稿されたとき',
-        'document_added' => '文書が追加されたとき',
-        'file_added' => 'ファイルが追加されたとき',
-    ];
+    public static function notifiedEvents(): array
+    {
+        return [
+            'issue_added' => __('課題が作成されたとき'),
+            'issue_updated' => __('課題が更新されたとき'),
+            'issue_note_added' => __('課題にコメントが追加されたとき(「更新」を選んでいなくても通知)'),
+            'wiki_content_added' => __('Wikiページが追加されたとき'),
+            'wiki_content_updated' => __('Wikiページが更新されたとき'),
+            'news_added' => __('お知らせが投稿されたとき'),
+            'news_comment_added' => __('お知らせにコメントが投稿されたとき'),
+            'message_posted' => __('フォーラムにメッセージが投稿されたとき'),
+            'document_added' => __('文書が追加されたとき'),
+            'file_added' => __('ファイルが追加されたとき'),
+        ];
+    }
 
     public string $app_title = '';
 
@@ -543,11 +549,11 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $isKnownEncoding = CodesetConverter::isKnownEncoding(...);
-        $encodingName = fn (string $attribute, mixed $value, \Closure $fail) => $isKnownEncoding((string) $value) ? null : $fail("「{$value}」は未対応のエンコーディングです。");
+        $encodingName = fn (string $attribute, mixed $value, \Closure $fail) => $isKnownEncoding((string) $value) ? null : $fail(__('「:value」は未対応のエンコーディングです。', ['value' => $value]));
         $encodingList = function (string $attribute, mixed $value, \Closure $fail) use ($isKnownEncoding): void {
             foreach (array_filter(array_map('trim', explode(',', (string) $value))) as $name) {
                 if (! $isKnownEncoding($name)) {
-                    $fail("「{$name}」は未対応のエンコーディングです。");
+                    $fail(__('「:value」は未対応のエンコーディングです。', ['value' => $name]));
                 }
             }
         };
@@ -650,7 +656,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'related_issues_default_columns.*' => [Rule::in(array_keys(RelatedIssueColumns::AVAILABLE))],
             'display_related_issues_table_headers' => ['boolean'],
             'issue_list_default_columns' => ['array', 'min:1'],
-            'issue_list_default_columns.*' => [Rule::in(array_keys(self::ISSUE_LIST_COLUMNS))],
+            'issue_list_default_columns.*' => [Rule::in(array_keys(self::issueListColumns()))],
             'start_of_week' => ['required', Rule::in([0, 1, 6])],
             'self_registration' => ['required', 'in:disabled,manual,email,automatic'],
             'user_format' => ['required', 'in:name,name_login,login'],
@@ -679,7 +685,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'sequential_project_identifiers' => ['boolean'],
             'new_project_user_role_id' => ['nullable', 'exists:roles,id'],
             'notified_events' => ['array'],
-            'notified_events.*' => [Rule::in(array_keys(self::NOTIFIED_EVENTS))],
+            'notified_events.*' => [Rule::in(array_keys(self::notifiedEvents()))],
             'mail_from' => ['nullable', 'email', 'max:255'],
             'plain_text_mail' => ['boolean'],
             'default_users_no_self_notified' => ['boolean'],
@@ -724,17 +730,17 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->commit_fixing_keyword_rules = $data['commit_fixing_keyword_rules'];
 
-        session()->flash('status', '設定を保存しました。');
+        session()->flash('status', __('設定を保存しました。'));
     }
 }; ?>
 
 <div class="max-w-xl">
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">設定</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('設定') }}</h1>
 
     <form wire:submit="save" class="space-y-8">
         <section class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">アプリケーション名</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('アプリケーション名') }}</label>
                 <input type="text" wire:model="app_title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('app_title') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -758,29 +764,29 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">ウェルカムメッセージ</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('ウェルカムメッセージ') }}</label>
                 <textarea wire:model="welcome_text" rows="5"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
-                <p class="mt-1 text-xs text-neutral-500">プロジェクト一覧(ホーム)画面の先頭に表示されます。Markdown記法が使えます。空欄の場合は何も表示されません。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('プロジェクト一覧(ホーム)画面の先頭に表示されます。Markdown記法が使えます。空欄の場合は何も表示されません。') }}</p>
                 @error('welcome_text') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">課題一覧の1ページあたりの件数</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('課題一覧の1ページあたりの件数') }}</label>
                 <input type="number" wire:model="default_issues_per_page" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('default_issues_per_page') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">ホスト名(メール内リンク用)</label>
-                    <input type="text" wire:model="host_name" placeholder="例: pm.example.com または pm.example.com/redmine"
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('ホスト名(メール内リンク用)') }}</label>
+                    <input type="text" wire:model="host_name" placeholder="{{ __('例: pm.example.com または pm.example.com/redmine') }}"
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <p class="mt-1 text-xs text-neutral-500">空欄のときは APP_URL を使います。メールやキューで生成するリンクに使われます。</p>
+                    <p class="mt-1 text-xs text-neutral-500">{{ __('空欄のときは APP_URL を使います。メールやキューで生成するリンクに使われます。') }}</p>
                     @error('host_name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">プロトコル</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('プロトコル') }}</label>
                     <select wire:model="protocol" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="http">HTTP</option>
                         <option value="https">HTTPS</option>
@@ -790,142 +796,142 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">活動画面の既定の表示期間(日数)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('活動画面の既定の表示期間(日数)') }}</label>
                 <input type="number" min="1" max="365" wire:model="activity_days_default" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('activity_days_default') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">一覧の表示件数の選択肢</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('一覧の表示件数の選択肢') }}</label>
                 <input type="text" wire:model="per_page_options" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500">カンマまたは空白区切り(例: 25,50,100)。課題・プロジェクト・お知らせ一覧の「表示件数」に出る選択肢です。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('カンマまたは空白区切り(例: 25,50,100)。課題・プロジェクト・お知らせ一覧の「表示件数」に出る選択肢です。') }}</p>
                 @error('per_page_options') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">検索結果の1ページあたりの件数</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('検索結果の1ページあたりの件数') }}</label>
                 <input type="number" min="1" max="200" wire:model="search_results_per_page" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('search_results_per_page') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">Atomフィードの最大エントリ数</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('Atomフィードの最大エントリ数') }}</label>
                 <input type="number" min="1" max="500" wire:model="feeds_limit" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500">活動・課題・お知らせ・フォーラムの各Atomフィードに共通で適用されます。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('活動・課題・お知らせ・フォーラムの各Atomフィードに共通で適用されます。') }}</p>
                 @error('feeds_limit') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="webhooks_enabled" class="rounded border-neutral-300">
-                Webhookを有効にする(無効にすると、登録済みのWebhookも送信されません)
+                {{ __('Webhookを有効にする(無効にすると、登録済みのWebhookも送信されません)') }}
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">課題一覧のエクスポート件数の上限</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('課題一覧のエクスポート件数の上限') }}</label>
                 <input type="number" min="1" max="{{ ExportLimit::MAXIMUM }}" wire:model="issues_export_limit" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500">課題一覧のCSV・PDFエクスポートに含める最大件数です(上限{{ ExportLimit::MAXIMUM }})。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('課題一覧のCSV・PDFエクスポートに含める最大件数です(上限:max)。', ['max' => ExportLimit::MAXIMUM]) }}</p>
                 @error('issues_export_limit') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="wiki_tablesort_enabled" class="rounded border-neutral-300">
-                Wikiの表(見出し行と2行以上の本体を持つもの)を、見出しのクリックで並べ替えられるようにする
+                {{ __('Wikiの表(見出し行と2行以上の本体を持つもの)を、見出しのクリックで並べ替えられるようにする') }}
             </label>
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="cache_formatted_text" class="rounded border-neutral-300">
-                    2KBを超えるMarkdown本文の描画結果をキャッシュする
+                    {{ __('2KBを超えるMarkdown本文の描画結果をキャッシュする') }}
                 </label>
-                <p class="mt-1 text-xs text-neutral-500">大きなWikiページの表示を速くします。他ページの取り込み(@{{include}})や子ページ一覧(@{{child_pages}})を含む本文は対象外で、キャッシュは1時間で失効します。#123やページリンクの参照先が作成・削除された直後は、最大1時間古い表示が残ることがあります。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('大きなWikiページの表示を速くします。他ページの取り込み(:include)や子ページ一覧(:child_pages)を含む本文は対象外で、キャッシュは1時間で失効します。#123やページリンクの参照先が作成・削除された直後は、最大1時間古い表示が残ることがあります。', ['include' => '{'.'{include}'.'}', 'child_pages' => '{'.'{child_pages}'.'}']) }}</p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">ユーザー名の表示形式</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('ユーザー名の表示形式') }}</label>
                 <select wire:model="user_format" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="name">名前</option>
-                    <option value="name_login">名前 (ログインID)</option>
-                    <option value="login">ログインID</option>
+                    <option value="name">{{ __('名前') }}</option>
+                    <option value="name_login">{{ __('名前 (ログインID)') }}</option>
+                    <option value="login">{{ __('ログインID') }}</option>
                 </select>
                 @error('user_format') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
-                <p class="mt-1 text-xs text-neutral-500">課題・コメント・Wiki・お知らせ・活動・工数などでユーザーを表示するときの形式です(APIと管理画面の名前は変わりません)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('課題・コメント・Wiki・お知らせ・活動・工数などでユーザーを表示するときの形式です(APIと管理画面の名前は変わりません)。') }}</p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">課題の進捗率</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('課題の進捗率') }}</label>
                 <select wire:model="issue_done_ratio" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="issue_field">課題ごとに手動入力</option>
-                    <option value="issue_status">ステータスから算出</option>
+                    <option value="issue_field">{{ __('課題ごとに手動入力') }}</option>
+                    <option value="issue_status">{{ __('ステータスから算出') }}</option>
                 </select>
                 @error('issue_done_ratio') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">進捗率の選択肢の刻み</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('進捗率の選択肢の刻み') }}</label>
                 <select wire:model="issue_done_ratio_interval" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (DoneRatioSteps::INTERVALS as $interval)
                         <option value="{{ $interval }}">{{ $interval }} %</option>
                     @endforeach
                 </select>
-                <p class="mt-1 text-xs text-neutral-500">課題フォーム・一括編集・ステータスの既定進捗率・進捗率型カスタムフィールドの選択肢の刻み幅です(保存済みの値の妥当性には影響しません)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('課題フォーム・一括編集・ステータスの既定進捗率・進捗率型カスタムフィールドの選択肢の刻み幅です(保存済みの値の妥当性には影響しません)。') }}</p>
                 @error('issue_done_ratio_interval') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="close_duplicate_issues" class="rounded border-neutral-300">
-                重複課題を自動的にクローズする(この課題を複製とする課題がクローズされたとき)
+                {{ __('重複課題を自動的にクローズする(この課題を複製とする課題がクローズされたとき)') }}
             </label>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="parent_issue_priority" class="rounded border-neutral-300">
-                親課題の優先度を子課題から算出する(未クローズの子課題のうち最高優先度)
+                {{ __('親課題の優先度を子課題から算出する(未クローズの子課題のうち最高優先度)') }}
             </label>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="parent_issue_dates" class="rounded border-neutral-300">
-                親課題の開始日/期日を子課題から算出する(最も早い開始日〜最も遅い期日)
+                {{ __('親課題の開始日/期日を子課題から算出する(最も早い開始日〜最も遅い期日)') }}
             </label>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="parent_issue_done_ratio" class="rounded border-neutral-300">
-                親課題の進捗率を子課題から算出する(予定工数で重み付けした平均)
+                {{ __('親課題の進捗率を子課題から算出する(予定工数で重み付けした平均)') }}
             </label>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="cross_project_issue_relations" class="rounded border-neutral-300">
-                プロジェクトをまたいだ課題関連を許可する
+                {{ __('プロジェクトをまたいだ課題関連を許可する') }}
             </label>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700">非稼働日(曜日)</span>
+                <span class="block text-sm font-medium text-neutral-700">{{ __('非稼働日(曜日)') }}</span>
                 <div class="mt-1 flex flex-wrap gap-3">
-                    @foreach (['1' => '月', '2' => '火', '3' => '水', '4' => '木', '5' => '金', '6' => '土', '7' => '日'] as $weekday => $weekdayLabel)
+                    @foreach (['1' => __('月'), '2' => __('火'), '3' => __('水'), '4' => __('木'), '5' => __('金'), '6' => __('土'), '7' => __('日')] as $weekday => $weekdayLabel)
                         <label class="flex items-center gap-1 text-sm text-neutral-700" wire:key="non-working-{{ $weekday }}">
                             <input type="checkbox" wire:model="non_working_week_days" value="{{ $weekday }}" class="rounded border-neutral-300">
                             {{ $weekdayLabel }}
                         </label>
                     @endforeach
                 </div>
-                <p class="mt-1 text-xs text-neutral-500">先行/後続の関連による日付の自動調整と遅延日数は、ここで選んだ曜日を飛ばして数えます。何も選ばなければ暦日で数えます(全曜日を選んだ場合も暦日)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('先行/後続の関連による日付の自動調整と遅延日数は、ここで選んだ曜日を飛ばして数えます。何も選ばなければ暦日で数えます(全曜日を選んだ場合も暦日)。') }}</p>
                 @error('non_working_week_days.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">課題をコピーしたとき、コピー元との関連(コピー元)を作る</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('課題をコピーしたとき、コピー元との関連(コピー元)を作る') }}</label>
                     <select wire:model="link_copied_issue" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                        <option value="ask">コピーするときに選ぶ</option>
-                        <option value="yes">常に作る</option>
-                        <option value="no">作らない</option>
+                        <option value="ask">{{ __('コピーするときに選ぶ') }}</option>
+                        <option value="yes">{{ __('常に作る') }}</option>
+                        <option value="no">{{ __('作らない') }}</option>
                     </select>
                     @error('link_copied_issue') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">課題をコピーしたとき、添付ファイルをコピーする</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('課題をコピーしたとき、添付ファイルをコピーする') }}</label>
                     <select wire:model="copy_attachments_on_issue_copy" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                        <option value="ask">コピーするときに選ぶ</option>
-                        <option value="yes">常にコピーする</option>
-                        <option value="no">コピーしない</option>
+                        <option value="ask">{{ __('コピーするときに選ぶ') }}</option>
+                        <option value="yes">{{ __('常にコピーする') }}</option>
+                        <option value="no">{{ __('コピーしない') }}</option>
                     </select>
                     @error('copy_attachments_on_issue_copy') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
@@ -933,35 +939,35 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="reactions_enabled" class="rounded border-neutral-300">
-                リアクション(いいね)機能を有効にする
+                {{ __('リアクション(いいね)機能を有効にする') }}
             </label>
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="default_issue_start_date_to_creation_date" class="rounded border-neutral-300">
-                    新規課題の開始日を作成日にする
+                    {{ __('新規課題の開始日を作成日にする') }}
                 </label>
-                <p class="mt-1 text-xs text-neutral-500">無効の場合、開始日は自動設定されません(コピー元の課題がある場合はその開始日を引き継ぎます)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('無効の場合、開始日は自動設定されません(コピー元の課題がある場合はその開始日を引き継ぎます)。') }}</p>
                 <label class="mt-2 flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="default_issue_start_date_for_api_and_mail" class="rounded border-neutral-300">
-                    REST APIと受信メールで作る課題にも適用する
+                    {{ __('REST APIと受信メールで作る課題にも適用する') }}
                 </label>
-                <p class="mt-1 text-xs text-neutral-500">既定はオフです(オンにすると、開始日を省略した既存のAPIクライアントやメールの課題に開始日が付きます)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('既定はオフです(オンにすると、開始日を省略した既存のAPIクライアントやメールの課題に開始日が付きます)。') }}</p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">新規課題の期日の既定値(作成日からの日数)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('新規課題の期日の既定値(作成日からの日数)') }}</label>
                 <input type="number" min="0" wire:model="default_issue_due_date_offset"
-                    placeholder="未設定(既定値なし)"
+                    placeholder="{{ __('未設定(既定値なし)') }}"
                     class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500">空欄の場合、期日は自動設定されません。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('空欄の場合、期日は自動設定されません。') }}</p>
                 @error('default_issue_due_date_offset') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700 mb-2">課題一覧の既定表示列</span>
+                <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('課題一覧の既定表示列') }}</span>
                 <div class="grid grid-cols-2 gap-2">
-                    @foreach (self::ISSUE_LIST_COLUMNS as $key => $label)
+                    @foreach (self::issueListColumns() as $key => $label)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
                             <input type="checkbox" wire:model="issue_list_default_columns" value="{{ $key }}" class="rounded border-neutral-300">
                             {{ $label }}
@@ -973,7 +979,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700 mb-2">関連課題・サブタスクの表示列</span>
+                <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('関連課題・サブタスクの表示列') }}</span>
                 <div class="grid grid-cols-2 gap-2">
                     @foreach (RelatedIssueColumns::AVAILABLE as $key => $label)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -982,75 +988,75 @@ new #[Layout('components.layouts.app')] class extends Component
                         </label>
                     @endforeach
                 </div>
-                <p class="mt-1 text-xs text-neutral-500">課題の詳細画面で、サブタスクと関連課題の表に題名と一緒に表示する列です。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('課題の詳細画面で、サブタスクと関連課題の表に題名と一緒に表示する列です。') }}</p>
                 @error('related_issues_default_columns.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <label class="mt-2 flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="display_related_issues_table_headers" class="rounded border-neutral-300">
-                    表に見出し行を表示する
+                    {{ __('表に見出し行を表示する') }}
                 </label>
             </div>
         </section>
 
         <section class="space-y-4 border-t border-neutral-200 pt-6">
-            <h2 class="text-sm font-semibold text-neutral-900">表示</h2>
+            <h2 class="text-sm font-semibold text-neutral-900">{{ __('表示') }}</h2>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">週の始まり</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('週の始まり') }}</label>
                 <select wire:model="start_of_week" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="0">日曜日</option>
-                    <option value="1">月曜日</option>
-                    <option value="6">土曜日</option>
+                    <option value="0">{{ __('日曜日') }}</option>
+                    <option value="1">{{ __('月曜日') }}</option>
+                    <option value="6">{{ __('土曜日') }}</option>
                 </select>
                 @error('start_of_week') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
-                <p class="mt-1 text-xs text-neutral-500">カレンダー画面(プロジェクト内/全プロジェクト共通)の週始まりに反映されます。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('カレンダー画面(プロジェクト内/全プロジェクト共通)の週始まりに反映されます。') }}</p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">新規作成メニュー(プロジェクト内)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('新規作成メニュー(プロジェクト内)') }}</label>
                 <select wire:model="new_item_menu_tab" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="0">なし</option>
-                    <option value="1">「新しい課題」リンクのみ</option>
-                    <option value="2">「+」ドロップダウン(課題・バージョン・お知らせなど)</option>
+                    <option value="0">{{ __('なし') }}</option>
+                    <option value="1">{{ __('「新しい課題」リンクのみ') }}</option>
+                    <option value="2">{{ __('「+」ドロップダウン(課題・バージョン・お知らせなど)') }}</option>
                 </select>
                 @error('new_item_menu_tab') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="display_subprojects_issues" class="rounded border-neutral-300">
-                親プロジェクトの課題一覧・工数合計にサブプロジェクトも含める
+                {{ __('親プロジェクトの課題一覧・工数合計にサブプロジェクトも含める') }}
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">課題一覧の既定クエリ(全体)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('課題一覧の既定クエリ(全体)') }}</label>
                 <select wire:model="default_issue_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="">指定しない</option>
+                    <option value="">{{ __('指定しない') }}</option>
                     @foreach (\App\Models\Query::query()->where('type', \App\Enums\QueryType::Issue->value)->where('visibility', \App\Enums\QueryVisibility::Public->value)->whereNull('project_id')->orderBy('name')->get() as $query)
                         <option value="{{ $query->id }}">{{ $query->name }}</option>
                     @endforeach
                 </select>
-                <p class="mt-1 text-xs text-neutral-500">個人設定・プロジェクトの既定がないときに使われます。公開クエリのみ選べます。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('個人設定・プロジェクトの既定がないときに使われます。公開クエリのみ選べます。') }}</p>
                 @error('default_issue_query') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700">新規ユーザーの既定の個人設定</span>
+                <span class="block text-sm font-medium text-neutral-700">{{ __('新規ユーザーの既定の個人設定') }}</span>
                 <label class="mt-1 flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="default_users_hide_mail" class="rounded border-neutral-300">
-                    メールアドレスを他のユーザーに表示しない
+                    {{ __('メールアドレスを他のユーザーに表示しない') }}
                 </label>
                 <div class="mt-1 flex flex-wrap gap-4 text-sm text-neutral-700">
                     @foreach (\App\Support\Preferences\UserPreferences::AUTO_WATCH_ON as $value => $label)
                         <label class="flex items-center gap-1.5">
                             <input type="checkbox" value="{{ $value }}" wire:model="default_users_auto_watch_on" class="rounded border-neutral-300">
-                            {{ $label }}をウォッチ
+                            {{ __(':itemをウォッチ', ['item' => $label]) }}
                         </label>
                     @endforeach
                 </div>
-                <p class="mt-1 text-xs text-neutral-500">個人設定を変更していないユーザーに適用されます。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('個人設定を変更していないユーザーに適用されます。') }}</p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">時間の表示形式</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('時間の表示形式') }}</label>
                 <select wire:model="timespan_format" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Format\Hours::FORMATS as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
@@ -1060,7 +1066,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700">課題一覧で合計する項目</span>
+                <span class="block text-sm font-medium text-neutral-700">{{ __('課題一覧で合計する項目') }}</span>
                 <div class="mt-1 flex flex-wrap gap-4 text-sm text-neutral-700">
                     @foreach (\App\Support\Query\ListDefaults::ISSUE_TOTALS as $key => $label)
                         <label class="flex items-center gap-1.5">
@@ -1073,7 +1079,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700">工数一覧の初期表示列</span>
+                <span class="block text-sm font-medium text-neutral-700">{{ __('工数一覧の初期表示列') }}</span>
                 <div class="mt-1 flex flex-wrap gap-4 text-sm text-neutral-700">
                     @foreach (\App\Support\Query\ListDefaults::TIME_ENTRY_COLUMNS as $key => $label)
                         <label class="flex items-center gap-1.5">
@@ -1084,7 +1090,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 <label class="mt-2 flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="time_entry_list_show_total" class="rounded border-neutral-300">
-                    工数一覧に時間の合計を表示する
+                    {{ __('工数一覧に時間の合計を表示する') }}
                 </label>
                 @error('time_entry_list_default_columns') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -1092,9 +1098,9 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="gravatar_enabled" class="rounded border-neutral-300">
-                    Gravatarを使う
+                    {{ __('Gravatarを使う') }}
                 </label>
-                <p class="mt-1 text-xs text-neutral-500">有効にすると、ユーザーのメールアドレスのハッシュが gravatar.com に送られ、閲覧者のブラウザが画像を直接取得します。無効のときはイニシャルのアイコンを表示します。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('有効にすると、ユーザーのメールアドレスのハッシュが gravatar.com に送られ、閲覧者のブラウザが画像を直接取得します。無効のときはイニシャルのアイコンを表示します。') }}</p>
                 <select wire:model="gravatar_default" class="mt-2 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Avatar\UserAvatar::DEFAULT_STYLES as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
@@ -1105,12 +1111,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">ガントチャートの最大表示課題数(0で無制限)</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('ガントチャートの最大表示課題数(0で無制限)') }}</label>
                     <input type="number" min="0" max="100000" wire:model="gantt_items_limit" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('gantt_items_limit') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">ガントチャートの最大表示月数(0で無制限)</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('ガントチャートの最大表示月数(0で無制限)') }}</label>
                     <input type="number" min="0" max="1200" wire:model="gantt_months_limit" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('gantt_months_limit') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
@@ -1118,16 +1124,16 @@ new #[Layout('components.layouts.app')] class extends Component
         </section>
 
         <section class="space-y-4 border-t border-neutral-200 pt-6">
-            <h2 class="text-sm font-semibold text-neutral-900">プロジェクト</h2>
-            <p class="text-xs text-neutral-500">新規プロジェクト作成フォームの初期値です。作成時にプロジェクトごと変更できます。</p>
+            <h2 class="text-sm font-semibold text-neutral-900">{{ __('プロジェクト') }}</h2>
+            <p class="text-xs text-neutral-500">{{ __('新規プロジェクト作成フォームの初期値です。作成時にプロジェクトごと変更できます。') }}</p>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="default_projects_public" class="rounded border-neutral-300">
-                既定で公開プロジェクトにする
+                {{ __('既定で公開プロジェクトにする') }}
             </label>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700 mb-2">既定で有効なモジュール</span>
+                <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('既定で有効なモジュール') }}</span>
                 <div class="grid grid-cols-2 gap-2">
                     @foreach (\App\Enums\ProjectModuleKey::cases() as $module)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -1140,7 +1146,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700 mb-2">既定で使用するトラッカー(未選択の場合は全トラッカー)</span>
+                <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('既定で使用するトラッカー(未選択の場合は全トラッカー)') }}</span>
                 <div class="grid grid-cols-2 gap-2">
                     @foreach ($this->trackers as $tracker)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -1154,12 +1160,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="sequential_project_identifiers" class="rounded border-neutral-300">
-                識別子を自動的に連番採番する(識別子を空欄のまま保存した場合のみ)
+                {{ __('識別子を自動的に連番採番する(識別子を空欄のまま保存した場合のみ)') }}
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">新規プロジェクトの既定ロール</label>
-                <p class="text-xs text-neutral-500">管理者以外がプロジェクト(サブプロジェクト)を作成した際に、作成者へ自動的に付与されるロールです。</p>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('新規プロジェクトの既定ロール') }}</label>
+                <p class="text-xs text-neutral-500">{{ __('管理者以外がプロジェクト(サブプロジェクト)を作成した際に、作成者へ自動的に付与されるロールです。') }}</p>
                 <select wire:model="new_project_user_role_id" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">---</option>
                     @foreach ($this->roles as $role)
@@ -1171,112 +1177,112 @@ new #[Layout('components.layouts.app')] class extends Component
         </section>
 
         <section class="space-y-4 border-t border-neutral-200 pt-6">
-            <h2 class="text-sm font-semibold text-neutral-900">認証</h2>
+            <h2 class="text-sm font-semibold text-neutral-900">{{ __('認証') }}</h2>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">アカウント登録</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('アカウント登録') }}</label>
                 <select wire:model="self_registration" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="disabled">無効(登録ページを表示しない)</option>
-                    <option value="manual">管理者の承認が必要</option>
-                    <option value="email">メールでの確認が必要</option>
-                    <option value="automatic">自動的に有効化</option>
+                    <option value="disabled">{{ __('無効(登録ページを表示しない)') }}</option>
+                    <option value="manual">{{ __('管理者の承認が必要') }}</option>
+                    <option value="email">{{ __('メールでの確認が必要') }}</option>
+                    <option value="automatic">{{ __('自動的に有効化') }}</option>
                 </select>
                 @error('self_registration') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <label class="mt-2 flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="show_custom_fields_on_registration" @disabled($self_registration === 'disabled') class="rounded border-neutral-300">
-                    登録フォームにユーザーのカスタムフィールドを表示する(必須の項目は常に表示)
+                    {{ __('登録フォームにユーザーのカスタムフィールドを表示する(必須の項目は常に表示)') }}
                 </label>
             </div>
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="unsubscribe" class="rounded border-neutral-300">
-                    ユーザーが自分自身でアカウントを削除できるようにする
+                    {{ __('ユーザーが自分自身でアカウントを削除できるようにする') }}
                 </label>
                 @error('unsubscribe') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">登録を許可するメールドメイン(カンマ区切り、空欄は制限なし)</label>
-                <input type="text" wire:model="email_domains_allowed" placeholder="例: example.com, .example.org"
+                <label class="block text-sm font-medium text-neutral-700">{{ __('登録を許可するメールドメイン(カンマ区切り、空欄は制限なし)') }}</label>
+                <input type="text" wire:model="email_domains_allowed" placeholder="{{ __('例: example.com, .example.org') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('email_domains_allowed') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">登録を拒否するメールドメイン(カンマ区切り、許可リストより優先)</label>
-                <input type="text" wire:model="email_domains_denied" placeholder="例: example.com, .example.org"
+                <label class="block text-sm font-medium text-neutral-700">{{ __('登録を拒否するメールドメイン(カンマ区切り、許可リストより優先)') }}</label>
+                <input type="text" wire:model="email_domains_denied" placeholder="{{ __('例: example.com, .example.org') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('email_domains_denied') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-neutral-500">
-                    先頭に「.」を付けると、そのドメインとサブドメインすべてに一致します(例: .example.org)。自己登録時のみ適用され、管理者による直接のユーザー作成には適用されません。
+                    {{ __('先頭に「.」を付けると、そのドメインとサブドメインすべてに一致します(例: .example.org)。自己登録時のみ適用され、管理者による直接のユーザー作成には適用されません。') }}
                 </p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">追加メールアドレスの上限数(1人あたり)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('追加メールアドレスの上限数(1人あたり)') }}</label>
                 <input type="number" min="0" max="50" wire:model="max_additional_emails" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500">プロフィールで追加できるメールアドレスの数です。0にすると追加できません。追加したアドレスにも通知メールが届きます。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('プロフィールで追加できるメールアドレスの数です。0にすると追加できません。追加したアドレスにも通知メールが届きます。') }}</p>
                 @error('max_additional_emails') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">セッションタイムアウト</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('セッションタイムアウト') }}</label>
                 <select wire:model="session_timeout" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="0">無効</option>
-                    <option value="60">1時間</option>
-                    <option value="120">2時間</option>
-                    <option value="240">4時間</option>
-                    <option value="480">8時間</option>
-                    <option value="720">12時間</option>
-                    <option value="1440">24時間</option>
-                    <option value="2880">48時間</option>
+                    <option value="0">{{ __('無効') }}</option>
+                    <option value="60">{{ __('1時間') }}</option>
+                    <option value="120">{{ __('2時間') }}</option>
+                    <option value="240">{{ __('4時間') }}</option>
+                    <option value="480">{{ __('8時間') }}</option>
+                    <option value="720">{{ __('12時間') }}</option>
+                    <option value="1440">{{ __('24時間') }}</option>
+                    <option value="2880">{{ __('48時間') }}</option>
                 </select>
                 @error('session_timeout') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
-                <p class="mt-1 text-xs text-neutral-500">この時間操作が無かったセッションは無効になり、再ログインが必要になります。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('この時間操作が無かったセッションは無効になり、再ログインが必要になります。') }}</p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">セッションの最大有効期間</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('セッションの最大有効期間') }}</label>
                 <select wire:model="session_lifetime" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="0">無効</option>
-                    <option value="240">4時間</option>
-                    <option value="480">8時間</option>
-                    <option value="720">12時間</option>
-                    <option value="1440">1日</option>
-                    <option value="10080">7日</option>
-                    <option value="43200">30日</option>
-                    <option value="86400">60日</option>
-                    <option value="525600">365日</option>
+                    <option value="0">{{ __('無効') }}</option>
+                    <option value="240">{{ __('4時間') }}</option>
+                    <option value="480">{{ __('8時間') }}</option>
+                    <option value="720">{{ __('12時間') }}</option>
+                    <option value="1440">{{ __('1日') }}</option>
+                    <option value="10080">{{ __('7日') }}</option>
+                    <option value="43200">{{ __('30日') }}</option>
+                    <option value="86400">{{ __('60日') }}</option>
+                    <option value="525600">{{ __('365日') }}</option>
                 </select>
                 @error('session_lifetime') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
-                <p class="mt-1 text-xs text-neutral-500">操作の有無にかかわらず、ログインからこの時間が経過したセッションは無効になり、再ログインが必要になります。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('操作の有無にかかわらず、ログインからこの時間が経過したセッションは無効になり、再ログインが必要になります。') }}</p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">パスワードの最小文字数</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('パスワードの最小文字数') }}</label>
                 <input type="number" wire:model="password_min_length" min="1" max="255"
                     class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('password_min_length') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-neutral-500">
-                    新規登録・管理者によるユーザー作成・パスワード変更のすべてに適用されます。
+                    {{ __('新規登録・管理者によるユーザー作成・パスワード変更のすべてに適用されます。') }}
                 </p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">パスワードの有効期限</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('パスワードの有効期限') }}</label>
                 <select wire:model="password_max_age" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="0">無効</option>
+                    <option value="0">{{ __('無効') }}</option>
                     @foreach ([7, 30, 60, 90, 180, 365] as $days)
-                        <option value="{{ $days }}">{{ $days }}日</option>
+                        <option value="{{ $days }}">{{ __(':days日', ['days' => $days]) }}</option>
                     @endforeach
                 </select>
                 @error('password_max_age') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
-                <p class="mt-1 text-xs text-neutral-500">最後にパスワードを変更してからこの日数が過ぎたローカルアカウントは、パスワードを変更するまでプロフィール以外のページを開けません。LDAPなど外部認証のアカウントは対象外です。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('最後にパスワードを変更してからこの日数が過ぎたローカルアカウントは、パスワードを変更するまでプロフィール以外のページを開けません。LDAPなど外部認証のアカウントは対象外です。') }}</p>
             </div>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700 mb-2">パスワードに必ず含める文字種</span>
+                <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('パスワードに必ず含める文字種') }}</span>
                 <div class="grid grid-cols-2 gap-2">
                     @foreach (RequiredPasswordCharacterClasses::CLASSES as $key => $class)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -1285,74 +1291,74 @@ new #[Layout('components.layouts.app')] class extends Component
                         </label>
                     @endforeach
                 </div>
-                <p class="mt-1 text-xs text-neutral-500">選んだ文字種は、それぞれ1文字以上必要です。既存のパスワードは、次に変更するときから対象になります。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('選んだ文字種は、それぞれ1文字以上必要です。既存のパスワードは、次に変更するときから対象になります。') }}</p>
                 @error('password_required_char_classes.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="lost_password" class="rounded border-neutral-300">
-                    ログインページに「パスワードをお忘れの場合」のリンクを表示し、本人によるパスワード再設定を許可する
+                    {{ __('ログインページに「パスワードをお忘れの場合」のリンクを表示し、本人によるパスワード再設定を許可する') }}
                 </label>
-                <p class="mt-1 text-xs text-neutral-500">無効の場合、本人からの再設定リクエストは受け付けません(管理者がユーザー編集画面から送るリセットメールのリンクは引き続き有効です)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('無効の場合、本人からの再設定リクエストは受け付けません(管理者がユーザー編集画面から送るリセットメールのリンクは引き続き有効です)。') }}</p>
             </div>
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="autologin" class="rounded border-neutral-300">
-                    ログインページに「ログイン状態を保持」チェックボックスを表示する
+                    {{ __('ログインページに「ログイン状態を保持」チェックボックスを表示する') }}
                 </label>
-                <p class="mt-1 text-xs text-neutral-500">無効の場合、チェックボックス自体が表示されず、ログインは常にセッションクッキー(ブラウザを閉じると失効)のみになります。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('無効の場合、チェックボックス自体が表示されず、ログインは常にセッションクッキー(ブラウザを閉じると失効)のみになります。') }}</p>
             </div>
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="rest_api_enabled" class="rounded border-neutral-300">
-                    REST APIを有効にする
+                    {{ __('REST APIを有効にする') }}
                 </label>
-                <p class="mt-1 text-xs text-neutral-500">無効の場合、APIキー/OAuth2による認証を試みる前にすべてのAPIリクエストを拒否します(既定は無効、Redmine本家と同じ)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('無効の場合、APIキー/OAuth2による認証を試みる前にすべてのAPIリクエストを拒否します(既定は無効、Redmine本家と同じ)。') }}</p>
             </div>
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="jsonp_enabled" class="rounded border-neutral-300">
-                    JSONPを有効にする
+                    {{ __('JSONPを有効にする') }}
                 </label>
-                <p class="mt-1 text-xs text-neutral-500">GETで<code>callback</code>を付けると、JSONを関数呼び出しにして返します。他サイトのページからAPIキー付きのURLを読めるようになるため、セキュリティ上のリスクがあります(既定は無効)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{!! __('GETで:callbackを付けると、JSONを関数呼び出しにして返します。他サイトのページからAPIキー付きのURLを読めるようになるため、セキュリティ上のリスクがあります(既定は無効)。', ['callback' => '<code>callback</code>']) !!}</p>
             </div>
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="login_required" class="rounded border-neutral-300">
-                    全ページにログインを必要とする
+                    {{ __('全ページにログインを必要とする') }}
                 </label>
                 <p class="mt-1 text-xs text-neutral-500">
-                    無効にすると、未ログインのユーザーでも公開プロジェクトの課題一覧・課題詳細・Wikiページ・添付ファイルを閲覧できるようになります(それ以外の操作・非公開プロジェクトは引き続きログインが必要です)。既定は有効(本アプリの従来の挙動を維持)。
+                    {{ __('無効にすると、未ログインのユーザーでも公開プロジェクトの課題一覧・課題詳細・Wikiページ・添付ファイルを閲覧できるようになります(それ以外の操作・非公開プロジェクトは引き続きログインが必要です)。既定は有効(本アプリの従来の挙動を維持)。') }}
                 </p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">二要素認証</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('二要素認証') }}</label>
                 <select wire:model="twofa" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="0">無効</option>
-                    <option value="1">任意(ユーザーが選択可能)</option>
-                    <option value="2">全ユーザーに必須</option>
-                    <option value="3">管理者のみ必須</option>
+                    <option value="0">{{ __('無効') }}</option>
+                    <option value="1">{{ __('任意(ユーザーが選択可能)') }}</option>
+                    <option value="2">{{ __('全ユーザーに必須') }}</option>
+                    <option value="3">{{ __('管理者のみ必須') }}</option>
                 </select>
                 @error('twofa') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-neutral-500">
-                    「必須」に設定すると、対象ユーザーは二要素認証を設定するまでアカウント設定ページ以外にアクセスできなくなります(この設定が「任意」または「管理者のみ必須」のときは、グループ編集画面で「このグループのメンバーに必須」を指定することもできます)。
+                    {{ __('「必須」に設定すると、対象ユーザーは二要素認証を設定するまでアカウント設定ページ以外にアクセスできなくなります(この設定が「任意」または「管理者のみ必須」のときは、グループ編集画面で「このグループのメンバーに必須」を指定することもできます)。') }}
                 </p>
             </div>
         </section>
 
         <section class="space-y-4 border-t border-neutral-200 pt-6">
-            <h2 class="text-sm font-semibold text-neutral-900">メール通知</h2>
+            <h2 class="text-sm font-semibold text-neutral-900">{{ __('メール通知') }}</h2>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">通知するイベント</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('通知するイベント') }}</label>
                 <div class="mt-1 space-y-1">
-                    @foreach (self::NOTIFIED_EVENTS as $key => $label)
+                    @foreach (self::notifiedEvents() as $key => $label)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
                             <input type="checkbox" value="{{ $key }}" wire:model="notified_events" class="rounded border-neutral-300">
                             {{ $label }}
@@ -1361,12 +1367,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @error('notified_events') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-neutral-500">
-                    ここで無効にしたイベントは、各ユーザーの通知設定に関わらず一切メール送信されません。お知らせ/Wikiのメール通知は今後の対応予定です。
+                    {{ __('ここで無効にしたイベントは、各ユーザーの通知設定に関わらず一切メール送信されません。お知らせ/Wikiのメール通知は今後の対応予定です。') }}
                 </p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">送信元メールアドレス(空欄で環境設定の既定値を使用)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('送信元メールアドレス(空欄で環境設定の既定値を使用)') }}</label>
                 <input type="email" wire:model="mail_from" placeholder="{{ config('mail.from.address') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('mail_from') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
@@ -1375,22 +1381,22 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="plain_text_mail" class="rounded border-neutral-300">
-                    テキスト形式のみで送信する(HTML形式を含めない)
+                    {{ __('テキスト形式のみで送信する(HTML形式を含めない)') }}
                 </label>
             </div>
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="default_users_no_self_notified" class="rounded border-neutral-300">
-                    新規ユーザーの既定で、自分自身が行った変更については通知メールを送信しない
+                    {{ __('新規ユーザーの既定で、自分自身が行った変更については通知メールを送信しない') }}
                 </label>
                 <p class="mt-1 text-xs text-neutral-500">
-                    ここでの設定は新規ユーザー作成時の初期値です。各ユーザーはプロフィール画面で個別に変更できます。
+                    {{ __('ここでの設定は新規ユーザー作成時の初期値です。各ユーザーはプロフィール画面で個別に変更できます。') }}
                 </p>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">新規ユーザーの既定のメール通知</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('新規ユーザーの既定のメール通知') }}</label>
                 <select wire:model="default_notification_option" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (MailNotificationOption::cases() as $option)
                         <option value="{{ $option->value }}">{{ $option->label() }}</option>
@@ -1398,33 +1404,33 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('default_notification_option') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-neutral-500">
-                    ここでの設定は新規ユーザー作成時の初期値です。各ユーザーはプロフィール画面で個別に変更できます。
+                    {{ __('ここでの設定は新規ユーザー作成時の初期値です。各ユーザーはプロフィール画面で個別に変更できます。') }}
                 </p>
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="show_status_changes_in_mail_subject" class="rounded border-neutral-300">
-                通知メールの件名にステータスの変更を含める
+                {{ __('通知メールの件名にステータスの変更を含める') }}
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">通知メールのヘッダ</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('通知メールのヘッダ') }}</label>
                 <textarea wire:model="emails_header" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
                 @error('emails_header') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">通知メールの署名</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('通知メールの署名') }}</label>
                 <textarea wire:model="emails_footer" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
                 @error('emails_footer') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         </section>
 
         <section class="space-y-4 border-t border-neutral-200 pt-6">
-            <h2 class="text-sm font-semibold text-neutral-900">工数管理</h2>
+            <h2 class="text-sm font-semibold text-neutral-900">{{ __('工数管理') }}</h2>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700">必須にする項目</span>
+                <span class="block text-sm font-medium text-neutral-700">{{ __('必須にする項目') }}</span>
                 <div class="mt-1 flex gap-4 text-sm text-neutral-700">
                     @foreach (\App\Support\TimeLog\TimeLogConstraints::REQUIRABLE_FIELDS as $field => $label)
                         <label class="flex items-center gap-1.5">
@@ -1437,73 +1443,73 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">1日あたりの最大工数(時間、0で無制限)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('1日あたりの最大工数(時間、0で無制限)') }}</label>
                 <input type="number" step="0.01" min="0" max="1000" wire:model="timelog_max_hours_per_day" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500">同じユーザーが同じ日に記録できる工数の合計の上限です。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('同じユーザーが同じ日に記録できる工数の合計の上限です。') }}</p>
                 @error('timelog_max_hours_per_day') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="timelog_accept_0_hours" class="rounded border-neutral-300">
-                0時間の記録を許可する
+                {{ __('0時間の記録を許可する') }}
             </label>
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="timelog_accept_future_dates" class="rounded border-neutral-300">
-                未来の日付への記録を許可する
+                {{ __('未来の日付への記録を許可する') }}
             </label>
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="timelog_accept_closed_issues" class="rounded border-neutral-300">
-                終了した課題への記録を許可する
+                {{ __('終了した課題への記録を許可する') }}
             </label>
         </section>
 
         <section class="space-y-4 border-t border-neutral-200 pt-6">
-            <h2 class="text-sm font-semibold text-neutral-900">添付ファイル</h2>
+            <h2 class="text-sm font-semibold text-neutral-900">{{ __('添付ファイル') }}</h2>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">最大アップロードサイズ(KB)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('最大アップロードサイズ(KB)') }}</label>
                 <input type="number" wire:model="attachment_max_size" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attachment_max_size') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">まとめてダウンロードできる合計サイズ(KB、0で無制限)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('まとめてダウンロードできる合計サイズ(KB、0で無制限)') }}</label>
                 <input type="number" min="0" wire:model="bulk_download_max_size" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('bulk_download_max_size') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">許可する拡張子(カンマ区切り、空欄は制限なし)</label>
-                <input type="text" wire:model="attachment_extensions_allowed" placeholder="例: png, jpg, pdf"
+                <label class="block text-sm font-medium text-neutral-700">{{ __('許可する拡張子(カンマ区切り、空欄は制限なし)') }}</label>
+                <input type="text" wire:model="attachment_extensions_allowed" placeholder="{{ __('例: png, jpg, pdf') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attachment_extensions_allowed') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">禁止する拡張子(カンマ区切り、許可リストが設定されている場合は無視)</label>
-                <input type="text" wire:model="attachment_extensions_denied" placeholder="例: exe, sh"
+                <label class="block text-sm font-medium text-neutral-700">{{ __('禁止する拡張子(カンマ区切り、許可リストが設定されている場合は無視)') }}</label>
+                <input type="text" wire:model="attachment_extensions_denied" placeholder="{{ __('例: exe, sh') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attachment_extensions_denied') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         </section>
 
         <section class="space-y-4 border-t border-neutral-200 pt-6">
-            <h2 class="text-sm font-semibold text-neutral-900">メール受信による課題作成</h2>
+            <h2 class="text-sm font-semibold text-neutral-900">{{ __('メール受信による課題作成') }}</h2>
             <p class="text-xs text-neutral-500">
-                接続先メールサーバーは環境変数(IMAP_HOST等)で設定します。ここでは課題の作成先を設定します。
+                {{ __('接続先メールサーバーは環境変数(IMAP_HOST等)で設定します。ここでは課題の作成先を設定します。') }}
             </p>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="incoming_mail_enabled" class="rounded border-neutral-300">
-                有効にする
+                {{ __('有効にする') }}
             </label>
 
             <div>
                 <label class="block text-sm font-medium text-neutral-700">
-                    既定のプロジェクト(件名が <code>[識別子]</code> で始まらない場合に使用)
+                    {!! __('既定のプロジェクト(件名が :identifier で始まらない場合に使用)', ['identifier' => '<code>['.e(__('識別子')).']</code>']) !!}
                 </label>
                 <select wire:model="incoming_mail_default_project_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="">選択してください</option>
+                    <option value="">{{ __('選択してください') }}</option>
                     @foreach ($this->projects as $project)
                         <option value="{{ $project->id }}">{{ $project->name }}</option>
                     @endforeach
@@ -1512,9 +1518,9 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">既定のトラッカー</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('既定のトラッカー') }}</label>
                 <select wire:model="incoming_mail_default_tracker_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="">選択してください</option>
+                    <option value="">{{ __('選択してください') }}</option>
                     @foreach ($this->trackers as $tracker)
                         <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
                     @endforeach
@@ -1523,9 +1529,9 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">既定のステータス</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('既定のステータス') }}</label>
                 <select wire:model="incoming_mail_default_status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="">選択してください</option>
+                    <option value="">{{ __('選択してください') }}</option>
                     @foreach ($this->statuses as $status)
                         <option value="{{ $status->id }}">{{ $status->name }}</option>
                     @endforeach
@@ -1534,91 +1540,91 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">本文の取得優先形式</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('本文の取得優先形式') }}</label>
                 <select wire:model="mail_handler_preferred_body_part" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="plain">プレーンテキスト優先</option>
-                    <option value="html">HTML優先(プレーンテキスト化して使用)</option>
+                    <option value="plain">{{ __('プレーンテキスト優先') }}</option>
+                    <option value="html">{{ __('HTML優先(プレーンテキスト化して使用)') }}</option>
                 </select>
                 @error('mail_handler_preferred_body_part') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">本文の切り捨て行(1行に1つ、この行に完全一致した箇所以降を切り捨て)</label>
-                <textarea wire:model="mail_handler_body_delimiters" rows="2" placeholder="例: -----Original Message-----"
+                <label class="block text-sm font-medium text-neutral-700">{{ __('本文の切り捨て行(1行に1つ、この行に完全一致した箇所以降を切り捨て)') }}</label>
+                <textarea wire:model="mail_handler_body_delimiters" rows="2" placeholder="{{ __('例: -----Original Message-----') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
                 @error('mail_handler_body_delimiters') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="mail_handler_enable_regex_delimiters" class="rounded border-neutral-300">
-                切り捨て行を正規表現として扱う
+                {{ __('切り捨て行を正規表現として扱う') }}
             </label>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="mail_handler_enable_regex_excluded_filenames" class="rounded border-neutral-300">
-                除外する添付ファイル名を正規表現として扱う(オフのときはワイルドカード)
+                {{ __('除外する添付ファイル名を正規表現として扱う(オフのときはワイルドカード)') }}
             </label>
 
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="mail_handler_api_enabled" class="rounded border-neutral-300">
-                    メール受信用のWebサービスを有効にする
+                    {{ __('メール受信用のWebサービスを有効にする') }}
                 </label>
                 <div class="mt-2 flex items-center gap-2">
-                    <input type="text" wire:model="mail_handler_api_key" placeholder="APIキー" autocomplete="off"
+                    <input type="text" wire:model="mail_handler_api_key" placeholder="{{ __('APIキー') }}" autocomplete="off"
                         class="block w-full max-w-md rounded-md border-neutral-300 font-mono shadow-sm sm:text-sm">
-                    <button type="button" wire:click="generateMailHandlerApiKey" class="shrink-0 text-sm text-brand-bold hover:underline">キーを生成</button>
+                    <button type="button" wire:click="generateMailHandlerApiKey" class="shrink-0 text-sm text-brand-bold hover:underline">{{ __('キーを生成') }}</button>
                 </div>
-                <p class="mt-1 text-xs text-neutral-500"><code>POST /mail_handler</code> に <code>key</code> と生メール本文 <code>email</code> を送ると、IMAP/POP の受信と同じ処理をします(メールサーバーのパイプ用)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{!! __(':endpoint に :key と生メール本文 :email を送ると、IMAP/POP の受信と同じ処理をします(メールサーバーのパイプ用)。', ['endpoint' => '<code>POST /mail_handler</code>', 'key' => '<code>key</code>', 'email' => '<code>email</code>']) !!}</p>
                 @error('mail_handler_api_key') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">除外する添付ファイル名(カンマ区切り、ワイルドカード可)</label>
-                <input type="text" wire:model="mail_handler_excluded_filenames" placeholder="例: *.ics, winmail.dat"
+                <label class="block text-sm font-medium text-neutral-700">{{ __('除外する添付ファイル名(カンマ区切り、ワイルドカード可)') }}</label>
+                <input type="text" wire:model="mail_handler_excluded_filenames" placeholder="{{ __('例: *.ics, winmail.dat') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('mail_handler_excluded_filenames') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="mail_handler_no_notification" class="rounded border-neutral-300">
-                受信メールで作成・更新した課題は通知メールを送らない
+                {{ __('受信メールで作成・更新した課題は通知メールを送らない') }}
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">本文のキーワードで上書きを許す項目(カンマ区切り)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('本文のキーワードで上書きを許す項目(カンマ区切り)') }}</label>
                 <input type="text" wire:model="mail_handler_allow_override" placeholder="all"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500"><code>all</code> はすべて許可。例: <code>status, priority, assigned_to</code>(項目: status, priority, assigned_to, done_ratio, tracker, category, fixed_version, start_date, due_date, estimated_hours, private, parent_issue)。カスタムフィールドの行は常に有効です。</p>
+                <p class="mt-1 text-xs text-neutral-500">{!! __(':all はすべて許可。例: :example(項目: status, priority, assigned_to, done_ratio, tracker, category, fixed_version, start_date, due_date, estimated_hours, private, parent_issue)。カスタムフィールドの行は常に有効です。', ['all' => '<code>all</code>', 'example' => '<code>status, priority, assigned_to</code>']) !!}</p>
                 @error('mail_handler_allow_override') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">サブアドレスからプロジェクトを決める(受信アドレス)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('サブアドレスからプロジェクトを決める(受信アドレス)') }}</label>
                 <input type="text" wire:model="mail_handler_project_from_subaddress" placeholder="redmine@example.net"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500">設定すると <code>redmine+識別子@example.net</code> 宛のメールがその識別子のプロジェクトの課題になります(件名の <code>[識別子]</code> より優先)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{!! __('設定すると :address 宛のメールがその識別子のプロジェクトの課題になります(件名の :subject より優先)。', ['address' => '<code>redmine+'.e(__('識別子')).'@example.net</code>', 'subject' => '<code>['.e(__('識別子')).']</code>']) !!}</p>
                 @error('mail_handler_project_from_subaddress') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         </section>
 
         <section class="space-y-4 border-t border-neutral-200 pt-6">
-            <h2 class="text-sm font-semibold text-neutral-900">リポジトリ</h2>
+            <h2 class="text-sm font-semibold text-neutral-900">{{ __('リポジトリ') }}</h2>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="autofetch_changesets" class="rounded border-neutral-300">
-                コミットを定期的に自動取得する(15分ごと)
+                {{ __('コミットを定期的に自動取得する(15分ごと)') }}
             </label>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="commit_logtime_enabled" class="rounded border-neutral-300">
-                コミットメッセージの <code>#123 @2h</code> 形式で工数を自動記録する
+                {!! __('コミットメッセージの :syntax 形式で工数を自動記録する', ['syntax' => '<code>#123 @2h</code>']) !!}
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">自動記録に使う作業分類(未選択の場合は既定の作業分類)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('自動記録に使う作業分類(未選択の場合は既定の作業分類)') }}</label>
                 <select wire:model="commit_logtime_activity_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="">選択してください</option>
+                    <option value="">{{ __('選択してください') }}</option>
                     @foreach ($this->activities as $activity)
                         <option value="{{ $activity->id }}">{{ $activity->name }}</option>
                     @endforeach
@@ -1627,7 +1633,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700 mb-2">有効なリポジトリ種別</span>
+                <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('有効なリポジトリ種別') }}</span>
                 <div class="flex gap-4">
                     @foreach (\App\Enums\RepositoryType::cases() as $case)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -1643,91 +1649,91 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model="sys_api_enabled" class="rounded border-neutral-300">
-                    リポジトリ管理用WebサービスのAPIを有効にする
+                    {{ __('リポジトリ管理用WebサービスのAPIを有効にする') }}
                 </label>
                 <div class="mt-2 flex items-center gap-2">
-                    <input type="text" wire:model="sys_api_key" placeholder="APIキー" autocomplete="off"
+                    <input type="text" wire:model="sys_api_key" placeholder="{{ __('APIキー') }}" autocomplete="off"
                         class="block w-full max-w-md rounded-md border-neutral-300 font-mono shadow-sm sm:text-sm">
-                    <button type="button" wire:click="generateSysApiKey" class="shrink-0 text-sm text-brand-bold hover:underline">キーを生成</button>
+                    <button type="button" wire:click="generateSysApiKey" class="shrink-0 text-sm text-brand-bold hover:underline">{{ __('キーを生成') }}</button>
                 </div>
-                <p class="mt-1 text-xs text-neutral-500"><code>GET /sys/projects</code> と <code>/sys/fetch_changesets?id=&lt;プロジェクト&gt;</code> を <code>key</code> パラメータ付きで呼び出せます(post-receive フック用)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{!! __(':projects と :fetch を :key パラメータ付きで呼び出せます(post-receive フック用)。', ['projects' => '<code>GET /sys/projects</code>', 'fetch' => '<code>/sys/fetch_changesets?id=&lt;'.e(__('プロジェクト')).'&gt;</code>', 'key' => '<code>key</code>']) !!}</p>
                 @error('sys_api_key') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">履歴に表示するリビジョン数</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('履歴に表示するリビジョン数') }}</label>
                 <input type="number" min="1" max="1000" wire:model="repository_log_display_limit" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('repository_log_display_limit') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">差分の最大表示行数(0で無制限)</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('差分の最大表示行数(0で無制限)') }}</label>
                     <input type="number" min="0" max="100000" wire:model="diff_max_lines_displayed" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('diff_max_lines_displayed') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">ファイルの最大表示サイズ(KB、0で無制限)</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('ファイルの最大表示サイズ(KB、0で無制限)') }}</label>
                     <input type="number" min="0" max="102400" wire:model="file_max_size_displayed" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('file_max_size_displayed') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">サムネイルの大きさ(px)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('サムネイルの大きさ(px)') }}</label>
                 <input type="number" min="16" max="2000" wire:model="thumbnails_size" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500">この後にアップロードされる画像から適用されます。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('この後にアップロードされる画像から適用されます。') }}</p>
                 @error('thumbnails_size') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">ファイル内容のエンコーディング候補(カンマ区切り)</label>
-                <input type="text" wire:model="repositories_encodings" placeholder="例: SJIS-win, EUC-JP"
+                <label class="block text-sm font-medium text-neutral-700">{{ __('ファイル内容のエンコーディング候補(カンマ区切り)') }}</label>
+                <input type="text" wire:model="repositories_encodings" placeholder="{{ __('例: SJIS-win, EUC-JP') }}"
                     class="mt-1 block w-full max-w-md rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500">UTF-8でないファイルやログを、ここに並べた順に試してUTF-8へ変換して表示します。</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('UTF-8でないファイルやログを、ここに並べた順に試してUTF-8へ変換して表示します。') }}</p>
                 @error('repositories_encodings') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">コミットログのエンコーディング</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('コミットログのエンコーディング') }}</label>
                 <input type="text" wire:model="commit_logs_encoding" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('commit_logs_encoding') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="commit_logs_formatting" class="rounded border-neutral-300">
-                コミットログをMarkdownで整形して表示する
+                {{ __('コミットログをMarkdownで整形して表示する') }}
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">課題を参照するキーワード(カンマ区切り)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('課題を参照するキーワード(カンマ区切り)') }}</label>
                 <input type="text" wire:model="commit_ref_keywords" placeholder="*"
                     class="mt-1 block w-full max-w-md rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500"><code>*</code>を含めると、キーワードなしの<code>#123</code>もコミットに関連付けられます(Redmineの既定は refs,references,IssueID)。</p>
+                <p class="mt-1 text-xs text-neutral-500">{!! __(':wildcardを含めると、キーワードなしの:issueもコミットに関連付けられます(Redmineの既定は refs,references,IssueID)。', ['wildcard' => '<code>*</code>', 'issue' => '<code>#123</code>']) !!}</p>
                 @error('commit_ref_keywords') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="commit_cross_project_ref" class="rounded border-neutral-300">
-                他のプロジェクトの課題も参照・更新できるようにする
+                {{ __('他のプロジェクトの課題も参照・更新できるようにする') }}
             </label>
 
             <div>
-                <span class="block text-sm font-medium text-neutral-700 mb-1">コミットをステータス変更と結び付けるキーワード</span>
+                <span class="block text-sm font-medium text-neutral-700 mb-1">{{ __('コミットをステータス変更と結び付けるキーワード') }}</span>
                 <p class="mb-2 text-xs text-neutral-500">
-                    各行はキーワード(カンマ区切りで複数指定可)と、コミットメッセージ内でその語の直後に<code>#123</code>があった場合の変更先ステータスの組です。行を削除するとそのキーワードは無効になります。
+                    {!! __('各行はキーワード(カンマ区切りで複数指定可)と、コミットメッセージ内でその語の直後に:issueがあった場合の変更先ステータスの組です。行を削除するとそのキーワードは無効になります。', ['issue' => '<code>#123</code>']) !!}
                 </p>
                 <div class="space-y-2">
                     @foreach ($commit_fixing_keyword_rules as $index => $rule)
                         <div class="flex items-start gap-2" wire:key="fixing-keyword-rule-{{ $index }}">
                             <div class="flex-1">
-                                <input type="text" wire:model="commit_fixing_keyword_rules.{{ $index }}.keywords" placeholder="例: fixes, fix, closes, close"
+                                <input type="text" wire:model="commit_fixing_keyword_rules.{{ $index }}.keywords" placeholder="{{ __('例: fixes, fix, closes, close') }}"
                                     class="block w-full rounded-md border-neutral-300 text-sm shadow-sm">
                                 @error("commit_fixing_keyword_rules.{$index}.keywords") <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                             </div>
                             <div class="w-48">
                                 <select wire:model="commit_fixing_keyword_rules.{{ $index }}.status_id" class="block w-full rounded-md border-neutral-300 text-sm shadow-sm">
-                                    <option value="">変更先ステータス</option>
+                                    <option value="">{{ __('変更先ステータス') }}</option>
                                     @foreach ($this->statuses as $status)
                                         <option value="{{ $status->id }}">{{ $status->name }}</option>
                                     @endforeach
@@ -1735,13 +1741,13 @@ new #[Layout('components.layouts.app')] class extends Component
                                 @error("commit_fixing_keyword_rules.{$index}.status_id") <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                             </div>
                             <div class="w-24">
-                                <input type="number" min="0" max="100" step="10" wire:model="commit_fixing_keyword_rules.{{ $index }}.done_ratio" placeholder="進捗%"
+                                <input type="number" min="0" max="100" step="10" wire:model="commit_fixing_keyword_rules.{{ $index }}.done_ratio" placeholder="{{ __('進捗%') }}"
                                     class="block w-full rounded-md border-neutral-300 text-sm shadow-sm">
                                 @error("commit_fixing_keyword_rules.{$index}.done_ratio") <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                             </div>
                             <div class="w-36">
                                 <select wire:model="commit_fixing_keyword_rules.{{ $index }}.if_tracker_id" class="block w-full rounded-md border-neutral-300 text-sm shadow-sm">
-                                    <option value="">全トラッカー</option>
+                                    <option value="">{{ __('全トラッカー') }}</option>
                                     @foreach ($this->trackers as $tracker)
                                         <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
                                     @endforeach
@@ -1749,19 +1755,19 @@ new #[Layout('components.layouts.app')] class extends Component
                                 @error("commit_fixing_keyword_rules.{$index}.if_tracker_id") <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                             </div>
                             <button type="button" wire:click="removeFixingKeywordRule({{ $index }})" class="mt-1.5 shrink-0 text-sm text-danger-bolder hover:underline">
-                                削除
+                                {{ __('削除') }}
                             </button>
                         </div>
                     @endforeach
                 </div>
                 <button type="button" wire:click="addFixingKeywordRule" class="mt-2 text-sm text-brand-bold hover:underline">
-                    + 行を追加
+                    {{ __('+ 行を追加') }}
                 </button>
             </div>
         </section>
 
         <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-            保存
+            {{ __('保存') }}
         </button>
     </form>
 </div>

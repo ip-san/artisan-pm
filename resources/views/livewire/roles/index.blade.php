@@ -31,15 +31,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">ロール管理</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __('ロール管理') }}</h1>
         <div class="flex gap-2">
             <a href="{{ route('roles.report') }}"
                 class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                権限レポート
+                {{ __('権限レポート') }}
             </a>
             <a href="{{ route('roles.create') }}"
                 class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                新規ロール
+                {{ __('新規ロール') }}
             </a>
         </div>
     </div>
@@ -52,13 +52,13 @@ new #[Layout('components.layouts.app')] class extends Component
                     @if ($role->builtin)
                         <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ $role->builtin->value }}</span>
                     @endif
-                    <span class="ml-2 text-xs text-neutral-500">{{ count($role->permissionKeys()) }} 権限</span>
+                    <span class="ml-2 text-xs text-neutral-500">{{ __(':count 権限', ['count' => count($role->permissionKeys())]) }}</span>
                 </div>
                 <div class="flex gap-3">
-                    <a href="{{ route('roles.edit', $role) }}" class="text-sm text-brand-bold hover:underline">編集</a>
-                    <a href="{{ route('roles.create') }}?copy_from={{ $role->id }}" class="text-sm text-brand-bold hover:underline">コピー</a>
-                    <button wire:click="delete({{ $role->id }})" wire:confirm="このロールを削除しますか?"
-                        class="text-sm text-danger-bolder hover:underline">削除</button>
+                    <a href="{{ route('roles.edit', $role) }}" class="text-sm text-brand-bold hover:underline">{{ __('編集') }}</a>
+                    <a href="{{ route('roles.create') }}?copy_from={{ $role->id }}" class="text-sm text-brand-bold hover:underline">{{ __('コピー') }}</a>
+                    <button wire:click="delete({{ $role->id }})" wire:confirm="{{ __('このロールを削除しますか?') }}"
+                        class="text-sm text-danger-bolder hover:underline">{{ __('削除') }}</button>
                 </div>
             </li>
         @endforeach

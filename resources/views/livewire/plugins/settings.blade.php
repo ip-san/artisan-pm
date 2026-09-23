@@ -83,12 +83,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $manager->saveSettings($this->pluginId, $coerced);
 
-        session()->flash('status', 'プラグインの設定を保存しました。');
+        session()->flash('status', __('プラグインの設定を保存しました。'));
     }
 }; ?>
 
 <div>
-    <h1 class="mb-6 text-xl font-semibold text-neutral-900">{{ $pluginName }} の設定</h1>
+    <h1 class="mb-6 text-xl font-semibold text-neutral-900">{{ __(':name の設定', ['name' => $pluginName]) }}</h1>
 
     @if (session('status'))
         <div class="mb-4 rounded-md bg-success-subtlest p-3 text-sm text-success-bold">{{ session('status') }}</div>
@@ -115,7 +115,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-            保存
+            {{ __('保存') }}
         </button>
     </form>
 </div>

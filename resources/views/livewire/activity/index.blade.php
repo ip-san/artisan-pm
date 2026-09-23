@@ -134,17 +134,17 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — 活動</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — 活動', ['project' => $project->name]) }}</h1>
         <a href="{{ route('activity.atom', [$project, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
     </div>
 
     <div class="mb-6 flex flex-wrap items-end gap-4 rounded-md border border-neutral-200 bg-white p-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">開始日</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('開始日') }}</label>
             <input type="date" wire:model="from" class="mt-1 block rounded-md border-neutral-300 text-sm">
         </div>
         <div>
-            <label class="block text-sm font-medium text-neutral-700">終了日</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('終了日') }}</label>
             <input type="date" wire:model="to" class="mt-1 block rounded-md border-neutral-300 text-sm">
         </div>
         <div class="flex flex-wrap gap-3">
@@ -157,10 +157,10 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
         <label class="flex items-center gap-1 text-sm text-neutral-700">
             <input type="checkbox" wire:model="withSubprojects" class="rounded border-neutral-300">
-            サブプロジェクトを含む
+            {{ __('サブプロジェクトを含む') }}
         </label>
         <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-            適用
+            {{ __('適用') }}
         </button>
     </div>
 
@@ -183,6 +183,6 @@ new #[Layout('components.layouts.app')] class extends Component
             </ul>
         </div>
     @empty
-        <p class="text-sm text-neutral-500">この期間の活動はありません。</p>
+        <p class="text-sm text-neutral-500">{{ __('この期間の活動はありません。') }}</p>
     @endforelse
 </div>

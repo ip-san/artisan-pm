@@ -329,7 +329,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — ガントチャート</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — ガントチャート', ['project' => $project->name]) }}</h1>
         @if ($this->rangeStart !== null)
             <button wire:click="exportPdf" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 PDF
@@ -342,19 +342,19 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="mt-3">
             <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                絞り込み適用
+                {{ __('絞り込み適用') }}
             </button>
         </div>
     </div>
 
     @if ($this->rangeStart === null)
-        <p class="text-sm text-neutral-500">開始日・期日が設定された課題がありません。</p>
+        <p class="text-sm text-neutral-500">{{ __('開始日・期日が設定された課題がありません。') }}</p>
     @else
         @if ($this->rowsTruncated)
-            <p class="mb-2 text-sm text-warning-bold">課題が多いため、先頭{{ number_format(self::itemsLimit()) }}件だけを表示しています。</p>
+            <p class="mb-2 text-sm text-warning-bold">{{ __('課題が多いため、先頭:count件だけを表示しています。', ['count' => number_format(self::itemsLimit())]) }}</p>
         @endif
         @if ($this->monthsTruncated)
-            <p class="mb-2 text-sm text-warning-bold">期間が長いため、開始から{{ self::monthsLimit() }}か月分だけを表示しています。</p>
+            <p class="mb-2 text-sm text-warning-bold">{{ __('期間が長いため、開始から:monthsか月分だけを表示しています。', ['months' => self::monthsLimit()]) }}</p>
         @endif
         <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
             <div class="flex min-w-[900px]">

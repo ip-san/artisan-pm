@@ -68,9 +68,9 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="mb-6">
         <p class="text-sm text-neutral-500">
-            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
+            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">{{ __('リポジトリ') }}</a>
         </p>
-        <h1 class="text-xl font-semibold text-neutral-900">ファイル一覧 (HEAD)</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __('ファイル一覧') }} (HEAD)</h1>
     </div>
 
     <nav class="mb-4 text-sm text-neutral-600">
@@ -95,12 +95,12 @@ new #[Layout('components.layouts.app')] class extends Component
                         📄 {{ $entry->name }}
                     </a>
                     <a href="{{ route($repository->routeName('repository.file-history'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-xs text-neutral-500 hover:underline">
-                        履歴
+                        {{ __('履歴') }}
                     </a>
                 @endif
             </li>
         @empty
-            <li class="px-4 py-6 text-center text-neutral-500">ファイルがありません。</li>
+            <li class="px-4 py-6 text-center text-neutral-500">{{ __('ファイルがありません。') }}</li>
         @endforelse
     </ul>
 </div>

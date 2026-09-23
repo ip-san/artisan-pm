@@ -146,15 +146,15 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="mb-6 text-xl font-semibold text-neutral-900">活動</h1>
+    <h1 class="mb-6 text-xl font-semibold text-neutral-900">{{ __('活動') }}</h1>
 
     <div class="mb-6 flex flex-wrap items-end gap-4 rounded-md border border-neutral-200 bg-white p-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">開始日</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('開始日') }}</label>
             <input type="date" wire:model="from" class="mt-1 block rounded-md border-neutral-300 text-sm">
         </div>
         <div>
-            <label class="block text-sm font-medium text-neutral-700">終了日</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('終了日') }}</label>
             <input type="date" wire:model="to" class="mt-1 block rounded-md border-neutral-300 text-sm">
         </div>
         <div class="flex flex-wrap gap-3">
@@ -166,7 +166,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endforeach
         </div>
         <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-            適用
+            {{ __('適用') }}
         </button>
         <a href="{{ route('activity.global-atom', ['key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
     </div>
@@ -190,11 +190,11 @@ new #[Layout('components.layouts.app')] class extends Component
             </ul>
         </div>
     @empty
-        <p class="text-sm text-neutral-500">この期間の活動はありません。</p>
+        <p class="text-sm text-neutral-500">{{ __('この期間の活動はありません。') }}</p>
     @endforelse
 
     <div class="mt-4 flex justify-between text-sm">
-        <button wire:click="previousPeriod" data-activity-previous class="text-brand-bold hover:underline">« 前の期間</button>
-        <button wire:click="nextPeriod" data-activity-next class="text-brand-bold hover:underline">次の期間 »</button>
+        <button wire:click="previousPeriod" data-activity-previous class="text-brand-bold hover:underline">« {{ __('前の期間') }}</button>
+        <button wire:click="nextPeriod" data-activity-next class="text-brand-bold hover:underline">{{ __('次の期間') }} »</button>
     </div>
 </div>

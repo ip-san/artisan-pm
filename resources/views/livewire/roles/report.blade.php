@@ -74,12 +74,12 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         unset($this->roles);
-        session()->flash('status', '権限を保存しました。');
+        session()->flash('status', __('権限を保存しました。'));
     }
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">権限レポート</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('権限レポート') }}</h1>
 
     @if (session('status'))
         <div class="mb-4 rounded-md bg-success-subtlest p-3 text-sm text-success-bold">{{ session('status') }}</div>
@@ -90,7 +90,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="border-b border-neutral-200 bg-neutral-50">
-                        <th class="px-3 py-2 text-left font-medium text-neutral-700">権限</th>
+                        <th class="px-3 py-2 text-left font-medium text-neutral-700">{{ __('権限') }}</th>
                         @foreach ($this->roles as $role)
                             <th class="px-3 py-2 text-center font-medium text-neutral-700">{{ $role->name }}</th>
                         @endforeach
@@ -115,10 +115,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="mt-4 flex gap-3">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                保存
+                {{ __('保存') }}
             </button>
             <a href="{{ route('roles.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                キャンセル
+                {{ __('キャンセル') }}
             </a>
         </div>
     </form>

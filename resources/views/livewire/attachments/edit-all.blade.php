@@ -81,9 +81,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->validate([
             'names.*' => ['required', 'string', 'max:255', function (string $attribute, mixed $value, \Closure $fail): void {
                 if (! AttachmentRenamer::isValidName((string) $value)) {
-                    $fail('ファイル名が不正です。');
+                    $fail(__('ファイル名が不正です。'));
                 } elseif (! AttachmentValidationRules::isExtensionAllowed(pathinfo((string) $value, PATHINFO_EXTENSION))) {
-                    $fail('このファイル形式は許可されていません。');
+                    $fail(__('このファイル形式は許可されていません。'));
                 }
             }],
             'descriptions.*' => ['nullable', 'string', 'max:255'],
@@ -107,31 +107,31 @@ new #[Layout('components.layouts.app')] class extends Component
             $media->save();
         }
 
-        session()->flash('status', '添付ファイルを更新しました。');
+        session()->flash('status', __('添付ファイルを更新しました。'));
 
         $this->redirect(AttachmentContainers::url($container->loadMissing($this->relationsForUrl())), navigate: true);
     }
 }; ?>
 
 <div class="max-w-3xl">
-    <h1 class="mb-6 text-xl font-semibold text-neutral-900">添付ファイルの編集</h1>
+    <h1 class="mb-6 text-xl font-semibold text-neutral-900">{{ __('添付ファイルの編集') }}</h1>
 
     <form wire:submit="save" class="space-y-4">
         @foreach ($this->attachments() as $media)
             <div class="rounded-md border border-neutral-200 bg-white p-3" wire:key="edit-attachment-{{ $media->id }}">
-                <label class="block text-xs font-medium text-neutral-700">ファイル名</label>
+                <label class="block text-xs font-medium text-neutral-700">{{ __('ファイル名') }}</label>
                 <input type="text" wire:model="names.{{ $media->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
                 @error("names.{$media->id}") <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
 
-                <label class="mt-2 block text-xs font-medium text-neutral-700">説明</label>
+                <label class="mt-2 block text-xs font-medium text-neutral-700">{{ __('説明') }}</label>
                 <input type="text" wire:model="descriptions.{{ $media->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
                 @error("descriptions.{$media->id}") <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         @endforeach
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">保存</button>
-            <a href="{{ \App\Support\Attachments\AttachmentContainers::url($this->container()->loadMissing($this->relationsForUrl())) }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">キャンセル</a>
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
+            <a href="{{ \App\Support\Attachments\AttachmentContainers::url($this->container()->loadMissing($this->relationsForUrl())) }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('キャンセル') }}</a>
         </div>
     </form>
 </div>

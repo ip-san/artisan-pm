@@ -17,26 +17,6 @@ use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
-    /**
-     * Core issue fields a workflow rule can require or lock — matches the
-     * field keys issues/form.blade.php's isRequired()/isReadOnly() already
-     * check by name. Custom fields (cf_<id>) are appended dynamically once
-     * a tracker is selected, since which ones apply depends on it.
-     *
-     * @var array<string, string>
-     */
-    private const array CORE_FIELDS = [
-        'tracker_id' => 'トラッカー',
-        'subject' => '題名',
-        'description' => '説明',
-        'priority_id' => '優先度',
-        'category_id' => 'カテゴリ',
-        'assigned_to_id' => '担当者',
-        'start_date' => '開始日',
-        'due_date' => '期日',
-        'fixed_version_id' => '対象バージョン',
-    ];
-
     public ?int $tracker_id = null;
 
     public ?int $role_id = null;
@@ -122,12 +102,35 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * Core issue fields a workflow rule can require or lock — matches the
+     * field keys issues/form.blade.php's isRequired()/isReadOnly() already
+     * check by name. Custom fields (cf_<id>) are appended dynamically once
+     * a tracker is selected, since which ones apply depends on it.
+     *
+     * @return array<string, string> field key => label
+     */
+    private function coreFields(): array
+    {
+        return [
+            'tracker_id' => __('トラッカー'),
+            'subject' => __('題名'),
+            'description' => __('説明'),
+            'priority_id' => __('優先度'),
+            'category_id' => __('カテゴリ'),
+            'assigned_to_id' => __('担当者'),
+            'start_date' => __('開始日'),
+            'due_date' => __('期日'),
+            'fixed_version_id' => __('対象バージョン'),
+        ];
+    }
+
+    /**
      * @return Collection<string, string> field key => label
      */
     #[Computed]
     public function fields(): Collection
     {
-        $fields = collect(self::CORE_FIELDS);
+        $fields = collect($this->coreFields());
 
         if ($this->tracker_id === null) {
             return $fields;
@@ -259,7 +262,7 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         });
 
-        session()->flash('status', 'ワークフローを保存しました。');
+        session()->flash('status', __('ワークフローを保存しました。'));
     }
 
     /**
@@ -290,7 +293,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $sourceRoleId = (string) $data['copySourceRoleId'] === 'any' ? null : (int) $data['copySourceRoleId'];
 
         if ($sourceTrackerId === null && $sourceRoleId === null) {
-            $this->addError('copySourceTrackerId', 'コピー元のトラッカーとロールの少なくとも一方を指定してください。');
+            $this->addError('copySourceTrackerId', __('コピー元のトラッカーとロールの少なくとも一方を指定してください。'));
 
             return;
         }
@@ -313,7 +316,7 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         });
 
-        session()->flash('status', 'ワークフローをコピーしました。');
+        session()->flash('status', __('ワークフローをコピーしました。'));
     }
 
     private function copyWorkflowPair(int $sourceTrackerId, int $sourceRoleId, int $targetTrackerId, int $targetRoleId): void
@@ -355,13 +358,13 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">ワークフロー管理</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('ワークフロー管理') }}</h1>
 
     <div class="mb-6 grid grid-cols-3 gap-4 rounded-md border border-neutral-200 bg-white p-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">トラッカー</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('トラッカー') }}</label>
             <select wire:model.live="tracker_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <option value="">選択してください</option>
+                <option value="">{{ __('選択してください') }}</option>
                 @foreach ($this->trackers as $tracker)
                     <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
                 @endforeach
@@ -369,9 +372,9 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">ロール</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('ロール') }}</label>
             <select wire:model.live="role_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <option value="">選択してください</option>
+                <option value="">{{ __('選択してください') }}</option>
                 @foreach ($this->roles as $role)
                     <option value="{{ $role->id }}">{{ $role->name }}</option>
                 @endforeach
@@ -379,24 +382,24 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">適用対象</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('適用対象') }}</label>
             <select wire:model.live="context" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <option value="general">通常</option>
-                <option value="author">作成者の場合に追加</option>
-                <option value="assignee">担当者の場合に追加</option>
+                <option value="general">{{ __('通常') }}</option>
+                <option value="author">{{ __('作成者の場合に追加') }}</option>
+                <option value="assignee">{{ __('担当者の場合に追加') }}</option>
             </select>
         </div>
     </div>
 
     <label class="mb-6 flex items-center gap-2 text-sm text-neutral-700">
         <input type="checkbox" wire:model.live="usedStatusesOnly" class="rounded border-neutral-300">
-        使用中のステータスのみ表示(選択したトラッカーで遷移が定義済みのステータスに限定)
+        {{ __('使用中のステータスのみ表示(選択したトラッカーで遷移が定義済みのステータスに限定)') }}
     </label>
 
     @if ($tracker_id && $role_id)
         <form wire:submit="save" class="space-y-8">
             <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white p-4">
-                <h2 class="mb-3 text-sm font-semibold text-neutral-900">ステータス遷移(縦: 現在のステータス、横: 変更後のステータス)</h2>
+                <h2 class="mb-3 text-sm font-semibold text-neutral-900">{{ __('ステータス遷移(縦: 現在のステータス、横: 変更後のステータス)') }}</h2>
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr>
@@ -408,7 +411,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </thead>
                     <tbody>
                         <tr wire:key="transition-row-new" class="border-t border-neutral-100 bg-neutral-50" data-new-issue-row>
-                            <th class="px-2 py-1 text-left text-xs font-medium text-neutral-700">(新規課題)</th>
+                            <th class="px-2 py-1 text-left text-xs font-medium text-neutral-700">{{ __('(新規課題)') }}</th>
                             @foreach ($this->statuses as $newStatus)
                                 <td class="px-2 py-1 text-center">
                                     <input type="checkbox" wire:model="transitions.0-{{ $newStatus->id }}" class="rounded border-neutral-300">
@@ -432,7 +435,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white p-4">
-                <h2 class="mb-3 text-sm font-semibold text-neutral-900">フィールドルール(縦: フィールド、横: ステータス)</h2>
+                <h2 class="mb-3 text-sm font-semibold text-neutral-900">{{ __('フィールドルール(縦: フィールド、横: ステータス)') }}</h2>
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr>
@@ -452,7 +455,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                             class="rounded-md border-neutral-300 text-xs">
                                             <option value="">-</option>
                                             @foreach (\App\Enums\WorkflowFieldRuleType::cases() as $rule)
-                                                <option value="{{ $rule->value }}">{{ $rule === \App\Enums\WorkflowFieldRuleType::Required ? '必須' : '読取専用' }}</option>
+                                                <option value="{{ $rule->value }}">{{ $rule === \App\Enums\WorkflowFieldRuleType::Required ? __('必須') : __('読取専用') }}</option>
                                             @endforeach
                                         </select>
                                     </td>
@@ -464,23 +467,23 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                保存
+                {{ __('保存') }}
             </button>
         </form>
     @else
-        <p class="text-sm text-neutral-500">トラッカーとロールを選択してください。</p>
+        <p class="text-sm text-neutral-500">{{ __('トラッカーとロールを選択してください。') }}</p>
     @endif
 
     <div class="mt-10 rounded-md border border-neutral-200 bg-white p-4">
-        <h2 class="mb-4 text-sm font-semibold text-neutral-900">ワークフローをコピー</h2>
+        <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('ワークフローをコピー') }}</h2>
 
         <form wire:submit="copyWorkflow" class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">コピー元トラッカー</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('コピー元トラッカー') }}</label>
                     <select wire:model="copySourceTrackerId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                        <option value="">選択してください</option>
-                        <option value="any">--- コピー先と同じ ---</option>
+                        <option value="">{{ __('選択してください') }}</option>
+                        <option value="any">{{ __('--- コピー先と同じ ---') }}</option>
                         @foreach ($this->trackers as $tracker)
                             <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
                         @endforeach
@@ -488,10 +491,10 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('copySourceTrackerId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">コピー元ロール</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('コピー元ロール') }}</label>
                     <select wire:model="copySourceRoleId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                        <option value="">選択してください</option>
-                        <option value="any">--- コピー先と同じ ---</option>
+                        <option value="">{{ __('選択してください') }}</option>
+                        <option value="any">{{ __('--- コピー先と同じ ---') }}</option>
                         @foreach ($this->roles as $role)
                             <option value="{{ $role->id }}">{{ $role->name }}</option>
                         @endforeach
@@ -502,7 +505,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <span class="block text-sm font-medium text-neutral-700 mb-1">コピー先トラッカー</span>
+                    <span class="block text-sm font-medium text-neutral-700 mb-1">{{ __('コピー先トラッカー') }}</span>
                     <div class="max-h-40 space-y-1 overflow-y-auto rounded-md border border-neutral-200 p-2">
                         @foreach ($this->trackers as $tracker)
                             <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -514,7 +517,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('copyTargetTrackerIds') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <span class="block text-sm font-medium text-neutral-700 mb-1">コピー先ロール</span>
+                    <span class="block text-sm font-medium text-neutral-700 mb-1">{{ __('コピー先ロール') }}</span>
                     <div class="max-h-40 space-y-1 overflow-y-auto rounded-md border border-neutral-200 p-2">
                         @foreach ($this->roles as $role)
                             <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -527,9 +530,9 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
             </div>
 
-            <button type="submit" wire:confirm="コピー先の既存ワークフロー設定は上書きされます。よろしいですか?"
+            <button type="submit" wire:confirm="{{ __('コピー先の既存ワークフロー設定は上書きされます。よろしいですか?') }}"
                 class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                コピー
+                {{ __('コピー') }}
             </button>
         </form>
     </div>

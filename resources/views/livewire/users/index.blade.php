@@ -81,11 +81,11 @@ new #[Layout('components.layouts.app')] class extends Component
             'name' => $user->name,
             'login' => $user->login,
             'email' => $user->email,
-            'is_admin' => $user->is_admin ? '管理者' : '',
+            'is_admin' => $user->is_admin ? __('管理者') : '',
             'status' => match ($user->status) {
-                UserStatus::Locked => 'ロック中',
-                UserStatus::Registered => '承認待ち',
-                default => '有効',
+                UserStatus::Locked => __('ロック中'),
+                UserStatus::Registered => __('承認待ち'),
+                default => __('有効'),
             },
             'auth_source_id' => $user->authSource !== null ? 'LDAP: '.$user->authSource->name : '',
             'created_at' => $user->created_at?->format('Y-m-d H:i') ?? '',
@@ -277,16 +277,16 @@ new #[Layout('components.layouts.app')] class extends Component
         <div x-show="menu.open" x-cloak x-on:click.stop x-bind:style="`left:${menu.x}px;top:${menu.y}px`" data-context-menu
             class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg">
             @if ($selectedUsers->count() === 1)
-                <a href="{{ route('users.edit', $selectedUsers->first()) }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">編集</a>
+                <a href="{{ route('users.edit', $selectedUsers->first()) }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('編集') }}</a>
             @endif
             @if ($selectedUsers->every(fn ($user) => $user->status === \App\Enums\UserStatus::Locked))
-                <button type="button" wire:click="bulkSetLocked(false)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">ロック解除</button>
+                <button type="button" wire:click="bulkSetLocked(false)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ __('ロック解除') }}</button>
             @else
-                <button type="button" wire:click="bulkSetLocked(true)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">ロック</button>
+                <button type="button" wire:click="bulkSetLocked(true)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ __('ロック') }}</button>
             @endif
             @if ($this->groups->isNotEmpty())
                 <div class="group relative">
-                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">グループに追加 <span class="text-neutral-400">›</span></span>
+                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('グループに追加') }} <span class="text-neutral-400">›</span></span>
                     <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
                         @foreach ($this->groups as $group)
                             <button type="button" wire:key="context-add-{{ $group->id }}" wire:click="addToGroup({{ $group->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $group->name }}</button>
@@ -295,7 +295,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @if ($commonGroupIds->isNotEmpty())
                     <div class="group relative">
-                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">グループから外す <span class="text-neutral-400">›</span></span>
+                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('グループから外す') }} <span class="text-neutral-400">›</span></span>
                         <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
                             @foreach ($this->groups->whereIn('id', $commonGroupIds->all()) as $group)
                                 <button type="button" wire:key="context-remove-{{ $group->id }}" wire:click="removeFromGroup({{ $group->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $group->name }}</button>
@@ -304,17 +304,17 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                 @endif
             @endif
-            <button type="button" wire:click="bulkDelete" wire:confirm="選択した{{ $selectedUsers->count() }}人のユーザーを削除します。この操作は取り消せません。よろしいですか?" x-on:click="menu.open = false" class="block w-full border-t border-neutral-100 px-3 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">削除</button>
+            <button type="button" wire:click="bulkDelete" wire:confirm="{{ __('選択した:count人のユーザーを削除します。この操作は取り消せません。よろしいですか?', ['count' => $selectedUsers->count()]) }}" x-on:click="menu.open = false" class="block w-full border-t border-neutral-100 px-3 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">{{ __('削除') }}</button>
         </div>
     @endif
 
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">ユーザー管理</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __('ユーザー管理') }}</h1>
         <div class="flex gap-2">
-            <a href="{{ route('users.import') }}" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">CSVインポート</a>
+            <a href="{{ route('users.import') }}" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('CSVインポート') }}</a>
             <a href="{{ route('users.create') }}"
                 class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                新規ユーザー
+                {{ __('新規ユーザー') }}
             </a>
         </div>
     </div>
@@ -323,9 +323,9 @@ new #[Layout('components.layouts.app')] class extends Component
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">絞り込み適用</button>
+            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">{{ __('絞り込み適用') }}</button>
             <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-                表示列:
+                {{ __('表示列:') }}
                 @foreach (\App\Support\Query\UserFilterFieldRegistry::columns() as $columnKey => $columnLabel)
                     <label class="flex items-center gap-1" wire:key="user-column-{{ $columnKey }}">
                         <input type="checkbox" wire:model.live="columns" value="{{ $columnKey }}" class="rounded border-neutral-300">
@@ -333,7 +333,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </label>
                 @endforeach
             </div>
-            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">CSVエクスポート</button>
+            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('CSVエクスポート') }}</button>
         </div>
     </div>
 
@@ -379,18 +379,18 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endforeach
                         <td class="px-4 py-2">
                             <div class="flex justify-end gap-3">
-                                <a href="{{ route('users.edit', $user) }}" class="text-sm text-brand-bold hover:underline">編集</a>
+                                <a href="{{ route('users.edit', $user) }}" class="text-sm text-brand-bold hover:underline">{{ __('編集') }}</a>
                                 @if ($user->status === \App\Enums\UserStatus::Registered)
-                                    <button wire:click="approve({{ $user->id }})" wire:confirm="このユーザーを承認しますか?"
+                                    <button wire:click="approve({{ $user->id }})" wire:confirm="{{ __('このユーザーを承認しますか?') }}"
                                         class="text-sm text-success-bold hover:underline">
-                                        承認
+                                        {{ __('承認') }}
                                     </button>
                                 @endif
                                 @unless ($user->is(auth()->user()))
                                     <button wire:click="toggleLock({{ $user->id }})"
-                                        wire:confirm="{{ $user->status === \App\Enums\UserStatus::Locked ? 'このユーザーのロックを解除しますか?' : 'このユーザーをロックしますか?' }}"
+                                        wire:confirm="{{ $user->status === \App\Enums\UserStatus::Locked ? __('このユーザーのロックを解除しますか?') : __('このユーザーをロックしますか?') }}"
                                         class="text-sm {{ $user->status === \App\Enums\UserStatus::Locked ? 'text-success-bold' : 'text-danger-bolder' }} hover:underline">
-                                        {{ $user->status === \App\Enums\UserStatus::Locked ? 'ロック解除' : 'ロック' }}
+                                        {{ $user->status === \App\Enums\UserStatus::Locked ? __('ロック解除') : __('ロック') }}
                                     </button>
                                 @endunless
                             </div>
@@ -398,7 +398,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ count($this->visibleColumns) + 2 }}" class="px-4 py-6 text-center text-neutral-500">該当するユーザーがいません。</td>
+                        <td colspan="{{ count($this->visibleColumns) + 2 }}" class="px-4 py-6 text-center text-neutral-500">{{ __('該当するユーザーがいません。') }}</td>
                     </tr>
                 @endforelse
             </tbody>

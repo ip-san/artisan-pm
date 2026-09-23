@@ -76,18 +76,18 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-3xl">
     <p class="mb-2 text-sm text-neutral-500">
-        <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
+        <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">{{ __('リポジトリ') }}</a>
     </p>
 
-    <h1 class="mb-6 text-xl font-semibold text-neutral-900">{{ $project->name }} — リポジトリ統計</h1>
+    <h1 class="mb-6 text-xl font-semibold text-neutral-900">{{ __(':project — リポジトリ統計', ['project' => $project->name]) }}</h1>
 
     <div class="mb-8 rounded-md border border-neutral-200 bg-white p-4">
-        <h2 class="mb-3 text-sm font-semibold text-neutral-900">コミット数(合計 {{ $this->changesets->count() }} 件)</h2>
+        <h2 class="mb-3 text-sm font-semibold text-neutral-900">{{ __('コミット数(合計 :count 件)', ['count' => $this->changesets->count()]) }}</h2>
 
         @if ($this->changesets->isEmpty())
-            <p class="text-sm text-neutral-500">コミットがありません。</p>
+            <p class="text-sm text-neutral-500">{{ __('コミットがありません。') }}</p>
         @else
-            <h3 class="mb-2 text-xs font-medium text-neutral-500">作成者別</h3>
+            <h3 class="mb-2 text-xs font-medium text-neutral-500">{{ __('作成者別') }}</h3>
             <div class="mb-6 space-y-2">
                 @php $maxAuthorCount = $this->commitsByAuthor->max(); @endphp
                 @foreach ($this->commitsByAuthor as $committer => $count)
@@ -101,7 +101,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </div>
 
-            <h3 class="mb-2 text-xs font-medium text-neutral-500">月別</h3>
+            <h3 class="mb-2 text-xs font-medium text-neutral-500">{{ __('月別') }}</h3>
             <div class="space-y-2">
                 @php $maxMonthCount = $this->commitsByMonth->max(); @endphp
                 @foreach ($this->commitsByMonth as $month => $count)

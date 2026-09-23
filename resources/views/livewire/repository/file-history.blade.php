@@ -70,17 +70,17 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="mb-6">
         <p class="text-sm text-neutral-500">
-            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
+            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">{{ __('リポジトリ') }}</a>
             /
             <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $this->path])) }}" class="text-brand-bold hover:underline">
                 {{ $this->path }}
             </a>
         </p>
-        <h1 class="text-xl font-semibold text-neutral-900 font-mono">履歴: {{ $this->path }}</h1>
+        <h1 class="text-xl font-semibold text-neutral-900 font-mono">{{ __('履歴: :path', ['path' => $this->path]) }}</h1>
     </div>
 
     @if ($this->changesets->isEmpty())
-        <p class="text-sm text-neutral-500">このファイルの変更履歴が見つかりませんでした。</p>
+        <p class="text-sm text-neutral-500">{{ __('このファイルの変更履歴が見つかりませんでした。') }}</p>
     @else
         <ul class="space-y-2">
             @foreach ($this->changesets as $match)

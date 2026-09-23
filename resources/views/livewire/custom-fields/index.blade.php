@@ -31,10 +31,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">カスタムフィールド管理</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __('カスタムフィールド管理') }}</h1>
         <a href="{{ route('custom-fields.create') }}"
             class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-            新規カスタムフィールド
+            {{ __('新規カスタムフィールド') }}
         </a>
     </div>
 
@@ -46,22 +46,22 @@ new #[Layout('components.layouts.app')] class extends Component
                     <span class="ml-2 rounded bg-brand-subtlest px-1.5 py-0.5 text-xs text-brand-bold">{{ $field->customized_type->value }}</span>
                     <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ $field->field_format->value }}</span>
                     @if ($field->is_required)
-                        <span class="ml-2 rounded bg-danger-subtlest px-1.5 py-0.5 text-xs text-danger-bolder">必須</span>
+                        <span class="ml-2 rounded bg-danger-subtlest px-1.5 py-0.5 text-xs text-danger-bolder">{{ __('必須') }}</span>
                     @endif
                     @if ($field->customized_type === \App\Enums\CustomizableType::Issue)
                         <span class="ml-2 text-xs text-neutral-500">
-                            {{ $field->trackers->pluck('name')->join(', ') ?: 'トラッカー未設定' }}
+                            {{ $field->trackers->pluck('name')->join(', ') ?: __('トラッカー未設定') }}
                         </span>
                     @endif
                 </div>
                 <div class="flex gap-3">
-                    <a href="{{ route('custom-fields.edit', $field) }}" class="text-sm text-brand-bold hover:underline">編集</a>
-                    <button wire:click="delete({{ $field->id }})" wire:confirm="このカスタムフィールドを削除しますか?"
-                        class="text-sm text-danger-bolder hover:underline">削除</button>
+                    <a href="{{ route('custom-fields.edit', $field) }}" class="text-sm text-brand-bold hover:underline">{{ __('編集') }}</a>
+                    <button wire:click="delete({{ $field->id }})" wire:confirm="{{ __('このカスタムフィールドを削除しますか?') }}"
+                        class="text-sm text-danger-bolder hover:underline">{{ __('削除') }}</button>
                 </div>
             </li>
         @empty
-            <li class="px-4 py-6 text-sm text-neutral-500">カスタムフィールドがありません。</li>
+            <li class="px-4 py-6 text-sm text-neutral-500">{{ __('カスタムフィールドがありません。') }}</li>
         @endforelse
     </ul>
 </div>

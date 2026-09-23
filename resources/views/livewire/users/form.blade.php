@@ -177,7 +177,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         Password::sendResetLink(['email' => $this->user->email]);
 
-        session()->flash('status', 'パスワードリセットメールを送信しました。');
+        session()->flash('status', __('パスワードリセットメールを送信しました。'));
     }
 
     /**
@@ -194,38 +194,38 @@ new #[Layout('components.layouts.app')] class extends Component
 
         app(DisableTwoFactorAuthentication::class)($this->user);
 
-        session()->flash('status', '二要素認証を無効にしました。');
+        session()->flash('status', __('二要素認証を無効にしました。'));
     }
 }; ?>
 
 <div class="max-w-xl">
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">
-        {{ $user ? 'ユーザーを編集' : '新規ユーザー' }}
+        {{ $user ? __('ユーザーを編集') : __('新規ユーザー') }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
             <label class="block text-sm font-medium text-neutral-700">
-                {{ $auth_source_id ? 'ログインID(ディレクトリのuid)' : 'ログインID' }}
+                {{ $auth_source_id ? __('ログインID(ディレクトリのuid)') : __('ログインID') }}
             </label>
             <input type="text" wire:model="login" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('login') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">メールアドレス</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('メールアドレス') }}</label>
             <input type="email" wire:model="email" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('email') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">ステータス</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
             <select wire:model="status" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @foreach (\App\Enums\UserStatus::cases() as $case)
                     <option value="{{ $case->value }}">{{ $case->value }}</option>
@@ -236,13 +236,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <label class="flex items-center gap-2 text-sm text-neutral-700">
             <input type="checkbox" wire:model="is_admin" class="rounded border-neutral-300">
-            管理者にする
+            {{ __('管理者にする') }}
         </label>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">認証方式</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('認証方式') }}</label>
             <select wire:model.live="auth_source_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <option value="">ローカルパスワード</option>
+                <option value="">{{ __('ローカルパスワード') }}</option>
                 @foreach ($this->authSources as $source)
                     <option value="{{ $source->id }}">LDAP: {{ $source->name }}</option>
                 @endforeach
@@ -253,28 +253,28 @@ new #[Layout('components.layouts.app')] class extends Component
         @if (! $auth_source_id)
             <div>
                 <label class="block text-sm font-medium text-neutral-700">
-                    パスワード{{ $user ? '(変更する場合のみ入力)' : '' }}
+                    {{ $user ? __('パスワード(変更する場合のみ入力)') : __('パスワード') }}
                 </label>
                 <input type="password" wire:model="password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('password') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">パスワード(確認)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('パスワード(確認)') }}</label>
                 <input type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="must_change_passwd" class="rounded border-neutral-300">
-                次回ログイン時にパスワードの変更を要求する
+                {{ __('次回ログイン時にパスワードの変更を要求する') }}
             </label>
 
             @if ($user)
                 <div>
                     <button type="button" wire:click="sendPasswordReset"
-                        wire:confirm="{{ $user->email }} 宛にパスワードリセットメールを送信しますか?"
+                        wire:confirm="{{ __(':email 宛にパスワードリセットメールを送信しますか?', ['email' => $user->email]) }}"
                         class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                        パスワードリセットメールを送信
+                        {{ __('パスワードリセットメールを送信') }}
                     </button>
                 </div>
             @endif
@@ -283,9 +283,9 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($user && $user->hasEnabledTwoFactorAuthentication())
             <div>
                 <button type="button" wire:click="disableTwoFactor"
-                    wire:confirm="{{ $user->email }} の二要素認証を無効にしますか?"
+                    wire:confirm="{{ __(':email の二要素認証を無効にしますか?', ['email' => $user->email]) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    二要素認証を無効にする
+                    {{ __('二要素認証を無効にする') }}
                 </button>
             </div>
         @endif
@@ -304,10 +304,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                保存
+                {{ __('保存') }}
             </button>
             <a href="{{ route('users.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                キャンセル
+                {{ __('キャンセル') }}
             </a>
         </div>
     </form>

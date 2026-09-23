@@ -176,33 +176,33 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="mt-4 grid grid-cols-1 gap-8 md:grid-cols-2">
         <div>
             <ul class="mb-6 space-y-1 text-sm text-neutral-700">
-                <li><span class="text-neutral-500">ログインID:</span> {{ $user->login }}</li>
+                <li><span class="text-neutral-500">{{ __('ログインID') }}:</span> {{ $user->login }}</li>
                 @if (! $user->preference('hide_mail') || auth()->id() === $user->id || auth()->user()?->is_admin)
-                    <li><span class="text-neutral-500">メールアドレス:</span> {{ $user->email }}</li>
+                    <li><span class="text-neutral-500">{{ __('メールアドレス') }}:</span> {{ $user->email }}</li>
                 @endif
-                <li><span class="text-neutral-500">登録日:</span> {{ $user->created_at?->format('Y-m-d') }}</li>
+                <li><span class="text-neutral-500">{{ __('登録日') }}:</span> {{ $user->created_at?->format('Y-m-d') }}</li>
                 @if ($user->last_login_at)
-                    <li><span class="text-neutral-500">最終ログイン:</span> {{ $user->last_login_at->format('Y-m-d H:i') }}</li>
+                    <li><span class="text-neutral-500">{{ __('最終ログイン') }}:</span> {{ $user->last_login_at->format('Y-m-d H:i') }}</li>
                 @endif
             </ul>
 
-            <h2 class="mb-2 text-sm font-semibold text-neutral-900">課題</h2>
+            <h2 class="mb-2 text-sm font-semibold text-neutral-900">{{ __('課題') }}</h2>
             <table class="mb-6 w-full text-sm">
                 <thead>
                     <tr class="border-b border-neutral-200 text-left text-neutral-500">
                         <th class="py-1"></th>
-                        <th class="py-1 text-right">未クローズ</th>
-                        <th class="py-1 text-right">合計</th>
+                        <th class="py-1 text-right">{{ __('未クローズ') }}</th>
+                        <th class="py-1 text-right">{{ __('合計') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr class="border-b border-neutral-100">
-                        <td class="py-1">担当</td>
+                        <td class="py-1">{{ __('担当') }}</td>
                         <td class="py-1 text-right">{{ $this->issueCounts['assigned']['open'] }}</td>
                         <td class="py-1 text-right">{{ $this->issueCounts['assigned']['total'] }}</td>
                     </tr>
                     <tr>
-                        <td class="py-1">報告</td>
+                        <td class="py-1">{{ __('報告') }}</td>
                         <td class="py-1 text-right">{{ $this->issueCounts['reported']['open'] }}</td>
                         <td class="py-1 text-right">{{ $this->issueCounts['reported']['total'] }}</td>
                     </tr>
@@ -210,12 +210,12 @@ new #[Layout('components.layouts.app')] class extends Component
             </table>
 
             @if ($this->memberships->isNotEmpty())
-                <h2 class="mb-2 text-sm font-semibold text-neutral-900">プロジェクト</h2>
+                <h2 class="mb-2 text-sm font-semibold text-neutral-900">{{ __('プロジェクト') }}</h2>
                 <table class="mb-6 w-full text-sm">
                     <thead>
                         <tr class="border-b border-neutral-200 text-left text-neutral-500">
-                            <th class="py-1">プロジェクト</th>
-                            <th class="py-1">ロール</th>
+                            <th class="py-1">{{ __('プロジェクト') }}</th>
+                            <th class="py-1">{{ __('ロール') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -234,7 +234,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
 
             @if ($this->visibleGroups->isNotEmpty())
-                <h2 class="mb-2 text-sm font-semibold text-neutral-900">グループ</h2>
+                <h2 class="mb-2 text-sm font-semibold text-neutral-900">{{ __('グループ') }}</h2>
                 <ul class="mb-6 space-y-1 text-sm text-neutral-700">
                     @foreach ($this->visibleGroups as $group)
                         <li>{{ $group->name }}</li>
@@ -245,7 +245,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div>
             @if ($this->recentActivity->isNotEmpty())
-                <h2 class="mb-2 text-sm font-semibold text-neutral-900">最近の活動</h2>
+                <h2 class="mb-2 text-sm font-semibold text-neutral-900">{{ __('最近の活動') }}</h2>
                 <ul class="space-y-2">
                     @foreach ($this->recentActivity as $entry)
                         <li wire:key="activity-{{ $entry->type }}-{{ $entry->url }}-{{ $entry->occurredAt->timestamp }}" class="text-sm">

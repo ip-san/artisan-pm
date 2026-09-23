@@ -25,7 +25,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('delete', $tracker);
 
         if ($tracker->issues()->exists()) {
-            session()->flash('error', 'このトラッカーを使用している課題があるため削除できません。');
+            session()->flash('error', __('このトラッカーを使用している課題があるため削除できません。'));
 
             return;
         }
@@ -38,10 +38,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">トラッカー管理</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __('トラッカー管理') }}</h1>
         <a href="{{ route('trackers.create') }}"
             class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-            新規トラッカー
+            {{ __('新規トラッカー') }}
         </a>
     </div>
 
@@ -54,16 +54,16 @@ new #[Layout('components.layouts.app')] class extends Component
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
                     <span class="font-medium text-neutral-900">{{ $tracker->name }}</span>
-                    <span class="ml-2 text-xs text-neutral-500">{{ $tracker->projects_count }} プロジェクト・{{ $tracker->issues_count }} 課題</span>
+                    <span class="ml-2 text-xs text-neutral-500">{{ __(':projects プロジェクト・:issues 課題', ['projects' => $tracker->projects_count, 'issues' => $tracker->issues_count]) }}</span>
                 </div>
                 <div class="flex gap-3">
-                    <a href="{{ route('trackers.edit', $tracker) }}" class="text-sm text-brand-bold hover:underline">編集</a>
-                    <button wire:click="delete({{ $tracker->id }})" wire:confirm="このトラッカーを削除しますか?"
-                        class="text-sm text-danger-bolder hover:underline">削除</button>
+                    <a href="{{ route('trackers.edit', $tracker) }}" class="text-sm text-brand-bold hover:underline">{{ __('編集') }}</a>
+                    <button wire:click="delete({{ $tracker->id }})" wire:confirm="{{ __('このトラッカーを削除しますか?') }}"
+                        class="text-sm text-danger-bolder hover:underline">{{ __('削除') }}</button>
                 </div>
             </li>
         @empty
-            <li class="px-4 py-6 text-sm text-neutral-500">トラッカーがありません。</li>
+            <li class="px-4 py-6 text-sm text-neutral-500">{{ __('トラッカーがありません。') }}</li>
         @endforelse
     </ul>
 </div>

@@ -171,71 +171,74 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * @var array<string, string>
+     * @return array<string, string>
      */
-    public const TYPE_LABELS = [
-        'issue' => '課題',
-        'wiki-page' => 'Wiki',
-        'news' => 'お知らせ',
-        'document' => '文書',
-        'message' => 'フォーラム',
-        'changeset' => 'リポジトリ',
-        'project' => 'プロジェクト',
-    ];
+    public function typeLabels(): array
+    {
+        return [
+            'issue' => __('課題'),
+            'wiki-page' => 'Wiki',
+            'news' => __('お知らせ'),
+            'document' => __('文書'),
+            'message' => __('フォーラム'),
+            'changeset' => __('リポジトリ'),
+            'project' => __('プロジェクト'),
+        ];
+    }
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">検索(全プロジェクト)</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('検索(全プロジェクト)') }}</h1>
 
     <form wire:submit="search" class="mb-6 space-y-3">
         <div class="flex gap-2">
-            <input type="text" wire:model="query" placeholder="検索キーワード"
+            <input type="text" wire:model="query" placeholder="{{ __('検索キーワード') }}"
                 class="block w-full max-w-md rounded-md border-neutral-300 shadow-sm sm:text-sm">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                検索
+                {{ __('検索') }}
             </button>
         </div>
         <div class="flex flex-wrap gap-4 text-sm text-neutral-700">
             <label class="flex items-center gap-1.5">
                 <input type="checkbox" wire:model="allWords" class="rounded border-neutral-300">
-                すべての単語を含む
+                {{ __('すべての単語を含む') }}
             </label>
             <label class="flex items-center gap-1.5">
                 <input type="checkbox" wire:model="titlesOnly" class="rounded border-neutral-300">
-                タイトルのみ
+                {{ __('タイトルのみ') }}
             </label>
             <label class="flex items-center gap-1.5">
                 <input type="checkbox" wire:model="openIssuesOnly" class="rounded border-neutral-300">
-                オープンな課題のみ
+                {{ __('オープンな課題のみ') }}
             </label>
             <span class="flex items-center gap-3" data-attachment-search>
-                添付ファイル:
-                <label class="flex items-center gap-1"><input type="radio" wire:model="attachments" value="0"> 検索しない</label>
-                <label class="flex items-center gap-1"><input type="radio" wire:model="attachments" value="1"> 一緒に検索</label>
-                <label class="flex items-center gap-1"><input type="radio" wire:model="attachments" value="only"> 添付のみ</label>
+                {{ __('添付ファイル:') }}
+                <label class="flex items-center gap-1"><input type="radio" wire:model="attachments" value="0"> {{ __('検索しない') }}</label>
+                <label class="flex items-center gap-1"><input type="radio" wire:model="attachments" value="1"> {{ __('一緒に検索') }}</label>
+                <label class="flex items-center gap-1"><input type="radio" wire:model="attachments" value="only"> {{ __('添付のみ') }}</label>
             </span>
             <label class="flex items-center gap-1.5">
                 <input type="checkbox" wire:model="myProjectsOnly" class="rounded border-neutral-300">
-                自分のプロジェクトのみ
+                {{ __('自分のプロジェクトのみ') }}
             </label>
             <label class="flex items-center gap-1.5">
                 <input type="checkbox" wire:model="bookmarkedOnly" class="rounded border-neutral-300">
-                ブックマークしたプロジェクトのみ
+                {{ __('ブックマークしたプロジェクトのみ') }}
             </label>
         </div>
     </form>
 
     @if (trim($query) === '')
-        <p class="text-sm text-neutral-500">検索キーワードを入力してください。</p>
+        <p class="text-sm text-neutral-500">{{ __('検索キーワードを入力してください。') }}</p>
     @elseif ($this->results->isEmpty())
-        <p class="text-sm text-neutral-500">「{{ $query }}」に一致する結果が見つかりませんでした。</p>
+        <p class="text-sm text-neutral-500">{{ __('「:query」に一致する結果が見つかりませんでした。', ['query' => $query]) }}</p>
     @else
-        <p class="mb-4 text-sm text-neutral-500">{{ $this->results->count() }}件の結果</p>
+        <p class="mb-4 text-sm text-neutral-500">{{ __(':count件の結果', ['count' => $this->results->count()]) }}</p>
         <ul class="space-y-3">
             @foreach ($this->pagedResults as $result)
                 <li wire:key="result-{{ $result->type }}-{{ $result->url }}" class="rounded-md border border-neutral-200 bg-white p-4">
                     <span class="mr-2 rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
-                        {{ self::TYPE_LABELS[$result->type] ?? $result->type }}
+                        {{ $this->typeLabels()[$result->type] ?? $result->type }}
                     </span>
                     <a href="{{ $result->url }}" class="font-medium text-brand-bold hover:underline">{{ $result->title }}</a>
                     @if ($result->excerpt)

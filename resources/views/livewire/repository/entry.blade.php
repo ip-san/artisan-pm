@@ -67,10 +67,10 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="mb-6">
         <p class="text-sm text-neutral-500">
-            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
+            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">{{ __('リポジトリ') }}</a>
             /
             <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $this->directoryPath])) }}" class="text-brand-bold hover:underline">
-                ファイル一覧
+                {{ __('ファイル一覧') }}
             </a>
         </p>
         <div class="flex items-center justify-between">
@@ -79,25 +79,25 @@ new #[Layout('components.layouts.app')] class extends Component
                 @unless ($this->isBinary)
                     <a href="{{ route($repository->routeName('repository.annotate'), $repository->routeParameters(['path' => $path])) }}"
                         class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                        注釈
+                        {{ __('注釈') }}
                     </a>
                 @endunless
                 <a href="{{ route($repository->routeName('repository.file-history'), $repository->routeParameters(['path' => $path])) }}"
                     class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    履歴
+                    {{ __('履歴') }}
                 </a>
                 <a href="{{ route($repository->routeName('repository.raw'), $repository->routeParameters(['path' => $path])) }}"
                     class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    ダウンロード
+                    {{ __('ダウンロード') }}
                 </a>
             </div>
         </div>
     </div>
 
     @if ($this->isBinary)
-        <p class="text-sm text-neutral-500">バイナリファイルは表示できません。上の「ダウンロード」から取得してください。</p>
+        <p class="text-sm text-neutral-500">{{ __('バイナリファイルは表示できません。上の「ダウンロード」から取得してください。') }}</p>
     @elseif ($this->tooLargeToDisplay)
-        <p class="text-sm text-neutral-500">ファイルが大きいため({{ number_format(\App\Support\Scm\DisplayLimits::maxFileSizeKb()) }}KBを超えています)表示できません。上の「ダウンロード」から取得してください。</p>
+        <p class="text-sm text-neutral-500">{{ __('ファイルが大きいため(:sizeを超えています)表示できません。上の「ダウンロード」から取得してください。', ['size' => number_format(\App\Support\Scm\DisplayLimits::maxFileSizeKb()).'KB']) }}</p>
     @else
         <pre class="overflow-x-auto rounded-md border border-neutral-200 bg-neutral-900 p-4 text-xs text-neutral-100">{{ $this->content }}</pre>
     @endif

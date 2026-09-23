@@ -10,17 +10,17 @@
                     @endif
                 </p>
             </div>
-            <a href="{{ route('attachments.show', $media) }}" class="shrink-0 rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">ダウンロード</a>
+            <a href="{{ route('attachments.show', $media) }}" class="shrink-0 rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('ダウンロード') }}</a>
         </div>
 
         @if ($total > 1 && $position !== null)
             <p class="mb-3 flex items-center gap-3 text-sm text-neutral-600" data-attachment-pager>
                 @if ($previous)
-                    <a href="{{ route('attachments.preview', $previous) }}" class="text-brand-bold hover:underline">« 前へ</a>
+                    <a href="{{ route('attachments.preview', $previous) }}" class="text-brand-bold hover:underline">{{ __('« 前へ') }}</a>
                 @endif
                 <span>{{ $position }} / {{ $total }}</span>
                 @if ($next)
-                    <a href="{{ route('attachments.preview', $next) }}" class="text-brand-bold hover:underline">次へ »</a>
+                    <a href="{{ route('attachments.preview', $next) }}" class="text-brand-bold hover:underline">{{ __('次へ »') }}</a>
                 @endif
             </p>
         @endif
@@ -35,7 +35,7 @@
         @elseif ($kind === 'text' && $text !== null)
             <pre class="overflow-x-auto rounded-md border border-neutral-200 bg-neutral-50 p-4 text-xs text-neutral-800" data-attachment-text>{{ $text }}</pre>
         @else
-            <p class="text-sm text-neutral-500">このファイルはブラウザ上に表示できません。ダウンロードしてください。</p>
+            <p class="text-sm text-neutral-500">{{ __('このファイルはブラウザ上に表示できません。ダウンロードしてください。') }}</p>
         @endif
     </div>
 </x-layouts.app>

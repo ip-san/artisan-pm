@@ -144,15 +144,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-2xl space-y-6">
     <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-neutral-900">マイWebhook</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __('マイWebhook') }}</h1>
         <button wire:click="startCreate" data-my-webhook-create
             class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-            新規Webhook
+            {{ __('新規Webhook') }}
         </button>
     </div>
 
     <p class="text-sm text-neutral-600">
-        自分が閲覧でき、かつ「Webhookの利用」権限を持つプロジェクトのイベントだけが送信されます。
+        {{ __('自分が閲覧でき、かつ「Webhookの利用」権限を持つプロジェクトのイベントだけが送信されます。') }}
     </p>
 
     @if ($editing)
@@ -165,15 +165,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div>
                 <label class="block text-sm font-medium text-neutral-700">
-                    シークレット{{ $editingId ? '(変更する場合のみ入力)' : '(任意)' }}
+                    {{ $editingId ? __('シークレット(変更する場合のみ入力)') : __('シークレット(任意)') }}
                 </label>
                 <input type="password" wire:model="secret" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">対象プロジェクト</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('対象プロジェクト') }}</label>
                 <select wire:model="project_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="">Webhookを利用できるすべてのプロジェクト</option>
+                    <option value="">{{ __('Webhookを利用できるすべてのプロジェクト') }}</option>
                     @foreach ($this->projects as $project)
                         <option value="{{ $project->id }}">{{ $project->name }}</option>
                     @endforeach
@@ -182,7 +182,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <span class="mb-2 block text-sm font-medium text-neutral-700">イベント</span>
+                <span class="mb-2 block text-sm font-medium text-neutral-700">{{ __('イベント') }}</span>
                 <div class="flex flex-wrap gap-3">
                     @foreach (WebhookEvent::cases() as $event)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -196,12 +196,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="is_active" class="rounded border-neutral-300">
-                有効にする
+                {{ __('有効にする') }}
             </label>
 
             <div class="flex gap-3">
-                <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">保存</button>
-                <button type="button" wire:click="cancel" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">キャンセル</button>
+                <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
+                <button type="button" wire:click="cancel" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('キャンセル') }}</button>
             </div>
         </form>
     @endif
@@ -211,19 +211,19 @@ new #[Layout('components.layouts.app')] class extends Component
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
                     <span class="font-medium text-neutral-900">{{ $webhook->url }}</span>
-                    <span class="ml-2 text-xs text-neutral-500">{{ $webhook->project?->name ?? '全プロジェクト' }}</span>
+                    <span class="ml-2 text-xs text-neutral-500">{{ $webhook->project?->name ?? __('全プロジェクト') }}</span>
                     @if (! $webhook->is_active)
-                        <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">無効</span>
+                        <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ __('無効') }}</span>
                     @endif
                 </div>
                 <div class="flex gap-3">
-                    <button wire:click="startEdit({{ $webhook->id }})" class="text-sm text-brand-bold hover:underline">編集</button>
-                    <button wire:click="delete({{ $webhook->id }})" wire:confirm="このWebhookを削除しますか?"
-                        class="text-sm text-danger-bolder hover:underline">削除</button>
+                    <button wire:click="startEdit({{ $webhook->id }})" class="text-sm text-brand-bold hover:underline">{{ __('編集') }}</button>
+                    <button wire:click="delete({{ $webhook->id }})" wire:confirm="{{ __('このWebhookを削除しますか?') }}"
+                        class="text-sm text-danger-bolder hover:underline">{{ __('削除') }}</button>
                 </div>
             </li>
         @empty
-            <li class="px-4 py-6 text-sm text-neutral-500">Webhookがありません。</li>
+            <li class="px-4 py-6 text-sm text-neutral-500">{{ __('Webhookがありません。') }}</li>
         @endforelse
     </ul>
 </div>

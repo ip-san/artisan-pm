@@ -80,26 +80,30 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-4xl">
     <p class="mb-2 text-sm text-neutral-500">
-        <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
+        <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">{{ __('リポジトリ') }}</a>
     </p>
 
     <h1 class="mb-1 text-xl font-semibold text-neutral-900 font-mono">
         {{ $fromChangeset->shortRevision() }} 〜 {{ $toChangeset->shortRevision() }}
     </h1>
+    @php
+        $fromLink = '<a href="'.e(route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $fromChangeset]))).'" class="text-brand-bold hover:underline">'.e($fromChangeset->shortRevision()).'</a>';
+        $toLink = '<a href="'.e(route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $toChangeset]))).'" class="text-brand-bold hover:underline">'.e($toChangeset->shortRevision()).'</a>';
+    @endphp
     <p class="mb-4 text-sm text-neutral-500">
-        <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $fromChangeset])) }}" class="text-brand-bold hover:underline">{{ $fromChangeset->shortRevision() }}</a>
-        ({{ $fromChangeset->committed_on->format('Y-m-d H:i') }})
-        から
-        <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $toChangeset])) }}" class="text-brand-bold hover:underline">{{ $toChangeset->shortRevision() }}</a>
-        ({{ $toChangeset->committed_on->format('Y-m-d H:i') }})
-        までの差分
+        {!! __(':from (:from_date) から :to (:to_date) までの差分', [
+            'from' => $fromLink,
+            'from_date' => e($fromChangeset->committed_on->format('Y-m-d H:i')),
+            'to' => $toLink,
+            'to_date' => e($toChangeset->committed_on->format('Y-m-d H:i')),
+        ]) !!}
     </p>
 
     @if (trim($this->diff) === '')
-        <p class="text-sm text-neutral-500">このリビジョン間に差分はありません。</p>
+        <p class="text-sm text-neutral-500">{{ __('このリビジョン間に差分はありません。') }}</p>
     @else
         @if ($this->shownDiff['truncated'])
-            <p class="mb-2 text-sm text-warning-bold">差分が大きいため、先頭{{ number_format(\App\Support\Scm\DisplayLimits::maxDiffLines()) }}行だけを表示しています。</p>
+            <p class="mb-2 text-sm text-warning-bold">{{ __('差分が大きいため、先頭:lines行だけを表示しています。', ['lines' => number_format(\App\Support\Scm\DisplayLimits::maxDiffLines())]) }}</p>
         @endif
         <pre class="overflow-x-auto rounded-md border border-neutral-200 bg-neutral-900 p-4 text-xs text-neutral-100">{{ $this->shownDiff['text'] }}</pre>
     @endif

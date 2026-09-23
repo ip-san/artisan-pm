@@ -27,9 +27,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">プラグイン</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __('プラグイン') }}</h1>
         <p class="mt-1 text-sm text-neutral-500">
-            プラグインの追加自体はComposerパッケージと同様に手動で行います(`bootstrap/providers.php`に登録)。ここでは登録済みのプラグイン一覧と、それぞれの設定を確認・変更できます。
+            {{ __('プラグインの追加自体はComposerパッケージと同様に手動で行います(`bootstrap/providers.php`に登録)。ここでは登録済みのプラグイン一覧と、それぞれの設定を確認・変更できます。') }}
         </p>
     </div>
 
@@ -42,11 +42,11 @@ new #[Layout('components.layouts.app')] class extends Component
                     <span class="ml-2 text-xs text-neutral-500">{{ $plugin->author }}</span>
                 </div>
                 @if (app(PluginManager::class)->hasSettings($plugin->id))
-                    <a href="{{ route('plugins.settings', $plugin->id) }}" class="text-sm text-brand-bold hover:underline">設定</a>
+                    <a href="{{ route('plugins.settings', $plugin->id) }}" class="text-sm text-brand-bold hover:underline">{{ __('設定') }}</a>
                 @endif
             </li>
         @empty
-            <li class="px-4 py-6 text-sm text-neutral-500">登録済みのプラグインがありません。</li>
+            <li class="px-4 py-6 text-sm text-neutral-500">{{ __('登録済みのプラグインがありません。') }}</li>
         @endforelse
     </ul>
 </div>

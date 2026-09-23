@@ -8,28 +8,19 @@ use App\Models\Tracker;
 use App\Models\User;
 
 /**
- * The views whose strings go through __() with the Japanese original as the
- * key (A14-01b). Add each screen group here as it is translated.
+ * Every view: those translated so far (A14-01b) have __() calls with the
+ * Japanese original as the key, the others have none to check.
  *
  * @return list<string>
  */
 function translatedViews(): array
 {
-    return [
-        'resources/views/components/layouts/app.blade.php',
-        ...glob(base_path('resources/views/livewire/issues/*.blade.php')),
-        ...glob(base_path('resources/views/livewire/projects/*.blade.php')),
-        ...glob(base_path('resources/views/livewire/versions/*.blade.php')),
-        ...glob(base_path('resources/views/livewire/issue-categories/*.blade.php')),
-        ...glob(base_path('resources/views/components/*.blade.php')),
-        ...glob(base_path('resources/views/livewire/time-entries/*.blade.php')),
-        ...glob(base_path('resources/views/livewire/wiki/*.blade.php')),
-        ...glob(base_path('resources/views/livewire/boards/*.blade.php')),
-        ...glob(base_path('resources/views/livewire/messages/*.blade.php')),
-        ...glob(base_path('resources/views/livewire/news/*.blade.php')),
-        ...glob(base_path('resources/views/livewire/documents/*.blade.php')),
-        ...glob(base_path('resources/views/livewire/files/*.blade.php')),
-    ];
+    $views = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path('views'), FilesystemIterator::SKIP_DOTS));
+
+    return collect(iterator_to_array($views))
+        ->map(fn (SplFileInfo $file): string => $file->getPathname())
+        ->filter(fn (string $path): bool => str_ends_with($path, '.blade.php'))
+        ->values()->all();
 }
 
 /**
@@ -69,11 +60,9 @@ test('every translated key in the translated views has an English entry', functi
     $missing = [];
 
     foreach (translatedViews() as $view) {
-        $path = str_starts_with($view, '/') ? $view : base_path($view);
-
-        foreach (translationKeysIn($path) as $key) {
+        foreach (translationKeysIn($view) as $key) {
             if (! array_key_exists($key, $english)) {
-                $missing[] = basename($path).': '.$key;
+                $missing[] = basename($view).': '.$key;
             }
         }
     }
@@ -127,4 +116,11 @@ test('the project overview and roadmap are shown in English for an English user'
 
     $this->actingAs($english)->get(route('versions.roadmap', $project))
         ->assertOk()->assertDontSee('マイページ');
+});
+
+test('the sign-in page follows the visitor\'s browser language', function () {
+    $this->get(route('login'))->assertOk()->assertSee('メールアドレス');
+
+    $this->withHeader('Accept-Language', 'en-US,en;q=0.9')->get(route('login'))
+        ->assertOk()->assertSee('Sign in')->assertDontSee('メールアドレス');
 });

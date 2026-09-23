@@ -119,43 +119,43 @@ new #[Layout('components.layouts.app')] class extends Component
         // "sync" queue driver tests run under, where dispatch happens to
         // run inline). The changeset list intentionally isn't refreshed
         // here for the same reason; it'll reflect the sync on next load.
-        session()->flash('status', '同期をキューに追加しました。しばらくしてから再読み込みしてください。');
+        session()->flash('status', __('同期をキューに追加しました。しばらくしてから再読み込みしてください。'));
     }
 }; ?>
 
 <div>
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — リポジトリ</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — リポジトリ', ['project' => $project->name]) }}</h1>
         <div class="flex gap-2">
             @if ($repository && auth()->user()?->can('browse', [Repository::class, $project]))
                 <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters()) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    ファイル一覧
+                    {{ __('ファイル一覧') }}
                 </a>
             @endif
             @if ($repository)
                 <a href="{{ route($repository->routeName('repository.stats'), $repository->routeParameters()) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    統計
+                    {{ __('統計') }}
                 </a>
             @endif
             @if ($this->canManage)
                 <a href="{{ $repository ? route($repository->routeName('repository.edit'), $repository->routeParameters()) : route('repository.edit', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    設定
+                    {{ __('設定') }}
                 </a>
                 @if ($repository)
                     <a href="{{ route($repository->routeName('repository.committers'), $repository->routeParameters()) }}"
                         class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                        コミッター設定
+                        {{ __('コミッター設定') }}
                     </a>
                     <button wire:click="sync" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                        同期
+                        {{ __('同期') }}
                     </button>
                 @endif
                 <a href="{{ route('repository.create', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    リポジトリを追加
+                    {{ __('リポジトリを追加') }}
                 </a>
             @endif
         </div>
@@ -172,9 +172,9 @@ new #[Layout('components.layouts.app')] class extends Component
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                     <tr>
-                        <th class="px-4 py-2">識別子</th>
-                        <th class="px-4 py-2">種別</th>
-                        <th class="px-4 py-2">パス</th>
+                        <th class="px-4 py-2">{{ __('識別子') }}</th>
+                        <th class="px-4 py-2">{{ __('種別') }}</th>
+                        <th class="px-4 py-2">{{ __('パス') }}</th>
                         <th class="px-4 py-2"></th>
                     </tr>
                 </thead>
@@ -186,7 +186,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                     {{ $candidate->identifierParam() }}
                                 </a>
                                 @if ($candidate->is_default)
-                                    <span class="ml-1 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">既定</span>
+                                    <span class="ml-1 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ __('既定') }}</span>
                                 @endif
                             </td>
                             <td class="px-4 py-2 text-neutral-500">{{ $candidate->type->value }}</td>
@@ -194,7 +194,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             <td class="px-4 py-2 text-right">
                                 @if ($this->canManage && ! $candidate->is_default)
                                     <button wire:click="setDefault({{ $candidate->id }})" class="text-xs text-brand-bold hover:underline">
-                                        既定にする
+                                        {{ __('既定にする') }}
                                     </button>
                                 @endif
                             </td>
@@ -207,16 +207,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($repository === null)
         <p class="text-sm text-neutral-500">
-            リポジトリが設定されていません。
+            {{ __('リポジトリが設定されていません。') }}
             @if ($this->canManage)
-                <a href="{{ route('repository.edit', $project) }}" class="text-brand-bold hover:underline">設定する</a>
+                <a href="{{ route('repository.edit', $project) }}" class="text-brand-bold hover:underline">{{ __('設定する') }}</a>
             @endif
         </p>
     @else
         <p class="mb-4 text-xs text-neutral-500">
-            種別: {{ $repository->type->value }} — パス: {{ $repository->path }}
+            {{ __('種別: :type — パス: :path', ['type' => $repository->type->value, 'path' => $repository->path]) }}
             @if ($repository->last_synced_revision)
-                — 最終同期リビジョン: {{ substr($repository->last_synced_revision, 0, 8) }}
+                {{ __('— 最終同期リビジョン: :revision', ['revision' => substr($repository->last_synced_revision, 0, 8)]) }}
             @endif
         </p>
 
@@ -224,12 +224,12 @@ new #[Layout('components.layouts.app')] class extends Component
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                     <tr>
-                        <th class="px-2 py-2">旧</th>
-                        <th class="px-2 py-2">新</th>
-                        <th class="px-4 py-2">リビジョン</th>
-                        <th class="px-4 py-2">コミットメッセージ</th>
-                        <th class="px-4 py-2">作成者</th>
-                        <th class="px-4 py-2">日時</th>
+                        <th class="px-2 py-2">{{ __('旧') }}</th>
+                        <th class="px-2 py-2">{{ __('新') }}</th>
+                        <th class="px-4 py-2">{{ __('リビジョン') }}</th>
+                        <th class="px-4 py-2">{{ __('コミットメッセージ') }}</th>
+                        <th class="px-4 py-2">{{ __('作成者') }}</th>
+                        <th class="px-4 py-2">{{ __('日時') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-neutral-100">
@@ -252,7 +252,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-6 text-center text-neutral-500">コミットがありません。</td>
+                            <td colspan="6" class="px-4 py-6 text-center text-neutral-500">{{ __('コミットがありません。') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -263,7 +263,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="mt-3">
                 <button wire:click="compareSelected"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    選択したリビジョンを比較
+                    {{ __('選択したリビジョンを比較') }}
                 </button>
             </div>
         @endif

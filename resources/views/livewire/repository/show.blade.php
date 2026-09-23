@@ -81,13 +81,13 @@ new #[Layout('components.layouts.app')] class extends Component
         $issue = $issueId > 0 ? Issue::find($issueId) : null;
 
         if ($issue === null || auth()->user()?->cannot('view', $issue)) {
-            $this->addError('newIssueReference', '課題が見つかりません。');
+            $this->addError('newIssueReference', __('課題が見つかりません。'));
 
             return;
         }
 
         if ($this->changeset->issues->contains('id', $issue->id)) {
-            $this->addError('newIssueReference', 'この課題はすでに関連付けられています。');
+            $this->addError('newIssueReference', __('この課題はすでに関連付けられています。'));
 
             return;
         }
@@ -140,7 +140,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-4xl">
     <p class="mb-2 text-sm text-neutral-500">
-        <a href="{{ route($changeset->repository->routeName('repository.index'), $changeset->repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
+        <a href="{{ route($changeset->repository->routeName('repository.index'), $changeset->repository->routeParameters()) }}" class="text-brand-bold hover:underline">{{ __('リポジトリ') }}</a>
     </p>
 
     <h1 class="mb-1 text-xl font-semibold text-neutral-900 font-mono">{{ $changeset->shortRevision() }}</h1>
@@ -151,7 +151,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($changeset->issues->isNotEmpty() || $this->canManageRelatedIssues)
-        <h2 class="text-sm font-semibold text-neutral-900 mb-2">関連課題</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('関連課題') }}</h2>
         <ul class="mb-2 space-y-1">
             @forelse ($changeset->issues as $issue)
                 <li class="text-sm" wire:key="related-issue-{{ $issue->id }}">
@@ -160,12 +160,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     </a>
                     <span class="text-neutral-500">({{ $issue->status->name }})</span>
                     @if ($this->canManageRelatedIssues)
-                        <button wire:click="removeRelatedIssue({{ $issue->id }})" wire:confirm="この課題との関連付けを解除しますか?"
-                            class="ml-1 text-xs text-danger-bolder hover:underline">解除</button>
+                        <button wire:click="removeRelatedIssue({{ $issue->id }})" wire:confirm="{{ __('この課題との関連付けを解除しますか?') }}"
+                            class="ml-1 text-xs text-danger-bolder hover:underline">{{ __('解除') }}</button>
                     @endif
                 </li>
             @empty
-                <li class="text-sm text-neutral-500">関連付けられた課題はありません。</li>
+                <li class="text-sm text-neutral-500">{{ __('関連付けられた課題はありません。') }}</li>
             @endforelse
         </ul>
 
@@ -174,14 +174,14 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="text" wire:model="newIssueReference" placeholder="#123"
                     class="w-28 rounded-md border-neutral-300 text-sm shadow-sm">
                 <button type="submit" class="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">
-                    課題を関連付け
+                    {{ __('課題を関連付け') }}
                 </button>
                 @error('newIssueReference') <span class="text-sm text-danger-bolder">{{ $message }}</span> @enderror
             </form>
         @endif
     @endif
 
-    <h2 class="text-sm font-semibold text-neutral-900 mb-2">変更されたファイル ({{ $changeset->files->count() }})</h2>
+    <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('変更されたファイル (:count)', ['count' => $changeset->files->count()]) }}</h2>
     <ul class="mb-6 space-y-1">
         @foreach ($changeset->files as $file)
             <li class="font-mono text-sm">
@@ -192,16 +192,16 @@ new #[Layout('components.layouts.app')] class extends Component
     </ul>
 
     <h2 class="text-sm font-semibold text-neutral-900 mb-2">
-        差分
+        {{ __('差分') }}
         @if ($path !== '')
             <span class="font-mono font-normal text-neutral-500">({{ $path }})</span>
             <a href="{{ route($changeset->repository->routeName('repository.show'), $changeset->repository->routeParameters(['changeset' => $changeset])) }}" class="ml-1 text-xs font-normal text-brand-bold hover:underline">
-                全体の差分を見る
+                {{ __('全体の差分を見る') }}
             </a>
         @endif
     </h2>
     @if ($this->shownDiff['truncated'])
-        <p class="mb-2 text-sm text-warning-bold">差分が大きいため、先頭{{ number_format(\App\Support\Scm\DisplayLimits::maxDiffLines()) }}行だけを表示しています。</p>
+        <p class="mb-2 text-sm text-warning-bold">{{ __('差分が大きいため、先頭:lines行だけを表示しています。', ['lines' => number_format(\App\Support\Scm\DisplayLimits::maxDiffLines())]) }}</p>
     @endif
     <pre class="overflow-x-auto rounded-md border border-neutral-200 bg-neutral-900 p-4 text-xs text-neutral-100">{{ $this->shownDiff['text'] }}</pre>
 </div>

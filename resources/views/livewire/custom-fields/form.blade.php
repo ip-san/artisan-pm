@@ -272,7 +272,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 }
 
                 if (@preg_match('/'.str_replace('/', '\/', $value).'/', '') === false) {
-                    $fail('正規表現の形式が正しくありません。');
+                    $fail(__('正規表現の形式が正しくありません。'));
                 }
             }],
             'default_value_mode' => [Rule::in(array_map(fn (CustomFieldDefaultValueMode $m) => $m->value, CustomFieldDefaultValueMode::cases()))],
@@ -366,27 +366,27 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-xl">
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">
-        {{ $customField ? 'カスタムフィールドを編集' : '新規カスタムフィールド' }}
+        {{ $customField ? __('カスタムフィールドを編集') : __('新規カスタムフィールド') }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">説明(任意)</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('説明(任意)') }}</label>
             <textarea wire:model="description" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
-            <p class="mt-1 text-xs text-neutral-500">入力欄の下に補足として表示されます。</p>
+            <p class="mt-1 text-xs text-neutral-500">{{ __('入力欄の下に補足として表示されます。') }}</p>
             @error('description') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">対象</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('対象') }}</label>
             @if ($customField)
-                <p class="mt-1 text-sm text-neutral-900">{{ $customized_type }}(作成後は変更できません)</p>
+                <p class="mt-1 text-sm text-neutral-900">{{ $customized_type }}{{ __('(作成後は変更できません)') }}</p>
             @else
                 <select wire:model.live="customized_type" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Enums\CustomizableType::cases() as $type)
@@ -397,12 +397,12 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">形式</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('形式') }}</label>
             @if ($customField)
-                <p class="mt-1 text-sm text-neutral-900">{{ $field_format }}(作成後は変更できません)</p>
+                <p class="mt-1 text-sm text-neutral-900">{{ $field_format }}{{ __('(作成後は変更できません)') }}</p>
             @else
                 <select wire:model.live="field_format" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="">選択してください</option>
+                    <option value="">{{ __('選択してください') }}</option>
                     @foreach (\App\Enums\CustomFieldFormat::cases() as $format)
                         <option value="{{ $format->value }}">{{ app(\App\CustomFields\FormatRegistry::class)->get($format)->label() }}</option>
                     @endforeach
@@ -413,7 +413,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($field_format === \App\Enums\CustomFieldFormat::List->value)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">選択肢(1行に1つ)</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('選択肢(1行に1つ)') }}</label>
                 <textarea wire:model="possibleValuesText" rows="4"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             </div>
@@ -421,7 +421,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($field_format === \App\Enums\CustomFieldFormat::User->value)
             <div>
-                <span class="mb-2 block text-sm font-medium text-neutral-700">選択できるロール(未選択=プロジェクトのメンバー全員)</span>
+                <span class="mb-2 block text-sm font-medium text-neutral-700">{{ __('選択できるロール(未選択=プロジェクトのメンバー全員)') }}</span>
                 <div class="flex flex-wrap gap-3">
                     @foreach ($this->roles as $role)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -435,7 +435,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($field_format === \App\Enums\CustomFieldFormat::Version->value)
             <div>
-                <span class="mb-2 block text-sm font-medium text-neutral-700">選択できるバージョンのステータス(未選択=すべて)</span>
+                <span class="mb-2 block text-sm font-medium text-neutral-700">{{ __('選択できるバージョンのステータス(未選択=すべて)') }}</span>
                 <div class="flex flex-wrap gap-3">
                     @foreach (\App\Enums\VersionStatus::cases() as $status)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -449,10 +449,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($field_format === \App\Enums\CustomFieldFormat::Enumeration->value)
             <div>
-                <label class="block text-sm font-medium text-neutral-700 mb-2">選択肢(管理された一覧)</label>
+                <label class="block text-sm font-medium text-neutral-700 mb-2">{{ __('選択肢(管理された一覧)') }}</label>
                 <p class="mb-2 text-xs text-neutral-500">
-                    「リスト選択」と異なり、各選択肢は個別に無効化(既存の値は保持したまま新規選択肢から外す)したり、
-                    削除時に別の選択肢へ置き換えたりできます。
+                    {{ __('「リスト選択」と異なり、各選択肢は個別に無効化(既存の値は保持したまま新規選択肢から外す)したり、削除時に別の選択肢へ置き換えたりできます。') }}
                 </p>
                 <div class="space-y-2">
                     @foreach ($enumerationOptions as $index => $option)
@@ -467,44 +466,44 @@ new #[Layout('components.layouts.app')] class extends Component
                                         class="text-xs text-neutral-500 hover:text-neutral-800 disabled:opacity-30 disabled:hover:text-neutral-500">▼</button>
                                 </div>
                             @endif
-                            <input type="text" wire:model="enumerationOptions.{{ $index }}.name" placeholder="選択肢名"
+                            <input type="text" wire:model="enumerationOptions.{{ $index }}.name" placeholder="{{ __('選択肢名') }}"
                                 class="block w-36 rounded-md border-neutral-300 text-sm shadow-sm">
                             <label class="flex items-center gap-1 text-xs text-neutral-600">
                                 <input type="checkbox" wire:model="enumerationOptions.{{ $index }}.active" class="rounded border-neutral-300">
-                                有効
+                                {{ __('有効') }}
                             </label>
                             @if ($option['id'])
                                 <select wire:model="enumerationOptions.{{ $index }}.reassignTo"
                                     class="block w-48 rounded-md border-neutral-300 text-xs shadow-sm">
-                                    <option value="">削除時: 未設定にする</option>
+                                    <option value="">{{ __('削除時: 未設定にする') }}</option>
                                     @foreach ($enumerationOptions as $other)
                                         @if (($other['id'] ?? null) !== null && $other['id'] !== $option['id'])
-                                            <option value="{{ $other['id'] }}">削除時: 「{{ $other['name'] }}」に置き換え</option>
+                                            <option value="{{ $other['id'] }}">{{ __('削除時: 「:name」に置き換え', ['name' => $other['name']]) }}</option>
                                         @endif
                                     @endforeach
                                 </select>
                                 <button type="button" wire:click="deleteEnumerationOption({{ $index }})"
-                                    wire:confirm="この選択肢を削除しますか?"
-                                    class="shrink-0 text-xs text-danger-bolder hover:underline">削除</button>
+                                    wire:confirm="{{ __('この選択肢を削除しますか?') }}"
+                                    class="shrink-0 text-xs text-danger-bolder hover:underline">{{ __('削除') }}</button>
                             @else
                                 <button type="button" wire:click="removeEnumerationOption({{ $index }})"
-                                    class="shrink-0 text-xs text-neutral-500 hover:underline">取消</button>
+                                    class="shrink-0 text-xs text-neutral-500 hover:underline">{{ __('取消') }}</button>
                             @endif
                         </div>
                         @error("enumerationOptions.{$index}.name") <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                     @endforeach
                 </div>
                 <button type="button" wire:click="addEnumerationOption" class="mt-2 text-xs text-brand-bold hover:underline">
-                    + 選択肢を追加
+                    {{ __('+ 選択肢を追加') }}
                 </button>
             </div>
         @endif
 
         @if ($field_format === \App\Enums\CustomFieldFormat::Progressbar->value)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">選択肢の刻み</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('選択肢の刻み') }}</label>
                 <select wire:model="ratio_interval" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="">既定({{ \App\Support\Issues\DoneRatioSteps::interval() }} %)</option>
+                    <option value="">{{ __('既定(:interval %)', ['interval' => \App\Support\Issues\DoneRatioSteps::interval()]) }}</option>
                     @foreach (\App\Support\Issues\DoneRatioSteps::INTERVALS as $interval)
                         <option value="{{ $interval }}">{{ $interval }} %</option>
                     @endforeach
@@ -516,25 +515,25 @@ new #[Layout('components.layouts.app')] class extends Component
         @if (in_array($field_format, [\App\Enums\CustomFieldFormat::String->value, \App\Enums\CustomFieldFormat::Link->value], true))
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">最小文字数</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('最小文字数') }}</label>
                     <input type="number" wire:model="min_length" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">最大文字数</label>
+                    <label class="block text-sm font-medium text-neutral-700">{{ __('最大文字数') }}</label>
                     <input type="number" wire:model="max_length" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
             </div>
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">正規表現による検証(任意)</label>
-            <input type="text" wire:model="regexp" placeholder="例: ^[A-Z]{2}\d{4}$"
+            <label class="block text-sm font-medium text-neutral-700">{{ __('正規表現による検証(任意)') }}</label>
+            <input type="text" wire:model="regexp" placeholder="{{ __('例: ^[A-Z]{2}\\d{4}$') }}"
                 class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('regexp') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">既定値(任意、新規課題作成時に自動入力)</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('既定値(任意、新規課題作成時に自動入力)') }}</label>
 
             @if ($field_format === \App\Enums\CustomFieldFormat::Date->value)
                 <select wire:model.live="default_value_mode" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
@@ -544,9 +543,9 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
 
                 @if ($default_value_mode === \App\Enums\CustomFieldDefaultValueMode::DateOffset->value)
-                    <input type="number" wire:model="default_value" placeholder="例: 7(7日後)、-3(3日前)"
+                    <input type="number" wire:model="default_value" placeholder="{{ __('例: 7(7日後)、-3(3日前)') }}"
                         class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <p class="mt-1 text-xs text-neutral-500">課題作成日を基準にした日数(負数で過去の日付)。</p>
+                    <p class="mt-1 text-xs text-neutral-500">{{ __('課題作成日を基準にした日数(負数で過去の日付)。') }}</p>
                 @else
                     <input type="date" wire:model="default_value" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @endif
@@ -561,29 +560,29 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="flex gap-6">
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="is_required" class="rounded border-neutral-300">
-                必須項目にする
+                {{ __('必須項目にする') }}
             </label>
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="multiple" class="rounded border-neutral-300">
-                複数値を許可する
+                {{ __('複数値を許可する') }}
             </label>
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="searchable" class="rounded border-neutral-300">
-                検索対象にする
+                {{ __('検索対象にする') }}
             </label>
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="is_filter" class="rounded border-neutral-300">
-                フィルタとして使用する
+                {{ __('フィルタとして使用する') }}
             </label>
             <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input type="checkbox" wire:model="editable" class="rounded border-neutral-300">
-                編集可能にする(管理者は常に編集可能)
+                {{ __('編集可能にする(管理者は常に編集可能)') }}
             </label>
         </div>
 
         @if ($this->isForIssues())
         <div>
-            <span class="block text-sm font-medium text-neutral-700 mb-2">対象トラッカー</span>
+            <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('対象トラッカー') }}</span>
             <div class="flex flex-wrap gap-3">
                 @foreach ($this->trackers as $tracker)
                     <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -596,7 +595,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <span class="block text-sm font-medium text-neutral-700 mb-2">対象プロジェクト(未選択=全プロジェクト)</span>
+            <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('対象プロジェクト(未選択=全プロジェクト)') }}</span>
             <div class="flex flex-wrap gap-3">
                 @foreach ($this->projects as $project)
                     <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -609,7 +608,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div>
-            <span class="block text-sm font-medium text-neutral-700 mb-2">閲覧可能ロール(未選択=全ロールに表示)</span>
+            <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('閲覧可能ロール(未選択=全ロールに表示)') }}</span>
             <div class="flex flex-wrap gap-3">
                 @foreach ($this->roles as $role)
                     <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -622,10 +621,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                保存
+                {{ __('保存') }}
             </button>
             <a href="{{ route('custom-fields.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                キャンセル
+                {{ __('キャンセル') }}
             </a>
         </div>
     </form>

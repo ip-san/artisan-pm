@@ -64,17 +64,17 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="mb-6">
         <p class="text-sm text-neutral-500">
-            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">リポジトリ</a>
+            <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">{{ __('リポジトリ') }}</a>
             /
             <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $this->path])) }}" class="text-brand-bold hover:underline">
                 {{ $this->path }}
             </a>
         </p>
-        <h1 class="text-xl font-semibold text-neutral-900 font-mono">注釈: {{ $this->path }}</h1>
+        <h1 class="text-xl font-semibold text-neutral-900 font-mono">{{ __('注釈: :path', ['path' => $this->path]) }}</h1>
     </div>
 
     @if ($this->lines === [])
-        <p class="text-sm text-neutral-500">注釈を表示できません(バイナリファイル、または空のファイルの可能性があります)。</p>
+        <p class="text-sm text-neutral-500">{{ __('注釈を表示できません(バイナリファイル、または空のファイルの可能性があります)。') }}</p>
     @else
         <div class="overflow-x-auto rounded-md border border-neutral-200">
             <table class="w-full text-xs">

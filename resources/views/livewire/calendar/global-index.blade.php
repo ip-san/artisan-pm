@@ -77,7 +77,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function weekdayLabels(): array
     {
-        $labels = ['日', '月', '火', '水', '木', '金', '土'];
+        $labels = [__('日'), __('月'), __('火'), __('水'), __('木'), __('金'), __('土')];
 
         return [...array_slice($labels, $this->startOfWeek), ...array_slice($labels, 0, $this->startOfWeek)];
     }
@@ -187,10 +187,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-neutral-900">カレンダー(全プロジェクト)</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __('カレンダー(全プロジェクト)') }}</h1>
         <div class="flex items-center gap-3">
             <button wire:click="previousMonth" class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">‹</button>
-            <span class="text-sm font-medium text-neutral-900">{{ $year }}年{{ $month }}月</span>
+            <span class="text-sm font-medium text-neutral-900">{{ __(':year年:month月', ['year' => $year, 'month' => $month]) }}</span>
             <button wire:click="nextMonth" class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">›</button>
         </div>
     </div>
@@ -200,7 +200,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="mt-3">
             <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                絞り込み適用
+                {{ __('絞り込み適用') }}
             </button>
         </div>
     </div>
@@ -227,10 +227,10 @@ new #[Layout('components.layouts.app')] class extends Component
                                     @foreach ($day['entries'] as $entry)
                                         @if ($entry['marker'] === 'version')
                                             <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-version-{{ $entry['version']->id }}">
-                                                <span class="text-xs text-neutral-400" title="バージョンの期日">📦</span>
+                                                <span class="text-xs text-neutral-400" title="{{ __('バージョンの期日') }}">📦</span>
                                                 <a href="{{ route('versions.roadmap', $entry['version']->project) }}#roadmap-version-{{ $entry['version']->id }}"
                                                     class="text-xs text-brand-bold hover:underline"
-                                                    title="{{ $entry['version']->project->name }} — バージョン: {{ $entry['version']->name }}">
+                                                    title="{{ __(':project — バージョン: :name', ['project' => $entry['version']->project->name, 'name' => $entry['version']->name]) }}">
                                                     {{ $entry['version']->project->identifier }} {{ $entry['version']->name }}
                                                 </a>
                                             </li>
@@ -238,7 +238,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                         @endif
                                         @php $issue = $entry['issue']; @endphp
                                         <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-{{ $issue->id }}-{{ $entry['marker'] }}">
-                                            @php [$markerLabel, $markerSymbol] = match ($entry['marker']) { 'start' => ['開始日', '▶'], 'due' => ['期日', '◀'], default => ['開始日=期日', '◆'] }; @endphp
+                                            @php [$markerLabel, $markerSymbol] = match ($entry['marker']) { 'start' => [__('開始日'), '▶'], 'due' => [__('期日'), '◀'], default => [__('開始日=期日'), '◆'] }; @endphp
                                             <span class="text-xs text-neutral-400" title="{{ $markerLabel }}">{{ $markerSymbol }}</span>
                                             <a href="{{ route('issues.show', [$issue->project, $issue]) }}"
                                                 class="text-xs text-brand-bold hover:underline"

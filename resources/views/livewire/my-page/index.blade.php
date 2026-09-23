@@ -212,13 +212,13 @@ new #[Layout('components.layouts.app')] class extends Component
             $sorts = [];
 
             foreach (SavedIssueQueryBlock::SORTS as $column => $label) {
-                $sorts["{$column}:asc"] = "{$label}(昇順)";
-                $sorts["{$column}:desc"] = "{$label}(降順)";
+                $sorts["{$column}:asc"] = __(':label(昇順)', ['label' => $label]);
+                $sorts["{$column}:desc"] = __(':label(降順)', ['label' => $label]);
             }
 
             return [
-                'columns' => ['label' => '表示する項目', 'type' => 'columns', 'options' => SavedIssueQueryBlock::COLUMNS],
-                'sort' => ['label' => '並び順(空欄はクエリの並び順)', 'type' => 'select', 'options' => $sorts],
+                'columns' => ['label' => __('表示する項目'), 'type' => 'columns', 'options' => SavedIssueQueryBlock::COLUMNS],
+                'sort' => ['label' => __('並び順(空欄はクエリの並び順)'), 'type' => 'select', 'options' => $sorts],
             ];
         }
 
@@ -266,7 +266,7 @@ new #[Layout('components.layouts.app')] class extends Component
         if (SavedIssueQueryBlock::queryIdFromKey($key) !== null) {
             $savedQuery = $this->savedQueriesByBlockKey->get($key);
 
-            return $savedQuery !== null ? "クエリ: {$savedQuery->name}" : 'クエリ: (削除済み)';
+            return $savedQuery !== null ? __('クエリ: :name', ['name' => $savedQuery->name]) : __('クエリ: (削除済み)');
         }
 
         return app(DashboardBlockRegistry::class)->find($key)?->label() ?? $key;
@@ -274,7 +274,7 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">マイページ</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('マイページ') }}</h1>
 
     <ul wire:sort="reorder" class="space-y-4">
         @foreach ($this->activeBlocks as $block)
@@ -285,11 +285,11 @@ new #[Layout('components.layouts.app')] class extends Component
                     <div wire:sort:ignore class="flex items-center gap-3">
                         @if ($this->settingFieldsFor($block->block_key) !== [])
                             <button wire:click="openSettings({{ $block->id }})" data-block-settings class="text-xs text-neutral-600 hover:underline">
-                                設定
+                                {{ __('設定') }}
                             </button>
                         @endif
                         <button wire:click="removeBlock({{ $block->id }})" class="text-xs text-danger-bolder hover:underline">
-                            削除
+                            {{ __('削除') }}
                         </button>
                     </div>
                 </div>
@@ -321,8 +321,8 @@ new #[Layout('components.layouts.app')] class extends Component
                             </div>
                         @endforeach
                         <div class="flex gap-3">
-                            <button type="submit" class="rounded-md bg-brand-bold px-3 py-1 text-xs font-medium text-white hover:bg-brand">保存</button>
-                            <button type="button" wire:click="closeSettings" class="text-xs text-neutral-600 hover:underline">キャンセル</button>
+                            <button type="submit" class="rounded-md bg-brand-bold px-3 py-1 text-xs font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
+                            <button type="button" wire:click="closeSettings" class="text-xs text-neutral-600 hover:underline">{{ __('キャンセル') }}</button>
                         </div>
                     </form>
                 @endif
@@ -335,7 +335,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             @endif
                         </li>
                     @empty
-                        <li class="px-4 py-3 text-center text-sm text-neutral-500">項目がありません。</li>
+                        <li class="px-4 py-3 text-center text-sm text-neutral-500">{{ __('項目がありません。') }}</li>
                     @endforelse
                 </ul>
             </li>
@@ -344,7 +344,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($this->availableBlocks->isNotEmpty() || $this->availableSavedQueries->isNotEmpty())
         <div class="mt-6">
-            <p class="mb-2 text-sm font-medium text-neutral-700">ブロックを追加:</p>
+            <p class="mb-2 text-sm font-medium text-neutral-700">{{ __('ブロックを追加:') }}</p>
             <div class="flex flex-wrap gap-2">
                 @foreach ($this->availableBlocks as $block)
                     <button wire:click="addBlock('{{ $block->key() }}')"
@@ -356,7 +356,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <button wire:key="add-query-block-{{ $savedQuery->id }}"
                         wire:click="addBlock('{{ \App\Support\Dashboard\SavedIssueQueryBlock::keyFor($savedQuery) }}')"
                         class="rounded-full border border-brand-subtle px-3 py-1 text-xs text-brand-bold hover:bg-brand-subtlest">
-                        + クエリ: {{ $savedQuery->name }}
+                        + {{ __('クエリ: :name', ['name' => $savedQuery->name]) }}
                     </button>
                 @endforeach
             </div>
