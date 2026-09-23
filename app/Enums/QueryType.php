@@ -8,4 +8,5 @@ enum QueryType: string
 {
     case Issue = 'issue';
     case TimeEntry = 'time_entry';
+    case Project = 'project';
 }

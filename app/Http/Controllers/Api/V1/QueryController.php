@@ -52,6 +52,7 @@ final class QueryController extends Controller
             match ($type) {
                 QueryType::Issue => Gate::authorize('viewAny', [Issue::class, $project]),
                 QueryType::TimeEntry => Gate::authorize('viewAny', [TimeEntry::class, $project]),
+                QueryType::Project => Gate::authorize('view', $project),
             };
 
             $queries = Query::visibleIn($project, $type, $request->user());

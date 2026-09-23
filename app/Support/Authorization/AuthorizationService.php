@@ -292,24 +292,36 @@ final class AuthorizationService
      * Gate::allows('view', ...) per project here would be a per-row policy
      * call for every project in the system.
      *
+     * With $permission, a membership only counts when one of its roles
+     * grants that permission. The project list passes `view_project` so the
+     * ids match ProjectPolicy::view exactly (public, or a member whose role
+     * holds view_project) and never show a project the policy would refuse.
+     *
      * @return Collection<int, int>
      */
-    public function visibleProjectIds(?User $user): Collection
+    public function visibleProjectIds(?User $user, ?string $permission = null): Collection
     {
         if ($user?->is_admin) {
             return Project::query()->pluck('id');
         }
 
         $groupIds = $user === null ? collect() : $user->groups()->pluck('groups.id');
+        $grantingRoleIds = $permission === null
+            ? null
+            : Role::query()->get()->filter(fn (Role $role) => $role->hasPermission($permission))->pluck('id');
 
         return Project::query()
             ->where('status', '!=', ProjectStatus::Archived->value)
-            ->where(function ($query) use ($user, $groupIds) {
+            ->where(function ($query) use ($user, $groupIds, $grantingRoleIds) {
                 $query->where('is_public', true);
 
-                if ($user !== null) {
-                    $query->orWhereHas('members', function ($member) use ($user, $groupIds) {
-                        $member->where('user_id', $user->id)->orWhereIn('group_id', $groupIds);
+                if ($user !== null && ($grantingRoleIds === null || $grantingRoleIds->isNotEmpty())) {
+                    $query->orWhereHas('members', function ($member) use ($user, $groupIds, $grantingRoleIds) {
+                        $member->where(fn ($principal) => $principal->where('user_id', $user->id)->orWhereIn('group_id', $groupIds));
+
+                        if ($grantingRoleIds !== null) {
+                            $member->whereHas('roles', fn ($roles) => $roles->whereIn('roles.id', $grantingRoleIds));
+                        }
                     });
                 }
             })

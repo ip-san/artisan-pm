@@ -193,7 +193,10 @@
 | 105 | A1-27 | — | M | todo(2026-09-24 承認: 設計メモの推奨案) |
 | 106 | A1-28 | — | M〜L | todo(2026-09-24 承認: 設計メモの推奨案) |
 | 107 | A1-29 | — | S〜M | done(2026-09-20) |
-| 108 | A2-03 | — | M | todo(2026-09-24 承認: 設計メモの推奨案) |
+| 108 | A2-03 | — | M | wip(2026-09-24) |
+| 108a | A2-03a | — | M | done(2026-09-24、保存クエリ/既定クエリは A2-03b、ボード表示と設定は A2-03c) |
+| 108b | A2-03b | A2-03a | S〜M | todo(2026-09-24 承認: 設計メモの推奨案) |
+| 108c | A2-03c | A2-03a | S | todo(2026-09-24 承認: 設計メモの推奨案) |
 | 109 | A2-05 | A2-03 | S〜M | blocked(依存: A2-03) |
 | 110 | A2-04 | — | M | done(2026-09-20、保存クエリ・ページング・ユーザーのCFは未対応) |
 | 111 | A2-06 | — | S〜M | done(2026-09-20、グラフは対象外) |
@@ -301,7 +304,10 @@
 |---|---|---|---|---|---|---|
 | A2-01 | 列の並び順変更(保存済みクエリの `column_names` 順) | チェックボックスで選択のみ、順序は固定 | 選択列の上下移動 UI(または `wire:sort`)を課題一覧・工数一覧に追加し、`column_names` の順序で描画 | — | S | クエリ「列選択」 |
 | A2-02 | 既定クエリ(グローバル `default_issue_query`、プロジェクト `projects.default_issue_query_id`、ユーザー設定 `default_issue_query`) | 3つとも未実装(settings/projects/users にキー・列なし) | 課題一覧を初期表示するときに ユーザー設定 → プロジェクト設定 → グローバル設定 の順で保存済みクエリを適用 | ユーザー設定は A4-13 の基盤上に | S〜M | 設定「課題トラッキング」 |
-| A2-03 | プロジェクト一覧クエリ(`ProjectQuery`: フィルタ・列・保存、`project_list_defaults`、`project_list_display_type` = board/list、`default_project_query`) | `projects/index.blade.php` は名前検索+ステータスフィルタ+ブックマークのみ | `QueryType` に `Project` を追加し `ProjectFilterFieldRegistry` を新設。ボード(カード)表示切替と設定キー3つ | `Query` モデルは `type` 列で既に多型 | M | Projects「プロジェクト一覧」 |
+| A2-03 | プロジェクト一覧クエリ(`ProjectQuery`: フィルタ・列・保存、`project_list_defaults`、`project_list_display_type` = board/list、`default_project_query`) | 2026-09-24 A2-03a で `QueryType::Project`・`ProjectFilterFieldRegistry`・エンジン駆動の一覧(フィルタ・列・並べ替え)を実装。保存クエリ/既定クエリは A2-03b、ボード表示と設定 2 つは A2-03c | `QueryType` に `Project` を追加し `ProjectFilterFieldRegistry` を新設。ボード(カード)表示切替と設定キー3つ | `Query` モデルは `type` 列で既に多型 | M | Projects「プロジェクト一覧」 |
+| A2-03a | プロジェクト一覧をクエリエンジン駆動に: `QueryType::Project`、`ProjectFilterFieldRegistry`(ステータス・名前・識別子・説明・親・公開・作成日・更新日・プロジェクトのカスタムフィールド)、列選択・並び順・並べ替え | 2026-09-24 実施。フィルタ/並べ替えなしはツリー(全件)、どちらかがあればフラット+ページ分割(設計メモ案 A)。可視 ID は `AuthorizationService::visibleProjectIds($user, 'view_project')` で SQL に渡す(メンバーでも `view_project` のないロールだけなら非表示=`ProjectPolicy::view` と一致)。Redmine の既定フィルタ「ステータス=有効」は採らない(既定表示がフラットになるため。従来どおり全ステータスのツリー) | — | 設計メモ `gap-A2-03.md` | M | Projects「プロジェクト一覧」 |
+| A2-03b | プロジェクト一覧の保存クエリ(グローバルのみ、公開範囲)と既定クエリ(個人設定 → サイト設定 `default_project_query`) | 未着手 | `time-entries/global-index` と同じ保存/読込、`DefaultIssueQuery` と同じ解決順。個人設定 `default_project_query`(A4-13b の残り) | A2-03a | S〜M | Projects「プロジェクト一覧」 |
+| A2-03c | ボード/表の切替と設定 `project_list_display_type`(既定 board)・`project_list_defaults`(既定の列) | 未着手 | 表示形式を URL に持ち、既定は設定値。設定画面「プロジェクト」に項目を追加 | A2-03a | S | Projects「プロジェクト一覧」 |
 | A2-04 | 管理者向けユーザー一覧クエリ(`UserQuery`: ステータス/グループ/ロール/認証方式フィルタ、列選択、CSV) | `users/index.blade.php` に検索・フィルタなし(grep 0件) | フィルタ+列選択+CSV。`QueryFilterEngine` を再利用 | 管理者専用 | M | ユーザー管理・認証 節 |
 | A2-05 | 管理画面のプロジェクト一覧クエリ(`ProjectAdminQuery`、Redmine 6.0〜) | 管理者専用のプロジェクト一覧画面なし(一般の `projects.index` を兼用) | `/admin/projects` 相当: 全ステータス横断・フィルタ・一括アーカイブ/削除 | A2-03 の基盤上に | S〜M | — (checklist 未掲載) |
 | A2-06 | 課題レポートのドリルダウン(`reports#issue_report_details`)・サブプロジェクト集計・CSV | 1画面のグリッドのみ | 各軸(トラッカー/優先度/担当者/作成者/バージョン/カテゴリ/サブプロジェクト)の詳細ページと CSV | 旧: 意図的簡略化 | S〜M | 「課題レポート」 |
@@ -470,6 +476,7 @@
 | A11-14 | `PUT /my/account.json` の password/2FA/通知設定/CF、`GET /my/api_key`、`POST /my/api_key`(リセット) | name/email のみ | フィールド拡張。API キーはプロフィール画面で再生成できるため Resource に露出のみ | sudo mode は B-08 | S | REST API「My account」 |
 | A11-15 | `jsonp_enabled`(JSONP コールバック) | なし | 設定+`callback` パラメータ対応ミドルウェア | 優先度低・セキュリティ注意 | S | — |
 | A11-16 | Memberships の `inherited_from` | 概念なし | A3-03 実装後に露出 | — | S | REST API「Memberships」 |
+| A11-18 | `GET /projects.json` のクエリ対応(Redmine は `ProjectQuery` のフィルタ・`limit`/`offset` を API にも適用) | `Api/V1/ProjectController::index` は全件を名前順に取得して `Gate::allows('view')` で絞るのみ(2026-09-24、A2-03a で確認) | `ProjectFilterFieldRegistry`+`visibleProjectIds(..., 'view_project')` を API 一覧にも適用し、`limit`/`offset` を受け付ける | A2-03a の基盤上に | S | REST API「Projects」 |
 
 ### A-12. 拡張性(プラグイン / Webhook / 受信メール)
 
@@ -688,6 +695,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 
 | ID | 変更 | 影響 |
 |---|---|---|
+| A2-03a | プロジェクト一覧が表になり、フィルタ(ステータス・名前・識別子・説明・親・公開・日付・プロジェクトのカスタムフィールド)・表示列・並べ替えが増える。検索やフィルタ・並べ替えの使用中はツリーではなくフラットな一覧になる(A3-07 の「検索時もツリー順」を設計メモ案 A で変更)。メンバーでもロールに `view_project` が無い非公開プロジェクトは一覧に出ない(開けないプロジェクトと一致) | 検索結果のインデントがなくなる |
 | A3-05 | クローズ中のプロジェクトで `manage_members`・`add_subprojects`・`manage_public_queries` が拒否される(従来は許可)。`edit_own_issue_notes`・`delete_own_messages` は許可に変わる | 非管理者はクローズ済みプロジェクトのメンバー管理ができなくなる(Redmine 準拠) |
 | A7-04 | Wiki の履歴削除に `delete_wiki_pages` が必要(従来は `edit_wiki_pages`)。最新版・最後の1版も削除可能(最後の1版はページごと削除) | 編集権限だけのロールは履歴を消せなくなる |
 | A11-01 | `GET /projects/{id}/issues` が課題単位の可視性を適用(**セキュリティ修正**) | 従来の漏洩に依存していたクライアントは結果が減る |

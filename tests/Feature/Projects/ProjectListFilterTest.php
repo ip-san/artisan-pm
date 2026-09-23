@@ -90,7 +90,7 @@ test('without any filter each project exposes its display level, used for indent
         ->and($levelByName['Grandchild'])->toBe(2);
 });
 
-test('a filtered project list keeps tree order and indents matches under matching ancestors', function () {
+test('a filtered project list is flat: matches keep tree order but are not indented', function () {
     $root = Project::factory()->create(['name' => 'Alpha Root']);
     Project::factory()->create(['name' => 'Alpha Child', 'parent_id' => $root->id]);
     Project::factory()->create(['name' => 'Other']);
@@ -102,7 +102,7 @@ test('a filtered project list keeps tree order and indents matches under matchin
         ->get('projects');
 
     expect($projects->pluck('name')->all())->toBe(['Alpha Root', 'Alpha Child'])
-        ->and($projects->pluck('display_level')->all())->toBe([0, 1]);
+        ->and($projects->pluck('display_level')->filter()->all())->toBe([]);
 });
 
 test('a match whose parent is filtered out starts a new top-level entry', function () {
@@ -116,7 +116,7 @@ test('a match whose parent is filtered out starts a new top-level entry', functi
         ->get('projects');
 
     expect($projects->pluck('name')->all())->toBe(['Alpha Child'])
-        ->and($projects->first()->display_level)->toBe(0);
+        ->and($projects->first()->display_level ?? 0)->toBe(0);
 });
 
 test('a project whose parent the viewer cannot see is not indented under a hidden parent', function () {
