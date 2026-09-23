@@ -65,7 +65,7 @@
 | A5-16b | `default_issue_start_date_to_creation_date` を REST API 課題作成(`IssuesController#build_new_issue_from_params`)と受信メール課題作成(`mail_handler.rb:216`)にも適用 | A5-16 で Web フォームのみ設定化。API/メールは開始日を補完しない | 設定オン時に両経路で `start_date ??= today` | 設定の既定がオンのため、適用すると既存 API クライアント/メールの挙動が変わる。**適用前にユーザーへ確認**(または既定オフに変更) | S | Issues本体「担当者『自分』ショートカット・既定開始/期日」 |
 | A1-34 | 親課題を削除すると子孫も削除される(Redmine: `acts_as_nested_set :dependent => :destroy`、`issues_controller.rb:434` の `self_and_descendants`。工数の確認対象も子孫を含む) | 本アプリは子課題を `parent_id` NULL 化して最上位に残す(`IssueDeletionTest` 'orphans its children'、チェックリスト「課題削除」に意図的とある) | 削除時に子孫を再帰削除し、工数の合計/付替対象を子孫分まで含める。削除確認に「N 件のサブタスクも削除されます」を表示 | **データ削除の意味が変わる**ため要承認。既存テストの期待値を反転する | S〜M | Issues本体「課題削除」 |
 | A1-35 | 一括削除の確認画面での工数の扱い(`todo`、複数プロジェクト選択時は付替なし) | `issues/index.blade.php` の一括削除は `IssueService::delete()` を既定(nullify)で呼ぶのみ | 一括削除にも A1-09 と同じ選択肢を追加(選択課題の工数合計を表示、単一プロジェクトのときだけ付替を許可、付替先は選択課題以外) | A1-09 完了が前提 | S | Issues本体「課題削除」 |
-| A11-17 | REST の課題一覧の高度なフィルタ(`f[]`/`op[]`/`v[][]`、カスタムフィールド、`updated_on` 範囲など)と `limit`/`offset`、`include` の追加 | A11-01 で基本フィルタと `sort` のみ実装。`ListQueryString`/`QueryFilterEngine`(Web と Atom で共通化済み)は API 未接続 | `ListQueryString::fromRequestInput()` で `activeFilterKeys` 等を解釈し `QueryFilterEngine` を API 一覧にも適用(または Redmine 形式の `f[]` を変換)、`limit`/`offset` を受け付ける | A1-17(フィルタ拡張)と同じエンジンを使うため後続が有利 | M | REST API「Issues」 |
+| A11-17 | REST の課題一覧の高度なフィルタ(`f[]`/`op[]`/`v[][]`、カスタムフィールド、`updated_on` 範囲など)と `limit`/`offset`、`include` の追加 | **done(2026-09-24)**。`GET /issues.json`・`/projects/{id}/issues.json` が Redmine の `f[]`/`op[]`/`v[field][]` と短縮形 `field=[演算子]値[|値]`(`updated_on=><2026-01-01|2026-01-31` など、Web 一覧の全フィルタ)を受け付け、`App\Support\Api\RedmineIssueListParams` で `QueryFilterEngine` 用に変換(`o`/`c`/`*`/`!*`/`t`/`w`/`>t-` なども対応、ドット名は `_` のキーへ、不正な値・未知の項目は無視)。`limit`(既定 25、最大 100)/`offset`/`page`、応答に `total_count`/`offset`/`limit`。`query_id` は閲覧できる課題クエリのみ(不可は 403)。従来の簡易パラメータはそのまま。`include` の追加(`attachments` 等)と `sort` の多段は未対応 | `ListQueryString::fromRequestInput()` で `activeFilterKeys` 等を解釈し `QueryFilterEngine` を API 一覧にも適用(または Redmine 形式の `f[]` を変換)、`limit`/`offset` を受け付ける | A1-17(フィルタ拡張)と同じエンジンを使うため後続が有利 | M | REST API「Issues」 |
 | A1-33 | REST API `PUT /projects/{id}` での `default_version_id` / `default_assigned_to_id` の更新(Redmine の `safe_attributes`、`project.rb:839-841`) | A1-23 で読み取り(`default_version`/`default_assignee`)のみ実装。`UpdateProjectRequest` に規則なし | 両フィールドを追加し、Web フォームと同じ選択肢(オープンな共有バージョン/割当可能メンバー)で検証 | A1-23 完了が前提 | S | REST API「Projects」 |
 | 3 | A1-24 | (取り下げ)トラッカーの `is_in_chlog` | — | Redmine 7.0.0 で廃止済み(`db/migrate/20210728131544_drop_is_in_chlog_column.rb`、`app/` に使用箇所なし)。作業不要 | 機械照合が古いマイグレーションの `add_column` だけを見て、後続の `drop` を見落としていた | — | Trackers 節(C-18) |
 | 4 | A3-04 | — | S | done(2026-09-20) |
@@ -96,7 +96,7 @@
 | 26 | A11-13 | — | S | done(2026-09-20) |
 | 27 | A11-11 | A11-13 | S | done(2026-09-20) |
 | 28 | A11-01 | — | S | done(2026-09-20) |
-| 28a | A11-17 | A11-01, A1-17 | M | todo(2026-09-24 依存の A1-17 が done) |
+| 28a | A11-17 | A11-01, A1-17 | M | done(2026-09-24、`include` の追加と `sort` の多段・任意列は対象外。既定の件数は 15→25) |
 | 29 | A11-02 | — | S | done(2026-09-20) |
 | 30 | A11-03 | — | S | done(2026-09-20) |
 | 31 | A11-04 | — | S | done(2026-09-20) |
@@ -177,6 +177,7 @@
 | 90c | A1-17c | A1-17a | M | done(2026-09-24、`author.group`/`author.role` はキーを `author_group`/`author_role` に。匿名ユーザーの選択肢は無し) |
 | 90d | A1-17d | A1-17a | S〜M | done(2026-09-24、`subproject_id` は A3-06b 未了のため A1-17e に分離) |
 | 90e | A1-36 | A1-17a | S | todo |
+| 90h | A1-37 | A1-17 | S | todo |
 | 90f | A3-06b | A3-06 | M | todo |
 | 90g | A1-17e | A3-06b | S | todo |
 | 91 | A2-08 | A1-17 | M | done(2026-09-24、`subproject_id` は A1-17e と同じく A3-06b 待ち、カスタムフィールドのフィルタと課題/プロジェクト側の関連列は A2-08b) |
@@ -301,6 +302,7 @@
 | A1-17d | 他の表の属性と全文: `fixed_version.due_date`/`fixed_version.status`/`project.status`/`spent_time`/`any_searchable` | done(2026-09-24)。キーは `fixed_version_due_date`/`fixed_version_status`/`project_status`。`spent_time` は `view_time_entries` を持つ人にだけ、`project_status` は横断一覧とサブプロジェクトを持つプロジェクトでだけ表示。`any_searchable` は `SearchService::issueIdsMatching()`(件数上限なし、添付は除く) | versions/projects/time_entries への副問合せ、`SearchService` の課題検索を流用 | `subproject_id` は A3-06b と同時 | S〜M | 同上 |
 | A1-17e | 課題フィルタ `subproject_id`(`list_subprojects`: `*`/`!*`/`=`/`!`。Redmine は `project_statement` で扱い、個々のフィルタではない) | 未実装。A3-06b(`display_subprojects_issues` の各画面への適用)が未了 | サブプロジェクトを持つプロジェクトの一覧で、`SubprojectScope` の対象プロジェクトを絞る。選択肢は閲覧できる子孫のみ | A3-06b と同時 | S | クエリ「課題フィルタの種類」 |
 | A1-36 | 課題フィルタの残り: テキストの演算子 `*~`(いずれかの語)/`^`(で始まる)/`$`(で終わる)、Redmine の語分割(`~` は全語一致)、トラッカーで無効にした標準項目(`disabled_core_fields`)のフィルタを隠す(`Tracker.disabled_core_fields(trackers).each { delete_available_filter }`)。あわせて `SearchService` の語一致が PostgreSQL で大文字小文字を区別する(`like`。Redmine は区別しない)ため、検索画面と `any_searchable` の両方が影響を受ける | `FilterOperator` に該当ケースなし。`~` は入力全体の部分一致。`IssueFilterFieldRegistry` は無効項目も出す(A1-17 以前から) | 演算子を追加し `FilterOperatorApplier`/フィルタ UI に反映。レジストリで全トラッカーが無効にした項目を除外 | A1-17a で判明 | S | クエリ「課題フィルタの種類」 |
+| A1-37 | 閲覧ロールを制限したカスタムフィールドをフィルタに出さない(Redmine の `IssueQuery#issue_custom_fields` は `visible` スコープで、見えない CF はフィルタ・列の対象外) | `IssueFilterFieldRegistry` の CF フィルタは `is_filter` とトラッカー/プロジェクトだけで選び、ロールを見ない。見えない CF の値で課題を絞り込めるため、課題自体は見えても CF の値が推測できる(Web 一覧・保存済みクエリ・A11-17 の REST フィルタ共通) | CF を `visibleToRoles`(プロジェクトごとのロール、横断一覧はいずれかのプロジェクト)で絞り、保存済みクエリに残った見えない CF フィルタは無視 | A11-17 で判明 | S | クエリ「カスタムフィールドでのフィルタ」 |
 | A1-18 | 稼働日ベースの日付計算(`non_working_week_days` 設定、`Redmine::Utils::DateCalculation`) | 暦日計算のみ(`IssueService::rescheduleSuccessors()`、grep「稼働日」0件) | 設定「課題トラッキング」に非稼働曜日チェックボックス、`working_days`/`add_working_days` ヘルパーを導入しリスケジュール・遅延計算(`IssueRelation.delay`)・ガントに適用 | 既存のリスケジュールテストを暦日→稼働日で更新 | M | Issue Relations「関連日付からの自動リスケジュール」 |
 | A1-19 | リスケジュールの親子階層への伝播(`Issue#reschedule_on!` の leaves/ancestors) | `precedes`/`follows` チェーンのみ。子・親には伝播しない | 後続課題の子孫にも同じシフトを適用し、親の日付は `parent_issue_dates` 設定に従って再集計 | 循環ガード(最大50ホップ)を維持 | M | 同上 |
 | A1-20 | グループへの課題割当(`issue_group_assignment` 設定、`Principal` 担当) | `issues.assigned_to_id` は users FK のみ、設定なし(grep 0件) | `assigned_to` を polymorphic 化するか `assigned_to_group_id` 列を追加。担当者候補にグループを含め、通知はグループ展開 | **スキーマ判断**: Redmine は `principals` 単一テーブル継承。本アプリは users/groups 分離のため設計メモが必要 | L | Issues本体 |

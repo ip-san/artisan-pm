@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\IssueTimeEntryDisposition;
+use App\Enums\QueryType;
 use App\Exceptions\StaleIssueUpdateException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreIssueRequest;
@@ -13,17 +14,22 @@ use App\Http\Resources\Api\V1\IssueResource;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
+use App\Models\Query as SavedQuery;
 use App\Models\User;
 use App\Services\IssueService;
 use App\Support\Api\CustomFieldPayload;
+use App\Support\Api\RedmineIssueListParams;
 use App\Support\Attachments\PendingUploadAttacher;
 use App\Support\Issues\StartDateDefault;
+use App\Support\Query\IssueFilterFieldRegistry;
+use App\Support\Query\QueryFilterEngine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
@@ -48,6 +54,15 @@ final class IssueController extends Controller
     private const array INDEX_INCLUDES = ['relations'];
 
     /**
+     * The simple list parameters handled here before the Redmine filters
+     * are read; a value in another shape (status_id=*, author_id=!5, ...)
+     * is read as Redmine's short filter form instead.
+     *
+     * @var array<int, string>
+     */
+    private const array SIMPLE_FILTER_KEYS = ['status_id', 'project_id', 'tracker_id', 'priority_id', 'category_id', 'fixed_version_id', 'parent_id', 'author_id', 'assigned_to_id'];
+
+    /**
      * Only what the caller's role lets them see: view_issues on the project
      * plus the per-issue visibility tier (private issues, "own issues
      * only"), exactly as the issue list and Atom feed apply it.
@@ -59,6 +74,7 @@ final class IssueController extends Controller
         return $this->listIssues(
             $request,
             Issue::query()->where('project_id', $project->id)->visibleTo($request->user(), $project),
+            new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, $request->user())),
         );
     }
 
@@ -75,24 +91,45 @@ final class IssueController extends Controller
             ->filter(fn (Project $project) => $user->can('viewAny', [Issue::class, $project]))
             ->values();
 
-        return $this->listIssues($request, Issue::query()->visibleToAcrossProjects($user, $projects));
+        return $this->listIssues(
+            $request,
+            Issue::query()->visibleToAcrossProjects($user, $projects),
+            new QueryFilterEngine(IssueFilterFieldRegistry::forProjects($projects, $user)),
+        );
     }
 
     /**
-     * Shared by both indexes. Optional Redmine-style filters, all ANDed;
-     * an unrecognised or malformed value is ignored rather than failing:
-     * status_id (open, closed, * or an id — absent means every status,
-     * unlike Redmine's open default, so existing clients see no change),
-     * project_id (global index only matters there), tracker_id, priority_id,
-     * category_id, fixed_version_id, parent_id, author_id and assigned_to_id
-     * (`me` means the caller), and sort=column[:desc] over id, subject,
-     * created_on and updated_on.
+     * Shared by both indexes. The query is already limited to the issues
+     * the caller may see; every filter below only narrows it.
+     *
+     * - The simple Redmine-style parameters, all ANDed; a malformed value
+     *   is ignored rather than failing: status_id (open, closed or an id —
+     *   absent means every status, unlike Redmine's open default, so
+     *   existing clients see no change), project_id (global index only
+     *   matters there), tracker_id, priority_id, category_id,
+     *   fixed_version_id, parent_id, author_id and assigned_to_id (`me`
+     *   means the caller), and sort=column[:desc] over id, subject,
+     *   created_on and updated_on.
+     * - Every filter of the web list, in Redmine's f[]/op[]/v[] form or its
+     *   short `field=[operator]value` form (RedmineIssueListParams), or a
+     *   saved issue query the caller may see (query_id).
+     * - Redmine's limit (default 25, at most 100) and offset, or page;
+     *   total_count/offset/limit are returned next to the usual meta.
      *
      * @param  Builder<Issue>  $query
      */
-    private function listIssues(Request $request, Builder $query): AnonymousResourceCollection
+    private function listIssues(Request $request, Builder $query, QueryFilterEngine $engine): AnonymousResourceCollection
     {
-        $this->applyIndexFilters($request, $query);
+        $input = $request->query();
+        $consumed = $this->applyIndexFilters($request, $query);
+        $savedQuery = $this->savedQuery($request);
+
+        $filters = $savedQuery !== null
+            ? $savedQuery->filters
+            : RedmineIssueListParams::filters($input, $engine, $request->user(), $consumed);
+
+        $engine->applyFilters($query, $filters);
+        $this->applySort($request, $query, $engine, $savedQuery);
 
         // One query each for the child count and logged hours, instead of
         // one per issue when the resource asks isLeaf()/spentHours().
@@ -102,23 +139,62 @@ final class IssueController extends Controller
             $query->with(['relationsFrom.to', 'relationsTo.from']);
         }
 
-        /** @var LengthAwarePaginator<int, Issue> $issues */
-        $issues = $query->paginate();
+        [$offset, $limit] = RedmineIssueListParams::offsetAndLimit($input);
+        $total = (clone $query)->toBase()->getCountForPagination();
 
-        return IssueResource::collection($issues);
+        $issues = new LengthAwarePaginator(
+            $query->skip($offset)->take($limit)->get(),
+            $total,
+            $limit,
+            intdiv($offset, $limit) + 1,
+            ['path' => $request->url(), 'query' => Arr::except($input, ['page', 'offset'])],
+        );
+
+        return IssueResource::collection($issues)->additional([
+            'total_count' => $total,
+            'offset' => $offset,
+            'limit' => $limit,
+        ]);
+    }
+
+    /**
+     * The saved issue query named by query_id, which the caller must be
+     * allowed to see (Redmine answers 403 otherwise). Its filters apply
+     * within the list being asked for, as Redmine's retrieve_query does.
+     */
+    private function savedQuery(Request $request): ?SavedQuery
+    {
+        $id = $request->query('query_id');
+
+        if ($id === null) {
+            return null;
+        }
+
+        abort_unless(is_string($id) && ctype_digit($id), 404);
+
+        $savedQuery = SavedQuery::query()->where('type', QueryType::Issue->value)->find((int) $id);
+
+        abort_if($savedQuery === null, 404);
+        abort_unless($savedQuery->visibleTo($request->user()), 403);
+
+        return $savedQuery;
     }
 
     /**
      * @param  Builder<Issue>  $query
+     * @return array<int, string> the simple parameters it applied
      */
-    private function applyIndexFilters(Request $request, Builder $query): void
+    private function applyIndexFilters(Request $request, Builder $query): array
     {
+        $consumed = [];
         $status = $request->query('status_id');
 
         if ($status === 'open' || $status === 'closed') {
             $query->whereHas('status', fn (Builder $q) => $q->where('is_closed', $status === 'closed'));
+            $consumed[] = 'status_id';
         } elseif (is_string($status) && ctype_digit($status)) {
             $query->where('status_id', (int) $status);
+            $consumed[] = 'status_id';
         }
 
         foreach (['project_id', 'tracker_id', 'priority_id', 'category_id', 'fixed_version_id', 'parent_id', 'author_id'] as $column) {
@@ -126,6 +202,7 @@ final class IssueController extends Controller
 
             if (is_string($value) && ctype_digit($value)) {
                 $query->where($column, (int) $value);
+                $consumed[] = $column;
             }
         }
 
@@ -133,10 +210,25 @@ final class IssueController extends Controller
 
         if ($assignee === 'me') {
             $query->where('assigned_to_id', $request->user()->id);
+            $consumed[] = 'assigned_to_id';
         } elseif (is_string($assignee) && ctype_digit($assignee)) {
             $query->where('assigned_to_id', (int) $assignee);
+            $consumed[] = 'assigned_to_id';
         }
 
+        // A simple key given in no shape the code above reads is left to
+        // the short filter form only when it is a string at all.
+        return [...$consumed, ...array_values(array_diff(self::SIMPLE_FILTER_KEYS, array_keys($request->query())))];
+    }
+
+    /**
+     * sort=column[:desc] over id, subject, created_on and updated_on; else
+     * the saved query's own sort; else newest first.
+     *
+     * @param  Builder<Issue>  $query
+     */
+    private function applySort(Request $request, Builder $query, QueryFilterEngine $engine, ?SavedQuery $savedQuery): void
+    {
         $sort = $request->query('sort');
         $columns = ['id' => 'id', 'subject' => 'subject', 'created_on' => 'created_at', 'updated_on' => 'updated_at'];
 
@@ -148,6 +240,10 @@ final class IssueController extends Controller
 
                 return;
             }
+        }
+
+        if ($savedQuery !== null && is_array($savedQuery->sort_criteria) && $savedQuery->sort_criteria !== []) {
+            $engine->applySort($query, $savedQuery->sort_criteria);
         }
 
         $query->orderByDesc('id');
