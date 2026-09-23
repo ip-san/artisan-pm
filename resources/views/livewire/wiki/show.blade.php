@@ -307,19 +307,19 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">
             {{ $wikiPage->title }}
             @if ($wikiPage->is_protected)
-                <span class="ml-1 text-xs text-neutral-400">(保護)</span>
+                <span class="ml-1 text-xs text-neutral-400">{{ __('(保護)') }}</span>
             @endif
         </h1>
         <div class="flex gap-2">
             @can('watch', $wikiPage)
                 <button wire:click="toggleWatch" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    {{ $wikiPage->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
+                    {{ $wikiPage->isWatchedBy(auth()->user()) ? __('ウォッチ解除') : __('ウォッチ') }}
                 </button>
             @endcan
             @can('viewHistory', $wikiPage)
                 <a href="{{ route('wiki.history', [$project, $wikiPage]) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    履歴
+                    {{ __('履歴') }}
                 </a>
             @endcan
             @can('export', $wikiPage)
@@ -335,19 +335,19 @@ new #[Layout('components.layouts.app')] class extends Component
             @endcan
             @can('protect', $wikiPage)
                 <button wire:click="toggleProtected" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    {{ $wikiPage->is_protected ? '保護解除' : '保護' }}
+                    {{ $wikiPage->is_protected ? __('保護解除') : __('保護') }}
                 </button>
             @endcan
             @can('update', $wikiPage)
                 <a href="{{ route('wiki.edit', [$project, $wikiPage]) }}"
                     class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                    編集
+                    {{ __('編集') }}
                 </a>
             @endcan
             @can('delete', $wikiPage)
-                <button wire:click="delete" wire:confirm="このページを削除しますか?子ページは最上位に移動します。"
+                <button wire:click="delete" wire:confirm="{{ __('このページを削除しますか?子ページは最上位に移動します。') }}"
                     class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
-                    削除
+                    {{ __('削除') }}
                 </button>
             @endcan
         </div>
@@ -357,18 +357,18 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->moveTargetProjects->isNotEmpty())
             <form wire:submit="moveToProject" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-4">
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">別のプロジェクトへ移動</label>
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('別のプロジェクトへ移動') }}</label>
                     <select wire:model="moveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
-                        <option value="">選択してください</option>
+                        <option value="">{{ __('選択してください') }}</option>
                         @foreach ($this->moveTargetProjects as $candidate)
                             <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
                         @endforeach
                     </select>
                     @error('moveToProjectId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
-                <button type="submit" wire:confirm="移動すると親ページ・子ページとの関係は解除されます。よろしいですか?"
+                <button type="submit" wire:confirm="{{ __('移動すると親ページ・子ページとの関係は解除されます。よろしいですか?') }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    移動
+                    {{ __('移動') }}
                 </button>
             </form>
         @endif
@@ -379,13 +379,13 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if (auth()->user()?->can('viewWatchers', $wikiPage) && ($wikiPage->watchers->isNotEmpty() || auth()->user()?->can('addWatchers', $wikiPage)))
-        <h2 class="mt-4 text-sm font-semibold text-neutral-900 mb-2">ウォッチャー ({{ $wikiPage->watchers->count() }})</h2>
+        <h2 class="mt-4 text-sm font-semibold text-neutral-900 mb-2">{{ __('ウォッチャー (:count)', ['count' => $wikiPage->watchers->count()]) }}</h2>
         <ul class="mb-3 flex flex-wrap gap-2">
             @foreach ($wikiPage->watchers as $watcher)
                 <li class="flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700">
                     {{ $watcher->user->displayName() }}
                     @can('deleteWatchers', $wikiPage)
-                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="ウォッチャーから削除">×</button>
+                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
                     @endcan
                 </li>
             @endforeach
@@ -394,7 +394,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @can('addWatchers', $wikiPage)
             @if ($watcherSearch !== '' || $this->watcherCandidates->isNotEmpty())
                 <div class="mb-4  relative" data-watcher-search>
-                    <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="ウォッチャーを追加(名前・メールで検索)..."
+                    <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="{{ __('ウォッチャーを追加(名前・メールで検索)...') }}"
                         class="block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
                     <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
                         @foreach ($this->watcherCandidates as $candidate)
@@ -413,7 +413,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @php $attachments = $wikiPage->attachments(); @endphp
     @if ($attachments->isNotEmpty())
-        <h2 class="mt-4 text-sm font-semibold text-neutral-900 mb-2">添付ファイル<x-attachment-bulk-links :container="$wikiPage" :count="$attachments->count()" /></h2>
+        <h2 class="mt-4 text-sm font-semibold text-neutral-900 mb-2">{{ __('添付ファイル') }}<x-attachment-bulk-links :container="$wikiPage" :count="$attachments->count()" /></h2>
         <ul class="mb-4 space-y-1">
             @foreach ($attachments as $media)
                 <li class="py-1 text-sm" wire:key="wiki-attachment-{{ $media->id }}">
@@ -429,17 +429,17 @@ new #[Layout('components.layouts.app')] class extends Component
                             <x-download-count :media="$media" />
 <x-attachment-preview-link :media="$media" />
                             @can('deleteAttachment', $wikiPage)
-                                <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
-                                    class="text-danger-bolder hover:underline">削除</button>
+                                <button wire:click="deleteAttachment({{ $media->id }})" wire:confirm="{{ __('この添付ファイルを削除しますか?') }}"
+                                    class="text-danger-bolder hover:underline">{{ __('削除') }}</button>
                             @endcan
                         </span>
                     </div>
                     @can('update', $wikiPage)
                         <div class="mt-1 flex items-center gap-2">
-                            <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
+                            <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="{{ __('説明(任意)') }}"
                                 class="block w-full rounded-md border-neutral-300 text-xs shadow-sm">
                             <button wire:click="updateAttachmentDescription({{ $media->id }})"
-                                class="shrink-0 text-xs text-brand-bold hover:underline">保存</button>
+                                class="shrink-0 text-xs text-brand-bold hover:underline">{{ __('保存') }}</button>
                         </div>
                     @else
                         @if ($media->getCustomProperty('description'))
@@ -453,14 +453,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($wikiPage->currentVersion)
         <p class="mt-2 text-xs text-neutral-500">
-            最終更新: {{ $wikiPage->currentVersion->author->displayName() }} — {{ $wikiPage->currentVersion->created_at->format('Y-m-d H:i') }}
+            {{ __('最終更新: :author — :date', ['author' => $wikiPage->currentVersion->author->displayName(), 'date' => $wikiPage->currentVersion->created_at->format('Y-m-d H:i')]) }}
             (v{{ $wikiPage->currentVersion->version }})
         </p>
     @endif
 
     @if ($this->children->isNotEmpty())
         <div class="mt-6">
-            <h2 class="text-sm font-semibold text-neutral-900 mb-2">子ページ</h2>
+            <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('子ページ') }}</h2>
             <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
                 @foreach ($this->children as $child)
                     <li wire:key="wiki-child-{{ $child->id }}" class="px-4 py-2">

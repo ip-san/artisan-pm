@@ -44,7 +44,7 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">お知らせ</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('お知らせ') }}</h1>
 
     <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
         @forelse ($this->newsItems as $item)
@@ -60,11 +60,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endif
                 <p class="mt-1 text-xs text-neutral-500">
                     {{ $item->author->displayName() }} — {{ $item->created_at->format('Y-m-d H:i') }}
-                    — コメント{{ $item->comments_count }}件
+                    — {{ __('コメント:count件', ['count' => $item->comments_count]) }}
                 </p>
             </li>
         @empty
-            <li class="px-4 py-6 text-center text-sm text-neutral-500">お知らせがありません。</li>
+            <li class="px-4 py-6 text-center text-sm text-neutral-500">{{ __('お知らせがありません。') }}</li>
         @endforelse
     </ul>
 

@@ -53,6 +53,23 @@ new #[Layout('components.layouts.app')] class extends Component
         'hours' => '時間',
     ];
 
+    /**
+     * Translated header labels for DISPLAY_COLUMNS (constants can't call __()).
+     *
+     * @return array<string, string>
+     */
+    public function displayColumnLabels(): array
+    {
+        return [
+            'spent_on' => __('日付'),
+            'user_id' => __('担当者'),
+            'activity_id' => __('作業分類'),
+            'issue_id' => __('課題'),
+            'comments' => __('コメント'),
+            'hours' => __('時間'),
+        ];
+    }
+
     public Project $project;
 
     #[Url]
@@ -263,7 +280,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'showSaveForm']);
         unset($this->savedQueries);
-        session()->flash('status', 'クエリを保存しました。');
+        session()->flash('status', __('クエリを保存しました。'));
     }
 
     public function loadQuery(int $queryId): void
@@ -309,7 +326,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function availableColumns(): array
     {
         return [
-            ...self::DISPLAY_COLUMNS,
+            ...$this->displayColumnLabels(),
             ...(new TimeEntry)->forceFill(['project_id' => $this->project->id])->relevantCustomFields()
                 ->mapWithKeys(fn (\App\Models\CustomField $field) => ["cf_{$field->id}" => $field->name])
                 ->all(),
@@ -515,7 +532,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 || ! filled($value)
                 || (ctype_digit((string) $value) && $target->issues()->whereKey((int) $value)->exists())
                     ? null
-                    : $fail('選択した課題はこのプロジェクトにありません。')],
+                    : $fail(__('選択した課題はこのプロジェクトにありません。'))],
         ]);
 
         // Only the fields given a value are validated and set.
@@ -535,7 +552,7 @@ new #[Layout('components.layouts.app')] class extends Component
         // Redmine rejects an entry whose issue belongs to another project, so
         // a move has to say what happens to the issue.
         if ($moving && $issueChoice === '' && $entries->contains(fn (TimeEntry $entry) => $entry->issue_id !== null)) {
-            $this->addError('bulkIssueId', '別のプロジェクトへ移動するときは、課題を指定するか「課題を外す」を選んでください。');
+            $this->addError('bulkIssueId', __('別のプロジェクトへ移動するときは、課題を指定するか「課題を外す」を選んでください。'));
 
             return;
         }
@@ -578,7 +595,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->reset(['selected', 'bulkProjectId', 'bulkIssueId', 'bulkUserId', 'bulkHours', 'bulkActivityId', 'bulkSpentOn', 'bulkComments', 'bulkCustomFieldValues']);
         unset($this->timeEntries, $this->groupedTimeEntries, $this->selectedTimeEntries);
 
-        session()->flash('status', "{$count}件の工数記録を更新しました。");
+        session()->flash('status', __(':count件の工数記録を更新しました。', ['count' => $count]));
     }
 
     public function applyBulkDelete(): void
@@ -601,7 +618,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->reset('selected');
         unset($this->timeEntries, $this->groupedTimeEntries, $this->selectedTimeEntries);
 
-        session()->flash('status', "{$count}件の工数記録を削除しました。");
+        session()->flash('status', __(':count件の工数記録を削除しました。', ['count' => $count]));
     }
 
     public function exportCsv(): \Symfony\Component\HttpFoundation\StreamedResponse
@@ -655,13 +672,13 @@ new #[Layout('components.layouts.app')] class extends Component
         <div x-show="menu.open" x-cloak x-on:click.stop x-bind:style="`left:${menu.x}px;top:${menu.y}px`" data-context-menu
             class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg">
             @if ($menuEntries->count() === 1)
-                <a href="{{ route('time-entries.edit', [$project, $menuEntries->first()]) }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">編集</a>
+                <a href="{{ route('time-entries.edit', [$project, $menuEntries->first()]) }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('編集') }}</a>
             @else
-                <a href="#bulk-edit-form" x-on:click="menu.open = false" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">一括編集</a>
+                <a href="#bulk-edit-form" x-on:click="menu.open = false" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('一括編集') }}</a>
             @endif
             @if ($this->project->activities(includeInactive: false)->isNotEmpty())
                 <div class="group relative">
-                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">作業分類 <span class="text-neutral-400">›</span></span>
+                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('作業分類') }} <span class="text-neutral-400">›</span></span>
                     <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
                         @foreach ($this->project->activities(includeInactive: false) as $activity)
                             <button type="button" wire:key="context-activity-{{ $activity->id }}" wire:click="contextUpdateActivity({{ $activity->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $activity->name }}</button>
@@ -670,44 +687,44 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
             @endif
             @if ($menuEntries->every(fn ($entry) => auth()->user()?->can('delete', $entry)))
-                <button type="button" wire:click="applyBulkDelete" wire:confirm="選択した{{ count($selected) }}件の工数記録を削除します。この操作は取り消せません。よろしいですか?" x-on:click="menu.open = false" class="block w-full border-t border-neutral-100 px-3 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">削除</button>
+                <button type="button" wire:click="applyBulkDelete" wire:confirm="{{ __('選択した:count件の工数記録を削除します。この操作は取り消せません。よろしいですか?', ['count' => count($selected)]) }}" x-on:click="menu.open = false" class="block w-full border-t border-neutral-100 px-3 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">{{ __('削除') }}</button>
             @endif
         </div>
     @endif
 
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — 工数</h1>
+            <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — {{ __('工数') }}</h1>
             @if (ListDefaults::timeEntriesShowHoursTotal())
-                <p class="mt-1 text-sm text-neutral-500">合計: {{ $this->totalHours }} 時間</p>
+                <p class="mt-1 text-sm text-neutral-500">{{ __('合計: :hours 時間', ['hours' => $this->totalHours]) }}</p>
             @endif
         </div>
         <div class="flex items-center gap-2">
-            <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-neutral-300 text-xs">
+            <select wire:model="csvEncoding" title="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
                 <option value="SJIS-win">Shift_JIS</option>
             </select>
-            <select wire:model="csvSeparator" title="区切り文字" class="rounded-md border-neutral-300 text-xs">
-                <option value=",">カンマ</option>
-                <option value=";">セミコロン</option>
-                <option value="{{ "\t" }}">タブ</option>
+            <select wire:model="csvSeparator" title="{{ __('区切り文字') }}" class="rounded-md border-neutral-300 text-xs">
+                <option value=",">{{ __('カンマ') }}</option>
+                <option value=";">{{ __('セミコロン') }}</option>
+                <option value="{{ "\t" }}">{{ __('タブ') }}</option>
             </select>
             <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                CSVエクスポート
+                {{ __('CSVエクスポート') }}
             </button>
             <a href="{{ route('time-entries.report', $project) }}" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                レポート
+                {{ __('レポート') }}
             </a>
             @can('import', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.import', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    CSVインポート
+                    {{ __('CSVインポート') }}
                 </a>
             @endcan
             @can('create', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.create', $project) }}"
                     class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                    工数を記録
+                    {{ __('工数を記録') }}
                 </a>
             @endcan
         </div>
@@ -715,13 +732,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
     {{-- Saved queries --}}
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
-        <span class="text-neutral-500">保存済みクエリ:</span>
+        <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
         @forelse ($this->savedQueries as $savedQuery)
             <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
                 {{ $savedQuery->name }}
             </button>
         @empty
-            <span class="text-neutral-400">なし</span>
+            <span class="text-neutral-400">{{ __('なし') }}</span>
         @endforelse
     </div>
 
@@ -731,21 +748,21 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
             <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                絞り込み適用
+                {{ __('絞り込み適用') }}
             </button>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
-                グループ化:
+                {{ __('グループ化:') }}
                 <select wire:model.live="groupBy" class="rounded-md border-neutral-300 text-sm">
-                    <option value="">なし</option>
-                    <option value="user_id">担当者</option>
-                    <option value="activity_id">作業分類</option>
-                    <option value="spent_on">日付</option>
+                    <option value="">{{ __('なし') }}</option>
+                    <option value="user_id">{{ __('担当者') }}</option>
+                    <option value="activity_id">{{ __('作業分類') }}</option>
+                    <option value="spent_on">{{ __('日付') }}</option>
                 </select>
             </label>
 
             <div class="flex items-center gap-2 text-sm text-neutral-700">
-                表示列:
+                {{ __('表示列:') }}
                 @foreach ($this->availableColumns as $key => $label)
                     <label class="flex items-center gap-1">
                         <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-neutral-300">
@@ -757,7 +774,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <x-column-order :columns="$columns" :labels="$this->availableColumns" />
 
             @if ($this->canSaveQueries)
-                <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">クエリを保存</button>
+                <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
             @endif
         </div>
 
@@ -771,14 +788,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($this->canManage && count($selected) > 0)
         <form id="bulk-edit-form" wire:submit="applyBulkEdit" class="mb-4 space-y-3 rounded-md border border-brand-subtle bg-brand-subtlest p-4">
-            <p class="text-sm font-medium text-neutral-900">{{ count($selected) }}件を選択中 — 変更する項目だけ設定してください</p>
+            <p class="text-sm font-medium text-neutral-900">{{ __(':count件を選択中 — 変更する項目だけ設定してください', ['count' => count($selected)]) }}</p>
 
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 @if ($this->moveTargets->count() > 1)
                     <div>
-                        <label class="block text-xs font-medium text-neutral-700">プロジェクト</label>
+                        <label class="block text-xs font-medium text-neutral-700">{{ __('プロジェクト') }}</label>
                         <select wire:model.live="bulkProjectId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
-                            <option value="">変更なし</option>
+                            <option value="">{{ __('変更なし') }}</option>
                             @foreach ($this->moveTargets->reject(fn ($candidate) => $candidate->is($this->project)) as $candidate)
                                 <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
                             @endforeach
@@ -786,19 +803,19 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                 @endif
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">課題(番号)</label>
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('課題(番号)') }}</label>
                     <div class="mt-1 flex items-center gap-2">
-                        <input type="text" wire:model="bulkIssueId" placeholder="変更なし" inputmode="numeric"
+                        <input type="text" wire:model="bulkIssueId" placeholder="{{ __('変更なし') }}" inputmode="numeric"
                             class="block w-full rounded-md border-neutral-300 text-sm">
-                        <button type="button" wire:click="$set('bulkIssueId', 'none')" class="shrink-0 text-xs text-brand-bold hover:underline">課題を外す</button>
+                        <button type="button" wire:click="$set('bulkIssueId', 'none')" class="shrink-0 text-xs text-brand-bold hover:underline">{{ __('課題を外す') }}</button>
                     </div>
                     @error('bulkIssueId') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 @if ($this->canLogForOthers)
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">担当者</label>
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('担当者') }}</label>
                     <select wire:model="bulkUserId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
-                        <option value="">変更なし</option>
+                        <option value="">{{ __('変更なし') }}</option>
                         @foreach ($this->bulkTargetProject->loadMissing('users')->users as $member)
                             <option value="{{ $member->id }}">{{ $member->name }}</option>
                         @endforeach
@@ -807,22 +824,22 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @endif
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">時間</label>
-                    <input type="number" step="0.01" wire:model="bulkHours" placeholder="変更なし"
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('時間') }}</label>
+                    <input type="number" step="0.01" wire:model="bulkHours" placeholder="{{ __('変更なし') }}"
                         class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                     @error('bulkHours') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">作業分類</label>
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('作業分類') }}</label>
                     <select wire:model="bulkActivityId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
-                        <option value="">変更なし</option>
+                        <option value="">{{ __('変更なし') }}</option>
                         @foreach ($this->bulkTargetProject->activities(includeInactive: true) as $activity)
                             <option value="{{ $activity->id }}">{{ $activity->name }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">日付</label>
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('日付') }}</label>
                     <input type="date" wire:model="bulkSpentOn" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                 </div>
             </div>
@@ -834,10 +851,10 @@ new #[Layout('components.layouts.app')] class extends Component
                             <label class="block text-xs font-medium text-neutral-700">{{ $field->name }}</label>
                             @if (in_array($field->field_format, [\App\Enums\CustomFieldFormat::List, \App\Enums\CustomFieldFormat::Enumeration, \App\Enums\CustomFieldFormat::Bool], true))
                                 <select wire:model="bulkCustomFieldValues.{{ $field->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
-                                    <option value="">変更なし</option>
+                                    <option value="">{{ __('変更なし') }}</option>
                                     @if ($field->field_format === \App\Enums\CustomFieldFormat::Bool)
-                                        <option value="1">はい</option>
-                                        <option value="0">いいえ</option>
+                                        <option value="1">{{ __('はい') }}</option>
+                                        <option value="0">{{ __('いいえ') }}</option>
                                     @else
                                         @foreach ($field->format()->options($field) as $value => $label)
                                             <option value="{{ $value }}">{{ $label }}</option>
@@ -845,7 +862,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                     @endif
                                 </select>
                             @else
-                                <input type="text" wire:model="bulkCustomFieldValues.{{ $field->id }}" placeholder="変更なし" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                                <input type="text" wire:model="bulkCustomFieldValues.{{ $field->id }}" placeholder="{{ __('変更なし') }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                             @endif
                             @error("bulkCustomFieldValues.{$field->id}") <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                         </div>
@@ -854,20 +871,20 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
 
             <div>
-                <label class="block text-xs font-medium text-neutral-700">コメント(変更する場合のみ入力)</label>
+                <label class="block text-xs font-medium text-neutral-700">{{ __('コメント(変更する場合のみ入力)') }}</label>
                 <textarea wire:model="bulkComments" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 text-sm"></textarea>
             </div>
 
             <div class="flex gap-2">
                 <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                    一括更新
+                    {{ __('一括更新') }}
                 </button>
-                <button type="button" wire:click="applyBulkDelete" wire:confirm="選択した{{ count($selected) }}件の工数記録を削除します。この操作は取り消せません。よろしいですか?"
+                <button type="button" wire:click="applyBulkDelete" wire:confirm="{{ __('選択した:count件の工数記録を削除します。この操作は取り消せません。よろしいですか?', ['count' => count($selected)]) }}"
                     class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
-                    選択した{{ count($selected) }}件を削除
+                    {{ __('選択した:count件を削除', ['count' => count($selected)]) }}
                 </button>
                 <button type="button" wire:click="$set('selected', [])" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-white">
-                    選択解除
+                    {{ __('選択解除') }}
                 </button>
             </div>
         </form>
@@ -877,7 +894,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @php $groupKey = $groupLabel !== '' ? $groupLabel : '__ungrouped__'; @endphp
         @if ($groupBy !== null)
             <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-neutral-900">
-                {{ $groupLabel ?: '(未設定)' }} ({{ $this->groupSubtotals[$groupLabel]['count'] ?? $groupEntries->count() }}件 / {{ $this->groupSubtotals[$groupLabel]['hours'] ?? '0' }} 時間)
+                {{ $groupLabel ?: __('(未設定)') }} {{ __('(:count件 / :hours 時間)', ['count' => $this->groupSubtotals[$groupLabel]['count'] ?? $groupEntries->count(), 'hours' => $this->groupSubtotals[$groupLabel]['hours'] ?? '0']) }}
             </h2>
         @endif
 
@@ -931,15 +948,15 @@ new #[Layout('components.layouts.app')] class extends Component
                             @if ($this->canManage)
                                 <td class="px-4 py-2 whitespace-nowrap">
                                     @can('update', $entry)
-                                        <a href="{{ route('time-entries.edit', [$project, $entry]) }}" class="text-brand-bold hover:underline">編集</a>
-                                        <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="この工数記録を削除しますか?" class="ml-2 text-danger-bolder hover:underline">削除</button>
+                                        <a href="{{ route('time-entries.edit', [$project, $entry]) }}" class="text-brand-bold hover:underline">{{ __('編集') }}</a>
+                                        <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="{{ __('この工数記録を削除しますか?') }}" class="ml-2 text-danger-bolder hover:underline">{{ __('削除') }}</button>
                                     @endcan
                                 </td>
                             @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ count($columns) + ($this->canManage ? 2 : 0) }}" class="px-4 py-6 text-center text-neutral-500">工数記録がありません。</td>
+                            <td colspan="{{ count($columns) + ($this->canManage ? 2 : 0) }}" class="px-4 py-6 text-center text-neutral-500">{{ __('工数記録がありません。') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

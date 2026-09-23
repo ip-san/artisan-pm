@@ -35,13 +35,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — お知らせ</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — {{ __('お知らせ') }}</h1>
         <div class="flex items-center gap-3">
             <a href="{{ route('news.atom', [$project, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
             @can('create', [News::class, $project])
                 <a href="{{ route('news.create', $project) }}"
                     class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                    新規お知らせ
+                    {{ __('新規お知らせ') }}
                 </a>
             @endcan
         </div>
@@ -58,11 +58,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endif
                 <p class="mt-1 text-xs text-neutral-500">
                     {{ $item->author->displayName() }} — {{ $item->created_at->format('Y-m-d H:i') }}
-                    — コメント{{ $item->comments_count }}件
+                    — {{ __('コメント:count件', ['count' => $item->comments_count]) }}
                 </p>
             </li>
         @empty
-            <li class="px-4 py-6 text-center text-sm text-neutral-500">お知らせがありません。</li>
+            <li class="px-4 py-6 text-center text-sm text-neutral-500">{{ __('お知らせがありません。') }}</li>
         @endforelse
     </ul>
 

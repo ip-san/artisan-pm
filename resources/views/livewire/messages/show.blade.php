@@ -294,42 +294,42 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="flex items-start justify-between mb-4">
         <h1 class="text-xl font-semibold text-neutral-900">
             @if ($topic->is_sticky)
-                <span class="mr-1 text-warning" title="固定表示">📌</span>
+                <span class="mr-1 text-warning" title="{{ __('固定表示') }}">📌</span>
             @endif
             @if ($topic->is_locked)
-                <span class="mr-1 text-neutral-400" title="ロック済み">🔒</span>
+                <span class="mr-1 text-neutral-400" title="{{ __('ロック済み') }}">🔒</span>
             @endif
             {{ $topic->subject }}
         </h1>
         <div class="flex gap-2">
             @can('watch', $topic)
                 <button wire:click="toggleWatch" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    {{ $topic->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
+                    {{ $topic->isWatchedBy(auth()->user()) ? __('ウォッチ解除') : __('ウォッチ') }}
                 </button>
             @endcan
             @can('update', $topic)
                 <a href="{{ route('messages.edit', [$project, $board, $topic]) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    編集
+                    {{ __('編集') }}
                 </a>
             @endcan
             @can('delete', $topic)
-                <button wire:click="deleteMessage({{ $topic->id }})" wire:confirm="このトピックと返信をすべて削除しますか?"
+                <button wire:click="deleteMessage({{ $topic->id }})" wire:confirm="{{ __('このトピックと返信をすべて削除しますか?') }}"
                     class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
-                    削除
+                    {{ __('削除') }}
                 </button>
             @endcan
         </div>
     </div>
 
     @if (auth()->user()?->can('viewWatchers', $topic) && ($topic->watchers->isNotEmpty() || auth()->user()?->can('addWatchers', $topic)))
-        <h2 class="text-sm font-semibold text-neutral-900 mb-2">ウォッチャー ({{ $topic->watchers->count() }})</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('ウォッチャー (:count)', ['count' => $topic->watchers->count()]) }}</h2>
         <ul class="mb-3 flex flex-wrap gap-2">
             @foreach ($topic->watchers as $watcher)
                 <li class="flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700">
                     {{ $watcher->user->displayName() }}
                     @can('deleteWatchers', $topic)
-                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="ウォッチャーから削除">×</button>
+                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
                     @endcan
                 </li>
             @endforeach
@@ -338,7 +338,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @can('addWatchers', $topic)
             @if ($watcherSearch !== '' || $this->watcherCandidates->isNotEmpty())
                 <div class="mb-4  relative" data-watcher-search>
-                    <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="ウォッチャーを追加(名前・メールで検索)..."
+                    <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="{{ __('ウォッチャーを追加(名前・メールで検索)...') }}"
                         class="block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
                     <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
                         @foreach ($this->watcherCandidates as $candidate)
@@ -359,9 +359,9 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->otherBoards->isNotEmpty())
             <form wire:submit="moveTopic" class="mb-6 flex items-end gap-2">
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">別のフォーラムへ移動</label>
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('別のフォーラムへ移動') }}</label>
                     <select wire:model="moveToBoardId" class="mt-1 block rounded-md border-neutral-300 text-sm">
-                        <option value="">選択してください</option>
+                        <option value="">{{ __('選択してください') }}</option>
                         @foreach ($this->otherBoards as $otherBoard)
                             <option value="{{ $otherBoard->id }}">{{ $otherBoard->name }}</option>
                         @endforeach
@@ -369,7 +369,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('moveToBoardId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <button type="submit" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    移動
+                    {{ __('移動') }}
                 </button>
             </form>
         @endif
@@ -379,7 +379,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <p class="whitespace-pre-line text-sm text-neutral-800">{{ $topic->content }}</p>
         <div class="mt-1 flex items-center gap-2">
             @can('reply', $topic)
-                <button wire:click="quote({{ $topic->id }})" class="text-xs text-brand-bold hover:underline">引用</button>
+                <button wire:click="quote({{ $topic->id }})" class="text-xs text-brand-bold hover:underline">{{ __('引用') }}</button>
             @endcan
             <x-reaction-button :reactable="$topic" type="message" />
         </div>
@@ -400,17 +400,17 @@ new #[Layout('components.layouts.app')] class extends Component
                             <x-download-count :media="$media" />
 <x-attachment-preview-link :media="$media" />
                             @can('update', $topic)
-                                <button wire:click="deleteAttachment({{ $topic->id }}, {{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
-                                    class="text-danger-bolder hover:underline">削除</button>
+                                <button wire:click="deleteAttachment({{ $topic->id }}, {{ $media->id }})" wire:confirm="{{ __('この添付ファイルを削除しますか?') }}"
+                                    class="text-danger-bolder hover:underline">{{ __('削除') }}</button>
                             @endcan
                         </span>
                     </div>
                     @can('update', $topic)
                         <div class="mt-1 flex items-center gap-2">
-                            <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
+                            <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="{{ __('説明(任意)') }}"
                                 class="block w-full rounded-md border-neutral-300 text-xs shadow-sm">
                             <button wire:click="updateAttachmentDescription({{ $topic->id }}, {{ $media->id }})"
-                                class="shrink-0 text-xs text-brand-bold hover:underline">保存</button>
+                                class="shrink-0 text-xs text-brand-bold hover:underline">{{ __('保存') }}</button>
                         </div>
                     @elseif ($media->getCustomProperty('description'))
                         <p class="mt-1 text-xs text-neutral-500">{{ $media->getCustomProperty('description') }}</p>
@@ -421,13 +421,13 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
     <p class="mb-6 text-xs text-neutral-500">{{ $topic->author->displayName() }} — {{ $topic->created_at->format('Y-m-d H:i') }}</p>
 
-    <h2 class="text-sm font-semibold text-neutral-900 mb-2">返信 ({{ $this->replies->total() }})</h2>
+    <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('返信 (:count)', ['count' => $this->replies->total()]) }}</h2>
     <ul class="mb-2 space-y-3">
         @foreach ($this->replies as $reply)
             <li wire:key="reply-{{ $reply->id }}" class="rounded-md border border-neutral-200 bg-white p-4">
                 <p class="whitespace-pre-line text-sm text-neutral-800">{{ $reply->content }}</p>
                 @can('reply', $topic)
-                    <button wire:click="quote({{ $reply->id }})" class="text-xs text-brand-bold hover:underline">引用</button>
+                    <button wire:click="quote({{ $reply->id }})" class="text-xs text-brand-bold hover:underline">{{ __('引用') }}</button>
                 @endcan
                 @if ($reply->attachments()->isNotEmpty())
                     <ul class="mt-2 space-y-1">
@@ -445,17 +445,17 @@ new #[Layout('components.layouts.app')] class extends Component
                                         <x-download-count :media="$media" />
 <x-attachment-preview-link :media="$media" />
                                         @can('update', $reply)
-                                            <button wire:click="deleteAttachment({{ $reply->id }}, {{ $media->id }})" wire:confirm="この添付ファイルを削除しますか?"
-                                                class="text-danger-bolder hover:underline">削除</button>
+                                            <button wire:click="deleteAttachment({{ $reply->id }}, {{ $media->id }})" wire:confirm="{{ __('この添付ファイルを削除しますか?') }}"
+                                                class="text-danger-bolder hover:underline">{{ __('削除') }}</button>
                                         @endcan
                                     </span>
                                 </div>
                                 @can('update', $reply)
                                     <div class="mt-1 flex items-center gap-2">
-                                        <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
+                                        <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="{{ __('説明(任意)') }}"
                                             class="block w-full rounded-md border-neutral-300 text-xs shadow-sm">
                                         <button wire:click="updateAttachmentDescription({{ $reply->id }}, {{ $media->id }})"
-                                            class="shrink-0 text-xs text-brand-bold hover:underline">保存</button>
+                                            class="shrink-0 text-xs text-brand-bold hover:underline">{{ __('保存') }}</button>
                                     </div>
                                 @elseif ($media->getCustomProperty('description'))
                                     <p class="mt-1 text-xs text-neutral-500">{{ $media->getCustomProperty('description') }}</p>
@@ -469,10 +469,10 @@ new #[Layout('components.layouts.app')] class extends Component
                     <span class="flex items-center gap-2">
                         <x-reaction-button :reactable="$reply" type="message" />
                         @can('update', $reply)
-                            <a href="{{ route('messages.edit', [$project, $board, $reply]) }}" class="text-brand-bold hover:underline">編集</a>
+                            <a href="{{ route('messages.edit', [$project, $board, $reply]) }}" class="text-brand-bold hover:underline">{{ __('編集') }}</a>
                         @endcan
                         @can('delete', $reply)
-                            <button wire:click="deleteMessage({{ $reply->id }})" wire:confirm="この返信を削除しますか?" class="text-danger-bolder hover:underline">削除</button>
+                            <button wire:click="deleteMessage({{ $reply->id }})" wire:confirm="{{ __('この返信を削除しますか?') }}" class="text-danger-bolder hover:underline">{{ __('削除') }}</button>
                         @endcan
                     </span>
                 </div>
@@ -486,16 +486,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @can('reply', $topic)
         <form wire:submit="addReply" class="space-y-2">
-            <textarea wire:model="replyContent" rows="4" placeholder="返信を入力"
+            <textarea wire:model="replyContent" rows="4" placeholder="{{ __('返信を入力') }}"
                 class="block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('replyContent') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
             <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                返信を投稿
+                {{ __('返信を投稿') }}
             </button>
         </form>
     @else
         @if ($topic->is_locked)
-            <p class="text-sm text-neutral-500">このトピックはロックされているため返信できません。</p>
+            <p class="text-sm text-neutral-500">{{ __('このトピックはロックされているため返信できません。') }}</p>
         @endif
     @endcan
 </div>

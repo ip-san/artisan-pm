@@ -83,30 +83,30 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-2xl">
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">
-        {{ $news ? 'お知らせを編集' : '新規お知らせ' }}
+        {{ $news ? __('お知らせを編集') : __('新規お知らせ') }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">タイトル</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('タイトル') }}</label>
             <input type="text" wire:model="title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('title') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">概要</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('概要') }}</label>
             <input type="text" wire:model="summary" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('summary') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">本文</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('本文') }}</label>
             <textarea wire:model="description" rows="10" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('description') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">添付ファイル</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
             <input type="file" wire:model="newAttachments" multiple class="mt-1 block w-full text-sm text-neutral-700">
             @error('newAttachments.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
 
@@ -121,11 +121,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                保存
+                {{ __('保存') }}
             </button>
             <a href="{{ $news ? route('news.show', [$project, $news]) : route('news.index', $project) }}"
                 class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                キャンセル
+                {{ __('キャンセル') }}
             </a>
         </div>
     </form>

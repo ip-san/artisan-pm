@@ -60,19 +60,23 @@ new #[Layout('components.layouts.app')] class extends Component
         </a>
         —
         <a href="{{ route('wiki.history', [$project, $wikiPage]) }}" class="text-brand-bold hover:underline">
-            履歴
+            {{ __('履歴') }}
         </a>
     </p>
 
     <h1 class="text-xl font-semibold text-neutral-900 mb-4">
-        差分: v{{ $versionFrom->version }} → v{{ $versionTo->version }}
+        {{ __('差分: v:old_version → v:new_version', ['old_version' => $versionFrom->version, 'new_version' => $versionTo->version]) }}
     </h1>
 
     <p class="mb-4 text-xs text-neutral-500">
-        v{{ $versionFrom->version }} ({{ $versionFrom->author->displayName() }} — {{ $versionFrom->created_at->format('Y-m-d H:i') }})
-        から
-        v{{ $versionTo->version }} ({{ $versionTo->author->displayName() }} — {{ $versionTo->created_at->format('Y-m-d H:i') }})
-        への変更
+        {{ __('v:old_version (:old_author — :old_date) から v:new_version (:new_author — :new_date) への変更', [
+            'old_version' => $versionFrom->version,
+            'old_author' => $versionFrom->author->displayName(),
+            'old_date' => $versionFrom->created_at->format('Y-m-d H:i'),
+            'new_version' => $versionTo->version,
+            'new_author' => $versionTo->author->displayName(),
+            'new_date' => $versionTo->created_at->format('Y-m-d H:i'),
+        ]) }}
     </p>
 
     <div class="whitespace-pre-wrap break-words rounded-md border border-neutral-200 bg-white p-4 font-mono text-sm leading-relaxed">

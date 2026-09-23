@@ -58,7 +58,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $service->delete($page);
         }
 
-        session()->flash('status', 'Wikiを削除しました。');
+        session()->flash('status', __('Wikiを削除しました。'));
 
         $this->redirect(route('projects.show', $this->project), navigate: true);
     }
@@ -191,13 +191,13 @@ new #[Layout('components.layouts.app')] class extends Component
 <div class="flex items-start gap-6">
 <div class="flex-1">
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — Wiki(タイトル順)</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — {{ __('Wiki(タイトル順)') }}</h1>
         <div class="flex items-center gap-3">
             <a href="{{ route('wiki.index', $project) }}" class="text-sm text-brand-bold hover:underline">
-                開始ページ
+                {{ __('開始ページ') }}
             </a>
             <a href="{{ route('wiki.date-index', $project) }}" class="text-sm text-brand-bold hover:underline">
-                日付順に表示
+                {{ __('日付順に表示') }}
             </a>
             @can('exportAll', [WikiPage::class, $project])
                 <button wire:click="exportZip('txt')" class="text-sm text-brand-bold hover:underline">
@@ -211,15 +211,15 @@ new #[Layout('components.layouts.app')] class extends Component
                 </button>
             @endcan
             @can('destroyWiki', [WikiPage::class, $project])
-                <button wire:click="deleteWiki" wire:confirm="このプロジェクトのWikiを、すべてのページ・履歴・添付ファイルごと削除します。この操作は取り消せません。よろしいですか?"
+                <button wire:click="deleteWiki" wire:confirm="{{ __('このプロジェクトのWikiを、すべてのページ・履歴・添付ファイルごと削除します。この操作は取り消せません。よろしいですか?') }}"
                     class="text-sm text-danger-bolder hover:underline">
-                    Wikiを削除
+                    {{ __('Wikiを削除') }}
                 </button>
             @endcan
             @can('create', [WikiPage::class, $project])
                 <a href="{{ route('wiki.create', $project) }}"
                     class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                    新規ページ
+                    {{ __('新規ページ') }}
                 </a>
             @endcan
         </div>
@@ -232,7 +232,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ $page->title }}
                 </a>
                 @if ($page->is_protected)
-                    <span class="ml-1 text-xs text-neutral-400">(保護)</span>
+                    <span class="ml-1 text-xs text-neutral-400">{{ __('(保護)') }}</span>
                 @endif
 
                 @if ($page->children->isNotEmpty())
@@ -243,7 +243,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                     {{ $child->title }}
                                 </a>
                                 @if ($child->is_protected)
-                                    <span class="ml-1 text-xs text-neutral-400">(保護)</span>
+                                    <span class="ml-1 text-xs text-neutral-400">{{ __('(保護)') }}</span>
                                 @endif
                             </li>
                         @endforeach
@@ -251,7 +251,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endif
             </li>
         @empty
-            <li class="px-4 py-6 text-center text-sm text-neutral-500">Wikiページがありません。</li>
+            <li class="px-4 py-6 text-center text-sm text-neutral-500">{{ __('Wikiページがありません。') }}</li>
         @endforelse
     </ul>
 </div>

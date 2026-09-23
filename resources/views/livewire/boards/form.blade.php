@@ -85,26 +85,26 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-xl">
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">
-        {{ $board ? 'フォーラムを編集' : '新規フォーラム' }}
+        {{ $board ? __('フォーラムを編集') : __('新規フォーラム') }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">説明</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('説明') }}</label>
             <textarea wire:model="description" rows="3" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('description') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">親フォーラム</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('親フォーラム') }}</label>
             <select wire:model="parent_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <option value="">なし</option>
+                <option value="">{{ __('なし') }}</option>
                 @foreach ($this->availableParents as $candidate)
                     <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
                 @endforeach
@@ -114,11 +114,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                保存
+                {{ __('保存') }}
             </button>
             <a href="{{ route('boards.index', $project) }}"
                 class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                キャンセル
+                {{ __('キャンセル') }}
             </a>
         </div>
     </form>

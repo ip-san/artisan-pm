@@ -35,11 +35,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — フォーラム</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — {{ __('フォーラム') }}</h1>
         @can('create', [Board::class, $project])
             <a href="{{ route('boards.create', $project) }}"
                 class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                新規フォーラム
+                {{ __('新規フォーラム') }}
             </a>
         @endcan
     </div>
@@ -57,9 +57,9 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endif
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="text-sm text-neutral-500">{{ $board->topics_count }}件のトピック</span>
+                        <span class="text-sm text-neutral-500">{{ __(':count件のトピック', ['count' => $board->topics_count]) }}</span>
                         @can('update', $board)
-                            <a href="{{ route('boards.edit', [$project, $board]) }}" class="text-sm text-brand-bold hover:underline">編集</a>
+                            <a href="{{ route('boards.edit', [$project, $board]) }}" class="text-sm text-brand-bold hover:underline">{{ __('編集') }}</a>
                         @endcan
                     </div>
                 </div>
@@ -76,9 +76,9 @@ new #[Layout('components.layouts.app')] class extends Component
                                     @endif
                                 </div>
                                 <div class="flex items-center gap-3">
-                                    <span class="text-xs text-neutral-500">{{ $child->topics_count }}件のトピック</span>
+                                    <span class="text-xs text-neutral-500">{{ __(':count件のトピック', ['count' => $child->topics_count]) }}</span>
                                     @can('update', $child)
-                                        <a href="{{ route('boards.edit', [$project, $child]) }}" class="text-xs text-brand-bold hover:underline">編集</a>
+                                        <a href="{{ route('boards.edit', [$project, $child]) }}" class="text-xs text-brand-bold hover:underline">{{ __('編集') }}</a>
                                     @endcan
                                 </div>
                             </li>
@@ -87,7 +87,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endif
             </li>
         @empty
-            <li class="px-4 py-6 text-center text-sm text-neutral-500">フォーラムがありません。</li>
+            <li class="px-4 py-6 text-center text-sm text-neutral-500">{{ __('フォーラムがありません。') }}</li>
         @endforelse
     </ul>
 </div>

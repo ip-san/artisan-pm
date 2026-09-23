@@ -39,19 +39,18 @@ new #[Layout('components.layouts.app')] class extends Component
         </a>
         —
         <a href="{{ route('wiki.history', [$project, $wikiPage]) }}" class="text-brand-bold hover:underline">
-            履歴
+            {{ __('履歴') }}
         </a>
     </p>
 
     <div class="mb-4 flex items-center justify-between rounded-md border border-warning-subtler bg-warning-subtlest px-4 py-2 text-sm text-warning-bolder">
         <span>
-            これは v{{ $wikiPageVersion->version }} の過去バージョンです
-            ({{ $wikiPageVersion->author->displayName() }} — {{ $wikiPageVersion->created_at->format('Y-m-d H:i') }})。
+            {{ __('これは v:version の過去バージョンです (:author — :date)。', ['version' => $wikiPageVersion->version, 'author' => $wikiPageVersion->author->displayName(), 'date' => $wikiPageVersion->created_at->format('Y-m-d H:i')]) }}
         </span>
         @can('update', $wikiPage)
             <a href="{{ route('wiki.edit', [$project, $wikiPage]) }}?version={{ $wikiPageVersion->version }}"
                 class="shrink-0 rounded-md border border-warning-subtle bg-white px-3 py-1 text-xs font-medium text-warning-bolder hover:bg-warning-subtler">
-                このバージョンを復元
+                {{ __('このバージョンを復元') }}
             </a>
         @endcan
     </div>

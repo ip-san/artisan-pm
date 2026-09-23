@@ -22,6 +22,13 @@ function translatedViews(): array
         ...glob(base_path('resources/views/livewire/versions/*.blade.php')),
         ...glob(base_path('resources/views/livewire/issue-categories/*.blade.php')),
         ...glob(base_path('resources/views/components/*.blade.php')),
+        ...glob(base_path('resources/views/livewire/time-entries/*.blade.php')),
+        ...glob(base_path('resources/views/livewire/wiki/*.blade.php')),
+        ...glob(base_path('resources/views/livewire/boards/*.blade.php')),
+        ...glob(base_path('resources/views/livewire/messages/*.blade.php')),
+        ...glob(base_path('resources/views/livewire/news/*.blade.php')),
+        ...glob(base_path('resources/views/livewire/documents/*.blade.php')),
+        ...glob(base_path('resources/views/livewire/files/*.blade.php')),
     ];
 }
 

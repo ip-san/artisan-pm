@@ -210,19 +210,19 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="flex gap-2">
             @can('watch', $news)
                 <button wire:click="toggleWatch" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    {{ $news->isWatchedBy(auth()->user()) ? 'ウォッチ解除' : 'ウォッチ' }}
+                    {{ $news->isWatchedBy(auth()->user()) ? __('ウォッチ解除') : __('ウォッチ') }}
                 </button>
             @endcan
             @can('update', $news)
                 <a href="{{ route('news.edit', [$project, $news]) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    編集
+                    {{ __('編集') }}
                 </a>
             @endcan
             @can('delete', $news)
-                <button wire:click="delete" wire:confirm="このお知らせを削除しますか?"
+                <button wire:click="delete" wire:confirm="{{ __('このお知らせを削除しますか?') }}"
                     class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
-                    削除
+                    {{ __('削除') }}
                 </button>
             @endcan
         </div>
@@ -239,13 +239,13 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($news->watchers->isNotEmpty() || auth()->user()?->can('manageWatchers', $news))
-        <h2 class="text-sm font-semibold text-neutral-900 mb-2">ウォッチャー ({{ $news->watchers->count() }})</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('ウォッチャー (:count)', ['count' => $news->watchers->count()]) }}</h2>
         <ul class="mb-3 flex flex-wrap gap-2">
             @foreach ($news->watchers as $watcher)
                 <li class="flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700">
                     {{ $watcher->user->displayName() }}
                     @can('manageWatchers', $news)
-                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="ウォッチャーから削除">×</button>
+                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
                     @endcan
                 </li>
             @endforeach
@@ -254,7 +254,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @can('manageWatchers', $news)
             @if ($watcherSearch !== '' || $this->watcherCandidates->isNotEmpty())
                 <div class="mb-4  relative" data-watcher-search>
-                    <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="ウォッチャーを追加(名前・メールで検索)..."
+                    <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="{{ __('ウォッチャーを追加(名前・メールで検索)...') }}"
                         class="block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
                     <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
                         @foreach ($this->watcherCandidates as $candidate)
@@ -273,7 +273,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @php $attachments = $news->attachments(); @endphp
     @if ($attachments->isNotEmpty())
-        <h2 class="text-sm font-semibold text-neutral-900 mb-2">添付ファイル<x-attachment-bulk-links :container="$news" :count="$attachments->count()" /></h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('添付ファイル') }}<x-attachment-bulk-links :container="$news" :count="$attachments->count()" /></h2>
         <ul class="mb-6 space-y-1">
             @foreach ($attachments as $media)
                 <li class="text-sm" wire:key="news-attachment-{{ $media->id }}">
@@ -288,10 +288,10 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                     @can('update', $news)
                         <div class="mt-1 flex items-center gap-2">
-                            <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
+                            <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="{{ __('説明(任意)') }}"
                                 class="block w-full rounded-md border-neutral-300 text-xs shadow-sm">
                             <button wire:click="updateAttachmentDescription({{ $media->id }})"
-                                class="shrink-0 text-xs text-brand-bold hover:underline">保存</button>
+                                class="shrink-0 text-xs text-brand-bold hover:underline">{{ __('保存') }}</button>
                         </div>
                     @elseif ($media->getCustomProperty('description'))
                         <p class="mt-1 text-xs text-neutral-500">{{ $media->getCustomProperty('description') }}</p>
@@ -301,7 +301,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </ul>
     @endif
 
-    <h2 class="text-sm font-semibold text-neutral-900 mb-2">コメント ({{ $this->comments->count() }})</h2>
+    <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('コメント (:count)', ['count' => $this->comments->count()]) }}</h2>
     <ul class="mb-6 space-y-3">
         @foreach ($this->comments as $comment)
             <li wire:key="news-comment-{{ $comment->id }}" class="rounded-md border border-neutral-200 bg-white p-4">
@@ -311,7 +311,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <div class="flex items-center gap-2">
                         <x-reaction-button :reactable="$comment" type="news_comment" />
                         @can('delete', $comment)
-                            <button wire:click="deleteComment({{ $comment->id }})" wire:confirm="このコメントを削除しますか?" class="text-danger-bolder hover:underline">削除</button>
+                            <button wire:click="deleteComment({{ $comment->id }})" wire:confirm="{{ __('このコメントを削除しますか?') }}" class="text-danger-bolder hover:underline">{{ __('削除') }}</button>
                         @endcan
                     </div>
                 </div>
@@ -321,11 +321,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @can('comment', $news)
         <form wire:submit="addComment" class="space-y-2">
-            <textarea wire:model="commentContent" rows="3" placeholder="コメントを追加"
+            <textarea wire:model="commentContent" rows="3" placeholder="{{ __('コメントを追加') }}"
                 class="block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('commentContent') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
             <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                コメントを投稿
+                {{ __('コメントを投稿') }}
             </button>
         </form>
     @endcan

@@ -82,13 +82,13 @@ new #[Layout('components.layouts.app')] class extends Component
             @can('update', $document)
                 <a href="{{ route('documents.edit', [$project, $document]) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    編集
+                    {{ __('編集') }}
                 </a>
             @endcan
             @can('delete', $document)
-                <button wire:click="delete" wire:confirm="この文書を削除しますか?"
+                <button wire:click="delete" wire:confirm="{{ __('この文書を削除しますか?') }}"
                     class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
-                    削除
+                    {{ __('削除') }}
                 </button>
             @endcan
         </div>
@@ -112,7 +112,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @php $attachments = $document->attachments(); @endphp
-    <h2 class="text-sm font-semibold text-neutral-900 mb-2">添付ファイル<x-attachment-bulk-links :container="$document" :count="$attachments->count()" /></h2>
+    <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('添付ファイル') }}<x-attachment-bulk-links :container="$document" :count="$attachments->count()" /></h2>
     <ul class="space-y-1">
         @forelse ($attachments as $media)
             <li class="text-sm" wire:key="document-attachment-{{ $media->id }}">
@@ -127,17 +127,17 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @can('update', $document)
                     <div class="mt-1 flex items-center gap-2">
-                        <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="説明(任意)"
+                        <input type="text" wire:model="attachmentDescriptions.{{ $media->id }}" placeholder="{{ __('説明(任意)') }}"
                             class="block w-full rounded-md border-neutral-300 text-xs shadow-sm">
                         <button wire:click="updateAttachmentDescription({{ $media->id }})"
-                            class="shrink-0 text-xs text-brand-bold hover:underline">保存</button>
+                            class="shrink-0 text-xs text-brand-bold hover:underline">{{ __('保存') }}</button>
                     </div>
                 @elseif ($media->getCustomProperty('description'))
                     <p class="mt-1 text-xs text-neutral-500">{{ $media->getCustomProperty('description') }}</p>
                 @endcan
             </li>
         @empty
-            <li class="text-sm text-neutral-500">添付ファイルはありません。</li>
+            <li class="text-sm text-neutral-500">{{ __('添付ファイルはありません。') }}</li>
         @endforelse
     </ul>
 </div>

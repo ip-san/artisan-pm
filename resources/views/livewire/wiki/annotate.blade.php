@@ -47,12 +47,12 @@ new #[Layout('components.layouts.app')] class extends Component
         </a>
         —
         <a href="{{ route('wiki.history', [$project, $wikiPage]) }}" class="text-brand-bold hover:underline">
-            履歴
+            {{ __('履歴') }}
         </a>
     </p>
 
     <h1 class="text-xl font-semibold text-neutral-900 mb-4">
-        注釈: v{{ $wikiPageVersion->version }}
+        {{ __('注釈: v:version', ['version' => $wikiPageVersion->version]) }}
     </h1>
 
     <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
@@ -71,7 +71,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </td>
                         <td class="w-32 truncate px-2 py-0.5 text-xs text-neutral-500">
                             @if ($previous === null || $previous['version'] !== $line['version'] || $previous['author']?->id !== $line['author']?->id)
-                                {{ $line['author']?->name ?? '(不明)' }}
+                                {{ $line['author']?->name ?? __('(不明)') }}
                             @endif
                         </td>
                         <td class="whitespace-pre px-2 py-0.5">{{ $line['text'] }}</td>

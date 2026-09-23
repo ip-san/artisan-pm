@@ -40,9 +40,9 @@ new #[Layout('components.layouts.app')] class extends Component
 <div class="flex items-start gap-6">
 <div class="max-w-2xl flex-1">
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — Wiki(日付順)</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — {{ __('Wiki(日付順)') }}</h1>
         <a href="{{ route('wiki.pages', $project) }}" class="text-sm text-brand-bold hover:underline">
-            タイトル順に戻る
+            {{ __('タイトル順に戻る') }}
         </a>
     </div>
 
@@ -58,7 +58,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endforeach
         </ul>
     @empty
-        <p class="px-4 py-6 text-center text-sm text-neutral-500">Wikiページがありません。</p>
+        <p class="px-4 py-6 text-center text-sm text-neutral-500">{{ __('Wikiページがありません。') }}</p>
     @endforelse
 </div>
 

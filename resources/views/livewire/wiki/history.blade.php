@@ -88,7 +88,7 @@ new #[Layout('components.layouts.app')] class extends Component
             {{ $wikiPage->title }}
         </a>
     </p>
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">履歴</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('履歴') }}</h1>
 
     @php
         $versionCount = $this->versions->count();
@@ -102,11 +102,11 @@ new #[Layout('components.layouts.app')] class extends Component
                     @if ($versionCount > 1)
                         <span class="flex items-center gap-1 text-xs text-neutral-400">
                             <label class="flex items-center gap-0.5">
-                                旧
+                                {{ __('旧') }}
                                 <input type="radio" wire:model="diffFrom" value="{{ $version->version }}" class="border-neutral-300">
                             </label>
                             <label class="flex items-center gap-0.5">
-                                新
+                                {{ __('新') }}
                                 <input type="radio" wire:model="diffTo" value="{{ $version->version }}" class="border-neutral-300">
                             </label>
                         </span>
@@ -116,7 +116,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             v{{ $version->version }}
                         </a>
                         <a href="{{ route('wiki.annotate', [$project, $wikiPage, $version->version]) }}" class="text-xs text-brand hover:underline">
-                            (注釈)
+                            {{ __('(注釈)') }}
                         </a>
                         <span class="text-neutral-500">— {{ $version->author->displayName() }} — {{ $version->created_at->format('Y-m-d H:i') }}</span>
                         @if ($version->comments)
@@ -126,9 +126,9 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @if ($this->canDeleteVersions)
                     <button wire:click="deleteVersion({{ $version->id }})"
-                        wire:confirm="{{ $versionCount <= 1 ? 'これが最後のバージョンです。削除するとページ自体が削除されます。よろしいですか?' : ($version->version === $maxVersion ? '最新バージョンを削除すると、ひとつ前のバージョンが最新になります。よろしいですか?' : 'このバージョンを削除しますか?') }}"
+                        wire:confirm="{{ $versionCount <= 1 ? __('これが最後のバージョンです。削除するとページ自体が削除されます。よろしいですか?') : ($version->version === $maxVersion ? __('最新バージョンを削除すると、ひとつ前のバージョンが最新になります。よろしいですか?') : __('このバージョンを削除しますか?')) }}"
                         class="shrink-0 text-xs font-medium text-danger-bolder hover:underline">
-                        削除
+                        {{ __('削除') }}
                     </button>
                 @endif
             </li>
@@ -140,10 +140,10 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($diffFrom !== null && $diffTo !== null && $diffFrom !== $diffTo)
                 <a href="{{ route('wiki.diff', [$project, $wikiPage, 'from' => $diffFrom, 'to' => $diffTo]) }}"
                     class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                    選択したバージョンを比較
+                    {{ __('選択したバージョンを比較') }}
                 </a>
             @else
-                <span class="text-xs text-neutral-400">比較する2つのバージョンを選択してください(旧/新)。</span>
+                <span class="text-xs text-neutral-400">{{ __('比較する2つのバージョンを選択してください(旧/新)。') }}</span>
             @endif
         </div>
     @endif

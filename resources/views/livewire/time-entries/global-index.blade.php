@@ -52,6 +52,24 @@ new #[Layout('components.layouts.app')] class extends Component
         'hours' => '時間',
     ];
 
+    /**
+     * Translated header labels for DISPLAY_COLUMNS (constants can't call __()).
+     *
+     * @return array<string, string>
+     */
+    public function displayColumnLabels(): array
+    {
+        return [
+            'project_id' => __('プロジェクト'),
+            'spent_on' => __('日付'),
+            'user_id' => __('担当者'),
+            'activity_id' => __('作業分類'),
+            'issue_id' => __('課題'),
+            'comments' => __('コメント'),
+            'hours' => __('時間'),
+        ];
+    }
+
     #[Url]
     public ?string $sortKey = 'spent_on';
 
@@ -245,7 +263,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function availableColumns(): array
     {
         return [
-            ...self::DISPLAY_COLUMNS,
+            ...$this->displayColumnLabels(),
             ...(new TimeEntry)->relevantCustomFields()
                 ->filter(fn (\App\Models\CustomField $field) => auth()->user()?->is_admin || $field->roles->isEmpty())
                 ->mapWithKeys(fn (\App\Models\CustomField $field) => ["cf_{$field->id}" => $field->name])
@@ -340,7 +358,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'showSaveForm']);
         unset($this->savedQueries);
-        session()->flash('status', 'クエリを保存しました。');
+        session()->flash('status', __('クエリを保存しました。'));
     }
 
     public function loadQuery(int $queryId): void
@@ -372,20 +390,20 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-xl font-semibold text-neutral-900">工数(全プロジェクト)</h1>
-            <p class="mt-1 text-sm text-neutral-500">合計: {{ $this->totalHours }} 時間</p>
+            <h1 class="text-xl font-semibold text-neutral-900">{{ __('工数(全プロジェクト)') }}</h1>
+            <p class="mt-1 text-sm text-neutral-500">{{ __('合計: :hours 時間', ['hours' => $this->totalHours]) }}</p>
         </div>
     </div>
 
     {{-- Saved queries --}}
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
-        <span class="text-neutral-500">保存済みクエリ:</span>
+        <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
         @forelse ($this->savedQueries as $savedQuery)
             <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
                 {{ $savedQuery->name }}
             </button>
         @empty
-            <span class="text-neutral-400">なし</span>
+            <span class="text-neutral-400">{{ __('なし') }}</span>
         @endforelse
     </div>
 
@@ -395,22 +413,22 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
             <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                絞り込み適用
+                {{ __('絞り込み適用') }}
             </button>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">
-                グループ化:
+                {{ __('グループ化:') }}
                 <select wire:model.live="groupBy" class="rounded-md border-neutral-300 text-sm">
-                    <option value="">なし</option>
-                    <option value="project_id">プロジェクト</option>
-                    <option value="user_id">担当者</option>
-                    <option value="activity_id">作業分類</option>
-                    <option value="spent_on">日付</option>
+                    <option value="">{{ __('なし') }}</option>
+                    <option value="project_id">{{ __('プロジェクト') }}</option>
+                    <option value="user_id">{{ __('担当者') }}</option>
+                    <option value="activity_id">{{ __('作業分類') }}</option>
+                    <option value="spent_on">{{ __('日付') }}</option>
                 </select>
             </label>
 
             <div class="flex items-center gap-2 text-sm text-neutral-700">
-                表示列:
+                {{ __('表示列:') }}
                 @foreach ($this->availableColumns as $key => $label)
                     <label class="flex items-center gap-1">
                         <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-neutral-300">
@@ -420,20 +438,20 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             @if ($this->canSaveQueries)
-                <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">クエリを保存</button>
+                <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
             @endif
 
-            <select wire:model="csvEncoding" title="文字コード" class="rounded-md border-neutral-300 text-xs">
+            <select wire:model="csvEncoding" title="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
                 <option value="SJIS-win">Shift_JIS</option>
             </select>
-            <select wire:model="csvSeparator" title="区切り文字" class="rounded-md border-neutral-300 text-xs">
-                <option value=",">カンマ</option>
-                <option value=";">セミコロン</option>
-                <option value="{{ "\t" }}">タブ</option>
+            <select wire:model="csvSeparator" title="{{ __('区切り文字') }}" class="rounded-md border-neutral-300 text-xs">
+                <option value=",">{{ __('カンマ') }}</option>
+                <option value=";">{{ __('セミコロン') }}</option>
+                <option value="{{ "\t" }}">{{ __('タブ') }}</option>
             </select>
-            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">CSVエクスポート</button>
-            <a href="{{ route('time-entries.global-report') }}" class="text-sm text-brand-bold hover:underline">レポート</a>
+            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('CSVエクスポート') }}</button>
+            <a href="{{ route('time-entries.global-report') }}" class="text-sm text-brand-bold hover:underline">{{ __('レポート') }}</a>
         </div>
 
         @if ($showSaveForm)
@@ -448,7 +466,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @php $groupKey = $groupLabel !== '' ? $groupLabel : '__ungrouped__'; @endphp
         @if ($groupBy !== null)
             <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-neutral-900">
-                {{ $groupLabel ?: '(未設定)' }} ({{ $this->groupSubtotals[$groupLabel]['count'] ?? $groupEntries->count() }}件 / {{ $this->groupSubtotals[$groupLabel]['hours'] ?? '0' }} 時間)
+                {{ $groupLabel ?: __('(未設定)') }} {{ __('(:count件 / :hours 時間)', ['count' => $this->groupSubtotals[$groupLabel]['count'] ?? $groupEntries->count(), 'hours' => $this->groupSubtotals[$groupLabel]['hours'] ?? '0']) }}
             </h2>
         @endif
 
@@ -489,16 +507,16 @@ new #[Layout('components.layouts.app')] class extends Component
                             @endforeach
                             <td class="px-4 py-2 whitespace-nowrap">
                                 @can('update', $entry)
-                                    <a href="{{ route('time-entries.edit', [$entry->project, $entry]) }}" class="text-brand-bold hover:underline">編集</a>
+                                    <a href="{{ route('time-entries.edit', [$entry->project, $entry]) }}" class="text-brand-bold hover:underline">{{ __('編集') }}</a>
                                 @endcan
                                 @can('delete', $entry)
-                                    <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="この工数記録を削除しますか?" class="ml-2 text-danger-bolder hover:underline">削除</button>
+                                    <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="{{ __('この工数記録を削除しますか?') }}" class="ml-2 text-danger-bolder hover:underline">{{ __('削除') }}</button>
                                 @endcan
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ count($columns) + 1 }}" class="px-4 py-6 text-center text-neutral-500">工数記録がありません。</td>
+                            <td colspan="{{ count($columns) + 1 }}" class="px-4 py-6 text-center text-neutral-500">{{ __('工数記録がありません。') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
