@@ -34,6 +34,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $parent_id = null;
 
+    public bool $inherit_members = false;
+
     public ?int $default_version_id = null;
 
     public ?int $default_assigned_to_id = null;
@@ -61,6 +63,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->homepage = (string) $project->homepage;
             $this->is_public = $project->is_public;
             $this->parent_id = $project->parent_id;
+            $this->inherit_members = $project->inherit_members;
             $this->default_version_id = $project->default_version_id;
             $this->default_assigned_to_id = $project->default_assigned_to_id;
             $this->default_issue_query_id = $project->default_issue_query_id;
@@ -262,6 +265,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'description' => ['nullable', 'string'],
             'homepage' => ['nullable', 'string', 'max:255'],
             'is_public' => ['boolean'],
+            'inherit_members' => ['boolean'],
             // Allowed parents are the permission-filtered list, plus this
             // project's own current parent (if any) — so leaving parent_id
             // untouched on an ordinary edit never fails validation just
@@ -295,6 +299,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 unset($data['is_public']);
             } else {
                 $data['is_public'] = Setting::get('default_projects_public', true);
+            }
+        }
+
+        // Redmine's safe_attributes: inherit_members may only be set by
+        // someone who can see the parent whose members it would copy.
+        if ($data['parent_id'] !== null && ! auth()->user()->can('view', Project::findOrFail($data['parent_id']))) {
+            if ($this->project) {
+                unset($data['inherit_members']);
+            } else {
+                $data['inherit_members'] = false;
             }
         }
 
@@ -385,6 +399,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 @error('parent_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         @endif
+
+        <label class="flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" wire:model="inherit_members" class="rounded border-neutral-300">
+            {{ __('メンバーを継承') }}
+        </label>
 
         @if ($this->canSelectPublicity)
             <label class="flex items-center gap-2 text-sm text-neutral-700">

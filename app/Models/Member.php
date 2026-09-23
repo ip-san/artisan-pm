@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\MemberInheritance;
 use Database\Factories\MemberFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -70,11 +71,15 @@ final class Member extends Model
     }
 
     /**
+     * Every role the member holds, own and inherited alike. The pivot's
+     * inherited_from is the parent project's member_roles row a role was
+     * copied from ({@see MemberInheritance}), null for a role given here.
+     *
      * @return BelongsToMany<Role, $this>
      */
     public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Role::class, 'member_roles')->withTimestamps();
+        return $this->belongsToMany(Role::class, 'member_roles')->withPivot('inherited_from')->withTimestamps();
     }
 
     public function isForGroup(): bool

@@ -12,6 +12,7 @@ use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
 use App\Enums\VersionSharing;
 use App\Enums\VersionStatus;
+use App\Services\MemberInheritance;
 use App\Services\VersionService;
 use App\Support\Authorization\AuthorizationService;
 use Database\Factories\ProjectFactory;
@@ -30,7 +31,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-#[Fillable(['name', 'identifier', 'description', 'homepage', 'is_public', 'parent_id', 'default_version_id', 'default_assigned_to_id', 'default_issue_query_id'])]
+#[Fillable(['name', 'identifier', 'description', 'homepage', 'is_public', 'inherit_members', 'parent_id', 'default_version_id', 'default_assigned_to_id', 'default_issue_query_id'])]
 final class Project extends Model implements HasMedia
 {
     /** @use HasFactory<ProjectFactory> */
@@ -51,14 +52,28 @@ final class Project extends Model implements HasMedia
      */
     protected $attributes = [
         'status' => 'active',
+        'inherit_members' => false,
     ];
 
     protected function casts(): array
     {
         return [
             'is_public' => 'boolean',
+            'inherit_members' => 'boolean',
             'status' => ProjectStatus::class,
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Redmine's Project#update_inherited_members: turning
+        // inherit_members on copies the parent's members, turning it off
+        // removes the copies.
+        self::saved(function (Project $project): void {
+            if ($project->wasChanged('inherit_members')) {
+                app(MemberInheritance::class)->sync($project);
+            }
+        });
     }
 
     /**
