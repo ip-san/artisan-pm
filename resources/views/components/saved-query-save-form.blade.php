@@ -9,13 +9,13 @@
 --}}
 @props(['canManagePublicQueries', 'visibility', 'roles'])
 <form wire:submit="saveQuery" class="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3">
-    <input type="text" wire:model="newQueryName" placeholder="クエリ名" class="rounded-md border-neutral-300 text-sm">
+    <input type="text" wire:model="newQueryName" placeholder="{{ __('クエリ名') }}" class="rounded-md border-neutral-300 text-sm">
 
     @if ($canManagePublicQueries)
         <select wire:model.live="newQueryVisibility" class="rounded-md border-neutral-300 text-sm">
-            <option value="private">非公開</option>
-            <option value="roles">特定ロールに公開</option>
-            <option value="public">全員に公開</option>
+            <option value="private">{{ __('非公開') }}</option>
+            <option value="roles">{{ __('特定ロールに公開') }}</option>
+            <option value="public">{{ __('全員に公開') }}</option>
         </select>
 
         @if ($visibility === 'roles')
@@ -30,9 +30,9 @@
             @error('newQueryRoleIds') <span class="text-sm text-danger-bolder">{{ $message }}</span> @enderror
         @endif
     @else
-        <span class="text-xs text-neutral-500">(非公開クエリとして保存されます)</span>
+        <span class="text-xs text-neutral-500">{{ __('(非公開クエリとして保存されます)') }}</span>
     @endif
 
-    <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">保存</button>
+    <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
     @error('newQueryName') <span class="text-sm text-danger-bolder">{{ $message }}</span> @enderror
 </form>

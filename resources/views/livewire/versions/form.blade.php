@@ -136,57 +136,57 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="max-w-xl">
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">
-        {{ $version ? 'バージョンを編集' : '新規バージョン' }}
+        {{ $version ? __('バージョンを編集') : __('新規バージョン') }}
     </h1>
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">名前</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
             <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">説明</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('説明') }}</label>
             <textarea wire:model="description" rows="3" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">ステータス</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
             <select wire:model="status" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <option value="open">オープン</option>
-                <option value="locked">ロック中</option>
-                <option value="closed">クローズ</option>
+                <option value="open">{{ __('オープン') }}</option>
+                <option value="locked">{{ __('ロック中') }}</option>
+                <option value="closed">{{ __('クローズ') }}</option>
             </select>
             @error('status') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">共有</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('共有') }}</label>
             <select wire:model="sharing" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @foreach ($this->allowedSharings as $option)
                     <option value="{{ $option->value }}">{{ $option->label() }}</option>
                 @endforeach
             </select>
-            <p class="mt-1 text-xs text-neutral-500">このバージョンを他のプロジェクトの課題にも割り当て可能にする範囲を指定します。</p>
+            <p class="mt-1 text-xs text-neutral-500">{{ __('このバージョンを他のプロジェクトの課題にも割り当て可能にする範囲を指定します。') }}</p>
             @error('sharing') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">期日</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('期日') }}</label>
             <input type="date" wire:model="due_date" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('due_date') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <label class="flex items-center gap-2 text-sm text-neutral-700">
             <input type="checkbox" wire:model="defaultProjectVersion" class="rounded border-neutral-300">
-            このバージョンをプロジェクトの既定の対象バージョンにする
+            {{ __('このバージョンをプロジェクトの既定の対象バージョンにする') }}
         </label>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">関連Wikiページ</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('関連Wikiページ') }}</label>
             <select wire:model="wiki_page_title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <option value="">なし</option>
+                <option value="">{{ __('なし') }}</option>
                 @foreach ($this->wikiPages as $page)
                     <option value="{{ $page->title }}">{{ $page->title }}</option>
                 @endforeach
@@ -204,10 +204,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                保存
+                {{ __('保存') }}
             </button>
             <a href="{{ route('versions.index', $project) }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                キャンセル
+                {{ __('キャンセル') }}
             </a>
         </div>
     </form>

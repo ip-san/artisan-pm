@@ -10,7 +10,7 @@
 
 @if ($sizes !== [])
     <label class="flex items-center gap-1 text-sm text-neutral-600" data-per-page-select>
-        表示件数:
+        {{ __('表示件数:') }}
         <select wire:model.live="perPage" class="rounded-md border-neutral-300 text-sm">
             @foreach ($sizes as $size)
                 <option value="{{ $size }}" @selected($size === (int) $selected)>{{ $size }}</option>

@@ -7,19 +7,19 @@
     $groups = \App\Support\Preferences\ProjectJumpBox::entries(auth()->user());
     $current = request()->route('project');
     $sections = [
-        '最近使ったプロジェクト' => $groups['recent'],
-        'ブックマーク' => $groups['bookmarked'],
-        'すべてのプロジェクト' => $groups['all'],
+        __('最近使ったプロジェクト') => $groups['recent'],
+        __('ブックマーク') => $groups['bookmarked'],
+        __('すべてのプロジェクト') => $groups['all'],
     ];
 @endphp
 
 @if ($groups['all']->isNotEmpty() || $groups['bookmarked']->isNotEmpty())
     <details class="relative" data-project-jump-box x-data="{ q: '' }">
         <summary class="cursor-pointer list-none rounded-md border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50">
-            {{ $current instanceof \App\Models\Project ? $current->name : 'プロジェクトへ移動' }}
+            {{ $current instanceof \App\Models\Project ? $current->name : __('プロジェクトへ移動') }}
         </summary>
         <div class="absolute left-0 z-20 mt-1 w-64 rounded-md border border-neutral-200 bg-white p-2 shadow-lg">
-            <input type="text" x-model="q" placeholder="プロジェクトを検索" autocomplete="off"
+            <input type="text" x-model="q" placeholder="{{ __('プロジェクトを検索') }}" autocomplete="off"
                 class="mb-2 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
             <div class="max-h-72 overflow-y-auto text-sm">
                 @foreach ($sections as $label => $projects)
@@ -35,7 +35,7 @@
                     @endif
                 @endforeach
             </div>
-            <a href="{{ route('projects.index') }}" class="mt-2 block border-t border-neutral-100 px-2 pt-2 text-sm text-brand-bold hover:underline">プロジェクト一覧</a>
+            <a href="{{ route('projects.index') }}" class="mt-2 block border-t border-neutral-100 px-2 pt-2 text-sm text-brand-bold hover:underline">{{ __('プロジェクト一覧') }}</a>
         </div>
     </details>
 @endif

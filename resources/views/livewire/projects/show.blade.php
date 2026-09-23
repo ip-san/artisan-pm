@@ -97,7 +97,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if ($this->deleteConfirmationInput !== $this->project->identifier) {
-            $this->addError('deleteConfirmationInput', '識別子が一致しません。');
+            $this->addError('deleteConfirmationInput', __('識別子が一致しません。'));
 
             return;
         }
@@ -126,7 +126,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 {{ $project->name }}
                 @unless ($project->isOpen())
                     <span class="ml-1 rounded bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 align-middle">
-                        {{ $project->status === \App\Enums\ProjectStatus::Archived ? 'アーカイブ済み' : 'クローズ' }}
+                        {{ $project->status === \App\Enums\ProjectStatus::Archived ? __('アーカイブ済み') : __('クローズ') }}
                     </span>
                 @endunless
             </h1>
@@ -134,38 +134,38 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
         <div class="flex gap-2">
             <button wire:click="toggleBookmark" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                {{ $project->isBookmarkedBy(auth()->user()) ? '★ ブックマーク解除' : '☆ ブックマーク' }}
+                {{ $project->isBookmarkedBy(auth()->user()) ? __('★ ブックマーク解除') : __('☆ ブックマーク') }}
             </button>
             <a href="{{ route('activity.index', $project) }}"
                 class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                活動
+                {{ __('活動') }}
             </a>
             <a href="{{ route('search.index', $project) }}"
                 class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                検索
+                {{ __('検索') }}
             </a>
             @can('viewAny', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.index', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    課題
+                    {{ __('課題') }}
                 </a>
             @endcan
             @can('viewCalendar', $project)
                 <a href="{{ route('calendar.index', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    カレンダー
+                    {{ __('カレンダー') }}
                 </a>
             @endcan
             @can('viewGantt', $project)
                 <a href="{{ route('gantt.index', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    ガントチャート
+                    {{ __('ガントチャート') }}
                 </a>
             @endcan
             @can('viewAny', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.index', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    工数
+                    {{ __('工数') }}
                 </a>
             @endcan
             @can('viewAny', [\App\Models\WikiPage::class, $project])
@@ -177,85 +177,85 @@ new #[Layout('components.layouts.app')] class extends Component
             @can('viewAny', [\App\Models\Board::class, $project])
                 <a href="{{ route('boards.index', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    フォーラム
+                    {{ __('フォーラム') }}
                 </a>
             @endcan
             @can('viewAny', [\App\Models\News::class, $project])
                 <a href="{{ route('news.index', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    お知らせ
+                    {{ __('お知らせ') }}
                 </a>
             @endcan
             @can('viewAny', [\App\Models\Document::class, $project])
                 <a href="{{ route('documents.index', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    文書
+                    {{ __('文書') }}
                 </a>
             @endcan
             @can('viewAny', [\App\Models\Version::class, $project])
                 <a href="{{ route('files.index', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    ファイル
+                    {{ __('ファイル') }}
                 </a>
             @endcan
             @can('viewAny', [\App\Models\Repository::class, $project])
                 <a href="{{ route('repository.index', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    リポジトリ
+                    {{ __('リポジトリ') }}
                 </a>
             @endcan
             @can('manageMembers', $project)
                 <a href="{{ route('projects.members', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    メンバー管理
+                    {{ __('メンバー管理') }}
                 </a>
             @endcan
             @can('update', $project)
                 <a href="{{ route('projects.activities', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    作業分類
+                    {{ __('作業分類') }}
                 </a>
             @endcan
             @can('viewAny', [\App\Models\IssueCategory::class, $project])
                 <a href="{{ route('issue-categories.index', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    課題カテゴリ
+                    {{ __('課題カテゴリ') }}
                 </a>
             @endcan
             @can('viewRoadmap', [\App\Models\Version::class, $project])
                 <a href="{{ route('versions.roadmap', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    ロードマップ
+                    {{ __('ロードマップ') }}
                 </a>
             @endcan
             @can('manageVersions', [\App\Models\Version::class, $project])
                 <a href="{{ route('versions.index', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    バージョン
+                    {{ __('バージョン') }}
                 </a>
             @endcan
             @can('update', $project)
                 <a href="{{ route('projects.edit', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    編集
+                    {{ __('編集') }}
                 </a>
             @endcan
             @can('createSubproject', $project)
                 <a href="{{ route('projects.create') }}?parent_id={{ $project->id }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    サブプロジェクトを追加
+                    {{ __('サブプロジェクトを追加') }}
                 </a>
             @endcan
             @can('close', $project)
                 @if ($project->status === \App\Enums\ProjectStatus::Active)
-                    <button wire:click="closeProject" wire:confirm="このプロジェクトをクローズしますか?"
+                    <button wire:click="closeProject" wire:confirm="{{ __('このプロジェクトをクローズしますか?') }}"
                         class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                        クローズ
+                        {{ __('クローズする') }}
                     </button>
                 @elseif ($project->status === \App\Enums\ProjectStatus::Closed)
                     <button wire:click="reopenProject"
                         class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                        再オープン
+                        {{ __('再オープン') }}
                     </button>
                 @endif
             @endcan
@@ -263,12 +263,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 @if ($project->status === \App\Enums\ProjectStatus::Archived)
                     <button wire:click="unarchiveProject"
                         class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                        アーカイブ解除
+                        {{ __('アーカイブ解除') }}
                     </button>
                 @else
-                    <button wire:click="archiveProject" wire:confirm="このプロジェクトをアーカイブしますか?アーカイブ中は編集できなくなります。"
+                    <button wire:click="archiveProject" wire:confirm="{{ __('このプロジェクトをアーカイブしますか?アーカイブ中は編集できなくなります。') }}"
                         class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                        アーカイブ
+                        {{ __('アーカイブ') }}
                     </button>
                 @endif
             @endcan
@@ -277,13 +277,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @can('delete', $project)
         <div class="mb-6 rounded-md border border-danger-subtler bg-danger-subtlest p-4">
-            <h2 class="text-sm font-semibold text-danger-boldest">プロジェクトの削除</h2>
+            <h2 class="text-sm font-semibold text-danger-boldest">{{ __('プロジェクトの削除') }}</h2>
             <p class="mt-1 text-xs text-danger-bolder">
-                この操作は取り消せません。課題・Wiki・バージョン等、このプロジェクトに属するすべてのデータ
-                @unless ($project->isLeaf())
-                    (サブプロジェクトを含む)
-                @endunless
-                が完全に削除されます。確認のため識別子「{{ $project->identifier }}」を入力してください。
+                @if ($project->isLeaf())
+                    {{ __('この操作は取り消せません。課題・Wiki・バージョン等、このプロジェクトに属するすべてのデータが完全に削除されます。確認のため識別子「:identifier」を入力してください。', ['identifier' => $project->identifier]) }}
+                @else
+                    {{ __('この操作は取り消せません。課題・Wiki・バージョン等、このプロジェクトに属するすべてのデータ(サブプロジェクトを含む)が完全に削除されます。確認のため識別子「:identifier」を入力してください。', ['identifier' => $project->identifier]) }}
+                @endif
             </p>
             <form wire:submit="deleteProject" class="mt-3 flex items-end gap-2">
                 <div>
@@ -291,9 +291,9 @@ new #[Layout('components.layouts.app')] class extends Component
                         class="block rounded-md border-neutral-300 shadow-sm text-sm">
                     @error('deleteConfirmationInput') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
-                <button type="submit" wire:confirm="本当にこのプロジェクトを削除しますか?この操作は取り消せません。"
+                <button type="submit" wire:confirm="{{ __('本当にこのプロジェクトを削除しますか?この操作は取り消せません。') }}"
                     class="rounded-md bg-danger-bolder px-3 py-2 text-sm font-medium text-white hover:bg-danger-subtle">
-                    削除
+                    {{ __('削除') }}
                 </button>
             </form>
         </div>
@@ -301,7 +301,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($project->homepage !== null && $project->homepage !== '')
         <p class="text-sm text-neutral-700 mb-2">
-            <span class="text-neutral-500">ホームページ:</span>
+            <span class="text-neutral-500">{{ __('ホームページ:') }}</span>
             @if ($project->homepageUrl())
                 <a href="{{ $project->homepageUrl() }}" rel="noopener noreferrer" class="text-brand-bold hover:underline">{{ $project->homepage }}</a>
             @else
@@ -317,26 +317,26 @@ new #[Layout('components.layouts.app')] class extends Component
     @can('viewAny', [\App\Models\TimeEntry::class, $project])
         @if ($this->totalSpentHours > 0)
             <div class="rounded-md border border-neutral-200 bg-white p-4 mb-6">
-                <h2 class="text-sm font-semibold text-neutral-900 mb-2">実績工数</h2>
-                <p class="text-sm text-neutral-700">{{ \App\Support\Format\Hours::format($this->totalSpentHours) }} 時間</p>
+                <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('実績工数') }}</h2>
+                <p class="text-sm text-neutral-700">{{ __(':hours 時間', ['hours' => \App\Support\Format\Hours::format($this->totalSpentHours)]) }}</p>
             </div>
         @endif
     @endcan
 
     <div class="rounded-md border border-neutral-200 bg-white p-4">
-        <h2 class="text-sm font-semibold text-neutral-900 mb-2">有効なモジュール</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('有効なモジュール') }}</h2>
         <div class="flex flex-wrap gap-2">
             @forelse ($project->moduleAssignments as $assignment)
                 <span class="rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-700">{{ $assignment->module->value }}</span>
             @empty
-                <span class="text-sm text-neutral-500">有効なモジュールはありません。</span>
+                <span class="text-sm text-neutral-500">{{ __('有効なモジュールはありません。') }}</span>
             @endforelse
         </div>
     </div>
 
     @if ($project->children->isNotEmpty())
         <div class="mt-6">
-            <h2 class="text-sm font-semibold text-neutral-900 mb-2">サブプロジェクト</h2>
+            <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('サブプロジェクト') }}</h2>
             <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
                 @foreach ($project->children as $child)
                     <li class="px-4 py-2">

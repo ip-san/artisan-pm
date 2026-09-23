@@ -6,7 +6,7 @@
 @props(['memberships', 'projects', 'roles', 'editing' => null])
 
 <section class="mt-8 rounded-md border border-neutral-200 bg-white p-4" data-principal-memberships>
-    <h2 class="mb-3 text-sm font-semibold text-neutral-900">プロジェクト</h2>
+    <h2 class="mb-3 text-sm font-semibold text-neutral-900">{{ __('プロジェクト') }}</h2>
 
     <ul class="mb-4 divide-y divide-neutral-100 text-sm">
         @forelse ($memberships as $member)
@@ -16,12 +16,12 @@
                     <span class="ml-2 text-xs text-neutral-500">{{ $member->roles->pluck('name')->join(', ') }}</span>
                 </span>
                 <span class="flex gap-3">
-                    <button type="button" wire:click="editMembership({{ $member->id }})" class="text-brand-bold hover:underline">編集</button>
-                    <button type="button" wire:click="removeMembership({{ $member->id }})" wire:confirm="このプロジェクトから外しますか?" class="text-danger-bolder hover:underline">削除</button>
+                    <button type="button" wire:click="editMembership({{ $member->id }})" class="text-brand-bold hover:underline">{{ __('編集') }}</button>
+                    <button type="button" wire:click="removeMembership({{ $member->id }})" wire:confirm="{{ __('このプロジェクトから外しますか?') }}" class="text-danger-bolder hover:underline">{{ __('削除') }}</button>
                 </span>
             </li>
         @empty
-            <li class="py-2 text-neutral-500">所属するプロジェクトはありません。</li>
+            <li class="py-2 text-neutral-500">{{ __('所属するプロジェクトはありません。') }}</li>
         @endforelse
     </ul>
 
@@ -29,9 +29,9 @@
         <div class="space-y-3 border-t border-neutral-100 pt-3">
             @if ($editing === null)
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">プロジェクトを追加</label>
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('プロジェクトを追加') }}</label>
                     <select wire:model="membershipProjectId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
-                        <option value="">選択してください</option>
+                        <option value="">{{ __('選択してください') }}</option>
                         @foreach ($projects as $project)
                             <option value="{{ $project->id }}">{{ $project->name }}</option>
                         @endforeach
@@ -39,7 +39,7 @@
                     @error('membershipProjectId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
             @else
-                <p class="text-xs font-medium text-neutral-700">「{{ $editing->project->name }}」のロールを変更</p>
+                <p class="text-xs font-medium text-neutral-700">{{ __('「:project」のロールを変更', ['project' => $editing->project->name]) }}</p>
             @endif
 
             <div class="flex flex-wrap gap-3 text-sm text-neutral-700">
@@ -54,10 +54,10 @@
 
             <div class="flex gap-2">
                 <button type="button" wire:click="saveMembership" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">
-                    {{ $editing === null ? '追加' : '更新' }}
+                    {{ $editing === null ? __('追加') : __('更新') }}
                 </button>
                 @if ($editing !== null)
-                    <button type="button" wire:click="cancelMembershipEdit" class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">キャンセル</button>
+                    <button type="button" wire:click="cancelMembershipEdit" class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">{{ __('キャンセル') }}</button>
                 @endif
             </div>
         </div>

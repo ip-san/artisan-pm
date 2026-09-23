@@ -24,7 +24,7 @@
     @elseif ($isChoice)
         <select name="{{ $name }}" @if ($field->multiple) multiple @endif class="{{ $inputClass }}">
             @unless ($field->multiple)
-                <option value="">選択してください</option>
+                <option value="">{{ __('選択してください') }}</option>
             @endunless
             @foreach ($field->format()->options($field) as $value => $label)
                 <option value="{{ $value }}" @selected(in_array((string) $value, array_map('strval', (array) $old), true))>{{ $label }}</option>

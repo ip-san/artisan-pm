@@ -157,35 +157,35 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">プロジェクト</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __('プロジェクト') }}</h1>
         @can('create', \App\Models\Project::class)
             <a href="{{ route('projects.create') }}"
                 class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                新規プロジェクト
+                {{ __('新規プロジェクト') }}
             </a>
         @endcan
     </div>
 
     <div class="mb-4 flex flex-wrap items-end gap-3">
         <div>
-            <label class="block text-xs font-medium text-neutral-700">検索</label>
-            <input type="text" wire:model.live.debounce.400ms="search" placeholder="名前・識別子で検索"
+            <label class="block text-xs font-medium text-neutral-700">{{ __('検索') }}</label>
+            <input type="text" wire:model.live.debounce.400ms="search" placeholder="{{ __('名前・識別子で検索') }}"
                 class="mt-1 block rounded-md border-neutral-300 text-sm">
         </div>
         <div>
-            <label class="block text-xs font-medium text-neutral-700">ステータス</label>
+            <label class="block text-xs font-medium text-neutral-700">{{ __('ステータス') }}</label>
             <select wire:model.live="statusFilter" class="mt-1 block rounded-md border-neutral-300 text-sm">
-                <option value="all">すべて</option>
-                <option value="active">アクティブ</option>
-                <option value="closed">クローズ</option>
-                <option value="archived">アーカイブ済み</option>
+                <option value="all">{{ __('すべて') }}</option>
+                <option value="active">{{ __('アクティブ') }}</option>
+                <option value="closed">{{ __('クローズ') }}</option>
+                <option value="archived">{{ __('アーカイブ済み') }}</option>
             </select>
         </div>
     </div>
 
     <label class="mb-3 flex items-center gap-2 text-sm text-neutral-700">
         <input type="checkbox" wire:model.live="bookmarkedOnly" class="rounded border-neutral-300">
-        ブックマークしたプロジェクトのみ表示
+        {{ __('ブックマークしたプロジェクトのみ表示') }}
     </label>
 
     <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
@@ -197,7 +197,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </a>
                     <span class="ml-2 text-xs text-neutral-500">{{ $project->identifier }}</span>
                     @unless ($project->is_public)
-                        <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">非公開</span>
+                        <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ __('非公開') }}</span>
                     @endunless
                     @if ($project->description)
                         <p class="mt-1 text-sm text-neutral-600">{{ $project->description }}</p>
@@ -205,12 +205,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 <button wire:click="toggleBookmark({{ $project->id }})" wire:key="bookmark-{{ $project->id }}"
                     class="shrink-0 text-lg leading-none {{ $project->isBookmarkedBy(auth()->user()) ? 'text-warning' : 'text-neutral-300 hover:text-neutral-400' }}"
-                    title="ブックマーク">
+                    title="{{ __('ブックマーク') }}">
                     ★
                 </button>
             </li>
         @empty
-            <li class="px-4 py-6 text-sm text-neutral-500">プロジェクトがありません。</li>
+            <li class="px-4 py-6 text-sm text-neutral-500">{{ __('プロジェクトがありません。') }}</li>
         @endforelse
     </ul>
 

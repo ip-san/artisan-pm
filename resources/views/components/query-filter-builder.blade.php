@@ -11,7 +11,7 @@
 --}}
 @props(['engine', 'activeFilterKeys', 'filterOperators'])
 <div class="mb-3 flex flex-wrap items-center gap-2 text-sm">
-    <span class="font-medium text-neutral-700">フィルタを追加:</span>
+    <span class="font-medium text-neutral-700">{{ __('フィルタを追加:') }}</span>
     @foreach ($engine->fields() as $field)
         @unless (in_array($field->key(), $activeFilterKeys, true))
             <button wire:key="add-filter-{{ $field->key() }}" wire:click="addFilter('{{ $field->key() }}')" class="rounded-full border border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-50">
@@ -44,7 +44,7 @@
                             </select>
                         @else
                             <select wire:model="filterValues.{{ $key }}.0" class="rounded-md border-neutral-300 text-sm">
-                                <option value="">選択してください</option>
+                                <option value="">{{ __('選択してください') }}</option>
                                 @foreach ($field->options() as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
                                 @endforeach
@@ -53,13 +53,13 @@
                     @elseif ($field->type() === \App\Enums\FilterFieldType::Date)
                         <input type="date" wire:model="filterValues.{{ $key }}.0" class="rounded-md border-neutral-300 text-sm">
                         @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)
-                            <span class="text-neutral-400">〜</span>
+                            <span class="text-neutral-400">{{ __('〜') }}</span>
                             <input type="date" wire:model="filterValues.{{ $key }}.1" class="rounded-md border-neutral-300 text-sm">
                         @endif
                     @elseif ($field->type() === \App\Enums\FilterFieldType::Integer)
                         <input type="number" step="0.01" wire:model="filterValues.{{ $key }}.0" class="w-24 rounded-md border-neutral-300 text-sm">
                         @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)
-                            <span class="text-neutral-400">〜</span>
+                            <span class="text-neutral-400">{{ __('〜') }}</span>
                             <input type="number" step="0.01" wire:model="filterValues.{{ $key }}.1" class="w-24 rounded-md border-neutral-300 text-sm">
                         @endif
                     @else
@@ -67,7 +67,7 @@
                     @endif
                 @endif
 
-                <button wire:click="removeFilter('{{ $key }}')" class="text-xs text-danger-bolder hover:underline">削除</button>
+                <button wire:click="removeFilter('{{ $key }}')" class="text-xs text-danger-bolder hover:underline">{{ __('削除') }}</button>
             </div>
         @endforeach
     </div>

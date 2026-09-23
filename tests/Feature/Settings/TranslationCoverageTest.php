@@ -18,6 +18,10 @@ function translatedViews(): array
     return [
         'resources/views/components/layouts/app.blade.php',
         ...glob(base_path('resources/views/livewire/issues/*.blade.php')),
+        ...glob(base_path('resources/views/livewire/projects/*.blade.php')),
+        ...glob(base_path('resources/views/livewire/versions/*.blade.php')),
+        ...glob(base_path('resources/views/livewire/issue-categories/*.blade.php')),
+        ...glob(base_path('resources/views/components/*.blade.php')),
     ];
 }
 
@@ -105,4 +109,15 @@ test('the issue list is shown in English for an English user', function () {
     $this->actingAs(User::factory()->admin()->create(['language' => 'en']))
         ->get(route('issues.index', $project))
         ->assertOk()->assertSee('My page')->assertDontSee('マイページ');
+});
+
+test('the project overview and roadmap are shown in English for an English user', function () {
+    $project = Project::factory()->create();
+    $english = User::factory()->admin()->create(['language' => 'en']);
+
+    $this->actingAs($english)->get(route('projects.show', $project))
+        ->assertOk()->assertSee('Close')->assertDontSee('クローズする');
+
+    $this->actingAs($english)->get(route('versions.roadmap', $project))
+        ->assertOk()->assertDontSee('マイページ');
 });

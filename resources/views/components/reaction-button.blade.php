@@ -8,7 +8,12 @@
     // The 👍 glyph is aria-hidden and the counter is a bare number, so with
     // no explicit label a screen reader announces this control as just
     // "button" (nobody has reacted yet) or "3" — neither says what it does.
-    $label = ($canReact && $reacted ? 'いいねを取り消す' : 'いいね').($count > 0 ? "（{$count}件）" : '');
+    $label = match (true) {
+        $canReact && $reacted && $count > 0 => __('いいねを取り消す（:count件）', ['count' => $count]),
+        $canReact && $reacted => __('いいねを取り消す'),
+        $count > 0 => __('いいね（:count件）', ['count' => $count]),
+        default => __('いいね'),
+    };
 @endphp
 
 @if ($canReact || $count > 0)

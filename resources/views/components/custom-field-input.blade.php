@@ -23,7 +23,7 @@
         @else
             <select wire:model="{{ $path }}" @disabled($disabled)
                 class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <option value="">選択してください</option>
+                <option value="">{{ __('選択してください') }}</option>
                 @foreach ($field->optionsFor($project) as $value => $label)
                     <option value="{{ $value }}">{{ $label }}</option>
                 @endforeach

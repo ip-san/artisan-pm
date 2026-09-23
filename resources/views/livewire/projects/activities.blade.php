@@ -75,15 +75,15 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         }
 
-        session()->flash('status', '保存しました。');
+        session()->flash('status', __('保存しました。'));
     }
 }; ?>
 
 <div class="max-w-xl">
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — 作業分類</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __(':project — 作業分類', ['project' => $project->name]) }}</h1>
 
     <p class="mb-4 text-sm text-neutral-500">
-        このプロジェクトで使用しない作業分類のチェックを外してください。名前の変更はできません(システム全体の値の管理は管理者設定から行います)。
+        {{ __('このプロジェクトで使用しない作業分類のチェックを外してください。名前の変更はできません(システム全体の値の管理は管理者設定から行います)。') }}
     </p>
 
     @if (session('status'))
@@ -97,12 +97,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     <span class="text-sm text-neutral-900">
                         {{ $activity->name }}
                         @unless ($activity->active)
-                            <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">システム全体で無効</span>
+                            <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ __('システム全体で無効') }}</span>
                         @endunless
                     </span>
                     <label class="flex items-center gap-2 text-sm text-neutral-700">
                         <input type="checkbox" wire:model="active.{{ $activity->id }}" class="rounded border-neutral-300">
-                        有効
+                        {{ __('有効') }}
                     </label>
                 </li>
             @endforeach
@@ -110,11 +110,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
-                保存
+                {{ __('保存') }}
             </button>
             <a href="{{ route('projects.show', $project) }}"
                 class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                戻る
+                {{ __('戻る') }}
             </a>
         </div>
     </form>

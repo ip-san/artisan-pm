@@ -32,7 +32,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('delete', $version);
 
         if ($version->issues()->exists()) {
-            session()->flash('error', 'このバージョンが割り当てられた課題があるため削除できません。');
+            session()->flash('error', __('このバージョンが割り当てられた課題があるため削除できません。'));
 
             return;
         }
@@ -50,21 +50,21 @@ new #[Layout('components.layouts.app')] class extends Component
 
         unset($this->versions);
 
-        session()->flash('status', '完了したバージョンをクローズしました。');
+        session()->flash('status', __('完了したバージョンをクローズしました。'));
     }
 }; ?>
 
 <div>
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — バージョン</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — バージョン', ['project' => $project->name]) }}</h1>
         <div class="flex gap-2">
-            <button wire:click="closeCompleted" wire:confirm="期日を過ぎ、未クローズの課題が残っていないオープン/ロック中のバージョンをすべてクローズします。よろしいですか?"
+            <button wire:click="closeCompleted" wire:confirm="{{ __('期日を過ぎ、未クローズの課題が残っていないオープン/ロック中のバージョンをすべてクローズします。よろしいですか?') }}"
                 class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                完了したバージョンをクローズ
+                {{ __('完了したバージョンをクローズ') }}
             </button>
             <a href="{{ route('versions.create', $project) }}"
                 class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                新規バージョン
+                {{ __('新規バージョン') }}
             </a>
         </div>
     </div>
@@ -85,16 +85,16 @@ new #[Layout('components.layouts.app')] class extends Component
                         <span class="font-medium text-neutral-900">{{ $version->name }}</span>
                         <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">
                             {{ match ($version->status) {
-                                \App\Enums\VersionStatus::Open => 'オープン',
-                                \App\Enums\VersionStatus::Locked => 'ロック中',
-                                \App\Enums\VersionStatus::Closed => 'クローズ',
+                                \App\Enums\VersionStatus::Open => __('オープン'),
+                                \App\Enums\VersionStatus::Locked => __('ロック中'),
+                                \App\Enums\VersionStatus::Closed => __('クローズ'),
                             } }}
                         </span>
                         @if ($project->default_version_id === $version->id)
-                            <span class="ml-2 rounded bg-warning-subtlest px-1.5 py-0.5 text-xs text-warning-bold">既定</span>
+                            <span class="ml-2 rounded bg-warning-subtlest px-1.5 py-0.5 text-xs text-warning-bold">{{ __('既定') }}</span>
                         @endif
                         @if ($version->due_date)
-                            <span class="ml-2 text-xs text-neutral-500">期日: {{ $version->due_date->toDateString() }}</span>
+                            <span class="ml-2 text-xs text-neutral-500">{{ __('期日: :date', ['date' => $version->due_date->toDateString()]) }}</span>
                         @endif
                         @if ($version->sharing !== \App\Enums\VersionSharing::None)
                             <span class="ml-2 rounded bg-brand-subtlest px-1.5 py-0.5 text-xs text-brand-bolder">{{ $version->sharing->label() }}</span>
@@ -111,19 +111,19 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endif
                     </div>
                     <div class="flex gap-3">
-                        <a href="{{ route('versions.edit', [$project, $version]) }}" class="text-sm text-brand-bold hover:underline">編集</a>
-                        <button wire:click="delete({{ $version->id }})" wire:confirm="このバージョンを削除しますか?"
-                            class="text-sm text-danger-bolder hover:underline">削除</button>
+                        <a href="{{ route('versions.edit', [$project, $version]) }}" class="text-sm text-brand-bold hover:underline">{{ __('編集') }}</a>
+                        <button wire:click="delete({{ $version->id }})" wire:confirm="{{ __('このバージョンを削除しますか?') }}"
+                            class="text-sm text-danger-bolder hover:underline">{{ __('削除') }}</button>
                     </div>
                 </div>
                 <div class="mt-2 flex gap-4 text-xs text-neutral-500">
-                    <span>予定工数: {{ \App\Support\Format\Hours::format($version->estimatedHours()) }} 時間</span>
-                    <span>実績工数: {{ \App\Support\Format\Hours::format($version->spentHours()) }} 時間</span>
-                    <span>残工数: {{ \App\Support\Format\Hours::format($version->estimatedRemainingHours()) }} 時間</span>
+                    <span>{{ __('予定工数: :hours 時間', ['hours' => \App\Support\Format\Hours::format($version->estimatedHours())]) }}</span>
+                    <span>{{ __('実績工数: :hours 時間', ['hours' => \App\Support\Format\Hours::format($version->spentHours())]) }}</span>
+                    <span>{{ __('残工数: :hours 時間', ['hours' => \App\Support\Format\Hours::format($version->estimatedRemainingHours())]) }}</span>
                 </div>
             </li>
         @empty
-            <li class="px-4 py-6 text-sm text-neutral-500">バージョンがありません。</li>
+            <li class="px-4 py-6 text-sm text-neutral-500">{{ __('バージョンがありません。') }}</li>
         @endforelse
     </ul>
 </div>

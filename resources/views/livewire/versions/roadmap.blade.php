@@ -75,10 +75,10 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-3xl">
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — ロードマップ</h1>
+    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __(':project — ロードマップ', ['project' => $project->name]) }}</h1>
 
     @if ($this->versions->isEmpty())
-        <p class="text-sm text-neutral-500">表示できるバージョンがありません。</p>
+        <p class="text-sm text-neutral-500">{{ __('表示できるバージョンがありません。') }}</p>
     @endif
 
     <div class="space-y-6">
@@ -96,20 +96,20 @@ new #[Layout('components.layouts.app')] class extends Component
                     </h2>
                     <span class="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">
                         {{ match ($version->status) {
-                            VersionStatus::Open => 'オープン',
-                            VersionStatus::Locked => 'ロック中',
-                            VersionStatus::Closed => 'クローズ',
+                            VersionStatus::Open => __('オープン'),
+                            VersionStatus::Locked => __('ロック中'),
+                            VersionStatus::Closed => __('クローズ'),
                         } }}
                     </span>
                 </div>
 
                 @if ($version->due_date)
                     <p class="mt-1 text-sm {{ $version->due_date->isPast() ? 'font-medium text-danger-bolder' : 'text-neutral-600' }}">
-                        期日: {{ $version->due_date->toDateString() }}
+                        {{ __('期日: :date', ['date' => $version->due_date->toDateString()]) }}
                         @if ($version->due_date->isPast())
-                            ({{ $version->due_date->diffInDays(now()) }}日超過)
+                            {{ __('(:days日超過)', ['days' => $version->due_date->diffInDays(now())]) }}
                         @else
-                            (あと{{ now()->diffInDays($version->due_date) }}日)
+                            {{ __('(あと:days日)', ['days' => now()->diffInDays($version->due_date)]) }}
                         @endif
                     </p>
                 @endif
@@ -120,21 +120,21 @@ new #[Layout('components.layouts.app')] class extends Component
 
                 @if ($total > 0)
                     <div class="mt-3">
-                        <div class="h-3 w-full overflow-hidden rounded bg-neutral-100" title="完了率: {{ $completedPercent }}%">
+                        <div class="h-3 w-full overflow-hidden rounded bg-neutral-100" title="{{ __('完了率: :percent%', ['percent' => $completedPercent]) }}">
                             <div class="flex h-full">
                                 <div class="h-full bg-brand-bold" style="width: {{ $closedPercent }}%"></div>
                                 <div class="h-full bg-brand-subtle" style="width: {{ max(0, $completedPercent - $closedPercent) }}%"></div>
                             </div>
                         </div>
                         <p class="mt-1 text-xs text-neutral-500">
-                            <a href="{{ $this->issuesUrl($version, 'all') }}" class="text-brand-bold hover:underline">{{ $total }}件の課題</a>
-                            (<a href="{{ $this->issuesUrl($version, 'closed') }}" class="text-brand-bold hover:underline">クローズ済み{{ $counts['closed'] }}件</a>
-                            — <a href="{{ $this->issuesUrl($version, 'open') }}" class="text-brand-bold hover:underline">オープン{{ $counts['open'] }}件</a>)
-                            — 完了率 {{ $completedPercent }}%
+                            <a href="{{ $this->issuesUrl($version, 'all') }}" class="text-brand-bold hover:underline">{{ __(':count件の課題', ['count' => $total]) }}</a>
+                            (<a href="{{ $this->issuesUrl($version, 'closed') }}" class="text-brand-bold hover:underline">{{ __('クローズ済み:count件', ['count' => $counts['closed']]) }}</a>
+                            — <a href="{{ $this->issuesUrl($version, 'open') }}" class="text-brand-bold hover:underline">{{ __('オープン:count件', ['count' => $counts['open']]) }}</a>)
+                            — {{ __('完了率 :percent%', ['percent' => $completedPercent]) }}
                         </p>
                     </div>
                 @else
-                    <p class="mt-3 text-xs text-neutral-400">このバージョンに割り当てられた課題はありません。</p>
+                    <p class="mt-3 text-xs text-neutral-400">{{ __('このバージョンに割り当てられた課題はありません。') }}</p>
                 @endif
             </article>
         @endforeach
