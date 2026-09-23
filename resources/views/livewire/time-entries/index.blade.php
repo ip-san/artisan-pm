@@ -46,7 +46,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public const DISPLAY_COLUMNS = [
         'spent_on' => '日付',
-        'user_id' => '担当者',
+        'user_id' => 'ユーザー',
         'activity_id' => '作業分類',
         'issue_id' => '課題',
         'comments' => 'コメント',
@@ -62,7 +62,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         return [
             'spent_on' => __('日付'),
-            'user_id' => __('担当者'),
+            'user_id' => __('ユーザー'),
             'activity_id' => __('作業分類'),
             'issue_id' => __('課題'),
             'comments' => __('コメント'),
@@ -755,7 +755,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 {{ __('グループ化:') }}
                 <select wire:model.live="groupBy" class="rounded-md border-neutral-300 text-sm">
                     <option value="">{{ __('なし') }}</option>
-                    <option value="user_id">{{ __('担当者') }}</option>
+                    <option value="user_id">{{ __('ユーザー') }}</option>
                     <option value="activity_id">{{ __('作業分類') }}</option>
                     <option value="spent_on">{{ __('日付') }}</option>
                 </select>
@@ -813,7 +813,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @if ($this->canLogForOthers)
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('担当者') }}</label>
+                    <label class="block text-xs font-medium text-neutral-700">{{ __('ユーザー') }}</label>
                     <select wire:model="bulkUserId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
                         @foreach ($this->bulkTargetProject->loadMissing('users')->users as $member)

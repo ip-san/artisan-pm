@@ -154,7 +154,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <input type="date" wire:model="from" class="mt-1 block rounded-md border-neutral-300 text-sm">
         </div>
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('終了日') }}</label>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('終了') }}</label>
             <input type="date" wire:model="to" class="mt-1 block rounded-md border-neutral-300 text-sm">
         </div>
         <div class="flex flex-wrap gap-3">

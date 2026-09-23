@@ -257,7 +257,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($this->canManageOthers)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('担当者') }}</label>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('ユーザー') }}</label>
                 <select wire:model="user_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach ($this->projectMembers as $member)
                         <option value="{{ $member->id }}">{{ $member->name }}</option>

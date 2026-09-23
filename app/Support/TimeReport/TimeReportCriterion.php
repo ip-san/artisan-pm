@@ -39,7 +39,7 @@ enum TimeReportCriterion: string
             self::Status => __('ステータス'),
             self::Version => __('バージョン'),
             self::Category => __('カテゴリ'),
-            self::User => __('担当者'),
+            self::User => __('ユーザー'),
             self::Tracker => __('トラッカー'),
             self::Activity => __('作業分類'),
             self::Issue => __('課題'),

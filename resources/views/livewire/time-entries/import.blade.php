@@ -25,7 +25,7 @@ new #[Layout('components.layouts.app')] class extends Component
         'hours' => '時間(必須)',
         'activity' => '作業分類(名前)',
         'issue' => '課題(#番号)',
-        'user' => '担当者(メールアドレス、log_time_for_other_users権限が必要)',
+        'user' => 'ユーザー(メールアドレス、log_time_for_other_users権限が必要)',
         'comments' => 'コメント',
     ];
 
@@ -41,7 +41,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'hours' => __('時間(必須)'),
             'activity' => __('作業分類(名前)'),
             'issue' => __('課題(#番号)'),
-            'user' => __('担当者(メールアドレス、log_time_for_other_users権限が必要)'),
+            'user' => __('ユーザー(メールアドレス、log_time_for_other_users権限が必要)'),
             'comments' => __('コメント'),
         ];
     }

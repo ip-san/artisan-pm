@@ -31,7 +31,7 @@ final class ListDefaults
      */
     public const array TIME_ENTRY_COLUMNS = [
         'spent_on' => '日付',
-        'user_id' => '担当者',
+        'user_id' => 'ユーザー',
         'activity_id' => '作業分類',
         'issue_id' => '課題',
         'comments' => 'コメント',
@@ -61,7 +61,7 @@ final class ListDefaults
     {
         return [
             'spent_on' => __('日付'),
-            'user_id' => __('担当者'),
+            'user_id' => __('ユーザー'),
             'activity_id' => __('作業分類'),
             'issue_id' => __('課題'),
             'comments' => __('コメント'),

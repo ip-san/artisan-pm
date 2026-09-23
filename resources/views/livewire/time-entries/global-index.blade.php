@@ -45,7 +45,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public const array DISPLAY_COLUMNS = [
         'project_id' => 'プロジェクト',
         'spent_on' => '日付',
-        'user_id' => '担当者',
+        'user_id' => 'ユーザー',
         'activity_id' => '作業分類',
         'issue_id' => '課題',
         'comments' => 'コメント',
@@ -62,7 +62,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return [
             'project_id' => __('プロジェクト'),
             'spent_on' => __('日付'),
-            'user_id' => __('担当者'),
+            'user_id' => __('ユーザー'),
             'activity_id' => __('作業分類'),
             'issue_id' => __('課題'),
             'comments' => __('コメント'),
@@ -421,7 +421,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <select wire:model.live="groupBy" class="rounded-md border-neutral-300 text-sm">
                     <option value="">{{ __('なし') }}</option>
                     <option value="project_id">{{ __('プロジェクト') }}</option>
-                    <option value="user_id">{{ __('担当者') }}</option>
+                    <option value="user_id">{{ __('ユーザー') }}</option>
                     <option value="activity_id">{{ __('作業分類') }}</option>
                     <option value="spent_on">{{ __('日付') }}</option>
                 </select>

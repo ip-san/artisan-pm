@@ -99,7 +99,7 @@ test('the report exports a CSV with headings, rows and a totals row', function (
     $component = Livewire::actingAs($user)->test('time-entries.report', ['project' => $project])->set('criteria', ['user'])->set('period', 'year')->call('exportCsv');
     $csv = base64_decode($component->effects['download']['content']);
 
-    expect($csv)->toBe("\xEF\xBB\xBF".csvRow(['担当者', '2026', '合計']).csvRow(['Alice', '2.50', '2.50']).csvRow(['合計', '2.50', '2.50']));
+    expect($csv)->toBe("\xEF\xBB\xBF".csvRow(['ユーザー', '2026', '合計']).csvRow(['Alice', '2.50', '2.50']).csvRow(['合計', '2.50', '2.50']));
 });
 
 test('the cross-project report adds a project axis and only counts visible time', function () {
