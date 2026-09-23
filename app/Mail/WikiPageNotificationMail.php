@@ -33,13 +33,12 @@ final class WikiPageNotificationMail extends Mailable
     {
         $fromAddress = Setting::get('mail_from');
 
+        $replace = ['project' => $this->wikiPage->project->name, 'title' => $this->wikiPage->title];
+
         return new Envelope(
-            subject: sprintf(
-                '[%s] Wikiページ「%s」が%s',
-                $this->wikiPage->project->name,
-                $this->wikiPage->title,
-                $this->eventType === 'created' ? '追加されました' : '更新されました',
-            ),
+            subject: $this->eventType === 'created'
+                ? __('[:project] Wikiページ「:title」が追加されました', $replace)
+                : __('[:project] Wikiページ「:title」が更新されました', $replace),
             from: filled($fromAddress) ? new Address($fromAddress) : null,
         );
     }

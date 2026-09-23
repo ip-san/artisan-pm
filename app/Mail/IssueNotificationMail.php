@@ -31,39 +31,45 @@ final class IssueNotificationMail extends Mailable
 
     /**
      * Attribute keys from IssueService::JOURNALED_ATTRIBUTES that a
-     * Journal detail's `attr` property can carry, mapped to a Japanese
-     * label — the subset in Tracker::DISABLABLE_CORE_FIELDS plus the
-     * always-on fields it excludes.
+     * Journal detail's `attr` property can carry, mapped to their label —
+     * the fields in Tracker::DISABLABLE_CORE_FIELDS plus the always-on
+     * fields it excludes.
      *
-     * @var array<string, string>
+     * @return array<string, string>
      */
-    public const array ATTRIBUTE_LABELS = [
-        'project_id' => 'プロジェクト',
-        'tracker_id' => 'トラッカー',
-        'status_id' => 'ステータス',
-        'subject' => '題名',
-        'is_private' => '非公開',
-        ...Tracker::DISABLABLE_CORE_FIELDS,
-    ];
+    public static function attributeLabels(): array
+    {
+        return [
+            'project_id' => __('プロジェクト'),
+            'tracker_id' => __('トラッカー'),
+            'status_id' => __('ステータス'),
+            'subject' => __('題名'),
+            'is_private' => __('非公開'),
+            ...Tracker::disablableCoreFieldLabels(),
+        ];
+    }
 
     /**
      * A relation journal's prop_key is the relation as seen from this issue,
      * including the reversed names (blocked, duplicated, copied_from)
      * written on the receiving end.
      *
-     * @var array<string, string>
+     * @return array<string, string>
      */
-    public const array RELATION_LABELS = [
-        'relates' => '関連',
-        'blocks' => 'ブロックする',
-        'blocked' => 'ブロックされている',
-        'duplicates' => '重複する',
-        'duplicated' => '重複されている',
-        'precedes' => '先行',
-        'follows' => '後続',
-        'copied_to' => 'コピー先',
-        'copied_from' => 'コピー元',
-    ];
+    public static function relationLabels(): array
+    {
+        return [
+            'relates' => __('関連'),
+            'blocks' => __('ブロックする'),
+            'blocked' => __('ブロックされている'),
+            'duplicates' => __('重複する'),
+            'duplicated' => __('重複されている'),
+            'precedes' => __('先行'),
+            'follows' => __('後続'),
+            'copied_to' => __('コピー先'),
+            'copied_from' => __('コピー元'),
+        ];
+    }
 
     public function __construct(
         public readonly Issue $issue,
@@ -167,15 +173,17 @@ final class IssueNotificationMail extends Mailable
         }
 
         $customFieldNames = CustomField::query()->pluck('name', 'id');
+        $relationLabels = self::relationLabels();
+        $attributeLabels = self::attributeLabels();
 
         return $this->journal->details
             ->whereIn('property', ['attr', 'cf', 'attachment', 'relation'])
             ->map(fn ($detail) => [
                 'label' => match ($detail->property) {
                     'cf' => $customFieldNames[(int) $detail->prop_key] ?? $detail->prop_key,
-                    'attachment' => '添付ファイル',
-                    'relation' => self::RELATION_LABELS[$detail->prop_key] ?? $detail->prop_key,
-                    default => self::ATTRIBUTE_LABELS[$detail->prop_key] ?? $detail->prop_key,
+                    'attachment' => __('添付ファイル'),
+                    'relation' => $relationLabels[$detail->prop_key] ?? $detail->prop_key,
+                    default => $attributeLabels[$detail->prop_key] ?? $detail->prop_key,
                 },
                 'old' => $detail->property === 'relation' && $detail->old_value !== null ? "#{$detail->old_value}" : $detail->old_value,
                 'new' => $detail->property === 'relation' && $detail->new_value !== null ? "#{$detail->new_value}" : $detail->new_value,

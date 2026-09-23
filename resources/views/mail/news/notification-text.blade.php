@@ -4,7 +4,7 @@
 --
 
 @endif
-{{ $eventType === 'added' ? 'お知らせが投稿されました。' : 'お知らせにコメントが投稿されました。' }}({{ $actor->name }})
+{{ $eventType === 'added' ? __('お知らせが投稿されました。') : __('お知らせにコメントが投稿されました。') }}({{ $actor->name }})
 
 {{ $news->project->name }} - {{ $news->title }}
 {{ $url }}

@@ -7,9 +7,12 @@ namespace App\Listeners;
 use App\Events\DocumentAdded;
 use App\Events\MessagePosted;
 use App\Events\ProjectFilesAdded;
+use App\Models\User;
+use App\Models\Version;
 use App\Notifications\ProjectEventNotification;
-use App\Support\Mail\NotificationRecipients;
 use App\Support\Mail\MailSuppression;
+use App\Support\Mail\NotificationRecipients;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -39,7 +42,7 @@ final class SendProjectEventMailNotifications
     }
 
     /**
-     * @return array{0: \Illuminate\Support\Collection<int, \App\Models\User>, 1: ProjectEventNotification}
+     * @return array{0: Collection<int, User>, 1: ProjectEventNotification}
      */
     private function forMessage(MessagePosted $event): array
     {
@@ -54,8 +57,8 @@ final class SendProjectEventMailNotifications
                 $topic->watchers()->pluck('user_id'),
             ),
             new ProjectEventNotification(
-                sprintf('[%s - %s #%d] %s', $project->name, $message->board->name, $topic->id, $message->subject),
-                $message->author->displayName().' さんがフォーラムに投稿しました。',
+                'message_posted',
+                ['project' => $project->name, 'board' => $message->board->name, 'id' => $topic->id, 'subject' => $message->subject, 'author' => $message->author->displayName()],
                 $message->subject,
                 route('messages.show', [$project, $message->board, $topic]),
                 $message->content,
@@ -64,7 +67,7 @@ final class SendProjectEventMailNotifications
     }
 
     /**
-     * @return array{0: \Illuminate\Support\Collection<int, \App\Models\User>, 1: ProjectEventNotification}
+     * @return array{0: Collection<int, User>, 1: ProjectEventNotification}
      */
     private function forDocument(DocumentAdded $event): array
     {
@@ -73,8 +76,8 @@ final class SendProjectEventMailNotifications
         return [
             NotificationRecipients::forProjectEvent($document->project, 'document_added', $event->actor, fn ($user) => $user->can('view', $document)),
             new ProjectEventNotification(
-                sprintf('[%s] 文書を追加しました: %s', $document->project->name, $document->title),
-                $event->actor->name.' さんが文書を追加しました。',
+                'document_added',
+                ['project' => $document->project->name, 'title' => $document->title, 'author' => $event->actor->name],
                 $document->title,
                 route('documents.show', [$document->project, $document]),
                 $document->description,
@@ -83,18 +86,17 @@ final class SendProjectEventMailNotifications
     }
 
     /**
-     * @return array{0: \Illuminate\Support\Collection<int, \App\Models\User>, 1: ProjectEventNotification}
+     * @return array{0: Collection<int, User>, 1: ProjectEventNotification}
      */
     private function forFiles(ProjectFilesAdded $event): array
     {
         $names = implode(', ', $event->fileNames);
-        $where = $event->versionName !== null ? "バージョン「{$event->versionName}」" : 'プロジェクト';
 
         return [
-            NotificationRecipients::forProjectEvent($event->project, 'file_added', $event->actor, fn ($user) => $user->can('viewAny', [\App\Models\Version::class, $event->project])),
+            NotificationRecipients::forProjectEvent($event->project, 'file_added', $event->actor, fn ($user) => $user->can('viewAny', [Version::class, $event->project])),
             new ProjectEventNotification(
-                sprintf('[%s] ファイルを追加しました: %s', $event->project->name, $names),
-                "{$event->actor->name} さんが{$where}にファイルを追加しました。",
+                $event->versionName !== null ? 'version_file_added' : 'file_added',
+                ['project' => $event->project->name, 'names' => $names, 'author' => $event->actor->name, 'version' => (string) $event->versionName],
                 $names,
                 route('files.index', $event->project),
             ),

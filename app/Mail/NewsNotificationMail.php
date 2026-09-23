@@ -36,12 +36,10 @@ final class NewsNotificationMail extends Mailable
         $fromAddress = Setting::get('mail_from');
 
         return new Envelope(
-            subject: sprintf(
-                '%s[%s] お知らせ: %s',
-                $this->eventType === 'comment_added' ? 'Re: ' : '',
-                $this->news->project->name,
-                $this->news->title,
-            ),
+            subject: ($this->eventType === 'comment_added' ? 'Re: ' : '').__('[:project] お知らせ: :title', [
+                'project' => $this->news->project->name,
+                'title' => $this->news->title,
+            ]),
             from: filled($fromAddress) ? new Address($fromAddress) : null,
         );
     }

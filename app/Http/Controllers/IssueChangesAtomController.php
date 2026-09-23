@@ -89,8 +89,8 @@ final class IssueChangesAtomController extends Controller
                 $label = match ($detail->property) {
                     'cf' => $customFieldNames[(int) $detail->prop_key] ?? $detail->prop_key,
                     'attachment' => __('添付ファイル'),
-                    'relation' => IssueNotificationMail::RELATION_LABELS[$detail->prop_key] ?? $detail->prop_key,
-                    default => IssueNotificationMail::ATTRIBUTE_LABELS[$detail->prop_key] ?? $detail->prop_key,
+                    'relation' => IssueNotificationMail::relationLabels()[$detail->prop_key] ?? $detail->prop_key,
+                    default => IssueNotificationMail::attributeLabels()[$detail->prop_key] ?? $detail->prop_key,
                 };
 
                 $old = $detail->old_value;

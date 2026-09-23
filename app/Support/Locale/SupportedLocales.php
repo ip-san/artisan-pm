@@ -46,9 +46,7 @@ final class SupportedLocales
     public static function resolve(?User $user, Request $request): string
     {
         if ($user !== null) {
-            $own = $user->language;
-
-            return self::isSupported($own) && ! Setting::get('force_default_language_for_loggedin', false) ? $own : self::default();
+            return self::forUser($user);
         }
 
         if (! Setting::get('force_default_language_for_anonymous', false)) {
@@ -62,6 +60,18 @@ final class SupportedLocales
         }
 
         return self::default();
+    }
+
+    /**
+     * A user's language, outside of a request too (the mail they receive,
+     * User::preferredLocale()): their own, unless the administrator forces
+     * the default for signed-in users.
+     */
+    public static function forUser(User $user): string
+    {
+        $own = $user->language;
+
+        return self::isSupported($own) && ! Setting::get('force_default_language_for_loggedin', false) ? $own : self::default();
     }
 
     /**

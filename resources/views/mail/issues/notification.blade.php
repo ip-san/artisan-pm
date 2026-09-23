@@ -7,7 +7,7 @@
     @endif
 
     <p>
-        {{ $eventType === 'created' ? '課題が作成されました。' : '課題が更新されました。' }}
+        {{ $eventType === 'created' ? __('課題が作成されました。') : __('課題が更新されました。') }}
         ({{ $actor->name }})
     </p>
 
@@ -20,7 +20,7 @@
             @foreach ($changes as $change)
                 <tr>
                     <td style="color: #6b7280;">{{ $change['label'] }}</td>
-                    <td>{{ $change['old'] ?? '(未設定)' }} → {{ $change['new'] ?? '(未設定)' }}</td>
+                    <td>{{ $change['old'] ?? __('(未設定)') }} → {{ $change['new'] ?? __('(未設定)') }}</td>
                 </tr>
             @endforeach
         </table>

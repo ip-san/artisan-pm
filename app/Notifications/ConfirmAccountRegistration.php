@@ -37,9 +37,9 @@ final class ConfirmAccountRegistration extends Notification implements ShouldQue
         $appTitle = Setting::get('app_title', config('app.name'));
 
         return (new MailMessage)
-            ->subject("[{$appTitle}] アカウント登録の確認")
-            ->line('アカウント登録を受け付けました。以下のリンクからアカウントを有効化してください。')
-            ->action('アカウントを有効化', $this->activationUrl)
-            ->line('このリンクの有効期限は24時間です。');
+            ->subject(__('[:app] アカウント登録の確認', ['app' => $appTitle]))
+            ->line(__('アカウント登録を受け付けました。以下のリンクからアカウントを有効化してください。'))
+            ->action(__('アカウントを有効化'), $this->activationUrl)
+            ->line(__('このリンクの有効期限は24時間です。'));
     }
 }

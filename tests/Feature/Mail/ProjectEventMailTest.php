@@ -1,11 +1,10 @@
 <?php
 
 use App\Enums\MailNotificationOption;
+use App\Mail\ProjectEventNotificationMail;
 use App\Models\Board;
-use App\Models\Document;
 use App\Models\Enumeration;
 use App\Models\IssueStatus;
-use App\Models\Journal;
 use App\Models\Member;
 use App\Models\Message;
 use App\Models\Project;
@@ -45,7 +44,7 @@ test('posting a forum topic mails members who can see the forum when message_pos
     Livewire::actingAs($author)->test('messages.form', ['project' => $project, 'board' => $board])
         ->set('subject', 'Hello forum')->set('content', 'First post')->call('save');
 
-    Notification::assertSentTo($reader, ProjectEventNotification::class, fn ($n) => str_contains($n->subjectLine, 'Hello forum') && $n->body === 'First post');
+    Notification::assertSentTo($reader, ProjectEventNotification::class, fn ($n) => str_contains($n->subjectLine(), 'Hello forum') && $n->body === 'First post');
     Notification::assertNotSentTo($blind, ProjectEventNotification::class);
     Notification::assertNotSentTo($author, ProjectEventNotification::class);
 });
@@ -88,7 +87,7 @@ test('adding a document mails the members who may view documents', function () {
 
     Livewire::actingAs($author)->test('documents.form', ['project' => $project])->set('title', 'Spec sheet')->call('save');
 
-    Notification::assertSentTo($reader, ProjectEventNotification::class, fn ($n) => str_contains($n->subjectLine, 'Spec sheet'));
+    Notification::assertSentTo($reader, ProjectEventNotification::class, fn ($n) => str_contains($n->subjectLine(), 'Spec sheet'));
     Notification::assertNotSentTo($blind, ProjectEventNotification::class);
 });
 
@@ -105,7 +104,7 @@ test('uploading files mails the members who may see files, naming the files and 
     Livewire::actingAs($uploader)->test('files.index', ['project' => $project])
         ->set('version_id', $version->id)->set('newFiles', [UploadedFile::fake()->create('release.zip', 10)])->call('upload');
 
-    Notification::assertSentTo($reader, ProjectEventNotification::class, fn ($n) => str_contains($n->subjectLine, 'release.zip') && str_contains($n->headline, 'v2'));
+    Notification::assertSentTo($reader, ProjectEventNotification::class, fn ($n) => str_contains($n->subjectLine(), 'release.zip') && str_contains($n->headline(), 'v2'));
     Notification::assertNotSentTo($blind, ProjectEventNotification::class);
 });
 
@@ -158,7 +157,7 @@ test('the settings page offers and saves the new events', function () {
 });
 
 test('the project event mail renders both the html and the text body', function () {
-    $mail = new App\Mail\ProjectEventNotificationMail('[P] Subject', 'Someone did it.', 'The title', 'https://example.test/x', 'Body here');
+    $mail = new ProjectEventNotificationMail('[P] Subject', 'Someone did it.', 'The title', 'https://example.test/x', 'Body here');
 
     $mail->assertSeeInHtml('The title')->assertSeeInHtml('Body here')->assertSeeInText('https://example.test/x');
 });

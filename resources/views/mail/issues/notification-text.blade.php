@@ -4,7 +4,7 @@
 --
 
 @endif
-{{ $eventType === 'created' ? '課題が作成されました。' : '課題が更新されました。' }}({{ $actor->name }})
+{{ $eventType === 'created' ? __('課題が作成されました。') : __('課題が更新されました。') }}({{ $actor->name }})
 
 {{ $issue->project->name }} - {{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}
 {{ $url }}

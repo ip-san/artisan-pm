@@ -9,7 +9,11 @@ use App\Enums\CustomizableType;
 use App\Enums\MailNotificationOption;
 use App\Enums\UserStatus;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Locale\SupportedLocales;
+use App\Support\Preferences\UserPreferences;
 use Database\Factories\UserFactory;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,7 +21,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Support\Preferences\UserPreferences;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
@@ -37,7 +40,7 @@ use Laravel\Passport\HasApiTokens;
  */
 #[Fillable(['name', 'email', 'password', 'language', 'auth_source_id', 'login', 'status', 'mail_notification', 'no_self_notified'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'api_key', 'atom_key'])]
-final class User extends Authenticatable implements OAuthenticatable
+final class User extends Authenticatable implements HasLocalePreference, OAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasCustomFields, HasFactory, Notifiable, TwoFactorAuthenticatable;
@@ -241,7 +244,7 @@ final class User extends Authenticatable implements OAuthenticatable
             return;
         }
 
-        $this->notify(new \Illuminate\Auth\Notifications\ResetPassword($token));
+        $this->notify(new ResetPassword($token));
     }
 
     /**
@@ -440,5 +443,14 @@ final class User extends Authenticatable implements OAuthenticatable
             ->where('customized_type', CustomizableType::User)
             ->orderBy('position')
             ->get();
+    }
+
+    /**
+     * The language of the notifications and mail sent to this user
+     * (Laravel sends a notification in its notifiable's preferred locale).
+     */
+    public function preferredLocale(): string
+    {
+        return SupportedLocales::forUser($this);
     }
 }
