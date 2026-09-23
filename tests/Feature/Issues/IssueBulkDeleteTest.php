@@ -6,6 +6,7 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
 use Livewire\Livewire;
@@ -74,7 +75,7 @@ test('the bulk delete asks about time only when the selection has logged hours',
     $user = bulkDeleteMember($project, ['view_issues', 'delete_issues']);
     $withTime = bulkDeleteIssue($project);
     $without = bulkDeleteIssue($project);
-    App\Models\TimeEntry::factory()->for($project)->create(['issue_id' => $withTime->id, 'hours' => 2.5]);
+    TimeEntry::factory()->for($project)->create(['issue_id' => $withTime->id, 'hours' => 2.5]);
 
     Livewire::actingAs($user)->test('issues.index', ['project' => $project])
         ->set('selected', [$without->id])
@@ -89,7 +90,7 @@ test('bulk deleting can delete the logged time with the issues', function () {
     $project = Project::factory()->create();
     $user = bulkDeleteMember($project, ['view_issues', 'delete_issues']);
     $issue = bulkDeleteIssue($project);
-    $entry = App\Models\TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 1]);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 1]);
 
     Livewire::actingAs($user)->test('issues.index', ['project' => $project])
         ->set('selected', [$issue->id])
@@ -97,14 +98,14 @@ test('bulk deleting can delete the logged time with the issues', function () {
         ->call('applyBulkDelete')
         ->assertHasNoErrors();
 
-    expect(App\Models\TimeEntry::query()->whereKey($entry->id)->exists())->toBeFalse();
+    expect(TimeEntry::query()->whereKey($entry->id)->exists())->toBeFalse();
 });
 
 test('bulk deleting keeps the time detached by default', function () {
     $project = Project::factory()->create();
     $user = bulkDeleteMember($project, ['view_issues', 'delete_issues']);
     $issue = bulkDeleteIssue($project);
-    $entry = App\Models\TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 1]);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 1]);
 
     Livewire::actingAs($user)->test('issues.index', ['project' => $project])
         ->set('selected', [$issue->id])
@@ -119,8 +120,8 @@ test('bulk deleting can move all the logged time to a surviving issue', function
     $a = bulkDeleteIssue($project);
     $b = bulkDeleteIssue($project);
     $survivor = bulkDeleteIssue($project);
-    $entryA = App\Models\TimeEntry::factory()->for($project)->create(['issue_id' => $a->id, 'hours' => 1]);
-    $entryB = App\Models\TimeEntry::factory()->for($project)->create(['issue_id' => $b->id, 'hours' => 2]);
+    $entryA = TimeEntry::factory()->for($project)->create(['issue_id' => $a->id, 'hours' => 1]);
+    $entryB = TimeEntry::factory()->for($project)->create(['issue_id' => $b->id, 'hours' => 2]);
 
     Livewire::actingAs($user)->test('issues.index', ['project' => $project])
         ->set('selected', [$a->id, $b->id])
@@ -140,7 +141,7 @@ test('a reassign target that is itself selected, missing, or in another project 
     $a = bulkDeleteIssue($project);
     $b = bulkDeleteIssue($project);
     $foreign = bulkDeleteIssue(Project::factory()->create());
-    App\Models\TimeEntry::factory()->for($project)->create(['issue_id' => $a->id, 'hours' => 1]);
+    TimeEntry::factory()->for($project)->create(['issue_id' => $a->id, 'hours' => 1]);
 
     foreach ([(string) $b->id, '', (string) $foreign->id, '999999'] as $target) {
         Livewire::actingAs($user)->test('issues.index', ['project' => $project])
@@ -158,7 +159,7 @@ test('a tampered bulk todo value is rejected and nothing is deleted', function (
     $project = Project::factory()->create();
     $user = bulkDeleteMember($project, ['view_issues', 'delete_issues']);
     $issue = bulkDeleteIssue($project);
-    App\Models\TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 1]);
+    TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 1]);
 
     Livewire::actingAs($user)->test('issues.index', ['project' => $project])
         ->set('selected', [$issue->id])
@@ -167,4 +168,69 @@ test('a tampered bulk todo value is rejected and nothing is deleted', function (
         ->assertHasErrors('bulkTimeEntryTodo');
 
     expect(Issue::query()->whereKey($issue->id)->exists())->toBeTrue();
+});
+
+test('bulk deleting a selection holding both a parent and its child deletes the whole subtree once (A1-34)', function () {
+    $project = Project::factory()->create();
+    $user = bulkDeleteMember($project, ['view_issues', 'delete_issues']);
+    $parent = bulkDeleteIssue($project);
+    $child = bulkDeleteIssue($project);
+    $child->update(['parent_id' => $parent->id]);
+    $grandchild = bulkDeleteIssue($project);
+    $grandchild->update(['parent_id' => $child->id]);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $grandchild->id, 'hours' => 3]);
+
+    Livewire::actingAs($user)->test('issues.index', ['project' => $project])
+        ->set('selected', [$child->id, $parent->id])
+        ->assertSet('bulkDeleteHours', 3.0)
+        ->set('confirmingBulkDelete', true)
+        ->assertSee('1件のサブタスクも削除されます。')
+        ->assertSee('選択した課題とサブタスクには合計 3 時間')
+        ->set('bulkTimeEntryTodo', 'destroy')
+        ->call('applyBulkDelete')
+        ->assertHasNoErrors();
+
+    expect(Issue::query()->whereKey([$parent->id, $child->id, $grandchild->id])->exists())->toBeFalse()
+        ->and(TimeEntry::query()->whereKey($entry->id)->exists())->toBeFalse();
+});
+
+test('a bulk reassign target that is a subtask of a selected issue is refused', function () {
+    $project = Project::factory()->create();
+    $user = bulkDeleteMember($project, ['view_issues', 'delete_issues']);
+    $parent = bulkDeleteIssue($project);
+    $child = bulkDeleteIssue($project);
+    $child->update(['parent_id' => $parent->id]);
+    $survivor = bulkDeleteIssue($project);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $parent->id, 'hours' => 1]);
+
+    Livewire::actingAs($user)->test('issues.index', ['project' => $project])
+        ->set('selected', [$parent->id])
+        ->set('bulkTimeEntryTodo', 'reassign')
+        ->set('bulkReassignToId', (string) $child->id)
+        ->call('applyBulkDelete')
+        ->assertHasErrors('bulkReassignToId');
+
+    expect(Issue::query()->whereKey([$parent->id, $child->id])->count())->toBe(2);
+
+    Livewire::actingAs($user)->test('issues.index', ['project' => $project])
+        ->set('selected', [$parent->id])
+        ->set('bulkTimeEntryTodo', 'reassign')
+        ->set('bulkReassignToId', (string) $survivor->id)
+        ->call('applyBulkDelete')
+        ->assertHasNoErrors();
+
+    expect($entry->fresh()->issue_id)->toBe($survivor->id)
+        ->and(Issue::query()->whereKey($child->id)->exists())->toBeFalse();
+});
+
+test('the plain bulk delete confirm mentions the subtasks of the selection', function () {
+    $project = Project::factory()->create();
+    $user = bulkDeleteMember($project, ['view_issues', 'delete_issues']);
+    $parent = bulkDeleteIssue($project);
+    $child = bulkDeleteIssue($project);
+    $child->update(['parent_id' => $parent->id]);
+
+    Livewire::actingAs($user)->test('issues.index', ['project' => $project])
+        ->set('selected', [$parent->id])
+        ->assertSee('選択した1件の課題を削除します。この操作は取り消せません。よろしいですか? 1件のサブタスクも削除されます。');
 });

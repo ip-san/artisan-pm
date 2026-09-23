@@ -10,6 +10,7 @@ use App\Models\JournalDetail;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Models\Setting;
+use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Services\IssueService;
@@ -725,14 +726,26 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $reassignToId = '';
 
     /**
-     * Hours logged directly against this issue — when there are any, the
-     * delete confirmation asks what to do with them (Redmine's
-     * issues/destroy.html.erb).
+     * Hours logged against this issue and the subtasks deleted with it —
+     * when there are any, the delete confirmation asks what to do with them
+     * (Redmine's issues/destroy.html.erb over Issue.self_and_descendants).
      */
     #[Computed]
     public function loggedHoursForDeletion(): float
     {
-        return $this->issue->spentHours();
+        return (float) TimeEntry::query()
+            ->whereIn('issue_id', Issue::selfAndDescendantIds([$this->issue->id]))
+            ->sum('hours');
+    }
+
+    /**
+     * Subtasks deleted along with this issue (Redmine's
+     * issues_destroy_confirmation_message).
+     */
+    #[Computed]
+    public function deletionDescendantCount(): int
+    {
+        return Issue::descendantCountForDeletion(collect([$this->issue]));
     }
 
     public function deleteIssue(): void
@@ -867,7 +880,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         {{ __('削除') }}
                     </button>
                 @else
-                    <button wire:click="deleteIssue" wire:confirm="{{ __('この課題を削除しますか?この操作は取り消せません。') }}"
+                    <button wire:click="deleteIssue" wire:confirm="{{ __('この課題を削除しますか?この操作は取り消せません。') }}{{ $this->deletionDescendantCount > 0 ? ' '.__(':count件のサブタスクも削除されます。', ['count' => $this->deletionDescendantCount]) : '' }}"
                         class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
                         {{ __('削除') }}
                     </button>
@@ -879,9 +892,16 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($confirmingDelete && $this->loggedHoursForDeletion > 0)
         @can('delete', $issue)
             <form wire:submit="deleteIssue" class="mb-6 space-y-3 rounded-md border border-danger-subtler bg-danger-subtlest p-4">
-                <p class="text-sm font-medium text-danger-boldest">
-                    {{ __('この課題には :hours 時間の作業時間が記録されています。削除する課題の作業時間をどうしますか?', ['hours' => rtrim(rtrim(number_format($this->loggedHoursForDeletion, 2), '0'), '.')]) }}
-                </p>
+                @if ($this->deletionDescendantCount > 0)
+                    <p class="text-sm font-medium text-danger-boldest">{{ __(':count件のサブタスクも削除されます。', ['count' => $this->deletionDescendantCount]) }}</p>
+                    <p class="text-sm font-medium text-danger-boldest">
+                        {{ __('この課題とサブタスクには :hours 時間の作業時間が記録されています。削除する課題の作業時間をどうしますか?', ['hours' => rtrim(rtrim(number_format($this->loggedHoursForDeletion, 2), '0'), '.')]) }}
+                    </p>
+                @else
+                    <p class="text-sm font-medium text-danger-boldest">
+                        {{ __('この課題には :hours 時間の作業時間が記録されています。削除する課題の作業時間をどうしますか?', ['hours' => rtrim(rtrim(number_format($this->loggedHoursForDeletion, 2), '0'), '.')]) }}
+                    </p>
+                @endif
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="radio" wire:model.live="timeEntryTodo" value="nullify">
                     {{ __('課題との紐付けを外してプロジェクトに残す') }}

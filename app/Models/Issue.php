@@ -349,6 +349,50 @@ final class Issue extends Model implements HasMedia
     }
 
     /**
+     * The ids of $issueIds and of all their descendants — Redmine's
+     * Issue.self_and_descendants — ordered deepest first, so deleting them
+     * in this order never leaves a child pointing at a deleted parent.
+     *
+     * @param  iterable<int, int>  $issueIds
+     * @return Collection<int, int>
+     */
+    public static function selfAndDescendantIds(iterable $issueIds): Collection
+    {
+        $ids = collect($issueIds)->map(fn ($id) => (int) $id)->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $table = (new self)->getTable();
+        $placeholders = implode(', ', array_fill(0, $ids->count(), '?'));
+
+        $rows = DB::select(<<<SQL
+            WITH RECURSIVE tree (id, depth) AS (
+                SELECT id, 0 FROM {$table} WHERE id IN ({$placeholders})
+                UNION ALL
+                SELECT i.id, t.depth + 1 FROM {$table} i INNER JOIN tree t ON i.parent_id = t.id
+            )
+            SELECT id, MAX(depth) AS depth FROM tree GROUP BY id ORDER BY MAX(depth) DESC, id DESC
+            SQL, $ids->all());
+
+        return collect($rows)->map(fn (object $row) => (int) $row->id)->values();
+    }
+
+    /**
+     * How many subtasks deleting $issues would delete on top of them
+     * (Redmine's issues_descendant_count, for the delete confirmation).
+     *
+     * @param  Collection<int, Issue>  $issues
+     */
+    public static function descendantCountForDeletion(Collection $issues): int
+    {
+        $selectedIds = $issues->pluck('id')->unique();
+
+        return self::selfAndDescendantIds($selectedIds)->diff($selectedIds)->count();
+    }
+
+    /**
      * Hours logged directly against this issue — matches Redmine's
      * Issue#spent_hours.
      */

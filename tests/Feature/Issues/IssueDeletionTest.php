@@ -6,6 +6,7 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
@@ -69,18 +70,22 @@ test('deleting an issue orphans its time entries instead of deleting them', func
     expect($entry->fresh()->issue_id)->toBeNull();
 });
 
-test('deleting a parent issue orphans its children instead of deleting them', function () {
+test('deleting a parent issue deletes its subtasks too (A1-34, formerly orphaned them)', function () {
     $project = Project::factory()->create();
     $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
     $parent = deletableIssue($project);
     $child = deletableIssue($project);
     $child->update(['parent_id' => $parent->id]);
+    $grandchild = deletableIssue($project);
+    $grandchild->update(['parent_id' => $child->id]);
+    $unrelated = deletableIssue($project);
 
     Livewire::actingAs($user)
         ->test('issues.show', ['project' => $project, 'issue' => $parent])
         ->call('deleteIssue');
 
-    expect($child->fresh()->parent_id)->toBeNull();
+    expect(Issue::query()->whereKey([$parent->id, $child->id, $grandchild->id])->exists())->toBeFalse()
+        ->and($unrelated->fresh())->not->toBeNull();
 });
 
 test('the delete flow can delete the issue\'s time entries together with it', function () {
@@ -183,4 +188,142 @@ test('the delete confirmation panel appears only when the issue has logged time'
         ->test('issues.show', ['project' => $project, 'issue' => $without])
         ->call('$set', 'confirmingDelete', true)
         ->assertDontSee('作業時間をどうしますか');
+});
+
+/**
+ * @return array{parent: Issue, child: Issue, grandchild: Issue}
+ */
+function deletableIssueTree(Project $project): array
+{
+    $parent = deletableIssue($project);
+    $child = deletableIssue($project);
+    $child->update(['parent_id' => $parent->id]);
+    $grandchild = deletableIssue($project);
+    $grandchild->update(['parent_id' => $child->id]);
+
+    return ['parent' => $parent, 'child' => $child, 'grandchild' => $grandchild];
+}
+
+test('the subtasks\' logged time counts in the delete confirmation and is detached by default', function () {
+    $project = Project::factory()->create();
+    $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
+    ['parent' => $parent, 'grandchild' => $grandchild] = deletableIssueTree($project);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $grandchild->id, 'hours' => 2.5]);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $parent])
+        ->call('$set', 'confirmingDelete', true)
+        ->assertSee('2件のサブタスクも削除されます。')
+        ->assertSee('この課題とサブタスクには 2.5 時間の作業時間が記録されています')
+        ->call('deleteIssue')
+        ->assertHasNoErrors();
+
+    expect($entry->fresh()->issue_id)->toBeNull()
+        ->and(Issue::query()->whereKey($grandchild->id)->exists())->toBeFalse();
+});
+
+test('the subtasks\' logged time can be deleted with them', function () {
+    $project = Project::factory()->create();
+    $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
+    ['parent' => $parent, 'child' => $child] = deletableIssueTree($project);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $child->id, 'hours' => 1]);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $parent])
+        ->set('timeEntryTodo', 'destroy')
+        ->call('deleteIssue');
+
+    expect(TimeEntry::query()->whereKey($entry->id)->exists())->toBeFalse();
+});
+
+test('the subtasks\' logged time can be reassigned, but never to a subtask being deleted', function () {
+    $project = Project::factory()->create();
+    $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
+    ['parent' => $parent, 'child' => $child, 'grandchild' => $grandchild] = deletableIssueTree($project);
+    $target = deletableIssue($project);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $grandchild->id, 'hours' => 1]);
+
+    foreach ([$child->id, $grandchild->id] as $doomedTarget) {
+        Livewire::actingAs($user)
+            ->test('issues.show', ['project' => $project, 'issue' => $parent])
+            ->set('timeEntryTodo', 'reassign')
+            ->set('reassignToId', (string) $doomedTarget)
+            ->call('deleteIssue')
+            ->assertHasErrors('reassign_to_id');
+    }
+
+    expect(Issue::query()->whereKey([$parent->id, $child->id, $grandchild->id])->count())->toBe(3);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $parent])
+        ->set('timeEntryTodo', 'reassign')
+        ->set('reassignToId', (string) $target->id)
+        ->call('deleteIssue')
+        ->assertHasNoErrors();
+
+    expect($entry->fresh()->issue_id)->toBe($target->id);
+});
+
+test('the plain delete confirm mentions the subtasks only when there are some', function () {
+    $project = Project::factory()->create();
+    $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
+    ['parent' => $parent] = deletableIssueTree($project);
+    $leaf = deletableIssue($project);
+
+    Livewire::actingAs($user)->test('issues.show', ['project' => $project, 'issue' => $parent])
+        ->assertSee('2件のサブタスクも削除されます。');
+    Livewire::actingAs($user)->test('issues.show', ['project' => $project, 'issue' => $leaf])
+        ->assertDontSee('サブタスクも削除されます');
+});
+
+test('like Redmine, subtasks the user cannot see or delete are deleted with the parent', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->private()->create();
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_issues', 'delete_issues'], 'issues_visibility' => 'default'])
+    );
+    $parent = deletableIssue($project);
+    $privateChild = deletableIssue($project);
+    $privateChild->update(['parent_id' => $parent->id, 'is_private' => true]);
+    $foreignChild = deletableIssue($otherProject);
+    $foreignChild->update(['parent_id' => $parent->id]);
+
+    expect($privateChild->fresh()->isVisibleTo($user))->toBeFalse()
+        ->and($foreignChild->fresh()->isVisibleTo($user))->toBeFalse();
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $parent])
+        ->call('deleteIssue');
+
+    expect(Issue::query()->whereKey([$parent->id, $privateChild->id, $foreignChild->id])->exists())->toBeFalse();
+});
+
+test('deleting a subtree recalculates the surviving parent', function () {
+    $project = Project::factory()->create();
+    $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
+    $parent = deletableIssue($project);
+    $early = deletableIssue($project);
+    $early->update(['parent_id' => $parent->id, 'start_date' => '2026-01-01', 'due_date' => '2026-01-05']);
+    $late = deletableIssue($project);
+    $late->update(['parent_id' => $parent->id, 'start_date' => '2026-03-01', 'due_date' => '2026-03-10']);
+    $parent->forceFill(['start_date' => '2026-01-01', 'due_date' => '2026-03-10'])->save();
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $early])
+        ->call('deleteIssue');
+
+    expect($parent->fresh()->start_date->toDateString())->toBe('2026-03-01');
+});
+
+test('the REST API delete removes the subtasks too', function () {
+    Setting::set('rest_api_enabled', true);
+    $project = Project::factory()->create();
+    $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
+    ['parent' => $parent, 'child' => $child, 'grandchild' => $grandchild] = deletableIssueTree($project);
+    $this->withHeaders(['X-Redmine-API-Key' => $user->regenerateApiKey()])
+        ->deleteJson(route('api.issues.destroy', $parent))
+        ->assertNoContent();
+
+    expect(Issue::query()->whereKey([$parent->id, $child->id, $grandchild->id])->exists())->toBeFalse();
 });

@@ -1325,8 +1325,20 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $bulkReassignToId = '';
 
     /**
-     * Hours logged directly against the selected issues — when there are
-     * any, the delete asks what to do with them (Redmine's
+     * The selected issues and all their subtasks — what a bulk delete
+     * removes (Redmine's Issue.self_and_descendants).
+     *
+     * @return Collection<int, int>
+     */
+    #[Computed]
+    public function bulkDeleteIssueIds(): Collection
+    {
+        return Issue::selfAndDescendantIds($this->selectedIssues->pluck('id'));
+    }
+
+    /**
+     * Hours logged against the selected issues and their subtasks — when
+     * there are any, the delete asks what to do with them (Redmine's
      * issues/destroy.html.erb, which also offers a reassign target only when
      * the selection is within one project, as it always is here).
      */
@@ -1337,7 +1349,29 @@ new #[Layout('components.layouts.app')] class extends Component
             return 0.0;
         }
 
-        return (float) TimeEntry::query()->whereIn('issue_id', $this->selectedIssues->pluck('id'))->sum('hours');
+        return (float) TimeEntry::query()->whereIn('issue_id', $this->bulkDeleteIssueIds)->sum('hours');
+    }
+
+    /**
+     * Subtasks the bulk delete removes on top of the selection.
+     */
+    #[Computed]
+    public function bulkDeleteDescendantCount(): int
+    {
+        return $this->bulkDeleteIssueIds->diff($this->selectedIssues->pluck('id'))->count();
+    }
+
+    /**
+     * The bulk delete's confirm() text, with the subtask count when the
+     * selection has any.
+     */
+    public function bulkDeleteConfirmation(): string
+    {
+        $message = __('選択した:count件の課題を削除します。この操作は取り消せません。よろしいですか?', ['count' => count($this->selected)]);
+
+        return $this->bulkDeleteDescendantCount > 0
+            ? $message.' '.__(':count件のサブタスクも削除されます。', ['count' => $this->bulkDeleteDescendantCount])
+            : $message;
     }
 
     public function applyBulkDelete(): void
@@ -1365,9 +1399,10 @@ new #[Layout('components.layouts.app')] class extends Component
             if ($disposition === IssueTimeEntryDisposition::Reassign) {
                 $reassignToId = $this->bulkReassignToId !== '' ? (int) $this->bulkReassignToId : null;
 
-                // A target that is itself being deleted would strand the
-                // entries again; refuse before anything is removed.
-                if ($reassignToId === null || $issues->contains('id', $reassignToId)) {
+                // A target that is itself being deleted (selected, or a
+                // subtask of a selected issue) would strand the entries
+                // again; refuse before anything is removed.
+                if ($reassignToId === null || $this->bulkDeleteIssueIds->contains($reassignToId)) {
                     $this->addError('bulkReassignToId', __('削除しない、このプロジェクトの課題を指定してください。'));
 
                     return;
@@ -1378,11 +1413,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $count = $issues->count();
 
         try {
-            DB::transaction(function () use ($issues, $disposition, $reassignToId) {
-                foreach ($issues as $issue) {
-                    app(IssueService::class)->delete($issue, $disposition, $reassignToId);
-                }
-            });
+            app(IssueService::class)->deleteMany($issues, $disposition, $reassignToId);
         } catch (ValidationException $exception) {
             $this->addError('bulkReassignToId', collect($exception->errors())->flatten()->first());
 
@@ -1391,7 +1422,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->reset('selected', 'confirmingBulkDelete', 'bulkTimeEntryTodo', 'bulkReassignToId');
         $this->resetPage();
-        unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
+        unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals, $this->bulkDeleteIssueIds);
 
         session()->flash('status', __(':count件の課題を削除しました。', ['count' => $count]));
     }
@@ -1547,7 +1578,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @if ($this->bulkDeleteHours > 0)
                     <button type="button" wire:click="$set('confirmingBulkDelete', true)" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">{{ __('削除') }}</button>
                 @else
-                    <button type="button" wire:click="applyBulkDelete" wire:confirm="{{ __('選択した:count件の課題を削除します。この操作は取り消せません。よろしいですか?', ['count' => count($selected)]) }}" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">{{ __('削除') }}</button>
+                    <button type="button" wire:click="applyBulkDelete" wire:confirm="{{ $this->bulkDeleteConfirmation() }}" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">{{ __('削除') }}</button>
                 @endif
             @endif
         </div>
@@ -1914,9 +1945,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
                 @if ($confirmingBulkDelete)
                     <form wire:submit="applyBulkDelete" class="mt-3 space-y-3 rounded-md border border-danger-subtler bg-danger-subtlest p-4">
-                        <p class="text-sm font-medium text-danger-boldest">
-                            {{ __('選択した課題には合計 :hours 時間の作業時間が記録されています。作業時間をどうしますか?', ['hours' => rtrim(rtrim(number_format($this->bulkDeleteHours, 2), '0'), '.')]) }}
-                        </p>
+                        @if ($this->bulkDeleteDescendantCount > 0)
+                            <p class="text-sm font-medium text-danger-boldest">{{ __(':count件のサブタスクも削除されます。', ['count' => $this->bulkDeleteDescendantCount]) }}</p>
+                            <p class="text-sm font-medium text-danger-boldest">
+                                {{ __('選択した課題とサブタスクには合計 :hours 時間の作業時間が記録されています。作業時間をどうしますか?', ['hours' => rtrim(rtrim(number_format($this->bulkDeleteHours, 2), '0'), '.')]) }}
+                            </p>
+                        @else
+                            <p class="text-sm font-medium text-danger-boldest">
+                                {{ __('選択した課題には合計 :hours 時間の作業時間が記録されています。作業時間をどうしますか?', ['hours' => rtrim(rtrim(number_format($this->bulkDeleteHours, 2), '0'), '.')]) }}
+                            </p>
+                        @endif
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
                             <input type="radio" wire:model.live="bulkTimeEntryTodo" value="nullify">
                             {{ __('課題との紐付けを外してプロジェクトに残す') }}
@@ -1946,7 +1984,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endif
             @else
                 <button type="button" wire:click="applyBulkDelete"
-                    wire:confirm="{{ __('選択した:count件の課題を削除します。この操作は取り消せません。よろしいですか?', ['count' => count($selected)]) }}"
+                    wire:confirm="{{ $this->bulkDeleteConfirmation() }}"
                     class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
                     {{ __('選択した:count件を削除', ['count' => count($selected)]) }}
                 </button>

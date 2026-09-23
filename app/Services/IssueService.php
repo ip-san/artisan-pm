@@ -23,6 +23,7 @@ use App\Models\IssueStatus;
 use App\Models\Journal;
 use App\Models\Project;
 use App\Models\Setting;
+use App\Models\TimeEntry;
 use App\Models\User;
 use App\Models\Watcher;
 use App\Support\Calendar\WorkingDays;
@@ -92,52 +93,98 @@ final class IssueService
      * rely on that.
      */
     /**
-     * $timeEntries mirrors Redmine's `todo` choice for the issue's logged
-     * time. Redmine defaults its confirmation form to deleting the entries;
-     * this app has always kept them (detached), so Nullify stays the
-     * default for every caller that doesn't ask — a deliberate, data-safe
-     * difference. Reassign moves them to $reassignToIssueId, which must be
-     * a different issue of the same project (Redmine looks it up through
-     * `@project.issues`).
+     * Deletes the issue together with all its subtasks — deleteMany() for
+     * a single issue.
      *
-     * @throws ValidationException when reassigning to a missing/foreign issue or the issue itself
+     * @throws ValidationException when reassigning to a missing/foreign issue or one being deleted
      */
     public function delete(
         Issue $issue,
         IssueTimeEntryDisposition $timeEntries = IssueTimeEntryDisposition::Nullify,
         ?int $reassignToIssueId = null,
     ): void {
+        $this->deleteMany(collect([$issue]), $timeEntries, $reassignToIssueId);
+    }
+
+    /**
+     * Deletes the issues and every descendant of them, as Redmine's
+     * IssuesController#destroy does (`acts_as_nested_set :dependent =>
+     * :destroy`): the caller authorizes the selected issues only, and
+     * their subtasks go with them whether or not the user could see or
+     * delete those on their own. A selection holding both a parent and its
+     * child is fine — each issue is deleted once, deepest first.
+     *
+     * $timeEntries mirrors Redmine's `todo` choice for the time logged on
+     * all of those issues (Issue.self_and_descendants). Redmine defaults
+     * its confirmation form to deleting the entries; this app has always
+     * kept them (detached), so Nullify stays the default for every caller
+     * that doesn't ask — a deliberate, data-safe difference. Reassign moves
+     * them to $reassignToIssueId, which must be an issue of the selection's
+     * one project (Redmine looks it up through `@project.issues`) that is
+     * not about to be deleted.
+     *
+     * @param  Collection<int, Issue>  $issues
+     *
+     * @throws ValidationException when reassigning to a missing/foreign issue or one being deleted
+     */
+    public function deleteMany(
+        Collection $issues,
+        IssueTimeEntryDisposition $timeEntries = IssueTimeEntryDisposition::Nullify,
+        ?int $reassignToIssueId = null,
+    ): void {
+        $doomedIds = Issue::selfAndDescendantIds($issues->pluck('id'));
         $reassignTo = null;
 
         if ($timeEntries === IssueTimeEntryDisposition::Reassign) {
-            $reassignTo = $reassignToIssueId === null
+            $projectIds = $issues->pluck('project_id')->unique();
+
+            $reassignTo = $reassignToIssueId === null || $projectIds->count() !== 1
                 ? null
-                : Issue::query()->where('project_id', $issue->project_id)->find($reassignToIssueId);
+                : Issue::query()->where('project_id', $projectIds->first())->find($reassignToIssueId);
 
             if ($reassignTo === null) {
                 throw ValidationException::withMessages(['reassign_to_id' => __('このプロジェクトに存在する課題を指定してください。')]);
             }
 
-            if ($reassignTo->is($issue)) {
-                throw ValidationException::withMessages(['reassign_to_id' => __('削除する課題自身には付け替えできません。')]);
+            if ($doomedIds->contains($reassignTo->id)) {
+                throw ValidationException::withMessages(['reassign_to_id' => __('削除する課題(サブタスクを含む)には付け替えできません。')]);
             }
         }
 
-        // Dispatched before anything is removed so listeners (the webhook
-        // payload builder) still see a fully intact issue.
-        IssueDeleted::dispatch($issue);
+        $position = $doomedIds->flip();
+        $doomed = Issue::query()->whereIn('id', $doomedIds)->get()
+            ->sortBy(fn (Issue $issue) => $position[$issue->id])
+            ->values();
 
-        DB::transaction(function () use ($issue, $timeEntries, $reassignTo) {
+        // Dispatched before anything is removed so listeners (the webhook
+        // payload builder) still see fully intact issues.
+        foreach ($doomed as $issue) {
+            IssueDeleted::dispatch($issue);
+        }
+
+        DB::transaction(function () use ($doomed, $doomedIds, $timeEntries, $reassignTo) {
+            $entries = TimeEntry::query()->whereIn('issue_id', $doomedIds);
+
             match ($timeEntries) {
-                IssueTimeEntryDisposition::Destroy => $issue->timeEntries()->delete(),
-                IssueTimeEntryDisposition::Nullify => $issue->timeEntries()->update(['issue_id' => null]),
-                IssueTimeEntryDisposition::Reassign => $issue->timeEntries()->update([
+                IssueTimeEntryDisposition::Destroy => $entries->delete(),
+                IssueTimeEntryDisposition::Nullify => $entries->update(['issue_id' => null]),
+                IssueTimeEntryDisposition::Reassign => $entries->update([
                     'issue_id' => $reassignTo->id,
                     'project_id' => $reassignTo->project_id,
                 ]),
             };
 
-            $issue->delete();
+            foreach ($doomed as $issue) {
+                $issue->delete();
+            }
+
+            // Redmine's after_destroy :update_parent_attributes: a parent
+            // that survives recomputes its derived attributes — unless it has
+            // become a leaf, whose values Redmine no longer derives.
+            $doomed->pluck('parent_id')->filter()->unique()
+                ->reject(fn (int $parentId) => $doomedIds->contains($parentId))
+                ->filter(fn (int $parentId) => Issue::query()->where('parent_id', $parentId)->exists())
+                ->each(fn (int $parentId) => $this->recalculateAncestorAttributes($parentId));
         });
     }
 
