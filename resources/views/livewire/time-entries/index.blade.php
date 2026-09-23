@@ -361,6 +361,12 @@ new #[Layout('components.layouts.app')] class extends Component
     public function columnValue(TimeEntry $entry, string $key): string
     {
         if (str_starts_with($key, 'cf_')) {
+            // Only a column the viewer is offered: a URL or saved query
+            // naming a role-restricted field shows nothing.
+            if (! array_key_exists($key, $this->availableColumns)) {
+                return '';
+            }
+
             $field = $entry->customFieldValues->firstWhere('custom_field_id', (int) substr($key, 3));
 
             if ($field === null) {

@@ -2,13 +2,16 @@
 
 use App\Concerns\SelectsPageSize;
 use App\Concerns\InteractsWithQueryFilters;
+use App\Enums\CustomizableType;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
+use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Support\Query\CustomFieldVisibility;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -139,6 +142,28 @@ new #[Layout('components.layouts.app')] class extends Component
             ->values();
     }
 
+    /**
+     * Per issue custom field the viewer may see somewhere, the projects
+     * where they may (null: everywhere). A cf_{id} column — which only a
+     * URL or saved query can ask for here — shows a value only on the rows
+     * of those projects (Redmine's QueryCustomFieldColumn#value_object).
+     *
+     * @return array<int, array<int, int>|null>
+     */
+    #[Computed]
+    public function customFieldVisibleProjectIds(): array
+    {
+        $visibility = CustomFieldVisibility::for(auth()->user());
+
+        return CustomField::query()
+            ->where('customized_type', CustomizableType::Issue)
+            ->with('roles')
+            ->get()
+            ->mapWithKeys(fn (CustomField $field) => [$field->id => $visibility->visibleProjectIds($field, $this->visibleProjects)])
+            ->reject(fn (?array $projectIds) => $projectIds === [])
+            ->all();
+    }
+
     #[Computed]
     public function engine(): QueryFilterEngine
     {
@@ -199,6 +224,12 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         if (str_starts_with($key, 'cf_')) {
             $fieldId = (int) substr($key, 3);
+            $visibleProjectIds = $this->customFieldVisibleProjectIds;
+
+            if (! array_key_exists($fieldId, $visibleProjectIds)
+                || ($visibleProjectIds[$fieldId] !== null && ! in_array($issue->project_id, $visibleProjectIds[$fieldId], true))) {
+                return '';
+            }
 
             return $issue->customFieldValues
                 ->where('custom_field_id', $fieldId)

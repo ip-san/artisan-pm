@@ -59,17 +59,25 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('done_ratio', __('進捗率'), 'done_ratio', FilterFieldType::Integer, $integerOperators),
         ];
 
-        $customFields = CustomField::query()
-            ->where('customized_type', CustomizableType::Issue)
-            ->where('is_filter', true)
-            ->whereHas('trackers', fn ($query) => $query->whereIn('trackers.id', $project->trackers->pluck('id')))
-            ->with(['trackers', 'projects'])
-            ->orderBy('position')
-            ->get()
-            ->filter(fn (CustomField $field) => $field->appliesToProject($project))
-            ->map(fn (CustomField $field): FilterableField => new CustomFieldFilter($field));
+        $scopeProjects = null;
+        $resolveScopeProjects = function () use (&$scopeProjects, $project, $viewer): Collection {
+            return $scopeProjects ??= SubprojectScope::projectsForIssues($project, $viewer);
+        };
 
-        $extraFields = (new IssueExtraFilterFields(fn () => SubprojectScope::projectsForIssues($project, $viewer), $viewer, app(AuthorizationService::class), $project))->fields();
+        $customFields = self::customFieldFilters(
+            CustomField::query()
+                ->where('customized_type', CustomizableType::Issue)
+                ->where('is_filter', true)
+                ->whereHas('trackers', fn ($query) => $query->whereIn('trackers.id', $project->trackers->pluck('id')))
+                ->with(['trackers', 'projects', 'roles'])
+                ->orderBy('position')
+                ->get()
+                ->filter(fn (CustomField $field) => $field->appliesToProject($project)),
+            fn () => collect([$project])->concat($resolveScopeProjects())->unique('id')->values(),
+            $viewer,
+        );
+
+        $extraFields = (new IssueExtraFilterFields($resolveScopeProjects, $viewer, app(AuthorizationService::class), $project))->fields();
 
         return collect($nativeFields)->concat($extraFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key());
     }
@@ -120,19 +128,46 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('done_ratio', __('進捗率'), 'done_ratio', FilterFieldType::Integer, $integerOperators),
         ];
 
-        $customFields = CustomField::query()
-            ->where('customized_type', CustomizableType::Issue)
-            ->where('is_filter', true)
-            ->whereHas('trackers', fn ($query) => $query->whereIn('trackers.id', $trackers->pluck('id')))
-            ->with(['trackers', 'projects'])
-            ->orderBy('position')
-            ->get()
-            ->filter(fn (CustomField $field) => $projects->contains(fn (Project $project) => $field->appliesToProject($project)))
-            ->map(fn (CustomField $field): FilterableField => new CustomFieldFilter($field));
+        $customFields = self::customFieldFilters(
+            CustomField::query()
+                ->where('customized_type', CustomizableType::Issue)
+                ->where('is_filter', true)
+                ->whereHas('trackers', fn ($query) => $query->whereIn('trackers.id', $trackers->pluck('id')))
+                ->with(['trackers', 'projects', 'roles'])
+                ->orderBy('position')
+                ->get()
+                ->filter(fn (CustomField $field) => $projects->contains(fn (Project $project) => $field->appliesToProject($project))),
+            fn () => $projects,
+            $viewer,
+        );
 
         $extraFields = (new IssueExtraFilterFields(fn () => $projects, $viewer, app(AuthorizationService::class)))->fields();
 
         return collect($nativeFields)->concat($extraFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key());
+    }
+
+    /**
+     * The custom fields the viewer may see in at least one of the listed
+     * projects (Redmine's IssueQuery#issue_custom_fields.visible), each
+     * limited to the rows of the projects where it is visible. A hidden
+     * field is simply absent, so a stored or requested filter on it is
+     * ignored rather than applied.
+     *
+     * @param  Collection<int, CustomField>  $fields  with `roles` loaded
+     * @param  callable(): Collection<int, Project>  $projects  every project whose issues the list may show
+     * @return Collection<int, CustomFieldFilter>
+     */
+    private static function customFieldFilters(Collection $fields, callable $projects, ?User $viewer): Collection
+    {
+        $visibility = CustomFieldVisibility::for($viewer);
+        $restricted = $fields->contains(fn (CustomField $field) => ! $viewer?->is_admin && $field->roles->isNotEmpty());
+        $listed = $restricted ? $projects() : collect();
+
+        return $fields
+            ->map(fn (CustomField $field) => ['field' => $field, 'projectIds' => $visibility->visibleProjectIds($field, $listed)])
+            ->reject(fn (array $entry) => $entry['projectIds'] === [])
+            ->map(fn (array $entry): FilterableField => new CustomFieldFilter($entry['field'], $entry['projectIds']))
+            ->values();
     }
 
     /**

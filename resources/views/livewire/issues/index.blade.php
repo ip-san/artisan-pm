@@ -30,6 +30,7 @@ use App\Support\Export\ExportLimit;
 use App\Support\Issues\CopyOptions;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\CustomFieldFilter;
+use App\Support\Query\CustomFieldVisibility;
 use App\Support\Query\DefaultIssueQuery;
 use App\Support\Query\ListDefaults;
 use App\Support\Query\QueryFilterEngine;
@@ -301,6 +302,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $query = $this->engine->applyFilters($query, $this->builtFilters());
 
+        // Grouping by a custom field leaves out the rows where the viewer
+        // may not see it (Redmine's Query#statement does the same).
+        $groupField = str_starts_with($this->groupBy ?? '', 'cf_') ? $this->groupableCustomField() : null;
+        $groupProjectIds = $groupField !== null ? ($this->customFieldVisibleProjectIds[$groupField->id] ?? null) : null;
+
+        if ($groupProjectIds !== null) {
+            $query->whereIn('issues.project_id', $groupProjectIds);
+        }
+
         $sortCriteria = $this->sortCriteria();
 
         if ($sortCriteria !== []) {
@@ -338,7 +348,7 @@ new #[Layout('components.layouts.app')] class extends Component
     private function sortOnlyCustomFields(): Collection
     {
         return $this->projectIssueCustomFields
-            ->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => new CustomFieldFilter($field)]);
+            ->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => new CustomFieldFilter($field, $this->customFieldVisibleProjectIds[$field->id] ?? null)]);
     }
 
     /**
@@ -732,13 +742,45 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function projectIssueCustomFields(): Collection
     {
-        return CustomField::query()
-            ->where('customized_type', \App\Enums\CustomizableType::Issue)
-            ->with('projects')
-            ->orderBy('position')
-            ->get()
-            ->filter(fn (CustomField $field) => $field->appliesToProject($this->project))
-            ->values();
+        return CustomFieldVisibility::for(auth()->user())->visibleInAny(
+            CustomField::query()
+                ->where('customized_type', \App\Enums\CustomizableType::Issue)
+                ->with(['projects', 'roles'])
+                ->orderBy('position')
+                ->get()
+                ->filter(fn (CustomField $field) => $field->appliesToProject($this->project)),
+            $this->scopeProjects,
+        );
+    }
+
+    /**
+     * Per custom field, the listed projects where the viewer may see it
+     * (null: all of them). Redmine's QueryCustomFieldColumn#value_object
+     * and visibility_by_project_condition: on a subproject's rows where
+     * the viewer lacks the field's role the value is absent — blank cell,
+     * blank in CSV/PDF, excluded from grouping and sorted as blank.
+     *
+     * @return array<int, array<int, int>|null>
+     */
+    #[Computed]
+    public function customFieldVisibleProjectIds(): array
+    {
+        $visibility = CustomFieldVisibility::for(auth()->user());
+
+        return $this->projectIssueCustomFields
+            ->mapWithKeys(fn (CustomField $field) => [$field->id => $visibility->visibleProjectIds($field, $this->scopeProjects)])
+            ->all();
+    }
+
+    private function customFieldVisibleOn(int $fieldId, Issue $issue): bool
+    {
+        if (! array_key_exists($fieldId, $this->customFieldVisibleProjectIds)) {
+            return false;
+        }
+
+        $projectIds = $this->customFieldVisibleProjectIds[$fieldId];
+
+        return $projectIds === null || in_array($issue->project_id, $projectIds, true);
     }
 
     /**
@@ -751,6 +793,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public function customFieldCellValues(Issue $issue, string $key): Collection
     {
         $fieldId = (int) substr($key, 3);
+
+        if (! $this->customFieldVisibleOn($fieldId, $issue)) {
+            return collect();
+        }
 
         return $issue->loadMissing('customFieldValues.customField')
             ->customFieldValues

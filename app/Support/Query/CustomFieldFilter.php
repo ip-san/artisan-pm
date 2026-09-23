@@ -15,11 +15,21 @@ use Illuminate\Database\Eloquent\Builder;
  * value, applied inside a whereHas() scoped to this field's custom_field_id
  * — never a shared join — so multiple custom-field filters ANDed together
  * don't collide on the same joined table.
+ *
+ * $visibleProjectIds (see CustomFieldVisibility) limits a role-restricted
+ * field to the rows of the projects where the viewer may see it: on the
+ * other rows the value counts as absent, so they never match the filter
+ * and sort as blank — Redmine ANDs visibility_by_project_condition into
+ * both. Null means no restriction.
  */
 final class CustomFieldFilter implements FilterableField
 {
+    /**
+     * @param  array<int, int>|null  $visibleProjectIds
+     */
     public function __construct(
         private readonly CustomField $field,
+        private readonly ?array $visibleProjectIds = null,
     ) {}
 
     public function key(): string
@@ -70,7 +80,7 @@ final class CustomFieldFilter implements FilterableField
             $values = array_map(fn ($value) => $value === 'me' ? (string) auth()->id() : $value, $values);
         }
 
-        return $query->whereHas(
+        return $query->where(fn (Builder $scoped) => $this->restrictToVisibleProjects($scoped)->whereHas(
             'customFieldValues',
             fn (Builder $valueQuery) => FilterOperatorApplier::apply(
                 $valueQuery->where('custom_field_id', $fieldId),
@@ -78,7 +88,20 @@ final class CustomFieldFilter implements FilterableField
                 $operator,
                 $values,
             )
-        );
+        ));
+    }
+
+    /**
+     * @param  Builder<*>  $query
+     * @return Builder<*>
+     */
+    private function restrictToVisibleProjects(Builder $query): Builder
+    {
+        if ($this->visibleProjectIds === null) {
+            return $query;
+        }
+
+        return $query->whereIn($query->getModel()->qualifyColumn('project_id'), $this->visibleProjectIds);
     }
 
     /**
@@ -95,11 +118,20 @@ final class CustomFieldFilter implements FilterableField
         $column = $this->field->format()->storageColumn();
         $descending = $direction === 'desc';
 
+        $bindings = [$this->field->customized_type->value, $this->field->id];
+        $visibility = '';
+
+        if ($this->visibleProjectIds !== null) {
+            $visibility = $this->visibleProjectIds === []
+                ? ' AND 1 = 0'
+                : ' AND '.$model->qualifyColumn('project_id').' IN ('.implode(', ', array_fill(0, count($this->visibleProjectIds), '?')).')';
+            $bindings = [...$bindings, ...$this->visibleProjectIds];
+        }
+
         $value = "(SELECT cfv.{$column} FROM custom_field_values cfv"
             .' WHERE cfv.customized_type = ? AND cfv.customized_id = '.$model->getQualifiedKeyName()
-            .' AND cfv.custom_field_id = ? ORDER BY cfv.id DESC LIMIT 1)';
+            .' AND cfv.custom_field_id = ?'.$visibility.' ORDER BY cfv.id DESC LIMIT 1)';
         $order = $descending ? 'DESC' : 'ASC';
-        $bindings = [$this->field->customized_type->value, $this->field->id];
 
         // "NULLS FIRST/LAST" is PostgreSQL-only, and PostgreSQL, MySQL and
         // SQLite disagree on where NULL sorts by default, so blanks are
