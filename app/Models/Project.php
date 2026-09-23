@@ -66,11 +66,13 @@ final class Project extends Model implements HasMedia
 
     protected static function booted(): void
     {
-        // Redmine's Project#update_inherited_members: turning
-        // inherit_members on copies the parent's members, turning it off
-        // removes the copies.
+        // Redmine's Project#update_inherited_members and its after_save on
+        // parent_id: turning inherit_members on (or creating a subproject
+        // with it) copies the parent's members, turning it off removes the
+        // copies, and moving the project swaps the old parent's for the
+        // new one's.
         self::saved(function (Project $project): void {
-            if ($project->wasChanged('inherit_members')) {
+            if ($project->wasRecentlyCreated || $project->wasChanged(['inherit_members', 'parent_id'])) {
                 app(MemberInheritance::class)->sync($project);
             }
         });
@@ -700,9 +702,10 @@ final class Project extends Model implements HasMedia
             return null;
         }
 
-        $member = new Member(['project_id' => $this->id, 'user_id' => $user->id]);
-        $member->save();
-        $member->roles()->attach($role);
+        // The creator may already be an inherited member of a subproject
+        // that inherits members; the default role is added next to those.
+        $member = Member::query()->firstOrCreate(['project_id' => $this->id, 'user_id' => $user->id]);
+        $member->syncDirectRoles($member->directRoleIds()->push($role->id));
 
         return $member;
     }

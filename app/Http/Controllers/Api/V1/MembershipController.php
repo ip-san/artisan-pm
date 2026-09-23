@@ -73,6 +73,14 @@ final class MembershipController extends Controller
     {
         Gate::authorize('delete', $membership);
 
+        // Redmine's Member#deletable?: an inherited membership leaves the
+        // subproject only when it leaves the parent (Redmine answers 422).
+        if ($membership->hasInheritedRoles()) {
+            throw ValidationException::withMessages([
+                'role_ids' => 'An inherited membership cannot be deleted.',
+            ]);
+        }
+
         $managedRoleIds = $this->authorization->managedRolesFor(auth()->user(), $membership->project)->pluck('id');
 
         if ($membership->roles->pluck('id')->diff($managedRoleIds)->isNotEmpty()) {
@@ -89,8 +97,10 @@ final class MembershipController extends Controller
     /**
      * Roles outside the requester's managed set are left untouched rather
      * than rejected or silently stripped, matching Redmine's
-     * Member#set_editable_role_ids. At least one role must remain in the
-     * final combined set (untouched + newly submitted-and-managed).
+     * Member#set_editable_role_ids. Inherited roles are kept whatever is
+     * submitted (Member#role_ids=). At least one role must remain in the
+     * final combined set (untouched + newly submitted-and-managed +
+     * inherited).
      *
      * @param  array<int>  $submittedRoleIds
      */
@@ -98,16 +108,16 @@ final class MembershipController extends Controller
     {
         $managedRoleIds = $this->authorization->managedRolesFor(auth()->user(), $project)->pluck('id');
 
-        $untouchedRoleIds = $member->roles->pluck('id')->diff($managedRoleIds);
+        $untouchedRoleIds = $member->directRoleIds()->diff($managedRoleIds);
         $touchedRoleIds = collect($submittedRoleIds)->intersect($managedRoleIds);
         $finalRoleIds = $untouchedRoleIds->merge($touchedRoleIds)->unique();
 
-        if ($finalRoleIds->isEmpty()) {
+        if ($finalRoleIds->isEmpty() && ! $member->hasInheritedRoles()) {
             throw ValidationException::withMessages([
                 'role_ids' => 'At least one role is required.',
             ]);
         }
 
-        $member->roles()->sync($finalRoleIds);
+        $member->syncDirectRoles($finalRoleIds);
     }
 }

@@ -86,7 +86,7 @@ trait ManagesPrincipalMemberships
 
         $this->editingMembershipId = $member->id;
         $this->membershipProjectId = $member->project_id;
-        $this->membershipRoleIds = $member->roles->pluck('id')->all();
+        $this->membershipRoleIds = $member->directRoleIds()->all();
     }
 
     public function cancelMembershipEdit(): void
@@ -109,7 +109,11 @@ trait ManagesPrincipalMemberships
             'membershipProjectId' => $editing !== null
                 ? ['required', Rule::in([$editing->project_id])]
                 : ['required', Rule::in($this->membershipProjects->pluck('id')->all())],
-            'membershipRoleIds' => ['required', 'array', 'min:1'],
+            // A member that inherits roles from the parent project keeps
+            // them, so it may be left without roles of its own.
+            'membershipRoleIds' => $editing?->hasInheritedRoles()
+                ? ['present', 'array']
+                : ['required', 'array', 'min:1'],
             'membershipRoleIds.*' => [Rule::in($this->membershipRoles->pluck('id')->all())],
         ], attributes: ['membershipRoleIds' => __('ロール'), 'membershipProjectId' => __('プロジェクト')]);
 
@@ -122,7 +126,7 @@ trait ManagesPrincipalMemberships
             $this->membershipColumn() => $this->membershipPrincipal()->getKey(),
         ]);
 
-        $member->roles()->sync($data['membershipRoleIds']);
+        $member->syncDirectRoles($data['membershipRoleIds']);
 
         $this->cancelMembershipEdit();
         unset($this->principalMemberships, $this->membershipProjects);
@@ -137,6 +141,8 @@ trait ManagesPrincipalMemberships
         abort_if($member === null, 404);
 
         $this->authorize('manageMembers', $member->project);
+
+        abort_if($member->hasInheritedRoles(), 403);
 
         $member->delete();
 

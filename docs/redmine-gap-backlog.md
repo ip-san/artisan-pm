@@ -204,10 +204,10 @@
 | 112 | A3-01 | — | M | done(2026-09-20) |
 | 113 | A3-02 / A3-11 / A13-05 | A3-01 | M | done(2026-09-20、save_queries と search_project は A13-05b) |
 | 113b | A13-05b | A13-05 | S〜M | done(2026-09-20、ガントの保存クエリは対象外) |
-| 114 | A3-03 | — | M | wip(2026-09-24) |
+| 114 | A3-03 | — | M | done(2026-09-24、A3-03a/b。REST の `inherited` は A11-16) |
 | 114a | A3-03a | — | M | done(2026-09-24、親のメンバー変更の伝播・継承行の保護・移動/新規作成は A3-03b) |
-| 114b | A3-03b | A3-03a | M | todo |
-| 115 | A11-16 | A3-03 | S | blocked(依存: A3-03) |
+| 114b | A3-03b | A3-03a | M | done(2026-09-24) |
+| 115 | A11-16 | A3-03 | S | todo(依存の A3-03 完了) |
 | 116 | A3-09 | — | M | done(2026-09-20) |
 | 117 | A4-01 | — | M | done(2026-09-20、must_change_passwd と通知は未対応) |
 | 118 | A4-02 | — | M | done(2026-09-20) |
@@ -326,9 +326,9 @@
 |---|---|---|---|---|---|---|
 | A3-01 | 一般ユーザーによるトップレベルプロジェクト作成(`add_project` グローバル権限、`Role#permissions_all_trackers` と同様の非プロジェクト権限) | `ProjectPolicy::create` は管理者のみ `true` | グローバル権限(プロジェクト非依存)を `PermissionServiceProvider` に導入し、非メンバーロールにも付与可能に。作成者を自動で `new_project_user_role_id` のメンバーにする | 現状 `new_project_user_role_id` 設定は管理者作成時のみ意味を持つ | M | Projects「プロジェクト作成」 |
 | A3-02 | 権限 `select_project_publicity`(公開/非公開の切替を `edit_project` から分離、Redmine 5.1〜) | `edit_project` に包含 | 権限追加+プロジェクト編集フォームの `is_public` を条件表示 | A13 も参照 | S | ロール・権限 節 |
-| A3-03 | 子プロジェクトのメンバー継承(`projects.inherit_members`、`Member.inherited_from`) | 2026-09-24 着手(A3-03a/b に分割、設計メモ案 A=実体化) | 列追加、親メンバー変更時に子へ伝播するオブザーバ、継承メンバーは子側で削除不可(`Member#deletable?`) | REST Memberships の `inherited_from` 露出も同時に | M | Projects「サブプロジェクト」、REST API「Memberships」 |
+| A3-03 | 子プロジェクトのメンバー継承(`projects.inherit_members`、`Member.inherited_from`) | 2026-09-24 完了(A3-03a/b、設計メモ案 A=実体化)。REST の継承表示は A11-16 | 列追加、親メンバー変更時に子へ伝播するオブザーバ、継承メンバーは子側で削除不可(`Member#deletable?`) | REST Memberships の `inherited_from` 露出も同時に | M | Projects「サブプロジェクト」、REST API「Memberships」 |
 | A3-03a | 列 `projects.inherit_members`(既定 false)・`member_roles.inherited_from`(`member_roles.id` への自己参照 FK、削除は連鎖)、`MemberInheritance::sync()`、プロジェクトフォームの「メンバーを継承」、切替時の同期 | 2026-09-24 実施。`sync()` は親の現在の `member_roles` との差分を取る冪等な再計算(元の行が無くなった継承行を削除、足りない行を追加、ロールが 0 になったメンバーを `Member::delete()` で削除、継承している子へ再帰)。グループのメンバー行はグループ行のまま複製し、ユーザーへの展開は従来どおり動的。**Redmine との差**: 1 メンバー 1 ロール 1 行(`unique(member_id, role_id)` を維持)のため、子で直接付与済みのロールは継承行を作らない(直接行が優先。直接ロールを外すと次の同期で継承行が戻る)。Redmine は同じロールを直接と継承の 2 行で持つ。チェックボックスは親を閲覧できない利用者には効かない(Redmine の `safe_attributes`) | — | 設計メモ `gap-A3-03.md` | M | Projects「サブプロジェクト」 |
-| A3-03b | 親のメンバー/ロール変更の伝播、継承行の保護(画面・REST)、プロジェクト移動とサブプロジェクト新規作成での同期 | 未着手 | 各書き込み経路から `MemberInheritance` を呼ぶ。継承ロールは子で外せず、継承ロールを持つメンバーは削除不可(`Member#deletable?`) | A3-03a | M | Projects「サブプロジェクト」、REST API「Memberships」 |
+| A3-03b | 親のメンバー/ロール変更の伝播、継承行の保護(画面・REST)、プロジェクト移動とサブプロジェクト新規作成での同期 | 2026-09-24 実施。ロールの書き込みはすべて `Member::syncDirectRoles()`(直接ロールだけを置き換え、継承ロールは送信内容にかかわらず残す=Redmine の `Member#role_ids=`。書き込み後に `MemberInheritance::sync()`)経由: メンバー画面・REST `MembershipController`・管理画面のユーザー/グループの「プロジェクト」・`Project::addDefaultMember()`(継承済みの作成者にも既定ロールを追加できるよう `firstOrCreate`)。`Member::deleted` で継承先を再同期。`Project::saved` で新規作成・`parent_id` 変更時も同期(Web フォームと REST の移動の両方)。継承ロールを持つメンバーは子で削除不可(画面は削除ボタンを出さず 403、REST は 422=Redmine と同じ)、編集時は継承ロールをチェック済み・無効で表示。一覧に「親プロジェクトから継承」 | 各書き込み経路から `MemberInheritance` を呼ぶ。継承ロールは子で外せず、継承ロールを持つメンバーは削除不可(`Member#deletable?`) | A3-03a | M | Projects「サブプロジェクト」、REST API「Memberships」 |
 | A3-04 | プロジェクトの `homepage` 列 | `projects` に列なし | 列+フォーム+概要画面リンク+API | — | S | — (checklist 未掲載) |
 | A3-05 | クローズ中プロジェクトの編集ブロック | クローズ中でも設定変更・再オープン可能 | Redmine の `Project#allows_to?`(クローズ時は読み取り権限と `close_project` のみ)を `ProjectPolicy` に反映 | 旧: 実装上の判断 | S | Projects「クローズ/再オープン」 |
 | A3-06 | サブプロジェクトの課題を親の一覧に含める(`display_subprojects_issues` 設定、`subproject_id` フィルタ) | 設定なし(grep 0件)。一覧・工数合計はプロジェクト自身のみ | 設定追加、課題一覧/ガント/カレンダー/工数合計で子孫プロジェクトを既定で含める。フィルタ `subproject_id` | A1-17 と連動 | M | 工数管理「プロジェクトの実績工数合計」 |

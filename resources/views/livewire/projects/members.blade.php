@@ -61,7 +61,19 @@ new #[Layout('components.layouts.app')] class extends Component
         // untouched via addMember()'s own logic regardless of what's
         // bound here, and including it would fail that same request's
         // Rule::in($managedRoleIds) validation on submit.
-        $this->roleIds = $member->roles->pluck('id')->intersect($this->roles->pluck('id'))->all();
+        $this->roleIds = $member->directRoleIds()->intersect($this->roles->pluck('id'))->values()->all();
+    }
+
+    /**
+     * Roles the member being edited inherited from the parent project:
+     * shown ticked but locked, since only the parent can change them.
+     *
+     * @return Collection<int, int>
+     */
+    #[Computed]
+    public function editingInheritedRoleIds(): Collection
+    {
+        return $this->members->firstWhere('id', $this->editingMemberId)?->inheritedRoleIds() ?? collect();
     }
 
     public function cancelEdit(): void
@@ -203,17 +215,19 @@ new #[Layout('components.layouts.app')] class extends Component
         // checked against this final combined set, not the raw submission
         // — an edit that leaves only untouched roles in place is valid
         // even though roleIds itself came back empty.
-        $untouchedRoleIds = $member->roles->pluck('id')->diff($managedRoleIds);
+        // Inherited roles are kept whatever is submitted (see
+        // Member::syncDirectRoles()) and count towards that one role.
+        $untouchedRoleIds = $member->directRoleIds()->diff($managedRoleIds);
         $touchedRoleIds = collect($data['roleIds'])->intersect($managedRoleIds);
         $finalRoleIds = $untouchedRoleIds->merge($touchedRoleIds);
 
-        if ($finalRoleIds->isEmpty()) {
+        if ($finalRoleIds->isEmpty() && ! $member->hasInheritedRoles()) {
             $this->addError('roleIds', __('少なくとも1つのロールを選択してください。'));
 
             return;
         }
 
-        $member->roles()->sync($finalRoleIds);
+        $member->syncDirectRoles($finalRoleIds);
 
         $this->reset('userSearch', 'selectedUserId', 'groupId', 'roleIds', 'editingMemberId');
         unset($this->members, $this->availableGroups);
@@ -223,10 +237,13 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('manageMembers', $this->project);
 
-        Member::query()
-            ->where('project_id', $this->project->id)
-            ->findOrFail($memberId)
-            ->delete();
+        $member = Member::query()->where('project_id', $this->project->id)->findOrFail($memberId);
+
+        // Redmine's Member#deletable?: an inherited member leaves the
+        // subproject only when it leaves the parent.
+        abort_if($member->hasInheritedRoles(), 403);
+
+        $member->delete();
 
         unset($this->members);
     }
@@ -294,8 +311,14 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="flex flex-wrap gap-3">
                 @foreach ($this->roles as $role)
                     <label class="flex items-center gap-2 text-sm text-neutral-700">
-                        <input type="checkbox" wire:model="roleIds" value="{{ $role->id }}" class="rounded border-neutral-300">
-                        {{ $role->name }}
+                        @if ($this->editingInheritedRoleIds->contains($role->id))
+                            <input type="checkbox" checked disabled class="rounded border-neutral-300">
+                            {{ $role->name }}
+                            <span class="text-xs text-neutral-500">{{ __('(親プロジェクトから継承)') }}</span>
+                        @else
+                            <input type="checkbox" wire:model="roleIds" value="{{ $role->id }}" class="rounded border-neutral-300">
+                            {{ $role->name }}
+                        @endif
                     </label>
                 @endforeach
             </div>
@@ -331,17 +354,22 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endif
                     </span>
                     <span class="ml-2 text-xs text-neutral-500">
-                        {{ $member->roles->pluck('name')->join(', ') }}
+                        {{ $member->roles->pluck('name')->unique()->join(', ') }}
                     </span>
+                    @if ($member->hasInheritedRoles())
+                        <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600" data-inherited-member>{{ __('親プロジェクトから継承') }}</span>
+                    @endif
                 </div>
                 <div class="flex gap-3">
                     <button wire:click="editMember({{ $member->id }})" class="text-sm text-brand-bold hover:underline">
                         {{ __('編集') }}
                     </button>
-                    <button wire:click="removeMember({{ $member->id }})" wire:confirm="{{ __('このメンバーを削除しますか?') }}"
-                        class="text-sm text-danger-bolder hover:underline">
-                        {{ __('削除') }}
-                    </button>
+                    @unless ($member->hasInheritedRoles())
+                        <button wire:click="removeMember({{ $member->id }})" wire:confirm="{{ __('このメンバーを削除しますか?') }}"
+                            class="text-sm text-danger-bolder hover:underline">
+                            {{ __('削除') }}
+                        </button>
+                    @endunless
                 </div>
             </li>
         @empty

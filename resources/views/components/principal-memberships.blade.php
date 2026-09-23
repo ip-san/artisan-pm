@@ -13,11 +13,16 @@
             <li class="flex items-center justify-between py-2" wire:key="principal-membership-{{ $member->id }}">
                 <span>
                     <span class="font-medium text-neutral-900">{{ $member->project->name }}</span>
-                    <span class="ml-2 text-xs text-neutral-500">{{ $member->roles->pluck('name')->join(', ') }}</span>
+                    <span class="ml-2 text-xs text-neutral-500">{{ $member->roles->pluck('name')->unique()->join(', ') }}</span>
+                    @if ($member->hasInheritedRoles())
+                        <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ __('親プロジェクトから継承') }}</span>
+                    @endif
                 </span>
                 <span class="flex gap-3">
                     <button type="button" wire:click="editMembership({{ $member->id }})" class="text-brand-bold hover:underline">{{ __('編集') }}</button>
-                    <button type="button" wire:click="removeMembership({{ $member->id }})" wire:confirm="{{ __('このプロジェクトから外しますか?') }}" class="text-danger-bolder hover:underline">{{ __('削除') }}</button>
+                    @unless ($member->hasInheritedRoles())
+                        <button type="button" wire:click="removeMembership({{ $member->id }})" wire:confirm="{{ __('このプロジェクトから外しますか?') }}" class="text-danger-bolder hover:underline">{{ __('削除') }}</button>
+                    @endunless
                 </span>
             </li>
         @empty
