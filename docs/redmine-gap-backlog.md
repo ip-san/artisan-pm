@@ -208,6 +208,7 @@
 | 114a | A3-03a | — | M | done(2026-09-24、親のメンバー変更の伝播・継承行の保護・移動/新規作成は A3-03b) |
 | 114b | A3-03b | A3-03a | M | done(2026-09-24) |
 | 115 | A11-16 | A3-03 | S | done(2026-09-24) |
+| 115a | A3-03c | A3-03b | S | todo |
 | 116 | A3-09 | — | M | done(2026-09-20) |
 | 117 | A4-01 | — | M | done(2026-09-20、must_change_passwd と通知は未対応) |
 | 118 | A4-02 | — | M | done(2026-09-20) |
@@ -329,6 +330,7 @@
 | A3-03 | 子プロジェクトのメンバー継承(`projects.inherit_members`、`Member.inherited_from`) | 2026-09-24 完了(A3-03a/b、設計メモ案 A=実体化)。REST の継承表示は A11-16 | 列追加、親メンバー変更時に子へ伝播するオブザーバ、継承メンバーは子側で削除不可(`Member#deletable?`) | REST Memberships の `inherited_from` 露出も同時に | M | Projects「サブプロジェクト」、REST API「Memberships」 |
 | A3-03a | 列 `projects.inherit_members`(既定 false)・`member_roles.inherited_from`(`member_roles.id` への自己参照 FK、削除は連鎖)、`MemberInheritance::sync()`、プロジェクトフォームの「メンバーを継承」、切替時の同期 | 2026-09-24 実施。`sync()` は親の現在の `member_roles` との差分を取る冪等な再計算(元の行が無くなった継承行を削除、足りない行を追加、ロールが 0 になったメンバーを `Member::delete()` で削除、継承している子へ再帰)。グループのメンバー行はグループ行のまま複製し、ユーザーへの展開は従来どおり動的。**Redmine との差**: 1 メンバー 1 ロール 1 行(`unique(member_id, role_id)` を維持)のため、子で直接付与済みのロールは継承行を作らない(直接行が優先。直接ロールを外すと次の同期で継承行が戻る)。Redmine は同じロールを直接と継承の 2 行で持つ。チェックボックスは親を閲覧できない利用者には効かない(Redmine の `safe_attributes`) | — | 設計メモ `gap-A3-03.md` | M | Projects「サブプロジェクト」 |
 | A3-03b | 親のメンバー/ロール変更の伝播、継承行の保護(画面・REST)、プロジェクト移動とサブプロジェクト新規作成での同期 | 2026-09-24 実施。ロールの書き込みはすべて `Member::syncDirectRoles()`(直接ロールだけを置き換え、継承ロールは送信内容にかかわらず残す=Redmine の `Member#role_ids=`。書き込み後に `MemberInheritance::sync()`)経由: メンバー画面・REST `MembershipController`・管理画面のユーザー/グループの「プロジェクト」・`Project::addDefaultMember()`(継承済みの作成者にも既定ロールを追加できるよう `firstOrCreate`)。`Member::deleted` で継承先を再同期。`Project::saved` で新規作成・`parent_id` 変更時も同期(Web フォームと REST の移動の両方)。継承ロールを持つメンバーは子で削除不可(画面は削除ボタンを出さず 403、REST は 422=Redmine と同じ)、編集時は継承ロールをチェック済み・無効で表示。一覧に「親プロジェクトから継承」 | 各書き込み経路から `MemberInheritance` を呼ぶ。継承ロールは子で外せず、継承ロールを持つメンバーは削除不可(`Member#deletable?`) | A3-03a | M | Projects「サブプロジェクト」、REST API「Memberships」 |
+| A3-03c | 継承の解除前の警告(Redmine: 親経由でしか入れない非管理者が「メンバーを継承」を外すと自分が入れなくなる旨を確認)と、ロール削除でロールを失ったメンバーの後始末 | A3-03a/b では未移植。ロール削除後にロールなしのメンバーが残りうる(直接メンバーも従来から同じ) | 解除時の確認ダイアログ、ロール削除時にロールなしメンバーを削除(または同期) | A3-03b で分離 | S | 「サブプロジェクト」 |
 | A3-04 | プロジェクトの `homepage` 列 | `projects` に列なし | 列+フォーム+概要画面リンク+API | — | S | — (checklist 未掲載) |
 | A3-05 | クローズ中プロジェクトの編集ブロック | クローズ中でも設定変更・再オープン可能 | Redmine の `Project#allows_to?`(クローズ時は読み取り権限と `close_project` のみ)を `ProjectPolicy` に反映 | 旧: 実装上の判断 | S | Projects「クローズ/再オープン」 |
 | A3-06 | サブプロジェクトの課題を親の一覧に含める(`display_subprojects_issues` 設定、`subproject_id` フィルタ) | 設定なし(grep 0件)。一覧・工数合計はプロジェクト自身のみ | 設定追加、課題一覧/ガント/カレンダー/工数合計で子孫プロジェクトを既定で含める。フィルタ `subproject_id` | A1-17 と連動 | M | 工数管理「プロジェクトの実績工数合計」 |
