@@ -31,6 +31,14 @@ final class FilterSelectOptions
         'project_status' => 'project.status',
         'author_group' => 'author.group',
         'author_role' => 'author.role',
+        'issue_tracker_id' => 'issue.tracker_id',
+        'issue_parent_id' => 'issue.parent_id',
+        'issue_status_id' => 'issue.status_id',
+        'issue_fixed_version_id' => 'issue.fixed_version_id',
+        'issue_category_id' => 'issue.category_id',
+        'issue_subject' => 'issue.subject',
+        'user_group' => 'user.group',
+        'user_role' => 'user.role',
     ];
 
     /**

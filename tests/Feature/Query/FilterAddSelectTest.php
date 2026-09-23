@@ -1,10 +1,13 @@
 <?php
 
+use App\Enums\FilterFieldType;
+use App\Enums\FilterOperator;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Query\FilterSelectOptions;
 use App\Support\Query\IssueFilterFieldRegistry;
+use App\Support\Query\NativeColumnFilter;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
 use Livewire\Livewire;
 
@@ -36,12 +39,25 @@ test('the add filter select groups the issue filters like Redmine', function () 
 });
 
 test('a lone date filter is not put in a group of its own', function () {
+    $options = FilterSelectOptions::grouped(collect([
+        new NativeColumnFilter('spent_on', 'Date', 'spent_on', FilterFieldType::Date, [FilterOperator::Equals]),
+        new NativeColumnFilter('user_id', 'User', 'user_id', FilterFieldType::Select, [FilterOperator::Equals]),
+    ]));
+
+    expect($options['groups'])->toBe([])
+        ->and($options['ungrouped'])->toBe(['user_id' => 'User', 'spent_on' => 'Date']);
+});
+
+test('the time entry filters on the issue and the user are grouped under them', function () {
+    $admin = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
-    $options = FilterSelectOptions::grouped(TimeEntryFilterFieldRegistry::forProject($project));
+    $options = FilterSelectOptions::grouped(TimeEntryFilterFieldRegistry::forProject($project, $admin));
 
-    expect($options['groups'])->not->toHaveKey(__('日付'))
-        ->and($options['ungrouped'])->toHaveKey('spent_on');
+    expect(array_keys($options['groups'][__('課題')]))->toBe(['issue_tracker_id', 'issue_parent_id', 'issue_status_id', 'issue_fixed_version_id', 'issue_category_id', 'issue_subject'])
+        ->and(array_keys($options['groups'][__('ユーザー')]))->toBe(['user_group', 'user_role'])
+        ->and(array_keys($options['groups'][__('日付')]))->toBe(['spent_on', 'created_at'])
+        ->and($options['ungrouped'])->toHaveKeys(['issue_id', 'user_id', 'author_id', 'activity_id', 'hours']);
 });
 
 test('the issue list renders the add filter select and adds the chosen filter', function () {

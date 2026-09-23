@@ -179,7 +179,8 @@
 | 90e | A1-36 | A1-17a | S | todo |
 | 90f | A3-06b | A3-06 | M | todo |
 | 90g | A1-17e | A3-06b | S | todo |
-| 91 | A2-08 | A1-17 | M | todo(2026-09-24 依存の A1-17 が done) |
+| 91 | A2-08 | A1-17 | M | done(2026-09-24、`subproject_id` は A1-17e と同じく A3-06b 待ち、カスタムフィールドのフィルタと課題/プロジェクト側の関連列は A2-08b) |
+| 91a | A2-08b | A2-08 | S〜M | todo |
 | 92 | A1-25 | — | M | done(2026-09-20、API の status_id は未対応) |
 | 93 | A1-06 | A1-25 | M | done(2026-09-20、カスタムフィールドの一括編集は A1-06b) |
 | 93b | A1-06b | A1-06 | M | done(2026-09-20、右クリックメニューのCFサブメニューは対象外) |
@@ -330,7 +331,8 @@
 | A2-06 | 課題レポートのドリルダウン(`reports#issue_report_details`)・サブプロジェクト集計・CSV | 1画面のグリッドのみ | 各軸(トラッカー/優先度/担当者/作成者/バージョン/カテゴリ/サブプロジェクト)の詳細ページと CSV | 旧: 意図的簡略化 | S〜M | 「課題レポート」 |
 | A2-07 | ページサイズ選択(`per_page_options`)と検索結果ページネーション(`search_results_per_page`) | どの一覧にもページサイズ `<select>` なし。検索結果はページネーション自体なし | 共通コンポーネント `<x-per-page-select>` を作り課題/工数/プロジェクト/News/文書一覧に配置。検索結果に `LengthAwarePaginator` | — | S〜M | 設定「全般」 |
 | A2-07b | 一覧のページ分割そのものが無い画面(工数一覧・グローバル工数一覧・プロジェクトのお知らせ一覧・文書一覧)に `PageSize`/`SelectsPageSize`/`<x-per-page-select>`(A2-07 で追加)を適用。工数一覧は合計・グループ化・一括選択が全件前提のため、合計とグループ見出しを SQL 集計に移す作業を伴う | いずれも `->get()` で全件取得(`time-entries/index.blade.php:126`、`time-entries/global-index.blade.php:116`、`news/index.blade.php:27`、`documents/index.blade.php:39`) | 工数一覧は合計を全件集計、行はページ分だけ描画。CSV は全件のまま | A2-07 | M | 設定「全般」 |
-| A2-08 | 工数フィルタ: `subproject_id`/`issue.parent_id`/`issue.status_id`/`issue.fixed_version_id`/`issue.category_id`/`issue.subject`/`user.group`/`user.role`/`author_id`/`project.status`、列: `project`/`created_on`/`tweek`/`author`/CF | `TimeEntryFilterFieldRegistry.php` は user_id/activity_id/spent_on/hours/project_id。列は spent_on/user/activity/issue/comments/hours | 課題側の JOIN フィルタと列を工数側に移植 | A1-17 と同じ `FilterableField` 実装を共有 | M | クエリ「列選択」 |
+| A2-08 | 工数フィルタ: `subproject_id`/`issue.parent_id`/`issue.status_id`/`issue.fixed_version_id`/`issue.category_id`/`issue.subject`/`user.group`/`user.role`/`author_id`/`project.status`、列: `project`/`created_on`/`tweek`/`author`/CF | **done(2026-09-24)**。`TimeEntryFilterFieldRegistry` + 新規 `TimeEntryExtraFilterFields`: `issue_id`(ツリー、カンマ区切り可)/`issue_tracker_id`/`issue_parent_id`/`issue_status_id`/`issue_fixed_version_id`/`issue_category_id`(プロジェクト一覧のみ)/`issue_subject`/`user_group`/`user_role`/`author_id`/`project_status`(横断一覧とサブプロジェクトを持つプロジェクト)/`comments`/`created_at`。キーはドットを `_` に。課題側の条件は閲覧できる課題だけを見る(Redmine の `left_join_issue` と同じ。Redmine が可視性を見ない `issue.fixed_version_id`/`issue.parent_id` も同様)。列: `project_id`(プロジェクト一覧にも)/`created_at`/`tweek`/`author_id`。見えない課題の工数は「#番号」だけ表示。`subproject_id` は A3-06b 待ち(A1-17e と同時)、CF フィルタと関連 CF 列は A2-08b | 課題側の JOIN フィルタと列を工数側に移植 | A1-17 と同じ `FilterableField` 実装を共有 | M | クエリ「列選択」 |
+| A2-08b | 工数一覧のカスタムフィールド: フィルタ(工数 CF `cf_N`、`issue.cf_N`、`project.cf_N`、`user.cf_N`。`add_custom_fields_filters`/`add_associations_custom_fields_filters`)と列(`issue.tracker`/`issue.parent`/`issue.status`/`issue.category`/`issue.fixed_version` の関連列、課題 CF・プロジェクト CF の関連列。`time_entry_query.rb` の `available_columns`) | 工数 CF は列のみ(A8-02)。フィルタは A2-08 の標準項目だけ | `CustomFieldFilter` を工数/関連モデル向けに使い、関連列は閲覧できる課題・閲覧ロールで見える CF だけ値を出す | A2-08 で分離。関連列は課題の可視性判定を行ごとに要する | S〜M | クエリ「列選択」 |
 | A2-09 | 課題一覧の合計行の設定化(`issue_list_default_totals`)、工数一覧既定(`time_entry_list_defaults`) | 合計は予定/実績を固定表示、設定キーなし | 合計対象列(予定/実績/残工数/数値 CF)を設定で選択 | — | S | クエリ「合計/集計」 |
 | A2-10 | プロジェクト一覧クエリの残り: 「プロジェクト」フィルタ(`id`、値に `<< 自分のプロジェクト >>`/`<< ブックマーク >>`、`query.rb:605`)、列 `last_activity_date`、一覧の CSV 出力(`projects.csv`)、ボードのカードで説明を Markdown 描画しカスタムフィールドを表示、表示形式(`display_type`)を保存クエリに含める | A2-03(2026-09-24)で未対応。ブックマークは「ブックマークしたプロジェクトのみ表示」チェックボックスで代替。`queries` に options 列がないため表示形式は保存されない | 各項目を `ProjectFilterFieldRegistry`/`projects/index.blade.php` に追加。表示形式の保存は `queries.options`(JSON)列の追加が要る | A2-03 の基盤上に | S〜M | Projects「プロジェクト一覧」 |
 

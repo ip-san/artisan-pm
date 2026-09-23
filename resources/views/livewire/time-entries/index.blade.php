@@ -37,15 +37,19 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /**
      * Columns selectable for display/CSV export — mirrors issues.index's
-     * own DISPLAY_COLUMNS. 'issue_id' and 'comments' aren't registered
-     * filter fields (see TimeEntryFilterFieldRegistry), so sorting by
-     * them is a harmless no-op rather than a real sort, same as any
+     * own DISPLAY_COLUMNS (Redmine's TimeEntryQuery columns). Sorting by
+     * a column that isn't a registered filter field (project_id here,
+     * tweek) is a harmless no-op rather than a real sort, same as any
      * unregistered column on the issues list.
      *
      * @var array<string, string>
      */
     public const DISPLAY_COLUMNS = [
+        'project_id' => 'プロジェクト',
         'spent_on' => '日付',
+        'created_at' => '作成日',
+        'tweek' => '週',
+        'author_id' => '作成者',
         'user_id' => 'ユーザー',
         'activity_id' => '作業分類',
         'issue_id' => '課題',
@@ -61,7 +65,11 @@ new #[Layout('components.layouts.app')] class extends Component
     public function displayColumnLabels(): array
     {
         return [
+            'project_id' => __('プロジェクト'),
             'spent_on' => __('日付'),
+            'created_at' => __('作成日'),
+            'tweek' => __('週'),
+            'author_id' => __('作成者'),
             'user_id' => __('ユーザー'),
             'activity_id' => __('作業分類'),
             'issue_id' => __('課題'),
@@ -145,7 +153,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $query = TimeEntry::query()
             ->where('project_id', $this->project->id)
-            ->with(['user', 'activity', 'issue', 'customFieldValues']);
+            ->with(['project', 'user', 'author', 'activity', 'issue', 'customFieldValues']);
 
         if (app(AuthorizationService::class)->timeEntryVisibilityFor(auth()->user(), $this->project) === TimeEntryVisibility::Own) {
             $query->where('user_id', auth()->id());
@@ -300,7 +308,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->filterValues[$key] = $filter['values'] ?? [];
         }
 
-        $this->columns = $query->column_names !== [] ? $query->column_names : array_keys(self::DISPLAY_COLUMNS);
+        $this->columns = $query->column_names !== [] ? $query->column_names : ListDefaults::DEFAULT_TIME_ENTRY_COLUMNS;
         $this->groupBy = $query->group_by;
 
         if ($query->sort_criteria !== [] && $query->sort_criteria !== null) {
@@ -333,6 +341,23 @@ new #[Layout('components.layouts.app')] class extends Component
         ];
     }
 
+    /** @var array<int, bool> issue id => whether the viewer may see it */
+    private array $issueVisibility = [];
+
+    /**
+     * Whether the viewer may see the entry's issue: an entry logged on an
+     * issue the viewer cannot see shows only its number, as in Redmine
+     * (format_object links an issue only when it is visible).
+     */
+    public function issueIsVisible(TimeEntry $entry): bool
+    {
+        if ($entry->issue === null) {
+            return false;
+        }
+
+        return $this->issueVisibility[$entry->issue->id] ??= \Illuminate\Support\Facades\Gate::allows('view', $entry->issue);
+    }
+
     public function columnValue(TimeEntry $entry, string $key): string
     {
         if (str_starts_with($key, 'cf_')) {
@@ -349,11 +374,15 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         return match ($key) {
+            'project_id' => $entry->project->name,
             'user_id' => $entry->user->displayName(),
             'activity_id' => $entry->activity->name,
             'spent_on' => $entry->spent_on->toDateString(),
+            'created_at' => $entry->created_at?->format('Y-m-d H:i') ?? '',
+            'tweek' => (string) $entry->spent_on->isoWeek(),
+            'author_id' => $entry->author?->displayName() ?? '',
             'hours' => \App\Support\Format\Hours::format($entry->hours, false),
-            'issue_id' => $entry->issue ? "#{$entry->issue->id} {$entry->issue->subject}" : '',
+            'issue_id' => $entry->issue ? ($this->issueIsVisible($entry) ? "#{$entry->issue->id} {$entry->issue->subject}" : "#{$entry->issue->id}") : '',
             'comments' => (string) $entry->comments,
             default => '',
         };
@@ -933,10 +962,12 @@ new #[Layout('components.layouts.app')] class extends Component
                             @foreach ($columns as $columnKey)
                                 <td wire:key="time-entry-{{ $entry->id }}-column-{{ $columnKey }}" class="px-4 py-2">
                                     @if ($columnKey === 'issue_id')
-                                        @if ($entry->issue)
+                                        @if ($entry->issue && $this->issueIsVisible($entry))
                                             <a href="{{ route('issues.show', [$project, $entry->issue]) }}" class="text-brand-bold hover:underline">
                                                 #{{ $entry->issue->id }} {{ $entry->issue->subject }}
                                             </a>
+                                        @elseif ($entry->issue)
+                                            #{{ $entry->issue->id }}
                                         @else
                                             -
                                         @endif
