@@ -7,7 +7,6 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Webhook;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Livewire;
 
 /**
@@ -120,8 +119,8 @@ test('editing keeps the secret when left blank and never edits someone else\'s h
         ->and($mine->secret)->toBe('keep-me')
         ->and($mine->is_active)->toBeFalse();
 
-    expect(fn () => $component->call('startEdit', $theirs->id))->toThrow(ModelNotFoundException::class);
-    expect(fn () => $component->call('delete', $theirs->id))->toThrow(ModelNotFoundException::class);
+    $component->call('startEdit', $theirs->id)->assertStatus(404);
+    Livewire::actingAs($user)->test('my-webhooks.index')->call('delete', $theirs->id)->assertStatus(404);
     expect($theirs->fresh())->not->toBeNull();
 });
 

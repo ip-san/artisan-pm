@@ -231,9 +231,10 @@ test('a group member of another project cannot be edited through this one', func
     $project = Project::factory()->create();
     $otherMember = Member::factory()->for(Project::factory()->create())->create(['group_id' => Group::factory()->create()->id, 'user_id' => null]);
 
-    expect(fn () => Livewire::actingAs($admin)
+    Livewire::actingAs($admin)
         ->test('projects.members', ['project' => $project])
-        ->call('editMember', $otherMember->id))->toThrow(Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        ->call('editMember', $otherMember->id)
+        ->assertStatus(404);
 });
 
 test('an admin can add a group as a project member with roles', function () {

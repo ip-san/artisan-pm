@@ -173,9 +173,10 @@ test('a version of another page cannot be deleted through this page', function (
     app(WikiPageService::class)->update($other, [], 'other second text', $user);
     $foreignVersion = $other->versions()->where('version', 1)->firstOrFail();
 
-    expect(fn () => Livewire::actingAs($user)
+    Livewire::actingAs($user)
         ->test('wiki.history', ['project' => $project, 'wikiPage' => $page])
-        ->call('deleteVersion', $foreignVersion->id))->toThrow(Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        ->call('deleteVersion', $foreignVersion->id)
+        ->assertStatus(404);
 
     expect($other->fresh()->versions)->toHaveCount(2);
 });

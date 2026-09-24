@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
+{{-- The XML declaration is concatenated so the template holds no PHP open tag (Blade skips compiling one when short_open_tag=On). --}}
+{!! '<'.'?xml version="1.0" encoding="UTF-8"?'.'>' !!}
 <feed xmlns="http://www.w3.org/2005/Atom">
     <title>{{ $title }}</title>
     <link rel="self" href="{{ url()->full() }}" />

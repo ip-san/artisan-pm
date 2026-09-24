@@ -670,6 +670,7 @@
 - **設定の既定値を Redmine に合わせる**: 挙動変更ログで「既定は従来どおり」とした設定(`activity_days_default`、`mail_handler_allow_override`、日付/時刻の形式が空なら言語に合わせる、1 ページの件数の既定など)の既定値を Redmine の既定にする。保存済みの設定値は変えない。
 - **REST の課題一覧**: `status_id` を省略したときはオープンな課題だけを返す(Redmine と同じ。`status_id=*` で全件)。
 - 監査で見つかった承認不要の Redmine との差(約 20 件)も進める。
+- 実施状況: PHP 8.3 対応 done(2026-09-25。確認: php:8.3 で app/config/routes/database/bootstrap/lang/tests/plugins と Blade の生ファイル・コンパイル済みビューを `php -l`、PHP 8.4/8.5 専用の関数・構文の grep(`array_find` など。polyfill-php84/85 も入っている)、php:8.3+拡張のコンテナで Api/Gantt/Settings/Query/Admin/Activity/Wiki/Issues/News の 1733 テスト)。
 
 ---
 
@@ -926,6 +927,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A11-20 | `PUT /issues/{id}` の `project_id` で課題が移動する(従来は黙って無視)。移動できないプロジェクトは 422。**`move_issues` 権限を廃止**: Web の詳細画面・一括の移動も Redmine と同じく課題の編集権限(`edit_issues`、自分の課題は `edit_own_issues`)+移動先の `add_issues` で可能(`edit_issues` のあるロールは移動できるようになり、`move_issues` だけのロールは移動できなくなる)。**移動すると同じプロジェクトのサブタスクも一緒に移動する**(従来は切り離されて元のプロジェクトに残った。移動先で使えないトラッカーのサブタスクがあると移動できない)、工数も移動先のプロジェクトの工数になる(従来は元のプロジェクトに残った)、プロジェクト間の関連を許可していなければ関連が削除される。移動先のトラッカーの候補に現在のトラッカーも出る | 移動を `move_issues` で管理していた環境はロールの `edit_issues` を確認。関連の削除は取り消せない(Redmine と同じ) |
 | A1-44 | 「ログインが必要」をオフにした環境で、ログインしていない利用者がプロジェクト一覧・概要、全体の課題一覧/カレンダー/ガント/検索/活動、公開プロジェクトのフォーラム・ニュース・文書・ファイルを Anonymous ロールの権限の範囲で見られる(従来はログイン画面へ)。ゲストのヘッダーにそれらのメニューが出る。**プロジェクト概要のサブプロジェクト一覧に、閲覧者が見られない(非公開の)サブプロジェクトが出なくなる(ログイン利用者にも適用)** | 匿名アクセスを許可している環境。Anonymous ロールの権限を確認すること |
 | A11-21 | **セキュリティ修正**: ワークフローで読み取り専用の項目・トラッカーで無効にした標準項目は、REST・課題フォーム(細工した要求)・一括編集/右クリック・CSV インポート・受信メールのどれで送っても無視される(従来は REST とフォームへの細工で変更できた)。必須の項目が空になる作成/更新は拒否される(REST は 422、一括編集はその課題だけ保存せず、インポートは行エラー、受信メールは不受理)。規則は変更後のステータス・トラッカーで判定し、**新規課題(フォーム・REST・インポート・メール)にも開始ステータスの規則が適用される**(従来はフォームの編集時のみ、変更前のステータスで判定) | ワークフローの項目規則を設定している環境。必須項目を送っていなかった API クライアント・インポート手順・メール運用 |
+| PHP 8.3 | PHP 8.3 以上で動く(`composer.json` の `config.platform.php` を 8.3.0 にして `composer.lock` を解決し直した: Symfony 8.1 → 7.4 LTS。あわせて Livewire 4.3 → 4.4、league/commonmark 2.8 → 2.10 など)。`require` に `ext-dom`/`ext-fileinfo`/`ext-gd`/`ext-intl`/`ext-mbstring`/`ext-pdo`/`ext-simplexml`/`ext-zip` を明記。Atom フィードのテンプレートが `short_open_tag=On` の PHP でも壊れない | **intl・gd などが無い PHP では `composer install` が止まる**(従来は実行時に失敗)。Livewire 4.4 はアクション内の `ModelNotFoundException` を 404 応答にする(画面の挙動は従来どおり 404) |
 
 **フロントエンドの再ビルドが必要**: A10-04・A9-02・A1-21・A1-13 などが新しい Tailwind クラスを使う。`public/build` は gitignore 対象のため、デプロイ時に `npm run build` を実行すること。
 

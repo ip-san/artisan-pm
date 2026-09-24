@@ -12,7 +12,7 @@ Issue tracking (trackers, statuses, workflows, custom fields, relations, watcher
 
 | Layer | Choice |
 |---|---|
-| Backend | PHP 8.5, Laravel 13 |
+| Backend | PHP 8.3 or later (developed on 8.5; `composer.lock` is resolved for 8.3), Laravel 13 |
 | UI | Livewire 4 + Volt (single-file components), Tailwind CSS |
 | Auth | Laravel Fortify (password, 2FA/TOTP), LDAP via `directorytree/ldaprecord-laravel` |
 | Database | PostgreSQL (development); MySQL 8.0+ / MariaDB 10.3+ and SQLite are also supported |
@@ -83,7 +83,7 @@ SCM repositories the app browses/syncs must live under the directory configured 
 
 The app runs on rental hosting such as Xserver, さくらのレンタルサーバ or ConoHa WING (PHP-FPM, MySQL 8.0+ / MariaDB 10.3+, cron, no resident processes). The settings each step refers to are explained in [`.env.example`](.env.example).
 
-1. **Build locally.** Hosts rarely have Node.js, and `public/build` is not committed: run `npm ci && npm run build`, and `composer install --no-dev --optimize-autoloader` with the same PHP version as the host (add `--ignore-platform-req=ext-ldap` if the host has no ldap extension and you don't use LDAP).
+1. **Build locally.** Hosts rarely have Node.js, and `public/build` is not committed: run `npm ci && npm run build`, and `composer install --no-dev --optimize-autoloader` with PHP 8.3 or later (the lock file is resolved for 8.3, so it installs on any 8.3+ host) (add `--ignore-platform-req=ext-ldap` if the host has no ldap extension and you don't use LDAP).
 2. **Upload** the whole app, including `vendor/` and `public/build/`, to a directory **outside** the web root, e.g. `~/artisan-pm` (not into `public_html`).
 3. **Point the web root at `public/`.** The web root must be the app's `public/` directory, never the app directory itself (that would serve `.env`). Hosts fix the document root to `public_html` (or `~/<domain>/public_html`), so either
    - replace it with a symlink (preferred): `mv public_html public_html.orig && ln -s ~/artisan-pm/public public_html`, or
@@ -95,7 +95,7 @@ The app runs on rental hosting such as Xserver, さくらのレンタルサー�
      </IfModule>
      ```
 4. **Configure `.env`** (copy `.env.example`): `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://…`, the database (`DB_CONNECTION=mysql` or `mariadb`, `DB_COLLATION` — choose it before migrating), `QUEUE_CONNECTION=database`, `TRUSTED_PROXIES=*` when the host terminates HTTPS in front of PHP, the mail settings, and `SCHEDULE_TIMEZONE=Asia/Tokyo` if the daily jobs should run at Japanese midnight.
-5. **Initialise** over SSH (use the host's full path to the PHP version `composer.json` requires, e.g. `/usr/bin/php8.x`):
+5. **Initialise** over SSH (use the host's full path to PHP 8.3 or later, e.g. `/usr/bin/php8.3`):
    ```bash
    php artisan key:generate
    php artisan migrate --force
@@ -107,7 +107,7 @@ The app runs on rental hosting such as Xserver, さくらのレンタルサー�
 6. **Permissions:** `storage/` and `bootstrap/cache/` must be writable by PHP (`chmod -R u+rwX storage bootstrap/cache`; hosts run PHP as your own user, so 755/644 is enough). Attachments, logs, the dompdf font cache and Git/SVN repositories (`SCM_REPOSITORIES_ROOT`) live under `storage/`.
 7. **Cron:** one entry, every minute if the control panel allows it (otherwise `*/5`, starting at :00 — see `.env.example` on why):
    ```
-   * * * * * cd /home/you/artisan-pm && /usr/bin/php8.x artisan schedule:run >> /dev/null 2>&1
+   * * * * * cd /home/you/artisan-pm && /usr/bin/php8.3 artisan schedule:run >> /dev/null 2>&1
    ```
    It runs the scheduled jobs (incoming mail, repository autofetch, housekeeping) and, with `QUEUE_CONNECTION=database`, also works off the queued notification mail, webhooks and CSV imports — no second entry or resident worker is needed.
 8. **Check** 管理 → 情報 (admin information): it lists the PHP extensions, writable directories and the git/svn commands the app found.

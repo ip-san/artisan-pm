@@ -210,7 +210,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         // Redmine lists `issue.descendants.visible`: a subtask the viewer
         // may not see is left out.
-        return new \Illuminate\Database\Eloquent\Collection(Issue::filterVisible($this->issue->children, auth()->user())->all())
+        return (new \Illuminate\Database\Eloquent\Collection(Issue::filterVisible($this->issue->children, auth()->user())->all()))
             ->loadMissing(RelatedIssueColumns::relationsFor(array_keys($this->relatedColumns)));
     }
 

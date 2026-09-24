@@ -13,7 +13,6 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
 use App\Support\Dashboard\SavedIssueQueryBlock;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Livewire;
 
 /**
@@ -163,7 +162,7 @@ test('a subproject entry is listed but not deleted or bulk edited from the paren
     $list = Livewire::actingAs($viewer)->test('time-entries.index', ['project' => $parent])
         ->assertSee(route('time-entries.edit', [$child, $sub]), false);
 
-    expect(fn () => $list->call('deleteEntry', $sub->id))->toThrow(ModelNotFoundException::class);
+    $list->call('deleteEntry', $sub->id)->assertStatus(404);
 
     Livewire::actingAs($viewer)->test('time-entries.index', ['project' => $parent])
         ->set('selected', [(string) $sub->id])
