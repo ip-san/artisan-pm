@@ -56,6 +56,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Trusted Proxies
+    |--------------------------------------------------------------------------
+    |
+    | The reverse proxies whose X-Forwarded-For/-Host/-Port/-Proto headers are
+    | believed (App\Http\Middleware\TrustProxies): `*` for any, or a comma-
+    | separated list of IP addresses / CIDR ranges. Needed when the host
+    | terminates HTTPS at a front proxy and passes plain HTTP to PHP, so the
+    | app still builds https:// URLs. Leave empty when PHP is reached directly.
+    |
+    */
+
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

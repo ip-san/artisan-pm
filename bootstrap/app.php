@@ -10,10 +10,12 @@ use App\Http\Middleware\EnforceSysApiKey;
 use App\Http\Middleware\EnforceTwofaRequired;
 use App\Http\Middleware\RecordRecentProject;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\TrustProxies;
 use App\Http\Middleware\WrapJsonpResponse;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\TrustProxies as FrameworkTrustProxies;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -31,6 +33,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withEvents(discover: false)
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->throttleApi();
+        // TRUSTED_PROXIES (config app.trusted_proxies): HTTPS behind a
+        // TLS-terminating proxy, common on shared hosting.
+        $middleware->replace(FrameworkTrustProxies::class, TrustProxies::class);
         $middleware->appendToGroup('web', RecordRecentProject::class);
         $middleware->appendToGroup('web', SetLocale::class);
         // The /sys web service is called by scripts with a shared key, not from a browser.
