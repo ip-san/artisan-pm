@@ -7,6 +7,7 @@ use App\Models\Member;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use App\Support\Scm\FilesystemAdapter;
 use Illuminate\Support\Facades\Queue;
@@ -90,7 +91,20 @@ test('git and svn adapters support every capability', function () {
     }
 });
 
+test('filesystem is left out of the default enabled SCM types, as in Redmine', function () {
+    $project = Project::factory()->create();
+
+    $types = Livewire::actingAs(filesystemRepositoryMember($project))
+        ->test('repository.form', ['project' => $project])
+        ->get('enabledTypes')
+        ->pluck('value')
+        ->all();
+
+    expect($types)->toBe(['git', 'svn', 'mercurial', 'bazaar', 'cvs']);
+});
+
 test('the form registers a filesystem repository only inside repositories_root', function () {
+    Setting::set('enabled_scm_types', ['git', 'filesystem']);
     $project = Project::factory()->create();
     $user = filesystemRepositoryMember($project);
     $outside = sys_get_temp_dir().'/fs-test-form-'.uniqid();

@@ -17,4 +17,19 @@ enum RepositoryType: string
     case Mercurial = 'mercurial';
     case Bazaar = 'bazaar';
     case Cvs = 'cvs';
+
+    /**
+     * The enabled_scm_types default, as Redmine's settings.yml enabled_scm:
+     * every type except Filesystem, which an administrator enables
+     * explicitly.
+     *
+     * @return array<int, string>
+     */
+    public static function defaultEnabledValues(): array
+    {
+        return array_values(array_map(
+            fn (self $type) => $type->value,
+            array_filter(self::cases(), fn (self $type) => $type !== self::Filesystem),
+        ));
+    }
 }

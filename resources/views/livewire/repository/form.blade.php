@@ -112,7 +112,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function enabledTypes(): Collection
     {
-        $enabled = Setting::get('enabled_scm_types', array_map(fn (RepositoryType $type) => $type->value, RepositoryType::cases()));
+        $enabled = Setting::get('enabled_scm_types', RepositoryType::defaultEnabledValues());
 
         return collect(RepositoryType::cases())
             ->filter(fn (RepositoryType $case) => in_array($case->value, $enabled, true) || $case === $this->repository?->type)

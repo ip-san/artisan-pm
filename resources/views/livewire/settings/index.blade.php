@@ -467,7 +467,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->commit_cross_project_ref = Setting::get('commit_cross_project_ref', true);
         $this->commit_logtime_enabled = Setting::get('commit_logtime_enabled', false);
         $this->commit_logtime_activity_id = Setting::get('commit_logtime_activity_id');
-        $this->enabled_scm_types = Setting::get('enabled_scm_types', array_map(fn (RepositoryType $type) => $type->value, RepositoryType::cases()));
+        $this->enabled_scm_types = Setting::get('enabled_scm_types', RepositoryType::defaultEnabledValues());
         // Unconfigured default: a single rule covering the classic keyword
         // list, targeting the first closed status — matches
         // RepositorySyncService's own fallback when no rules are stored,
