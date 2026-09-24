@@ -291,7 +291,7 @@
 | 138i | A14-01b8 | A14-01b | M | done(2026-09-23、メール関連の `app/Mail`・`app/Notifications`・通知リスナーは A14-01b6 へ) |
 | 139 | B'-02 | 承認 | M | todo(2026-09-24 承認: 依存・設計の追加を承認) |
 | 140 | B'-03 | 承認 | S〜M | done(2026-09-24、`ScmCapability`+`ScmAdapter::supports()`、`FilesystemAdapter`(entries/cat のみ)。ファイル名の `path_encoding` 変換は対象外) |
-| 141 | B'-01 | 承認 | M×3 | wip(2026-09-24、Mercurial・Bazaar 完了) |
+| 141 | B'-01 | 承認 | M×3 | done(2026-09-24、Mercurial・Bazaar・CVS。ブランチ/タグの表示、CVS のブランチリビジョンは対象外) |
 
 ### 0.4 起動方法
 
@@ -618,7 +618,7 @@
 
 | ID | 項目 | ブロッカー | 解消後の作業 | 規模 |
 |---|---|---|---|---|
-| B'-01 | Mercurial / CVS / Bazaar アダプタ | 2026-09-24: `docker/8.5/Dockerfile` に `mercurial`/`cvs`/`brz`(+移行用 `bzr`)を追加。**Mercurial 済**(`MercurialAdapter`、リビジョンはノードハッシュ、リポジトリの `.hg/hgrc` は `HGRCSKIPREPO` で無視)、**Bazaar 済**(`BazaarAdapter`、Breezy `brz` を `--no-plugins` で実行、リビジョンはメインラインの revno) | `docker/` の Dockerfile にバイナリ追加→`ScmAdapter` 実装(Git/SVN と同じ実バイナリ E2E テスト) | M ×3 |
+| B'-01 | Mercurial / CVS / Bazaar アダプタ | 2026-09-24: `docker/8.5/Dockerfile` に `mercurial`/`cvs`/`brz`(+移行用 `bzr`)を追加。**Mercurial 済**(`MercurialAdapter`、リビジョンはノードハッシュ、リポジトリの `.hg/hgrc` は `HGRCSKIPREPO` で無視)、**Bazaar 済**(`BazaarAdapter`、Breezy `brz` を `--no-plugins` で実行、リビジョンはメインラインの revno)、**CVS 済**(`CvsAdapter`、パスはモジュールのディレクトリで CVSROOT は `repositories_root` 内の最も近い祖先。trunk のファイルリビジョンを commitid(無ければ作者+メッセージ+10秒)でまとめて 1,2,3… と採番、`-f -R` で実行) | `docker/` の Dockerfile にバイナリ追加→`ScmAdapter` 実装(Git/SVN と同じ実バイナリ E2E テスト) | M ×3 |
 | B'-02 | カスタムフィールド形式 `attachment` | Spatie MediaLibrary の `model_type/model_id` 非 null 制約により「CF 値としての添付」の所有者モデル設計が必要 | `CustomFieldValue` を HasMedia にするか、専用の中間モデルを作る設計メモを先に書く | M |
 | B'-03 | Filesystem アダプタ | **done(2026-09-24)**: `RepositoryType::Filesystem`+`FilesystemAdapter`(`repositories_root` 配下のディレクトリ、`..` と外部へのシンボリックリンクを拒否)。`ScmAdapter::supports(ScmCapability)` を追加し、非対応の変更履歴/統計/コミッター/同期/比較/注釈/ファイル履歴は非表示かつ 404 | `ScmAdapter` に `supports(Capability)` を追加し、非対応タブを UI で非表示にする方式が候補 | S〜M |
 | B'-04 | A1-20(グループ割当)・A4-10b(姓名分離)・A14-01(i18n) | いずれもスキーマ/全画面に波及する。着手前に設計メモをユーザーに提示して承認を得る | — | L |

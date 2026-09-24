@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\RepositoryType;
 use App\Enums\ScmCapability;
 use App\Support\Scm\BazaarAdapter;
+use App\Support\Scm\CvsAdapter;
 use App\Support\Scm\FilesystemAdapter;
 use App\Support\Scm\GitAdapter;
 use App\Support\Scm\MercurialAdapter;
@@ -163,6 +164,7 @@ final class Repository extends Model
             RepositoryType::Filesystem => new FilesystemAdapter((string) $this->path),
             RepositoryType::Mercurial => new MercurialAdapter((string) $this->path, $this->log_encoding),
             RepositoryType::Bazaar => new BazaarAdapter((string) $this->path, $this->log_encoding),
+            RepositoryType::Cvs => new CvsAdapter((string) $this->path, $this->log_encoding),
         };
     }
 
