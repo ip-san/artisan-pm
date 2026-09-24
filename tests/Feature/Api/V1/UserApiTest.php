@@ -6,8 +6,10 @@ use App\Models\EmailAddress;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\User;
+use App\Notifications\AccountInformation;
 use App\Support\Preferences\UserPreferences;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Passport\Passport;
 
 test('unauthenticated requests are rejected', function () {
@@ -288,4 +290,77 @@ test('the name filter also matches login, first and last name and additional ema
         ->and($ids('xav nobody'))->not->toContain($byParts->id)
         // LIKE wildcards in the term are literal.
         ->and($ids('%'))->toBeEmpty();
+});
+
+test('users/current returns the caller\'s own account with their API key', function () {
+    $user = User::factory()->create(['login' => 'me-myself']);
+    Passport::actingAs($user);
+
+    $this->getJson('/api/v1/users/current')
+        ->assertOk()
+        ->assertJsonPath('data.id', $user->id)
+        ->assertJsonPath('data.login', 'me-myself')
+        ->assertJsonPath('data.api_key', $user->api_key);
+});
+
+test('users/current needs an authenticated caller', function () {
+    $this->getJson('/api/v1/users/current')->assertUnauthorized();
+});
+
+test('an admin can create a user with a generated password and mail the account information', function () {
+    Notification::fake();
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $id = $this->postJson('/api/v1/users', [
+        'login' => 'generated', 'firstname' => 'Gen', 'lastname' => 'Erated', 'email' => 'generated@example.com',
+        'generate_password' => true, 'send_information' => true,
+    ])->assertCreated()->json('data.id');
+
+    $user = User::findOrFail($id);
+    $sent = null;
+
+    Notification::assertSentTo($user, AccountInformation::class, function (AccountInformation $notification) use (&$sent) {
+        $sent = $notification->password;
+
+        return true;
+    });
+
+    expect($sent)->toBeString()
+        ->and(strlen($sent))->toBeGreaterThanOrEqual(10)
+        ->and(Hash::check($sent, $user->password))->toBeTrue()
+        ->and($sent)->toMatch('/[A-Z]/')->toMatch('/[a-z]/')->toMatch('/[0-9]/');
+});
+
+test('without generate_password a password is still required and no mail is sent unless asked', function () {
+    Notification::fake();
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $this->postJson('/api/v1/users', ['login' => 'nopass', 'firstname' => 'No', 'lastname' => 'Pass', 'email' => 'nopass@example.com'])
+        ->assertUnprocessable()->assertJsonValidationErrors(['password']);
+
+    $this->postJson('/api/v1/users', ['login' => 'quiet', 'firstname' => 'Qu', 'lastname' => 'Iet', 'email' => 'quiet@example.com', 'password' => 'Secret-Passw0rd'])
+        ->assertCreated();
+
+    Notification::assertNothingSent();
+});
+
+test('updating with generate_password and send_information mails the new password, not to the caller themselves', function () {
+    Notification::fake();
+    $admin = User::factory()->admin()->create();
+    $user = User::factory()->create();
+    Passport::actingAs($admin);
+
+    $this->putJson("/api/v1/users/{$user->id}", ['generate_password' => true, 'send_information' => true])->assertOk();
+    $this->putJson("/api/v1/users/{$admin->id}", ['send_information' => true])->assertOk();
+
+    Notification::assertSentTo($user, AccountInformation::class, fn ($n) => Hash::check($n->password, $user->fresh()->password));
+    Notification::assertNotSentTo($admin, AccountInformation::class);
+});
+
+test('the account information mail names the login and the password', function () {
+    $user = User::factory()->make(['login' => 'mail-login']);
+
+    $mail = (new AccountInformation('S3cret-pass'))->toMail($user);
+
+    expect(implode("\n", $mail->introLines))->toContain('mail-login')->toContain('S3cret-pass');
 });

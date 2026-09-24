@@ -48,6 +48,9 @@ class StoreUserRequest extends FormRequest
             'mail_notification' => ['sometimes', Rule::enum(MailNotificationOption::class)],
             'no_self_notified' => ['sometimes', 'boolean'],
             'must_change_passwd' => ['sometimes', 'boolean'],
+            // Redmine's generate_password and send_information.
+            'generate_password' => ['sometimes', 'boolean'],
+            'send_information' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -57,6 +60,6 @@ class StoreUserRequest extends FormRequest
      */
     private function passwordRequired(bool $isCreate): bool
     {
-        return $isCreate && ! $this->filled('auth_source_id');
+        return $isCreate && ! $this->filled('auth_source_id') && ! $this->boolean('generate_password');
     }
 }

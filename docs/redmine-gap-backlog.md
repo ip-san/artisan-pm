@@ -306,7 +306,9 @@
 | 127c | A9-03c | A9-03b | S | done(2026-09-25、固定の課題ブロック 4 つに表示項目・並び順の設定。Redmine はカレンダー・ニュース・文書・活動のブロックに設定を持たないため、それらは対象外で Redmine と同じ) |
 | 128 | A9-04 | — | M | done(2026-09-20、ページング/件数上限は A9-04b) |
 | 128b | A9-04b | A9-04 | M | done(2026-09-20、権限確認のクエリはプロジェクト数に比例したまま) |
-| 129 | A11-07 | — | M | done(2026-09-20、send_information/generate_password は未対応) |
+| 129 | A11-07 | — | M | done(2026-09-20、send_information/generate_password は A11-07b) |
+| 129b | A11-07b | A11-07 | S | done(2026-09-25、`GET /users/current`、`POST`/`PUT /users` の `generate_password`・`send_information`(アカウント情報メール)。管理画面のユーザー作成フォームの同じ項目は対象外) |
+| 129c | A4-17 | A11-07b | S | todo |
 | 130 | A11-10 | — | M | done(2026-09-20、include=attachments の共通化は対象外) |
 | 131 | A12-02 / A13-07 | — | M | done(2026-09-20、ユーザー自身の管理画面は A12-02b) |
 | 131b | A12-02b | A12-02 | S〜M | done(2026-09-20) |
@@ -622,6 +624,8 @@
 | A11-05 | `GET /projects/{id}/files.json`、`POST /projects/{id}/files.json`(Files モジュール) | なし | Files モジュールの添付一覧/追加 API(`upload` トークンを使用) | — | S | REST API 節(未掲載) |
 | A11-06 | `GET /attachments/{id}.json`、`PATCH /attachments/{id}.json`(説明/ファイル名)、`DELETE /attachments/{id}.json`、`GET /attachments/download/{id}` | `POST /uploads` のみ | Media を対象に取得/更新/削除。`author` は A7-09 が前提 | Spatie Media の ID を露出 | S | REST API「添付ファイル(アップロードAPI)」 |
 | A11-07 | `POST/PUT/DELETE /users`、`show` の可視性ティア(本人/管理者/公開)と応答フィールド出し分け(`admin`/`mail`/`api_key`/`status`) | `GET` のみ、管理者限定、`UserResource` は常に同一形状 | 書き込み系を追加(`is_admin` は fillable 外のため明示的に扱う)、`UserPolicy::view` を Web の公開プロフィール(`User::isVisibleTo()`)に合わせる | パスワード/`must_change_passwd`/`generate_password`/`send_information` | M | REST API「Users」 |
+| A11-07b | Users API の残り: `GET /users/current`、`generate_password`(Redmine の `User#random_password`)、`send_information`(`Mailer#account_information`) | **done(2026-09-25)**。`UserController::current()`、`App\Support\Auth\RandomPassword`、`App\Notifications\AccountInformation`。更新時の送信は Redmine と同じく有効なユーザーで自分以外のときだけ。テスト: `UserApiTest.php` | なし | 管理画面のユーザー作成/編集フォームにはパスワード生成・アカウント情報の送信が無い(A4-17 として追加) | S | REST API「Users」 |
+| A4-17 | 管理画面のユーザー作成/編集フォームの「パスワードを自動生成」「アカウント情報をユーザーに送信」(Redmine の `users/_form` の `generate_password`・`send_information`) | `todo`。REST は A11-07b で対応、Web のフォームには無い | `RandomPassword`/`AccountInformation` をフォームに配線 | — | S | 「ユーザー」 |
 | A11-08 | `POST /groups/{id}/users.json`、`DELETE /groups/{id}/users/{user_id}.json` | `user_ids` の完全置換のみ | 追加/削除専用エンドポイント | — | S | REST API「Groups」 |
 | A11-09 | `GET /issues/{id}?include=allowed_statuses,changesets`、`include=children` の再帰、`journals` の `details` 完全形 | `include` は journals/relations/attachments/children(1階層)/watchers | `allowed_statuses` は `WorkflowService` で算出、`changesets` は `Changeset` 関連、`children` を再帰化 | — | S | REST API「Issues」 |
 | A11-09b | `include=changesets` の `user`(Redmine の `issues/show.api.rsb` は `changeset.user` があれば `user: {id, name}`) | **done(2026-09-25)**。`App\Support\Scm\CommitterResolver`(`RepositorySyncService` のコミッター解決を抽出: 管理画面の対応表 → メール/ログイン)で解決して `user` を付ける(解決できなければ省く、`committer` はそのまま)。テスト: `IssueApiIncludeTest.php` | `committer` の文字列のみ | Redmine はフェッチ時に `changesets.user_id` を保存するが、本アプリは表示時に解決(列を増やさない) | S | REST API「Issues」 |

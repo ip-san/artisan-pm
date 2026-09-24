@@ -12,8 +12,10 @@ use App\Http\Requests\Api\V1\UpdateUserRequest;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Models\Setting;
 use App\Models\User;
+use App\Notifications\AccountInformation;
 use App\Services\AccountDeletionService;
 use App\Support\Api\CustomFieldPayload;
+use App\Support\Auth\RandomPassword;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -46,6 +48,14 @@ final class UserController extends Controller
         return UserResource::collection($users);
     }
 
+    /**
+     * GET /users/current — Redmine's users/current: the caller's own account.
+     */
+    public function current(Request $request): UserResource
+    {
+        return new UserResource($request->user());
+    }
+
     public function show(Request $request, User $user): UserResource
     {
         abort_unless($user->isVisibleTo($request->user()), 404);
@@ -58,13 +68,18 @@ final class UserController extends Controller
         $data = $request->validated();
         $authSourceId = $data['auth_source_id'] ?? null;
 
+        // Redmine's generate_password: a random password for a local account.
+        $plainPassword = $authSourceId === null
+            ? (($data['generate_password'] ?? false) ? RandomPassword::generate() : ($data['password'] ?? null))
+            : null;
+
         $user = new User([
             'login' => $data['login'],
             ...User::normalizeNameInput(array_intersect_key($data, array_flip(['name', 'firstname', 'lastname']))),
             'email' => $data['email'],
             // A directory-backed account never uses a local password; an
             // unguessable placeholder satisfies the column, like the admin form.
-            'password' => $authSourceId === null ? Hash::make($data['password']) : Hash::make(Str::random(40)),
+            'password' => Hash::make($plainPassword ?? Str::random(40)),
             'auth_source_id' => $authSourceId,
             'language' => $data['language'] ?? null,
             'status' => $data['status'] ?? UserStatus::Active->value,
@@ -77,6 +92,12 @@ final class UserController extends Controller
         $customFieldData = CustomFieldPayload::extract($request, $user->relevantCustomFields(), $request->user(), requireAll: true);
         $user->save();
         $user->setCustomFieldValues($customFieldData);
+
+        // Redmine's send_information: mail the new account its login (and
+        // password).
+        if ($data['send_information'] ?? false) {
+            $user->notify(new AccountInformation($plainPassword));
+        }
 
         return (new UserResource($user))->response()->setStatusCode(201);
     }
@@ -91,8 +112,17 @@ final class UserController extends Controller
             $attributes['auth_source_id'] = $data['auth_source_id'];
         }
 
-        if (! empty($data['password']) && ($attributes['auth_source_id'] ?? $user->auth_source_id) === null) {
-            $attributes['password'] = Hash::make($data['password']);
+        $isLocal = ($attributes['auth_source_id'] ?? $user->auth_source_id) === null;
+        $plainPassword = null;
+
+        if ($isLocal && ($data['generate_password'] ?? false)) {
+            $plainPassword = RandomPassword::generate();
+        } elseif ($isLocal && ! empty($data['password'])) {
+            $plainPassword = $data['password'];
+        }
+
+        if ($plainPassword !== null) {
+            $attributes['password'] = Hash::make($plainPassword);
         }
 
         $user->fill($attributes);
@@ -108,6 +138,11 @@ final class UserController extends Controller
         $customFieldData = CustomFieldPayload::extract($request, $user->relevantCustomFields(), $request->user());
         $user->save();
         $user->setCustomFieldValues($customFieldData);
+
+        // Redmine's update sends it to an active user other than the caller.
+        if (($data['send_information'] ?? false) && $user->isActive() && ! $user->is($request->user())) {
+            $user->notify(new AccountInformation($plainPassword));
+        }
 
         return new UserResource($user);
     }
