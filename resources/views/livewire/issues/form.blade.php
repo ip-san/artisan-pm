@@ -1117,7 +1117,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @foreach ($this->watcherOptions as $candidate)
                         <label class="flex items-center gap-2 text-sm text-neutral-700" wire:key="watcher-option-{{ $candidate->id }}">
                             <input type="checkbox" wire:model="watcher_user_ids" value="{{ $candidate->id }}" class="rounded border-neutral-300">
-                            {{ $candidate->name }}
+                            {{ $candidate->displayName() }}
                         </label>
                     @endforeach
                 </div>

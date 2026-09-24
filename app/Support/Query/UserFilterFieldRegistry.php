@@ -38,6 +38,8 @@ final class UserFilterFieldRegistry
             new UserGroupFilter,
             new NativeColumnFilter('name', __('名前'), 'name', FilterFieldType::Text, $text),
             new NativeColumnFilter('login', __('ログインID'), 'login', FilterFieldType::Text, $text),
+            new NativeColumnFilter('firstname', __('名'), 'firstname', FilterFieldType::Text, $text),
+            new NativeColumnFilter('lastname', __('姓'), 'lastname', FilterFieldType::Text, $text),
             new NativeColumnFilter('email', __('メールアドレス'), 'email', FilterFieldType::Text, $text),
             new NativeColumnFilter('is_admin', __('管理者'), 'is_admin', FilterFieldType::Boolean, [FilterOperator::Equals]),
             new NativeColumnFilter('created_at', __('登録日'), 'created_at', FilterFieldType::Date, $date, storesTime: true),
@@ -55,6 +57,8 @@ final class UserFilterFieldRegistry
         return [
             'name' => __('名前'),
             'login' => __('ログインID'),
+            'lastname' => __('姓'),
+            'firstname' => __('名'),
             'email' => __('メールアドレス'),
             'is_admin' => __('管理者'),
             'status' => __('ステータス'),

@@ -103,7 +103,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <select wire:model="userId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
                 <option value="">{{ __('選択してください') }}</option>
                 @foreach ($this->projectMembers as $member)
-                    <option value="{{ $member->id }}">{{ $member->name }}</option>
+                    <option value="{{ $member->id }}">{{ $member->displayName() }}</option>
                 @endforeach
             </select>
             @error('userId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror

@@ -52,7 +52,7 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('priority_id', __('優先度'), 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
             new NativeColumnFilter('category_id', __('カテゴリ'), 'category_id', FilterFieldType::Select, $selectOperators, fn () => $project->issueCategories->pluck('name', 'id')->all()),
             self::assigneeFilter($selectOperators, fn () => $project->users, collect([$project->id]), $viewer),
-            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
+            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($project->users)),
             new NativeColumnFilter('fixed_version_id', __('対象バージョン'), 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $project->versions->pluck('name', 'id')->all()),
             new NativeColumnFilter('subject', __('題名'), 'subject', FilterFieldType::Text, $textOperators),
             new NativeColumnFilter('start_date', __('開始日'), 'start_date', FilterFieldType::Date, $dateOperators),
@@ -123,7 +123,7 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('priority_id', __('優先度'), 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
             new NativeColumnFilter('category_id', __('カテゴリ'), 'category_id', FilterFieldType::Select, $selectOperators, fn () => $categories->pluck('name', 'id')->all()),
             self::assigneeFilter($selectOperators, fn () => $users, $projects->pluck('id'), $viewer),
-            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => $users->pluck('name', 'id')->all()),
+            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users)),
             new NativeColumnFilter('fixed_version_id', __('対象バージョン'), 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $versions->pluck('name', 'id')->all()),
             new NativeColumnFilter('subject', __('題名'), 'subject', FilterFieldType::Text, $textOperators),
             new NativeColumnFilter('start_date', __('開始日'), 'start_date', FilterFieldType::Date, $dateOperators),
@@ -185,7 +185,7 @@ final class IssueFilterFieldRegistry
     private static function assigneeFilter(array $operators, Closure $users, Collection $projectIds, ?User $viewer): AssigneeFilter
     {
         return new AssigneeFilter(__('担当者'), $operators, function () use ($users, $projectIds, $viewer): array {
-            $options = ($viewer !== null ? ['me' => __('<< 自分 >>')] : []) + $users()->pluck('name', 'id')->all();
+            $options = ($viewer !== null ? ['me' => __('<< 自分 >>')] : []) + User::nameOptions($users());
 
             if (Issue::groupAssignmentEnabled()) {
                 Group::query()

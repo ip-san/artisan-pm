@@ -400,7 +400,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @foreach ($this->watcherCandidates as $candidate)
                             <li wire:key="watcher-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">
-                                    {{ $candidate->name }} <span class="text-xs text-neutral-400">{{ $candidate->email }}</span>
+                                    {{ $candidate->displayName() }} <span class="text-xs text-neutral-400">{{ $candidate->email }}</span>
                                 </button>
                             </li>
                         @endforeach

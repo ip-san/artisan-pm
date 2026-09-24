@@ -294,7 +294,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             <li wire:key="user-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="selectUser({{ $candidate->id }})"
                                     class="block w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50">
-                                    {{ $candidate->name }} ({{ $candidate->email }})
+                                    {{ $candidate->displayName() }} ({{ $candidate->email }})
                                 </button>
                             </li>
                         @empty

@@ -897,7 +897,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                 </select>
                 @error('user_format') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
-                <p class="mt-1 text-xs text-neutral-500">{{ __('課題・コメント・Wiki・お知らせ・活動・工数などでユーザーを表示するときの形式です(APIと管理画面の名前は変わりません)。') }}</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('課題・コメント・Wiki・お知らせ・活動・工数・選択肢・メール・APIの作成者/担当者などでユーザーを表示するときの形式です(管理画面のユーザー一覧とAPIのユーザー自身の name は変わりません)。') }}</p>
                 <p class="mt-1 text-xs text-neutral-500">{{ __('姓・名を使う形式は、姓と名の両方が入力されたユーザーだけに適用され、それ以外は名前で表示されます。') }}</p>
             </div>
 

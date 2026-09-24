@@ -168,7 +168,7 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="mb-1 text-xl font-semibold text-neutral-900">{{ $user->name }}</h1>
+    <h1 class="mb-1 text-xl font-semibold text-neutral-900">{{ $user->displayName() }}</h1>
     @if ($user->status !== UserStatus::Active)
         <span class="mb-4 inline-block rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">{{ $user->status->value }}</span>
     @endif

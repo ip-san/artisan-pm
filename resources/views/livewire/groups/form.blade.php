@@ -234,7 +234,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 <li wire:key="user-candidate-{{ $candidate->id }}">
                                     <button type="button" wire:click="selectUser({{ $candidate->id }})"
                                         class="block w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50">
-                                        {{ $candidate->name }} ({{ $candidate->email }})
+                                        {{ $candidate->displayName() }} ({{ $candidate->email }})
                                     </button>
                                 </li>
                             @empty
@@ -252,7 +252,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
                 @forelse ($this->members as $member)
                     <li class="flex items-center justify-between px-4 py-3">
-                        <span class="text-sm text-neutral-900">{{ $member->name }} ({{ $member->email }})</span>
+                        <span class="text-sm text-neutral-900">{{ $member->displayName() }} ({{ $member->email }})</span>
                         <button wire:click="removeMember({{ $member->id }})" wire:confirm="{{ __('このメンバーをグループから削除しますか?') }}"
                             class="text-sm text-danger-bolder hover:underline">
                             {{ __('削除') }}

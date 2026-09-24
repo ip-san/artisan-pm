@@ -73,7 +73,7 @@ final class FileActivityProvider implements MultiProjectActivityProvider
                 type: $this->type(),
                 title: $media->file_name,
                 url: route('files.index', $project),
-                authorName: $uploader?->name,
+                authorName: $uploader?->displayName(),
                 occurredAt: $media->created_at,
                 authorId: $uploader?->id,
             );

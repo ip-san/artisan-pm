@@ -41,7 +41,7 @@ final class AttachmentResource extends JsonResource
             'content_url' => route('attachments.show', $media),
             'download_url' => route('api.attachments.download', $media),
             'downloads' => (int) $media->getCustomProperty('download_count', 0),
-            'author' => $author !== null ? ['id' => $author->id, 'name' => $author->name] : null,
+            'author' => $author !== null ? ['id' => $author->id, 'name' => $author->displayName()] : null,
             'created_at' => $media->created_at->toIso8601String(),
         ];
     }

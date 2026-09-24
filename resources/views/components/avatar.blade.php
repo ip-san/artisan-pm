@@ -7,7 +7,6 @@
 @props(['user', 'size' => 24])
 
 @php
-    $name = $user?->name ?? '';
     $label = $user?->displayName() ?? '';
     $px = (int) $size;
     $showGravatar = $user !== null && \App\Support\Avatar\UserAvatar::gravatarEnabled();

@@ -884,8 +884,7 @@ final class IssueExtraFilterFields
             ->flatMap(fn (Project $project) => $project->users)
             ->unique('id')
             ->sortBy('name')
-            ->pluck('name', 'id')
-            ->all();
+            ->pipe(fn ($users) => User::nameOptions($users));
     }
 
     /**

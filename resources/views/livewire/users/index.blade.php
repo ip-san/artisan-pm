@@ -80,6 +80,8 @@ new #[Layout('components.layouts.app')] class extends Component
         return match ($key) {
             'name' => $user->name,
             'login' => $user->login,
+            'firstname' => (string) $user->firstname,
+            'lastname' => (string) $user->lastname,
             'email' => $user->email,
             'is_admin' => $user->is_admin ? __('管理者') : '',
             'status' => match ($user->status) {

@@ -79,7 +79,7 @@ enum TimeReportCriterion: string
                 self::Status => IssueStatus::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
                 self::Version => Version::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
                 self::Category => IssueCategory::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
-                self::User => User::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
+                self::User => User::nameOptions(User::query()->whereIn('id', $ids)->get()),
                 self::Tracker => Tracker::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
                 self::Activity => Enumeration::query()->whereIn('id', $ids)->pluck('name', 'id')->all(),
                 // Redmine's format_criteria_value: an issue the viewer may

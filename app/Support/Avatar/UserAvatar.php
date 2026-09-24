@@ -82,11 +82,28 @@ final class UserAvatar
     }
 
     /**
-     * Up to two capital letters: the first letters of the first and last
-     * word of the name, else the first two letters.
+     * Up to two capital letters. A user with both name parts gets Redmine's
+     * User#initials for the site's name formats; otherwise the first letters
+     * of the first and last word of the name, else its first two letters.
      */
     public static function initials(User|string $user): string
     {
+        if ($user instanceof User && $user->hasNameParts()) {
+            $first = (string) $user->firstname;
+            $last = (string) $user->lastname;
+            $initials = match ((string) Setting::get('user_format', 'name')) {
+                'firstname' => mb_substr($first, 0, 2),
+                'lastname' => mb_substr($last, 0, 2),
+                'lastname_firstname', 'lastnamefirstname', 'lastname_comma_firstname' => mb_substr($last, 0, 1).mb_substr($first, 0, 1),
+                'name', 'name_login', 'login' => null,
+                default => mb_substr($first, 0, 1).mb_substr($last, 0, 1),
+            };
+
+            if ($initials !== null) {
+                return mb_strtoupper($initials);
+            }
+        }
+
         $name = trim($user instanceof User ? $user->name : $user);
         $words = preg_split('/\s+/u', $name, -1, PREG_SPLIT_NO_EMPTY) ?: [];
 

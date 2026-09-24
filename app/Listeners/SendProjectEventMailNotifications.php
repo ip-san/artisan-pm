@@ -77,7 +77,7 @@ final class SendProjectEventMailNotifications
             NotificationRecipients::forProjectEvent($document->project, 'document_added', $event->actor, fn ($user) => $user->can('view', $document)),
             new ProjectEventNotification(
                 'document_added',
-                ['project' => $document->project->name, 'title' => $document->title, 'author' => $event->actor->name],
+                ['project' => $document->project->name, 'title' => $document->title, 'author' => $event->actor->displayName()],
                 $document->title,
                 route('documents.show', [$document->project, $document]),
                 $document->description,
@@ -96,7 +96,7 @@ final class SendProjectEventMailNotifications
             NotificationRecipients::forProjectEvent($event->project, 'file_added', $event->actor, fn ($user) => $user->can('viewAny', [Version::class, $event->project])),
             new ProjectEventNotification(
                 $event->versionName !== null ? 'version_file_added' : 'file_added',
-                ['project' => $event->project->name, 'names' => $names, 'author' => $event->actor->name, 'version' => (string) $event->versionName],
+                ['project' => $event->project->name, 'names' => $names, 'author' => $event->actor->displayName(), 'version' => (string) $event->versionName],
                 $names,
                 route('files.index', $event->project),
             ),

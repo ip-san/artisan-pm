@@ -32,8 +32,8 @@ final class TimeEntryFilterFieldRegistry
 
         /** @var array<int, FilterableField> $fields */
         $fields = [
-            new NativeColumnFilter('user_id', __('ユーザー'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
-            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
+            new NativeColumnFilter('user_id', __('ユーザー'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($project->users)),
+            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($project->users)),
             new NativeColumnFilter('activity_id', __('作業分類'), 'activity_id', FilterFieldType::Select, $selectOperators, fn () => $project->activities(includeInactive: true)->pluck('name', 'id')->all()),
             new NativeColumnFilter('spent_on', __('日付'), 'spent_on', FilterFieldType::Date, $dateOperators),
             new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
@@ -67,8 +67,8 @@ final class TimeEntryFilterFieldRegistry
         /** @var array<int, FilterableField> $fields */
         $fields = [
             new NativeColumnFilter('project_id', __('プロジェクト'), 'project_id', FilterFieldType::Select, $selectOperators, fn () => $projects->pluck('name', 'id')->all()),
-            new NativeColumnFilter('user_id', __('ユーザー'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => $users->pluck('name', 'id')->all()),
-            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => $users->pluck('name', 'id')->all()),
+            new NativeColumnFilter('user_id', __('ユーザー'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users)),
+            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users)),
             new NativeColumnFilter('activity_id', __('作業分類'), 'activity_id', FilterFieldType::Select, $selectOperators, fn () => $activities->pluck('name', 'id')->all()),
             new NativeColumnFilter('spent_on', __('日付'), 'spent_on', FilterFieldType::Date, $dateOperators),
             new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),

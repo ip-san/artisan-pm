@@ -178,7 +178,9 @@ final class Issue extends Model implements HasMedia
 
     public function assigneeName(): ?string
     {
-        return $this->assignee()?->name;
+        $assignee = $this->assignee();
+
+        return $assignee instanceof User ? $assignee->displayName() : $assignee?->name;
     }
 
     /**

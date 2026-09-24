@@ -1324,7 +1324,7 @@
     "課題フォーム・一括編集・ステータスの既定進捗率・進捗率型カスタムフィールドの選択肢の刻み幅です(保存済みの値の妥当性には影響しません)。": "Step between the % Done choices on the issue form, bulk edit, status default % Done and % Done custom fields (does not affect the validity of saved values).",
     "課題レポート": "Issues report",
     "課題レポートへ戻る": "Back to issues report",
-    "課題・コメント・Wiki・お知らせ・活動・工数などでユーザーを表示するときの形式です(APIと管理画面の名前は変わりません)。": "How users are shown on issues, notes, wiki, news, activity, spent time and so on (names in the API and administration screens are unaffected).",
+    "課題・コメント・Wiki・お知らせ・活動・工数・選択肢・メール・APIの作成者/担当者などでユーザーを表示するときの形式です(管理画面のユーザー一覧とAPIのユーザー自身の name は変わりません)。": "How users are shown on issues, notes, wiki, news, activity, spent time, select lists, emails and the API's author/assignee references (the administration user list and a user's own name in the API are unaffected).",
     "課題一覧で合計する項目": "Default totals on the issue list",
     "課題一覧の1ページあたりの件数": "Issues per page",
     "課題一覧のCSV・PDFエクスポートに含める最大件数です(上限:max)。": "Maximum number of issues included in CSV/PDF exports of the issue list (up to :max).",

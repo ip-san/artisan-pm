@@ -1,5 +1,6 @@
 <?php
 
+use App\Mail\IssueNotificationMail;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -11,6 +12,11 @@ use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Services\AccountDeletionService;
+use App\Support\Avatar\UserAvatar;
+use App\Support\Issues\AssigneeChoice;
+use App\Support\Query\IssueFilterFieldRegistry;
+use App\Support\Reports\IssueReport;
+use Laravel\Passport\Passport;
 use Livewire\Livewire;
 
 test('the default format shows the name only', function () {
@@ -205,4 +211,79 @@ test('the settings page offers every format', function () {
     }
 
     Livewire::actingAs($admin)->test('settings.index')->assertSee(__('姓, 名'));
+});
+
+/**
+ * A project with a viewer who can see issues and a member with both name parts.
+ *
+ * @return array{project: Project, viewer: User, member: User, issue: Issue}
+ */
+function formattedNameSetup(): array
+{
+    $project = Project::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'add_issues', 'edit_issues'], 'assignable' => true]);
+    $viewer = User::factory()->create();
+    $member = User::factory()->create(['login' => 'jdoe', 'firstname' => 'Jane', 'lastname' => 'Doe']);
+    Member::factory()->for($project)->for($viewer)->create()->roles()->attach($role);
+    Member::factory()->for($project)->for($member)->create()->roles()->attach($role);
+    $issue = Issue::factory()->for($project)->create([
+        'author_id' => $member->id,
+        'assigned_to_id' => $member->id,
+        'tracker_id' => Tracker::factory()->create()->id,
+        'status_id' => IssueStatus::factory()->create()->id,
+        'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+
+    Setting::set('user_format', 'lastname_comma_firstname');
+
+    return ['project' => $project, 'viewer' => $viewer, 'member' => $member, 'issue' => $issue];
+}
+
+test('select options, filter choices and the assignee name follow the format', function () {
+    ['project' => $project, 'member' => $member, 'issue' => $issue] = formattedNameSetup();
+
+    $options = collect(AssigneeChoice::optionGroups(collect([$member]), collect()))->flatMap(fn ($section) => $section['options']);
+    expect($options->pluck('name')->all())->toBe(['Doe, Jane'])
+        ->and(IssueFilterFieldRegistry::forProject($project)->get('author_id')->options())->toMatchArray([$member->id => 'Doe, Jane'])
+        ->and($issue->assigneeName())->toBe('Doe, Jane')
+        ->and(collect((new IssueReport($project, null))->gridRows('author', []))->pluck('label')->all())->toContain('Doe, Jane');
+});
+
+test('the notification mail names the actor in the format', function () {
+    ['member' => $member, 'viewer' => $viewer, 'issue' => $issue] = formattedNameSetup();
+
+    $mail = new IssueNotificationMail($issue, 'created', $member, null, $viewer->id);
+
+    $mail->assertSeeInHtml('(Doe, Jane)')->assertSeeInText('(Doe, Jane)');
+});
+
+test('the API names issue users in the format but keeps a user\'s own name', function () {
+    ['member' => $member, 'issue' => $issue] = formattedNameSetup();
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $this->getJson("/api/v1/issues/{$issue->id}")->assertOk()->assertJsonPath('data.assigned_to.name', 'Doe, Jane');
+    $this->getJson("/api/v1/users/{$member->id}")->assertOk()->assertJsonPath('data.name', 'Jane Doe');
+});
+
+test('the user page heading and the avatar initials follow the format', function () {
+    ['member' => $member] = formattedNameSetup();
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)->test('users.show', ['user' => $member])->assertSee('Doe, Jane');
+    expect(UserAvatar::initials($member))->toBe('DJ');
+
+    Setting::set('user_format', 'firstname');
+    expect(UserAvatar::initials($member))->toBe('JA')
+        ->and(UserAvatar::initials(User::factory()->make(['name' => 'Alice Smith'])))->toBe('AS');
+});
+
+test('the admin user list offers first and last name columns and filters', function () {
+    $admin = User::factory()->admin()->create();
+    User::factory()->create(['name' => 'Jane Doe', 'firstname' => 'Jane', 'lastname' => 'Doe']);
+    User::factory()->create(['name' => 'No Parts']);
+
+    Livewire::actingAs($admin)->test('users.index')
+        ->set('columns', ['name', 'lastname', 'firstname'])
+        ->assertSee(__('姓'))
+        ->assertSeeInOrder(['Jane Doe', 'Doe', 'Jane']);
 });

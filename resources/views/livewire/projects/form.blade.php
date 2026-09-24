@@ -490,7 +490,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <select wire:model="default_assigned_to_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">{{ __('なし') }}</option>
                         @foreach ($this->defaultAssigneeOptions as $assignee)
-                            <option value="{{ $assignee->id }}">{{ $assignee->name }}</option>
+                            <option value="{{ $assignee->id }}">{{ $assignee->displayName() }}</option>
                         @endforeach
                     </select>
                     @error('default_assigned_to_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror

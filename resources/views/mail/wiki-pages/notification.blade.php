@@ -8,7 +8,7 @@
 
     <p>
         {{ $eventType === 'created' ? __('Wikiページが追加されました。') : __('Wikiページが更新されました。') }}
-        ({{ $actor->name }})
+        ({{ $actor->displayName() }})
     </p>
 
     <p>

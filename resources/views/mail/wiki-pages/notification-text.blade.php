@@ -4,7 +4,7 @@
 --
 
 @endif
-{{ $eventType === 'created' ? __('Wikiページが追加されました。') : __('Wikiページが更新されました。') }}({{ $actor->name }})
+{{ $eventType === 'created' ? __('Wikiページが追加されました。') : __('Wikiページが更新されました。') }}({{ $actor->displayName() }})
 
 {{ $wikiPage->project->name }} - {{ $wikiPage->title }}
 {{ $url }}

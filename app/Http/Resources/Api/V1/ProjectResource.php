@@ -39,7 +39,7 @@ final class ProjectResource extends JsonResource
                 ? ['id' => $project->defaultVersion->id, 'name' => $project->defaultVersion->name]
                 : null,
             'default_assignee' => $project->defaultAssignedTo !== null
-                ? ['id' => $project->defaultAssignedTo->id, 'name' => $project->defaultAssignedTo->name]
+                ? ['id' => $project->defaultAssignedTo->id, 'name' => $project->defaultAssignedTo->displayName()]
                 : null,
             'custom_fields' => CustomFieldPayload::read($project),
             'created_at' => $project->created_at->toIso8601String(),

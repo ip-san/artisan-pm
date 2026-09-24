@@ -8,7 +8,7 @@
 
     <p>
         {{ $eventType === 'created' ? __('課題が作成されました。') : __('課題が更新されました。') }}
-        ({{ $actor->name }})
+        ({{ $actor->displayName() }})
     </p>
 
     <p>

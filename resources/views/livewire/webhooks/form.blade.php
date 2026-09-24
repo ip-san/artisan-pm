@@ -125,7 +125,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <select wire:model="user_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">{{ __('なし(すべてのイベントを送信)') }}</option>
                 @foreach ($this->owners as $owner)
-                    <option value="{{ $owner->id }}">{{ $owner->name }}</option>
+                    <option value="{{ $owner->id }}">{{ $owner->displayName() }}</option>
                 @endforeach
             </select>
             <p class="mt-1 text-xs text-neutral-500">{{ __('選ぶと、そのユーザーが閲覧でき、かつプロジェクトで「Webhookの利用」権限を持つ対象のイベントだけを送信します。') }}</p>

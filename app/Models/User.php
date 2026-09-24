@@ -292,6 +292,24 @@ final class User extends Authenticatable implements HasLocalePreference, OAuthen
     }
 
     /**
+     * Select options for users, labelled in the site's `user_format`
+     * (Redmine's principals_options_for_select uses User#name too).
+     *
+     * @param  iterable<User>  $users
+     * @return array<int, string>
+     */
+    public static function nameOptions(iterable $users): array
+    {
+        $options = [];
+
+        foreach ($users as $user) {
+            $options[$user->id] = $user->displayName();
+        }
+
+        return $options;
+    }
+
+    /**
      * Whether both name parts are entered — only then do the first/last
      * name formats apply (docs/design/gap-A4-10b.md, option A).
      */

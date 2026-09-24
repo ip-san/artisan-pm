@@ -88,7 +88,7 @@ final class AssigneeChoice
      */
     public static function optionGroups(Collection $users, Collection $groups): array
     {
-        $userOptions = fn (Collection $list) => $list->map(fn (User $user) => ['value' => (string) $user->id, 'name' => $user->name])->values()->all();
+        $userOptions = fn (Collection $list) => $list->map(fn (User $user) => ['value' => (string) $user->id, 'name' => $user->displayName()])->values()->all();
         $groupOptions = $groups->map(fn (Group $group) => ['value' => self::forGroup($group), 'name' => $group->name])->values()->all();
 
         if ($groups->isEmpty()) {

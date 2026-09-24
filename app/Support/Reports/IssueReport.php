@@ -152,6 +152,14 @@ final class IssueReport
     }
 
     /**
+     * A row's label: users in the site's `user_format`, anything else by name.
+     */
+    private static function rowLabel(object $row): string
+    {
+        return $row instanceof User ? $row->displayName() : (string) $row->name;
+    }
+
+    /**
      * The rows of a dimension ready to print: each with its key and label,
      * plus the "none" row when it has any issues.
      *
@@ -160,7 +168,7 @@ final class IssueReport
      */
     public function gridRows(string $dimension, array $counts): array
     {
-        $rows = $this->rows($dimension)->map(fn ($row) => ['key' => $row->id, 'label' => $row->name])->all();
+        $rows = $this->rows($dimension)->map(fn ($row) => ['key' => $row->id, 'label' => self::rowLabel($row)])->all();
 
         if ($dimension === 'assigned_to') {
             $rows = [...$rows, ...$this->assigneeGroupRows($counts)];

@@ -11,6 +11,7 @@ use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Journal;
 use App\Models\TimeEntry;
+use App\Models\User;
 use App\Models\Watcher;
 use App\Services\WorkflowService;
 use App\Support\Api\CustomFieldPayload;
@@ -134,7 +135,7 @@ final class IssueResource extends JsonResource
 
         return $journals->values()->map(fn (Journal $journal) => [
             'id' => $journal->id,
-            'user' => ['id' => $journal->user_id, 'name' => $journal->user->name],
+            'user' => ['id' => $journal->user_id, 'name' => $journal->user->displayName()],
             'notes' => $journal->notes,
             'private_notes' => $journal->private_notes,
             'created_at' => $journal->created_at->toIso8601String(),
@@ -189,7 +190,7 @@ final class IssueResource extends JsonResource
 
         return [
             'id' => $assignee->id,
-            'name' => $assignee->name,
+            'name' => $assignee instanceof User ? $assignee->displayName() : $assignee->name,
             'type' => $assignee instanceof Group ? 'group' : 'user',
         ];
     }
@@ -285,7 +286,7 @@ final class IssueResource extends JsonResource
     {
         return $issue->watchers->map(fn (Watcher $watcher) => [
             'id' => $watcher->user_id,
-            'name' => $watcher->user->name,
+            'name' => $watcher->user->displayName(),
         ])->values()->all();
     }
 }
