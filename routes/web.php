@@ -122,6 +122,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
         ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
     Route::get('/issues/changes.atom', IssueChangesAtomController::class)->name('issues.global-changes-atom')
         ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
+    Route::get('/issues.atom', IssueAtomController::class)->name('issues.global-atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
     Route::get('/projects/{project:identifier}/issues.atom', IssueAtomController::class)->name('issues.atom')
         ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
     Volt::route('/projects/{project:identifier}/issues', 'issues.index')->name('issues.index')

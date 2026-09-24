@@ -18,7 +18,8 @@ use LogicException;
 
 /**
  * Matches Redmine's IssuesController#index responding to format.atom:
- * this project's issues, most recently updated first. Reuses the same
+ * this project's issues — or, without a project (`/issues.atom`), those of
+ * every project the reader may see issues in — most recently updated first. Reuses the same
  * visibility scope (Issue::scopeVisibleTo()) the HTML issue list applies,
  * and reads the list's own URL state — statusFilter (open by default, like
  * the list), the activeFilterKeys/filterOperators/filterValues filters and
@@ -29,15 +30,27 @@ use LogicException;
  */
 final class IssueAtomController extends Controller
 {
-    public function __invoke(Request $request, Project $project): Response
+    public function __invoke(Request $request, ?Project $project = null): Response
     {
-        Gate::authorize('viewAny', [Issue::class, $project]);
+        if ($project !== null) {
+            Gate::authorize('viewAny', [Issue::class, $project]);
+        }
 
         $state = ListQueryString::fromRequestInput($request->query());
         $requestedStatus = $request->query('statusFilter', 'open');
         $statusFilter = is_string($requestedStatus) ? $requestedStatus : 'open';
-        $scopeProjects = SubprojectScope::projectsForIssues($project, auth()->user(), $state['filters']);
-        $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, scopeProjects: $scopeProjects));
+
+        if ($project !== null) {
+            $scopeProjects = SubprojectScope::projectsForIssues($project, auth()->user(), $state['filters']);
+            $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, scopeProjects: $scopeProjects));
+        } else {
+            $scopeProjects = Project::query()
+                ->with(['trackers', 'issueCategories', 'users', 'versions'])
+                ->get()
+                ->filter(fn (Project $candidate) => Gate::allows('viewAny', [Issue::class, $candidate]))
+                ->values();
+            $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProjects($scopeProjects));
+        }
 
         $query = Issue::query()
             ->visibleToAcrossProjects(auth()->user(), $scopeProjects)
@@ -66,8 +79,8 @@ final class IssueAtomController extends Controller
 
         $xml = view('feeds.atom', [
             'entries' => $entries,
-            'title' => "{$project->name}: Issues - ".config('app.name'),
-            'alternateUrl' => route('issues.index', $project),
+            'title' => ($project !== null ? "{$project->name}: " : '').'Issues - '.config('app.name'),
+            'alternateUrl' => $project !== null ? route('issues.index', $project) : route('issues.global-index'),
         ])->render();
 
         return response($xml, 200, ['Content-Type' => 'application/atom+xml; charset=utf-8']);

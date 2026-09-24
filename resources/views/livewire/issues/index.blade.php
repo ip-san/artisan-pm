@@ -405,13 +405,11 @@ new #[Layout('components.layouts.app')] class extends Component
      * query the same way).
      */
     #[Computed]
-    public function atomUrl(): ?string
+    public function atomUrl(): string
     {
-        if ($this->project === null) {
-            return null;
-        }
+        $feed = $this->project !== null ? route('issues.atom', $this->project) : route('issues.global-atom');
 
-        return route('issues.atom', $this->project).'?'.http_build_query([
+        return $feed.'?'.http_build_query([
             'key' => auth()->user()?->atomKey(),
             'statusFilter' => $this->statusFilter,
             ...ListQueryString::toQueryParameters(
@@ -1824,9 +1822,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </div>
         <div class="flex items-center gap-2">
-            @if ($this->atomUrl !== null)
-                <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
-            @endif
+            <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
             <a href="{{ $project !== null ? route('issues.changes-atom', [$project, 'key' => auth()->user()?->atomKey()]) : route('issues.global-changes-atom', ['key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">{{ __('変更履歴(Atom)') }}</a>
             <select wire:model="csvEncoding" title="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
@@ -1893,8 +1889,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="">{{ __('なし') }}</option>
                     <option value="status_id">{{ __('ステータス') }}</option>
                     <option value="tracker_id">{{ __('トラッカー') }}</option>
-                    @foreach (['priority_id', 'assigned_to_id'] as $groupKey)
-                        @if (array_key_exists($groupKey, $this->nativeColumns))
+                    @foreach (['priority_id', 'assigned_to_id', 'project_id'] as $groupKey)
+                        @if (array_key_exists($groupKey, $this->nativeColumns) && ($groupKey !== 'project_id' || $this->engine->field('project_id') !== null))
                             <option value="{{ $groupKey }}" wire:key="group-by-{{ $groupKey }}">{{ $this->nativeColumns[$groupKey] }}</option>
                         @endif
                     @endforeach

@@ -162,3 +162,22 @@ test('the cross-project list offers no bulk actions and refuses them', function 
 
     expect($issue->fresh())->not->toBeNull()->and($issue->fresh()->done_ratio)->toBe(0);
 });
+
+test('the cross-project list groups by project with counts over visible issues only', function () {
+    $alpha = Project::factory()->create(['name' => 'Alpha project']);
+    $beta = Project::factory()->create(['name' => 'Beta project']);
+    $hidden = Project::factory()->create(['name' => 'Hidden project', 'is_public' => false]);
+    $user = globalListMember($alpha);
+    Member::factory()->for($beta)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+    globalListIssue($alpha);
+    globalListIssue($alpha);
+    globalListIssue($beta);
+    globalListIssue($hidden);
+
+    $list = Livewire::actingAs($user)->test('issues.index')->set('statusFilter', 'all')
+        ->assertSeeHtml('<option value="project_id"')
+        ->set('groupBy', 'project_id');
+
+    expect($list->get('groupTotals')->map(fn (array $total) => $total['count'])->sortKeys()->all())->toBe(['Alpha project' => 2, 'Beta project' => 1])
+        ->and($list->get('groupedIssues')->keys()->sort()->values()->all())->toBe(['Alpha project', 'Beta project']);
+});

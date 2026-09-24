@@ -207,3 +207,48 @@ test('the atom link on the issue list carries the current filters and sort', fun
         'sortDirection' => 'desc',
     ]);
 });
+
+test('the cross-project issue feed lists only the issues the reader may see, across projects', function () {
+    $mine = Project::factory()->create(['name' => 'Mine']);
+    $other = Project::factory()->create(['name' => 'Other', 'is_public' => false]);
+    $second = Project::factory()->create(['name' => 'Second']);
+    $user = issueAtomMember($mine);
+    Member::factory()->for($second)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues'], 'issues_visibility' => 'own']));
+    $make = fn (Project $project, string $subject, array $attributes = []) => Issue::factory()->for($project)->create([
+        'tracker_id' => Tracker::factory()->create()->id, 'status_id' => issueAtomStatus()->id, 'priority_id' => Enumeration::factory()->create()->id,
+        'subject' => $subject, ...$attributes,
+    ]);
+    $make($mine, 'Mine visible');
+    $make($second, 'Second own', ['author_id' => $user->id]);
+    $make($second, 'Second someone else');
+    $make($other, 'Other hidden');
+    $make($second, 'Second private own', ['author_id' => $user->id, 'is_private' => true]);
+    $make($second, 'Second private other', ['is_private' => true]);
+
+    $response = $this->actingAs($user)->get(route('issues.global-atom'))->assertOk();
+
+    $response->assertSee('Mine visible')->assertSee('Second own')
+        ->assertDontSee('Second someone else')->assertDontSee('Other hidden')->assertSee('Second private own')->assertDontSee('Second private other');
+});
+
+test('the cross-project issue feed honours the list filters and is linked from the cross-project list', function () {
+    $project = Project::factory()->create();
+    $user = issueAtomMember($project);
+    $tracker = Tracker::factory()->create();
+    $make = fn (string $subject) => Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id, 'status_id' => issueAtomStatus()->id, 'priority_id' => Enumeration::factory()->create()->id, 'subject' => $subject,
+    ]);
+    $make('Alpha subject');
+    $make('Beta subject');
+
+    $this->actingAs($user)->get(route('issues.global-atom', ['activeFilterKeys' => ['subject'], 'filterOperators' => ['subject' => '~'], 'filterValues' => ['subject' => ['Alpha']]]))
+        ->assertOk()->assertSee('Alpha subject')->assertDontSee('Beta subject');
+
+    Livewire\Livewire::actingAs($user)->test('issues.index')->assertSee(route('issues.global-atom'), false);
+});
+
+test('the cross-project issue feed needs a login or atom key when login is required', function () {
+    Setting::set('login_required', true);
+
+    $this->get(route('issues.global-atom'))->assertRedirect(route('login'));
+});
