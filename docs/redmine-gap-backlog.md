@@ -302,6 +302,7 @@
 | 126c | A9-01c | A9-01a | S | done(2026-09-24、L 字の 2 本の div で近似。矢印なし) |
 | 127 | A9-03 | — | M | done(2026-09-20、max_occurs とブロック設定は A9-03b) |
 | 127b | A9-03b | A9-03 | M | done(2026-09-20、カレンダー等の設定は対象外) |
+| 127c | A9-03c | A9-03b | S | done(2026-09-25、固定の課題ブロック 4 つに表示項目・並び順の設定。Redmine はカレンダー・ニュース・文書・活動のブロックに設定を持たないため、それらは対象外で Redmine と同じ) |
 | 128 | A9-04 | — | M | done(2026-09-20、ページング/件数上限は A9-04b) |
 | 128b | A9-04b | A9-04 | M | done(2026-09-20、権限確認のクエリはプロジェクト数に比例したまま) |
 | 129 | A11-07 | — | M | done(2026-09-20、send_information/generate_password は未対応) |
@@ -587,6 +588,7 @@
 | A9-02 | カレンダーへのバージョン期日表示 | `calendar/index.blade.php` に version の記述なし | プロジェクト(および共有)バージョンの `due_date` を◆で表示 | ガントのマイルストーン実装(`versions.roadmap`)を流用 | S | ダッシュボード「カレンダー」 |
 | A9-03 | マイページのブロック: `issuesupdatedbyme`(自分が更新した課題)、`calendar`、同一クエリの最大3回配置(`max_occurs`)、ブロックごとの設定(`my_page_settings`: 列/ソート) | `app/Support/Dashboard/Blocks/` は Activity/AssignedIssues/Documents/LatestNews/ReportedIssues/TimeEntries/WatchedIssues + SavedIssueQuery。同一クエリは1つまで | `UpdatedByMeBlock`(Journal の user_id 基準)、`CalendarBlock`(週表示)、ブロック設定 UI | calendar ブロックは「一覧形式に馴染まない」として見送られていた | M | ダッシュボード「マイページ」 |
 | A9-03b | マイページ: 同一の保存クエリを最大3回まで配置(`max_occurs`)、ブロックごとの設定(`my_page_settings`: 列/ソート) | 同一クエリは1つまで、ブロック設定なし | `user_dashboard_blocks` に設定 JSON 列を追加し、設定 UI とブロック側の反映を実装 | A9-03 で分離 | M | 「マイページ」 |
+| A9-03c | マイページの固定の課題ブロック(担当・登録・更新・ウォッチ)のブロック設定(Redmine の `my/blocks/_issues.erb`: 列と並び順) | **done(2026-09-25)**。`App\Support\Dashboard\Blocks\IssueListBlock`(`ConfigurableDashboardBlock`、`SavedIssueQueryBlock` の列・並び順を共用)を 4 ブロックの基底に。テスト: `MyPageBlockSettingsTest.php` | 保存クエリのブロックと工数のブロックだけ設定可 | Redmine の列は課題一覧の列そのもの、本アプリは `meta` 欄の項目 | S | 「マイページ」 |
 | A9-04 | グローバル活動: ページネーション/件数上限、`activity_scope` 個人設定、全プロジェクト Atom(`/activity.atom`) | `activity.global-index` は「可視プロジェクト数×8プロバイダ」を全件走査、Atom なし | 各プロバイダに複数プロジェクト対応の `entries()` を追加し1クエリ化、日付単位ページング、`ActivityFeedController` のグローバル版 | 8 プロバイダ全部の改修 | M | 「グローバルアクティビティフィード」 |
 | A9-04b | グローバル活動の性能: 各プロバイダに複数プロジェクト対応の `entries()` を追加して1クエリ化し、日付単位ページング/件数上限を入れる | 現状は「可視プロジェクト数×プロバイダ数」の全件走査 | `ActivityProvider` に `entriesForProjects(Collection, ...)` を追加(8 プロバイダ全部を改修)、ページング | A9-04 で分離 | M | 「グローバルアクティビティフィード」 |
 | A9-05 | `feeds_limit` 設定 | 定数 | A5-02 参照 | — | S | 設定「全般」 |

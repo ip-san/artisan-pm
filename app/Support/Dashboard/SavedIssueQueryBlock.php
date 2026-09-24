@@ -162,7 +162,7 @@ final class SavedIssueQueryBlock
             ->map(fn (Issue $issue) => new DashboardBlockRow(
                 title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
                 url: route('issues.show', [$issue->project, $issue]),
-                meta: collect($columns)->map(fn (string $column) => $this->columnValue($issue, $column))->filter()->join(' / ') ?: null,
+                meta: self::metaFor($issue, $columns),
             ));
     }
 
@@ -192,7 +192,34 @@ final class SavedIssueQueryBlock
         return $settings;
     }
 
-    private function columnValue(Issue $issue, string $column): string
+    /**
+     * The chosen columns of a row, joined as its meta text.
+     *
+     * @param  array<int, string>  $columns
+     */
+    public static function metaFor(Issue $issue, array $columns): ?string
+    {
+        return collect($columns)->map(fn (string $column) => self::columnValue($issue, $column))->filter()->join(' / ') ?: null;
+    }
+
+    /**
+     * The sort choices of a block's "sort" setting, as `key:direction`.
+     *
+     * @return array<string, string>
+     */
+    public static function sortOptions(): array
+    {
+        $sorts = [];
+
+        foreach (self::sortLabels() as $column => $label) {
+            $sorts["{$column}:asc"] = __(':label(昇順)', ['label' => $label]);
+            $sorts["{$column}:desc"] = __(':label(降順)', ['label' => $label]);
+        }
+
+        return $sorts;
+    }
+
+    private static function columnValue(Issue $issue, string $column): string
     {
         return match ($column) {
             'project' => $issue->project->name,

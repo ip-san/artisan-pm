@@ -6,15 +6,11 @@ namespace App\Support\Dashboard\Blocks;
 
 use App\Models\Issue;
 use App\Models\User;
-use App\Support\Dashboard\DashboardBlock;
-use App\Support\Dashboard\DashboardBlockRow;
 use App\Support\Format\DateTimes;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Builder;
 
-final class AssignedIssuesBlock implements DashboardBlock
+final class AssignedIssuesBlock extends IssueListBlock
 {
-    private const int MAX_ROWS = 10;
-
     public function key(): string
     {
         return 'assigned_issues';
@@ -25,21 +21,22 @@ final class AssignedIssuesBlock implements DashboardBlock
         return __('自分の課題');
     }
 
-    public function rows(User $user): Collection
+    protected function issues(User $user): Builder
     {
         return Issue::query()
             ->visible($user)
             // Redmine's "assigned to me" includes the user's groups.
             ->assignedToUserOrGroups($user)
-            ->whereHas('status', fn ($query) => $query->where('is_closed', false))
-            ->with(['project', 'tracker'])
-            ->orderBy('due_date')
-            ->limit(self::MAX_ROWS)
-            ->get()
-            ->map(fn (Issue $issue) => new DashboardBlockRow(
-                title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
-                url: route('issues.show', [$issue->project, $issue]),
-                meta: DateTimes::date($issue->due_date),
-            ));
+            ->whereHas('status', fn ($query) => $query->where('is_closed', false));
+    }
+
+    protected function defaultOrder(Builder $query): Builder
+    {
+        return $query->orderBy('due_date');
+    }
+
+    protected function defaultMeta(Issue $issue, User $user): ?string
+    {
+        return DateTimes::date($issue->due_date);
     }
 }

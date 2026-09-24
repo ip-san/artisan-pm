@@ -717,6 +717,7 @@
     "不明": "Unknown",
     "並び替え:": "Sort by:",
     "並び順(空欄はクエリの並び順)": "Sort order (blank uses the query's sort order)",
+    "並び順(空欄は既定の並び順)": "Sort order (blank: the block's default)",
     "並べ替え(最大3列。列見出しのクリックは1列目のみ変更):": "Sort (up to 3 columns; clicking a column header changes only the first):",
     "並べ替え:": "Sort by:",
     "並べ替えを解除": "Clear sort",

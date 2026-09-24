@@ -133,3 +133,37 @@ test('the recent time entries block limits itself to the chosen number of days',
     $component->call('openSettings', $block->id)->set('settingsForm', ['days' => ''])->call('saveSettings');
     expect($block->fresh()->settings)->toBeNull();
 });
+
+test('the fixed issue blocks take columns and a sort order like a query block', function () {
+    $project = Project::factory()->create();
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+    $status = IssueStatus::factory()->create(['name' => 'Doing', 'is_closed' => false]);
+    $make = fn (string $subject, string $due) => Issue::factory()->for($project)->create([
+        'tracker_id' => Tracker::factory()->create()->id,
+        'status_id' => $status->id,
+        'priority_id' => Enumeration::factory()->create()->id,
+        'assigned_to_id' => $user->id,
+        'subject' => $subject,
+        'due_date' => $due,
+    ]);
+    $make('Due early', '2026-01-01');
+    $make('Due late', '2026-12-31');
+
+    $component = Livewire::actingAs($user)->test('my-page.index')->call('addBlock', 'assigned_issues');
+    $block = UserDashboardBlock::where('user_id', $user->id)->where('block_key', 'assigned_issues')->sole();
+
+    expect($component->instance()->blockRows('assigned_issues')->pluck('title')->map(fn ($t) => str($t)->afterLast(': ')->value())->all())->toBe(['Due early', 'Due late'])
+        ->and($component->instance()->settingFieldsFor('assigned_issues'))->toHaveKeys(['columns', 'sort']);
+
+    $component->call('openSettings', $block->id)
+        ->set('settingsForm', ['columns' => ['status', 'bogus'], 'sort' => 'due_date:desc'])
+        ->call('saveSettings');
+
+    $settings = $block->fresh()->settings;
+    $rows = $component->instance()->blockRows('assigned_issues', $settings);
+
+    expect($settings)->toBe(['columns' => ['status'], 'sort' => 'due_date:desc'])
+        ->and(str($rows->first()->title)->afterLast(': ')->value())->toBe('Due late')
+        ->and($rows->first()->meta)->toBe('Doing');
+});

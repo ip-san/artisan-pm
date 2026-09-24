@@ -6,15 +6,11 @@ namespace App\Support\Dashboard\Blocks;
 
 use App\Models\Issue;
 use App\Models\User;
-use App\Support\Dashboard\DashboardBlock;
-use App\Support\Dashboard\DashboardBlockRow;
 use App\Support\Format\DateTimes;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Builder;
 
-final class ReportedIssuesBlock implements DashboardBlock
+final class ReportedIssuesBlock extends IssueListBlock
 {
-    private const int MAX_ROWS = 10;
-
     public function key(): string
     {
         return 'reported_issues';
@@ -25,19 +21,20 @@ final class ReportedIssuesBlock implements DashboardBlock
         return __('自分が登録した課題');
     }
 
-    public function rows(User $user): Collection
+    protected function issues(User $user): Builder
     {
         return Issue::query()
             ->visible($user)
-            ->where('author_id', $user->id)
-            ->with(['project', 'tracker'])
-            ->latest()
-            ->limit(self::MAX_ROWS)
-            ->get()
-            ->map(fn (Issue $issue) => new DashboardBlockRow(
-                title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
-                url: route('issues.show', [$issue->project, $issue]),
-                meta: DateTimes::dateOf($issue->created_at, $user),
-            ));
+            ->where('author_id', $user->id);
+    }
+
+    protected function defaultOrder(Builder $query): Builder
+    {
+        return $query->latest();
+    }
+
+    protected function defaultMeta(Issue $issue, User $user): ?string
+    {
+        return DateTimes::dateOf($issue->created_at, $user);
     }
 }
