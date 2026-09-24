@@ -212,17 +212,17 @@
 | 105e | A1-39 | A1-20a | S | done(2026-09-24、default/own の担当者条件に所属グループ。issue_group_assignment の設定に関わらず Redmine と同じ) |
 | 105f | A1-40 | A1-34 | S | done(2026-09-24、Web(詳細/一括/右クリック)・REST とも nullify を拒否し選択肢から除外、この設定時の既定は destroy。設定がなければ既定 nullify のまま) |
 | 105g | A1-41 | A1-38 | S〜M | done(2026-09-24、プロジェクトのカレンダー/ガント/検索/活動/ロードマップと全 Atom(`atom.key` がログイン不要時はゲストを通す)。全体の画面・プロジェクト概要などは A1-44。検索の CF・課題の更新 Atom の CF 詳細を役割で制限) |
-| 105k | A1-44 | A1-41 | S〜M | todo |
+| 105k | A1-44 | A1-41 | S〜M | todo(2026-09-24 承認: Redmine に合わせる) |
 | A1-45 | 全トラッカーが無効にした標準項目を課題一覧の列の候補からも外す(`issue_query.rb` の `available_columns` で `disabled_core_fields` の列を除外。予定工数なら合計予定工数・残工数も) | **done(2026-09-24)**。`IssueFilterFieldRegistry::coreColumnsDisabledByEveryTracker()`(フィルタと同じ `Tracker.disabled_core_fields(trackers)` の判定。`estimated_hours` なら `total_estimated_hours`/`estimated_remaining_hours` も。親課題は Redmine の `parent_issue_id` が列名 `parent` と一致しないため残る)と `rolledUpTrackers()`(サブプロジェクト込みのトラッカー)。プロジェクトの課題一覧は `nativeColumns`/`availableColumns`/`sortableColumns` から除き、選んだ列は `shownColumns`(利用できる列だけ、順序維持 = Redmine の `inline_columns`)で表・CSV・PDF に出す。グループ化の「優先度」「担当者」も無効なら出さず、保存済みのグループ化は無視。横断一覧は閲覧できるプロジェクトのトラッカーで同じ判定。保存クエリの `column_names` はそのまま(トラッカー設定を戻せば再表示)。テスト: `TrackerDisabledCoreFieldsTest` | `IssueFilterFieldRegistry` の除外と同じ判定を列の候補に適用 | A1-36 の後 | S | クエリ「列選択」 |
 | 105h | A1-42 | A1-34 | S | done(2026-09-24、`Project` の deleting で自プロジェクトとサブプロジェクトの課題を `deleteMany(Destroy)`。別プロジェクトの子孫・工数・添付も削除、`Project::delete()` をトランザクション化) |
 | 105i | A1-43 | A1-20 | S | done(2026-09-24、`projects.default_assigned_to_group_id`/`issue_categories.assigned_to_group_id`。プロジェクト設定・カテゴリのフォームと REST。新規課題フォームの既定担当に反映(グループ割当オフ・割り当て不可のグループは適用しない)。REST/CSV/メールでの課題作成に既定担当を適用しないのは既存どおり) |
 | 105j | A6-08 | A1-20 | S | done(2026-09-24、更新の Journal にある担当者の旧値(ユーザー/グループのメンバー)を関係者に加える。各自の通知設定・閲覧可否で絞る) |
 | 105l | A1-46 | A1-43 | S | done(2026-09-24、`IssueService::create()` で全経路に適用(Web フォーム・REST・CSV インポート・受信メール・コピー)。既定バージョンは `fixed_version_id` を渡さなかったときだけ(REST の明示的な null、フォームで空にした値は空のまま。一括コピーは A1-47 で Redmine の `project=` に合わせた)。REST が `category_id` を受け付けないのは A11-19、一括コピーのバージョン引き継ぎは A1-47) |
 | 105m | A1-47 | A1-46 | S | done(2026-09-24、一括コピーと子課題のコピー。バージョンはオープンかつコピー先で共有されていれば維持、それ以外はコピー先の既定バージョン(同じプロジェクト内でバージョン無しのものは空のまま、子課題は自身のバージョンがオープンなときだけ既定に置換)。カテゴリは同じプロジェクトなら維持、別プロジェクトは同名に付け替え。移動(`moveToProject()`)は A1-48) |
-| 105q | A1-48 | A1-47 | S | todo |
+| 105q | A1-48 | A1-47 | S | todo(2026-09-24 承認: Redmine に合わせる) |
 | 105n | A11-19 | — | S | done(2026-09-24、作成/更新で `category_id`・`parent_issue_id`・`is_private`・`estimated_hours`・`watcher_user_ids`(作成のみ)・`notes`/`private_notes`(更新のみ)・作成時の `status_id`、`POST /issues.json`(本文の `project_id`)。`fixed_version_id` はフォームと同じ共有・オープンのバージョンに。更新での `project_id`(移動)は A11-20、ワークフローの読み取り専用/必須と無効な標準項目は A11-21) |
-| 105o | A11-20 | A11-19 | S | todo |
-| 105p | A11-21 | A11-19 | S | todo |
+| 105o | A11-20 | A11-19 | S | todo(2026-09-24 承認: Redmine に合わせる) |
+| 105p | A11-21 | A11-19 | S | todo(2026-09-24 承認: 修正する) |
 | 106 | A1-28 | — | M〜L | done(2026-09-24、A1-28a〜c。工数/ユーザーのインポートの CSV 読み取りは A1-28d) |
 | 106a | A1-28a | — | S | done(2026-09-24、`CsvReader`(fgetcsv、引用符内の改行、BOM)を課題インポートのジョブと列見出しの読み取りに適用。工数/ユーザーのインポートは A1-28d) |
 | 106b | A1-28b | A1-28a | M | done(2026-09-24、`relevantCustomFields(?User)`・`IssueService` の CF 保存/比較を作成者/実行者で・マッピング画面の CF 列(名前一致の自動割当)・`CustomField::valueFromKeyword()`(受信メールと共通)・必須/形式の検証で行エラー。ワークフローの必須/読み取り専用は従来どおりインポートに未適用) |
