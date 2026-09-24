@@ -38,7 +38,7 @@ use Laravel\Passport\HasApiTokens;
  * form (resources/views/livewire/users/form.blade.php) sets it via a
  * direct property assignment instead.
  */
-#[Fillable(['name', 'email', 'password', 'language', 'auth_source_id', 'login', 'status', 'mail_notification', 'no_self_notified'])]
+#[Fillable(['name', 'email', 'password', 'language', 'time_zone', 'auth_source_id', 'login', 'status', 'mail_notification', 'no_self_notified'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'api_key', 'atom_key'])]
 final class User extends Authenticatable implements HasLocalePreference, OAuthenticatable
 {

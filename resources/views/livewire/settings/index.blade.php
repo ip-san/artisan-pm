@@ -133,6 +133,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $default_users_hide_mail = false;
 
+    public string $default_users_time_zone = '';
+
     /** @var array<int, string> */
     public array $default_users_auto_watch_on = [];
 
@@ -395,6 +397,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->display_subprojects_issues = SubprojectScope::enabled();
         $this->default_issue_query = filled(Setting::get('default_issue_query')) ? (int) Setting::get('default_issue_query') : null;
         $this->default_users_hide_mail = (bool) Setting::get('default_users_hide_mail', false);
+        $this->default_users_time_zone = \App\Support\Locale\TimeZones::isSupported(Setting::get('default_users_time_zone')) ? Setting::get('default_users_time_zone') : '';
         $this->default_users_auto_watch_on = UserPreferences::defaults()['auto_watch_on'];
         $this->timespan_format = Hours::timespanFormat();
         $this->issue_list_default_totals = ListDefaults::issueTotals();
@@ -596,6 +599,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'display_subprojects_issues' => ['boolean'],
             'default_issue_query' => ['nullable', Rule::exists('queries', 'id')->where('type', QueryType::Issue->value)->where('visibility', QueryVisibility::Public->value)->whereNull('project_id')],
             'default_users_hide_mail' => ['boolean'],
+            'default_users_time_zone' => ['nullable', 'string', 'timezone:all'],
             'default_users_auto_watch_on' => ['array'],
             'default_users_auto_watch_on.*' => [Rule::in(array_keys(UserPreferences::AUTO_WATCH_ON))],
             'timespan_format' => ['required', Rule::in(array_keys(Hours::FORMATS))],
@@ -737,6 +741,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $data['commit_ref_keywords'] = trim((string) ($data['commit_ref_keywords'] ?? ''));
         $data['host_name'] = trim((string) ($data['host_name'] ?? ''), " \t\n\r\0\x0B/");
         $data['gravatar_default'] = (string) ($data['gravatar_default'] ?? '');
+        $data['default_users_time_zone'] = (string) ($data['default_users_time_zone'] ?? '');
         $data['sys_api_key'] = trim((string) ($data['sys_api_key'] ?? ''));
         $data['mail_handler_api_key'] = trim((string) ($data['mail_handler_api_key'] ?? ''));
         $data['repositories_encodings'] = trim((string) ($data['repositories_encodings'] ?? ''));
@@ -1096,6 +1101,14 @@ new #[Layout('components.layouts.app')] class extends Component
                         </label>
                     @endforeach
                 </div>
+                <label class="mt-2 block text-sm text-neutral-700">{{ __('タイムゾーン') }}</label>
+                <select wire:model="default_users_time_zone" data-default-users-time-zone class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('サーバーの設定(:zone)', ['zone' => config('app.timezone')]) }}</option>
+                    @foreach (\App\Support\Locale\TimeZones::options() as $identifier => $label)
+                        <option value="{{ $identifier }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('default_users_time_zone') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-neutral-500">{{ __('個人設定を変更していないユーザーに適用されます。') }}</p>
             </div>
 

@@ -45,6 +45,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $language = '';
 
+    public string $time_zone = '';
+
     public string $newAdditionalEmail = '';
 
     /** @var array<int, string> */
@@ -79,6 +81,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->email = auth()->user()->email;
         $this->mail_notification = auth()->user()->mail_notification->value;
         $this->language = (string) auth()->user()->language;
+        $this->time_zone = (string) auth()->user()->time_zone;
         $this->notified_project_ids = array_map('strval', auth()->user()->notifiedProjectIds());
         $this->no_self_notified = auth()->user()->no_self_notified;
 
@@ -131,7 +134,11 @@ new #[Layout('components.layouts.app')] class extends Component
             'auto_watch_on.*' => [Rule::in(array_keys(UserPreferences::AUTO_WATCH_ON))],
             'default_issue_query' => ['nullable', Rule::in($this->issueQueries->pluck('id')->all())],
             'default_project_query' => ['nullable', Rule::in($this->projectQueries->pluck('id')->all())],
+            'time_zone' => ['nullable', 'string', 'timezone:all'],
         ]);
+
+        auth()->user()->update(['time_zone' => ($data['time_zone'] ?? '') !== '' ? $data['time_zone'] : null]);
+        unset($data['time_zone']);
 
         UserPreferences::save(auth()->user(), $data);
 
@@ -600,6 +607,17 @@ new #[Layout('components.layouts.app')] class extends Component
     <section class="rounded-md border border-neutral-200 bg-white p-4" data-preferences>
         <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('個人設定') }}</h2>
         <form wire:submit="savePreferences" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('タイムゾーン') }}</label>
+                <select wire:model="time_zone" data-user-time-zone class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('未設定(既定: :zone)', ['zone' => \App\Support\Locale\TimeZones::default()]) }}</option>
+                    @foreach (\App\Support\Locale\TimeZones::options() as $identifier => $label)
+                        <option value="{{ $identifier }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('time_zone') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+
             <div>
                 <label class="block text-sm font-medium text-neutral-700">{{ __('課題のコメントの並び順') }}</label>
                 <select wire:model="comments_sorting" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">

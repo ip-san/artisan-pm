@@ -239,7 +239,10 @@
 | 117 | A4-01 | — | M | done(2026-09-20、must_change_passwd と通知は未対応) |
 | 118 | A4-02 | — | M | done(2026-09-20) |
 | 119 | A4-03 | — | M | done(2026-09-20) |
-| 120 | A4-12 / A14-02 | — | M | todo(2026-09-24 承認: 設計メモの推奨案) |
+| 120 | A4-12 / A14-02 | — | M | wip(2026-09-24、承認: 設計メモの推奨案。A4-12a〜c に分割) |
+| 120a | A4-12a | — | S | done(2026-09-24、既定のゾーンは作成時の複写ではなく未設定のユーザー全員に読み取り時に適用。管理画面のユーザー編集にはタイムゾーン欄なし=言語と同じ) |
+| 120b | A4-12b | A4-12a | M | todo |
+| 120c | A4-12c | A4-12a | S | todo |
 | 121 | A6-01 | — | M | done(2026-09-20、issue_status_updated 等の細分は未対応) |
 | 122 | A7-01 | — | M | done(2026-09-20、インライン利用と一部オプションは未対応) |
 | 123 | A8-02 | — | M | done(2026-09-20、API/一括編集/横断一覧は A8-02b) |
@@ -404,7 +407,7 @@
 | A4-10a | 表示名形式(`user_format`)の選択肢のうち `name` 単一列で表現できるもの | `users.name` 単一列、設定なし(grep 0件) | 「名前」「名前 (login)」「login」の3形式を設定で選び、`User::displayName()` ヘルパーに集約して全画面で使用 | — | S | 設定「表示」 |
 | A4-10b | 姓名分離(`firstname`/`lastname`)と `user_format` の全形式 | `users.name` 単一列 | 列分割マイグレーション(既存 `name` を空白で分割)、フォーム/API/インポート/LDAP 属性マッピングの全経路を更新 | **設計判断**(スキーマ変更・全画面に波及)。設計メモ→承認後に着手 | L | 同上 |
 | A4-11 | アバター(`gravatar_enabled`/`gravatar_default`)、Redmine 6.0 の添付アバター | なし(grep 0件) | Gravatar URL 生成ヘルパー+設定、課題詳細/Journal/メンバー一覧に表示 | — | S | 設定「表示」 |
-| A4-12 | ユーザーのタイムゾーン(`default_users_time_zone`、`users.time_zone`)と日付/時刻形式(`date_format`/`time_format`/`timespan_format`) | `config/app.php` の単一タイムゾーン。ユーザー列なし | ユーザー列+プロフィール選択、表示時に `Carbon::setTimezone()`。日付形式は設定で選択し Blade ヘルパーで統一 | A14-01(i18n)と同時に扱うのが効率的 | M | 設定「表示」 |
+| A4-12 | ユーザーのタイムゾーン(`default_users_time_zone`、`users.time_zone`)と日付/時刻形式(`date_format`/`time_format`/`timespan_format`) | **A4-12a done(2026-09-24)**: `users.time_zone`(IANA 名)、設定 `default_users_time_zone`(「新規ユーザーの既定の個人設定」、空=サーバーの `app.timezone`)、プロフィールの個人設定に「タイムゾーン」、`App\Support\Locale\TimeZones`(本人→設定→サーバーの順)と `App\Support\Format\DateTimes`(`date()` は日付のみの値をそのまま、`dateTime()`/`dateOf()`/`time()` は閲覧者のゾーンへ、`today()` は Redmine の `User#today`、`dayBounds()` は日付フィルタ用、`asViewer()` はメールの受信者用)。`timespan_format` は A8-07 で `Hours` に実装済み。旧: `config/app.php` の単一タイムゾーン。ユーザー列なし | ユーザー列+プロフィール選択、表示時に `Carbon::setTimezone()`。日付形式は設定で選択し Blade ヘルパーで統一 | A14-01(i18n)と同時に扱うのが効率的 | M | 設定「表示」 |
 | A4-13 | ユーザー個人設定(`UserPreference`): `comments_sorting`、`warn_on_leaving_unsaved`、`notify_about_high_priority_issues`、`textarea_font`、`recently_used_projects`、`history_default_tab`、`default_issue_query`/`default_project_query`、`auto_watch_on`(+設定 `default_users_auto_watch_on`)、`hide_mail`(+`default_users_hide_mail`) | `users` に `mail_notification`/`no_self_notified`/`language` のみ。設定基盤なし | `user_preferences` テーブル(または JSON 列)とプロフィール画面のセクション。各設定を消費する箇所(Journal 並び順、履歴既定タブ、自動ウォッチ、公開プロフィールのメール非表示)を配線 | A1-04、A2-02、A9-08 が依存 | M | 設定「ユーザー」 |
 | A4-13b | A4-13 の個人設定のうち未配線のもの: ~~`notify_about_high_priority_issues`~~(A6-05 で実装済み)、`history_default_tab`(課題履歴の既定タブ。本アプリに履歴タブなし)、`recently_used_projects`(最近使ったプロジェクトの数。プロジェクトジャンプボックスなし)、`default_project_query`(プロジェクト一覧の既定クエリ。プロジェクトの保存クエリなし) | 2026-09-24 完了。`default_project_query` を A2-03b で配線(プロフィールの選択欄、`DefaultProjectQuery`)。`notify_about_high_priority_issues`(A6-05)・`history_default_tab`(A1-04)・`recently_used_projects`(A9-07)は配線済み | 消費先が無い設定は、消費先の機能(履歴タブ・ジャンプボックス・プロジェクトクエリ)を作る行で同時に。`notify_about_high_priority_issues` は `NotificationRecipients::forIssue` に条件を足す | A4-13 で分離 | S | 設定「ユーザー」 |
 | A4-14 | 自動ウォッチ(`auto_watch_on`: 作成した課題/コメントした課題を自動でウォッチ) | 作成者/担当者は通知対象だがウォッチャーにはならない | A4-13 の設定を見て `IssueService::create()`/コメント追加時に `Watcher` を作成 | — | S | Watchers「作成者/担当者の自動Watch」 |
