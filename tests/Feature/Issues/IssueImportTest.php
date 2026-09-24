@@ -410,3 +410,31 @@ test('a mapped is_private column is ignored when the importing user cannot set i
 
     expect(Issue::where('subject', 'Attempted secret')->firstOrFail()->is_private)->toBeFalse();
 });
+
+test('a quoted value may span several lines and a UTF-8 BOM before a quoted header is ignored (A1-28a)', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $project->trackers()->attach(Tracker::factory()->create());
+    IssueStatus::factory()->create();
+    Enumeration::factory()->create(['is_default' => true]);
+    $user = importMember($project);
+
+    $csv = "\u{FEFF}\"subject\",\"description\"\n\"複数行の課題\",\"1行目\n2行目, カンマ入り\n\"\"引用\"\"\"\n2件目,説明\n";
+
+    $component = Livewire::actingAs($user)
+        ->test('issues.import', ['project' => $project])
+        ->set('csvFile', csvFile('issues.csv', $csv));
+
+    expect($component->get('headers'))->toBe(['subject', 'description'])
+        ->and($component->get('mapping')['subject'])->toBe('subject');
+
+    $component->set('mapping.description', 'description')->call('startImport');
+
+    $import = IssueImport::firstOrFail();
+
+    expect($import->total_rows)->toBe(2)
+        ->and($import->imported_count)->toBe(2)
+        ->and(Issue::where('subject', '複数行の課題')->value('description'))->toBe("1行目\n2行目, カンマ入り\n\"引用\"")
+        ->and(Issue::where('subject', '2件目')->exists())->toBeTrue();
+});

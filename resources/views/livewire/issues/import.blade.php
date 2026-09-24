@@ -6,6 +6,7 @@ use App\Models\IssueCategory;
 use App\Models\IssueImport;
 use App\Models\Project;
 use App\Models\Version;
+use App\Support\Import\CsvReader;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -98,12 +99,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->validate(['csvFile' => ['required', 'file', 'mimes:csv,txt', 'max:5120']]);
 
-        $handle = fopen($this->csvFile->getRealPath(), 'r');
-        $this->headers = $handle ? (fgetcsv($handle) ?: []) : [];
-
-        if ($handle) {
-            fclose($handle);
-        }
+        $this->headers = CsvReader::header($this->csvFile->getRealPath());
 
         foreach (array_keys(self::IMPORTABLE_FIELDS) as $field) {
             $match = collect($this->headers)->first(
