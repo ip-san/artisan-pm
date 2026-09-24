@@ -190,3 +190,65 @@ test('f[] or a saved query replaces the default open filter', function () {
 
     expect(indexIds($this->getJson("/api/v1/projects/{$project->id}/issues?query_id={$query->id}")))->toEqualCanonicalizing([$open->id, $closed->id]);
 });
+
+test('sort takes up to three comma-separated columns, including associations and custom fields', function () {
+    $project = Project::factory()->create();
+    $user = indexApiMember($project);
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $points = \App\Models\CustomField::factory()->create(['field_format' => \App\Enums\CustomFieldFormat::Int->value, 'is_filter' => true]);
+    $points->trackers()->attach($tracker);
+    $a = indexApiIssue($project, ['tracker_id' => $tracker->id, 'subject' => 'Alpha', 'done_ratio' => 50]);
+    $b = indexApiIssue($project, ['tracker_id' => $tracker->id, 'subject' => 'Beta', 'done_ratio' => 50]);
+    $c = indexApiIssue($project, ['tracker_id' => $tracker->id, 'subject' => 'Gamma', 'done_ratio' => 10]);
+    $a->setCustomFieldValues([$points->id => '5']);
+    $b->setCustomFieldValues([$points->id => '1']);
+    $c->setCustomFieldValues([$points->id => '3']);
+
+    Passport::actingAs($user);
+    $base = "/api/v1/projects/{$project->id}/issues";
+
+    expect(indexIds($this->getJson("{$base}?sort=done_ratio:desc,subject:desc")))->toBe([$b->id, $a->id, $c->id])
+        ->and(indexIds($this->getJson("{$base}?sort=done_ratio,subject")))->toBe([$c->id, $a->id, $b->id])
+        ->and(indexIds($this->getJson("{$base}?sort=cf_{$points->id}")))->toBe([$b->id, $c->id, $a->id])
+        ->and(indexIds($this->getJson("{$base}?sort=bogus,cf_{$points->id}:desc")))->toBe([$a->id, $c->id, $b->id])
+        ->and(indexIds($this->getJson('/api/v1/issues?sort=project,subject:desc')))->toBe([$c->id, $b->id, $a->id]);
+});
+
+test('sort by a custom field the caller may not see is ignored', function () {
+    $project = Project::factory()->create();
+    $user = indexApiMember($project);
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $secret = \App\Models\CustomField::factory()->create(['field_format' => \App\Enums\CustomFieldFormat::Int->value, 'is_filter' => true]);
+    $secret->trackers()->attach($tracker);
+    $secret->roles()->attach(Role::factory()->create());
+    $low = indexApiIssue($project, ['tracker_id' => $tracker->id]);
+    $high = indexApiIssue($project, ['tracker_id' => $tracker->id]);
+    $low->setCustomFieldValues([$secret->id => '1']);
+    $high->setCustomFieldValues([$secret->id => '9']);
+
+    Passport::actingAs($user);
+
+    expect(indexIds($this->getJson("/api/v1/projects/{$project->id}/issues?sort=cf_{$secret->id}")))->toBe([$high->id, $low->id])
+        ->and(indexIds($this->getJson("/api/v1/projects/{$project->id}/issues?sort=cf_{$secret->id}:desc")))->toBe([$high->id, $low->id]);
+});
+
+test('the index includes attachments and relations on request, and nothing show-only', function () {
+    \Illuminate\Support\Facades\Storage::fake('local');
+
+    $project = Project::factory()->create();
+    $user = indexApiMember($project);
+    $issue = indexApiIssue($project);
+    $issue->addMedia(\Illuminate\Http\UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/projects/{$project->id}/issues?include=attachments,journals,watchers")
+        ->assertOk()
+        ->assertJsonPath('data.0.attachments.0.filename', 'notes.txt')
+        ->assertJsonMissingPath('data.0.journals')
+        ->assertJsonMissingPath('data.0.watchers');
+
+    $this->getJson("/api/v1/projects/{$project->id}/issues")->assertOk()->assertJsonMissingPath('data.0.attachments');
+});

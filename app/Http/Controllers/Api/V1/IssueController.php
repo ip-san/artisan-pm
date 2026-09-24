@@ -54,12 +54,50 @@ final class IssueController extends Controller
     private const array SHOW_INCLUDES = ['journals', 'relations', 'attachments', 'children', 'watchers', 'allowed_statuses', 'changesets'];
 
     /**
-     * Matches Redmine's own index action, which only ever honors
-     * ?include=relations — every other key is show-only there too.
+     * Matches Redmine's own index action (issues/index.api.rsb), which
+     * honors ?include=attachments and ?include=relations — every other key
+     * is show-only there too.
      *
      * @var array<int, string>
      */
-    private const array INDEX_INCLUDES = ['relations'];
+    private const array INDEX_INCLUDES = ['attachments', 'relations'];
+
+    /**
+     * Redmine's sort names of the issue columns stored on the issue itself
+     * (IssueQuery#available_columns), by column.
+     *
+     * @var array<string, string>
+     */
+    private const array SORT_COLUMNS = [
+        'id' => 'id',
+        'subject' => 'subject',
+        'created_on' => 'created_at',
+        'updated_on' => 'updated_at',
+        'closed_on' => 'closed_on',
+        'start_date' => 'start_date',
+        'due_date' => 'due_date',
+        'done_ratio' => 'done_ratio',
+        'estimated_hours' => 'estimated_hours',
+        'is_private' => 'is_private',
+    ];
+
+    /**
+     * Redmine's sort names of the columns sorted like the web list (the
+     * filter engine's field), by engine key.
+     *
+     * @var array<string, string>
+     */
+    private const array SORT_FIELDS = [
+        'project' => 'project_id',
+        'tracker' => 'tracker_id',
+        'status' => 'status_id',
+        'priority' => 'priority_id',
+        'author' => 'author_id',
+        'assigned_to' => 'assigned_to_id',
+        'category' => 'category_id',
+        'fixed_version' => 'fixed_version_id',
+        'parent' => 'parent_id',
+    ];
 
     /**
      * The simple list parameters handled here before the Redmine filters
@@ -158,9 +196,8 @@ final class IssueController extends Controller
         // one per issue when the resource asks isLeaf()/spentHours().
         $query->withCount('children')->withSum('timeEntries', 'hours')->with(['assignedTo', 'assignedToGroup']);
 
-        if (in_array('relations', $this->parseIncludes($request, self::INDEX_INCLUDES), true)) {
-            $query->with(['relationsFrom.to', 'relationsTo.from']);
-        }
+        $includes = $this->parseIncludes($request, self::INDEX_INCLUDES);
+        $query->with($this->relationsToLoad($includes));
 
         [$offset, $limit] = RedmineIssueListParams::offsetAndLimit($input);
         $total = (clone $query)->toBase()->getCountForPagination();
@@ -266,16 +303,11 @@ final class IssueController extends Controller
     private function applySort(Request $request, Builder $query, QueryFilterEngine $engine, ?SavedQuery $savedQuery): void
     {
         $sort = $request->query('sort');
-        $columns = ['id' => 'id', 'subject' => 'subject', 'created_on' => 'created_at', 'updated_on' => 'updated_at'];
 
-        if (is_string($sort)) {
-            [$name, $direction] = array_pad(explode(':', $sort, 2), 2, 'asc');
+        if (is_string($sort) && $this->applyRequestedSort($sort, $query, $engine)) {
+            $query->orderByDesc('issues.id');
 
-            if (isset($columns[$name])) {
-                $query->orderBy($columns[$name], $direction === 'desc' ? 'desc' : 'asc')->orderByDesc('id');
-
-                return;
-            }
+            return;
         }
 
         if ($savedQuery !== null && is_array($savedQuery->sort_criteria) && $savedQuery->sort_criteria !== []) {
@@ -283,6 +315,41 @@ final class IssueController extends Controller
         }
 
         $query->orderByDesc('id');
+    }
+
+    /**
+     * Redmine's `sort` parameter (SortCriteria): up to three comma-separated
+     * `column[:desc]` terms over the list's sortable columns — the issue's
+     * own columns, its associations (sorted like the web list) and custom
+     * fields the caller may see (`cf_N`). Unknown terms are skipped; false
+     * when none applied.
+     *
+     * @param  Builder<Issue>  $query
+     */
+    private function applyRequestedSort(string $sort, Builder $query, QueryFilterEngine $engine): bool
+    {
+        $applied = false;
+
+        foreach (array_slice(array_filter(array_map('trim', explode(',', $sort))), 0, 3) as $term) {
+            [$name, $direction] = array_pad(explode(':', $term, 2), 2, 'asc');
+            $direction = $direction === 'desc' ? 'desc' : 'asc';
+
+            if (isset(self::SORT_COLUMNS[$name])) {
+                $query->orderBy('issues.'.self::SORT_COLUMNS[$name], $direction);
+                $applied = true;
+
+                continue;
+            }
+
+            $key = self::SORT_FIELDS[$name] ?? (preg_match('/^cf_\d+$/', $name) === 1 ? $name : null);
+
+            if ($key !== null && $engine->field($key)?->isSortable()) {
+                $engine->applySort($query, [[$key, $direction]]);
+                $applied = true;
+            }
+        }
+
+        return $applied;
     }
 
     public function show(Request $request, Issue $issue): IssueResource
