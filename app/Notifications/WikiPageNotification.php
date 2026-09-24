@@ -32,6 +32,7 @@ final class WikiPageNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): WikiPageNotificationMail
     {
         return (new WikiPageNotificationMail($this->wikiPage, $this->eventType, $this->actor))
-            ->to($notifiable->routeNotificationFor('mail', $this));
+            ->to($notifiable->routeNotificationFor('mail', $this))
+            ->forRecipient($notifiable);
     }
 }

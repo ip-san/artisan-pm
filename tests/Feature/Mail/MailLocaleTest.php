@@ -9,7 +9,9 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Notifications\IssueNotification;
 use App\Notifications\ProjectEventNotification;
+use App\Support\Format\DateTimes;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\View;
 
 /**
  * @return list<string>
@@ -61,4 +63,24 @@ test('a user without a language, or with the default forced, receives the defaul
     Setting::set('force_default_language_for_loggedin', true);
 
     expect(User::factory()->create(['language' => 'ja'])->preferredLocale())->toBe('en');
+});
+
+test('each recipient gets the mail with times in their own zone, whoever sent it', function () {
+    $issue = Issue::factory()->for(Project::factory()->create())->create([
+        'tracker_id' => Tracker::factory()->create()->id,
+        'status_id' => IssueStatus::factory()->create()->id,
+        'priority_id' => Enumeration::factory()->create()->id,
+    ]);
+    $actor = User::factory()->create(['time_zone' => 'America/New_York']);
+    $zones = [];
+    View::composer('mail.issues.*', function () use (&$zones): void {
+        $zones[] = DateTimes::timeZone();
+    });
+
+    $this->actingAs($actor);
+    User::factory()->create(['time_zone' => 'Asia/Tokyo'])->notify(new IssueNotification($issue, 'created', $actor));
+    User::factory()->create(['time_zone' => null])->notify(new IssueNotification($issue, 'created', $actor));
+
+    expect(array_values(array_unique($zones)))->toBe(['Asia/Tokyo', 'UTC'])
+        ->and(DateTimes::timeZone())->toBe('America/New_York');
 });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Concerns\FormatsDatesForRecipient;
 use App\Models\News;
 use App\Models\NewsComment;
 use App\Models\Setting;
@@ -22,7 +23,7 @@ use Illuminate\Queue\SerializesModels;
  */
 final class NewsNotificationMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use FormatsDatesForRecipient, Queueable, SerializesModels;
 
     public function __construct(
         public readonly News $news,

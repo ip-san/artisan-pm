@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Concerns\FormatsDatesForRecipient;
 use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\Journal;
@@ -27,7 +28,7 @@ use Illuminate\Queue\SerializesModels;
  */
 final class IssueNotificationMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use FormatsDatesForRecipient, Queueable, SerializesModels;
 
     /**
      * Attribute keys from IssueService::JOURNALED_ATTRIBUTES that a

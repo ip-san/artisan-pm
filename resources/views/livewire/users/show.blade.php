@@ -180,9 +180,9 @@ new #[Layout('components.layouts.app')] class extends Component
                 @if (! $user->preference('hide_mail') || auth()->id() === $user->id || auth()->user()?->is_admin)
                     <li><span class="text-neutral-500">{{ __('メールアドレス') }}:</span> {{ $user->email }}</li>
                 @endif
-                <li><span class="text-neutral-500">{{ __('登録日') }}:</span> {{ $user->created_at?->format('Y-m-d') }}</li>
+                <li><span class="text-neutral-500">{{ __('登録日') }}:</span> {{ \App\Support\Format\DateTimes::dateOf($user->created_at) }}</li>
                 @if ($user->last_login_at)
-                    <li><span class="text-neutral-500">{{ __('最終ログイン') }}:</span> {{ $user->last_login_at->format('Y-m-d H:i') }}</li>
+                    <li><span class="text-neutral-500">{{ __('最終ログイン') }}:</span> {{ \App\Support\Format\DateTimes::dateTime($user->last_login_at) }}</li>
                 @endif
             </ul>
 
@@ -250,7 +250,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @foreach ($this->recentActivity as $entry)
                         <li wire:key="activity-{{ $entry->type }}-{{ $entry->url }}-{{ $entry->occurredAt->timestamp }}" class="text-sm">
                             <a href="{{ $entry->url }}" class="text-brand-bold hover:underline">{{ $entry->title }}</a>
-                            <span class="text-neutral-400">({{ $entry->occurredAt->format('Y-m-d') }})</span>
+                            <span class="text-neutral-400">({{ \App\Support\Format\DateTimes::dateOf($entry->occurredAt) }})</span>
                         </li>
                     @endforeach
                 </ul>

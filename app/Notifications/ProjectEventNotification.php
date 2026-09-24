@@ -64,6 +64,7 @@ final class ProjectEventNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): ProjectEventNotificationMail
     {
         return (new ProjectEventNotificationMail($this->subjectLine(), $this->headline(), $this->title, $this->url, $this->body))
-            ->to($notifiable->routeNotificationFor('mail', $this));
+            ->to($notifiable->routeNotificationFor('mail', $this))
+            ->forRecipient($notifiable);
     }
 }

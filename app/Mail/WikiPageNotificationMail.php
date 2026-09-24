@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Concerns\FormatsDatesForRecipient;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\WikiPage;
@@ -21,7 +22,7 @@ use Illuminate\Queue\SerializesModels;
  */
 final class WikiPageNotificationMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use FormatsDatesForRecipient, Queueable, SerializesModels;
 
     public function __construct(
         public readonly WikiPage $wikiPage,

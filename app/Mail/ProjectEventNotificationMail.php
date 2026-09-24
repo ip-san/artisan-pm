@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
+use App\Concerns\FormatsDatesForRecipient;
 use App\Models\Setting;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -18,7 +19,7 @@ use Illuminate\Queue\SerializesModels;
  */
 final class ProjectEventNotificationMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use FormatsDatesForRecipient, Queueable, SerializesModels;
 
     public function __construct(
         public readonly string $subjectLine,

@@ -88,8 +88,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 default => __('有効'),
             },
             'auth_source_id' => $user->authSource !== null ? 'LDAP: '.$user->authSource->name : '',
-            'created_at' => $user->created_at?->format('Y-m-d H:i') ?? '',
-            'last_login_at' => $user->last_login_at?->format('Y-m-d H:i') ?? '',
+            'created_at' => \App\Support\Format\DateTimes::dateTime($user->created_at) ?? '',
+            'last_login_at' => \App\Support\Format\DateTimes::dateTime($user->last_login_at) ?? '',
             default => '',
         };
     }
