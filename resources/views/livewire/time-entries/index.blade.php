@@ -14,6 +14,7 @@ use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\ListDefaults;
 use App\Support\Query\TimeEntryColumns;
 use App\Support\Query\QueryFilterEngine;
+use App\Support\Issues\ContextMenuCustomFields;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
 use Illuminate\Database\Eloquent\Builder;
@@ -118,6 +119,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /** @var array<int, mixed> custom field id => the value to set on every selected entry (blank = leave alone) */
     public array $bulkCustomFieldValues = [];
+
+    /**
+     * Ids of custom fields the bulk edit clears (Redmine's `__none__`).
+     *
+     * @var list<int>
+     */
+    public array $bulkClearCustomFields = [];
 
     public string $newQueryName = '';
 
@@ -516,8 +524,42 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function contextUpdateActivity(int $activityId): void
     {
-        $this->reset(['bulkProjectId', 'bulkIssueId', 'bulkUserId', 'bulkHours', 'bulkSpentOn', 'bulkComments']);
+        $this->reset(['bulkProjectId', 'bulkIssueId', 'bulkUserId', 'bulkHours', 'bulkSpentOn', 'bulkComments', 'bulkCustomFieldValues', 'bulkClearCustomFields']);
         $this->bulkActivityId = $activityId;
+
+        $this->applyBulkEdit();
+    }
+
+    /**
+     * The context menu's custom field submenus (Redmine's
+     * context_menus/time_entries `@options_by_custom_field`).
+     *
+     * @return Collection<int, array{field: \App\Models\CustomField, options: array<string, string>}>
+     */
+    #[Computed]
+    public function contextMenuCustomFields(): Collection
+    {
+        return ContextMenuCustomFields::optionsFor($this->bulkCustomFields);
+    }
+
+    /**
+     * A custom field value from the context menu, applied through the bulk
+     * edit; `__none__` clears a field that is not required.
+     */
+    public function contextUpdateCustomField(int $fieldId, string $value): void
+    {
+        $entry = $this->contextMenuCustomFields->first(fn (array $entry) => $entry['field']->id === $fieldId);
+
+        abort_unless($this->canManage && $entry !== null, 403);
+        abort_unless($value === ContextMenuCustomFields::NONE ? ! $entry['field']->is_required : array_key_exists($value, $entry['options']), 422);
+
+        $this->reset(['bulkProjectId', 'bulkIssueId', 'bulkUserId', 'bulkHours', 'bulkActivityId', 'bulkSpentOn', 'bulkComments', 'bulkCustomFieldValues', 'bulkClearCustomFields']);
+
+        if ($value === ContextMenuCustomFields::NONE) {
+            $this->bulkClearCustomFields = [$fieldId];
+        } else {
+            $this->bulkCustomFieldValues = [$fieldId => $value];
+        }
 
         $this->applyBulkEdit();
     }
@@ -579,6 +621,11 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->validate($customFieldRules);
         }
 
+        foreach ($this->bulkCustomFields->whereIn('id', $this->bulkClearCustomFields) as $field) {
+            abort_if($field->is_required, 422);
+            $customFieldInput[$field->id] = '';
+        }
+
         $issueChoice = $data['bulkIssueId'] ?? '';
 
         if ($issueChoice !== '' && $issueChoice !== 'none') {
@@ -628,7 +675,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $count = $entries->count();
 
-        $this->reset(['selected', 'bulkProjectId', 'bulkIssueId', 'bulkUserId', 'bulkHours', 'bulkActivityId', 'bulkSpentOn', 'bulkComments', 'bulkCustomFieldValues']);
+        $this->reset(['selected', 'bulkProjectId', 'bulkIssueId', 'bulkUserId', 'bulkHours', 'bulkActivityId', 'bulkSpentOn', 'bulkComments', 'bulkCustomFieldValues', 'bulkClearCustomFields']);
         unset($this->timeEntries, $this->groupedTimeEntries, $this->selectedTimeEntries);
 
         session()->flash('status', __(':count件の工数記録を更新しました。', ['count' => $count]));
@@ -722,6 +769,19 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                 </div>
             @endif
+            @foreach ($this->contextMenuCustomFields as $menuEntry)
+                <div class="group relative" wire:key="context-menu-cf-{{ $menuEntry['field']->id }}" data-context-menu-custom-field="{{ $menuEntry['field']->id }}">
+                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuEntry['field']->name }} <span class="text-neutral-400">›</span></span>
+                    <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
+                        @foreach ($menuEntry['options'] as $menuValue => $menuText)
+                            <button type="button" wire:click="contextUpdateCustomField({{ $menuEntry['field']->id }}, @js((string) $menuValue))" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $menuText }}</button>
+                        @endforeach
+                        @unless ($menuEntry['field']->is_required)
+                            <button type="button" wire:click="contextUpdateCustomField({{ $menuEntry['field']->id }}, '{{ ContextMenuCustomFields::NONE }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-500 hover:bg-neutral-100">{{ __('(なし)') }}</button>
+                        @endunless
+                    </div>
+                </div>
+            @endforeach
             @if ($menuEntries->every(fn ($entry) => auth()->user()?->can('delete', $entry)))
                 <button type="button" wire:click="applyBulkDelete" wire:confirm="{{ __('選択した:count件の工数記録を削除します。この操作は取り消せません。よろしいですか?', ['count' => count($selected)]) }}" x-on:click="menu.open = false" class="block w-full border-t border-neutral-100 px-3 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">{{ __('削除') }}</button>
             @endif

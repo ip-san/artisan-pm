@@ -99,3 +99,41 @@ test('an admin sees restricted custom fields as columns on the cross-project lis
 
     expect(Livewire::actingAs($admin)->test('time-entries.global-index')->get('availableColumns'))->toHaveKey("cf_{$restricted->id}");
 });
+
+test('the context menu offers list and boolean fields and sets or clears them on the selection', function () {
+    ['project' => $project, 'user' => $user] = timeCfExtrasSetup();
+    $list = CustomField::factory()->list(['Billable', 'Internal'])->create(['customized_type' => 'time_entry', 'name' => 'Billing']);
+    $flag = CustomField::factory()->create(['customized_type' => 'time_entry', 'field_format' => CustomFieldFormat::Bool->value]);
+    $text = CustomField::factory()->create(['customized_type' => 'time_entry']);
+    $a = timeCfExtrasEntry($project, $user);
+    $b = timeCfExtrasEntry($project, $user);
+
+    $page = Livewire::actingAs($user)->test('time-entries.index', ['project' => $project])
+        ->set('selected', [(string) $a->id, (string) $b->id])
+        ->assertSeeHtml('data-context-menu-custom-field="'.$list->id.'"')
+        ->assertSeeHtml('data-context-menu-custom-field="'.$flag->id.'"')
+        ->assertDontSeeHtml('data-context-menu-custom-field="'.$text->id.'"');
+
+    $page->call('contextUpdateCustomField', $list->id, 'Internal')->assertHasNoErrors();
+    expect($a->fresh()->customValue($list))->toBe('Internal')->and($b->fresh()->customValue($list))->toBe('Internal');
+
+    $page->set('selected', [(string) $b->id])->call('contextUpdateCustomField', $list->id, '__none__');
+    expect($a->fresh()->customValue($list))->toBe('Internal')->and($b->fresh()->customValue($list))->toBeNull();
+
+    $page->set('selected', [(string) $a->id])->call('contextUpdateCustomField', $list->id, 'Other')->assertStatus(422);
+});
+
+test('the custom field menu is refused to a member who cannot edit the entries', function () {
+    $project = Project::factory()->create();
+    $viewer = User::factory()->create();
+    Member::factory()->for($project)->for($viewer)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_time_entries']]));
+    $list = CustomField::factory()->list(['Billable'])->create(['customized_type' => 'time_entry']);
+    $entry = timeCfExtrasEntry($project, User::factory()->create());
+
+    Livewire::actingAs($viewer)->test('time-entries.index', ['project' => $project])
+        ->set('selected', [(string) $entry->id])
+        ->call('contextUpdateCustomField', $list->id, 'Billable')
+        ->assertForbidden();
+
+    expect($entry->fresh()->customValue($list))->toBeNull();
+});

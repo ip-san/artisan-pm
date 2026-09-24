@@ -28,6 +28,7 @@ use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\ListQueryString;
 use App\Support\Export\ExportLimit;
 use App\Support\Issues\AssigneeChoice;
+use App\Support\Issues\ContextMenuCustomFields;
 use App\Support\Issues\CopyOptions;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\CustomFieldFilter;
@@ -221,6 +222,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /** @var array<int, mixed> custom field id => the value to set on every selected issue (blank = leave alone) */
     public array $bulkCustomFieldValues = [];
+
+    /**
+     * Ids of custom fields the bulk edit clears (Redmine's `__none__`).
+     *
+     * @var list<int>
+     */
+    public array $bulkClearCustomFields = [];
 
     /**
      * Fields the bulk edit sets to "none" (only these three can be blank).
@@ -1104,6 +1112,19 @@ new #[Layout('components.layouts.app')] class extends Component
             ->values();
     }
 
+    /**
+     * The context menu's custom field submenus (Redmine's
+     * context_menus/issues `@options_by_custom_field`): the bulk-editable
+     * fields that have a fixed list of values.
+     *
+     * @return Collection<int, array{field: CustomField, options: array<string, string>}>
+     */
+    #[Computed]
+    public function contextMenuCustomFields(): Collection
+    {
+        return ContextMenuCustomFields::optionsFor($this->bulkCustomFields);
+    }
+
     #[Computed]
     public function priorities(): Collection
     {
@@ -1196,6 +1217,11 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->validate($customFieldRules);
         }
 
+        foreach ($this->bulkCustomFields->whereIn('id', $this->bulkClearCustomFields) as $field) {
+            abort_if($field->is_required, 422);
+            $customFieldInput[$field->id] = '';
+        }
+
         if ($data['bulkIsPrivate'] !== null && $data['bulkIsPrivate'] !== '') {
             foreach ($issues as $issue) {
                 $this->authorize('setPrivateOn', $issue);
@@ -1260,7 +1286,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $count = $issues->count() - count($failedIds);
 
-        $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkAssignedToGroupId', 'bulkAssigneeChoice', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear', 'bulkCustomFieldValues']);
+        $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkAssignedToGroupId', 'bulkAssigneeChoice', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear', 'bulkCustomFieldValues', 'bulkClearCustomFields']);
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
@@ -1343,7 +1369,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         abort_unless($this->canBulkEdit && isset($properties[$field]), 403);
 
-        $this->reset(['bulkPriorityId', 'bulkAssignedToId', 'bulkAssignedToGroupId', 'bulkAssigneeChoice', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear']);
+        $this->reset(['bulkPriorityId', 'bulkAssignedToId', 'bulkAssignedToGroupId', 'bulkAssigneeChoice', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear', 'bulkCustomFieldValues', 'bulkClearCustomFields']);
 
         if ($value === 'none') {
             abort_unless(in_array($field, ['assigned_to_id', 'fixed_version_id', 'category_id'], true), 422);
@@ -1352,6 +1378,28 @@ new #[Layout('components.layouts.app')] class extends Component
             ['assigned_to_id' => $this->bulkAssignedToId, 'assigned_to_group_id' => $this->bulkAssignedToGroupId] = AssigneeChoice::decode($value === 'me' ? (string) auth()->id() : $value);
         } else {
             $this->{$properties[$field]} = (int) $value;
+        }
+
+        $this->applyBulkEdit();
+    }
+
+    /**
+     * A custom field value from the context menu, applied to the selection
+     * like the bulk form; `__none__` clears a field that is not required.
+     */
+    public function contextUpdateCustomField(int $fieldId, string $value): void
+    {
+        $entry = $this->contextMenuCustomFields->first(fn (array $entry) => $entry['field']->id === $fieldId);
+
+        abort_unless($this->canBulkEdit && $entry !== null, 403);
+        abort_unless($value === ContextMenuCustomFields::NONE ? ! $entry['field']->is_required : array_key_exists($value, $entry['options']), 422);
+
+        $this->reset(['bulkPriorityId', 'bulkAssignedToId', 'bulkAssignedToGroupId', 'bulkAssigneeChoice', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear', 'bulkCustomFieldValues', 'bulkClearCustomFields']);
+
+        if ($value === ContextMenuCustomFields::NONE) {
+            $this->bulkClearCustomFields = [$fieldId];
+        } else {
+            $this->bulkCustomFieldValues = [$fieldId => $value];
         }
 
         $this->applyBulkEdit();
@@ -1681,6 +1729,20 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                 </div>
             </div>
+
+            @foreach ($this->contextMenuCustomFields as $menuEntry)
+                <div class="group relative" wire:key="context-menu-cf-{{ $menuEntry['field']->id }}" data-context-menu-custom-field="{{ $menuEntry['field']->id }}">
+                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuEntry['field']->name }} <span class="text-neutral-400">›</span></span>
+                    <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
+                        @foreach ($menuEntry['options'] as $menuValue => $menuText)
+                            <button type="button" wire:click="contextUpdateCustomField({{ $menuEntry['field']->id }}, @js((string) $menuValue))" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $menuText }}</button>
+                        @endforeach
+                        @unless ($menuEntry['field']->is_required)
+                            <button type="button" wire:click="contextUpdateCustomField({{ $menuEntry['field']->id }}, '{{ \App\Support\Issues\ContextMenuCustomFields::NONE }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-500 hover:bg-neutral-100">{{ __('(なし)') }}</button>
+                        @endunless
+                    </div>
+                </div>
+            @endforeach
 
             @auth
                 <button type="button" wire:click="contextToggleWatch" x-on:click="menu.open = false" class="block w-full border-t border-neutral-100 px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ __('ウォッチ / ウォッチをやめる') }}</button>

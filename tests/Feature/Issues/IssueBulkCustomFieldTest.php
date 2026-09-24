@@ -113,3 +113,63 @@ test('a role that cannot see a field never gets it in the bulk form', function (
 
     expect(Livewire::actingAs($user)->test('issues.index', ['project' => $project])->set('selected', [(string) $issue->id])->get('bulkCustomFields')->pluck('id')->all())->not->toContain($hidden->id);
 });
+
+test('the context menu offers list and boolean fields as submenus and sets or clears them', function () {
+    ['project' => $project, 'user' => $user] = bulkCfSetup();
+    $tracker = Tracker::factory()->create();
+    $list = bulkCfField($tracker, ['name' => 'Stage', 'field_format' => CustomFieldFormat::List->value, 'possible_values' => ['Alpha', 'Beta']]);
+    $flag = bulkCfField($tracker, ['name' => 'Urgent', 'field_format' => CustomFieldFormat::Bool->value]);
+    $text = bulkCfField($tracker, ['name' => 'Free text']);
+    $a = bulkCfIssue($project, $tracker);
+    $b = bulkCfIssue($project, $tracker);
+    $a->setCustomFieldValues([$list->id => 'Alpha']);
+
+    $page = Livewire::actingAs($user)->test('issues.index', ['project' => $project])
+        ->set('selected', [(string) $a->id, (string) $b->id])
+        ->assertSeeHtml('data-context-menu-custom-field="'.$list->id.'"')
+        ->assertSeeHtml('data-context-menu-custom-field="'.$flag->id.'"')
+        ->assertDontSeeHtml('data-context-menu-custom-field="'.$text->id.'"');
+
+    $page->call('contextUpdateCustomField', $list->id, 'Beta')->assertHasNoErrors();
+    expect($a->fresh()->customValue($list))->toBe('Beta')->and($b->fresh()->customValue($list))->toBe('Beta');
+
+    $page->set('selected', [(string) $a->id])->call('contextUpdateCustomField', $flag->id, '1');
+    expect($a->fresh()->customValue($flag))->toBeTrue();
+
+    $page->set('selected', [(string) $a->id])->call('contextUpdateCustomField', $list->id, '__none__');
+    expect($a->fresh()->customValue($list))->toBeNull()->and($b->fresh()->customValue($list))->toBe('Beta');
+});
+
+test('the context menu refuses values outside the list, clearing a required field and hidden fields', function () {
+    ['project' => $project, 'user' => $user] = bulkCfSetup();
+    $tracker = Tracker::factory()->create();
+    $required = bulkCfField($tracker, ['field_format' => CustomFieldFormat::List->value, 'possible_values' => ['Alpha', 'Beta'], 'is_required' => true]);
+    $hidden = bulkCfField($tracker, ['field_format' => CustomFieldFormat::List->value, 'possible_values' => ['Alpha']]);
+    $hidden->roles()->attach(Role::factory()->create());
+    $issue = bulkCfIssue($project, $tracker);
+    $issue->setCustomFieldValues([$required->id => 'Alpha']);
+
+    $page = fn () => Livewire::actingAs($user)->test('issues.index', ['project' => $project])->set('selected', [(string) $issue->id]);
+
+    $page()->assertDontSeeHtml('data-context-menu-custom-field="'.$hidden->id.'"')->call('contextUpdateCustomField', $hidden->id, 'Alpha')->assertForbidden();
+    $page()->call('contextUpdateCustomField', $required->id, 'Gamma')->assertStatus(422);
+    $page()->call('contextUpdateCustomField', $required->id, '__none__')->assertStatus(422);
+
+    expect($issue->fresh()->customValue($required))->toBe('Alpha')->and($issue->fresh()->customValue($hidden))->toBeNull();
+});
+
+test('a member without edit_issues cannot use the custom field menu', function () {
+    $project = Project::factory()->create();
+    $viewer = User::factory()->create();
+    Member::factory()->for($project)->for($viewer)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+    $tracker = Tracker::factory()->create();
+    $list = bulkCfField($tracker, ['field_format' => CustomFieldFormat::List->value, 'possible_values' => ['Alpha']]);
+    $issue = bulkCfIssue($project, $tracker);
+
+    Livewire::actingAs($viewer)->test('issues.index', ['project' => $project])
+        ->set('selected', [(string) $issue->id])
+        ->call('contextUpdateCustomField', $list->id, 'Alpha')
+        ->assertForbidden();
+
+    expect($issue->fresh()->customValue($list))->toBeNull();
+});
