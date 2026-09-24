@@ -436,3 +436,35 @@ test('a relation cannot be created to an issue in a project the requester cannot
 
     expect(IssueRelation::where('issue_from_id', $issue->id)->exists())->toBeFalse();
 });
+
+test('issue_to_id takes several comma-separated ids and answers with the last relation', function () {
+    $project = Project::factory()->create();
+    $user = apiRelationMember($project);
+    $issue = apiRelationIssue($project);
+    $first = apiRelationIssue($project);
+    $second = apiRelationIssue($project);
+    Passport::actingAs($user);
+
+    $this->postJson("/api/v1/issues/{$issue->id}/relations", ['issue_to_id' => "{$first->id}, #{$second->id}", 'relation_type' => 'blocks'])
+        ->assertCreated()
+        ->assertJsonPath('data.issue_to_id', $second->id);
+
+    expect(IssueRelation::query()->where('issue_from_id', $issue->id)->where('relation_type', 'blocks')->pluck('issue_to_id')->sort()->values()->all())
+        ->toBe([$first->id, $second->id]);
+});
+
+test('one bad id among several creates nothing', function () {
+    $project = Project::factory()->create();
+    $user = apiRelationMember($project);
+    $issue = apiRelationIssue($project);
+    $first = apiRelationIssue($project);
+    Passport::actingAs($user);
+
+    $this->postJson("/api/v1/issues/{$issue->id}/relations", ['issue_to_id' => "{$first->id},999999", 'relation_type' => 'relates'])
+        ->assertUnprocessable()->assertJsonValidationErrors(['issue_to_id']);
+    $hidden = apiRelationIssue(Project::factory()->private()->create());
+    $this->postJson("/api/v1/issues/{$issue->id}/relations", ['issue_to_id' => "{$first->id},{$hidden->id}", 'relation_type' => 'relates'])
+        ->assertStatus(422);
+
+    expect(IssueRelation::query()->count())->toBe(0);
+});

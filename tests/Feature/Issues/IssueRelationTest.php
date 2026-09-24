@@ -411,7 +411,7 @@ test('removing a relation journals both issues with the old value set', function
         ->and($toDetail->old_value)->toBe((string) $issue->id);
 });
 
-test('a copied_to relation cannot be manually created through the relation form', function () {
+test('the relation form offers every Redmine type and stores a reverse one as its forward type', function (string $chosen, string $stored, bool $swapped) {
     $project = Project::factory()->create();
     $user = relationProjectMember($project);
     $issue = makeIssue($project);
@@ -419,12 +419,52 @@ test('a copied_to relation cannot be manually created through the relation form'
 
     Livewire::actingAs($user)
         ->test('issues.show', ['project' => $project, 'issue' => $issue])
-        ->set('relationType', 'copied_to')
-        ->set('relatedIssueId', $other->id)
+        ->set('relationType', $chosen)
+        ->set('relatedIssueId', (string) $other->id)
         ->call('addRelation')
-        ->assertHasErrors(['relationType']);
+        ->assertHasNoErrors();
 
-    expect(IssueRelation::query()->where('issue_from_id', $issue->id)->exists())->toBeFalse();
+    [$from, $to] = $swapped ? [$other, $issue] : [$issue, $other];
+
+    expect(IssueRelation::query()->where('issue_from_id', $from->id)->where('issue_to_id', $to->id)->where('relation_type', $stored)->exists())->toBeTrue();
+})->with([
+    'copied_to' => ['copied_to', 'copied_to', false],
+    'copied_from' => ['copied_from', 'copied_to', true],
+    'follows' => ['follows', 'precedes', true],
+    'blocked' => ['blocked', 'blocks', true],
+    'duplicated' => ['duplicated', 'duplicates', true],
+]);
+
+test('several comma-separated ids each get a relation and the failures are reported', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+    $first = makeIssue($project);
+    $second = makeIssue($project);
+    $hidden = makeIssue(Project::factory()->private()->create());
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set('relationType', 'relates')
+        ->set('relatedIssueId', "#{$first->id}, {$second->id},{$hidden->id}")
+        ->call('addRelation')
+        ->assertHasErrors(['relatedIssueId'])
+        ->assertSet('relatedIssueId', (string) $hidden->id);
+
+    expect(IssueRelation::query()->where('relation_type', 'relates')->count())->toBe(2)
+        ->and(IssueRelation::query()->where('issue_to_id', $hidden->id)->orWhere('issue_from_id', $hidden->id)->exists())->toBeFalse();
+});
+
+test('text that is not a list of issue ids is rejected', function () {
+    $project = Project::factory()->create();
+    $user = relationProjectMember($project);
+    $issue = makeIssue($project);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set('relatedIssueId', '12; drop')
+        ->call('addRelation')
+        ->assertHasErrors(['relatedIssueId']);
 });
 
 test('a copied_to relation shows "コピー先" from the source and "コピー元" from the copy', function () {

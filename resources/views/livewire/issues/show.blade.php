@@ -49,8 +49,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'relates' => ['from' => __('関連'), 'to' => __('関連')],
             'blocks' => ['from' => __('ブロックする'), 'to' => __('ブロックされている')],
             'duplicates' => ['from' => __('重複する'), 'to' => __('重複されている')],
-            'precedes' => ['from' => __('先行'), 'to' => __('先行')],
-            'follows' => ['from' => __('後続'), 'to' => __('後続')],
+            'precedes' => ['from' => __('先行'), 'to' => __('後続')],
+            'follows' => ['from' => __('後続'), 'to' => __('先行')],
             'copied_to' => ['from' => __('コピー先'), 'to' => __('コピー元')],
         ];
     }
@@ -104,7 +104,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $commentIsPrivate = false;
 
-    public ?int $relatedIssueId = null;
+    /**
+     * One issue id or several separated by commas ("12, #13"), as Redmine's
+     * relation form accepts.
+     */
+    public string $relatedIssueId = '';
 
     public string $relatedSearch = '';
 
@@ -259,53 +263,120 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function pickRelated(int $issueId): void
     {
-        $this->relatedIssueId = $issueId;
+        $this->relatedIssueId = (string) $issueId;
         $this->reset('relatedSearch');
         unset($this->relatedSuggestions);
     }
 
+    /**
+     * The relation types the form offers: all of Redmine's
+     * (IssueRelation::TYPES), a reverse one being stored as its forward
+     * type with the ends swapped (IssueRelation::normalize()).
+     *
+     * @return array<string, string>
+     */
+    public function relationTypeOptions(): array
+    {
+        return [
+            'relates' => __('関連'),
+            'duplicates' => __('重複する'),
+            'duplicated' => __('重複されている'),
+            'blocks' => __('ブロックする'),
+            'blocked' => __('ブロックされている'),
+            'precedes' => __('先行'),
+            'follows' => __('後続'),
+            'copied_to' => __('コピー先'),
+            'copied_from' => __('コピー元'),
+        ];
+    }
+
+    /**
+     * Redmine's IssueRelationsController#create: every id in the field
+     * (comma-separated, "#" allowed) gets a relation; the ones that cannot
+     * be made are reported and the others are still created.
+     */
     public function addRelation(): void
     {
         $this->authorize('manageRelations', $this->issue);
 
-        $data = $this->validate([
-            'relatedIssueId' => [
-                'required', 'integer', Rule::exists('issues', 'id'),
-                Rule::notIn([$this->issue->id]),
-                Rule::unique('issue_relations', 'issue_to_id')
-                    ->where('issue_from_id', $this->issue->id)
-                    ->where('relation_type', $this->relationType),
-                new IssueRelationTarget($this->issue, $this->relationType, auth()->user()),
-            ],
-            // copied_to is deliberately excluded from Rule::enum() here —
-            // it's system-generated only (see IssueService::copy()),
-            // matching Redmine's own "add relation" form, which never
-            // offers it as a manually selectable type either.
-            'relationType' => ['required', Rule::in(['relates', 'blocks', 'duplicates', 'precedes', 'follows'])],
+        $this->validate([
+            'relatedIssueId' => ['required', 'string', 'max:1000', 'regex:/^\s*#?\d+(\s*,\s*#?\d+)*\s*,?\s*$/'],
+            'relationType' => ['required', Rule::in(array_keys(IssueRelation::WRITABLE_TYPES))],
             'relationDelay' => ['nullable', 'integer', 'min:0'],
+        ], [
+            'relatedIssueId.regex' => __('課題IDは数字で、複数ならカンマで区切って入力してください。'),
         ]);
 
-        $otherIssue = Issue::findOrFail($data['relatedIssueId']);
-        $this->authorize('view', $otherIssue);
+        $ids = collect(explode(',', $this->relatedIssueId))
+            ->map(fn (string $id) => (int) ltrim(trim($id), '#'))
+            ->filter()
+            ->unique()
+            ->values();
+        $errors = [];
 
-        // delay is only meaningful for precedes/follows — matches
-        // Redmine's IssueRelation, which clears it for every other type.
-        $isSequential = in_array($data['relationType'], ['precedes', 'follows'], true);
+        foreach ($ids as $otherId) {
+            $error = $this->createRelationTo($otherId);
+
+            if ($error !== null) {
+                $errors[] = "#{$otherId}: {$error}";
+            }
+        }
+
+        $this->issue->refresh();
+        $this->reloadRelations();
+        $this->reloadJournals();
+
+        if ($errors !== []) {
+            $this->relatedIssueId = $ids->filter(fn (int $id) => collect($errors)->contains(fn (string $e) => str_starts_with($e, "#{$id}:")))->implode(', ');
+            $this->addError('relatedIssueId', implode(' / ', $errors));
+
+            return;
+        }
+
+        $this->reset('relatedIssueId', 'relationDelay');
+    }
+
+    /**
+     * Creates one relation from this issue to $otherId with the checks the
+     * REST API applies, on the relation as it will be stored. The error
+     * message when it cannot be made, else null.
+     */
+    private function createRelationTo(int $otherId): ?string
+    {
+        $other = Issue::query()->find($otherId);
+
+        if ($other === null || $otherId === $this->issue->id || ! $other->isVisibleTo(auth()->user())) {
+            return $otherId === $this->issue->id ? __('自分自身とは関連付けできません。') : __('課題が見つかりません。');
+        }
+
+        [$fromId, $toId, $type] = IssueRelation::normalize($this->issue->id, $otherId, $this->relationType);
+        $from = $fromId === $this->issue->id ? $this->issue : $other;
+
+        if (IssueRelation::query()->where('issue_from_id', $fromId)->where('issue_to_id', $toId)->where('relation_type', $type)->exists()) {
+            return __('この関連は既に登録されています。');
+        }
+
+        $message = null;
+        (new IssueRelationTarget($from, $type, checkVisibility: false))->validate('relatedIssueId', $toId, function (string $failure) use (&$message): void {
+            $message ??= $failure;
+        });
+
+        if ($message !== null) {
+            return $message;
+        }
 
         $relation = IssueRelation::create([
-            'issue_from_id' => $this->issue->id,
-            'issue_to_id' => $otherIssue->id,
-            'relation_type' => $data['relationType'],
-            'delay' => $isSequential ? $data['relationDelay'] : null,
+            'issue_from_id' => $fromId,
+            'issue_to_id' => $toId,
+            'relation_type' => $type,
+            // Only a precedes relation keeps a delay, as in Redmine.
+            'delay' => $type === 'precedes' ? $this->relationDelay : null,
         ]);
 
         app(IssueService::class)->journalizeRelation($relation, added: true, actor: auth()->user());
         app(IssueService::class)->rescheduleFromRelation($relation, auth()->user());
 
-        $this->reset('relatedIssueId', 'relationDelay');
-        $this->issue->refresh();
-        $this->reloadRelations();
-        $this->reloadJournals();
+        return null;
     }
 
     public function deleteRelation(int $relationId): void
@@ -1158,17 +1229,15 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div>
                     <label class="block text-xs font-medium text-neutral-700">{{ __('関連種別') }}</label>
                     <select wire:model.live="relationType" class="mt-1 block rounded-md border-neutral-300 shadow-sm text-sm">
-                        <option value="relates">{{ __('関連') }}</option>
-                        <option value="blocks">{{ __('ブロックする') }}</option>
-                        <option value="duplicates">{{ __('重複する') }}</option>
-                        <option value="precedes">{{ __('先行') }}</option>
-                        <option value="follows">{{ __('後続') }}</option>
+                        @foreach ($this->relationTypeOptions() as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-neutral-700">{{ __('課題ID') }}</label>
-                    <input type="number" wire:model="relatedIssueId" placeholder="{{ __('例: 123') }}"
-                        class="mt-1 block w-28 rounded-md border-neutral-300 shadow-sm text-sm">
+                    <input type="text" wire:model="relatedIssueId" placeholder="{{ __('例: 123, 124') }}"
+                        class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm text-sm">
                 </div>
                 <div data-related-search>
                     <label class="block text-xs font-medium text-neutral-700">{{ __('検索') }}</label>

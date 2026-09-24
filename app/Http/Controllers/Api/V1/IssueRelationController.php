@@ -50,25 +50,28 @@ final class IssueRelationController extends Controller
         // The FormRequest deliberately leaves visibility unchecked (see
         // its own docblock) so a nonexistent id and an existing-but-
         // invisible one produce distinct responses — this is the second
-        // half of that two-step, matching the web UI's addRelation(),
-        // which likewise validates first and authorizes 'view' on the
-        // other issue second.
-        $other = Issue::findOrFail($data['issue_to_id']);
-        Gate::authorize('view', $other);
+        // half of that two-step, matching the web UI's addRelation(). With
+        // several ids, every one must be visible before any is created.
+        foreach ($request->targetIds() as $id) {
+            Gate::authorize('view', Issue::findOrFail($id));
+        }
 
-        [$fromId, $toId, $type] = $request->normalized();
+        $relation = null;
 
-        $relation = IssueRelation::create([
-            'issue_from_id' => $fromId,
-            'issue_to_id' => $toId,
-            'relation_type' => $type,
-            // Only a precedes relation keeps a delay, as in Redmine.
-            'delay' => $type === 'precedes' ? ($data['delay'] ?? null) : null,
-        ]);
+        foreach ($request->normalizedRelations() as [$fromId, $toId, $type]) {
+            $relation = IssueRelation::create([
+                'issue_from_id' => $fromId,
+                'issue_to_id' => $toId,
+                'relation_type' => $type,
+                // Only a precedes relation keeps a delay, as in Redmine.
+                'delay' => $type === 'precedes' ? ($data['delay'] ?? null) : null,
+            ]);
 
-        app(IssueService::class)->journalizeRelation($relation, added: true, actor: $request->user());
-        app(IssueService::class)->rescheduleFromRelation($relation, $request->user());
+            app(IssueService::class)->journalizeRelation($relation, added: true, actor: $request->user());
+            app(IssueService::class)->rescheduleFromRelation($relation, $request->user());
+        }
 
+        // Redmine answers with the last relation created.
         return (new IssueRelationResource($relation))->response()->setStatusCode(201);
     }
 
