@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Enums\EnumerationType;
 use App\Enums\ImportStatus;
+use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Group;
 use App\Models\Issue;
@@ -22,7 +23,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
 
@@ -38,6 +42,9 @@ final class ImportIssuesJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
+
+    /** @var array<int, Collection<int, CustomField>> tracker id => the custom fields a row of that tracker may set */
+    private array $customFieldsByTracker = [];
 
     public function __construct(
         private readonly IssueImport $import,
@@ -95,9 +102,12 @@ final class ImportIssuesJob implements ShouldQueue
             try {
                 $record = array_combine($header, array_pad($row, count($header), null));
 
+                $attributes = $this->mapRowToAttributes($record, $mapping, $defaults);
+
                 $issueService->create(
-                    $this->mapRowToAttributes($record, $mapping, $defaults),
+                    $attributes,
                     $this->import->user,
+                    $this->customFieldData($record, $mapping, $attributes['tracker_id']),
                 );
 
                 $imported++;
@@ -224,6 +234,68 @@ final class ImportIssuesJob implements ShouldQueue
             'due_date' => $this->mapped($record, $mapping, 'due_date') ?: null,
             'done_ratio' => (int) ($this->mapped($record, $mapping, 'done_ratio') ?: 0),
         ];
+    }
+
+    /**
+     * The custom field values of a row, keyed by field id — Redmine's
+     * IssueImport#build_object over `cf_<id>` columns. Only the fields the
+     * importing user may see and edit on an issue of this tracker count
+     * (worked out for that user, not for whoever is signed in: a queued job
+     * has nobody). A mapped, non-empty cell is read like a keyword (an
+     * option by its label, a multiple field as a comma-separated list; an
+     * unknown label leaves the value empty, as in Redmine); otherwise the
+     * field's default value applies. The values are then validated like the
+     * issue form's, so a required field left empty fails the row.
+     *
+     * @param  array<string, mixed>  $record
+     * @param  array<string, string>  $mapping
+     * @return array<int, mixed>
+     *
+     * @throws ValidationException
+     */
+    private function customFieldData(array $record, array $mapping, int $trackerId): array
+    {
+        $project = $this->import->project;
+        $user = $this->import->user;
+
+        $fields = $this->customFieldsByTracker[$trackerId] ??= (new Issue)
+            ->forceFill(['project_id' => $project->id, 'tracker_id' => $trackerId])
+            ->setRelation('project', $project)
+            ->relevantCustomFields($user)
+            ->filter(fn (CustomField $field) => $field->editableBy($user))
+            ->values();
+
+        $values = [];
+
+        foreach ($fields as $field) {
+            $cell = $this->mapped($record, $mapping, "cf_{$field->id}");
+
+            if ($cell === null || $cell === '') {
+                $default = $field->defaultValue();
+
+                if ($default !== null && $default !== '') {
+                    $values[$field->id] = $field->multiple ? [$default] : $default;
+                }
+
+                continue;
+            }
+
+            $values[$field->id] = $field->multiple
+                ? collect(explode(',', $cell))->map(fn (string $part) => trim($part))->filter(fn (string $part) => $part !== '')
+                    ->map(fn (string $part) => $field->valueFromKeyword($part, $project))->filter(fn (?string $value) => $value !== null)->values()->all()
+                : $field->valueFromKeyword($cell, $project);
+        }
+
+        Validator::make(
+            ['customFieldValues' => $values],
+            CustomField::formValidationRules($fields, null, $project),
+            attributes: $fields->flatMap(fn (CustomField $field) => [
+                "customFieldValues.{$field->id}" => $field->name,
+                "customFieldValues.{$field->id}.*" => $field->name,
+            ])->all(),
+        )->validate();
+
+        return $values;
     }
 
     /**

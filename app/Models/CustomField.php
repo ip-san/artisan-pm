@@ -201,6 +201,36 @@ final class CustomField extends Model implements Sortable
     }
 
     /**
+     * The stored value one keyword stands for — Redmine's
+     * FieldFormat#value_from_keyword for a single value: a field with fixed
+     * options (list, enumeration, user, version…) matches the option's
+     * label ignoring case and yields its key, or null when nothing matches;
+     * a yes/no field takes yes/no/1/0/true/false; any other field takes the
+     * text as it is. Used where values arrive as text: incoming mail
+     * keywords and the CSV import.
+     */
+    public function valueFromKeyword(string $keyword, ?Project $project): ?string
+    {
+        $options = $this->optionsFor($project);
+
+        if ($options !== []) {
+            $key = array_search(mb_strtolower($keyword), array_map(fn ($label) => mb_strtolower((string) $label), $options), true);
+
+            return $key === false ? null : (string) $key;
+        }
+
+        if ($this->field_format === CustomFieldFormat::Bool) {
+            return match (mb_strtolower($keyword)) {
+                '1', 'yes', 'true' => '1',
+                '0', 'no', 'false' => '0',
+                default => null,
+            };
+        }
+
+        return $keyword;
+    }
+
+    /**
      * @return array<int, mixed>
      */
     public function validationRulesFor(?Project $project): array

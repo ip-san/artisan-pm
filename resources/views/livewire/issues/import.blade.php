@@ -2,11 +2,14 @@
 
 use App\Jobs\ImportIssuesJob;
 use App\Models\Issue;
+use App\Models\CustomField;
 use App\Models\IssueCategory;
 use App\Models\IssueImport;
 use App\Models\Project;
+use App\Models\Tracker;
 use App\Models\Version;
 use App\Support\Import\CsvReader;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -95,6 +98,28 @@ new #[Layout('components.layouts.app')] class extends Component
         return auth()->user()?->can('create', [Version::class, $this->project]) ?? false;
     }
 
+    /**
+     * Custom fields a column can be mapped to (`cf_<id>` keys): those the
+     * user may see and edit on an issue of one of the project's trackers —
+     * Redmine's IssueImport#mappable_custom_fields. The import job checks
+     * each row's tracker again.
+     *
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function mappableCustomFields(): Collection
+    {
+        return $this->project->trackers
+            ->flatMap(fn (Tracker $tracker) => (new Issue)
+                ->forceFill(['project_id' => $this->project->id, 'tracker_id' => $tracker->id])
+                ->setRelation('project', $this->project)
+                ->relevantCustomFields()
+                ->filter(fn (CustomField $field) => $field->editableBy(auth()->user())))
+            ->unique('id')
+            ->sortBy('position')
+            ->values();
+    }
+
     public function updatedCsvFile(): void
     {
         $this->validate(['csvFile' => ['required', 'file', 'mimes:csv,txt', 'max:5120']]);
@@ -107,6 +132,14 @@ new #[Layout('components.layouts.app')] class extends Component
             );
 
             $this->mapping[$field] = $match ?? '';
+        }
+
+        foreach ($this->mappableCustomFields as $customField) {
+            $match = collect($this->headers)->first(
+                fn (string $header) => mb_strtolower(trim($header)) === mb_strtolower($customField->name)
+            );
+
+            $this->mapping["cf_{$customField->id}"] = $match ?? '';
         }
     }
 
@@ -158,6 +191,17 @@ new #[Layout('components.layouts.app')] class extends Component
                         <div class="grid grid-cols-2 items-center gap-3">
                             <label class="text-sm text-neutral-700">{{ $label }}</label>
                             <select wire:model="mapping.{{ $field }}" class="block w-full rounded-md border-neutral-300 text-sm">
+                                <option value="">{{ __('(マッピングしない)') }}</option>
+                                @foreach ($headers as $header)
+                                    <option value="{{ $header }}">{{ $header }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endforeach
+                    @foreach ($this->mappableCustomFields as $customField)
+                        <div class="grid grid-cols-2 items-center gap-3" wire:key="import-cf-{{ $customField->id }}">
+                            <label class="text-sm text-neutral-700">{{ $customField->is_required ? $customField->name.__('(必須)') : $customField->name }}</label>
+                            <select wire:model="mapping.cf_{{ $customField->id }}" class="block w-full rounded-md border-neutral-300 text-sm">
                                 <option value="">{{ __('(マッピングしない)') }}</option>
                                 @foreach ($headers as $header)
                                     <option value="{{ $header }}">{{ $header }}</option>

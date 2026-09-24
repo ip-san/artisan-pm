@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Concerns;
 
-use App\Enums\CustomizableType;
 use App\Enums\CustomFieldFormat;
+use App\Enums\CustomizableType;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -88,11 +88,17 @@ trait HasCustomFields
     }
 
     /**
+     * Saves the values of the fields in $fields (this model's
+     * relevantCustomFields() for the signed-in user when not given); a
+     * caller acting for someone else, such as a queued job, passes the
+     * fields worked out for that user.
+     *
      * @param  array<int, mixed>  $values  custom_field_id => raw input
+     * @param  Collection<int, CustomField>|null  $fields
      */
-    public function setCustomFieldValues(array $values): void
+    public function setCustomFieldValues(array $values, ?Collection $fields = null): void
     {
-        foreach ($this->relevantCustomFields() as $field) {
+        foreach ($fields ?? $this->relevantCustomFields() as $field) {
             if (! array_key_exists($field->id, $values)) {
                 continue;
             }

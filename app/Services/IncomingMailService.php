@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Enums\EnumerationType;
 use App\Models\CustomField;
@@ -570,20 +569,11 @@ final class IncomingMailService
      */
     private function customFieldValueFromKeyword(CustomField $field, string $text, Project $project): string|array|null
     {
-        $options = $field->optionsFor($project);
         $parts = $field->multiple ? array_values(array_filter(array_map('trim', explode(',', $text)), fn (string $part) => $part !== '')) : [$text];
         $resolved = [];
 
         foreach ($parts as $part) {
-            $value = match (true) {
-                $options !== [] => (string) (array_search(mb_strtolower($part), array_map('mb_strtolower', $options), true) ?: ''),
-                $field->field_format === CustomFieldFormat::Bool => match (mb_strtolower($part)) {
-                    '1', 'yes', 'true' => '1',
-                    '0', 'no', 'false' => '0',
-                    default => '',
-                },
-                default => $part,
-            };
+            $value = $field->valueFromKeyword($part, $project) ?? '';
 
             $valid = $value !== '' && Validator::make(['value' => $value], ['value' => $field->validationRulesFor($project)])->passes();
 

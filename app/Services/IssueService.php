@@ -73,7 +73,9 @@ final class IssueService
         $this->applyStatusDoneRatio($issue);
         $issue->save();
 
-        $issue->setCustomFieldValues($customFieldData);
+        // The fields the author may set, not whoever is signed in: a queued
+        // import or incoming mail has nobody signed in (A1-28b).
+        $issue->setCustomFieldValues($customFieldData, $issue->relevantCustomFields($author));
 
         $this->autoWatch($issue, $issue->author_id, 'issue_created');
         $this->autoWatch($issue, $issue->assigned_to_id, 'issue_assigned_to_me');
@@ -307,7 +309,7 @@ final class IssueService
         }
 
         $original = $issue->only(self::JOURNALED_ATTRIBUTES);
-        $originalCustomValues = $this->customFieldSnapshot($issue);
+        $originalCustomValues = $this->customFieldSnapshot($issue, $actor);
 
         $issue->fill($attributes);
         $issue->lock_version++;
@@ -327,14 +329,14 @@ final class IssueService
 
         $issue->save();
 
-        $issue->setCustomFieldValues($customFieldData);
+        $issue->setCustomFieldValues($customFieldData, $issue->relevantCustomFields($actor));
 
         if ($assignedToChanged) {
             $this->autoWatch($issue, $issue->assigned_to_id, 'issue_assigned_to_me');
         }
 
         $changes = $this->diff($original, $issue->only(self::JOURNALED_ATTRIBUTES));
-        $customFieldChanges = $this->diffCustomFieldSnapshots($originalCustomValues, $this->customFieldSnapshot($issue));
+        $customFieldChanges = $this->diffCustomFieldSnapshots($originalCustomValues, $this->customFieldSnapshot($issue, $actor));
 
         $hasDetails = $changes !== [] || $customFieldChanges !== [];
         $detailsJournal = null;
@@ -1060,13 +1062,13 @@ final class IssueService
      *
      * @return array<int, string|null>
      */
-    private function customFieldSnapshot(Issue $issue): array
+    private function customFieldSnapshot(Issue $issue, User $actor): array
     {
         // setCustomFieldValues() drops the loaded relation; reload it
         // explicitly rather than lazily (lazy loading is disabled).
         $issue->loadMissing('customFieldValues');
 
-        return $issue->relevantCustomFields()
+        return $issue->relevantCustomFields($actor)
             ->mapWithKeys(fn (CustomField $field) => [$field->id => $this->normalizedCustomFieldValue($issue, $field)])
             ->all();
     }
