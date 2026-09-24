@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full bg-neutral-50">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="{{ \App\Support\Preferences\UserPreferences::theme(auth()->user()) }}" class="h-full bg-neutral-50">
 <head>
     @php $appTitle = \App\Models\Setting::get('app_title', config('app.name')); @endphp
     <meta charset="utf-8">

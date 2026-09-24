@@ -270,11 +270,11 @@
 | 134b | A12-06b | A12-06 | M | done(2026-09-20) |
 | 134c | A12-06c | A12-06b | M | done(対象外: 実装しない案で承認, 2026-09-20。docs/design/gap-A12-06c.md) |
 | 134d | A12-06d | A12-06c | S | done(2026-09-20) |
-| 135 | A5-06 / A14-03 | — | M | wip(2026-09-24、A5-06a/b は既存のトークン層で代替。A5-06 と A14-03 の 2 コミット) |
+| 135 | A5-06 / A14-03 | — | M | done(2026-09-24、A5-06a/b は既存のトークン層で代替。A5-06 と A14-03 の 2 コミット) |
 | 135a | A5-06a | — | M | done(既存, 2026-09-24、トークン層 26bcfe0 とレイアウト・共通コンポーネントの移行 79cd84f で代替。`bg-white`→`bg-surface` は A5-06 で) |
 | 135b | A5-06b | A5-06a | M〜L | done(既存, 2026-09-24、全画面のクラス移行は 79cd84f で済み) |
 | 135c | A5-06 | A5-06a | S | done(2026-09-24、ダークテーマのトークン値・`bg-surface`・ガードテスト。コントラストは要目視) |
-| 135d | A14-03 | A5-06 | S | todo |
+| 135d | A14-03 | A5-06 | S | done(2026-09-24、設定 `ui_theme`(light 既定/dark/system)と個人設定の上書き(「サイトの既定」)、`<html data-theme>`。ダークのコントラストは要目視) |
 | **段 3: L 項目(設計メモ→`blocked(要承認)`→承認後に実装)** | | | | |
 | 136 | A4-10b | A4-10a | L | done(2026-09-24、承認: 設計メモの推奨案。A4-10b-1〜3 に分割) |
 | 136a | A4-10b-1 | A4-10a | S | done(2026-09-24、姓・名の列と全 11 形式。`name` は姓・名が両方あれば「名 姓」に自動同期。自己登録フォームにも姓・名) |
@@ -599,7 +599,7 @@
 | A14-01b7 | 置換と英訳: PDF・CSV の見出し、Atom フィード | 2026-09-23 実施。PDF(課題・課題一覧・ガント)の見出しを置換。CSV の見出しは画面と同じ翻訳済みラベルから作るため A14-01b1〜b8 で対応済み(英語の利用者には英語の見出し。インポートの自動マッピングは英語のフィールド名で照合するので影響なし)。Atom フィードに日本語の固定文言はなかった | 同上 | A14-01b で分離 | S〜M | 「多言語」 |
 | A14-01b8 | 置換と英訳: enum の `label()` と PHP 側のラベル表(`ListDefaults::ISSUE_TOTALS`、`RelatedIssueColumns`、`UserPreferences::HISTORY_TABS`、`IssueReport::title()`、`IssueFilterFieldRegistry` の項目名・演算子、`IssueNotificationMail` の関連ラベル) | 2026-09-23 実施。キーを検証・照合に使う定数(`ListDefaults::ISSUE_TOTALS`、`Tracker::DISABLABLE_CORE_FIELDS`、`UserPreferences::*`、`RelatedIssueColumns::AVAILABLE` など)は残し、表示用に `__()` を返すメソッドを追加。CSV インポートの値の別名(有効/ロック中/はい など)、DB に保存される自動生成の注記・削除済みユーザー名、プラグインの開発者向け説明は訳さない。曜日名は `月`/`日`(月/日の単位)と衝突するため Carbon から取る(`SupportedLocales::weekdayName()`)。Wiki の整形済みHTMLキャッシュのキーにロケールを追加。インポートの行エラーはジョブ実行時のロケール(既定の言語)で保存される | 定数は `__()` を呼べないため、ラベルを返すメソッドに置き換える(A14-01b1 の `displayColumns()`/`relationLabels()` と同じ) | A14-01b で分離 | M | 「多言語」 |
 | A14-02 | ユーザータイムゾーン・日付/時刻形式 | A4-12 | — | — | M |
-| A14-03 | テーマ切替(`ui_theme`) | Tailwind 単一テーマ | A5-06 | — | M |
+| A14-03 | テーマ切替(`ui_theme`) | ~~Tailwind 単一テーマ~~ → **done(2026-09-24)**: 設定 `ui_theme`・個人設定 `ui_theme`(`UserPreferences::theme()`)、`layouts/app` の `<html data-theme>` | A5-06 | — | M |
 | A14-04 | 管理 → 情報(`admin/info`: バージョン・環境・チェックリスト(ファイル書込可否・ImageMagick・SCM バイナリ有無)) | なし(`admin.info` grep 0件) | `/admin/info` に PHP/Laravel/DB バージョン、`storage/` 書込可否、`git`/`svn` バイナリ有無、キュー/スケジューラ稼働状況を表示 | 管理者専用 | S |
 | A14-05 | 「デフォルト設定のロード」(`admin/default_configuration`: ロール/トラッカー/ステータス/ワークフロー/優先度の初期データを管理画面から投入) | DB シーダーのみ | 管理画面から初期データ投入ボタン(既存シーダーを呼ぶ)、言語選択付き | A14-01 と連動 | S |
 | A14-06 | 新規作成メニュー「+」(`new_item_menu_tab`) | A5-04 | — | — | S |

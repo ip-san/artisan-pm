@@ -45,6 +45,46 @@ final class UserPreferences
     ];
 
     /**
+     * The themes `<html data-theme>` takes (resources/css/app.css): the
+     * site-wide `ui_theme` setting picks one, and a user's `ui_theme`
+     * preference overrides it unless left empty (the site default).
+     *
+     * @var array<int, string>
+     */
+    public const array THEMES = ['light', 'dark', 'system'];
+
+    /**
+     * THEMES with their labels translated, for display.
+     *
+     * @return array<string, string>
+     */
+    public static function themeLabels(): array
+    {
+        return ['light' => __('ライト'), 'dark' => __('ダーク'), 'system' => __('OS の設定に合わせる')];
+    }
+
+    /**
+     * The site-wide theme (setting `ui_theme`), light when unset or unknown.
+     */
+    public static function siteTheme(): string
+    {
+        $theme = (string) Setting::get('ui_theme', 'light');
+
+        return in_array($theme, self::THEMES, true) ? $theme : 'light';
+    }
+
+    /**
+     * The theme to render for the given viewer: their own choice, else the
+     * site's (guests always get the site's).
+     */
+    public static function theme(?User $user): string
+    {
+        $theme = (string) self::get($user, 'ui_theme');
+
+        return in_array($theme, self::THEMES, true) ? $theme : self::siteTheme();
+    }
+
+    /**
      * COMMENTS_SORTING with its labels translated, for display.
      *
      * @return array<string, string>
@@ -115,6 +155,7 @@ final class UserPreferences
             'default_issue_query' => null,
             'default_project_query' => null,
             'activity_scope' => [],
+            'ui_theme' => '',
         ];
     }
 
@@ -144,6 +185,7 @@ final class UserPreferences
             $clean[$key] = match ($key) {
                 'comments_sorting' => array_key_exists((string) $value, self::COMMENTS_SORTING) ? $value : 'asc',
                 'warn_on_leaving_unsaved', 'hide_mail', 'notify_about_high_priority_issues' => (bool) $value,
+                'ui_theme' => in_array((string) $value, self::THEMES, true) ? (string) $value : '',
                 'textarea_font' => array_key_exists((string) $value, self::TEXTAREA_FONTS) ? (string) $value : '',
                 'auto_watch_on' => self::validAutoWatch($value),
                 'default_issue_query', 'default_project_query' => filled($value) ? (int) $value : null,

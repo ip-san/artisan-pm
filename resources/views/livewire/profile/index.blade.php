@@ -65,6 +65,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $textarea_font = '';
 
+    public string $ui_theme = '';
+
     public bool $hide_mail = false;
 
     public bool $notify_about_high_priority_issues = false;
@@ -92,7 +94,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->notified_project_ids = array_map('strval', auth()->user()->notifiedProjectIds());
         $this->no_self_notified = auth()->user()->no_self_notified;
 
-        foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'notify_about_high_priority_issues', 'recently_used_projects', 'history_default_tab', 'auto_watch_on', 'default_issue_query', 'default_project_query'] as $key) {
+        foreach (['comments_sorting', 'warn_on_leaving_unsaved', 'textarea_font', 'hide_mail', 'notify_about_high_priority_issues', 'recently_used_projects', 'history_default_tab', 'auto_watch_on', 'default_issue_query', 'default_project_query', 'ui_theme'] as $key) {
             $this->{$key} = auth()->user()->preference($key) ?? $this->{$key};
         }
     }
@@ -133,6 +135,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'comments_sorting' => ['required', Rule::in(array_keys(UserPreferences::COMMENTS_SORTING))],
             'warn_on_leaving_unsaved' => ['boolean'],
             'textarea_font' => ['nullable', Rule::in(array_keys(UserPreferences::TEXTAREA_FONTS))],
+            'ui_theme' => ['nullable', Rule::in(UserPreferences::THEMES)],
             'hide_mail' => ['boolean'],
             'notify_about_high_priority_issues' => ['boolean'],
             'recently_used_projects' => ['required', 'integer', 'min:0', 'max:10'],
@@ -640,6 +643,17 @@ new #[Layout('components.layouts.app')] class extends Component
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
                 </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('テーマ') }}</label>
+                <select wire:model="ui_theme" data-ui-theme class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('サイトの既定') }}</option>
+                    @foreach (\App\Support\Preferences\UserPreferences::themeLabels() as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('ui_theme') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>

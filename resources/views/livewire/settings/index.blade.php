@@ -140,6 +140,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $timespan_format = 'decimal';
 
+    public string $ui_theme = 'light';
+
     public string $date_format = '';
 
     public string $time_format = '';
@@ -404,6 +406,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->default_users_time_zone = \App\Support\Locale\TimeZones::isSupported(Setting::get('default_users_time_zone')) ? Setting::get('default_users_time_zone') : '';
         $this->default_users_auto_watch_on = UserPreferences::defaults()['auto_watch_on'];
         $this->timespan_format = Hours::timespanFormat();
+        $this->ui_theme = UserPreferences::siteTheme();
         $this->date_format = array_key_exists((string) Setting::get('date_format', ''), \App\Support\Format\DateTimes::DATE_FORMATS) ? Setting::get('date_format') : '';
         $this->time_format = array_key_exists((string) Setting::get('time_format', ''), \App\Support\Format\DateTimes::TIME_FORMATS) ? Setting::get('time_format') : '';
         $this->issue_list_default_totals = ListDefaults::issueTotals();
@@ -609,6 +612,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_users_auto_watch_on' => ['array'],
             'default_users_auto_watch_on.*' => [Rule::in(array_keys(UserPreferences::AUTO_WATCH_ON))],
             'timespan_format' => ['required', Rule::in(array_keys(Hours::FORMATS))],
+            'ui_theme' => ['required', Rule::in(UserPreferences::THEMES)],
             'date_format' => ['nullable', Rule::in(array_keys(\App\Support\Format\DateTimes::DATE_FORMATS))],
             'time_format' => ['nullable', Rule::in(array_keys(\App\Support\Format\DateTimes::TIME_FORMATS))],
             'issue_list_default_totals' => ['array'],
@@ -1059,6 +1063,17 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <section class="space-y-4 border-t border-neutral-200 pt-6">
             <h2 class="text-sm font-semibold text-neutral-900">{{ __('表示') }}</h2>
+
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('テーマ') }}</label>
+                <select wire:model="ui_theme" data-ui-theme class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Support\Preferences\UserPreferences::themeLabels() as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('ui_theme') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-neutral-500">{{ __('個人設定でテーマを選んでいないユーザーとログインしていない利用者に適用されます。') }}</p>
+            </div>
 
             <div>
                 <label class="block text-sm font-medium text-neutral-700">{{ __('週の始まり') }}</label>
