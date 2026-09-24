@@ -114,9 +114,10 @@ final class IssueController extends Controller
      * the caller may see; every filter below only narrows it.
      *
      * - The simple Redmine-style parameters, all ANDed; a malformed value
-     *   is ignored rather than failing: status_id (open, closed or an id —
-     *   absent means every status, unlike Redmine's open default, so
-     *   existing clients see no change), project_id (global index only
+     *   is ignored rather than failing: status_id (open, closed, an id, or
+     *   Redmine's short form such as `*` for every status — absent means
+     *   open issues only, Redmine's default status filter, unless f[] or
+     *   query_id gives the filters), project_id (global index only
      *   matters there), tracker_id, priority_id, category_id,
      *   fixed_version_id, parent_id, author_id and assigned_to_id (`me`
      *   means the caller), and sort=column[:desc] over id, subject,
@@ -203,6 +204,16 @@ final class IssueController extends Controller
     }
 
     /**
+     * Redmine's IssueQuery starts from its default "status: open" filter
+     * unless the request replaces the filters (f[]) or names a saved query.
+     */
+    private function defaultsToOpenIssues(Request $request): bool
+    {
+        return $request->query('query_id') === null
+            && ! is_array($request->query('f') ?? $request->query('fields'));
+    }
+
+    /**
      * @param  Builder<Issue>  $query
      * @return array<int, string> the simple parameters it applied
      */
@@ -217,6 +228,8 @@ final class IssueController extends Controller
         } elseif (is_string($status) && ctype_digit($status)) {
             $query->where('status_id', (int) $status);
             $consumed[] = 'status_id';
+        } elseif ($status === null && $this->defaultsToOpenIssues($request)) {
+            $query->whereHas('status', fn (Builder $q) => $q->where('is_closed', false));
         }
 
         foreach (['project_id', 'tracker_id', 'priority_id', 'category_id', 'fixed_version_id', 'parent_id', 'author_id'] as $column) {

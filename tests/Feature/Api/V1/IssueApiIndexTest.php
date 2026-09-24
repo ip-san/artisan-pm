@@ -5,6 +5,7 @@ use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
+use App\Models\Query;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
@@ -152,4 +153,40 @@ test('sort orders by the requested column and direction and falls back to newest
         ->and(indexIds($this->getJson("{$base}?sort=subject:desc")))->toBe([$c->id, $b->id, $a->id])
         ->and(indexIds($this->getJson("{$base}?sort=bogus;drop:desc")))->toBe([$c->id, $a->id, $b->id])
         ->and(indexIds($this->getJson($base)))->toBe([$c->id, $a->id, $b->id]);
+});
+
+test('without status_id the list returns open issues only, as Redmine\'s default filter', function () {
+    $project = Project::factory()->create();
+    $user = indexApiMember($project);
+    $open = indexApiIssue($project);
+    $closed = indexApiIssue($project, ['status_id' => IssueStatus::factory()->closed()->create()->id]);
+    Passport::actingAs($user);
+
+    expect(indexIds($this->getJson("/api/v1/projects/{$project->id}/issues")))->toBe([$open->id])
+        ->and(indexIds($this->getJson('/api/v1/issues')))->toBe([$open->id])
+        ->and($this->getJson("/api/v1/projects/{$project->id}/issues")->json('total_count'))->toBe(1)
+        ->and(indexIds($this->getJson("/api/v1/projects/{$project->id}/issues?status_id=*")))->toEqualCanonicalizing([$open->id, $closed->id])
+        ->and(indexIds($this->getJson('/api/v1/issues?status_id=*')))->toEqualCanonicalizing([$open->id, $closed->id])
+        ->and(indexIds($this->getJson("/api/v1/projects/{$project->id}/issues?status_id=closed")))->toBe([$closed->id])
+        ->and(indexIds($this->getJson("/api/v1/projects/{$project->id}/issues?status_id=open")))->toBe([$open->id])
+        ->and(indexIds($this->getJson("/api/v1/projects/{$project->id}/issues?status_id={$closed->status_id}")))->toBe([$closed->id])
+        // Other short filters keep the default status filter, as in Redmine.
+        ->and(indexIds($this->getJson("/api/v1/projects/{$project->id}/issues?tracker_id={$closed->tracker_id}")))->toBe([]);
+});
+
+test('f[] or a saved query replaces the default open filter', function () {
+    $project = Project::factory()->create();
+    $user = indexApiMember($project);
+    $open = indexApiIssue($project, ['subject' => 'Open one']);
+    $closed = indexApiIssue($project, ['subject' => 'Closed one', 'status_id' => IssueStatus::factory()->closed()->create()->id]);
+    Passport::actingAs($user);
+
+    expect(indexIds($this->getJson("/api/v1/projects/{$project->id}/issues?f[]=subject&op[subject]=~&v[subject][]=one")))->toEqualCanonicalizing([$open->id, $closed->id]);
+
+    $query = Query::create([
+        'name' => 'Everything', 'type' => 'issue', 'user_id' => $user->id, 'project_id' => $project->id,
+        'visibility' => 'private', 'filters' => [], 'column_names' => ['subject'],
+    ]);
+
+    expect(indexIds($this->getJson("/api/v1/projects/{$project->id}/issues?query_id={$query->id}")))->toEqualCanonicalizing([$open->id, $closed->id]);
 });
