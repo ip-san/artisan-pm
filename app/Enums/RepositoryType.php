@@ -15,4 +15,5 @@ enum RepositoryType: string
     case Svn = 'svn';
     case Filesystem = 'filesystem';
     case Mercurial = 'mercurial';
+    case Bazaar = 'bazaar';
 }
