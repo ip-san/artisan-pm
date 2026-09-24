@@ -661,6 +661,7 @@
     "リポジトリ": "Repository",
     "リポジトリが設定されていません。": "No repository is configured.",
     "リポジトリにアクセスできません。URL・ログインID・パスワードを確認してください。": "The repository cannot be accessed. Check the URL, login and password.",
+    "リポジトリにアクセスできませんでした(バージョン管理のコマンドを実行できないか、時間内に終わりませんでした)。管理者はログを確認してください。": "The repository could not be accessed (the version control command could not be run or did not finish in time). Administrators: please check the log.",
     "リポジトリのパスは許可されたディレクトリ配下にある必要があります。": "The repository path must be inside the allowed directory.",
     "リポジトリの保存先ディレクトリが存在しません。管理者に連絡してください。": "The repositories directory does not exist. Please contact your administrator.",
     "リポジトリの追加": "New repository",

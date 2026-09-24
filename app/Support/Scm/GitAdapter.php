@@ -55,7 +55,7 @@ final readonly class GitAdapter implements ScmAdapter
 
     public function isAvailable(): bool
     {
-        return $this->git(['rev-parse', '--is-inside-work-tree'], 10)->successful();
+        return ScmCommand::succeeds(fn () => $this->git(['rev-parse', '--is-inside-work-tree'], 10));
     }
 
     public function supports(ScmCapability $capability): bool
@@ -148,7 +148,7 @@ final readonly class GitAdapter implements ScmAdapter
      */
     private function git(array $args, int $timeout): ProcessResult
     {
-        return Process::path($this->path)
+        return ScmCommand::run('git', fn () => Process::path($this->path)
             // Without a ceiling, git searches upward through parent
             // directories for a .git — so a $path that isn't itself a
             // repository (e.g. an empty directory a user mistakenly
@@ -159,7 +159,7 @@ final readonly class GitAdapter implements ScmAdapter
             // $path's parent makes "not a repository" fail cleanly.
             ->env(['GIT_CEILING_DIRECTORIES' => dirname($this->path)])
             ->timeout($timeout)
-            ->run(['git', ...self::SAFETY_FLAGS, ...$args]);
+            ->run(['git', ...self::SAFETY_FLAGS, ...$args]));
     }
 
     /**

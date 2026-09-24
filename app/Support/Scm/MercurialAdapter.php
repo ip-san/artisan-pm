@@ -50,7 +50,7 @@ final readonly class MercurialAdapter implements ScmAdapter
 
     public function isAvailable(): bool
     {
-        return $this->hg(['root'], 10)->successful();
+        return ScmCommand::succeeds(fn () => $this->hg(['root'], 10));
     }
 
     public function supports(ScmCapability $capability): bool
@@ -163,9 +163,9 @@ final readonly class MercurialAdapter implements ScmAdapter
      */
     private function hg(array $args, int $timeout): ProcessResult
     {
-        return Process::env(self::ENVIRONMENT)
+        return ScmCommand::run('hg', fn () => Process::env(self::ENVIRONMENT)
             ->timeout($timeout)
-            ->run(['hg', '--noninteractive', '-R', $this->path, ...$args]);
+            ->run(['hg', '--noninteractive', '-R', $this->path, ...$args]));
     }
 
     /**

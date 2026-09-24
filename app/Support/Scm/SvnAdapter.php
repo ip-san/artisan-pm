@@ -46,7 +46,7 @@ final readonly class SvnAdapter implements ScmAdapter
 
     public function isAvailable(): bool
     {
-        return $this->svn(['info', $this->url()], 10)->successful();
+        return ScmCommand::succeeds(fn () => $this->svn(['info', $this->url()], 10));
     }
 
     public function supports(ScmCapability $capability): bool
@@ -188,7 +188,7 @@ final readonly class SvnAdapter implements ScmAdapter
             }
         }
 
-        return $process->run([...$command, ...$args]);
+        return ScmCommand::run('svn', fn () => $process->run([...$command, ...$args]));
     }
 
     /**

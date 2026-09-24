@@ -11,6 +11,8 @@ use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Dispatches a RepositorySyncJob for every repository on a schedule (see
@@ -45,6 +47,18 @@ final class AutofetchRepositoryChangesetsJob implements ShouldBeUnique, ShouldQu
         // syncs the repositories instead of parking them in a queue nobody drains.
         $connection = $this->connection ?? config('queue.scheduler_connection');
 
-        Repository::query()->lazy()->each(fn (Repository $repository) => RepositorySyncJob::dispatch($repository)->onConnection($connection));
+        // Under "sync" each sync runs right here, so one repository that
+        // fails (a missing binary, a timeout, a broken path) is logged and
+        // the rest still get synced.
+        Repository::query()->lazy()->each(function (Repository $repository) use ($connection): void {
+            try {
+                RepositorySyncJob::dispatch($repository)->onConnection($connection);
+            } catch (Throwable $exception) {
+                Log::warning('Repository autofetch failed; continuing with the next repository.', [
+                    'repository_id' => $repository->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        });
     }
 }

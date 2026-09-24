@@ -34,7 +34,7 @@ final readonly class BazaarAdapter implements ScmAdapter
 
     public function isAvailable(): bool
     {
-        return $this->brz(['revno', $this->path], 10)->successful();
+        return ScmCommand::succeeds(fn () => $this->brz(['revno', $this->path], 10));
     }
 
     public function supports(ScmCapability $capability): bool
@@ -151,9 +151,9 @@ final readonly class BazaarAdapter implements ScmAdapter
      */
     private function brz(array $args, int $timeout): ProcessResult
     {
-        return Process::env(['BRZ_LOG' => '/dev/null'])
+        return ScmCommand::run('brz', fn () => Process::env(['BRZ_LOG' => '/dev/null'])
             ->timeout($timeout)
-            ->run(['brz', ...self::GLOBAL_OPTIONS, ...$args]);
+            ->run(['brz', ...self::GLOBAL_OPTIONS, ...$args]));
     }
 
     /**

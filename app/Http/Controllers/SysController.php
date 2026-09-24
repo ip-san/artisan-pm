@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
+use App\Exceptions\ScmCommandFailedException;
 use App\Jobs\RepositorySyncJob;
 use App\Models\Project;
 use Illuminate\Http\JsonResponse;
@@ -61,7 +62,13 @@ final class SysController extends Controller
 
         foreach ($projects as $project) {
             foreach ($project->repositories as $repository) {
-                RepositorySyncJob::dispatch($repository);
+                // Under the "sync" queue driver the job runs inline: one
+                // repository whose command can't run mustn't stop the rest.
+                try {
+                    RepositorySyncJob::dispatch($repository);
+                } catch (ScmCommandFailedException $exception) {
+                    report($exception);
+                }
             }
         }
 

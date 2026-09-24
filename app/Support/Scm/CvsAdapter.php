@@ -53,7 +53,7 @@ final readonly class CvsAdapter implements ScmAdapter
     {
         $location = $this->location();
 
-        return $location !== null && $this->cvs($location['root'], ['rlog', '-h', $location['module']], 15)->successful();
+        return $location !== null && ScmCommand::succeeds(fn () => $this->cvs($location['root'], ['rlog', '-h', $location['module']], 15));
     }
 
     public function supports(ScmCapability $capability): bool
@@ -227,7 +227,7 @@ final readonly class CvsAdapter implements ScmAdapter
      */
     private function cvs(string $root, array $args, int $timeout): ProcessResult
     {
-        return Process::timeout($timeout)->run(['cvs', '-f', '-Q', '-R', '-d', $root, ...$args]);
+        return ScmCommand::run('cvs', fn () => Process::timeout($timeout)->run(['cvs', '-f', '-Q', '-R', '-d', $root, ...$args]));
     }
 
     /**

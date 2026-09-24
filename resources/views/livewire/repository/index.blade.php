@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ScmCapability;
+use App\Exceptions\ScmCommandFailedException;
 use App\Jobs\RepositorySyncJob;
 use App\Models\Project;
 use App\Models\Repository;
@@ -113,7 +114,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
         abort_if($this->repository === null || ! $this->repository->supports(ScmCapability::Log), 404);
 
-        RepositorySyncJob::dispatch($this->repository);
+        try {
+            RepositorySyncJob::dispatch($this->repository);
+        } catch (ScmCommandFailedException $exception) {
+            // Only reached under the "sync" queue driver, where the job
+            // runs inline.
+            report($exception);
+            session()->flash('error', ScmCommandFailedException::userMessage());
+
+            return;
+        }
 
         // dispatch() only enqueues the job — it hasn't run yet, so this
         // must not claim the sync itself is done (misleading outside the
@@ -165,6 +175,12 @@ new #[Layout('components.layouts.app')] class extends Component
     @if (session('status'))
         <div class="mb-4 rounded-md border border-success-subtler bg-success-subtlest px-4 py-2 text-sm text-success-bolder">
             {{ session('status') }}
+        </div>
+    @endif
+
+    @if (session('error'))
+        <div class="mb-4 rounded-md border border-danger-subtler bg-danger-subtlest px-4 py-2 text-sm text-danger-bolder">
+            {{ session('error') }}
         </div>
     @endif
 
