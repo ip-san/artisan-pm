@@ -210,7 +210,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <p class="mb-4 text-sm text-neutral-500">{{ __(':count件の結果', ['count' => $this->results->count()]) }}</p>
         <ul class="space-y-3">
             @foreach ($this->pagedResults as $result)
-                <li wire:key="result-{{ $result->type }}-{{ $result->url }}" class="rounded-md border border-neutral-200 bg-white p-4">
+                <li wire:key="result-{{ $result->type }}-{{ $result->url }}" class="rounded-md border border-neutral-200 bg-surface p-4">
                     <span class="mr-2 rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
                         {{ $this->typeLabels()[$result->type] ?? $result->type }}
                     </span>

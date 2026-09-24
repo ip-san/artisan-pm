@@ -229,7 +229,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         placeholder="{{ __('名前またはメールアドレスで検索') }}" autocomplete="off"
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @if ($showUserDropdown)
-                        <ul class="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-white shadow-lg">
+                        <ul class="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-surface shadow-lg">
                             @forelse ($this->userCandidates as $candidate)
                                 <li wire:key="user-candidate-{{ $candidate->id }}">
                                     <button type="button" wire:click="selectUser({{ $candidate->id }})"
@@ -249,7 +249,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </button>
             </form>
 
-            <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+            <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
                 @forelse ($this->members as $member)
                     <li class="flex items-center justify-between px-4 py-3">
                         <span class="text-sm text-neutral-900">{{ $member->displayName() }} ({{ $member->email }})</span>

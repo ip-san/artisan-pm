@@ -151,7 +151,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ $section['title'] }}
                     <a href="{{ route('issues.report-details', [$project, $detailKeys[$section['column']]]) }}" class="ml-2 text-xs font-normal text-brand-bold hover:underline">{{ __('詳細') }}</a>
                 </h2>
-                <table class="min-w-full border border-neutral-200 bg-white text-sm">
+                <table class="min-w-full border border-neutral-200 bg-surface text-sm">
                     <thead>
                         <tr class="border-b border-neutral-200 bg-neutral-50">
                             <th class="px-3 py-2 text-left font-medium text-neutral-700"></th>

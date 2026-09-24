@@ -91,7 +91,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     <form wire:submit="save" class="space-y-4">
-        <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+        <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
             @foreach ($this->globalActivities as $activity)
                 <li class="flex items-center justify-between px-4 py-3">
                     <span class="text-sm text-neutral-900">

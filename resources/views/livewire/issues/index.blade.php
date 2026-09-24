@@ -1556,7 +1556,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($this->canBulkEdit && count($selected) > 0)
         <div x-show="menu.open" x-cloak x-on:click.stop x-bind:style="`left:${menu.x}px;top:${menu.y}px`" data-context-menu
-            class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg">
+            class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-surface py-1 text-sm shadow-lg">
             @if (count($selected) === 1)
                 <a href="{{ route('issues.edit', [$project, $this->selectedIssues->first()]) }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('編集') }}</a>
             @else
@@ -1571,7 +1571,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @if ($menuOptions->isNotEmpty())
                     <div class="group relative" wire:key="context-menu-{{ $menuField }}">
                         <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuLabel }} <span class="text-neutral-400">›</span></span>
-                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
+                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                             @foreach ($menuOptions as $menuOption)
                                 <button type="button" wire:click="contextUpdate('{{ $menuField }}', '{{ $menuOption->id }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $menuOption->name }}</button>
                             @endforeach
@@ -1588,7 +1588,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @if ($menuOptions->isNotEmpty() || $menuField === 'assigned_to_id')
                     <div class="group relative" wire:key="context-menu-{{ $menuField }}">
                         <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuLabel }} <span class="text-neutral-400">›</span></span>
-                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
+                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                             @if ($menuField === 'assigned_to_id' && $this->projectMembers->contains('id', auth()->id()))
                                 <button type="button" wire:click="contextUpdate('assigned_to_id', 'me')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">&lt;&lt; {{ __('自分') }} &gt;&gt;</button>
                             @endif
@@ -1608,7 +1608,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="group relative" wire:key="context-menu-done_ratio">
                 <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('進捗率') }} <span class="text-neutral-400">›</span></span>
-                <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
+                <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                     @foreach (\App\Support\Issues\DoneRatioSteps::options() as $ratio)
                         <button type="button" wire:click="contextUpdate('done_ratio', '{{ $ratio }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $ratio }}%</button>
                     @endforeach
@@ -1702,7 +1702,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     {{-- Filter builder --}}
-    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
@@ -1901,7 +1901,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                     {{ __('一括更新') }}
                 </button>
-                <button type="button" wire:click="$set('selected', [])" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-white">
+                <button type="button" wire:click="$set('selected', [])" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-surface">
                     {{ __('選択解除') }}
                 </button>
             </div>
@@ -1909,7 +1909,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if (count($selected) > 0 && auth()->user()?->can('move', $this->selectedIssues->first()) && $this->bulkMoveTargetProjects->isNotEmpty())
-        <form wire:submit="applyBulkMove" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-4">
+        <form wire:submit="applyBulkMove" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4">
             <div>
                 <label class="block text-xs font-medium text-neutral-700">{{ __(':count件を別のプロジェクトへ移動', ['count' => count($selected)]) }}</label>
                 <select wire:model.live="bulkMoveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
@@ -1940,7 +1940,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if (count($selected) > 0 && $this->canBulkCopy && $this->bulkCopyTargetProjects->isNotEmpty())
-        <form id="bulk-copy-form" wire:submit="applyBulkCopy" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-4">
+        <form id="bulk-copy-form" wire:submit="applyBulkCopy" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4">
             <div>
                 <label class="block text-xs font-medium text-neutral-700">{{ __(':count件をコピーして複製', ['count' => count($selected)]) }}</label>
                 <select wire:model.live="bulkCopyToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
@@ -2078,7 +2078,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </h2>
         @endif
 
-        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-neutral-200 bg-white mb-4">
+        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-neutral-200 bg-surface mb-4">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                     <tr>

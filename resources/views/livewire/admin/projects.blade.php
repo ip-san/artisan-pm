@@ -294,7 +294,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @if (count($selected) > 0)
         @php $selectedProjects = $this->selectedProjects; @endphp
         <div x-show="menu.open" x-cloak x-on:click.stop x-bind:style="`left:${menu.x}px;top:${menu.y}px`" data-context-menu
-            class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg">
+            class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-surface py-1 text-sm shadow-lg">
             @if ($selectedProjects->count() === 1)
                 @php $selectedProject = $selectedProjects->first(); @endphp
                 @if ($selectedProject->status === \App\Enums\ProjectStatus::Archived)
@@ -339,12 +339,12 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('bulkDeleteConfirmation') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <button type="submit" class="rounded-md bg-danger-bolder px-3 py-2 text-sm font-medium text-white hover:bg-danger-subtle">{{ __('削除') }}</button>
-                <button type="button" wire:click="cancelBulkDelete" class="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">{{ __('キャンセル') }}</button>
+                <button type="button" wire:click="cancelBulkDelete" class="rounded-md border border-neutral-300 bg-surface px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">{{ __('キャンセル') }}</button>
             </form>
         </div>
     @endif
 
-    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
@@ -368,7 +368,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
-    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
         <table class="min-w-full divide-y divide-neutral-200 text-sm">
             <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                 <tr>

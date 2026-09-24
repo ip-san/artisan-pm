@@ -94,7 +94,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="mb-4 rounded-md bg-success-subtlest p-3 text-sm text-success-bold">{{ session('status') }}</div>
     @endif
 
-    <form wire:submit="save" class="max-w-lg space-y-4 rounded-md border border-neutral-200 bg-white p-4">
+    <form wire:submit="save" class="max-w-lg space-y-4 rounded-md border border-neutral-200 bg-surface p-4">
         @if ($this->settingsView)
             @include($this->settingsView, ['values' => $values, 'pluginId' => $pluginId])
         @else

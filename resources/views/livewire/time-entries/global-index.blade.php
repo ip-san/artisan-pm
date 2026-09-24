@@ -440,7 +440,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     {{-- Filter builder --}}
-    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
@@ -502,7 +502,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </h2>
         @endif
 
-        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-neutral-200 bg-white mb-4">
+        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-neutral-200 bg-surface mb-4">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                     <tr>

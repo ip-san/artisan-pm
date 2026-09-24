@@ -96,7 +96,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <h2 class="mt-4 mb-1 text-sm font-semibold text-neutral-900">
             {{ $sortBy === 'category' ? ($groupKey !== '' ? $groupKey : __('未分類')) : ($sortBy === 'author' && $groupKey === '' ? __('(不明)') : ($sortBy === 'date' ? \App\Support\Format\DateTimes::date($groupKey) : $groupKey)) }}
         </h2>
-        <ul class="mb-2 divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+        <ul class="mb-2 divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
             @foreach ($documents as $document)
                 <li wire:key="document-{{ $document->id }}" class="px-4 py-3">
                     <a href="{{ route('documents.show', [$project, $document]) }}" class="font-medium text-brand-bold hover:underline">

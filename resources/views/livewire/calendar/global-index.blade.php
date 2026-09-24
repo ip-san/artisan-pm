@@ -195,7 +195,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
-    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3">
@@ -205,7 +205,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
-    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
         <table class="min-w-full table-fixed divide-y divide-neutral-200 text-sm">
             <thead class="bg-neutral-50 text-xs uppercase text-neutral-500">
                 <tr>
@@ -219,7 +219,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <tr wire:key="week-{{ $week[0]['date']->toDateString() }}" class="align-top">
                         @foreach ($week as $day)
                             <td wire:key="day-{{ $day['date']->toDateString() }}"
-                                class="h-28 px-2 py-1 {{ $day['isCurrentMonth'] ? 'bg-white' : 'bg-neutral-50 text-neutral-400' }}">
+                                class="h-28 px-2 py-1 {{ $day['isCurrentMonth'] ? 'bg-surface' : 'bg-neutral-50 text-neutral-400' }}">
                                 <div class="text-xs {{ $day['date']->toDateString() === \App\Support\Format\DateTimes::today()->toDateString() ? 'font-bold text-brand-bold' : 'text-neutral-500' }}">
                                     {{ $day['date']->day }}
                                 </div>

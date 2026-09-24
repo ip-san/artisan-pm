@@ -88,7 +88,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <ul class="space-y-2">
             @foreach ($this->changesets as $match)
                 @php $changeset = $match['changeset']; @endphp
-                <li wire:key="file-history-{{ $changeset->id }}" class="rounded-md border border-neutral-200 bg-white p-3">
+                <li wire:key="file-history-{{ $changeset->id }}" class="rounded-md border border-neutral-200 bg-surface p-3">
                     <div class="flex items-center gap-2">
                         <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $changeset, 'path' => $match['path']])) }}" class="font-mono text-sm text-brand-bold hover:underline">
                             {{ $changeset->shortRevision() }}

@@ -39,7 +39,7 @@ final class WikiSectionEditLinkInjector
         foreach ($headings as $index => $heading) {
             $link = $document->createElement('a');
             $link->setAttribute('href', "{$editUrl}?section=".($index + 1));
-            $link->setAttribute('class', 'section-edit ml-2 text-xs font-normal text-indigo-600 no-underline hover:underline');
+            $link->setAttribute('class', 'section-edit ml-2 text-xs font-normal text-brand-bold no-underline hover:underline');
             $link->textContent = __('編集');
             $heading->appendChild($link);
         }

@@ -79,7 +79,7 @@ new #[Layout('components.layouts.app')] class extends Component
         ]) }}
     </p>
 
-    <div class="whitespace-pre-wrap break-words rounded-md border border-neutral-200 bg-white p-4 font-mono text-sm leading-relaxed">
+    <div class="whitespace-pre-wrap break-words rounded-md border border-neutral-200 bg-surface p-4 font-mono text-sm leading-relaxed">
         @foreach ($this->diff as $chunk)
             @if ($chunk['type'] === 'add')
                 <ins class="bg-success-subtler text-success-bolder no-underline">{{ $chunk['text'] }}</ins>

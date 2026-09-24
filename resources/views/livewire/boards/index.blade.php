@@ -44,7 +44,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endcan
     </div>
 
-    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
         @forelse ($this->boards as $board)
             <li wire:key="board-{{ $board->id }}" class="px-4 py-3">
                 <div class="flex items-center justify-between">

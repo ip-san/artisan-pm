@@ -156,7 +156,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </p>
 
     @if ($editing)
-        <form wire:submit="save" class="space-y-4 rounded-md border border-neutral-200 bg-white p-4" data-my-webhook-form>
+        <form wire:submit="save" class="space-y-4 rounded-md border border-neutral-200 bg-surface p-4" data-my-webhook-form>
             <div>
                 <label class="block text-sm font-medium text-neutral-700">URL</label>
                 <input type="text" wire:model="url" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
@@ -206,7 +206,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </form>
     @endif
 
-    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
         @forelse ($this->webhooks as $webhook)
             <li class="flex items-center justify-between px-4 py-3">
                 <div>

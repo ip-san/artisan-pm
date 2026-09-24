@@ -46,7 +46,7 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('お知らせ') }}</h1>
 
-    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
         @forelse ($this->newsItems as $item)
             <li wire:key="news-{{ $item->id }}" class="px-4 py-3">
                 <p class="text-xs text-neutral-500">

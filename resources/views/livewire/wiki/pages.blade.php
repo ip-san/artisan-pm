@@ -225,7 +225,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
-    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
         @forelse ($this->rootPages as $page)
             <li wire:key="wiki-root-{{ $page->id }}" class="px-4 py-2">
                 <a href="{{ route('wiki.show', [$project, $page]) }}" class="text-brand-bold hover:underline">

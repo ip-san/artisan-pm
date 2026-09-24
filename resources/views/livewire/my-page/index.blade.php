@@ -279,7 +279,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <ul wire:sort="reorder" class="space-y-4">
         @foreach ($this->activeBlocks as $block)
             <li wire:key="block-{{ $block->id }}" wire:sort:item="{{ $block->id }}"
-                class="cursor-move rounded-md border border-neutral-200 bg-white">
+                class="cursor-move rounded-md border border-neutral-200 bg-surface">
                 <div class="flex items-center justify-between border-b border-neutral-100 px-4 py-2">
                     <span class="text-sm font-semibold text-neutral-900">{{ $this->blockLabel($block->block_key) }}</span>
                     <div wire:sort:ignore class="flex items-center gap-3">

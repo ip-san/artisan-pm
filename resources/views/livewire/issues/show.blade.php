@@ -880,7 +880,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @can('move', $issue)
         @if ($this->moveTargetProjects->isNotEmpty())
-            <form wire:submit="moveIssue" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-4">
+            <form wire:submit="moveIssue" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4">
                 <div>
                     <label class="block text-xs font-medium text-neutral-700">{{ __('別のプロジェクトへ移動') }}</label>
                     <select wire:model.live="moveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
@@ -911,7 +911,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
     @endcan
 
-    <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-neutral-200 bg-white p-4 text-sm mb-6">
+    <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-neutral-200 bg-surface p-4 text-sm mb-6">
         <div><span class="text-neutral-500">{{ __('ステータス:') }}</span> {{ $issue->status->name }}</div>
         <div><span class="text-neutral-500">{{ __('優先度:') }}</span> {{ $issue->priority->name }}</div>
         <div><span class="text-neutral-500">{{ __('カテゴリ:') }}</span> {{ $issue->category?->name ?? __('なし') }}</div>
@@ -937,7 +937,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($issue->description)
-        <div class="prose prose-sm max-w-none mb-6 rounded-md border border-neutral-200 bg-white p-4">
+        <div class="prose prose-sm max-w-none mb-6 rounded-md border border-neutral-200 bg-surface p-4">
             {!! $this->renderedDescription !!}
         </div>
     @endif
@@ -947,7 +947,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($this->customFieldDisplayValues->isNotEmpty())
-        <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-neutral-200 bg-white p-4 text-sm mb-6">
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-neutral-200 bg-surface p-4 text-sm mb-6">
             @foreach ($this->customFieldDisplayValues as $entry)
                 <div>
                     <span class="text-neutral-500">{{ $entry['field']->name }}:</span>
@@ -975,7 +975,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div class="mb-6  relative" data-watcher-search>
                     <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="{{ __('ウォッチャーを追加(名前・メールで検索)...') }}"
                         class="block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
-                    <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
+                    <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-surface text-sm shadow-sm">
                         @foreach ($this->watcherCandidates as $candidate)
                             <li wire:key="watcher-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">
@@ -994,7 +994,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($this->subtasks->isNotEmpty())
         <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('サブタスク') }}</h2>
-        <div class="mb-6 overflow-x-auto rounded-md border border-neutral-200 bg-white">
+        <div class="mb-6 overflow-x-auto rounded-md border border-neutral-200 bg-surface">
             <table class="min-w-full text-sm" data-related-issues="subtasks">
                 @if (\App\Support\Issues\RelatedIssueColumns::showHeaders())
                     <thead class="bg-neutral-50 text-left text-xs text-neutral-500">
@@ -1063,7 +1063,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($this->relations->isNotEmpty() || auth()->user()?->can('manageRelations', $issue))
         <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('関連課題') }}</h2>
         @if ($this->relations->isNotEmpty())
-            <div class="mb-4 overflow-x-auto rounded-md border border-neutral-200 bg-white">
+            <div class="mb-4 overflow-x-auto rounded-md border border-neutral-200 bg-surface">
                 <table class="min-w-full text-sm" data-related-issues="relations">
                     @if (\App\Support\Issues\RelatedIssueColumns::showHeaders())
                         <thead class="bg-neutral-50 text-left text-xs text-neutral-500">
@@ -1129,7 +1129,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input type="text" wire:model.live.debounce.250ms="relatedSearch" placeholder="{{ __('#番号または件名...') }}"
                         class="mt-1 block w-56 rounded-md border-neutral-300 shadow-sm text-sm">
                     @if ($this->relatedSuggestions->isNotEmpty())
-                        <ul class="absolute z-10 mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
+                        <ul class="absolute z-10 mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-surface text-sm shadow-sm">
                             @foreach ($this->relatedSuggestions as $suggestion)
                                 <li wire:key="related-suggestion-{{ $suggestion->id }}">
                                     <button type="button" wire:click="pickRelated({{ $suggestion->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">#{{ $suggestion->id }} {{ $suggestion->subject }}</button>
@@ -1185,7 +1185,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($this->activeHistoryTab === 'changesets')
         <ul class="mb-6 space-y-2" data-history-changesets>
             @foreach ($issue->changesets as $changeset)
-                <li class="rounded-md border border-neutral-200 bg-white p-3 text-sm" wire:key="issue-changeset-{{ $changeset->id }}">
+                <li class="rounded-md border border-neutral-200 bg-surface p-3 text-sm" wire:key="issue-changeset-{{ $changeset->id }}">
                     <a href="{{ route($changeset->repository->routeName('repository.show'), $changeset->repository->routeParameters(['changeset' => $changeset])) }}" class="font-mono text-brand-bold hover:underline">{{ $changeset->shortRevision() }}</a>
                     <span class="ml-2 text-xs text-neutral-500">{{ $changeset->committer }} — {{ \App\Support\Format\DateTimes::dateTime($changeset->committed_on) }}</span>
                     <div class="mt-1 text-neutral-800">{{ $changeset->commentsHtml(firstLineOnly: true) }}</div>
@@ -1200,7 +1200,7 @@ new #[Layout('components.layouts.app')] class extends Component
             default => true,
         }) as $journal)
             @unless ($journal->isEmpty())
-                <li wire:key="journal-{{ $journal->id }}" class="rounded-md border border-neutral-200 bg-white p-3 text-sm">
+                <li wire:key="journal-{{ $journal->id }}" class="rounded-md border border-neutral-200 bg-surface p-3 text-sm">
                     <div class="text-neutral-500 text-xs mb-1">
                         <x-avatar :user="$journal->user" :size="20" class="mr-1" />
                         {{ $journal->user->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($journal->created_at) }}

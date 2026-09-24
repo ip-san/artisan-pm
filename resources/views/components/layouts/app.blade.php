@@ -11,7 +11,7 @@
 </head>
 <body class="h-full font-sans antialiased text-neutral-900">
     <div class="min-h-full">
-        <nav class="bg-white border-b border-neutral-200">
+        <nav class="bg-surface border-b border-neutral-200">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="flex h-14 items-center justify-between gap-4">
                     {{--

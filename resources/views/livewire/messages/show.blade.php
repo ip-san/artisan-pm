@@ -340,7 +340,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div class="mb-4  relative" data-watcher-search>
                     <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="{{ __('ウォッチャーを追加(名前・メールで検索)...') }}"
                         class="block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
-                    <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
+                    <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-surface text-sm shadow-sm">
                         @foreach ($this->watcherCandidates as $candidate)
                             <li wire:key="watcher-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">
@@ -375,7 +375,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
     @endcan
 
-    <div class="rounded-md border border-neutral-200 bg-white p-4 mb-2">
+    <div class="rounded-md border border-neutral-200 bg-surface p-4 mb-2">
         <p class="whitespace-pre-line text-sm text-neutral-800">{{ $topic->content }}</p>
         <div class="mt-1 flex items-center gap-2">
             @can('reply', $topic)
@@ -424,7 +424,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('返信 (:count)', ['count' => $this->replies->total()]) }}</h2>
     <ul class="mb-2 space-y-3">
         @foreach ($this->replies as $reply)
-            <li wire:key="reply-{{ $reply->id }}" class="rounded-md border border-neutral-200 bg-white p-4">
+            <li wire:key="reply-{{ $reply->id }}" class="rounded-md border border-neutral-200 bg-surface p-4">
                 <p class="whitespace-pre-line text-sm text-neutral-800">{{ $reply->content }}</p>
                 @can('reply', $topic)
                     <button wire:click="quote({{ $reply->id }})" class="text-xs text-brand-bold hover:underline">{{ __('引用') }}</button>

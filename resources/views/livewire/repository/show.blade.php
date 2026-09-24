@@ -160,7 +160,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <h1 class="mb-1 text-xl font-semibold text-neutral-900 font-mono">{{ $changeset->shortRevision() }}</h1>
     <p class="mb-4 text-sm text-neutral-500">{{ $changeset->committer }} — {{ \App\Support\Format\DateTimes::dateTime($changeset->committed_on) }}</p>
 
-    <div class="rounded-md border border-neutral-200 bg-white p-4 mb-4">
+    <div class="rounded-md border border-neutral-200 bg-surface p-4 mb-4">
         <div class="prose prose-sm max-w-none text-neutral-800">{{ $changeset->commentsHtml() }}</div>
     </div>
 

@@ -155,7 +155,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — {{ __('ファイル') }}</h1>
 
     @if ($this->canManage)
-        <form wire:submit="upload" class="mb-6 flex flex-wrap items-end gap-3 rounded-md border border-neutral-200 bg-white p-4">
+        <form wire:submit="upload" class="mb-6 flex flex-wrap items-end gap-3 rounded-md border border-neutral-200 bg-surface p-4">
             <div>
                 <label class="block text-sm font-medium text-neutral-700">{{ __('バージョン') }}</label>
                 <select wire:model="version_id" class="mt-1 block rounded-md border-neutral-300 text-sm">
@@ -192,7 +192,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($this->project->files()->isNotEmpty() || $this->canManage)
-        <div class="mb-4 overflow-hidden rounded-md border border-neutral-200 bg-white">
+        <div class="mb-4 overflow-hidden rounded-md border border-neutral-200 bg-surface">
             <div class="border-b border-neutral-200 bg-neutral-50 px-4 py-2">
                 <span class="text-sm font-medium text-neutral-900">{{ __('プロジェクト全体(バージョンなし)') }}</span>
             </div>
@@ -231,7 +231,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @forelse ($this->versions as $version)
-        <div wire:key="version-{{ $version->id }}" class="mb-4 overflow-hidden rounded-md border border-neutral-200 bg-white">
+        <div wire:key="version-{{ $version->id }}" class="mb-4 overflow-hidden rounded-md border border-neutral-200 bg-surface">
             <div class="border-b border-neutral-200 bg-neutral-50 px-4 py-2">
                 <span class="text-sm font-medium text-neutral-900">{{ $version->name }}</span>
                 @if ($version->due_date)

@@ -303,7 +303,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
     </div>
 
-    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3">
@@ -322,7 +322,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->monthsTruncated)
             <p class="mb-2 text-sm text-warning-bold">{{ __('期間が長いため、開始から:monthsか月分だけを表示しています。', ['months' => self::monthsLimit()]) }}</p>
         @endif
-        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
             <div class="flex min-w-[900px]">
                 <div class="w-80 shrink-0 border-r border-neutral-200">
                     <div class="h-8 border-b border-neutral-200 bg-neutral-50"></div>

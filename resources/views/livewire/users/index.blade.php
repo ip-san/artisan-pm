@@ -277,7 +277,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $commonGroupIds = $selectedUsers->map(fn ($user) => $user->groups->pluck('id'))->reduce(fn ($carry, $ids) => $carry === null ? $ids : $carry->intersect($ids));
         @endphp
         <div x-show="menu.open" x-cloak x-on:click.stop x-bind:style="`left:${menu.x}px;top:${menu.y}px`" data-context-menu
-            class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg">
+            class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-surface py-1 text-sm shadow-lg">
             @if ($selectedUsers->count() === 1)
                 <a href="{{ route('users.edit', $selectedUsers->first()) }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('編集') }}</a>
             @endif
@@ -289,7 +289,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($this->groups->isNotEmpty())
                 <div class="group relative">
                     <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('グループに追加') }} <span class="text-neutral-400">›</span></span>
-                    <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
+                    <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                         @foreach ($this->groups as $group)
                             <button type="button" wire:key="context-add-{{ $group->id }}" wire:click="addToGroup({{ $group->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $group->name }}</button>
                         @endforeach
@@ -298,7 +298,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @if ($commonGroupIds->isNotEmpty())
                     <div class="group relative">
                         <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('グループから外す') }} <span class="text-neutral-400">›</span></span>
-                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
+                        <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                             @foreach ($this->groups->whereIn('id', $commonGroupIds->all()) as $group)
                                 <button type="button" wire:key="context-remove-{{ $group->id }}" wire:click="removeFromGroup({{ $group->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $group->name }}</button>
                             @endforeach
@@ -321,7 +321,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
-    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
@@ -339,7 +339,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
-    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
         <table class="min-w-full divide-y divide-neutral-200 text-sm">
             <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                 <tr>

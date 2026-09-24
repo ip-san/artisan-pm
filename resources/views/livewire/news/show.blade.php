@@ -230,7 +230,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <p class="mb-4 text-xs text-neutral-500">{{ $news->author->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($news->created_at) }}</p>
 
-    <div class="rounded-md border border-neutral-200 bg-white p-4 mb-4">
+    <div class="rounded-md border border-neutral-200 bg-surface p-4 mb-4">
         <p class="whitespace-pre-line text-sm text-neutral-800">{{ $news->description }}</p>
     </div>
 
@@ -256,7 +256,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div class="mb-4  relative" data-watcher-search>
                     <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="{{ __('ウォッチャーを追加(名前・メールで検索)...') }}"
                         class="block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
-                    <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
+                    <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-surface text-sm shadow-sm">
                         @foreach ($this->watcherCandidates as $candidate)
                             <li wire:key="watcher-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">
@@ -304,7 +304,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('コメント (:count)', ['count' => $this->comments->count()]) }}</h2>
     <ul class="mb-6 space-y-3">
         @foreach ($this->comments as $comment)
-            <li wire:key="news-comment-{{ $comment->id }}" class="rounded-md border border-neutral-200 bg-white p-4">
+            <li wire:key="news-comment-{{ $comment->id }}" class="rounded-md border border-neutral-200 bg-surface p-4">
                 <p class="whitespace-pre-line text-sm text-neutral-800">{{ $comment->content }}</p>
                 <div class="mt-2 flex items-center justify-between text-xs text-neutral-500">
                     <span>{{ $comment->author->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($comment->created_at) }}</span>

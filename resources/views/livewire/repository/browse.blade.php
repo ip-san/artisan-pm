@@ -93,7 +93,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endforeach
     </nav>
 
-    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
         @forelse ($this->entries as $entry)
             <li wire:key="tree-{{ $entry->path }}" class="flex items-center justify-between px-4 py-2 text-sm">
                 @if ($entry->isDirectory)

@@ -270,7 +270,11 @@
 | 134b | A12-06b | A12-06 | M | done(2026-09-20) |
 | 134c | A12-06c | A12-06b | M | done(対象外: 実装しない案で承認, 2026-09-20。docs/design/gap-A12-06c.md) |
 | 134d | A12-06d | A12-06c | S | done(2026-09-20) |
-| 135 | A5-06 / A14-03 | — | M | wip(2026-09-24) |
+| 135 | A5-06 / A14-03 | — | M | wip(2026-09-24、A5-06a/b は既存のトークン層で代替。A5-06 と A14-03 の 2 コミット) |
+| 135a | A5-06a | — | M | done(既存, 2026-09-24、トークン層 26bcfe0 とレイアウト・共通コンポーネントの移行 79cd84f で代替。`bg-white`→`bg-surface` は A5-06 で) |
+| 135b | A5-06b | A5-06a | M〜L | done(既存, 2026-09-24、全画面のクラス移行は 79cd84f で済み) |
+| 135c | A5-06 | A5-06a | S | done(2026-09-24、ダークテーマのトークン値・`bg-surface`・ガードテスト。コントラストは要目視) |
+| 135d | A14-03 | A5-06 | S | todo |
 | **段 3: L 項目(設計メモ→`blocked(要承認)`→承認後に実装)** | | | | |
 | 136 | A4-10b | A4-10a | L | done(2026-09-24、承認: 設計メモの推奨案。A4-10b-1〜3 に分割) |
 | 136a | A4-10b-1 | A4-10a | S | done(2026-09-24、姓・名の列と全 11 形式。`name` は姓・名が両方あれば「名 姓」に自動同期。自己登録フォームにも姓・名) |
@@ -439,7 +443,7 @@
 | A5-03 | `cache_formatted_text` | Markdown を毎回レンダリング | `WikiMarkdownRenderer::render()` の出力を `Cache::remember`(キー: 本文ハッシュ+プロジェクト) | S | — |
 | A5-04 | `new_item_menu_tab`(ヘッダーの「+」メニュー: 非表示/新規課題のみ/全て) | 「+」メニュー自体なし | ヘッダーに新規作成ドロップダウン(課題/News/文書/Wiki/ファイル/バージョン/工数)と設定 | S | — |
 | A5-05 | `assignee_dropdown_display_format`(担当者ドロップダウンにグループ名等を表示) | **done(2026-09-24)**: 設定「課題トラッキング」に「担当者ドロップダウンの表示形式」(`users_then_groups` 既定 / `groups_then_users` / `users_by_group`、グループ割当がオフのときは無効化)。`AssigneeChoice::optionGroups()` と `<x-assignee-options>` で課題フォーム・一括編集の担当者選択に適用(グループを出さないときは従来どおりの平らな一覧)。Redmine の課題編集時の「関係者」optgroup(作成者・以前の担当者)は未対応。テスト: `IssueGroupAssignmentTest.php` | 担当者選択の表示形式設定 | S | A1-20 |
-| A5-06 | `ui_theme` | テーマ切替基盤なし | Tailwind のダーク/ライトまたは複数カラーテーマを CSS 変数で切替、設定+ユーザー設定 | M | A14-03 |
+| A5-06 | `ui_theme` | ~~テーマ切替基盤なし~~ → A5-06(2026-09-24): トークン値を差し替えるダークテーマを `app.css` に追加、`ThemeableViewsTest` で生の色クラスを禁止 | Tailwind のダーク/ライトまたは複数カラーテーマを CSS 変数で切替、設定+ユーザー設定 | M | A14-03 |
 | A5-07 | `attachment` 系: `bulk_download_max_size`、`file_max_size_displayed`、`diff_max_lines_displayed`、`thumbnails_size`(`thumbnails_enabled` は設定キーとして未定義) | `attachment_max_size`/`attachment_extensions_*` は `AttachmentValidationRules.php` で実装済み。残りなし | 一括 ZIP ダウンロード上限、リポジトリ/Wiki のファイル表示上限、Diff 行数上限、サムネイル寸法 | S | A7-10, A10-06 |
 | A5-08 | `wiki_compression`、`wiki_tablesort_enabled` | Wiki 本文は非圧縮保存、テーブルソートなし | 圧縮は優先度低(スキップ可)。テーブルソートはクライアント JS で `<table>` にソート可能属性を付与 | S | A7 |
 | A5-09 | `timelog_*`: `timelog_required_fields`、`timelog_max_hours_per_day`、`timelog_accept_0_hours`、`timelog_accept_closed_issues`、`timelog_accept_future_dates` | いずれもなし(grep 0件) | `TimeEntry` のバリデーションに5設定を反映(課題/コメント必須、1日上限、0時間拒否、クローズ課題拒否、未来日拒否)。Web UI/API/インポート/コミットキーワードの全経路 | S〜M | A8-01 |

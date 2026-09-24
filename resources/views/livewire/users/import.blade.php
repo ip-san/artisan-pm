@@ -117,7 +117,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         @if ($headers !== [])
-            <div class="rounded-md border border-neutral-200 bg-white p-4">
+            <div class="rounded-md border border-neutral-200 bg-surface p-4">
                 <h2 class="text-sm font-semibold text-neutral-900 mb-3">{{ __('列のマッピング') }}</h2>
                 <div class="space-y-3">
                     @foreach ($this->importableFieldLabels() + $this->customFields->mapWithKeys(fn ($field) => ["cf_{$field->id}" => $field->name])->all() as $field => $label)

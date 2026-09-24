@@ -31,7 +31,7 @@
 @elseif ($mode === '2' && $items->isNotEmpty())
     <details class="relative" data-new-item-menu="dropdown">
         <summary class="cursor-pointer list-none rounded-md border border-neutral-300 px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-50" title="{{ __('新規作成') }}">+</summary>
-        <ul class="absolute right-0 z-20 mt-1 w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
+        <ul class="absolute right-0 z-20 mt-1 w-48 rounded-md border border-neutral-200 bg-surface py-1 shadow-lg">
             @foreach ($items as $item)
                 <li><a href="{{ $item['url'] }}" class="block px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">{{ $item['label'] }}</a></li>
             @endforeach

@@ -48,7 +48,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @forelse ($this->pagesByDate as $date => $pages)
         <h2 class="mt-4 mb-1 text-sm font-semibold text-neutral-900">{{ \App\Support\Format\DateTimes::date($date) }}</h2>
-        <ul class="mb-2 divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+        <ul class="mb-2 divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
             @foreach ($pages as $page)
                 <li wire:key="wiki-date-{{ $page->id }}" class="px-4 py-2">
                     <a href="{{ route('wiki.show', [$project, $page]) }}" class="text-brand-bold hover:underline">

@@ -95,13 +95,13 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($document->description)
-        <div class="rounded-md border border-neutral-200 bg-white p-4 mb-4">
+        <div class="rounded-md border border-neutral-200 bg-surface p-4 mb-4">
             <p class="whitespace-pre-line text-sm text-neutral-800">{{ $document->description }}</p>
         </div>
     @endif
 
     @if ($this->customFieldDisplayValues->isNotEmpty())
-        <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-neutral-200 bg-white p-4 text-sm mb-4">
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-neutral-200 bg-surface p-4 text-sm mb-4">
             @foreach ($this->customFieldDisplayValues as $entry)
                 <div>
                     <span class="text-neutral-500">{{ $entry['field']->name }}:</span>

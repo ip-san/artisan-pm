@@ -355,7 +355,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @can('rename', $wikiPage)
         @if ($this->moveTargetProjects->isNotEmpty())
-            <form wire:submit="moveToProject" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-4">
+            <form wire:submit="moveToProject" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4">
                 <div>
                     <label class="block text-xs font-medium text-neutral-700">{{ __('別のプロジェクトへ移動') }}</label>
                     <select wire:model="moveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
@@ -374,7 +374,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
     @endcan
 
-    <div class="prose prose-sm max-w-none rounded-md border border-neutral-200 bg-white p-4">
+    <div class="prose prose-sm max-w-none rounded-md border border-neutral-200 bg-surface p-4">
         {!! $this->renderedContent !!}
     </div>
 
@@ -396,7 +396,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div class="mb-4  relative" data-watcher-search>
                     <input type="text" wire:model.live.debounce.250ms="watcherSearch" placeholder="{{ __('ウォッチャーを追加(名前・メールで検索)...') }}"
                         class="block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
-                    <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
+                    <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-surface text-sm shadow-sm">
                         @foreach ($this->watcherCandidates as $candidate)
                             <li wire:key="watcher-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">
@@ -461,7 +461,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($this->children->isNotEmpty())
         <div class="mt-6">
             <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('子ページ') }}</h2>
-            <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+            <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
                 @foreach ($this->children as $child)
                     <li wire:key="wiki-child-{{ $child->id }}" class="px-4 py-2">
                         <a href="{{ route('wiki.show', [$project, $child]) }}" class="text-brand-bold hover:underline">

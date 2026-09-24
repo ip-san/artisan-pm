@@ -705,7 +705,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($this->canManage && count($selected) > 0)
         @php $menuEntries = $this->selectedTimeEntries; @endphp
         <div x-show="menu.open" x-cloak x-on:click.stop x-bind:style="`left:${menu.x}px;top:${menu.y}px`" data-context-menu
-            class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg">
+            class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-surface py-1 text-sm shadow-lg">
             @if ($menuEntries->count() === 1)
                 <a href="{{ route('time-entries.edit', [$project, $menuEntries->first()]) }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('編集') }}</a>
             @else
@@ -714,7 +714,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($this->project->activities(includeInactive: false)->isNotEmpty())
                 <div class="group relative">
                     <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('作業分類') }} <span class="text-neutral-400">›</span></span>
-                    <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg group-hover:block">
+                    <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                         @foreach ($this->project->activities(includeInactive: false) as $activity)
                             <button type="button" wire:key="context-activity-{{ $activity->id }}" wire:click="contextUpdateActivity({{ $activity->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $activity->name }}</button>
                         @endforeach
@@ -778,7 +778,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     {{-- Filter builder --}}
-    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
@@ -918,7 +918,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
                     {{ __('選択した:count件を削除', ['count' => count($selected)]) }}
                 </button>
-                <button type="button" wire:click="$set('selected', [])" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-white">
+                <button type="button" wire:click="$set('selected', [])" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-surface">
                     {{ __('選択解除') }}
                 </button>
             </div>
@@ -933,7 +933,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </h2>
         @endif
 
-        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-neutral-200 bg-white mb-4">
+        <div wire:key="group-table-{{ $groupKey }}" class="overflow-x-auto rounded-md border border-neutral-200 bg-surface mb-4">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                     <tr>

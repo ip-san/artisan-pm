@@ -57,7 +57,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endcan
     </div>
 
-    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
         <table class="min-w-full divide-y divide-neutral-200 text-sm">
             <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                 <tr>

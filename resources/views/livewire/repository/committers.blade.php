@@ -94,7 +94,7 @@ new #[Layout('components.layouts.app')] class extends Component
         {!! __('キーワードによる課題のクローズや工数記録(:example等)は、この対応付けまたは自動照合で解決できたユーザーに対してのみ動作します。', ['example' => '<code>@2h</code>']) !!}
     </p>
 
-    <form wire:submit="addMapping" class="mb-6 flex items-end gap-2 rounded-md border border-neutral-200 bg-white p-4">
+    <form wire:submit="addMapping" class="mb-6 flex items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4">
         <div class="flex-1">
             <label class="block text-sm font-medium text-neutral-700">{{ __('コミッター文字列') }}</label>
             <input type="text" wire:model="committer" placeholder="{{ __('例: :committer', ['committer' => 'Jane Doe <jane@old-corp.com>']) }}"
@@ -116,7 +116,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </button>
     </form>
 
-    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
         @forelse ($this->mappings as $mapping)
             <li class="flex items-center justify-between px-4 py-3" wire:key="committer-mapping-{{ $mapping->id }}">
                 <div>

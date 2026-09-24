@@ -169,7 +169,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     @if ($this->allRepositories->count() > 1)
-        <div class="mb-6 overflow-x-auto rounded-md border border-neutral-200 bg-white">
+        <div class="mb-6 overflow-x-auto rounded-md border border-neutral-200 bg-surface">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                     <tr>
@@ -226,7 +226,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 {{ __('この種別のリポジトリには履歴がありません。「ファイル一覧」から現在の内容を参照できます。') }}
             </p>
         @else
-        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                     <tr>

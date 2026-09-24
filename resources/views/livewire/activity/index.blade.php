@@ -141,7 +141,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <a href="{{ route('activity.atom', [$project, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
     </div>
 
-    <div class="mb-6 flex flex-wrap items-end gap-4 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-6 flex flex-wrap items-end gap-4 rounded-md border border-neutral-200 bg-surface p-4">
         <div>
             <label class="block text-sm font-medium text-neutral-700">{{ __('開始日') }}</label>
             <input type="date" wire:model="from" class="mt-1 block rounded-md border-neutral-300 text-sm">
@@ -173,7 +173,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <ul class="space-y-2">
                 @foreach ($dayEntries as $entry)
                     <li wire:key="activity-{{ $entry->type }}-{{ $entry->url }}-{{ $entry->occurredAt->timestamp }}"
-                        class="rounded-md border border-neutral-200 bg-white p-3">
+                        class="rounded-md border border-neutral-200 bg-surface p-3">
                         <span class="mr-2 rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
                             {{ $this->providerLabels[$entry->type] ?? $entry->type }}
                         </span>

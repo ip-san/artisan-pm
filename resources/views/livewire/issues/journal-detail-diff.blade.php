@@ -67,7 +67,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <h1 class="text-xl font-semibold text-neutral-900 mb-4">{{ __(':nameの差分', ['name' => $customField?->name ?? __('説明文')]) }}</h1>
 
-    <div class="whitespace-pre-wrap break-words rounded-md border border-neutral-200 bg-white p-4 font-mono text-sm leading-relaxed">
+    <div class="whitespace-pre-wrap break-words rounded-md border border-neutral-200 bg-surface p-4 font-mono text-sm leading-relaxed">
         @foreach ($this->diff as $chunk)
             @if ($chunk['type'] === 'add')
                 <ins class="bg-success-subtler text-success-bolder no-underline">{{ $chunk['text'] }}</ins>

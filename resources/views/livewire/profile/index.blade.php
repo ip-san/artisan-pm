@@ -450,7 +450,7 @@ new #[Layout('components.layouts.app')] class extends Component
 <div class="max-w-2xl space-y-8">
     <h1 class="text-xl font-semibold text-neutral-900">{{ __('アカウント設定') }}</h1>
 
-    <section class="rounded-md border border-neutral-200 bg-white p-4">
+    <section class="rounded-md border border-neutral-200 bg-surface p-4">
         <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('プロフィール') }}</h2>
 
         <form wire:submit="updateProfile" class="space-y-4">
@@ -528,7 +528,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </section>
 
     @if (auth()->user()->auth_source_id === null)
-        <section class="rounded-md border border-neutral-200 bg-white p-4">
+        <section class="rounded-md border border-neutral-200 bg-surface p-4">
             <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('パスワード変更') }}</h2>
 
             <form wire:submit="updatePassword" class="space-y-4">
@@ -560,7 +560,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </section>
     @endif
 
-    <section class="rounded-md border border-neutral-200 bg-white p-4">
+    <section class="rounded-md border border-neutral-200 bg-surface p-4">
         <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('二要素認証') }}</h2>
 
         @if ($this->twoFactorEnabled)
@@ -609,7 +609,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
     </section>
 
-    <section class="rounded-md border border-neutral-200 bg-white p-4" data-preferences>
+    <section class="rounded-md border border-neutral-200 bg-surface p-4" data-preferences>
         <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('個人設定') }}</h2>
         <form wire:submit="savePreferences" class="space-y-4">
             <div>
@@ -711,13 +711,13 @@ new #[Layout('components.layouts.app')] class extends Component
     </section>
 
     @if (\App\Models\Setting::get('webhooks_enabled', true) && app(\App\Support\Authorization\AuthorizationService::class)->canGlobally(auth()->user(), 'use_webhooks'))
-        <section class="rounded-md border border-neutral-200 bg-white p-4">
+        <section class="rounded-md border border-neutral-200 bg-surface p-4">
             <h2 class="mb-2 text-sm font-semibold text-neutral-900">Webhook</h2>
             <a href="{{ route('my-webhooks.index') }}" class="text-sm text-brand-bold hover:underline">{{ __('自分のWebhookを管理する') }}</a>
         </section>
     @endif
 
-    <section class="rounded-md border border-neutral-200 bg-white p-4">
+    <section class="rounded-md border border-neutral-200 bg-surface p-4">
         <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('APIキー') }}</h2>
         <p class="mb-4 text-sm text-neutral-600">
             {{ __('スクリプトやcronジョブなど、OAuth2の認可コードフローを使わずにREST APIを呼び出したい場合に使用します。') }}
@@ -736,7 +736,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </button>
     </section>
 
-    <section class="rounded-md border border-neutral-200 bg-white p-4">
+    <section class="rounded-md border border-neutral-200 bg-surface p-4">
         <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('Atomキー') }}</h2>
         <p class="mb-4 text-sm text-neutral-600">
             {{ __('フィードリーダーなどログインできない環境からAtomフィードを購読するためのキーです。') }}
@@ -758,7 +758,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <button wire:click="deleteAccount"
                 wire:confirm="{{ __('本当にアカウントを削除しますか?この操作は元に戻せません。') }}"
-                class="rounded-md border border-danger-subtle bg-white px-4 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                class="rounded-md border border-danger-subtle bg-surface px-4 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
                 {{ __('アカウントを削除する') }}
             </button>
         </section>

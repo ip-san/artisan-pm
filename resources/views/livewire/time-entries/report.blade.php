@@ -195,7 +195,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     {{-- Filter builder --}}
-    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-6">
@@ -243,7 +243,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($this->report->isEmpty())
         <p class="text-sm text-neutral-500">{{ __('行の軸を1つ以上選択してください。該当する工数記録がない場合も表は空になります。') }}</p>
     @else
-        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="bg-neutral-50">
                     <tr>

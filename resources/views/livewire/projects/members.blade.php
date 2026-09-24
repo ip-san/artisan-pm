@@ -252,7 +252,7 @@ new #[Layout('components.layouts.app')] class extends Component
 <div class="max-w-2xl">
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __(':project — メンバー管理', ['project' => $project->name]) }}</h1>
 
-    <form wire:submit="addMember" class="mb-8 space-y-3 rounded-md border border-neutral-200 bg-white p-4">
+    <form wire:submit="addMember" class="mb-8 space-y-3 rounded-md border border-neutral-200 bg-surface p-4">
         @unless ($editingMemberId)
             <div class="flex gap-4">
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
@@ -289,7 +289,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     placeholder="{{ __('名前またはメールアドレスで検索') }}" autocomplete="off"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @if ($showUserDropdown)
-                    <ul class="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-white shadow-lg">
+                    <ul class="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-surface shadow-lg">
                         @forelse ($this->userCandidates as $candidate)
                             <li wire:key="user-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="selectUser({{ $candidate->id }})"
@@ -337,7 +337,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </form>
 
-    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
         @forelse ($this->members as $member)
             <li class="flex items-center justify-between px-4 py-3">
                 <div>

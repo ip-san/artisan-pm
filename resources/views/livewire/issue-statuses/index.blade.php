@@ -95,7 +95,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="mb-4 rounded-md bg-danger-subtlest p-3 text-sm text-danger-bolder">{{ session('error') }}</div>
     @endif
 
-    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
         @forelse ($this->statuses as $status)
             <li class="flex items-center justify-between px-4 py-3">
                 <div>

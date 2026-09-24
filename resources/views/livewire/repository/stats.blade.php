@@ -84,7 +84,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <h1 class="mb-6 text-xl font-semibold text-neutral-900">{{ __(':project — リポジトリ統計', ['project' => $project->name]) }}</h1>
 
-    <div class="mb-8 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-8 rounded-md border border-neutral-200 bg-surface p-4">
         <h2 class="mb-3 text-sm font-semibold text-neutral-900">{{ __('コミット数(合計 :count 件)', ['count' => $this->changesets->count()]) }}</h2>
 
         @if ($this->changesets->isEmpty())

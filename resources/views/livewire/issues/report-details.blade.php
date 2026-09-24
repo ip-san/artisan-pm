@@ -157,7 +157,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @else
         @php $totals = $this->totalFigures(); @endphp
         <div class="overflow-x-auto">
-            <table class="min-w-full border border-neutral-200 bg-white text-sm">
+            <table class="min-w-full border border-neutral-200 bg-surface text-sm">
                 <thead>
                     <tr class="border-b border-neutral-200 bg-neutral-50">
                         <th class="px-3 py-2"></th>

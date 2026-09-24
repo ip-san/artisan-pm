@@ -30,7 +30,7 @@
         @elseif ($kind === 'pdf')
             <iframe src="{{ route('attachments.inline', $media) }}" title="{{ $media->file_name }}" class="h-[80vh] w-full rounded-md border border-neutral-200"></iframe>
         @elseif ($kind === 'diff' && $text !== null)
-            <pre class="overflow-x-auto rounded-md border border-neutral-200 bg-neutral-900 p-4 text-xs text-neutral-100" data-attachment-diff>@foreach (preg_split('/\R/', $text) as $line)<span class="{{ str_starts_with($line, '+') && ! str_starts_with($line, '+++') ? 'text-success' : (str_starts_with($line, '-') && ! str_starts_with($line, '---') ? 'text-danger-subtle' : (str_starts_with($line, '@@') ? 'text-cyan-400' : '')) }}">{{ $line }}</span>
+            <pre data-theme="dark" class="overflow-x-auto rounded-md border border-neutral-200 bg-neutral-50 p-4 text-xs text-neutral-900" data-attachment-diff>@foreach (preg_split('/\R/', $text) as $line)<span class="{{ str_starts_with($line, '+') && ! str_starts_with($line, '+++') ? 'text-success' : (str_starts_with($line, '-') && ! str_starts_with($line, '---') ? 'text-danger-subtle' : (str_starts_with($line, '@@') ? 'text-cyan-400' : '')) }}">{{ $line }}</span>
 @endforeach</pre>
         @elseif ($kind === 'text' && $text !== null)
             <pre class="overflow-x-auto rounded-md border border-neutral-200 bg-neutral-50 p-4 text-xs text-neutral-800" data-attachment-text>{{ $text }}</pre>

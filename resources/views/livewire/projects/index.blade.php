@@ -472,7 +472,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     @if ($this->renderedWelcomeText !== '')
-        <div class="prose prose-sm max-w-none mb-6 rounded-md border border-neutral-200 bg-white p-4">
+        <div class="prose prose-sm max-w-none mb-6 rounded-md border border-neutral-200 bg-surface p-4">
             {!! $this->renderedWelcomeText !!}
         </div>
     @endif
@@ -513,9 +513,9 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span class="inline-flex overflow-hidden rounded-md border border-neutral-300" role="group" aria-label="{{ __('表示形式') }}">
             <button type="button" wire:click="setDisplayType('board')" aria-pressed="{{ $this->effectiveDisplayType === 'board' ? 'true' : 'false' }}"
-                class="px-3 py-1 {{ $this->effectiveDisplayType === 'board' ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50' }}">{{ __('ボード') }}</button>
+                class="px-3 py-1 {{ $this->effectiveDisplayType === 'board' ? 'bg-neutral-900 text-white' : 'bg-surface text-neutral-700 hover:bg-neutral-50' }}">{{ __('ボード') }}</button>
             <button type="button" wire:click="setDisplayType('list')" aria-pressed="{{ $this->effectiveDisplayType === 'list' ? 'true' : 'false' }}"
-                class="border-l border-neutral-300 px-3 py-1 {{ $this->effectiveDisplayType === 'list' ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50' }}">{{ __('一覧') }}</button>
+                class="border-l border-neutral-300 px-3 py-1 {{ $this->effectiveDisplayType === 'list' ? 'bg-neutral-900 text-white' : 'bg-surface text-neutral-700 hover:bg-neutral-50' }}">{{ __('一覧') }}</button>
         </span>
         <span class="ml-2 text-neutral-500">{{ __('保存済みクエリ:') }}</span>
         @forelse ($this->savedQueries as $savedQuery)
@@ -527,7 +527,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endforelse
     </div>
 
-    <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
@@ -566,7 +566,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @if ($this->effectiveDisplayType === 'board')
-        <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white" data-display="board">
+        <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface" data-display="board">
             @forelse ($this->projects as $project)
                 <li wire:key="project-card-{{ $project->id }}" class="flex items-start justify-between px-4 py-3" style="padding-left: {{ 16 + ($project->display_level ?? 0) * 16 }}px">
                     <div class="min-w-0">
@@ -593,7 +593,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endforelse
         </ul>
     @else
-        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
                     <tr>

@@ -86,7 +86,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @endif
 
     <form wire:submit="save">
-        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="border-b border-neutral-200 bg-neutral-50">

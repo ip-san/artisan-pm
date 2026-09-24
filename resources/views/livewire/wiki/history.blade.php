@@ -95,7 +95,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $maxVersion = $this->versions->max('version');
     @endphp
 
-    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+    <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
         @foreach ($this->versions as $version)
             <li wire:key="wiki-version-{{ $version->id }}" class="flex items-center justify-between px-4 py-2 text-sm">
                 <div class="flex items-center gap-3">

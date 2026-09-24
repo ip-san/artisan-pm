@@ -1080,7 +1080,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input type="text" wire:model.live.debounce.250ms="parentSearch" placeholder="{{ __('#番号または件名で検索...') }}"
                         class="mt-2 block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
                     @if ($this->parentSuggestions->isNotEmpty())
-                        <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-sm shadow-sm">
+                        <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-surface text-sm shadow-sm">
                             @foreach ($this->parentSuggestions as $suggestion)
                                 <li wire:key="parent-suggestion-{{ $suggestion->id }}">
                                     <button type="button" wire:click="pickParent({{ $suggestion->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">#{{ $suggestion->id }} {{ $suggestion->subject }}</button>

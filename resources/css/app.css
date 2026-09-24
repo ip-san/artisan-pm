@@ -143,6 +143,152 @@
     --color-discovery: #c97cf4; /* sourced, not wired into the app-wide migration (no purple-* usage found) */
 }
 
+/*
+ * Themes (A5-06 / A14-03). `<html data-theme>` is `light` (the tokens
+ * above, unchanged), `dark`, or `system` (dark only when the browser
+ * prefers it). The dark theme overrides the token values rather than
+ * adding dark: variants to views, so every view that sticks to the
+ * token classes (neutral/brand/danger/success/warning/surface — see
+ * tests/Feature/Settings/ThemeableViewsTest.php) follows along. Any
+ * element can opt into the dark tokens with its own data-theme="dark"
+ * (the attachment diff preview stays dark in both themes). The two
+ * dark blocks must stay identical; CSS has no way to share them between
+ * an attribute selector and a media query.
+ */
+:root {
+    color-scheme: light;
+}
+
+[data-theme='dark'] {
+    color-scheme: dark;
+
+    /* Neutral scale, inverted: low numbers (page and header backgrounds)
+     * become dark, high numbers (text) become light. */
+    --color-neutral-50: oklch(17% 0.02 264);
+    --color-neutral-100: oklch(27% 0.024 264);
+    --color-neutral-200: oklch(33% 0.024 264);
+    --color-neutral-300: oklch(41% 0.024 264);
+    --color-neutral-400: oklch(55% 0.02 264);
+    --color-neutral-500: oklch(68% 0.018 264);
+    --color-neutral-600: oklch(76% 0.014 264);
+    --color-neutral-700: oklch(84% 0.01 264);
+    --color-neutral-800: oklch(90% 0.006 264);
+    --color-neutral-900: oklch(95% 0.003 264);
+    /* Tailwind's preflight default border colour. */
+    --color-gray-200: var(--color-neutral-200);
+
+    --color-surface: oklch(21% 0.022 264);
+    --color-surface-sunken: var(--color-neutral-50);
+    --color-surface-hovered: var(--color-neutral-100);
+
+    /* Brand: lighter so text links stay readable on dark surfaces while
+     * white button labels on bg-brand-bold keep enough contrast. */
+    --color-brand-subtlest: color-mix(in oklab, var(--color-brand-bold), black 78%);
+    --color-brand-subtler: color-mix(in oklab, var(--color-brand-bold), black 62%);
+    --color-brand-subtle: color-mix(in oklab, var(--color-brand-bold), black 35%);
+    --color-brand: #579dff;
+    --color-brand-bold: #388bff;
+    --color-brand-bolder: #85b8ff;
+
+    --color-danger-subtlest: #42221f;
+    --color-danger-subtler: #5d1f1a;
+    --color-danger-subtle: #c9372c;
+    --color-danger-bolder: #f15b50;
+    --color-danger-boldest: #ffd5d2;
+
+    --color-success-subtlest: color-mix(in oklab, var(--color-success), black 78%);
+    --color-success-subtler: color-mix(in oklab, var(--color-success), black 62%);
+    --color-success-bold: color-mix(in oklab, var(--color-success), white 15%);
+    --color-success-bolder: color-mix(in oklab, var(--color-success), white 45%);
+
+    --color-warning-subtlest: color-mix(in oklab, var(--color-warning), black 78%);
+    --color-warning-subtler: color-mix(in oklab, var(--color-warning), black 62%);
+    --color-warning-subtle: color-mix(in oklab, var(--color-warning), black 40%);
+    --color-warning-bold: color-mix(in oklab, var(--color-warning), white 15%);
+    --color-warning-bolder: color-mix(in oklab, var(--color-warning), white 45%);
+
+    /* The git-blame block palette (repository/annotate.blade.php) keeps
+     * its hues but darkens, so the light text on top stays readable. */
+    --color-red-50: oklch(30% 0.05 25);
+    --color-orange-50: oklch(30% 0.05 47);
+    --color-amber-50: oklch(30% 0.05 70);
+    --color-lime-50: oklch(30% 0.05 131);
+    --color-green-50: oklch(30% 0.05 150);
+    --color-teal-50: oklch(30% 0.05 182);
+    --color-cyan-50: oklch(30% 0.05 215);
+    --color-sky-50: oklch(30% 0.05 237);
+    --color-indigo-50: oklch(30% 0.05 277);
+    --color-violet-50: oklch(30% 0.05 293);
+    --color-fuchsia-50: oklch(30% 0.05 322);
+    --color-rose-50: oklch(30% 0.05 16);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root[data-theme='system'] {
+        color-scheme: dark;
+
+        /* Neutral scale, inverted: low numbers (page and header backgrounds)
+         * become dark, high numbers (text) become light. */
+        --color-neutral-50: oklch(17% 0.02 264);
+        --color-neutral-100: oklch(27% 0.024 264);
+        --color-neutral-200: oklch(33% 0.024 264);
+        --color-neutral-300: oklch(41% 0.024 264);
+        --color-neutral-400: oklch(55% 0.02 264);
+        --color-neutral-500: oklch(68% 0.018 264);
+        --color-neutral-600: oklch(76% 0.014 264);
+        --color-neutral-700: oklch(84% 0.01 264);
+        --color-neutral-800: oklch(90% 0.006 264);
+        --color-neutral-900: oklch(95% 0.003 264);
+        /* Tailwind's preflight default border colour. */
+        --color-gray-200: var(--color-neutral-200);
+
+        --color-surface: oklch(21% 0.022 264);
+        --color-surface-sunken: var(--color-neutral-50);
+        --color-surface-hovered: var(--color-neutral-100);
+
+        /* Brand: lighter so text links stay readable on dark surfaces while
+         * white button labels on bg-brand-bold keep enough contrast. */
+        --color-brand-subtlest: color-mix(in oklab, var(--color-brand-bold), black 78%);
+        --color-brand-subtler: color-mix(in oklab, var(--color-brand-bold), black 62%);
+        --color-brand-subtle: color-mix(in oklab, var(--color-brand-bold), black 35%);
+        --color-brand: #579dff;
+        --color-brand-bold: #388bff;
+        --color-brand-bolder: #85b8ff;
+
+        --color-danger-subtlest: #42221f;
+        --color-danger-subtler: #5d1f1a;
+        --color-danger-subtle: #c9372c;
+        --color-danger-bolder: #f15b50;
+        --color-danger-boldest: #ffd5d2;
+
+        --color-success-subtlest: color-mix(in oklab, var(--color-success), black 78%);
+        --color-success-subtler: color-mix(in oklab, var(--color-success), black 62%);
+        --color-success-bold: color-mix(in oklab, var(--color-success), white 15%);
+        --color-success-bolder: color-mix(in oklab, var(--color-success), white 45%);
+
+        --color-warning-subtlest: color-mix(in oklab, var(--color-warning), black 78%);
+        --color-warning-subtler: color-mix(in oklab, var(--color-warning), black 62%);
+        --color-warning-subtle: color-mix(in oklab, var(--color-warning), black 40%);
+        --color-warning-bold: color-mix(in oklab, var(--color-warning), white 15%);
+        --color-warning-bolder: color-mix(in oklab, var(--color-warning), white 45%);
+
+        /* The git-blame block palette (repository/annotate.blade.php) keeps
+         * its hues but darkens, so the light text on top stays readable. */
+        --color-red-50: oklch(30% 0.05 25);
+        --color-orange-50: oklch(30% 0.05 47);
+        --color-amber-50: oklch(30% 0.05 70);
+        --color-lime-50: oklch(30% 0.05 131);
+        --color-green-50: oklch(30% 0.05 150);
+        --color-teal-50: oklch(30% 0.05 182);
+        --color-cyan-50: oklch(30% 0.05 215);
+        --color-sky-50: oklch(30% 0.05 237);
+        --color-indigo-50: oklch(30% 0.05 277);
+        --color-violet-50: oklch(30% 0.05 293);
+        --color-fuchsia-50: oklch(30% 0.05 322);
+        --color-rose-50: oklch(30% 0.05 16);
+    }
+}
+
 [x-cloak] {
     display: none !important;
 }

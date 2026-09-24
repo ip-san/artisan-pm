@@ -55,7 +55,7 @@ new #[Layout('components.layouts.app')] class extends Component
         {{ __('注釈: v:version', ['version' => $wikiPageVersion->version]) }}
     </h1>
 
-    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+    <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
         <table class="min-w-full divide-y divide-neutral-200 font-mono text-sm">
             <tbody class="divide-y divide-neutral-100">
                 @php $previous = null; @endphp

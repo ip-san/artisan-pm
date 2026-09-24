@@ -360,7 +360,7 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('ワークフロー管理') }}</h1>
 
-    <div class="mb-6 grid grid-cols-3 gap-4 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mb-6 grid grid-cols-3 gap-4 rounded-md border border-neutral-200 bg-surface p-4">
         <div>
             <label class="block text-sm font-medium text-neutral-700">{{ __('トラッカー') }}</label>
             <select wire:model.live="tracker_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
@@ -398,7 +398,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($tracker_id && $role_id)
         <form wire:submit="save" class="space-y-8">
-            <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white p-4">
+            <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface p-4">
                 <h2 class="mb-3 text-sm font-semibold text-neutral-900">{{ __('ステータス遷移(縦: 現在のステータス、横: 変更後のステータス)') }}</h2>
                 <table class="min-w-full text-sm">
                     <thead>
@@ -434,7 +434,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </table>
             </div>
 
-            <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white p-4">
+            <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface p-4">
                 <h2 class="mb-3 text-sm font-semibold text-neutral-900">{{ __('フィールドルール(縦: フィールド、横: ステータス)') }}</h2>
                 <table class="min-w-full text-sm">
                     <thead>
@@ -474,7 +474,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <p class="text-sm text-neutral-500">{{ __('トラッカーとロールを選択してください。') }}</p>
     @endif
 
-    <div class="mt-10 rounded-md border border-neutral-200 bg-white p-4">
+    <div class="mt-10 rounded-md border border-neutral-200 bg-surface p-4">
         <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('ワークフローをコピー') }}</h2>
 
         <form wire:submit="copyWorkflow" class="space-y-4">

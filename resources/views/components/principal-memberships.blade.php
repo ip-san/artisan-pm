@@ -5,7 +5,7 @@
 --}}
 @props(['memberships', 'projects', 'roles', 'editing' => null])
 
-<section class="mt-8 rounded-md border border-neutral-200 bg-white p-4" data-principal-memberships>
+<section class="mt-8 rounded-md border border-neutral-200 bg-surface p-4" data-principal-memberships>
     <h2 class="mb-3 text-sm font-semibold text-neutral-900">{{ __('プロジェクト') }}</h2>
 
     <ul class="mb-4 divide-y divide-neutral-100 text-sm">

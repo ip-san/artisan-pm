@@ -18,7 +18,7 @@
         <summary class="cursor-pointer list-none rounded-md border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50">
             {{ $current instanceof \App\Models\Project ? $current->name : __('プロジェクトへ移動') }}
         </summary>
-        <div class="absolute left-0 z-20 mt-1 w-64 rounded-md border border-neutral-200 bg-white p-2 shadow-lg">
+        <div class="absolute left-0 z-20 mt-1 w-64 rounded-md border border-neutral-200 bg-surface p-2 shadow-lg">
             <input type="text" x-model="q" placeholder="{{ __('プロジェクトを検索') }}" autocomplete="off"
                 class="mb-2 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
             <div class="max-h-72 overflow-y-auto text-sm">

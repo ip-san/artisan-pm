@@ -49,7 +49,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </span>
         @can('update', $wikiPage)
             <a href="{{ route('wiki.edit', [$project, $wikiPage]) }}?version={{ $wikiPageVersion->version }}"
-                class="shrink-0 rounded-md border border-warning-subtle bg-white px-3 py-1 text-xs font-medium text-warning-bolder hover:bg-warning-subtler">
+                class="shrink-0 rounded-md border border-warning-subtle bg-surface px-3 py-1 text-xs font-medium text-warning-bolder hover:bg-warning-subtler">
                 {{ __('このバージョンを復元') }}
             </a>
         @endcan
@@ -57,7 +57,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <h1 class="text-xl font-semibold text-neutral-900 mb-4">{{ $wikiPage->title }}</h1>
 
-    <div class="prose prose-sm max-w-none rounded-md border border-neutral-200 bg-white p-4">
+    <div class="prose prose-sm max-w-none rounded-md border border-neutral-200 bg-surface p-4">
         {!! $this->renderedContent !!}
     </div>
 </div>

@@ -316,14 +316,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @can('viewAny', [\App\Models\TimeEntry::class, $project])
         @if ($this->totalSpentHours > 0)
-            <div class="rounded-md border border-neutral-200 bg-white p-4 mb-6">
+            <div class="rounded-md border border-neutral-200 bg-surface p-4 mb-6">
                 <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('実績工数') }}</h2>
                 <p class="text-sm text-neutral-700">{{ __(':hours 時間', ['hours' => \App\Support\Format\Hours::format($this->totalSpentHours)]) }}</p>
             </div>
         @endif
     @endcan
 
-    <div class="rounded-md border border-neutral-200 bg-white p-4">
+    <div class="rounded-md border border-neutral-200 bg-surface p-4">
         <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('有効なモジュール') }}</h2>
         <div class="flex flex-wrap gap-2">
             @forelse ($project->moduleAssignments as $assignment)
@@ -337,7 +337,7 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($project->children->isNotEmpty())
         <div class="mt-6">
             <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('サブプロジェクト') }}</h2>
-            <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
+            <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
                 @foreach ($project->children as $child)
                     <li class="px-4 py-2">
                         <a href="{{ route('projects.show', $child) }}" class="text-brand-bold hover:underline">{{ $child->name }}</a>
