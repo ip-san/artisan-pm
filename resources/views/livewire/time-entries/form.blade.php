@@ -214,6 +214,8 @@ new #[Layout('components.layouts.app')] class extends Component
         // "no move" would silently save elsewhere, so refuse it outright.
         abort_if($this->project_id !== null && $this->project_id !== $target->id, 403);
 
+        $this->hours = \App\Support\Format\Hours::normalizeInput($this->hours);
+
         $rules = [
             // Redmine's TimeEntry#safe_attributes=: the issue must be one the
             // user may see (or the entry's unchanged current issue).
@@ -316,7 +318,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div>
                 <label class="block text-sm font-medium text-neutral-700">{{ __('時間') }}</label>
-                <input type="number" step="0.01" wire:model="hours"
+                <input type="text" inputmode="decimal" wire:model="hours" placeholder="1.5 / 1:30"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('hours') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>

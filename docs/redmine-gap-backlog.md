@@ -158,6 +158,7 @@
 | 76c | A2-09c | A2-09b | S | todo |
 | 76b | A2-09b | A2-09, A2-11 | S | done(2026-09-25、一覧全体の合計のみ。グループ見出しの CF 合計・クエリごとの合計の選択(`t[]`)は対象外) |
 | 77 | A8-07 | — | S | done(2026-09-20、入力側の 1:30 は未対応) |
+| 77b | A8-07b | A8-07 | S | done(2026-09-25、`Hours::parse()`(Redmine の `to_hours`)を工数フォーム・一括編集・課題の予定工数・REST・工数インポート・受信メールに。フィルタの値は対象外) |
 | 78 | A7-07 | — | S | done(対象外: Redmine 7.0 に無い, 2026-09-20) |
 | 78b | A7-15 | — | S | done(2026-09-20) |
 | 79 | A7-14 | — | S〜M | done(2026-09-20、サムネイルのリンク先は変更なし) |
@@ -565,6 +566,7 @@
 | A8-05 | プロジェクト横断の工数一覧での編集/削除/CSV/保存済みクエリ | `time-entries.global-index` は閲覧のみ | プロジェクト単位画面の機能を横断画面へ移植(可視性は `Role.time_entries_visibility` で判定済み) | — | S〜M | 「プロジェクト横断の工数一覧」 |
 | A8-06 | 工数一覧のコンテキストメニュー(`context_menus/time_entries`) | なし | A1-05 の部品で作業分類/課題/一括編集/削除 | — | S | — |
 | A8-07 | `timespan_format`(小数/時分表示) | 小数固定 | 設定+表示ヘルパー | — | S | 設定「表示」 |
+| A8-07b | 時間の入力で `1:30`・`1h30`・`1.5h` などを受け付ける(Redmine の `String#to_hours`、`TimeEntry#hours=`・`Issue#estimated_hours=`) | **done(2026-09-25)**。`App\Support\Format\Hours::parse()`/`normalizeInput()`。工数フォーム・工数の一括編集・課題フォームの予定工数(入力欄をテキスト型に)、REST の工数作成/更新と課題の予定工数、工数の CSV インポート、受信メールの `Estimated hours:`。テスト: `HoursInputTest.php` | 数値のみ(入力欄も `type=number`) | 工数/予定工数のフィルタの値(Redmine は `to_hours` で読む)は数値のまま | S | 工数管理「TimeEntry CRUD」 |
 
 ### A-9. 横断ビュー(マイページ / 活動 / ガント / カレンダー / 検索)
 

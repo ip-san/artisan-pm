@@ -608,6 +608,8 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->authorize('create', [TimeEntry::class, $target]);
         }
 
+        $this->bulkHours = \App\Support\Format\Hours::normalizeInput($this->bulkHours);
+
         $data = $this->validate([
             'bulkActivityId' => ['nullable', Rule::in($target->activities(includeInactive: true)->pluck('id')->all())],
             'bulkSpentOn' => [$this->bulkSpentOn === '' ? 'nullable' : 'date'],
@@ -932,7 +934,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endif
                 <div>
                     <label class="block text-xs font-medium text-neutral-700">{{ __('時間') }}</label>
-                    <input type="number" step="0.01" wire:model="bulkHours" placeholder="{{ __('変更なし') }}"
+                    <input type="text" inputmode="decimal" wire:model="bulkHours" placeholder="{{ __('変更なし') }}"
                         class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                     @error('bulkHours') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>

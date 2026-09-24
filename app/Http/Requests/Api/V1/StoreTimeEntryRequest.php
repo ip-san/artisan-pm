@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Format\DateTimes;
+use App\Support\Format\Hours;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -41,6 +42,11 @@ final class StoreTimeEntryRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        // Redmine's TimeEntry#hours=: "1:30", "1h30", "1.5h" and the like.
+        if (is_string($this->input('hours'))) {
+            $this->merge(['hours' => Hours::normalizeInput($this->input('hours'))]);
+        }
+
         $this->merge(['spent_on' => $this->input('spent_on', DateTimes::today($this->user())->toDateString())]);
 
         // On /issues/{issue}/time_entries the issue is the route's, whatever

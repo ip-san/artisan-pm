@@ -118,6 +118,16 @@ test('the api sets estimated hours and rejects a negative estimate', function ()
         ->assertUnprocessable()->assertJsonValidationErrors(['estimated_hours']);
 });
 
+test('the api reads estimated hours written as hours and minutes', function () {
+    $setup = safeAttributesSetup(['add_issues', 'edit_issues']);
+    Passport::actingAs($setup['user']);
+
+    $id = $this->postJson("/api/v1/projects/{$setup['project']->id}/issues", safeAttributesPayload($setup, ['estimated_hours' => '1:30']))
+        ->assertCreated()->assertJsonPath('data.estimated_hours', 1.5)->json('data.id');
+
+    $this->putJson("/api/v1/issues/{$id}", ['estimated_hours' => '2h45'])->assertOk()->assertJsonPath('data.estimated_hours', 2.75);
+});
+
 // --- is_private ----------------------------------------------------------
 
 test('is_private is taken from a caller holding set_issues_private', function () {

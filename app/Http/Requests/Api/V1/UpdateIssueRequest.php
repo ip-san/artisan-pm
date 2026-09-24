@@ -10,6 +10,7 @@ use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Version;
 use App\Rules\IssueParentTarget;
+use App\Support\Format\Hours;
 use App\Support\Issues\AssigneeChoice;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -83,6 +84,11 @@ final class UpdateIssueRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        // Redmine's Issue#estimated_hours=: "1:30", "1h30", "1.5h" and the like.
+        if (is_string($this->input('estimated_hours'))) {
+            $this->merge(['estimated_hours' => Hours::normalizeInput($this->input('estimated_hours'))]);
+        }
+
         /** @var Issue $issue */
         $issue = $this->route('issue');
         $project = $this->namedProject();

@@ -18,6 +18,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Support\Attachments\AttachmentUploader;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Format\Hours;
 use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\StartDateDefault;
 use App\Support\Mail\MailSuppression;
@@ -658,7 +659,9 @@ final class IncomingMailService
         }
 
         if ($keyword === 'estimated hours') {
-            return is_numeric($value) && (float) $value >= 0 && (float) $value <= 9999.99 ? (float) $value : null;
+            $hours = Hours::parse($value);
+
+            return $hours !== null && $hours >= 0 && $hours <= 9999.99 ? round($hours, 2) : null;
         }
 
         if ($keyword === 'start date' || $keyword === 'due date') {

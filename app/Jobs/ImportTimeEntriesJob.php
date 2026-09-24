@@ -11,6 +11,7 @@ use App\Models\TimeEntryImport;
 use App\Models\User;
 use App\Services\TimeEntryService;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Format\Hours;
 use App\Support\Import\CsvReader;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -106,9 +107,10 @@ final class ImportTimeEntriesJob implements ShouldQueue
      */
     private function mapRowToAttributes(array $record, array $mapping, ?Enumeration $defaultActivity, bool $canLogForOthers): array
     {
-        $hours = $this->mapped($record, $mapping, 'hours');
+        $rawHours = $this->mapped($record, $mapping, 'hours');
+        $hours = $rawHours === null ? null : Hours::parse($rawHours);
 
-        if ($hours === null || ! is_numeric($hours) || (float) $hours <= 0) {
+        if ($hours === null || $hours <= 0) {
             throw new RuntimeException(__('時間が空または不正です。'));
         }
 
@@ -154,7 +156,7 @@ final class ImportTimeEntriesJob implements ShouldQueue
             'user_id' => $user !== null ? $user->id : $this->import->user_id,
             'author_id' => $this->import->user_id,
             'activity_id' => $activity->id,
-            'hours' => (float) $hours,
+            'hours' => round($hours, 2),
             'spent_on' => $spentOn,
             'comments' => $this->mapped($record, $mapping, 'comments'),
         ];

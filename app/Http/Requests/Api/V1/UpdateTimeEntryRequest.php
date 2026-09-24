@@ -7,6 +7,7 @@ namespace App\Http\Requests\Api\V1;
 use App\Models\Issue;
 use App\Models\TimeEntry;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Format\Hours;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -20,6 +21,11 @@ final class UpdateTimeEntryRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        // Redmine's TimeEntry#hours=: "1:30", "1h30", "1.5h" and the like.
+        if (is_string($this->input('hours'))) {
+            $this->merge(['hours' => Hours::normalizeInput($this->input('hours'))]);
+        }
+
         /** @var TimeEntry $timeEntry */
         $timeEntry = $this->route('time_entry');
 

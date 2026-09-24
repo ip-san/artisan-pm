@@ -753,6 +753,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function save(): void
     {
+        $this->estimated_hours = \App\Support\Format\Hours::normalizeInput($this->estimated_hours);
+
         $rules = [
             // Scoped to this project (rather than a bare exists:table,id) so a
             // crafted request can't attach an issue to another project's
@@ -1098,7 +1100,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @unless ($this->isCoreFieldDisabled('estimated_hours'))
             <div>
                 <label class="block text-sm font-medium text-neutral-700">{{ __('予定工数(時間)') }}</label>
-                <input type="number" step="0.01" min="0" wire:model="estimated_hours"
+                <input type="text" inputmode="decimal" wire:model="estimated_hours"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('estimated_hours') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
