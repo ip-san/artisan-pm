@@ -37,9 +37,9 @@ final class UserController extends Controller
 
         $users = User::query()
             ->when(isset($data['status']), fn ($query) => $query->where('status', $data['status']))
-            ->when(isset($data['name']), function ($query) use ($data) {
-                $query->where(fn ($q) => $q->where('name', 'like', "%{$data['name']}%")->orWhere('email', 'like', "%{$data['name']}%"));
-            })
+            // Redmine's Principal.like: name, login, any email address, or
+            // first/last name matching every word.
+            ->when(isset($data['name']), fn ($query) => $query->matchingName((string) $data['name']))
             ->orderBy('name')
             ->paginate();
 

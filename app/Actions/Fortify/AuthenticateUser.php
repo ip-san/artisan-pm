@@ -83,7 +83,18 @@ final class AuthenticateUser
             return null;
         }
 
-        $user->update(self::nameAttributes($attributes, $user->name));
+        $name = self::nameAttributes($attributes, $user->name);
+
+        // A source that maps the first/last name attributes is where the
+        // parts come from: once the entry stops providing them, the stored
+        // parts go too, so the name falls back to the name attribute
+        // instead of the saving hook rebuilding it from stale parts. A
+        // source that maps neither leaves parts entered in the app alone.
+        if (! isset($name['firstname']) && (filled($source->attr_firstname) || filled($source->attr_lastname))) {
+            $name += ['firstname' => null, 'lastname' => null];
+        }
+
+        $user->update($name);
 
         return $user;
     }
@@ -94,7 +105,7 @@ final class AuthenticateUser
      * saving hook then derives `name`), else the single name attribute.
      *
      * @param  array{name: ?string, firstname: ?string, lastname: ?string, mail: ?string}  $attributes
-     * @return array{name: string, firstname?: string, lastname?: string}
+     * @return array{name: string, firstname?: ?string, lastname?: ?string}
      */
     private static function nameAttributes(array $attributes, string $fallbackName): array
     {

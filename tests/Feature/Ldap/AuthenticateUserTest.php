@@ -183,3 +183,39 @@ test('the authentication source form saves the first and last name attributes', 
 
     expect($source->fresh()->only(['attr_firstname', 'attr_lastname']))->toBe(['attr_firstname' => 'givenName', 'attr_lastname' => 'sn']);
 });
+
+test('a re-login clears name parts the directory entry no longer provides', function () {
+    $source = AuthSource::factory()->onTheFly()->create(['attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com', 'attr_name' => 'cn', 'attr_firstname' => 'givenName', 'attr_lastname' => 'sn']);
+    $fake = fakeAuthSourceDirectory($source);
+
+    $dn = 'uid=tyamada,dc=example,dc=com';
+    $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => ['tyamada'], 'cn' => ['Yamada Taro'], 'givenName' => ['Taro'], 'sn' => ['Yamada'], 'mail' => ['tyamada@example.com']]);
+    $fake->actingAs($dn);
+
+    $user = app(AuthenticateUser::class)(loginRequest('tyamada', 'whatever-password'));
+    expect($user->only(['firstname', 'lastname']))->toBe(['firstname' => 'Taro', 'lastname' => 'Yamada']);
+
+    $fake->query()->delete($dn);
+    $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => ['tyamada'], 'cn' => ['Yamada Taro'], 'mail' => ['tyamada@example.com']]);
+    $fake->actingAs($dn);
+
+    app(AuthenticateUser::class)(loginRequest('tyamada', 'whatever-password'));
+
+    expect($user->fresh()->only(['name', 'firstname', 'lastname']))->toBe(['name' => 'Yamada Taro', 'firstname' => null, 'lastname' => null]);
+});
+
+test('a re-login through a source without name part attributes keeps parts entered in the app', function () {
+    $source = AuthSource::factory()->onTheFly()->create(['attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com', 'attr_name' => 'cn']);
+    $fake = fakeAuthSourceDirectory($source);
+
+    $dn = 'uid=hsato,dc=example,dc=com';
+    $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => ['hsato'], 'cn' => ['Sato Hanako'], 'mail' => ['hsato@example.com']]);
+    $fake->actingAs($dn);
+
+    $user = app(AuthenticateUser::class)(loginRequest('hsato', 'whatever-password'));
+    $user->update(['firstname' => 'Hanako', 'lastname' => 'Sato']);
+
+    app(AuthenticateUser::class)(loginRequest('hsato', 'whatever-password'));
+
+    expect($user->fresh()->only(['firstname', 'lastname']))->toBe(['firstname' => 'Hanako', 'lastname' => 'Sato']);
+});

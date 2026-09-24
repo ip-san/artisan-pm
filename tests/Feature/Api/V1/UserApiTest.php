@@ -2,6 +2,7 @@
 
 use App\Enums\UserStatus;
 use App\Models\AuthSource;
+use App\Models\EmailAddress;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\User;
@@ -262,4 +263,24 @@ test('a user updates their own first and last names through my/account', functio
 
     $this->putJson('/api/v1/my/account', ['firstname' => 'Jane', 'lastname' => 'Roe'])->assertOk()->assertJsonPath('data.name', 'Jane Roe');
     expect($user->fresh()->only(['firstname', 'lastname']))->toBe(['firstname' => 'Jane', 'lastname' => 'Roe']);
+});
+
+test('the name filter also matches login, first and last name and additional emails like Redmine', function () {
+    $admin = User::factory()->admin()->create();
+    $byLogin = User::factory()->create(['name' => 'Alpha', 'login' => 'qx-login']);
+    $byParts = User::factory()->create(['firstname' => 'Quentin', 'lastname' => 'Xavier']);
+    $byAlias = User::factory()->create(['name' => 'Beta']);
+    EmailAddress::query()->create(['user_id' => $byAlias->id, 'address' => 'qxalias@example.com', 'notify' => false]);
+    $other = User::factory()->create(['name' => 'Gamma', 'firstname' => null, 'lastname' => null]);
+
+    Passport::actingAs($admin);
+
+    $ids = fn (string $term) => collect($this->getJson('/api/v1/users?name='.urlencode($term))->assertOk()->json('data'))->pluck('id');
+
+    expect($ids('QX'))->toContain($byLogin->id)->toContain($byAlias->id)->not->toContain($other->id)
+        // Every word must match the first or last name.
+        ->and($ids('xav quen'))->toContain($byParts->id)->not->toContain($other->id)
+        ->and($ids('xav nobody'))->not->toContain($byParts->id)
+        // LIKE wildcards in the term are literal.
+        ->and($ids('%'))->toBeEmpty();
 });

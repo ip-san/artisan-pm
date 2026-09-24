@@ -317,6 +317,41 @@ final class User extends Authenticatable implements HasLocalePreference, OAuthen
     }
 
     /**
+     * Users whose name, login or an email address contains $term, or whose
+     * first or last name contains each of its words — Redmine's
+     * Principal.like, the `name` filter of GET /users. Case-insensitive.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeMatchingName(Builder $query, string $term): Builder
+    {
+        $term = trim($term);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        $like = fn (string $value) => '%'.addcslashes(mb_strtolower($value), '\\%_').'%';
+        $pattern = $like($term);
+        $tokens = preg_split('/\s+/u', $term, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return $query->where(function (Builder $query) use ($pattern, $tokens, $like): void {
+            $query->whereRaw('LOWER(users.name) LIKE ?', [$pattern])
+                ->orWhereRaw('LOWER(users.login) LIKE ?', [$pattern])
+                ->orWhereRaw('LOWER(users.email) LIKE ?', [$pattern])
+                ->orWhereIn('users.id', EmailAddress::query()->select('user_id')->whereRaw('LOWER(address) LIKE ?', [$pattern]))
+                ->orWhere(function (Builder $query) use ($tokens, $like): void {
+                    foreach ($tokens as $token) {
+                        $query->where(fn (Builder $query) => $query
+                            ->whereRaw('LOWER(users.firstname) LIKE ?', [$like($token)])
+                            ->orWhereRaw('LOWER(users.lastname) LIKE ?', [$like($token)]));
+                    }
+                });
+        });
+    }
+
+    /**
      * Orders users by {@see self::orderFieldsForFormat()} (case-insensitively),
      * then id.
      *
