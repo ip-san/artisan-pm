@@ -641,6 +641,108 @@ final class Project extends Model implements HasMedia
         return $this->status === ProjectStatus::Closed;
     }
 
+    /**
+     * Redmine's Project#archive: archives the project with its whole
+     * subtree, unless an issue outside the subtree targets one of the
+     * subtree's versions (archiving would hide that version from it).
+     *
+     * @return bool false when an outside issue blocks archiving
+     */
+    public function archive(): bool
+    {
+        [$left, $right] = $this->nestedBounds();
+
+        $versionIds = Version::query()
+            ->whereIn('project_id', $this->selfAndDescendantsQuery($left, $right)->select('id'))
+            ->pluck('id');
+
+        $blockedByOutsideIssue = $versionIds->isNotEmpty() && Issue::query()
+            ->whereIn('fixed_version_id', $versionIds)
+            ->whereNotIn('project_id', $this->selfAndDescendantsQuery($left, $right)->select('id'))
+            ->exists();
+
+        if ($blockedByOutsideIssue) {
+            return false;
+        }
+
+        $this->selfAndDescendantsQuery($left, $right)->update(['status' => ProjectStatus::Archived->value, 'updated_at' => now()]);
+        $this->refresh();
+
+        return true;
+    }
+
+    /**
+     * Redmine's Project#unarchive: unarchives the project together with
+     * its archived ancestors (an archived parent would otherwise hide it
+     * again), back to closed when a non-archived ancestor is closed.
+     * Archived subprojects stay archived.
+     */
+    public function unarchive(): void
+    {
+        [$left, $right] = $this->nestedBounds();
+
+        $ancestors = self::query()->where('_lft', '<', $left)->where('_rgt', '>', $right);
+        $newStatus = (clone $ancestors)->where('status', ProjectStatus::Closed->value)->exists()
+            ? ProjectStatus::Closed
+            : ProjectStatus::Active;
+
+        self::query()
+            ->where('_lft', '<=', $left)
+            ->where('_rgt', '>=', $right)
+            ->where('status', ProjectStatus::Archived->value)
+            ->update(['status' => $newStatus->value, 'updated_at' => now()]);
+        $this->refresh();
+    }
+
+    /**
+     * Redmine's Project#close: closes the project and its active
+     * subprojects (archived ones stay archived).
+     */
+    public function close(): void
+    {
+        $this->moveSubtreeStatus(ProjectStatus::Active, ProjectStatus::Closed);
+    }
+
+    /**
+     * Redmine's Project#reopen: reopens the project and its closed
+     * subprojects.
+     */
+    public function reopen(): void
+    {
+        $this->moveSubtreeStatus(ProjectStatus::Closed, ProjectStatus::Active);
+    }
+
+    private function moveSubtreeStatus(ProjectStatus $from, ProjectStatus $to): void
+    {
+        [$left, $right] = $this->nestedBounds();
+
+        $this->selfAndDescendantsQuery($left, $right)
+            ->where('status', $from->value)
+            ->update(['status' => $to->value, 'updated_at' => now()]);
+        $this->refresh();
+    }
+
+    /**
+     * The stored nested-set bounds — read fresh, since the in-memory
+     * model may predate a tree change.
+     *
+     * @return array{0: int, 1: int}
+     */
+    private function nestedBounds(): array
+    {
+        $bounds = self::query()->whereKey($this->getKey())->firstOrFail(['_lft', '_rgt']);
+
+        return [(int) $bounds->_lft, (int) $bounds->_rgt];
+    }
+
+    /**
+     * @return Builder<Project>
+     */
+    private function selfAndDescendantsQuery(int $left, int $right): Builder
+    {
+        return self::query()->where('_lft', '>=', $left)->where('_rgt', '<=', $right);
+    }
+
     public function isBookmarkedBy(User $user): bool
     {
         return $user->bookmarkedProjects()->where('projects.id', $this->id)->exists();

@@ -262,6 +262,41 @@ test('only an admin can archive or unarchive a project via the api', function ()
     expect($project->fresh()->status)->toBe(ProjectStatus::Active);
 });
 
+test('archiving via the api cascades to subprojects and reports a blocked archive like Redmine', function () {
+    $parent = Project::factory()->create();
+    $child = Project::factory()->create(['parent_id' => $parent->id]);
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $version = Version::factory()->for($child)->create(['sharing' => 'system']);
+    $issue = Issue::factory()->for(Project::factory())->create(['fixed_version_id' => $version->id]);
+
+    $this->postJson("/api/v1/projects/{$parent->id}/archive")
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.0', 'このプロジェクトはアーカイブできません');
+    expect($child->fresh()->status)->toBe(ProjectStatus::Active);
+
+    $issue->update(['fixed_version_id' => null]);
+
+    $this->postJson("/api/v1/projects/{$parent->id}/archive")->assertNoContent();
+    expect($child->fresh()->status)->toBe(ProjectStatus::Archived);
+
+    $this->postJson("/api/v1/projects/{$child->id}/unarchive")->assertNoContent();
+    expect($parent->fresh()->status)->toBe(ProjectStatus::Active)
+        ->and($child->fresh()->status)->toBe(ProjectStatus::Active);
+});
+
+test('closing via the api closes subprojects too', function () {
+    $parent = Project::factory()->create();
+    $child = Project::factory()->create(['parent_id' => $parent->id]);
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $this->postJson("/api/v1/projects/{$parent->id}/close")->assertNoContent();
+    expect($child->fresh()->status)->toBe(ProjectStatus::Closed);
+
+    $this->postJson("/api/v1/projects/{$parent->id}/reopen")->assertNoContent();
+    expect($child->fresh()->status)->toBe(ProjectStatus::Active);
+});
+
 test('an archived project cannot be reopened or edited via the api even by a member with the right permission', function () {
     $project = Project::factory()->create(['status' => ProjectStatus::Archived]);
     $user = User::factory()->create();

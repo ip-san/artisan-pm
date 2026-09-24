@@ -257,6 +257,7 @@
     "このプロジェクトのWikiを、すべてのページ・履歴・添付ファイルごと削除します。この操作は取り消せません。よろしいですか?": "This will delete this project's wiki along with all its pages, history and files. This cannot be undone. Are you sure?",
     "このプロジェクトの別の課題へ付け替える:": "Reassign the reported hours to another issue of this project:",
     "このプロジェクトの課題で使用中のため外せません: :trackers": "The following trackers are used by issues of this project and cannot be removed: :trackers",
+    "このプロジェクトはアーカイブできません": "This project cannot be archived",
     "このプロジェクトをアーカイブしますか?アーカイブ中は編集できなくなります。": "Are you sure you want to archive this project? It cannot be edited while archived.",
     "このプロジェクトをクローズしますか?": "Are you sure you want to close this project?",
     "このページを削除しますか?子ページは最上位に移動します。": "Are you sure you want to delete this page? Its child pages will be moved to the top level.",

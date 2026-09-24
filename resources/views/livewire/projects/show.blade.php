@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Support\Issues\SubprojectScope;
@@ -53,28 +52,32 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('close', $this->project);
 
-        $this->setStatus(ProjectStatus::Closed);
+        $this->project->close();
     }
 
     public function reopenProject(): void
     {
         $this->authorize('close', $this->project);
 
-        $this->setStatus(ProjectStatus::Active);
+        $this->project->reopen();
     }
 
     public function archiveProject(): void
     {
         $this->authorize('archive', $this->project);
 
-        $this->setStatus(ProjectStatus::Archived);
+        if (! $this->project->archive()) {
+            $this->addError('archive', __('このプロジェクトはアーカイブできません'));
+        }
     }
 
     public function unarchiveProject(): void
     {
         $this->authorize('archive', $this->project);
 
-        $this->setStatus(ProjectStatus::Active);
+        if (! $this->project->isOpen()) {
+            $this->project->unarchive();
+        }
     }
 
     /**
@@ -106,17 +109,6 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->redirect(route('projects.index'), navigate: true);
     }
-
-    /**
-     * status is deliberately excluded from Project's #[Fillable] — it's
-     * only ever meant to change through these explicit, permission-gated
-     * actions, not through the general edit form's mass assignment.
-     */
-    private function setStatus(ProjectStatus $status): void
-    {
-        $this->project->status = $status;
-        $this->project->save();
-    }
 }; ?>
 
 <div>
@@ -131,6 +123,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endunless
             </h1>
             <p class="text-sm text-neutral-500">{{ $project->identifier }}</p>
+            @error('archive') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
         <div class="flex gap-2">
             <button wire:click="toggleBookmark" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">

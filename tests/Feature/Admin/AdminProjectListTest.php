@@ -1,10 +1,12 @@
 <?php
 
 use App\Enums\ProjectStatus;
+use App\Models\Issue;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Version;
 use Livewire\Livewire;
 
 /**
@@ -82,6 +84,25 @@ test('an administrator archives and unarchives one project from the menu', funct
 
     $list->call('unarchive', $project->id);
     expect($project->fresh()->status)->toBe(ProjectStatus::Active);
+});
+
+test('archiving from the admin list cascades to subprojects and shows why a blocked archive failed', function () {
+    $parent = Project::factory()->create();
+    $child = Project::factory()->create(['parent_id' => $parent->id]);
+    $version = Version::factory()->for($child)->create(['sharing' => 'system']);
+    $issue = Issue::factory()->for(Project::factory())->create(['fixed_version_id' => $version->id]);
+    $list = Livewire::actingAs(User::factory()->admin()->create())->test('admin.projects');
+
+    $list->call('archive', $parent->id)->assertSee('このプロジェクトはアーカイブできません');
+    expect($parent->fresh()->status)->toBe(ProjectStatus::Active);
+
+    $issue->update(['fixed_version_id' => null]);
+    $list->call('archive', $parent->id);
+    expect($child->fresh()->status)->toBe(ProjectStatus::Archived);
+
+    $list->call('unarchive', $child->id);
+    expect($parent->fresh()->status)->toBe(ProjectStatus::Active)
+        ->and($child->fresh()->status)->toBe(ProjectStatus::Active);
 });
 
 test('bulk delete needs sudo mode and "はい" typed, then removes the selection with its subprojects only', function () {

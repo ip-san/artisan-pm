@@ -177,8 +177,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $project = Project::query()->findOrFail($projectId);
         $this->authorize('archive', $project);
 
-        $project->status = ProjectStatus::Archived;
-        $project->save();
+        if (! $project->archive()) {
+            session()->flash('error', __('このプロジェクトはアーカイブできません'));
+        }
 
         $this->finishAction();
     }
@@ -188,8 +189,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $project = Project::query()->findOrFail($projectId);
         $this->authorize('archive', $project);
 
-        $project->status = ProjectStatus::Active;
-        $project->save();
+        if (! $project->isOpen()) {
+            $project->unarchive();
+        }
 
         $this->finishAction();
     }
@@ -313,6 +315,10 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">{{ __('プロジェクト管理') }}</h1>
         <a href="{{ route('projects.create') }}" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">{{ __('新規プロジェクト') }}</a>
     </div>
+
+    @if (session('error'))
+        <div class="mb-4 rounded-md bg-danger-subtlest px-4 py-2 text-sm text-danger-bolder">{{ session('error') }}</div>
+    @endif
 
     @if (session('status'))
         <div class="mb-4 rounded-md bg-success-subtlest px-4 py-2 text-sm text-success-bolder">{{ session('status') }}</div>

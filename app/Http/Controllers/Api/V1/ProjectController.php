@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\CustomizableType;
 use App\Enums\ProjectModuleKey;
-use App\Enums\ProjectStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreProjectRequest;
 use App\Http\Requests\Api\V1\UpdateProjectRequest;
@@ -192,7 +191,7 @@ final class ProjectController extends Controller
     {
         Gate::authorize('close', $project);
 
-        $this->setStatus($project, ProjectStatus::Closed);
+        $project->close();
 
         return response()->json(status: 204);
     }
@@ -201,7 +200,7 @@ final class ProjectController extends Controller
     {
         Gate::authorize('close', $project);
 
-        $this->setStatus($project, ProjectStatus::Active);
+        $project->reopen();
 
         return response()->json(status: 204);
     }
@@ -210,7 +209,9 @@ final class ProjectController extends Controller
     {
         Gate::authorize('archive', $project);
 
-        $this->setStatus($project, ProjectStatus::Archived);
+        if (! $project->archive()) {
+            return response()->json(['errors' => [__('このプロジェクトはアーカイブできません')]], 422);
+        }
 
         return response()->json(status: 204);
     }
@@ -219,7 +220,9 @@ final class ProjectController extends Controller
     {
         Gate::authorize('archive', $project);
 
-        $this->setStatus($project, ProjectStatus::Active);
+        if (! $project->isOpen()) {
+            $project->unarchive();
+        }
 
         return response()->json(status: 204);
     }
@@ -243,18 +246,5 @@ final class ProjectController extends Controller
         $project->delete();
 
         return response()->json(status: 204);
-    }
-
-    /**
-     * status isn't in Project's #[Fillable] list (matches
-     * projects/show.blade.php's own setStatus(), which assigns the
-     * property directly rather than going through update() for the same
-     * reason) — a mass-assignment update(['status' => ...]) would
-     * silently no-op instead of persisting the transition.
-     */
-    private function setStatus(Project $project, ProjectStatus $status): void
-    {
-        $project->status = $status;
-        $project->save();
     }
 }
