@@ -1,9 +1,13 @@
 <?php
 
+use App\Enums\QueryType;
 use App\Enums\UserStatus;
 use App\Models\AuthSource;
+use App\Models\CustomField;
 use App\Models\Group;
+use App\Models\Query;
 use App\Models\User;
+use Laravel\Passport\Passport;
 use Livewire\Livewire;
 
 /**
@@ -143,4 +147,69 @@ test('contains ignores case and treats % and _ literally', function () {
     expect(userListNames($admin, ['name' => ['operator' => '~', 'values' => ['SURE']]]))->toBe(['100% Sure'])
         ->and(userListNames($admin, ['name' => ['operator' => '~', 'values' => ['%']]]))->toBe(['100% Sure'])
         ->and(userListNames($admin, ['name' => ['operator' => '!~', 'values' => ['sure']]]))->toBe(['Admin', 'Plain']);
+});
+
+test('the list is paginated with the page size choice and the CSV still has every filtered row', function () {
+    $admin = User::factory()->admin()->create(['name' => 'Admin']);
+    User::factory()->count(30)->sequence(fn ($sequence) => ['name' => sprintf('User %02d', $sequence->index)])->create();
+
+    $list = Livewire::actingAs($admin)->test('users.index');
+    expect($list->get('users')->total())->toBe(31)->and($list->get('users')->count())->toBe(25);
+
+    $list->set('perPage', 50);
+    expect($list->get('users')->count())->toBe(31);
+
+    $component = Livewire::actingAs($admin)->test('users.index')->call('exportCsv');
+    expect(substr_count(base64_decode($component->effects['download']['content']), 'User '))->toBe(30);
+});
+
+test('user custom fields are filters, columns and sort keys', function () {
+    $admin = User::factory()->admin()->create(['name' => 'Admin']);
+    $team = CustomField::factory()->create(['customized_type' => 'user', 'name' => 'Team', 'is_filter' => true]);
+    $alice = User::factory()->create(['name' => 'Alice']);
+    $bob = User::factory()->create(['name' => 'Bob']);
+    $alice->setCustomFieldValues([$team->id => 'Zeta']);
+    $bob->setCustomFieldValues([$team->id => 'Alpha']);
+
+    expect(userListNames($admin, ["cf_{$team->id}" => ['operator' => '=', 'values' => ['Zeta']]]))->toBe(['Alice'])
+        ->and(userListNames($admin, [], "cf_{$team->id}", 'asc'))->toBe(['Admin', 'Bob', 'Alice']);
+
+    Livewire::actingAs($admin)->test('users.index')
+        ->set('columns', ['name', "cf_{$team->id}"])
+        ->assertSee('Team')->assertSee('Zeta')->assertSee('Alpha');
+});
+
+test('administrators save and load user queries that other users cannot see', function () {
+    $admin = User::factory()->admin()->create(['name' => 'Admin']);
+    $otherAdmin = User::factory()->admin()->create(['name' => 'Other admin']);
+    User::factory()->create(['name' => 'Locked One', 'status' => UserStatus::Locked]);
+
+    Livewire::actingAs($admin)->test('users.index')
+        ->set('activeFilterKeys', ['status'])->set('filterOperators.status', '=')->set('filterValues.status', ['locked'])
+        ->set('columns', ['email', 'name'])
+        ->set('newQueryName', 'Locked users')
+        ->call('saveQuery')->assertHasNoErrors();
+
+    $query = Query::query()->where('name', 'Locked users')->firstOrFail();
+    expect($query->type)->toBe(QueryType::User)->and($query->column_names)->toBe(['email', 'name']);
+
+    $loaded = Livewire::actingAs($otherAdmin)->test('users.index')->assertSee('Locked users')->call('loadQuery', $query->id);
+    expect($loaded->get('users')->pluck('name')->all())->toBe(['Locked One'])->and($loaded->get('visibleColumns'))->toBe(['email', 'name']);
+
+    $member = User::factory()->create();
+    expect(Query::visibleGlobally(QueryType::User, $member))->toBeEmpty()
+        ->and($query->visibleTo($member))->toBeFalse();
+    Livewire::actingAs($member)->test('users.index')->assertForbidden();
+    Passport::actingAs($member);
+    $this->getJson('/api/v1/queries?type=user')->assertOk()->assertJsonCount(0, 'data');
+});
+
+test('a query of another type cannot be loaded into the user list', function () {
+    $admin = User::factory()->admin()->create();
+    $issueQuery = Query::create([
+        'name' => 'Issues', 'type' => QueryType::Issue->value, 'user_id' => $admin->id, 'project_id' => null,
+        'visibility' => 'public', 'filters' => [], 'column_names' => ['subject'], 'sort_criteria' => [],
+    ]);
+
+    Livewire::actingAs($admin)->test('users.index')->call('loadQuery', $issueQuery->id)->assertNotFound();
 });

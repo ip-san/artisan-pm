@@ -1,22 +1,38 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
+use App\Concerns\ReordersColumns;
+use App\Concerns\SelectsPageSize;
+use App\Enums\QueryType;
+use App\Enums\QueryVisibility;
 use App\Enums\UserStatus;
 use App\Models\Group;
+use App\Models\Query as SavedQuery;
 use App\Models\User;
 use App\Services\AccountDeletionService;
 use App\Support\Export\CsvCell;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\UserFilterFieldRegistry;
+use App\Support\Query\CustomFieldFilter;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
+    use ReordersColumns;
+    use SelectsPageSize;
+    use WithPagination;
+
+    public string $newQueryName = '';
+
+    public bool $showSaveForm = false;
 
     /** @var array<int, string> */
     public array $selected = [];
@@ -49,7 +65,74 @@ new #[Layout('components.layouts.app')] class extends Component
     public function applyFilters(): void
     {
         $this->selected = [];
+        $this->resetPage();
         unset($this->users, $this->selectedUsers);
+    }
+
+    /**
+     * Saved user queries (Redmine's UserQuery): administrators only, and
+     * every administrator sees all of them.
+     *
+     * @return Collection<int, SavedQuery>
+     */
+    #[Computed]
+    public function savedQueries(): Collection
+    {
+        return SavedQuery::visibleGlobally(QueryType::User, auth()->user());
+    }
+
+    public function saveQuery(): void
+    {
+        $this->authorize('viewAny', User::class);
+
+        $data = $this->validate(['newQueryName' => ['required', 'string', 'max:255']]);
+
+        SavedQuery::create([
+            'name' => $data['newQueryName'],
+            'type' => QueryType::User->value,
+            'user_id' => auth()->id(),
+            'project_id' => null,
+            'visibility' => QueryVisibility::Private->value,
+            'filters' => $this->builtFilters(),
+            'column_names' => $this->visibleColumns,
+            'sort_criteria' => $this->sortKey !== null ? [[$this->sortKey, $this->sortDirection]] : [],
+            'group_by' => null,
+        ]);
+
+        $this->reset(['newQueryName', 'showSaveForm']);
+        unset($this->savedQueries);
+        session()->flash('status', __('クエリを保存しました。'));
+    }
+
+    public function loadQuery(int $queryId): void
+    {
+        $this->authorize('viewAny', User::class);
+
+        $query = SavedQuery::query()->where('type', QueryType::User->value)->whereNull('project_id')->find($queryId);
+
+        abort_if($query === null, 404);
+        abort_unless($query->visibleTo(auth()->user()), 403);
+
+        $this->activeFilterKeys = array_keys($query->filters ?? []);
+        $this->filterOperators = [];
+        $this->filterValues = [];
+
+        foreach ($query->filters ?? [] as $key => $filter) {
+            $this->filterOperators[$key] = $filter['operator'];
+            $this->filterValues[$key] = $filter['values'] ?? [];
+        }
+
+        $this->columns = $query->column_names ?? [];
+        $this->sortKey = null;
+        $this->sortDirection = 'asc';
+
+        if (isset($query->sort_criteria[0])) {
+            [$this->sortKey, $this->sortDirection] = $query->sort_criteria[0];
+        }
+
+        $this->selected = [];
+        $this->resetPage();
+        unset($this->users, $this->selectedUsers, $this->visibleColumns);
     }
 
     public function sortBy(string $key): void
@@ -70,13 +153,21 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function visibleColumns(): array
     {
-        $chosen = array_values(array_intersect(array_keys(UserFilterFieldRegistry::columns()), $this->columns));
+        $chosen = array_values(array_intersect($this->columns, array_keys(UserFilterFieldRegistry::columns())));
 
         return $chosen === [] ? UserFilterFieldRegistry::defaultColumns() : $chosen;
     }
 
     public function columnValue(User $user, string $key): string
     {
+        if (str_starts_with($key, 'cf_')) {
+            return $user->customFieldValues
+                ->where('custom_field_id', (int) substr($key, 3))
+                ->map(fn ($value) => $value->displayValue())
+                ->filter(fn ($value) => $value !== null && $value !== '')
+                ->join(', ');
+        }
+
         return match ($key) {
             'name' => $user->name,
             'login' => $user->login,
@@ -105,7 +196,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('viewAny', User::class);
 
         $columns = $this->visibleColumns;
-        $users = $this->users;
+        $users = $this->filteredUsersQuery()->get();
 
         return response()->streamDownload(function () use ($columns, $users): void {
             $handle = fopen('php://output', 'w');
@@ -135,7 +226,11 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function selectedUsers(): Collection
     {
-        return $this->users->whereIn('id', array_map('intval', $this->selected))->values();
+        if ($this->selected === []) {
+            return collect();
+        }
+
+        return $this->filteredUsersQuery()->whereIn('users.id', array_map('intval', $this->selected))->get();
     }
 
     /**
@@ -146,7 +241,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('viewAny', User::class);
 
-        abort_unless($this->users->contains('id', $userId), 404);
+        abort_unless($this->filteredUsersQuery()->whereKey($userId)->exists(), 404);
 
         if (! in_array($userId, array_map('intval', $this->selected), true)) {
             $this->selected = [(string) $userId];
@@ -223,18 +318,29 @@ new #[Layout('components.layouts.app')] class extends Component
      * admin list" outcome needs an explicit filter here.
      */
     #[Computed]
-    public function users(): Collection
+    public function users(): LengthAwarePaginator
     {
-        $query = User::query()->with(['authSource', 'groups'])
+        return $this->filteredUsersQuery()->paginate($this->pageSize());
+    }
+
+    /**
+     * @return Builder<User>
+     */
+    private function filteredUsersQuery(): Builder
+    {
+        $query = User::query()->with(['authSource', 'groups', 'customFieldValues.customField'])
             ->where('status', '!=', UserStatus::Deleted);
 
         $query = $this->engine->applyFilters($query, $this->builtFilters());
 
-        if ($this->sortKey !== null && in_array($this->sortKey, array_keys(UserFilterFieldRegistry::columns()), true)) {
-            $query = $this->engine->applySort($query, [[$this->sortKey, $this->sortDirection]]);
+        if ($this->sortKey !== null && array_key_exists($this->sortKey, UserFilterFieldRegistry::columns())) {
+            $field = UserFilterFieldRegistry::customFieldFor($this->sortKey);
+            $query = $field !== null
+                ? (new CustomFieldFilter($field))->applySort($query, $this->sortDirection === 'desc' ? 'desc' : 'asc')
+                : $this->engine->applySort($query, [[$this->sortKey, $this->sortDirection]]);
         }
 
-        return $query->orderBy('name')->get();
+        return $query->orderBy('name')->orderBy('users.id');
     }
 
     public function toggleLock(int $userId): void
@@ -321,6 +427,17 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
+    <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
+        @forelse ($this->savedQueries as $savedQuery)
+            <button wire:key="user-saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
+                {{ $savedQuery->name }}
+            </button>
+        @empty
+            <span class="text-neutral-400">{{ __('なし') }}</span>
+        @endforelse
+    </div>
+
     <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
@@ -336,6 +453,20 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </div>
             <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('CSVエクスポート') }}</button>
+            <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
+        </div>
+
+        @if ($showSaveForm)
+            <form wire:submit="saveQuery" class="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3">
+                <input type="text" wire:model="newQueryName" placeholder="{{ __('クエリ名') }}" class="rounded-md border-neutral-300 text-sm">
+                <span class="text-xs text-neutral-500">{{ __('(すべての管理者に表示されます)') }}</span>
+                <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
+                @error('newQueryName') <span class="text-sm text-danger-bolder">{{ $message }}</span> @enderror
+            </form>
+        @endif
+
+        <div class="mt-3">
+            <x-column-order :columns="$this->visibleColumns" :labels="\App\Support\Query\UserFilterFieldRegistry::columns()" />
         </div>
     </div>
 
@@ -406,4 +537,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </tbody>
         </table>
     </div>
+
+    <div class="mt-2 flex justify-end"><x-per-page-select :selected="$this->users->perPage()" :total="$this->users->total()" /></div>
+    {{ $this->users->links() }}
 </div>

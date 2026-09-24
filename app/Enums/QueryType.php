@@ -15,4 +15,19 @@ enum QueryType: string
      * seen and used by administrators only.
      */
     case ProjectAdmin = 'project_admin';
+
+    /**
+     * Redmine's UserQuery: the administrator's user list, whose saved
+     * queries only administrators see and use.
+     */
+    case User = 'user';
+
+    /**
+     * Whether the type's saved queries belong to administrators only
+     * (Redmine's ProjectAdminQuery#visible? and UserQuery#visible?).
+     */
+    public function isAdminOnly(): bool
+    {
+        return $this === self::ProjectAdmin || $this === self::User;
+    }
 }
