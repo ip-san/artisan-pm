@@ -5,22 +5,23 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\Setting;
-use App\Rules\RequiredPasswordCharacterClasses;
-use App\Support\Attachments\AttachmentUploader;
-use App\Support\Mail\PublicUrl;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use App\Models\User;
 use App\Policies\CalendarPolicy;
 use App\Policies\GanttPolicy;
+use App\Rules\RequiredPasswordCharacterClasses;
+use App\Support\Attachments\AttachmentUploader;
+use App\Support\Mail\PublicUrl;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 final class AppServiceProvider extends ServiceProvider
 {
@@ -35,6 +36,15 @@ final class AppServiceProvider extends ServiceProvider
         Model::preventLazyLoading(! $this->app->isProduction());
 
         Gate::before(fn (User $user, string $ability) => $user->is_admin ? true : null);
+
+        // dompdf writes its temporary files to temp_dir (under storage/, as
+        // a shared host's system temp directory may be off-limits under
+        // open_basedir) but never creates the directory itself.
+        $this->app->resolving('dompdf.options', function (mixed $options): void {
+            if (is_array($options) && is_string($options['temp_dir'] ?? null)) {
+                File::ensureDirectoryExists($options['temp_dir']);
+            }
+        });
 
         $this->registerApiKeyGuard();
 

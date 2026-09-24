@@ -6,7 +6,9 @@ use App\Models\Role;
 use App\Models\User;
 use App\Support\System\SystemInfo;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Str;
 use Livewire\Livewire;
 
 test('only an administrator can open the information page', function () {
@@ -22,7 +24,7 @@ test('only an administrator can open the information page', function () {
 test('the page shows the versions in use', function () {
     $page = Livewire::actingAs(User::factory()->admin()->create())->test('admin.info');
 
-    $page->assertSee(Application::VERSION)->assertSee(PHP_VERSION)->assertSee('pgsql');
+    $page->assertSee(Application::VERSION)->assertSee(PHP_VERSION)->assertSee(DB::connection()->getDriverName());
 });
 
 test('versions and environment describe this installation', function () {
@@ -61,7 +63,7 @@ test('a binary that runs reports its first line of output', function () {
 });
 
 test('the queue block reports the connection and the failed jobs', function () {
-    Illuminate\Support\Facades\DB::table('failed_jobs')->insert(['uuid' => (string) Illuminate\Support\Str::uuid(), 'connection' => 'database', 'queue' => 'default', 'payload' => '{}', 'exception' => 'boom', 'failed_at' => now()]);
+    DB::table('failed_jobs')->insert(['uuid' => (string) Str::uuid(), 'connection' => 'database', 'queue' => 'default', 'payload' => '{}', 'exception' => 'boom', 'failed_at' => now()]);
 
     $queue = (new SystemInfo)->queue();
 
@@ -73,3 +75,22 @@ test('the navigation links administrators to the page', function () {
 
     $this->actingAs($admin)->get(route('projects.index'))->assertSee(route('admin.info'), false);
 });
+
+test('the checklist names the PDO extension of the configured database and intl', function (string $connection, string $extension) {
+    $default = config('database.default');
+    config(['database.default' => $connection]);
+
+    try {
+        $names = collect((new SystemInfo)->checks())->pluck('name');
+    } finally {
+        config(['database.default' => $default]);
+    }
+
+    expect($names)->toContain("PHP拡張 {$extension}", 'PHP拡張 intl')
+        ->and($names->filter(fn (string $name) => str_starts_with($name, 'PHP拡張 pdo_'))->values()->all())->toBe(["PHP拡張 {$extension}"]);
+})->with([
+    'pgsql' => ['pgsql', 'pdo_pgsql'],
+    'mysql' => ['mysql', 'pdo_mysql'],
+    'mariadb' => ['mariadb', 'pdo_mysql'],
+    'sqlite' => ['sqlite', 'pdo_sqlite'],
+]);

@@ -12,6 +12,14 @@ return new class extends Migration
      * issue_categories.assigned_to_id point at a Principal (a user or a
      * group). Like issues.assigned_to_group_id, a group gets its own column,
      * never set together with the user one; deleting the group clears it.
+     *
+     * The CHECK that keeps the user and group columns exclusive exists on
+     * PostgreSQL only. MySQL 8 (error 3823) and MariaDB 10.11 (error 1901)
+     * refuse a CHECK on a column whose foreign key has an ON DELETE action,
+     * and the group column needs ON DELETE SET NULL; a trigger instead
+     * needs privileges shared hosting rarely grants. There the rule is kept
+     * by the application alone: the models' saving hooks (Issue::booted(),
+     * AssigneeChoice::keepSingle()) clear one column when the other is set.
      */
     public function up(): void
     {

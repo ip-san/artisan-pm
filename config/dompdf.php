@@ -63,8 +63,12 @@ return [
          * The directory specified must be writeable by the webserver process.
          * The temporary directory is required to download remote images and when
          * using the PDFLib back end.
+         *
+         * Under storage/ rather than the system temp directory, which
+         * open_basedir on shared hosting often doesn't allow. Created on
+         * first use (AppServiceProvider).
          */
-        'temp_dir' => sys_get_temp_dir(),
+        'temp_dir' => storage_path('framework/cache/dompdf'),
 
         /**
          * ==== IMPORTANT ====

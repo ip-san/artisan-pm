@@ -13,6 +13,14 @@ return new class extends Migration
      * assignee gets its own column, never set together with
      * assigned_to_id. Deleting a group unassigns its issues, like
      * Redmine's Group#remove_references_before_destroy.
+     *
+     * The CHECK that keeps the user and group columns exclusive exists on
+     * PostgreSQL only. MySQL 8 (error 3823) and MariaDB 10.11 (error 1901)
+     * refuse a CHECK on a column whose foreign key has an ON DELETE action,
+     * and the group column needs ON DELETE SET NULL; a trigger instead
+     * needs privileges shared hosting rarely grants. There the rule is kept
+     * by the application alone: the models' saving hooks (Issue::booted(),
+     * AssigneeChoice::keepSingle()) clear one column when the other is set.
      */
     public function up(): void
     {

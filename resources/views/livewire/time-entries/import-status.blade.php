@@ -31,7 +31,7 @@ new #[Layout('components.layouts.app')] class extends Component
 <div class="max-w-2xl">
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ $project->name }} — {{ __('工数CSVインポート状況') }}</h1>
 
-    <div wire:poll.2s="refresh" class="rounded-md border border-neutral-200 bg-surface p-4">
+    <div @if (! $import->status->isFinished()) wire:poll.5s="refresh" @endif class="rounded-md border border-neutral-200 bg-surface p-4">
         <p class="text-sm text-neutral-700 mb-2">{{ $import->original_filename }}</p>
 
         <div class="mb-2 h-2 w-full overflow-hidden rounded-full bg-neutral-200">

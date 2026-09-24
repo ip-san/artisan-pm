@@ -190,8 +190,12 @@ return [
      * The media library will try to optimize all converted images by removing
      * metadata and applying a little bit of compression. These are
      * the optimizers that will be used by default.
+     *
+     * Off unless MEDIA_IMAGE_OPTIMIZERS=true: they are external binaries
+     * (jpegoptim, pngquant, ...) run through proc_open, which shared hosting
+     * doesn't have — thumbnails are made without them.
      */
-    'image_optimizers' => [
+    'image_optimizers' => ! env('MEDIA_IMAGE_OPTIMIZERS', false) ? [] : [
         Jpegoptim::class => [
             '-m85', // set maximum quality to 85%
             '--force', // ensure that progressive generation is always done also if a little bigger

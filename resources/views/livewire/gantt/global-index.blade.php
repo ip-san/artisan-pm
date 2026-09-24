@@ -238,13 +238,24 @@ new #[Layout('components.layouts.app')] class extends Component
     /**
      * Redmine's /issues/gantt.png (see GanttImageRenderer).
      */
-    public function exportPng(): StreamedResponse
+    public function exportPng(): ?StreamedResponse
     {
         if ($this->chart->isEmpty()) {
             abort(404);
         }
 
-        $png = app(GanttImageRenderer::class)->render($this->chart, $this->exportLines());
+        $lines = $this->exportLines();
+
+        if (! GanttImageRenderer::fits($this->chart->totalDays(), count($lines))) {
+            $this->addError('png', __('ガントチャートが大きすぎるため画像にできません(:rows 行 × :months か月)。期間を短くするか、絞り込みで課題を減らしてください。', [
+                'rows' => count($lines),
+                'months' => count($this->chart->monthBands()),
+            ]));
+
+            return null;
+        }
+
+        $png = app(GanttImageRenderer::class)->render($this->chart, $lines);
 
         return response()->streamDownload(fn () => print ($png), 'gantt.png', ['Content-Type' => 'image/png']);
     }
@@ -306,6 +317,10 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         @endunless
     </div>
+
+    @error('png')
+        <p class="mb-4 rounded-md border border-danger-subtler bg-danger-subtlest px-4 py-2 text-sm text-danger-bolder" role="alert">{{ $message }}</p>
+    @enderror
 
     <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />

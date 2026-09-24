@@ -37,6 +37,15 @@ class GanttImageRenderer
 
     public const int MIN_DAY_WIDTH = 4;
 
+    /**
+     * The largest image drawn (width × height) unless config
+     * gantt.png_max_pixels says otherwise: about 60MB at BYTES_PER_PIXEL,
+     * which fits a 128MB memory_limit alongside the app.
+     */
+    public const int MAX_PIXELS = 12_000_000;
+
+    private const int BYTES_PER_PIXEL = 5;
+
     private const float FONT_SIZE = 9.0;
 
     private const int INDENT = 12;
@@ -59,6 +68,51 @@ class GanttImageRenderer
     public static function height(int $lineCount): int
     {
         return self::HEADER_HEIGHT + self::ROW_HEIGHT * $lineCount + self::BOTTOM_MARGIN;
+    }
+
+    /**
+     * Whether an image of this many days and lines can be drawn: at most
+     * gantt.png_max_pixels, and within what is left of PHP's memory_limit.
+     */
+    public static function fits(int $totalDays, int $lineCount): bool
+    {
+        $pixels = self::width($totalDays) * self::height($lineCount);
+        $maxPixels = (int) config('gantt.png_max_pixels', self::MAX_PIXELS);
+
+        return $pixels <= min($maxPixels, self::pixelsLeftInMemoryLimit());
+    }
+
+    private static function pixelsLeftInMemoryLimit(): int
+    {
+        $limit = self::bytes((string) ini_get('memory_limit'));
+
+        if ($limit <= 0) {
+            return PHP_INT_MAX;
+        }
+
+        // Headroom for encoding the PNG and building the response.
+        return intdiv((int) (($limit - memory_get_usage()) * 0.8), self::BYTES_PER_PIXEL);
+    }
+
+    /**
+     * A php.ini size ("128M", "1G", "-1") in bytes; -1 means no limit.
+     */
+    private static function bytes(string $value): int
+    {
+        $value = trim($value);
+
+        if ($value === '' || $value === '-1') {
+            return -1;
+        }
+
+        $number = (int) $value;
+
+        return match (strtolower(substr($value, -1))) {
+            'g' => $number * 1024 ** 3,
+            'm' => $number * 1024 ** 2,
+            'k' => $number * 1024,
+            default => $number,
+        };
     }
 
     /**

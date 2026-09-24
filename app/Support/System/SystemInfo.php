@@ -80,7 +80,7 @@ final class SystemInfo
 
         $checks[] = $this->imageCheck();
 
-        foreach (['mbstring', 'zip', 'pdo_pgsql', 'gd'] as $extension) {
+        foreach (['mbstring', 'intl', 'zip', $this->databaseExtension(), 'gd'] as $extension) {
             $checks[] = ['name' => __('PHP拡張 :extension', ['extension' => $extension]), 'ok' => extension_loaded($extension), 'detail' => extension_loaded($extension) ? __('有効') : __('無効')];
         }
 
@@ -99,6 +99,21 @@ final class SystemInfo
             'pending' => $connection === 'database' ? $this->countRows((string) config('queue.connections.database.table', 'jobs')) : null,
             'failed' => $this->countRows((string) config('queue.failed.table', 'failed_jobs')),
         ];
+    }
+
+    /**
+     * The PDO extension of the configured database connection's driver.
+     */
+    private function databaseExtension(): string
+    {
+        $driver = (string) config('database.connections.'.config('database.default').'.driver');
+
+        return match ($driver) {
+            'mysql', 'mariadb' => 'pdo_mysql',
+            'sqlite' => 'pdo_sqlite',
+            'sqlsrv' => 'pdo_sqlsrv',
+            default => 'pdo_pgsql',
+        };
     }
 
     private function databaseVersion(): string

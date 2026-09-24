@@ -188,3 +188,29 @@ test('a chart spanning today draws the today line', function () {
 
     expect($red)->toBe(1);
 });
+
+test('an image larger than the pixel cap is refused so it fits a 128MB memory_limit', function () {
+    expect(GanttImageRenderer::fits(31, 3))->toBeTrue()
+        // Two years of days and 400 rows would be about 26M pixels.
+        ->and(GanttImageRenderer::fits(730, 400))->toBeFalse()
+        ->and(GanttImageRenderer::width(730) * GanttImageRenderer::height(400))->toBeGreaterThan(GanttImageRenderer::MAX_PIXELS);
+});
+
+test('a chart over the size limit shows a message instead of a download', function () {
+    $project = Project::factory()->create();
+    ganttPngIssue($project);
+    config(['gantt.png_max_pixels' => 1000]);
+
+    Livewire::actingAs(ganttPngMember($project))
+        ->test('gantt.index', ['project' => $project])
+        ->call('exportPng')
+        ->assertHasErrors('png')
+        ->assertNoFileDownloaded()
+        ->assertSee('ガントチャートが大きすぎるため画像にできません');
+
+    Livewire::actingAs(User::factory()->admin()->create())
+        ->test('gantt.global-index')
+        ->call('exportPng')
+        ->assertHasErrors('png')
+        ->assertNoFileDownloaded();
+});

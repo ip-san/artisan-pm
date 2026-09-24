@@ -169,7 +169,15 @@ test('the import status page shows progress and errors once finished', function 
     Livewire::actingAs($user)
         ->test('issues.import-status', ['project' => $project, 'import' => $import])
         ->assertSee('完了しました')
-        ->assertSee('1');
+        ->assertSee('1')
+        // A finished import stops polling; a running one polls every 5s.
+        ->assertDontSeeHtml('wire:poll');
+
+    $import->update(['status' => ImportStatus::Processing]);
+
+    Livewire::actingAs($user)
+        ->test('issues.import-status', ['project' => $project, 'import' => $import])
+        ->assertSeeHtml('wire:poll.5s="refresh"');
 });
 
 test('an assigned_to email matching a user outside the project leaves the issue unassigned', function () {

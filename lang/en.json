@@ -388,6 +388,7 @@
     "カンマまたは空白区切り(例: 25,50,100)。課題・プロジェクト・お知らせ一覧の「表示件数」に出る選択肢です。": "Comma- or space-separated (e.g. 25,50,100). The choices offered as \"Per page\" on the issue, project and news lists.",
     "ガントチャート": "Gantt",
     "ガントチャート(全プロジェクト)": "Gantt (all projects)",
+    "ガントチャートが大きすぎるため画像にできません(:rows 行 × :months か月)。期間を短くするか、絞り込みで課題を減らしてください。": "The Gantt chart is too large to export as an image (:rows rows × :months months). Shorten the period or filter out some issues.",
     "ガントチャートの最大表示月数(0で無制限)": "Maximum number of months displayed on the gantt chart (0 for unlimited)",
     "ガントチャートの最大表示課題数(0で無制限)": "Maximum number of items displayed on the gantt chart (0 for unlimited)",
     "キャッシュ": "Cache",
