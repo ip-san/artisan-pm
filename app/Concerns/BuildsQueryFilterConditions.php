@@ -8,6 +8,7 @@ use App\Enums\FilterOperator;
 use App\Models\Group;
 use App\Models\Member;
 use App\Models\Role;
+use App\Support\Query\TextMatch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 
@@ -160,11 +161,7 @@ trait BuildsQueryFilterConditions
         match ($operator) {
             FilterOperator::IsEmpty => $query->where(fn ($blank) => $blank->whereNull($column)->orWhere($column, '')),
             FilterOperator::IsNotEmpty => $query->whereNotNull($column)->where($column, '<>', ''),
-            default => $values === [] ? $query : $query->where(
-                $column,
-                ($operator === FilterOperator::NotContains ? 'not ' : '').($query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like'),
-                '%'.addcslashes((string) $values[0], '%_\\').'%',
-            ),
+            default => $values === [] ? $query : TextMatch::apply($query, $column, $operator, (string) $values[0]),
         };
     }
 
@@ -207,7 +204,7 @@ trait BuildsQueryFilterConditions
      */
     private static function textOperators(): array
     {
-        return [FilterOperator::Contains, FilterOperator::NotContains, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty];
+        return [FilterOperator::Contains, FilterOperator::ContainsAny, FilterOperator::NotContains, FilterOperator::StartsWith, FilterOperator::EndsWith, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty];
     }
 
     /**

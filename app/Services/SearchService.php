@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Models\WikiPage;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\CustomFieldVisibility;
+use App\Support\Query\TextMatch;
 use App\Support\Search\SearchResult;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -27,7 +28,8 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 /**
  * Searches across every searchable module in one or more projects,
  * combining results into a single ranked-by-recency list. Every type is
- * queried directly (LIKE over the same columns each model's
+ * queried directly (case-insensitive LIKE — ILIKE on PostgreSQL, see
+ * TextMatch — over the same columns each model's
  * toSearchableArray() declares) rather than through Scout: Redmine's
  * all-words/any-word matching and titles-only scope need per-word,
  * per-column clauses that Scout's single-string database engine can't
@@ -73,7 +75,7 @@ final class SearchService
      */
     public function searchAcrossProjects(Collection $projects, ?User $viewer, string $query, bool $allWords = true, bool $titlesOnly = false, bool $openIssuesOnly = false, AttachmentSearchMode $attachments = AttachmentSearchMode::Exclude): Collection
     {
-        $words = preg_split('/\s+/u', trim($query), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $words = TextMatch::tokens($query);
 
         if ($words === [] || $projects->isEmpty()) {
             return collect();
@@ -109,7 +111,7 @@ final class SearchService
      */
     public function issueIdsMatching(Collection $projects, ?User $viewer, string $query, bool $allWords = true): Collection
     {
-        $words = preg_split('/\s+/u', trim($query), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $words = TextMatch::tokens($query);
         $projectIds = $this->projectIdsPermitting($projects, $viewer, 'view_issues');
 
         if ($words === [] || $projectIds->isEmpty()) {
@@ -197,7 +199,7 @@ final class SearchService
             foreach ($words as $wordIndex => $word) {
                 $outer->where(function (Builder $inner) use ($columns, $word) {
                     foreach ($columns as $columnIndex => $column) {
-                        $inner->where($column, 'like', "%{$word}%", $columnIndex === 0 ? 'and' : 'or');
+                        $inner->where($column, TextMatch::likeOperator($inner), '%'.TextMatch::escape($word).'%', $columnIndex === 0 ? 'and' : 'or');
                     }
                 }, boolean: ($allWords || $wordIndex === 0) ? 'and' : 'or');
             }
@@ -363,10 +365,10 @@ final class SearchService
                 $either->orWhere(function (Builder $outer) use ($words, $allWords, $titlesOnly) {
                     foreach ($words as $wordIndex => $word) {
                         $outer->where(function (Builder $inner) use ($word, $titlesOnly) {
-                            $inner->where('title', 'like', "%{$word}%");
+                            $inner->where('title', TextMatch::likeOperator($inner), '%'.TextMatch::escape($word).'%');
 
                             if (! $titlesOnly) {
-                                $inner->orWhereHas('currentVersion', fn ($version) => $version->where('text', 'like', "%{$word}%"));
+                                $inner->orWhereHas('currentVersion', fn ($version) => $version->where('text', TextMatch::likeOperator($version), '%'.TextMatch::escape($word).'%'));
                             }
                         }, boolean: ($allWords || $wordIndex === 0) ? 'and' : 'or');
                     }

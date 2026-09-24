@@ -668,7 +668,7 @@ final class IssueExtraFilterFields
                     $media->where('collection_name', 'attachments');
 
                     if ($operator->requiresValue()) {
-                        self::applyText($media, 'file_name', FilterOperator::Contains, $values);
+                        self::applyText($media, 'file_name', $operator === FilterOperator::NotContains ? FilterOperator::Contains : $operator, $values);
                     }
                 };
 
@@ -843,7 +843,8 @@ final class IssueExtraFilterFields
 
     /**
      * Redmine's sql_for_any_searchable_field: the issues the issue search
-     * finds in the projects the list covers — every word ("contains"), or
+     * finds in the projects the list covers — every word ("contains"), one
+     * of them ("contains any"), or
      * none of them ("does not contain").
      */
     private function anySearchable(): FilterableField
@@ -852,7 +853,7 @@ final class IssueExtraFilterFields
             'any_searchable',
             __('検索可能な項目'),
             FilterFieldType::Text,
-            [FilterOperator::Contains, FilterOperator::NotContains],
+            [FilterOperator::Contains, FilterOperator::ContainsAny, FilterOperator::NotContains],
             function (Builder $query, FilterOperator $operator, array $values): Builder {
                 $text = trim((string) ($values[0] ?? ''));
 
@@ -861,7 +862,7 @@ final class IssueExtraFilterFields
                 }
 
                 $negated = $operator === FilterOperator::NotContains;
-                $ids = app(SearchService::class)->issueIdsMatching($this->scopeProjects(), $this->viewer, $text, allWords: ! $negated);
+                $ids = app(SearchService::class)->issueIdsMatching($this->scopeProjects(), $this->viewer, $text, allWords: $operator === FilterOperator::Contains);
                 $key = $query->getModel()->getQualifiedKeyName();
 
                 if ($ids->isEmpty()) {

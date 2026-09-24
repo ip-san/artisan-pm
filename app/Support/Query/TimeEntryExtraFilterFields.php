@@ -73,7 +73,7 @@ final class TimeEntryExtraFilterFields
             $this->listProject === null ? null : $this->issueAttribute('issue_category_id', __('課題のカテゴリ'), FilterFieldType::Select, $optionalListOperators,
                 fn (Builder $issues, FilterOperator $operator, array $values) => FilterOperatorApplier::apply($issues, 'issues.category_id', $operator, $values),
                 fn () => $this->listProject->issueCategories->pluck('name', 'id')->all()),
-            $this->issueAttribute('issue_subject', __('課題の題名'), FilterFieldType::Text, [FilterOperator::Contains, FilterOperator::NotContains],
+            $this->issueAttribute('issue_subject', __('課題の題名'), FilterFieldType::Text, [FilterOperator::Contains, FilterOperator::ContainsAny, FilterOperator::NotContains, FilterOperator::StartsWith, FilterOperator::EndsWith],
                 function (Builder $issues, FilterOperator $operator, array $values): void {
                     self::applyText($issues, 'issues.subject', $operator, $values);
                 }),

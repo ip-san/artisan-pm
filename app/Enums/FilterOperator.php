@@ -18,6 +18,9 @@ enum FilterOperator: string
     case NotIn = '!in';
     case Contains = '~';
     case NotContains = '!~';
+    case ContainsAny = '*~';
+    case StartsWith = '^';
+    case EndsWith = '$';
     case IsEmpty = 'empty';
     case IsNotEmpty = 'not_empty';
     case GreaterOrEqual = '>=';
@@ -49,6 +52,9 @@ enum FilterOperator: string
             self::NotIn => __('がいずれにも含まれない'),
             self::Contains => __('に次を含む'),
             self::NotContains => __('に次を含まない'),
+            self::ContainsAny => __('に次のいずれかを含む'),
+            self::StartsWith => __('が次で始まる'),
+            self::EndsWith => __('が次で終わる'),
             self::IsEmpty => __('が未設定'),
             self::IsNotEmpty => __('が設定されている'),
             self::GreaterOrEqual => __('が次の値以上'),

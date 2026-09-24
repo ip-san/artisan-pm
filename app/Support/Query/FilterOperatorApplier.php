@@ -41,8 +41,8 @@ final class FilterOperatorApplier
             FilterOperator::NotEquals => $query->where($column, '!=', $values[0] ?? null),
             FilterOperator::In => $query->whereIn($column, $values),
             FilterOperator::NotIn => $query->whereNotIn($column, $values),
-            FilterOperator::Contains => $query->where($column, self::likeOperator($query), '%'.self::escapeLike((string) ($values[0] ?? '')).'%'),
-            FilterOperator::NotContains => $query->where($column, 'not '.self::likeOperator($query), '%'.self::escapeLike((string) ($values[0] ?? '')).'%'),
+            FilterOperator::Contains, FilterOperator::NotContains, FilterOperator::ContainsAny,
+            FilterOperator::StartsWith, FilterOperator::EndsWith => tap($query, fn () => TextMatch::apply($query, $column, $operator, (string) ($values[0] ?? ''))),
             FilterOperator::IsEmpty => $query->whereNull($column),
             FilterOperator::IsNotEmpty => $query->whereNotNull($column),
             FilterOperator::GreaterOrEqual => $query->where($column, '>=', $values[0] ?? null),
@@ -86,24 +86,5 @@ final class FilterOperatorApplier
             ),
             default => self::apply($query, $column, $operator, $values),
         };
-    }
-
-    /**
-     * "Contains" ignores case, as in Redmine: PostgreSQL's LIKE is case
-     * sensitive, so it gets ILIKE there (MySQL and SQLite already fold case).
-     *
-     * @param  Builder<*>  $query
-     */
-    private static function likeOperator(Builder $query): string
-    {
-        return $query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
-    }
-
-    /**
-     * A typed % or _ matches itself rather than acting as a wildcard.
-     */
-    private static function escapeLike(string $value): string
-    {
-        return addcslashes($value, '%_\\');
     }
 }

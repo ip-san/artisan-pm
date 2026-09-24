@@ -15,6 +15,7 @@ use App\Models\Group;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
+use App\Models\Tracker;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Issues\AssigneeChoice;
@@ -85,7 +86,17 @@ final class IssueFilterFieldRegistry
 
         $extraFields = (new IssueExtraFilterFields($resolveScopeProjects, $viewer, app(AuthorizationService::class), $project))->fields();
 
-        return collect($nativeFields)->concat($extraFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key());
+        // Redmine's project.rolled_up_trackers: the trackers of the project
+        // and of the subprojects the list takes in.
+        $scopeProjectIds = $resolveScopeProjects()->pluck('id');
+        $trackers = $scopeProjectIds->count() > 1
+            ? Tracker::query()->whereHas('projects', fn ($projects) => $projects->whereIn('projects.id', $scopeProjectIds->push($project->id)))->get()
+            : $project->trackers;
+
+        return self::withoutCoreFieldsDisabledByEveryTracker(
+            collect($nativeFields)->concat($extraFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key()),
+            $trackers,
+        );
     }
 
     /**
@@ -150,7 +161,34 @@ final class IssueFilterFieldRegistry
 
         $extraFields = (new IssueExtraFilterFields(fn () => $projects, $viewer, app(AuthorizationService::class)))->fields();
 
-        return collect($nativeFields)->concat($extraFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key());
+        return self::withoutCoreFieldsDisabledByEveryTracker(
+            collect($nativeFields)->concat($extraFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key()),
+            $trackers,
+        );
+    }
+
+    /**
+     * Redmine's `Tracker.disabled_core_fields(trackers).each { delete_available_filter }`:
+     * a core field that every tracker of the list disables is not offered,
+     * so a stored filter on it is ignored too. Redmine keys the parent
+     * field parent_issue_id, which names no filter, so the parent filter
+     * stays even when every tracker hides the field; that is kept here.
+     *
+     * @param  Collection<string, FilterableField>  $fields
+     * @param  Collection<int, Tracker>  $trackers
+     * @return Collection<string, FilterableField>
+     */
+    private static function withoutCoreFieldsDisabledByEveryTracker(Collection $fields, Collection $trackers): Collection
+    {
+        if ($trackers->isEmpty()) {
+            return $fields;
+        }
+
+        $disabledByEvery = $trackers
+            ->map(fn (Tracker $tracker): array => $tracker->disabled_core_fields ?? [])
+            ->reduce(fn (?array $common, array $disabled): array => $common === null ? $disabled : array_values(array_intersect($common, $disabled)));
+
+        return $fields->except(array_diff($disabledByEvery ?? [], ['parent_id']));
     }
 
     /**
@@ -225,7 +263,7 @@ final class IssueFilterFieldRegistry
      */
     private static function textOperators(): array
     {
-        return [FilterOperator::Contains, FilterOperator::NotContains, FilterOperator::Equals];
+        return [FilterOperator::Contains, FilterOperator::ContainsAny, FilterOperator::NotContains, FilterOperator::StartsWith, FilterOperator::EndsWith, FilterOperator::Equals];
     }
 
     /**
