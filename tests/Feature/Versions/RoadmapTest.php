@@ -1,11 +1,13 @@
 <?php
 
+use App\Enums\ProjectStatus;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
@@ -171,4 +173,71 @@ test('the roadmap\'s issue count links deep-link into a version- and status-filt
 
     expect($totalList)->toContain($openIssue->id, $closedIssue->id)
         ->not->toContain($otherVersionIssue->id);
+});
+
+/**
+ * A3-14: Redmine's roadmap with_subprojects (rolled_up_versions.visible).
+ *
+ * @return array{parent: Project, child: Project, hidden: Project, archived: Project, user: User}
+ */
+function roadmapSubprojectTree(): array
+{
+    $parent = Project::factory()->create(['name' => 'Parent project']);
+    $child = Project::factory()->create(['name' => 'Child project', 'parent_id' => $parent->id]);
+    $hidden = Project::factory()->private()->create(['name' => 'Hidden project', 'parent_id' => $parent->id]);
+    $archived = Project::factory()->create(['name' => 'Archived project', 'parent_id' => $parent->id]);
+    $user = roadmapMember($parent);
+    Member::factory()->for($child)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+
+    Version::factory()->for($parent)->create(['name' => 'Parent release', 'due_date' => now()->addDays(20)]);
+    Version::factory()->for($child)->create(['name' => 'Child release', 'due_date' => now()->addDays(10)]);
+    Version::factory()->for($hidden)->create(['name' => 'Hidden release']);
+    Version::factory()->for($archived)->create(['name' => 'Archived release']);
+    $archived->status = ProjectStatus::Archived;
+    $archived->save();
+
+    return ['parent' => $parent->fresh(), 'child' => $child->fresh(), 'hidden' => $hidden, 'archived' => $archived, 'user' => $user];
+}
+
+test('the roadmap lists the visible subprojects\' versions with the subprojects switch', function () {
+    ['parent' => $parent, 'user' => $user] = roadmapSubprojectTree();
+
+    $roadmap = Livewire::actingAs($user)->test('versions.roadmap', ['project' => $parent]);
+    expect($roadmap->get('versions')->pluck('name')->all())->toBe(['Parent release']);
+    $roadmap->assertSee('サブプロジェクト');
+
+    $roadmap->call('toggleSubprojects');
+    expect($roadmap->get('withSubprojects'))->toBe('1')
+        ->and($roadmap->get('versions')->pluck('name')->all())->toBe(['Child release', 'Parent release']);
+    $roadmap->assertSee('Child project - Child release')
+        ->assertDontSee('Hidden release')
+        ->assertDontSee('Archived release');
+});
+
+test('the roadmap follows display_subprojects_issues unless with_subprojects is given', function () {
+    ['parent' => $parent, 'user' => $user] = roadmapSubprojectTree();
+    Setting::set('display_subprojects_issues', true);
+
+    expect(Livewire::actingAs($user)->test('versions.roadmap', ['project' => $parent])->get('versions')->pluck('name')->all())
+        ->toBe(['Child release', 'Parent release']);
+
+    expect(Livewire::withQueryParams(['with_subprojects' => '0'])->actingAs($user)->test('versions.roadmap', ['project' => $parent])->get('versions')->pluck('name')->all())
+        ->toBe(['Parent release']);
+});
+
+test('a subproject\'s versions stay off the roadmap for a viewer without view_issues there', function () {
+    ['parent' => $parent] = roadmapSubprojectTree();
+    $outsider = roadmapMember($parent);
+
+    $names = Livewire::withQueryParams(['with_subprojects' => '1'])->actingAs($outsider)
+        ->test('versions.roadmap', ['project' => $parent])->get('versions')->pluck('name')->all();
+
+    expect($names)->not->toContain('Hidden release')->not->toContain('Archived release');
+});
+
+test('a leaf project\'s roadmap has no subprojects switch', function () {
+    $project = Project::factory()->create();
+
+    Livewire::actingAs(roadmapMember($project))->test('versions.roadmap', ['project' => $project])
+        ->assertDontSee('サブプロジェクト');
 });

@@ -62,6 +62,18 @@ final class SubprojectScope
     }
 
     /**
+     * The project plus, with $withSubprojects, the subprojects whose issues
+     * $user may look at — for screens with their own "subprojects" switch
+     * (Redmine's roadmap with_subprojects).
+     *
+     * @return Collection<int, Project>
+     */
+    public static function projectsForIssuesWhen(Project $project, ?User $user, bool $withSubprojects): Collection
+    {
+        return self::projects($project, self::issueViewer($user), $withSubprojects);
+    }
+
+    /**
      * Redmine's subproject_id filter for a project that has subprojects;
      * null for a leaf project. Its choices and its conditions only ever
      * involve the subprojects $user may look at (issues, or time entries

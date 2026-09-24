@@ -43,7 +43,7 @@ test('the chart draws at most gantt_items_limit rows and says so', function () {
     $chart = Livewire::actingAs(ganttLimitViewer($project))->test('gantt.index', ['project' => $project]);
 
     expect($chart->get('rows'))->toHaveCount(3)
-        ->and($chart->get('allRows'))->toHaveCount(5)
+        ->and($chart->get('allLines'))->toHaveCount(5)
         ->and($chart->get('rowsTruncated'))->toBeTrue();
     $chart->assertSee('先頭3件だけを表示');
 });

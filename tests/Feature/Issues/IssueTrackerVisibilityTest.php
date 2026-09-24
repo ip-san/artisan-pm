@@ -161,7 +161,7 @@ test('the calendars and the Gantt chart leave out the restricted tracker', funct
     Livewire::actingAs($s->user)->test('calendar.global-index')
         ->assertSee('Visible bug zebra')->assertDontSee('Hidden feature zebra');
 
-    $rows = Livewire::actingAs($s->user)->test('gantt.index', ['project' => $s->project])->instance()->allRows;
+    $rows = Livewire::actingAs($s->user)->test('gantt.index', ['project' => $s->project])->instance()->rows;
 
     expect($rows->pluck('id')->all())->toBe([$s->bugIssue->id]);
 });
@@ -170,7 +170,7 @@ test('a visible subtask of a hidden parent is drawn as a root on the Gantt chart
     $s = trackerScenario(['view_gantt']);
     $s->bugIssue->update(['parent_id' => $s->featureIssue->id]);
 
-    $rows = Livewire::actingAs($s->user)->test('gantt.index', ['project' => $s->project])->instance()->allRows;
+    $rows = Livewire::actingAs($s->user)->test('gantt.index', ['project' => $s->project])->instance()->rows;
 
     expect($rows->pluck('id')->all())->toBe([$s->bugIssue->id])
         ->and($rows->first()->depth)->toBe(0);

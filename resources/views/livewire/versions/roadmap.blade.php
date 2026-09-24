@@ -4,14 +4,23 @@ use App\Enums\VersionStatus;
 use App\Models\Project;
 use App\Models\Tracker;
 use App\Models\Version;
+use App\Support\Issues\SubprojectScope;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
     public Project $project;
+
+    /**
+     * Redmine's with_subprojects param: '1'/'0', or empty for the
+     * display_subprojects_issues default.
+     */
+    #[Url(as: 'with_subprojects', except: '')]
+    public string $withSubprojects = '';
 
     public function mount(Project $project): void
     {
@@ -20,19 +29,46 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->project = $project;
     }
 
+    public function hasSubprojects(): bool
+    {
+        return $this->project->_rgt - $this->project->_lft > 1;
+    }
+
+    #[Computed]
+    public function includesSubprojects(): bool
+    {
+        return $this->withSubprojects === '' ? SubprojectScope::enabled() : $this->withSubprojects === '1';
+    }
+
+    public function toggleSubprojects(): void
+    {
+        $this->withSubprojects = $this->includesSubprojects ? '0' : '1';
+
+        unset($this->includesSubprojects, $this->versions);
+    }
+
     /**
      * Not-yet-completed versions only, due-soonest first (no due date
-     * sorts last) — matches Redmine's roadmap default of hiding completed
-     * versions unless explicitly asked to include them, a toggle this
-     * page doesn't offer (a documented, intentional scope cut).
+     * sorts last, then by name) — matches Redmine's roadmap default of
+     * hiding completed versions unless explicitly asked to include them,
+     * a toggle this page doesn't offer (a documented, intentional scope
+     * cut). With subprojects, the versions of the subprojects whose issues
+     * the viewer may see are listed too (Redmine's rolled_up_versions.visible,
+     * archived subprojects left out).
      *
      * @return Collection<int, Version>
      */
     #[Computed]
     public function versions(): Collection
     {
-        return $this->project->versions()
+        $projectIds = SubprojectScope::projectsForIssuesWhen($this->project, auth()->user(), $this->includesSubprojects)->pluck('id');
+
+        return Version::query()
+            ->whereIn('project_id', $projectIds)
+            ->with('project')
             ->orderByRaw('due_date IS NULL, due_date ASC')
+            ->orderBy('name')
+            ->orderBy('id')
             ->get()
             ->reject(fn (Version $version) => $version->isCompleted())
             ->values();
@@ -65,7 +101,7 @@ new #[Layout('components.layouts.app')] class extends Component
     private function issuesUrl(Version $version, string $statusFilter): string
     {
         return route('issues.index', [
-            $this->project,
+            $version->project,
             'statusFilter' => $statusFilter,
             'activeFilterKeys' => ['fixed_version_id'],
             'filterOperators' => ['fixed_version_id' => '='],
@@ -75,7 +111,15 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-3xl">
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __(':project — ロードマップ', ['project' => $project->name]) }}</h1>
+    <div class="mb-6 flex items-center justify-between gap-4">
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — ロードマップ', ['project' => $project->name]) }}</h1>
+        @if ($this->hasSubprojects())
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" wire:click="toggleSubprojects" @checked($this->includesSubprojects) class="rounded border-neutral-300">
+                {{ __('サブプロジェクト') }}
+            </label>
+        @endif
+    </div>
 
     @if ($this->versions->isEmpty())
         <p class="text-sm text-neutral-500">{{ __('表示できるバージョンがありません。') }}</p>
@@ -93,7 +137,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <article id="roadmap-version-{{ $version->id }}" wire:key="roadmap-version-{{ $version->id }}" class="rounded-md border border-neutral-200 bg-surface p-4">
                 <div class="flex items-center justify-between">
                     <h2 class="text-base font-semibold text-neutral-900">
-                        <a href="{{ route('versions.edit', [$project, $version]) }}" class="hover:underline">{{ $version->name }}</a>
+                        <a href="{{ route('versions.edit', [$version->project, $version]) }}" class="hover:underline">{{ $version->project->isNot($project) ? $version->project->name.' - '.$version->name : $version->name }}</a>
                     </h2>
                     <span class="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">
                         {{ match ($version->status) {

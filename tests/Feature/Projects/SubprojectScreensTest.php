@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use App\Support\Dashboard\SavedIssueQueryBlock;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Livewire;
@@ -75,6 +76,47 @@ test('the gantt draws visible subproject issues only with the setting on', funct
     expect($off)->toBe(['Parent task'])
         ->and($on->get('rows')->pluck('subject')->all())->toBe(['Parent task', 'Child task']);
     $on->assertSee(route('issues.show', [$child, $childIssue]), false);
+});
+
+test('the gantt with subprojects draws a heading row per project, each followed by its issues (A3-14)', function () {
+    ['parent' => $parent, 'child' => $child, 'hidden' => $hidden] = screensTree();
+    $grandchild = Project::factory()->create(['name' => 'Grandchild project', 'parent_id' => $child->id]);
+    [$parent, $child] = [$parent->fresh(), $child->fresh()];
+    $viewer = screensViewer([$parent, $child, $grandchild->fresh()]);
+    $parentTask = screensIssue($parent, 'Parent task');
+    $grandchildTask = screensIssue($grandchild->fresh(), 'Grandchild task');
+    screensIssue($hidden, 'Hidden task');
+    $version = Version::factory()->for($grandchild)->create(['name' => 'Grandchild milestone', 'due_date' => now()->startOfMonth()->addDays(6)]);
+    $grandchildTask->update(['fixed_version_id' => $version->id]);
+
+    $off = Livewire::actingAs($viewer)->test('gantt.index', ['project' => $parent]);
+    expect($off->get('lines')->pluck('kind')->all())->toBe(['issue']);
+
+    Setting::set('display_subprojects_issues', true);
+    $on = Livewire::actingAs($viewer)->test('gantt.index', ['project' => $parent]);
+
+    $summary = $on->get('lines')->map(fn (array $line) => [
+        $line['kind'],
+        $line['depth'],
+        match ($line['kind']) {
+            'project' => $line['project']->name,
+            'issue' => $line['row']->subject,
+            'version' => $line['version']->name,
+        },
+    ])->all();
+
+    expect($summary)->toBe([
+        ['project', 0, 'Parent project'],
+        ['issue', 1, 'Parent task'],
+        ['project', 1, 'Child project'],
+        ['project', 2, 'Grandchild project'],
+        ['issue', 3, 'Grandchild task'],
+        ['version', 3, 'Grandchild milestone'],
+    ]);
+    $on->assertSee('data-gantt-project="'.$child->id.'"', false)
+        ->assertDontSee('Hidden child')
+        ->assertDontSee('Hidden task')
+        ->assertSee(route('issues.show', [$parent, $parentTask]), false);
 });
 
 test('the calendar shows visible subproject issues only with the setting on', function () {
