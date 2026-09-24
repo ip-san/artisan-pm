@@ -726,12 +726,14 @@ final class IssueService
     }
 
     /**
-     * Moves an issue to a different project, resetting whatever fields are
-     * scoped to the old project and would otherwise reference something
-     * that doesn't exist there: category and fixed version (both strictly
-     * project-local, so there's no sensible equivalent to carry over),
-     * the assignee (only if they're not also a member of the target
-     * project), and parent (subtasks are deliberately kept single-project
+     * Moves an issue to a different project, adjusting whatever fields are
+     * scoped to the old project as Redmine's Issue#project= does for an
+     * existing issue: the category is swapped for the target's category of
+     * the same name (none if it has no such category), the fixed version
+     * stays while the target shares it — open or not — and is cleared
+     * otherwise (a moved issue does not get the target's default version,
+     * which Redmine only gives new issues); the assignee is cleared only if
+     * they're not also a member of the target project, and the parent (subtasks are deliberately kept single-project
      * elsewhere in this app, so a stale cross-project parent would just
      * fail re-validation on the next edit). Any of this issue's own
      * children get detached rather than silently left pointing at a
@@ -742,8 +744,10 @@ final class IssueService
         $updates = [
             'project_id' => $targetProject->id,
             'tracker_id' => $trackerId,
-            'category_id' => null,
-            'fixed_version_id' => null,
+            'category_id' => $this->carriedCategoryId($issue, $targetProject),
+            'fixed_version_id' => $issue->fixed_version_id !== null && $targetProject->sharedVersions()->contains('id', $issue->fixed_version_id)
+                ? $issue->fixed_version_id
+                : null,
             'parent_id' => null,
         ];
 
@@ -973,15 +977,25 @@ final class IssueService
             $attributes['fixed_version_id'] = null;
         }
 
-        $category = $issue->category;
-
-        $attributes['category_id'] = match (true) {
-            $category === null => null,
-            $sameProject => $category->id,
-            default => IssueCategory::query()->where('project_id', $targetProject->id)->where('name', $category->name)->value('id'),
-        };
+        $attributes['category_id'] = $this->carriedCategoryId($issue, $targetProject);
 
         return $attributes;
+    }
+
+    /**
+     * The category $issue takes into $targetProject (Redmine's
+     * Issue#project=): its own within the same project, the target's
+     * category of the same name in another one, else none.
+     */
+    private function carriedCategoryId(Issue $issue, Project $targetProject): ?int
+    {
+        $category = $issue->loadMissing('category')->category;
+
+        return match (true) {
+            $category === null => null,
+            $issue->project_id === $targetProject->id => $category->id,
+            default => IssueCategory::query()->where('project_id', $targetProject->id)->where('name', $category->name)->value('id'),
+        };
     }
 
     /**

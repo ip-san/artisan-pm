@@ -1,13 +1,16 @@
 <?php
 
+use App\Enums\VersionSharing;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use Livewire\Livewire;
 
 function bulkMoveMember(Project $project, array $permissions): User
@@ -90,4 +93,40 @@ test('bulk move is not offered when there is no eligible target project', functi
         ->set('selected', [$issue->id]);
 
     expect($component->get('bulkMoveTargetProjects'))->toBeEmpty();
+});
+
+test('a bulk move carries each issue\'s shared version and same-named category', function () {
+    $source = Project::factory()->create();
+    $target = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $source->trackers()->attach($tracker);
+    $target->trackers()->attach($tracker);
+
+    $user = bulkMoveMember($source, ['view_issues', 'move_issues']);
+    Member::factory()->for($target)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
+    );
+
+    $shared = Version::factory()->for($source)->create(['sharing' => VersionSharing::System]);
+    $local = Version::factory()->for($source)->create(['sharing' => VersionSharing::None]);
+    $category = IssueCategory::factory()->for($source)->create(['name' => 'Backend']);
+    $targetCategory = IssueCategory::factory()->for($target)->create(['name' => 'Backend']);
+    $unmatched = IssueCategory::factory()->for($source)->create(['name' => 'Only here']);
+
+    $issueA = bulkMoveIssue($source, $tracker);
+    $issueA->update(['fixed_version_id' => $shared->id, 'category_id' => $category->id]);
+    $issueB = bulkMoveIssue($source, $tracker);
+    $issueB->update(['fixed_version_id' => $local->id, 'category_id' => $unmatched->id]);
+
+    Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $source])
+        ->set('selected', [$issueA->id, $issueB->id])
+        ->set('bulkMoveToProjectId', $target->id)
+        ->set('bulkMoveToTrackerId', $tracker->id)
+        ->call('applyBulkMove');
+
+    expect($issueA->fresh()->fixed_version_id)->toBe($shared->id)
+        ->and($issueA->fresh()->category_id)->toBe($targetCategory->id)
+        ->and($issueB->fresh()->fixed_version_id)->toBeNull()
+        ->and($issueB->fresh()->category_id)->toBeNull();
 });

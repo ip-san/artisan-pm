@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\VersionSharing;
+use App\Enums\VersionStatus;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueCategory;
@@ -213,4 +215,62 @@ test('the move records a journal entry with the project change', function () {
 
     $journal = $issue->fresh()->journals()->latest()->firstOrFail();
     expect($journal->details()->where('prop_key', 'project_id')->exists())->toBeTrue();
+});
+
+test('moving an issue keeps a shared version and takes the same-named category, as Redmine does', function () {
+    $source = Project::factory()->create();
+    $target = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $source->trackers()->attach($tracker);
+    $target->trackers()->attach($tracker);
+
+    $user = moveTestMember($source, ['view_issues', 'move_issues']);
+    Member::factory()->for($target)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
+    );
+
+    $category = IssueCategory::factory()->for($source)->create(['name' => 'UI']);
+    $targetCategory = IssueCategory::factory()->for($target)->create(['name' => 'UI']);
+    $shared = Version::factory()->for($source)->create(['sharing' => VersionSharing::System, 'status' => VersionStatus::Closed]);
+    $issue = moveTestIssue($source, $tracker, ['category_id' => $category->id, 'fixed_version_id' => $shared->id]);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $source, 'issue' => $issue])
+        ->set('moveToProjectId', $target->id)
+        ->set('moveToTrackerId', $tracker->id)
+        ->call('moveIssue');
+
+    expect($issue->fresh()->category_id)->toBe($targetCategory->id)
+        ->and($issue->fresh()->fixed_version_id)->toBe($shared->id);
+});
+
+test('a moved issue whose version the target does not share gets no version, not the target default', function () {
+    $source = Project::factory()->create();
+    $target = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $source->trackers()->attach($tracker);
+    $target->trackers()->attach($tracker);
+
+    $user = moveTestMember($source, ['view_issues', 'move_issues']);
+    Member::factory()->for($target)->for($user)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
+    );
+
+    $default = Version::factory()->for($target)->create();
+    $target->update(['default_version_id' => $default->id]);
+    $local = Version::factory()->for($source)->create(['sharing' => VersionSharing::None]);
+    $withVersion = moveTestIssue($source, $tracker, ['fixed_version_id' => $local->id]);
+    $withoutVersion = moveTestIssue($source, $tracker);
+
+    foreach ([$withVersion, $withoutVersion] as $issue) {
+        Livewire::actingAs($user)
+            ->test('issues.show', ['project' => $source, 'issue' => $issue])
+            ->set('moveToProjectId', $target->id)
+            ->set('moveToTrackerId', $tracker->id)
+            ->call('moveIssue');
+    }
+
+    expect($withVersion->fresh()->fixed_version_id)->toBeNull()
+        ->and($withoutVersion->fresh()->fixed_version_id)->toBeNull()
+        ->and($withVersion->fresh()->project_id)->toBe($target->id);
 });
