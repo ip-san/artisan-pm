@@ -1,12 +1,14 @@
 <?php
 
 use App\Enums\IssueRelationType;
+use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\IssueRelation;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Models\Tracker;
 use App\Models\User;
 use App\Support\Issues\RelatedIssueColumns;
 use Livewire\Livewire;
@@ -118,4 +120,68 @@ test('rendering the tables does not lazy load per row', function () {
     Livewire::actingAs($user)->test('issues.show', ['project' => $project, 'issue' => $parent])->assertOk();
 
     expect($queries)->toBeLessThanOrEqual($baseline + 2);
+});
+
+test('the configured order is kept', function () {
+    Setting::set('related_issues_default_columns', ['done_ratio', 'status_id', 'due_date']);
+    Setting::set('display_related_issues_table_headers', true);
+    [$project, $user, $parent] = relatedColumnsFixture();
+
+    expect(array_keys(RelatedIssueColumns::selected()))->toBe(['done_ratio', 'status_id', 'due_date']);
+
+    Livewire::actingAs($user)->test('issues.show', ['project' => $project, 'issue' => $parent])
+        ->assertSeeInOrder(['進捗率', 'ステータス', '期日']);
+});
+
+test('a custom field column shows the value only where the viewer may see the field', function () {
+    $project = Project::factory()->create();
+    $user = relatedColumnsViewer($project);
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $open = CustomField::factory()->create(['name' => 'Customer']);
+    $open->trackers()->attach($tracker);
+    $secret = CustomField::factory()->create(['name' => 'Margin']);
+    $secret->trackers()->attach($tracker);
+    $secret->roles()->attach(Role::factory()->create());
+    Setting::set('related_issues_default_columns', ["cf_{$open->id}", "cf_{$secret->id}"]);
+    $parent = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $child = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'parent_id' => $parent->id]);
+    auth()->setUser(User::factory()->admin()->create());
+    $child->setCustomFieldValues([$open->id => 'ACME Corp', $secret->id => 'Top-secret-42']);
+
+    Livewire::actingAs($user)->test('issues.show', ['project' => $project, 'issue' => $parent])
+        ->assertSee('ACME Corp')
+        ->assertDontSee('Top-secret-42');
+});
+
+test('the settings page offers custom fields and saves the column order for both lists', function () {
+    $admin = User::factory()->admin()->create();
+    $field = CustomField::factory()->create(['name' => 'Customer']);
+
+    Livewire::actingAs($admin)->test('settings.index')
+        ->set('related_issues_default_columns', ['status_id', "cf_{$field->id}"])
+        ->call('moveSettingColumn', 'related_issues_default_columns', "cf_{$field->id}", -1)
+        ->set('issue_list_default_columns', ['subject', 'status_id', "cf_{$field->id}", 'updated_at'])
+        ->call('moveSettingColumn', 'issue_list_default_columns', 'status_id', -1)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('related_issues_default_columns'))->toBe(["cf_{$field->id}", 'status_id'])
+        ->and(Setting::get('issue_list_default_columns'))->toBe(['status_id', 'subject', "cf_{$field->id}", 'updated_at']);
+});
+
+test('the issue list shows a custom field from the default columns where it applies', function () {
+    $project = Project::factory()->create();
+    $user = relatedColumnsViewer($project);
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $field = CustomField::factory()->create(['name' => 'Customer']);
+    $field->trackers()->attach($tracker);
+    $elsewhere = CustomField::factory()->create(['name' => 'Elsewhere field']);
+    $elsewhere->trackers()->attach($tracker);
+    $elsewhere->projects()->attach(Project::factory()->create());
+    Setting::set('issue_list_default_columns', ['subject', "cf_{$field->id}", "cf_{$elsewhere->id}"]);
+
+    expect(Livewire::actingAs($user)->test('issues.index', ['project' => $project])->get('shownColumns'))
+        ->toBe(['subject', "cf_{$field->id}"]);
 });

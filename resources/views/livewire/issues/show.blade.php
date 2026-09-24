@@ -201,6 +201,25 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * Per subtask and related issue, the custom fields its columns may show
+     * to the viewer (only worked out when a custom field column is chosen).
+     *
+     * @return array<int, array<int, int>>
+     */
+    #[Computed]
+    public function relatedCustomFieldIds(): array
+    {
+        if (! collect(array_keys($this->relatedColumns))->contains(fn (string $key) => str_starts_with($key, 'cf_'))) {
+            return [];
+        }
+
+        return RelatedIssueColumns::visibleCustomFieldIds(
+            $this->subtasks->concat($this->relations->pluck('other')),
+            auth()->user(),
+        );
+    }
+
+    /**
      * Direct subtasks with what the selected columns need already loaded.
      *
      * @return \Illuminate\Database\Eloquent\Collection<int, Issue>
@@ -1042,7 +1061,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 </a>
                             </td>
                             @foreach ($this->relatedColumns as $key => $label)
-                                <td class="px-3 py-2 text-neutral-500">{{ \App\Support\Issues\RelatedIssueColumns::value($child, $key) }}</td>
+                                <td class="px-3 py-2 text-neutral-500">{{ \App\Support\Issues\RelatedIssueColumns::value($child, $key, $this->relatedCustomFieldIds[$child->id] ?? []) }}</td>
                             @endforeach
                         </tr>
                     @endforeach
@@ -1119,7 +1138,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                     </a>
                                 </td>
                                 @foreach ($this->relatedColumns as $key => $label)
-                                    <td class="px-3 py-2 text-neutral-500">{{ \App\Support\Issues\RelatedIssueColumns::value($entry['other'], $key) }}</td>
+                                    <td class="px-3 py-2 text-neutral-500">{{ \App\Support\Issues\RelatedIssueColumns::value($entry['other'], $key, $this->relatedCustomFieldIds[$entry['other']->id] ?? []) }}</td>
                                 @endforeach
                                 <td class="px-3 py-2 text-right">
                                     @can('manageRelations', $issue)

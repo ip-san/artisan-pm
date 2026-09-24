@@ -6,6 +6,7 @@ use App\Enums\ProjectModuleKey;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
 use App\Enums\RepositoryType;
+use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Project;
 use App\Models\Role;
@@ -42,19 +43,18 @@ use Livewire\Volt\Component;
 new #[Layout('components.layouts.app')] class extends Component
 {
     /**
-     * Native columns selectable as the issue list's default display
-     * columns — matches issues/index.blade.php's own DISPLAY_COLUMNS
-     * (kept as a separate copy here rather than shared, the same way
-     * issues/global-index.blade.php already keeps its own independent
-     * copy). Custom fields are deliberately excluded from this setting,
-     * unlike Redmine's own issue_list_default_columns which allows them
-     * — they're per-tracker and not a stable install-wide default.
+     * Columns selectable as the issue list's default display columns: the
+     * issue list's own columns (issues/index.blade.php displayColumns(),
+     * kept as a copy here) and every issue custom field as `cf_<id>` —
+     * Redmine's issue_list_default_columns allows both. A custom field that
+     * does not apply to a project, or that the viewer may not see, is left
+     * out of that list when it is shown.
      *
      * @return array<string, string>
      */
     public static function issueListColumns(): array
     {
-        return [
+        $native = [
             'tracker_id' => __('トラッカー'),
             'status_id' => __('ステータス'),
             'priority_id' => __('優先度'),
@@ -67,7 +67,59 @@ new #[Layout('components.layouts.app')] class extends Component
             'due_date' => __('期日'),
             'created_at' => __('作成日'),
             'done_ratio' => __('進捗率'),
+            'relations' => __('関連するチケット'),
+            'attachments' => __('添付ファイル'),
+            'watchers' => __('ウォッチャー'),
+            'estimated_hours' => __('予定工数'),
+            'total_estimated_hours' => __('合計予定工数'),
+            'estimated_remaining_hours' => __('残り工数'),
+            'spent_hours' => __('作業時間'),
+            'total_spent_hours' => __('合計作業時間'),
+            'project_id' => __('プロジェクト'),
+            'parent_id' => __('親課題'),
+            'updated_at' => __('更新日'),
+            'closed_on' => __('終了日'),
+            'last_updated_by' => __('最終更新者'),
+            'is_private' => __('非公開'),
+            'description' => __('説明'),
+            'last_notes' => __('最新のコメント'),
         ];
+
+        $customFields = CustomField::query()
+            ->where('customized_type', \App\Enums\CustomizableType::Issue)
+            ->orderBy('position')
+            ->pluck('name', 'id')
+            ->mapWithKeys(fn (string $name, int $id) => ["cf_{$id}" => $name])
+            ->all();
+
+        return [...$native, ...$customFields];
+    }
+
+    /**
+     * Moves one chosen column of a column setting one place earlier
+     * (negative $delta) or later — the order the list shows them in.
+     */
+    public function moveSettingColumn(string $setting, string $key, int $delta): void
+    {
+        if (! in_array($setting, ['issue_list_default_columns', 'related_issues_default_columns'], true)) {
+            return;
+        }
+
+        $columns = array_values($this->{$setting});
+        $index = array_search($key, $columns, true);
+
+        if ($index === false) {
+            return;
+        }
+
+        $target = $index + ($delta < 0 ? -1 : 1);
+
+        if ($target < 0 || $target >= count($columns)) {
+            return;
+        }
+
+        [$columns[$index], $columns[$target]] = [$columns[$target], $columns[$index]];
+        $this->{$setting} = $columns;
     }
 
     /**
@@ -680,7 +732,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_issue_start_date_for_api_and_mail' => ['boolean'],
             'default_issue_due_date_offset' => ['nullable', 'integer', 'min:0'],
             'related_issues_default_columns' => ['array'],
-            'related_issues_default_columns.*' => [Rule::in(array_keys(RelatedIssueColumns::AVAILABLE))],
+            'related_issues_default_columns.*' => [Rule::in(array_keys(RelatedIssueColumns::available()))],
             'display_related_issues_table_headers' => ['boolean'],
             'issue_list_default_columns' => ['array', 'min:1'],
             'issue_list_default_columns.*' => [Rule::in(array_keys(self::issueListColumns()))],
@@ -1029,6 +1081,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </label>
                     @endforeach
                 </div>
+                <div class="mt-2"><x-column-order :columns="$issue_list_default_columns" :labels="self::issueListColumns()" setting="issue_list_default_columns" /></div>
                 @error('issue_list_default_columns') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 @error('issue_list_default_columns.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -1036,13 +1089,14 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('関連課題・サブタスクの表示列') }}</span>
                 <div class="grid grid-cols-2 gap-2">
-                    @foreach (RelatedIssueColumns::labels() as $key => $label)
+                    @foreach (RelatedIssueColumns::available() as $key => $label)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
                             <input type="checkbox" wire:model="related_issues_default_columns" value="{{ $key }}" class="rounded border-neutral-300">
                             {{ $label }}
                         </label>
                     @endforeach
                 </div>
+                <div class="mt-2"><x-column-order :columns="$related_issues_default_columns" :labels="RelatedIssueColumns::available()" setting="related_issues_default_columns" /></div>
                 <p class="mt-1 text-xs text-neutral-500">{{ __('課題の詳細画面で、サブタスクと関連課題の表に題名と一緒に表示する列です。') }}</p>
                 @error('related_issues_default_columns.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <label class="mt-2 flex items-center gap-2 text-sm text-neutral-700">
