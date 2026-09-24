@@ -230,7 +230,8 @@ test('account deletion removes the user\'s custom field values and deletes their
     $path = $media->getPath();
 
     $this->actingAs($admin)->get(route('attachments.show', $media))->assertOk();
-    expect(file_exists($path))->toBeTrue();
+    expect(file_exists($path))->toBeTrue()
+        ->and($user->customFieldValues()->count())->toBe(2);
 
     app(AccountDeletionService::class)->delete($user);
 
@@ -268,6 +269,8 @@ test('account deletion removes what Redmine removes with the user rather than re
     Reaction::factory()->create(['user_id' => $user->id]);
     $webhook = Webhook::factory()->create(['user_id' => $user->id]);
     $siteWebhook = Webhook::factory()->create();
+
+    expect(CustomFieldValue::query()->where('custom_field_id', $userField->id)->where('value_int', $user->id)->exists())->toBeTrue();
 
     app(AccountDeletionService::class)->delete($user);
     $user->refresh();
