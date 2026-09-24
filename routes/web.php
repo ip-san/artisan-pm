@@ -45,8 +45,10 @@ Route::get('/account/activate/{user}', AccountActivationController::class)
 // still blocks a guest here exactly as 'auth' would when the setting is on
 // (the default); when it's off, each route's own policy
 // (ProjectPolicy/IssuePolicy/WikiPagePolicy) decides whether the specific
-// project/model is visible to a guest — matching Redmine's own narrow
-// guest-visible surface (public projects' issues and wiki only).
+// project/model is visible to a guest — matching Redmine, where the
+// Anonymous role's permissions on public projects decide (issues, wiki,
+// and since A1-41 the project calendar, Gantt, search, activity and
+// roadmap; the Atom feeds let guests in through 'atom.key' the same way).
 Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->group(function () {
     Route::get('/attachments/{media}', AttachmentController::class)->name('attachments.show')
         ->withoutMiddleware('auth')->middleware('login.required');
@@ -99,7 +101,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Volt::route('/projects/{project:identifier}/issue_categories/create', 'issue-categories.form')->name('issue-categories.create');
     Volt::route('/projects/{project:identifier}/issue_categories/{issueCategory}/edit', 'issue-categories.form')->name('issue-categories.edit')->scopeBindings();
 
-    Volt::route('/projects/{project:identifier}/roadmap', 'versions.roadmap')->name('versions.roadmap');
+    Volt::route('/projects/{project:identifier}/roadmap', 'versions.roadmap')->name('versions.roadmap')
+        ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/projects/{project:identifier}/versions', 'versions.index')->name('versions.index');
     Volt::route('/projects/{project:identifier}/versions/create', 'versions.form')->name('versions.create');
     Volt::route('/projects/{project:identifier}/versions/{version}/edit', 'versions.form')->name('versions.edit')->scopeBindings();
@@ -244,15 +247,19 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Route::get('/projects/{project:identifier}/repository/{repositoryParam}/raw/{path}', RepositoryRawController::class)->where('path', '.*')->name('repository.raw.repo');
     Volt::route('/projects/{project:identifier}/repository/{repositoryParam}', 'repository.index')->name('repository.index.repo');
 
-    Volt::route('/projects/{project:identifier}/activity', 'activity.index')->name('activity.index');
+    Volt::route('/projects/{project:identifier}/activity', 'activity.index')->name('activity.index')
+        ->withoutMiddleware('auth')->middleware('login.required');
     Route::get('/projects/{project:identifier}/activity.atom', ActivityFeedController::class)->name('activity.atom')
         ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
 
-    Volt::route('/projects/{project:identifier}/calendar', 'calendar.index')->name('calendar.index');
+    Volt::route('/projects/{project:identifier}/calendar', 'calendar.index')->name('calendar.index')
+        ->withoutMiddleware('auth')->middleware('login.required');
 
-    Volt::route('/projects/{project:identifier}/gantt', 'gantt.index')->name('gantt.index');
+    Volt::route('/projects/{project:identifier}/gantt', 'gantt.index')->name('gantt.index')
+        ->withoutMiddleware('auth')->middleware('login.required');
 
-    Volt::route('/projects/{project:identifier}/search', 'search.index')->name('search.index');
+    Volt::route('/projects/{project:identifier}/search', 'search.index')->name('search.index')
+        ->withoutMiddleware('auth')->middleware('login.required');
 
     Volt::route('/roles', 'roles.index')->name('roles.index');
     Volt::route('/roles/report', 'roles.report')->name('roles.report');

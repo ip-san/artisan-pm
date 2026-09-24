@@ -15,7 +15,8 @@ use Symfony\Component\HttpFoundation\Response;
  * #check_if_login_required: `require_login if Setting.login_required?`,
  * default on) — applied only to the handful of routes this app makes
  * conditionally guest-reachable (issue list/detail, wiki pages,
- * attachments), unlike the rest of the app's routes, which stay behind
+ * attachments, and the project calendar/Gantt/search/activity/roadmap),
+ * unlike the rest of the app's routes, which stay behind
  * the blanket 'auth' middleware regardless of this setting. With the
  * setting on (the default, and the only state possible before this
  * setting existed), a guest hitting one of these routes is redirected to

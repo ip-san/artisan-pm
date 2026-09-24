@@ -17,6 +17,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\WikiPage;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Query\CustomFieldVisibility;
 use App\Support\Search\SearchResult;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -117,7 +118,7 @@ final class SearchService
 
         return $this->whereWordsMatch(Issue::query()->whereIn('project_id', $projectIds), ['subject', 'description'], $words, $allWords)
             ->pluck('id')
-            ->merge($this->issueIdsMatchingSearchableCustomFields($projectIds, $words, $allWords))
+            ->merge($this->issueIdsMatchingSearchableCustomFields($projects->whereIn('id', $projectIds)->values(), $viewer, $words, $allWords))
             ->unique()
             ->values();
     }
@@ -232,7 +233,7 @@ final class SearchService
             )->limit(self::RESULTS_PER_TYPE)->pluck('id');
 
             if (! $titlesOnly) {
-                $matchedIds = $matchedIds->merge($this->issueIdsMatchingSearchableCustomFields($projectIds, $words, $allWords))->unique();
+                $matchedIds = $matchedIds->merge($this->issueIdsMatchingSearchableCustomFields($projects->whereIn('id', $projectIds)->values(), $viewer, $words, $allWords))->unique();
             }
         }
 
@@ -265,18 +266,27 @@ final class SearchService
     }
 
     /**
-     * @param  Collection<int, int>  $projectIds
+     * Issues whose searchable custom field values match — only fields the
+     * viewer may see in each issue's project (Redmine's acts_as_searchable
+     * groups the searchable fields by visibility_by_project_condition), so
+     * a role-restricted field never reveals which issues hold a value.
+     *
+     * @param  Collection<int, Project>  $projects
      * @param  array<int, string>  $words
      * @return Collection<int, int>
      */
-    private function issueIdsMatchingSearchableCustomFields(Collection $projectIds, array $words, bool $allWords): Collection
+    private function issueIdsMatchingSearchableCustomFields(Collection $projects, ?User $viewer, array $words, bool $allWords): Collection
     {
-        $searchableFieldIds = CustomField::query()
+        $visibility = CustomFieldVisibility::for($viewer);
+        $projectIdsByField = CustomField::query()
             ->where('customized_type', CustomizableType::Issue)
             ->where('searchable', true)
-            ->pluck('id');
+            ->with('roles')
+            ->get()
+            ->mapWithKeys(fn (CustomField $field) => [$field->id => $visibility->visibleProjectIds($field, $projects) ?? $projects->pluck('id')->all()])
+            ->reject(fn (array $projectIds) => $projectIds === []);
 
-        if ($searchableFieldIds->isEmpty()) {
+        if ($projectIdsByField->isEmpty()) {
             return collect();
         }
 
@@ -288,8 +298,13 @@ final class SearchService
         return $this->whereWordsMatch(
             CustomFieldValue::query()
                 ->where('customized_type', CustomizableType::Issue)
-                ->whereIn('custom_field_id', $searchableFieldIds)
-                ->whereIn('customized_id', fn ($q) => $q->select('id')->from('issues')->whereIn('project_id', $projectIds)),
+                ->where(function (Builder $query) use ($projectIdsByField) {
+                    foreach ($projectIdsByField as $fieldId => $projectIds) {
+                        $query->orWhere(fn (Builder $clause) => $clause
+                            ->where('custom_field_id', $fieldId)
+                            ->whereIn('customized_id', fn ($q) => $q->select('id')->from('issues')->whereIn('project_id', $projectIds)));
+                    }
+                }),
             ['value_string', 'value_text'],
             $words,
             $allWords,

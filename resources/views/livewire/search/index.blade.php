@@ -8,6 +8,7 @@ use App\Support\Pagination\PageSize;
 use App\Support\Search\SearchResult;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -69,7 +70,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->where('_lft', '>=', $this->project->_lft)
             ->where('_rgt', '<=', $this->project->_rgt)
             ->get()
-            ->filter(fn (Project $candidate) => auth()->user()?->can('view', $candidate))
+            ->filter(fn (Project $candidate) => Gate::allows('view', $candidate))
             ->values();
     }
 
@@ -140,7 +141,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $issue = Issue::query()->where('project_id', $this->project->id)->find((int) $matches[1]);
 
-        if ($issue === null || auth()->user()?->cannot('view', $issue)) {
+        if ($issue === null || Gate::denies('view', $issue)) {
             return;
         }
 

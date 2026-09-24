@@ -5,6 +5,7 @@ use App\Models\Setting;
 use App\Support\Activity\ActivityProviderRegistry;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use App\Support\Activity\OffByDefault;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -82,7 +83,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->where('_lft', '>=', $this->project->_lft)
             ->where('_rgt', '<=', $this->project->_rgt)
             ->get()
-            ->filter(fn (Project $candidate) => auth()->user()?->can('view', $candidate))
+            ->filter(fn (Project $candidate) => Gate::allows('view', $candidate))
             ->values();
     }
 

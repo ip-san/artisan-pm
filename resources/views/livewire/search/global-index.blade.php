@@ -8,6 +8,7 @@ use App\Support\Pagination\PageSize;
 use App\Support\Search\SearchResult;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -163,7 +164,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $issue = Issue::query()->find((int) $matches[1]);
 
-        if ($issue === null || auth()->user()?->cannot('view', $issue)) {
+        if ($issue === null || Gate::denies('view', $issue)) {
             return;
         }
 

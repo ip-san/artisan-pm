@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\Setting;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -14,8 +15,10 @@ use Symfony\Component\HttpFoundation\Response;
  * Lets an Atom feed be read with `?key=<atom key>` instead of a login —
  * feed readers cannot log in. The key authenticates that one request only
  * (no session, no cookie) and only for an active user; without a valid key
- * the request must already be logged in, as before. Redmine's
- * accept_atom_auth.
+ * the request must already be logged in — unless `login_required` is off,
+ * when it proceeds as a guest and the controller's policy checks decide
+ * with the Anonymous role on public projects, as Redmine's accept_atom_auth
+ * + check_if_login_required do (A1-41).
  */
 final class AuthenticateWithAtomKey
 {
@@ -33,7 +36,7 @@ final class AuthenticateWithAtomKey
             }
         }
 
-        if (! Auth::check()) {
+        if (! Auth::check() && Setting::get('login_required', true)) {
             return redirect()->guest(route('login'));
         }
 

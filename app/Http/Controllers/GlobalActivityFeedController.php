@@ -10,6 +10,7 @@ use App\Support\Activity\ActivityProviderRegistry;
 use App\Support\Activity\CrossProjectEntries;
 use App\Support\Activity\OffByDefault;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * The activity of every project the viewer can see, as an Atom feed
@@ -31,7 +32,7 @@ final class GlobalActivityFeedController extends Controller
             ? $providers->filter(fn ($provider) => in_array($provider->type(), $remembered, true))
             : $providers->reject(fn ($provider) => $provider instanceof OffByDefault);
 
-        $projects = Project::query()->get()->filter(fn (Project $project) => $user?->can('view', $project))->values();
+        $projects = Project::query()->get()->filter(fn (Project $project) => Gate::forUser($user)->allows('view', $project))->values();
 
         $entries = CrossProjectEntries::collect($providers, $projects, $user, $from, $to)
             ->take(ActivityFeedController::limit())
