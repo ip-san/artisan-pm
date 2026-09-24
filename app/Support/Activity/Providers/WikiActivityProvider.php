@@ -8,15 +8,16 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\WikiPageVersion;
 use App\Support\Activity\ActivityEntry;
-use App\Support\Activity\ActivityProvider;
+use App\Support\Activity\LastActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Activity\OffByDefault;
+use App\Support\Activity\ProjectLastActivity;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use LogicException;
 
-final class WikiActivityProvider implements MultiProjectActivityProvider, OffByDefault
+final class WikiActivityProvider implements LastActivityProvider, MultiProjectActivityProvider, OffByDefault
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -58,5 +59,22 @@ final class WikiActivityProvider implements MultiProjectActivityProvider, OffByD
                 occurredAt: $version->created_at ?? throw new LogicException('WikiPageVersion is missing created_at.'),
                 authorId: $version->author_id,
             ));
+    }
+
+    public function lastActivityByProject(Collection $projects, ?User $viewer): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_wiki_edits', $project))->values();
+
+        if ($projects->isEmpty()) {
+            return collect();
+        }
+
+        return ProjectLastActivity::maxByProject(
+            WikiPageVersion::query()
+                ->join('wiki_pages', 'wiki_pages.id', '=', 'wiki_page_versions.wiki_page_id')
+                ->whereIn('wiki_pages.project_id', $projects->pluck('id')),
+            'wiki_pages.project_id',
+            'wiki_page_versions.created_at',
+        );
     }
 }

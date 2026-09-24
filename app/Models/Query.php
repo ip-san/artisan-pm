@@ -15,7 +15,7 @@ use Illuminate\Support\Collection;
 
 #[Fillable([
     'name', 'type', 'user_id', 'project_id', 'visibility',
-    'filters', 'column_names', 'sort_criteria', 'group_by',
+    'filters', 'column_names', 'sort_criteria', 'group_by', 'options',
 ])]
 final class Query extends Model
 {
@@ -27,6 +27,7 @@ final class Query extends Model
             'filters' => 'array',
             'column_names' => 'array',
             'sort_criteria' => 'array',
+            'options' => 'array',
         ];
     }
 

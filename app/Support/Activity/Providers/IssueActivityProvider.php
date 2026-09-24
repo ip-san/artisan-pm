@@ -8,13 +8,15 @@ use App\Models\Issue;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
+use App\Support\Activity\LastActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
+use App\Support\Activity\ProjectLastActivity;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use LogicException;
 
-final class IssueActivityProvider implements MultiProjectActivityProvider
+final class IssueActivityProvider implements LastActivityProvider, MultiProjectActivityProvider
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -56,5 +58,20 @@ final class IssueActivityProvider implements MultiProjectActivityProvider
                 occurredAt: $issue->created_at ?? throw new LogicException('Issue is missing created_at.'),
                 authorId: $issue->author_id,
             ));
+    }
+
+    public function lastActivityByProject(Collection $projects, ?User $viewer): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_issues', $project))->values();
+
+        if ($projects->isEmpty()) {
+            return collect();
+        }
+
+        return ProjectLastActivity::maxByProject(
+            Issue::query()->visibleToAcrossProjects($viewer, $projects),
+            'issues.project_id',
+            'issues.created_at',
+        );
     }
 }

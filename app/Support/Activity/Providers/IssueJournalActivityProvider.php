@@ -8,7 +8,9 @@ use App\Models\Journal;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
+use App\Support\Activity\LastActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
+use App\Support\Activity\ProjectLastActivity;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -25,7 +27,7 @@ use LogicException;
  * visibility feed, so it deliberately stays conservative rather than
  * per-viewer-filtering private note content into it.
  */
-final class IssueJournalActivityProvider implements MultiProjectActivityProvider
+final class IssueJournalActivityProvider implements LastActivityProvider, MultiProjectActivityProvider
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -70,5 +72,26 @@ final class IssueJournalActivityProvider implements MultiProjectActivityProvider
                 authorId: $journal->user_id,
             ))
             ->values();
+    }
+
+    public function lastActivityByProject(Collection $projects, ?User $viewer): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_issues', $project))->values();
+
+        if ($projects->isEmpty()) {
+            return collect();
+        }
+
+        return ProjectLastActivity::maxByProject(
+            Journal::query()
+                ->join('issues', 'issues.id', '=', 'journals.issue_id')
+                ->whereHas('issue', fn ($query) => $query->visibleToAcrossProjects($viewer, $projects))
+                ->where('journals.private_notes', false)
+                ->where(fn ($query) => $query
+                    ->whereRaw("TRIM(COALESCE(journals.notes, '')) <> ''")
+                    ->orWhereHas('details')),
+            'issues.project_id',
+            'journals.created_at',
+        );
     }
 }

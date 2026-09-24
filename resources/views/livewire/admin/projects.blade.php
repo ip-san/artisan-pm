@@ -7,6 +7,7 @@ use App\Enums\FilterOperator;
 use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\Setting;
+use App\Support\Activity\ProjectLastActivity;
 use App\Support\Auth\RequiresPasswordConfirmation;
 use App\Support\Query\ProjectFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
@@ -115,6 +116,22 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * Redmine's Project.load_last_activity_date for the page, read only
+     * when that column is shown.
+     *
+     * @return Collection<int, \Illuminate\Support\Carbon>
+     */
+    #[Computed]
+    public function lastActivityDates(): Collection
+    {
+        if (! in_array('last_activity_date', $this->visibleColumns, true)) {
+            return collect();
+        }
+
+        return app(ProjectLastActivity::class)->forProjects($this->projects->getCollection(), auth()->user());
+    }
+
+    /**
      * @return Collection<int, Project>
      */
     #[Computed]
@@ -135,7 +152,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function sortBy(string $key): void
     {
-        if (! array_key_exists($key, $this->availableColumns)) {
+        if (! ProjectFilterFieldRegistry::isSortable($key, $this->availableColumns)) {
             return;
         }
 
@@ -280,6 +297,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'is_public' => $project->is_public ? __('はい') : __('いいえ'),
             'created_at' => \App\Support\Format\DateTimes::dateTime($project->created_at) ?? '',
             'updated_at' => \App\Support\Format\DateTimes::dateTime($project->updated_at) ?? '',
+            'last_activity_date' => \App\Support\Format\DateTimes::date($this->lastActivityDates->get($project->id)) ?? '',
             default => '',
         };
     }
@@ -287,7 +305,7 @@ new #[Layout('components.layouts.app')] class extends Component
     private function finishAction(): void
     {
         $this->reset('selected', 'confirmingBulkDelete', 'bulkDeleteConfirmation');
-        unset($this->projects, $this->selectedProjects);
+        unset($this->projects, $this->selectedProjects, $this->lastActivityDates);
     }
 }; ?>
 
@@ -381,12 +399,16 @@ new #[Layout('components.layouts.app')] class extends Component
                     <th class="px-4 py-2"></th>
                     @foreach ($this->visibleColumns as $columnKey)
                         <th wire:key="admin-project-heading-{{ $columnKey }}" class="px-4 py-2">
-                            <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-neutral-900">
+                            @if (ProjectFilterFieldRegistry::isSortable($columnKey, $this->availableColumns))
+                                <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-neutral-900">
+                                    {{ $this->availableColumns[$columnKey] }}
+                                    @if ($sortKey === $columnKey)
+                                        <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                    @endif
+                                </button>
+                            @else
                                 {{ $this->availableColumns[$columnKey] }}
-                                @if ($sortKey === $columnKey)
-                                    <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                                @endif
-                            </button>
+                            @endif
                         </th>
                     @endforeach
                     <th class="px-4 py-2"></th>

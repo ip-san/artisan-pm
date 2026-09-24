@@ -49,14 +49,11 @@ final class ProjectFilterFieldRegistry
         /** @var array<int, FilterableField> $nativeFields */
         $nativeFields = [
             new NativeColumnFilter('status', __('ステータス'), 'status', FilterFieldType::Select, $choice, fn () => self::statusOptions($viewer)),
+            self::projectChoiceFilter('id', __('プロジェクト'), $choice, $viewer, $visibleProjectIds),
             new NativeColumnFilter('name', __('名前'), 'name', FilterFieldType::Text, $text),
             new NativeColumnFilter('identifier', __('識別子'), 'identifier', FilterFieldType::Text, $text),
             new NativeColumnFilter('description', __('説明'), 'description', FilterFieldType::Text, $text),
-            new NativeColumnFilter('parent_id', __('親プロジェクト'), 'parent_id', FilterFieldType::Select, [...$choice, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], fn () => Project::query()
-                ->whereIn('id', $visibleProjectIds)
-                ->defaultOrder()
-                ->pluck('name', 'id')
-                ->all()),
+            self::projectChoiceFilter('parent_id', __('親プロジェクト'), [...$choice, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], $viewer, $visibleProjectIds),
             new NativeColumnFilter('is_public', __('公開'), 'is_public', FilterFieldType::Select, [FilterOperator::Equals], fn () => ['1' => __('はい'), '0' => __('いいえ')]),
             new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $date, storesTime: true),
             new NativeColumnFilter('updated_at', __('更新日'), 'updated_at', FilterFieldType::Date, $date, storesTime: true),
@@ -70,6 +67,78 @@ final class ProjectFilterFieldRegistry
     }
 
     /**
+     * A filter on a project id column (Redmine's ProjectQuery "id" and
+     * "parent_id"): its values are the visible projects in tree order,
+     * after `mine` (<< マイプロジェクト >>) and `bookmarks`
+     * (<< ブックマーク >>) for a signed-in viewer, which stand for their
+     * member and bookmarked projects when the filter runs — Query#statement's
+     * substitution, so they match nothing when there are none. Redmine
+     * lists the two only when the user has some; they are always offered
+     * here so a saved query or REST call using them keeps meaning "none"
+     * instead of being dropped as an unknown value.
+     *
+     * @param  array<int, FilterOperator>  $operators
+     * @param  Collection<int, int>  $visibleProjectIds
+     */
+    private static function projectChoiceFilter(string $key, string $label, array $operators, ?User $viewer, Collection $visibleProjectIds): FilterableField
+    {
+        return new CallbackFilter(
+            $key,
+            $label,
+            FilterFieldType::Select,
+            $operators,
+            function (Builder $query, FilterOperator $operator, array $values) use ($key, $viewer): Builder {
+                if (! $operator->requiresValue()) {
+                    return FilterOperatorApplier::apply($query, $query->qualifyColumn($key), $operator, $values);
+                }
+
+                if ($values === []) {
+                    return $query;
+                }
+
+                // One of several ids, as Redmine's list "=" / "!" — mine and
+                // bookmarks may stand for many projects, or for none.
+                $ids = self::substituteProjectValues($values, $viewer);
+                $excludes = in_array($operator, [FilterOperator::NotEquals, FilterOperator::NotIn], true);
+
+                return $excludes
+                    ? $query->whereNotIn($query->qualifyColumn($key), $ids)
+                    : $query->whereIn($query->qualifyColumn($key), $ids);
+            },
+            function () use ($viewer, $visibleProjectIds): array {
+                $options = $viewer !== null
+                    ? ['mine' => __('<< マイプロジェクト >>'), 'bookmarks' => __('<< ブックマーク >>')]
+                    : [];
+
+                return $options + Project::query()
+                    ->whereIn('id', $visibleProjectIds)
+                    ->defaultOrder()
+                    ->pluck('name', 'id')
+                    ->all();
+            },
+        );
+    }
+
+    /**
+     * @param  array<int, mixed>  $values
+     * @return array<int, string>
+     */
+    private static function substituteProjectValues(array $values, ?User $viewer): array
+    {
+        $ids = [];
+
+        foreach ($values as $value) {
+            $ids = [...$ids, ...match ((string) $value) {
+                'mine' => $viewer?->memberships()->pluck('project_id')->all() ?? [],
+                'bookmarks' => $viewer?->bookmarkedProjects()->pluck('projects.id')->all() ?? [],
+                default => ctype_digit((string) $value) ? [(int) $value] : [],
+            }];
+        }
+
+        return array_map('strval', array_values(array_unique($ids)));
+    }
+
+    /**
      * Orders a project query by one of the columns() keys; an unknown key
      * leaves it unsorted. Shared by the project list and the admin one.
      *
@@ -78,7 +147,7 @@ final class ProjectFilterFieldRegistry
      */
     public static function applySort(Builder $query, ?string $sortKey, string $direction, ?User $viewer): Builder
     {
-        if ($sortKey === null || ! array_key_exists($sortKey, self::columns($viewer))) {
+        if ($sortKey === null || ! self::isSortable($sortKey, self::columns($viewer))) {
             return $query;
         }
 
@@ -92,6 +161,17 @@ final class ProjectFilterFieldRegistry
 
         // Redmine sorts the parent column by tree position (lft).
         return $query->orderBy($sortKey === 'parent_id' ? '_lft' : $sortKey, $direction);
+    }
+
+    /**
+     * Every column sorts except the last activity date, which Redmine
+     * computes after the query (QueryColumn without :sortable).
+     *
+     * @param  array<string, string>  $columns  columns() for the viewer
+     */
+    public static function isSortable(string $key, array $columns): bool
+    {
+        return $key !== 'last_activity_date' && array_key_exists($key, $columns);
     }
 
     /**
@@ -125,6 +205,7 @@ final class ProjectFilterFieldRegistry
             'is_public' => __('公開'),
             'created_at' => __('作成日'),
             'updated_at' => __('更新日'),
+            'last_activity_date' => __('最終活動日'),
         ];
     }
 

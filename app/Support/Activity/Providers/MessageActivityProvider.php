@@ -8,14 +8,16 @@ use App\Models\Message;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
+use App\Support\Activity\LastActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Activity\OffByDefault;
+use App\Support\Activity\ProjectLastActivity;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use LogicException;
 
-final class MessageActivityProvider implements MultiProjectActivityProvider, OffByDefault
+final class MessageActivityProvider implements LastActivityProvider, MultiProjectActivityProvider, OffByDefault
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -57,5 +59,22 @@ final class MessageActivityProvider implements MultiProjectActivityProvider, Off
                 occurredAt: $message->created_at ?? throw new LogicException('Message is missing created_at.'),
                 authorId: $message->author_id,
             ));
+    }
+
+    public function lastActivityByProject(Collection $projects, ?User $viewer): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_messages', $project))->values();
+
+        if ($projects->isEmpty()) {
+            return collect();
+        }
+
+        return ProjectLastActivity::maxByProject(
+            Message::query()
+                ->join('boards', 'boards.id', '=', 'messages.board_id')
+                ->whereIn('boards.project_id', $projects->pluck('id')),
+            'boards.project_id',
+            'messages.created_at',
+        );
     }
 }

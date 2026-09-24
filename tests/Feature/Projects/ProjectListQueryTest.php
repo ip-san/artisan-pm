@@ -207,7 +207,8 @@ test('the parent filter only offers projects the viewer can see', function () {
 
     $options = Livewire::actingAs($user)->test('projects.index')->get('engine')->field('parent_id')->options();
 
-    expect($options)->toBe([$visible->id => 'Open Parent']);
+    // A2-10: << マイプロジェクト >>/<< ブックマーク >> lead the choices.
+    expect($options)->toBe(['mine' => '<< マイプロジェクト >>', 'bookmarks' => '<< ブックマーク >>', $visible->id => 'Open Parent']);
 });
 
 test('the list opens in the display type chosen in the settings and can be switched', function () {

@@ -10,12 +10,16 @@ use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Support\Activity\ProjectLastActivity;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Export\CsvCell;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use App\Support\Query\DefaultProjectQuery;
 use App\Support\Query\ProjectFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -24,6 +28,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * The project list — Redmine's ProjectsController#index driven by
@@ -192,7 +197,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->search !== ''
             || $this->statusFilter !== 'all'
             || $this->builtFilters() !== []
-            || ($this->sortKey !== null && array_key_exists($this->sortKey, $this->availableColumns));
+            || ($this->sortKey !== null && ProjectFilterFieldRegistry::isSortable($this->sortKey, $this->availableColumns));
     }
 
     /**
@@ -209,6 +214,21 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function projects(): Collection|LengthAwarePaginator
     {
+        $query = $this->projectQuery();
+
+        return $this->isFiltering
+            ? $query->paginate($this->pageSize(25))
+            : $this->withDisplayLevels($query->get());
+    }
+
+    /**
+     * Every project the list covers, in its order — the tree, or the
+     * filtered and sorted matches (Redmine's project_scope).
+     *
+     * @return Builder<Project>
+     */
+    private function projectQuery(): Builder
+    {
         $query = Project::query()
             ->whereIn('id', $this->visibleProjectIds)
             ->with(['parent', 'customFieldValues']);
@@ -218,7 +238,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if (! $this->isFiltering) {
-            return $this->withDisplayLevels($query->defaultOrder()->get());
+            return $query->defaultOrder();
         }
 
         if ($this->search !== '') {
@@ -232,9 +252,52 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $query = $this->engine->applyFilters($query, $this->builtFilters());
-        $query = $this->applySort($query);
 
-        return $query->orderBy('_lft')->paginate($this->pageSize(25));
+        return $this->applySort($query)->orderBy('_lft');
+    }
+
+    /**
+     * Redmine's Project.load_last_activity_date for the listed projects,
+     * read only when the list shows that column.
+     *
+     * @return Collection<int, Carbon>
+     */
+    #[Computed]
+    public function lastActivityDates(): Collection
+    {
+        if ($this->effectiveDisplayType !== 'list' || ! in_array('last_activity_date', $this->visibleColumns, true)) {
+            return collect();
+        }
+
+        $projects = $this->projects instanceof LengthAwarePaginator ? $this->projects->getCollection() : $this->projects;
+
+        return app(ProjectLastActivity::class)->forProjects($projects, auth()->user());
+    }
+
+    /**
+     * Redmine's projects.csv: every project the list covers (not just the
+     * page), one row each with the chosen columns, UTF-8 with a byte-order
+     * mark so Excel reads it correctly.
+     */
+    public function exportCsv(): StreamedResponse
+    {
+        $columns = $this->visibleColumns;
+        $projects = $this->projectQuery()->get();
+        $lastActivityDates = in_array('last_activity_date', $columns, true)
+            ? app(ProjectLastActivity::class)->forProjects($projects, auth()->user())
+            : collect();
+
+        return response()->streamDownload(function () use ($columns, $projects, $lastActivityDates): void {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, CsvCell::row(array_map(fn (string $key) => $this->availableColumns[$key], $columns)));
+
+            foreach ($projects as $project) {
+                fputcsv($handle, CsvCell::row(array_map(fn (string $key) => $this->columnValue($project, $key, $lastActivityDates), $columns)));
+            }
+
+            fclose($handle);
+        }, 'projects.csv');
     }
 
     /**
@@ -277,7 +340,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function sortBy(string $key): void
     {
-        if (! array_key_exists($key, $this->availableColumns)) {
+        if (! ProjectFilterFieldRegistry::isSortable($key, $this->availableColumns)) {
             return;
         }
 
@@ -303,8 +366,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /**
      * The plain-text value of one column for one project.
+     *
+     * @param  Collection<int, Carbon>|null  $lastActivityDates  defaults to the listed projects' (lastActivityDates())
      */
-    public function columnValue(Project $project, string $key): string
+    public function columnValue(Project $project, string $key, ?Collection $lastActivityDates = null): string
     {
         if (str_starts_with($key, 'cf_')) {
             return $project->customFieldValues
@@ -329,6 +394,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'is_public' => $project->is_public ? __('はい') : __('いいえ'),
             'created_at' => \App\Support\Format\DateTimes::dateTime($project->created_at) ?? '',
             'updated_at' => \App\Support\Format\DateTimes::dateTime($project->updated_at) ?? '',
+            'last_activity_date' => \App\Support\Format\DateTimes::date(($lastActivityDates ?? $this->lastActivityDates)->get($project->id)) ?? '',
             default => '',
         };
     }
@@ -339,7 +405,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private function applyDefaultQuery(): void
     {
-        if (request()->hasAny(['columns', 'sortKey', 'activeFilterKeys', 'search', 'statusFilter', 'bookmarkedOnly'])) {
+        if (request()->hasAny(['columns', 'sortKey', 'activeFilterKeys', 'search', 'statusFilter', 'bookmarkedOnly', 'display_type'])) {
             return;
         }
 
@@ -410,6 +476,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'column_names' => $this->visibleColumns,
             'sort_criteria' => $this->sortKey !== null ? [[$this->sortKey, $this->sortDirection]] : [],
             'group_by' => null,
+            'options' => ['display_type' => $this->effectiveDisplayType],
         ]);
 
         if ($visibility === QueryVisibility::Roles->value) {
@@ -450,8 +517,61 @@ new #[Layout('components.layouts.app')] class extends Component
             [$this->sortKey, $this->sortDirection] = $query->sort_criteria[0];
         }
 
+        // Redmine stores display_type in the query's options; a query saved
+        // without one opens in the site default.
+        $displayType = $query->options['display_type'] ?? null;
+        $this->displayType = in_array($displayType, ProjectFilterFieldRegistry::DISPLAY_TYPES, true) ? $displayType : null;
+
         $this->resetPage();
-        unset($this->projects, $this->isFiltering, $this->visibleColumns);
+        unset($this->projects, $this->isFiltering, $this->visibleColumns, $this->effectiveDisplayType, $this->lastActivityDates);
+    }
+
+    /**
+     * A board card's description: Redmine's Project#short_description (cut
+     * at the end of the line that passes 255 characters) through the wiki
+     * Markdown renderer, as textilizable does.
+     */
+    public function renderedShortDescription(Project $project): string
+    {
+        $description = trim((string) $project->description);
+
+        if ($description === '') {
+            return '';
+        }
+
+        $short = preg_replace('/^(.{255}[^\n\r]*).*$/su', '$1...', $description) ?? $description;
+
+        return app(WikiMarkdownRenderer::class)->render(trim($short), $project);
+    }
+
+    /**
+     * The custom fields a board card shows: the ones the viewer may see
+     * (ProjectFilterFieldRegistry::customFields()) that have a value.
+     *
+     * @return array<string, string> field name => value
+     */
+    public function cardCustomFieldValues(Project $project): array
+    {
+        $values = [];
+
+        foreach ($this->cardCustomFields as $field) {
+            $value = $this->columnValue($project, "cf_{$field->id}");
+
+            if ($value !== '') {
+                $values[$field->name] = $value;
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function cardCustomFields(): Collection
+    {
+        return ProjectFilterFieldRegistry::customFields(auth()->user());
     }
 
     public function toggleBookmark(int $projectId): void
@@ -549,6 +669,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($this->canSaveQueries)
                 <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
             @endif
+            <button wire:click="exportCsv" class="ml-auto rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('CSVエクスポート') }}</button>
         </div>
 
         @if ($showSaveForm)
@@ -579,7 +700,18 @@ new #[Layout('components.layouts.app')] class extends Component
                             <span class="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ $this->columnValue($project, 'status') }}</span>
                         @endif
                         @if ($project->description)
-                            <p class="mt-1 text-sm text-neutral-600">{{ $this->columnValue($project, 'description') }}</p>
+                            <div class="prose prose-sm mt-1 max-w-none text-neutral-600" data-project-description>{!! $this->renderedShortDescription($project) !!}</div>
+                        @endif
+                        @php $cardValues = $this->cardCustomFieldValues($project); @endphp
+                        @if ($cardValues !== [])
+                            <dl class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-neutral-600" data-project-custom-fields>
+                                @foreach ($cardValues as $fieldName => $fieldValue)
+                                    <div wire:key="project-card-{{ $project->id }}-cf-{{ $loop->index }}" class="flex gap-1">
+                                        <dt class="font-medium">{{ $fieldName }}:</dt>
+                                        <dd>{{ $fieldValue }}</dd>
+                                    </div>
+                                @endforeach
+                            </dl>
                         @endif
                     </div>
                     <button wire:click="toggleBookmark({{ $project->id }})" wire:key="bookmark-{{ $project->id }}"
@@ -599,12 +731,16 @@ new #[Layout('components.layouts.app')] class extends Component
                     <tr>
                         @foreach ($this->visibleColumns as $columnKey)
                             <th wire:key="project-heading-{{ $columnKey }}" class="px-4 py-2">
-                                <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-neutral-900">
+                                @if (\App\Support\Query\ProjectFilterFieldRegistry::isSortable($columnKey, $this->availableColumns))
+                                    <button wire:click="sortBy('{{ $columnKey }}')" class="flex items-center gap-1 hover:text-neutral-900">
+                                        {{ $this->availableColumns[$columnKey] }}
+                                        @if ($sortKey === $columnKey)
+                                            <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                                        @endif
+                                    </button>
+                                @else
                                     {{ $this->availableColumns[$columnKey] }}
-                                    @if ($sortKey === $columnKey)
-                                        <span>{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                                    @endif
-                                </button>
+                                @endif
                             </th>
                         @endforeach
                         <th class="px-4 py-2"></th>

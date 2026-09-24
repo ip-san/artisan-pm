@@ -8,13 +8,15 @@ use App\Models\News;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
+use App\Support\Activity\LastActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
+use App\Support\Activity\ProjectLastActivity;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use LogicException;
 
-final class NewsActivityProvider implements MultiProjectActivityProvider
+final class NewsActivityProvider implements LastActivityProvider, MultiProjectActivityProvider
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -56,5 +58,20 @@ final class NewsActivityProvider implements MultiProjectActivityProvider
                 occurredAt: $news->created_at ?? throw new LogicException('News is missing created_at.'),
                 authorId: $news->author_id,
             ));
+    }
+
+    public function lastActivityByProject(Collection $projects, ?User $viewer): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_news', $project))->values();
+
+        if ($projects->isEmpty()) {
+            return collect();
+        }
+
+        return ProjectLastActivity::maxByProject(
+            News::query()->whereIn('news.project_id', $projects->pluck('id')),
+            'news.project_id',
+            'news.created_at',
+        );
     }
 }

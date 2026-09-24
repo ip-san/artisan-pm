@@ -8,13 +8,15 @@ use App\Models\Document;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
+use App\Support\Activity\LastActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
+use App\Support\Activity\ProjectLastActivity;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use LogicException;
 
-final class DocumentActivityProvider implements MultiProjectActivityProvider
+final class DocumentActivityProvider implements LastActivityProvider, MultiProjectActivityProvider
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -56,5 +58,20 @@ final class DocumentActivityProvider implements MultiProjectActivityProvider
                 authorName: null,
                 occurredAt: $document->created_at ?? throw new LogicException('Document is missing created_at.'),
             ));
+    }
+
+    public function lastActivityByProject(Collection $projects, ?User $viewer): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_documents', $project))->values();
+
+        if ($projects->isEmpty()) {
+            return collect();
+        }
+
+        return ProjectLastActivity::maxByProject(
+            Document::query()->whereIn('documents.project_id', $projects->pluck('id')),
+            'documents.project_id',
+            'documents.created_at',
+        );
     }
 }

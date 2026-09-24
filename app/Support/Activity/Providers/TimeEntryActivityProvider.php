@@ -9,14 +9,16 @@ use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
+use App\Support\Activity\LastActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Activity\OffByDefault;
+use App\Support\Activity\ProjectLastActivity;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Format\DateTimes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
-final class TimeEntryActivityProvider implements MultiProjectActivityProvider, OffByDefault
+final class TimeEntryActivityProvider implements LastActivityProvider, MultiProjectActivityProvider, OffByDefault
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -69,5 +71,21 @@ final class TimeEntryActivityProvider implements MultiProjectActivityProvider, O
                 occurredAt: Carbon::parse($entry->spent_on->toDateString(), $zone),
                 authorId: $entry->user_id,
             ));
+    }
+
+    public function lastActivityByProject(Collection $projects, ?User $viewer): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_time_entries', $project))->values();
+
+        if ($projects->isEmpty()) {
+            return collect();
+        }
+
+        // Redmine's TimeEntry activity timestamp is created_on.
+        return ProjectLastActivity::maxByProject(
+            TimeEntry::query()->whereIn('time_entries.project_id', $projects->pluck('id')),
+            'time_entries.project_id',
+            'time_entries.created_at',
+        );
     }
 }

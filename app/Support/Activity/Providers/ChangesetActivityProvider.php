@@ -8,13 +8,15 @@ use App\Models\Changeset;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Activity\ActivityEntry;
+use App\Support\Activity\LastActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
+use App\Support\Activity\ProjectLastActivity;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
-final class ChangesetActivityProvider implements MultiProjectActivityProvider
+final class ChangesetActivityProvider implements LastActivityProvider, MultiProjectActivityProvider
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -55,5 +57,22 @@ final class ChangesetActivityProvider implements MultiProjectActivityProvider
                 authorName: $changeset->committer,
                 occurredAt: $changeset->committed_on,
             ));
+    }
+
+    public function lastActivityByProject(Collection $projects, ?User $viewer): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_changesets', $project))->values();
+
+        if ($projects->isEmpty()) {
+            return collect();
+        }
+
+        return ProjectLastActivity::maxByProject(
+            Changeset::query()
+                ->join('repositories', 'repositories.id', '=', 'changesets.repository_id')
+                ->whereIn('repositories.project_id', $projects->pluck('id')),
+            'repositories.project_id',
+            'changesets.committed_on',
+        );
     }
 }

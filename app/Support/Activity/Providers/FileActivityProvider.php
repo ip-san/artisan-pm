@@ -8,7 +8,9 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\Version;
 use App\Support\Activity\ActivityEntry;
+use App\Support\Activity\LastActivityProvider;
 use App\Support\Activity\MultiProjectActivityProvider;
+use App\Support\Activity\ProjectLastActivity;
 use App\Support\Attachments\AttachmentUploader;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Carbon;
@@ -21,7 +23,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * that is known (files uploaded before uploaders were recorded have no
  * author).
  */
-final class FileActivityProvider implements MultiProjectActivityProvider
+final class FileActivityProvider implements LastActivityProvider, MultiProjectActivityProvider
 {
     public function __construct(
         private readonly AuthorizationService $authorization,
@@ -78,5 +80,35 @@ final class FileActivityProvider implements MultiProjectActivityProvider
                 authorId: $uploader?->id,
             );
         });
+    }
+
+    public function lastActivityByProject(Collection $projects, ?User $viewer): Collection
+    {
+        $projects = $projects->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_files', $project))->values();
+
+        if ($projects->isEmpty()) {
+            return collect();
+        }
+
+        $projectFiles = ProjectLastActivity::maxByProject(
+            Media::query()
+                ->where('collection_name', 'files')
+                ->where('model_type', 'project')
+                ->whereIn('model_id', $projects->pluck('id')),
+            'media.model_id',
+            'media.created_at',
+        );
+
+        $versionFiles = ProjectLastActivity::maxByProject(
+            Media::query()
+                ->join('versions', 'versions.id', '=', 'media.model_id')
+                ->where('media.collection_name', 'files')
+                ->where('media.model_type', 'version')
+                ->whereIn('versions.project_id', $projects->pluck('id')),
+            'versions.project_id',
+            'media.created_at',
+        );
+
+        return ProjectLastActivity::merge($projectFiles, $versionFiles);
     }
 }
