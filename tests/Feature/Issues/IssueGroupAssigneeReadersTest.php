@@ -157,7 +157,7 @@ test('the issue list sorts and groups by a group assignee\'s name', function () 
         ->assertOk()
         ->assertSeeInOrder(['Support team', 'Zed issue']);
 
-    Livewire::actingAs($s->member)->test('issues.global-index')
+    Livewire::actingAs($s->member)->test('issues.index')
         ->set('sortKey', 'assigned_to_id')
         ->set('sortDirection', 'desc')
         ->assertOk()

@@ -25,7 +25,7 @@ test('an admin can save a query from the global issue list as public and it has 
         ->roles()->attach(Role::factory()->create(['permissions' => ['view_issues', 'save_queries']]));
 
     Livewire::actingAs($admin)
-        ->test('issues.global-index')
+        ->test('issues.index')
         ->set('newQueryName', 'Global public query')
         ->set('newQueryVisibility', 'public')
         ->call('saveQuery');
@@ -41,7 +41,7 @@ test('a non-admin saving a query from the global issue list is forced private', 
     $user = crossProjectQueryMember($project);
 
     Livewire::actingAs($user)
-        ->test('issues.global-index')
+        ->test('issues.index')
         ->set('newQueryName', 'Attempted global public query')
         ->set('newQueryVisibility', 'public')
         ->call('saveQuery');
@@ -61,7 +61,7 @@ test('a public global query is visible from both the global issue list and any p
         'filters' => [], 'column_names' => ['subject'],
     ]);
 
-    $globalComponent = Livewire::actingAs($viewer)->test('issues.global-index');
+    $globalComponent = Livewire::actingAs($viewer)->test('issues.index');
     expect($globalComponent->get('savedQueries')->pluck('name'))->toContain('Global public query');
 
     $projectComponent = Livewire::actingAs($viewer)->test('issues.index', ['project' => $project]);
@@ -79,7 +79,7 @@ test('a private global query is not visible to another user from either view', f
         'filters' => [], 'column_names' => ['subject'],
     ]);
 
-    $globalComponent = Livewire::actingAs($otherUser)->test('issues.global-index');
+    $globalComponent = Livewire::actingAs($otherUser)->test('issues.index');
     expect($globalComponent->get('savedQueries')->pluck('name'))->not->toContain('Private global query');
 
     $projectComponent = Livewire::actingAs($otherUser)->test('issues.index', ['project' => $project]);
@@ -105,10 +105,10 @@ test('a roles-scoped global query is visible to a user with a matching role on a
     ]);
     $query->roles()->sync([$matchingRole->id]);
 
-    $visibleComponent = Livewire::actingAs($inRoleUser)->test('issues.global-index');
+    $visibleComponent = Livewire::actingAs($inRoleUser)->test('issues.index');
     expect($visibleComponent->get('savedQueries')->pluck('name'))->toContain('Roles-scoped global query');
 
-    $hiddenComponent = Livewire::actingAs($outOfRoleUser)->test('issues.global-index');
+    $hiddenComponent = Livewire::actingAs($outOfRoleUser)->test('issues.index');
     expect($hiddenComponent->get('savedQueries')->pluck('name'))->not->toContain('Roles-scoped global query');
 });
 
@@ -126,7 +126,7 @@ test('loading a global query from the global issue list restores its filters and
     ]);
 
     $component = Livewire::actingAs($user)
-        ->test('issues.global-index')
+        ->test('issues.index')
         ->call('loadQuery', $saved->id);
 
     expect($component->get('activeFilterKeys'))->toBe(['status_id'])
@@ -162,6 +162,6 @@ test('a project-scoped query is not visible from the global issue list', functio
         'filters' => [], 'column_names' => ['subject'],
     ]);
 
-    $globalComponent = Livewire::actingAs($user)->test('issues.global-index');
+    $globalComponent = Livewire::actingAs($user)->test('issues.index');
     expect($globalComponent->get('savedQueries')->pluck('name'))->not->toContain('Project-scoped query');
 });

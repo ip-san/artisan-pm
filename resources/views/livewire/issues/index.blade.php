@@ -43,6 +43,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
@@ -51,6 +52,11 @@ use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
+/**
+ * The issue list — Redmine's IssuesController#index, of one project (with
+ * its subprojects) or, without a project, of every project the viewer may
+ * see issues in (the cross-project `/issues`).
+ */
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
@@ -136,7 +142,8 @@ new #[Layout('components.layouts.app')] class extends Component
         ];
     }
 
-    public Project $project;
+    /** The project whose issues are listed; null on the cross-project list. */
+    public ?Project $project = null;
 
     #[Url]
     public string $statusFilter = 'open';
@@ -253,11 +260,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $bulkCopyLink = true;
 
-    public function mount(Project $project): void
+    public function mount(?Project $project = null): void
     {
-        $this->authorize('viewAny', [Issue::class, $project]);
+        if ($project?->exists) {
+            $this->authorize('viewAny', [Issue::class, $project]);
+            $this->project = $project;
+        }
 
-        $this->project = $project;
         $this->bulkTimeEntryTodo = IssueTimeEntryDisposition::defaultForIssueDeletion()->value;
 
         $this->applyDefaultQuery();
@@ -270,24 +279,41 @@ new #[Layout('components.layouts.app')] class extends Component
                 'issue_list_default_columns',
                 ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']
             );
+
+            // Redmine's IssueQuery#default_columns_names: the cross-project
+            // list puts "project" first.
+            if ($this->project === null && ! in_array('project_id', $this->columns, true)) {
+                $this->columns = ['project_id', ...$this->columns];
+            }
         }
     }
 
     #[Computed]
     public function engine(): QueryFilterEngine
     {
-        return new QueryFilterEngine(IssueFilterFieldRegistry::forProject($this->project, scopeProjects: $this->scopeProjects));
+        return new QueryFilterEngine($this->project === null
+            ? IssueFilterFieldRegistry::forProjects($this->scopeProjects)
+            : IssueFilterFieldRegistry::forProject($this->project, scopeProjects: $this->scopeProjects));
     }
 
     /**
      * The project plus, with display_subprojects_issues on, the subprojects
-     * whose issues the list also shows.
+     * whose issues the list also shows — or, on the cross-project list,
+     * every project the viewer may see issues in.
      *
      * @return Collection<int, Project>
      */
     #[Computed]
     public function scopeProjects(): Collection
     {
+        if ($this->project === null) {
+            return Project::query()
+                ->with(['trackers', 'issueCategories', 'users', 'versions'])
+                ->get()
+                ->filter(fn (Project $project) => Gate::allows('viewAny', [Issue::class, $project]))
+                ->values();
+        }
+
         return SubprojectScope::projectsForIssues($this->project, auth()->user(), $this->builtFilters());
     }
 
@@ -298,7 +324,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $query = Issue::query()
             ->visibleToAcrossProjects(auth()->user(), $this->scopeProjects)
-            ->with(['tracker', 'status', 'priority', 'category', 'assignedTo', 'assignedToGroup', 'author', 'fixedVersion'])
+            ->with(['project', 'tracker', 'status', 'priority', 'category', 'assignedTo', 'assignedToGroup', 'author', 'fixedVersion'])
             ->when(
                 collect($this->columns)->contains(fn (string $column) => str_starts_with($column, 'cf_')),
                 fn (Builder $q) => $q->with('customFieldValues.customField')
@@ -379,8 +405,12 @@ new #[Layout('components.layouts.app')] class extends Component
      * query the same way).
      */
     #[Computed]
-    public function atomUrl(): string
+    public function atomUrl(): ?string
     {
+        if ($this->project === null) {
+            return null;
+        }
+
         return route('issues.atom', $this->project).'?'.http_build_query([
             'key' => auth()->user()?->atomKey(),
             'statusFilter' => $this->statusFilter,
@@ -619,7 +649,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function canManagePublicQueries(): bool
     {
-        return app(AuthorizationService::class)->can(auth()->user(), 'manage_public_queries', $this->project);
+        return $this->project === null
+            ? auth()->user()?->is_admin === true
+            : app(AuthorizationService::class)->can(auth()->user(), 'manage_public_queries', $this->project);
     }
 
     #[Computed]
@@ -634,7 +666,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function canSaveQueries(): bool
     {
-        return app(\App\Support\Authorization\AuthorizationService::class)->can(auth()->user(), 'save_queries', $this->project);
+        return $this->project === null
+            ? app(AuthorizationService::class)->canGlobally(auth()->user(), 'save_queries')
+            : app(AuthorizationService::class)->can(auth()->user(), 'save_queries', $this->project);
     }
 
     public function saveQuery(): void
@@ -654,7 +688,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'name' => $data['newQueryName'],
             'type' => QueryType::Issue->value,
             'user_id' => auth()->id(),
-            'project_id' => $this->project->id,
+            'project_id' => $this->project?->id,
             'visibility' => $visibility,
             'filters' => $this->builtFilters(),
             'column_names' => $this->columns,
@@ -692,7 +726,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public function loadQuery(int $queryId): void
     {
         $query = SavedQuery::query()
-            ->where(fn ($q) => $q->where('project_id', $this->project->id)->orWhereNull('project_id'))
+            ->where('type', QueryType::Issue->value)
+            ->where(fn ($q) => $this->project === null ? $q->whereNull('project_id') : $q->where('project_id', $this->project->id)->orWhereNull('project_id'))
             ->findOrFail($queryId);
 
         abort_unless($query->visibleTo(auth()->user()), 403);
@@ -734,7 +769,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function savedQueries(): Collection
     {
-        return SavedQuery::visibleIn($this->project, QueryType::Issue, auth()->user());
+        return $this->project === null
+            ? SavedQuery::visibleGlobally(QueryType::Issue, auth()->user())
+            : SavedQuery::visibleIn($this->project, QueryType::Issue, auth()->user());
     }
 
     /**
@@ -763,8 +800,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function nativeColumns(): array
     {
-        $hidden = IssueFilterFieldRegistry::coreColumnsDisabledByEveryTracker(
-            IssueFilterFieldRegistry::rolledUpTrackers($this->project, $this->scopeProjects),
+        $hidden = IssueFilterFieldRegistry::coreColumnsDisabledByEveryTracker($this->project === null
+            ? $this->scopeProjects->flatMap(fn (Project $project) => $project->trackers)->unique('id')->values()
+            : IssueFilterFieldRegistry::rolledUpTrackers($this->project, $this->scopeProjects),
         );
 
         return array_diff_key(self::displayColumns(), array_flip($hidden));
@@ -814,7 +852,9 @@ new #[Layout('components.layouts.app')] class extends Component
                 ->with(['projects', 'roles'])
                 ->orderBy('position')
                 ->get()
-                ->filter(fn (CustomField $field) => $field->appliesToProject($this->project)),
+                ->filter(fn (CustomField $field) => $this->project === null
+                    ? $this->scopeProjects->contains(fn (Project $project) => $field->appliesToProject($project))
+                    : $field->appliesToProject($this->project)),
             $this->scopeProjects,
         );
     }
@@ -925,7 +965,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function exportCsv(): \Symfony\Component\HttpFoundation\StreamedResponse
     {
-        $this->authorize('viewAny', [Issue::class, $this->project]);
+        if ($this->project !== null) {
+            $this->authorize('viewAny', [Issue::class, $this->project]);
+        }
 
         $columns = $this->shownColumns;
         $issues = $this->exportedIssues();
@@ -961,7 +1003,7 @@ new #[Layout('components.layouts.app')] class extends Component
             }
 
             fclose($handle);
-        }, "{$this->project->identifier}-issues.csv");
+        }, $this->project !== null ? "{$this->project->identifier}-issues.csv" : 'issues.csv');
     }
 
     /**
@@ -983,7 +1025,9 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function exportPdf(): \Symfony\Component\HttpFoundation\StreamedResponse
     {
-        $this->authorize('viewAny', [Issue::class, $this->project]);
+        if ($this->project !== null) {
+            $this->authorize('viewAny', [Issue::class, $this->project]);
+        }
 
         $columns = array_diff($this->shownColumns, self::BLOCK_COLUMNS);
         $blockColumns = array_values(array_intersect(self::BLOCK_COLUMNS, $this->shownColumns));
@@ -1007,7 +1051,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         return response()->streamDownload(
             fn () => print ($pdf),
-            "{$this->project->identifier}-issues.pdf",
+            $this->project !== null ? "{$this->project->identifier}-issues.pdf" : 'issues.pdf',
             ['Content-Type' => 'application/pdf'],
         );
     }
@@ -1015,13 +1059,13 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function canBulkEdit(): bool
     {
-        return app(AuthorizationService::class)->can(auth()->user(), 'edit_issues', $this->project);
+        return $this->project !== null && app(AuthorizationService::class)->can(auth()->user(), 'edit_issues', $this->project);
     }
 
     #[Computed]
     public function canBulkCopy(): bool
     {
-        return app(AuthorizationService::class)->can(auth()->user(), 'copy_issues', $this->project);
+        return $this->project !== null && app(AuthorizationService::class)->can(auth()->user(), 'copy_issues', $this->project);
     }
 
     /**
@@ -1030,7 +1074,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function selectedIssues(): EloquentCollection
     {
-        if ($this->selected === []) {
+        if ($this->selected === [] || $this->project === null) {
             return new EloquentCollection;
         }
 
@@ -1772,7 +1816,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — 課題', ['project' => $project->name]) }}</h1>
+            <h1 class="text-xl font-semibold text-neutral-900">{{ $project !== null ? __(':project — 課題', ['project' => $project->name]) : __('課題(全プロジェクト)') }}</h1>
             <div class="mt-2 flex gap-3 text-sm">
                 <button wire:click="$set('statusFilter', 'open')" class="{{ $statusFilter === 'open' ? 'font-semibold text-brand-bold' : 'text-neutral-500' }}">{{ __('未対応') }}</button>
                 <button wire:click="$set('statusFilter', 'closed')" class="{{ $statusFilter === 'closed' ? 'font-semibold text-brand-bold' : 'text-neutral-500' }}">{{ __('完了') }}</button>
@@ -1780,8 +1824,10 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
-            <a href="{{ route('issues.changes-atom', [$project, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">{{ __('変更履歴(Atom)') }}</a>
+            @if ($this->atomUrl !== null)
+                <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
+            @endif
+            <a href="{{ $project !== null ? route('issues.changes-atom', [$project, 'key' => auth()->user()?->atomKey()]) : route('issues.global-changes-atom', ['key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">{{ __('変更履歴(Atom)') }}</a>
             <select wire:model="csvEncoding" title="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
                 <option value="SJIS-win">Shift_JIS</option>
@@ -1800,21 +1846,23 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($this->issues->total() > ExportLimit::issues())
                 <span class="text-xs text-warning-bold" data-export-limit-warning>{{ __('エクスポートは先頭の:limit件までです', ['limit' => ExportLimit::issues()]) }}</span>
             @endif
-            <a href="{{ route('issues.report', $project) }}" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                {{ __('レポート') }}
-            </a>
-            @can('import', [\App\Models\Issue::class, $project])
-                <a href="{{ route('issues.import', $project) }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    {{ __('CSVインポート') }}
+            @if ($project !== null)
+                <a href="{{ route('issues.report', $project) }}" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    {{ __('レポート') }}
                 </a>
-            @endcan
-            @can('create', [\App\Models\Issue::class, $project])
-                <a href="{{ route('issues.create', $project) }}"
-                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
-                    {{ __('新規課題') }}
-                </a>
-            @endcan
+                @can('import', [\App\Models\Issue::class, $project])
+                    <a href="{{ route('issues.import', $project) }}"
+                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                        {{ __('CSVインポート') }}
+                    </a>
+                @endcan
+                @can('create', [\App\Models\Issue::class, $project])
+                    <a href="{{ route('issues.create', $project) }}"
+                        class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                        {{ __('新規課題') }}
+                    </a>
+                @endcan
+            @endif
         </div>
     </div>
 
@@ -2040,7 +2088,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </form>
     @endif
 
-    @if (count($selected) > 0 && auth()->user()?->can('move', $this->selectedIssues->first()) && $this->bulkMoveTargetProjects->isNotEmpty())
+    @if (count($selected) > 0 && $this->selectedIssues->isNotEmpty() && auth()->user()?->can('move', $this->selectedIssues->first()) && $this->bulkMoveTargetProjects->isNotEmpty())
         <form wire:submit="applyBulkMove" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4">
             <div>
                 <label class="block text-xs font-medium text-neutral-700">{{ __(':count件を別のプロジェクトへ移動', ['count' => count($selected)]) }}</label>
@@ -2122,7 +2170,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </form>
     @endif
 
-    @if (count($selected) > 0 && auth()->user()?->can('delete', $this->selectedIssues->first()))
+    @if (count($selected) > 0 && $this->selectedIssues->isNotEmpty() && auth()->user()?->can('delete', $this->selectedIssues->first()))
         <div class="mb-4">
             @if ($this->bulkDeleteHours > 0)
                 <button type="button" wire:click="$set('confirmingBulkDelete', true)"
@@ -2246,7 +2294,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             @foreach (array_diff($this->shownColumns, self::BLOCK_COLUMNS) as $columnKey)
                                 <td wire:key="issue-{{ $issue->id }}-column-{{ $columnKey }}" class="px-4 py-2">
                                     @if ($columnKey === 'subject')
-                                        <a href="{{ route('issues.show', [$project, $issue]) }}" class="text-brand-bold hover:underline">
+                                        <a href="{{ route('issues.show', [$issue->project, $issue]) }}" class="text-brand-bold hover:underline">
                                             {{ $issue->subject }}
                                         </a>
                                     @elseif (str_starts_with($columnKey, 'cf_'))

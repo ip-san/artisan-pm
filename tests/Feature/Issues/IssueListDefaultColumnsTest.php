@@ -56,7 +56,7 @@ test('the global issue list prepends project_id to the configured default column
     $project = Project::factory()->create();
     $user = defaultColumnsMember($project);
 
-    $component = Livewire::actingAs($user)->test('issues.global-index');
+    $component = Livewire::actingAs($user)->test('issues.index');
 
     expect($component->get('columns'))->toBe(['project_id', 'status_id', 'subject']);
 });
@@ -67,7 +67,7 @@ test('the global issue list does not duplicate project_id if it is already in th
     $project = Project::factory()->create();
     $user = defaultColumnsMember($project);
 
-    $component = Livewire::actingAs($user)->test('issues.global-index');
+    $component = Livewire::actingAs($user)->test('issues.index');
 
     expect($component->get('columns'))->toBe(['project_id', 'status_id']);
 });

@@ -197,11 +197,11 @@ test('the cross-project list limits the filter and the column to projects where 
     ['field' => $field, 'insider' => $insider, 'outsider' => $outsider, 'admin' => $admin, 'secretChild' => $secretChild] = cfVisibilityFixture();
     $key = "cf_{$field->id}";
 
-    expect(cfVisibilityListSubjects($insider, 'issues.global-index', cfVisibilityFilter($field)))->toBe(['Parent secret'])
-        ->and(cfVisibilityListSubjects($outsider, 'issues.global-index', cfVisibilityFilter($field)))->toBe(['Parent plain', 'Parent secret'])
-        ->and(cfVisibilityListSubjects($admin, 'issues.global-index', cfVisibilityFilter($field)))->toBe(['Child secret', 'Parent secret']);
+    expect(cfVisibilityListSubjects($insider, 'issues.index', cfVisibilityFilter($field)))->toBe(['Parent secret'])
+        ->and(cfVisibilityListSubjects($outsider, 'issues.index', cfVisibilityFilter($field)))->toBe(['Parent plain', 'Parent secret'])
+        ->and(cfVisibilityListSubjects($admin, 'issues.index', cfVisibilityFilter($field)))->toBe(['Child secret', 'Parent secret']);
 
-    $list = Livewire::actingAs($insider)->test('issues.global-index')->set('statusFilter', 'all')->set('columns', ['subject', $key]);
+    $list = Livewire::actingAs($insider)->test('issues.index')->set('statusFilter', 'all')->set('columns', ['subject', $key]);
     $loaded = $list->get('issues')->getCollection()->firstWhere('id', $secretChild->id);
 
     expect($list->instance()->columnValue($loaded, $key))->toBe('');
@@ -215,7 +215,7 @@ test('a saved query holding a hidden custom field filter loads and runs without 
     $globalQuery = SavedQuery::create(['name' => 'Global', 'type' => QueryType::Issue->value, 'user_id' => $outsider->id, 'project_id' => null, 'visibility' => 'private', 'filters' => $filters, 'column_names' => ['subject', "cf_{$field->id}"]]);
 
     $projectList = Livewire::actingAs($outsider)->test('issues.index', ['project' => $parent])->call('loadQuery', $projectQuery->id)->set('statusFilter', 'all');
-    $globalList = Livewire::actingAs($outsider)->test('issues.global-index')->call('loadQuery', $globalQuery->id)->set('statusFilter', 'all');
+    $globalList = Livewire::actingAs($outsider)->test('issues.index')->call('loadQuery', $globalQuery->id)->set('statusFilter', 'all');
 
     expect($projectList->get('issues')->getCollection()->pluck('subject')->sort()->values()->all())->toBe(['Parent plain', 'Parent secret'])
         ->and($globalList->get('issues')->getCollection()->pluck('subject')->sort()->values()->all())->toBe(['Parent plain', 'Parent secret']);

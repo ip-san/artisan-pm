@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Support\Format\Hours;
 use App\Support\Pagination\PageSize;
 use Livewire\Livewire;
 
@@ -106,7 +107,7 @@ test('the global issue list and the global news list honour the page size too', 
     pageSizeIssues($project, 12);
     News::factory(12)->for($project)->create();
 
-    $issues = Livewire::actingAs($user)->test('issues.global-index')->set('perPage', 5);
+    $issues = Livewire::actingAs($user)->test('issues.index')->set('perPage', 5);
     expect($issues->get('issues')->perPage())->toBe(5);
 
     $news = Livewire::actingAs($user)->test('news.global-index')->set('perPage', 5);
@@ -207,12 +208,12 @@ test('the time entry lists page their rows but total every matching entry', func
     $projectList = Livewire::actingAs($user)->test('time-entries.index', ['project' => $project])->set('perPage', 5);
     expect($projectList->get('timeEntries')->count())->toBe(5)
         ->and($projectList->get('timeEntries')->total())->toBe(12)
-        ->and($projectList->get('totalHours'))->toBe(\App\Support\Format\Hours::format(24.0));
+        ->and($projectList->get('totalHours'))->toBe(Hours::format(24.0));
 
     $globalList = Livewire::actingAs($user)->test('time-entries.global-index')->set('perPage', 5);
     expect($globalList->get('timeEntries')->count())->toBe(5)
         ->and($globalList->get('timeEntries')->total())->toBe(12)
-        ->and($globalList->get('totalHours'))->toBe(\App\Support\Format\Hours::format(24.0));
+        ->and($globalList->get('totalHours'))->toBe(Hours::format(24.0));
 });
 
 test('group headings count every entry in the group, not only those on the page', function () {

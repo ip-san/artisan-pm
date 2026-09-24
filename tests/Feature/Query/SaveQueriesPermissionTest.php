@@ -54,9 +54,9 @@ test('the cross-project lists need save_queries through any role', function () {
     $without = permissionSplitUser($project, ['view_issues', 'view_time_entries']);
     $with = permissionSplitUser($project, ['view_issues', 'view_time_entries', 'save_queries']);
 
-    Livewire::actingAs($without)->test('issues.global-index')->assertDontSee('クエリを保存')->set('newQueryName', 'Nope')->call('saveQuery')->assertForbidden();
+    Livewire::actingAs($without)->test('issues.index')->assertDontSee('クエリを保存')->set('newQueryName', 'Nope')->call('saveQuery')->assertForbidden();
     Livewire::actingAs($without)->test('time-entries.global-index')->set('newQueryName', 'Nope')->call('saveQuery')->assertForbidden();
-    Livewire::actingAs($with)->test('issues.global-index')->assertSee('クエリを保存');
+    Livewire::actingAs($with)->test('issues.index')->assertSee('クエリを保存');
     Livewire::actingAs($with)->test('time-entries.global-index')->assertSee('クエリを保存');
 });
 

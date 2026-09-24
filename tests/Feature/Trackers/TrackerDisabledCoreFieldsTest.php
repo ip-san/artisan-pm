@@ -161,5 +161,5 @@ test('a column stays while one tracker of the list still uses its field, and on 
 
     $project->trackers()->sync([$bug->id]);
 
-    expect(Livewire::actingAs($user)->test('issues.global-index')->set('columns', ['subject', 'category_id'])->get('shownColumns'))->toBe(['subject']);
+    expect(Livewire::actingAs($user)->test('issues.index')->set('columns', ['subject', 'category_id'])->get('shownColumns'))->toBe(['subject']);
 });

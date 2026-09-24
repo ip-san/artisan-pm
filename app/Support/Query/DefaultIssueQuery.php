@@ -15,11 +15,12 @@ use App\Models\User;
  * Redmine's IssueQuery.default: the saved query an issue list opens on when
  * the visit names no filter of its own. The user's own choice comes first,
  * then the project's, then the site-wide one; the project and site defaults
- * must be public queries so everyone can use them.
+ * must be public queries so everyone can use them. The cross-project list
+ * ($project null) takes only global queries: the user's, then the site's.
  */
 final class DefaultIssueQuery
 {
-    public static function for(?User $user, Project $project): ?Query
+    public static function for(?User $user, ?Project $project): ?Query
     {
         $ownId = $user?->preference('default_issue_query');
 
@@ -31,7 +32,7 @@ final class DefaultIssueQuery
             }
         }
 
-        foreach ([$project->default_issue_query_id, Setting::get('default_issue_query')] as $candidateId) {
+        foreach ([$project?->default_issue_query_id, Setting::get('default_issue_query')] as $candidateId) {
             $candidate = filled($candidateId) ? self::find((int) $candidateId, $project) : null;
 
             if ($candidate !== null && $candidate->visibility === QueryVisibility::Public) {
@@ -44,13 +45,13 @@ final class DefaultIssueQuery
 
     /**
      * An issue query that applies to this project: a global one or the
-     * project's own.
+     * project's own (only a global one without a project).
      */
-    private static function find(int $id, Project $project): ?Query
+    private static function find(int $id, ?Project $project): ?Query
     {
         return Query::query()
             ->where('type', QueryType::Issue->value)
-            ->where(fn ($q) => $q->whereNull('project_id')->orWhere('project_id', $project->id))
+            ->where(fn ($q) => $project === null ? $q->whereNull('project_id') : $q->whereNull('project_id')->orWhere('project_id', $project->id))
             ->find($id);
     }
 }

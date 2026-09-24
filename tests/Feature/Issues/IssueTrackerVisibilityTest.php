@@ -96,7 +96,7 @@ test('the project and global issue lists leave out the restricted tracker', func
     $s = trackerScenario();
 
     $projectIds = Livewire::actingAs($s->user)->test('issues.index', ['project' => $s->project])->set('statusFilter', 'all')->instance()->issues->pluck('id');
-    $globalIds = Livewire::actingAs($s->user)->test('issues.global-index')->set('statusFilter', 'all')->instance()->issues->pluck('id');
+    $globalIds = Livewire::actingAs($s->user)->test('issues.index')->set('statusFilter', 'all')->instance()->issues->pluck('id');
 
     expect($projectIds->all())->toBe([$s->bugIssue->id])
         ->and($globalIds->all())->toBe([$s->bugIssue->id]);
