@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Rules\IssueRelationTarget;
 use App\Services\IssueService;
 use App\Services\ReactionService;
 use App\Support\Issues\RelatedIssueColumns;
@@ -254,65 +255,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 Rule::unique('issue_relations', 'issue_to_id')
                     ->where('issue_from_id', $this->issue->id)
                     ->where('relation_type', $this->relationType),
-                function (string $attribute, mixed $value, \Closure $fail): void {
-                    $other = Issue::find($value);
-
-                    if ($other === null) {
-                        return;
-                    }
-
-                    // Checked first, so the messages below never describe an
-                    // issue the user may not see.
-                    if (! $other->isVisibleTo(auth()->user())) {
-                        $fail(__('課題が見つかりません。'));
-
-                        return;
-                    }
-
-                    if ($other->project_id !== $this->issue->project_id && ! Setting::get('cross_project_issue_relations', false)) {
-                        $fail(__('プロジェクトをまたぐ関連付けは許可されていません。'));
-
-                        return;
-                    }
-
-                    if ($this->issue->descendantIds()->contains($other->id) || $other->descendantIds()->contains($this->issue->id)) {
-                        $fail(__('親子・祖先/子孫関係にある課題同士は関連付けできません。'));
-
-                        return;
-                    }
-
-                    if ($this->relationType === 'relates') {
-                        $reverseExists = IssueRelation::query()
-                            ->where('issue_from_id', $other->id)
-                            ->where('issue_to_id', $this->issue->id)
-                            ->where('relation_type', 'relates')
-                            ->exists();
-
-                        if ($reverseExists) {
-                            $fail(__('この関連は既に登録されています。'));
-                        }
-                    }
-
-                    if ($this->relationType === 'blocks') {
-                        $reverseBlocks = IssueRelation::query()
-                            ->where('issue_from_id', $other->id)
-                            ->where('issue_to_id', $this->issue->id)
-                            ->where('relation_type', 'blocks')
-                            ->exists();
-
-                        if ($reverseBlocks) {
-                            $fail(__('循環したブロック関係は作成できません。'));
-                        }
-                    }
-
-                    if ($this->relationType === 'precedes' && IssueRelation::wouldCreateCycle($this->issue, $other)) {
-                        $fail(__('先行関係が循環しています。'));
-                    }
-
-                    if ($this->relationType === 'follows' && IssueRelation::wouldCreateCycle($other, $this->issue)) {
-                        $fail(__('先行関係が循環しています。'));
-                    }
-                },
+                new IssueRelationTarget($this->issue, $this->relationType, auth()->user()),
             ],
             // copied_to is deliberately excluded from Rule::enum() here —
             // it's system-generated only (see IssueService::copy()),

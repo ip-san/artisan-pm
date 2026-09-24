@@ -43,8 +43,60 @@ final class ImportIssuesJob implements ShouldQueue
 
     public int $tries = 1;
 
+    /**
+     * The relation columns (Redmine's IssueImport relation_* fields) and
+     * the relation each makes: [stored type, whether the row is its target
+     * rather than its source].
+     *
+     * @var array<string, array{0: string, 1: bool}>
+     */
+    public const array RELATION_COLUMNS = [
+        'relation_relates' => ['relates', false],
+        'relation_blocks' => ['blocks', false],
+        'relation_blocked' => ['blocks', true],
+        'relation_duplicates' => ['duplicates', false],
+        'relation_duplicated' => ['duplicates', true],
+        'relation_precedes' => ['precedes', false],
+        'relation_follows' => ['follows', false],
+    ];
+
     /** @var array<int, Collection<int, CustomField>> tracker id => the custom fields a row of that tracker may set */
     private array $customFieldsByTracker = [];
+
+    /*
+     * State of one run of handle(), shared by the passes below.
+     */
+
+    private IssueService $issueService;
+
+    /** @var list<string> */
+    private array $header = [];
+
+    /** @var list<list<string|null>> */
+    private array $rows = [];
+
+    /** @var array<string, mixed> */
+    private array $mapping = [];
+
+    /** @var array<string, mixed> */
+    private array $defaults = [];
+
+    private bool $useUniqueId = false;
+
+    /** @var array<string, int> unique id => row index */
+    private array $indexByUniqueId = [];
+
+    /** @var array<int, int> row index => the id of the issue it created */
+    private array $issueIdByIndex = [];
+
+    /** @var array<int, true> */
+    private array $failedIndexes = [];
+
+    /** @var array<int, true> rows being imported, to catch a parent cycle */
+    private array $inProgress = [];
+
+    /** @var list<array{row: int, message: string}> */
+    private array $errors = [];
 
     public function __construct(
         private readonly IssueImport $import,
@@ -70,8 +122,6 @@ final class ImportIssuesJob implements ShouldQueue
         $this->import->update(['total_rows' => count($rows)]);
 
         $mapping = $this->import->column_mapping;
-        $errors = [];
-        $imported = 0;
 
         $defaults = [
             // Redmine's IssueImport#allowed_target_trackers: the trackers the
@@ -96,34 +146,243 @@ final class ImportIssuesJob implements ShouldQueue
                 && $this->import->user->can('create', [Version::class, $this->import->project]),
         ];
 
-        foreach ($rows as $index => $row) {
-            $rowNumber = $index + 2; // the record's position in the file, the header being 1
+        $this->header = $header;
+        $this->rows = $rows;
+        $this->mapping = $mapping;
+        $this->defaults = $defaults;
+        $this->issueService = $issueService;
+        $this->useUniqueId = ($mapping['unique_id'] ?? '') !== '';
 
-            try {
-                $record = array_combine($header, array_pad($row, count($header), null));
+        $this->indexUniqueIds();
 
-                $attributes = $this->mapRowToAttributes($record, $mapping, $defaults);
-
-                $issueService->create(
-                    $attributes,
-                    $this->import->user,
-                    $this->customFieldData($record, $mapping, $attributes['tracker_id']),
-                );
-
-                $imported++;
-            } catch (Throwable $e) {
-                $errors[] = ['row' => $rowNumber, 'message' => $e->getMessage()];
-            }
-
-            $this->import->increment('processed_rows');
+        foreach (array_keys($rows) as $index) {
+            $this->importRow($index);
         }
+
+        foreach ($this->issueIdByIndex as $index => $issueId) {
+            $this->buildRelations($index, $issueId);
+        }
+
+        usort($this->errors, fn (array $a, array $b) => $a['row'] <=> $b['row']);
 
         $this->import->update([
             'status' => ImportStatus::Completed,
-            'imported_count' => $imported,
-            'failed_count' => count($errors),
-            'errors' => $errors,
+            'processed_rows' => count($rows),
+            'imported_count' => count($this->issueIdByIndex),
+            'failed_count' => count($this->failedIndexes),
+            'errors' => $this->errors,
         ]);
+    }
+
+    /**
+     * Pass 0: which row holds each unique id. Every row sharing a unique id
+     * with another fails, since a reference to it would be ambiguous.
+     */
+    private function indexUniqueIds(): void
+    {
+        if (! $this->useUniqueId) {
+            return;
+        }
+
+        $indexesByUniqueId = [];
+
+        foreach (array_keys($this->rows) as $index) {
+            $uniqueId = $this->mapped($this->record($index), $this->mapping, 'unique_id');
+
+            if ($uniqueId !== null && $uniqueId !== '') {
+                $indexesByUniqueId[$uniqueId][] = $index;
+            }
+        }
+
+        foreach ($indexesByUniqueId as $uniqueId => $indexes) {
+            if (count($indexes) === 1) {
+                $this->indexByUniqueId[(string) $uniqueId] = $indexes[0];
+
+                continue;
+            }
+
+            foreach ($indexes as $index) {
+                $this->fail($index, __('一意なID「:id」が複数の行で使われています。', ['id' => $uniqueId]));
+            }
+        }
+    }
+
+    /**
+     * Pass 1: creates the row's issue, first creating the row its parent
+     * column names by unique id (so a parent may come later in the file).
+     * A parent row that is missing or failed, or a chain of parents that
+     * comes back to the row, fails the row instead of importing it without
+     * its parent.
+     */
+    private function importRow(int $index): void
+    {
+        if (isset($this->issueIdByIndex[$index]) || isset($this->failedIndexes[$index])) {
+            return;
+        }
+
+        if (isset($this->inProgress[$index])) {
+            $this->fail($index, __('親課題の指定が循環しています。'));
+
+            return;
+        }
+
+        $this->inProgress[$index] = true;
+
+        try {
+            $record = $this->record($index);
+            $parentId = null;
+            $parentUniqueId = $this->parentUniqueId($record);
+
+            if ($parentUniqueId !== null) {
+                $parentIndex = $this->indexByUniqueId[$parentUniqueId] ?? null;
+
+                if ($parentIndex === null) {
+                    throw new RuntimeException(__('一意なID「:id」の親課題の行が見つかりません。', ['id' => $parentUniqueId]));
+                }
+
+                $this->importRow($parentIndex);
+
+                if (isset($this->failedIndexes[$index])) {
+                    return;
+                }
+
+                $parentId = $this->issueIdByIndex[$parentIndex]
+                    ?? throw new RuntimeException(__('親課題の行(:row行目)を取り込めなかったため、この行も取り込みません。', ['row' => $parentIndex + 2]));
+            }
+
+            $attributes = $this->mapRowToAttributes($record, $this->mapping, $this->defaults, skipParent: $parentUniqueId !== null);
+
+            if ($parentId !== null) {
+                $attributes['parent_id'] = $parentId;
+            }
+
+            $issue = $this->issueService->create(
+                $attributes,
+                $this->import->user,
+                $this->customFieldData($record, $this->mapping, $attributes['tracker_id']),
+            );
+
+            $this->issueIdByIndex[$index] = $issue->id;
+        } catch (Throwable $e) {
+            $this->fail($index, $e->getMessage());
+        } finally {
+            unset($this->inProgress[$index]);
+            $this->import->increment('processed_rows');
+        }
+    }
+
+    /**
+     * The parent column's value when it names another row by unique id —
+     * only with a unique id column mapped, and never for "#123", which is
+     * an existing issue as without one (Redmine's IssueImport).
+     *
+     * @param  array<string, mixed>  $record
+     */
+    private function parentUniqueId(array $record): ?string
+    {
+        $parentRef = $this->mapped($record, $this->mapping, 'parent');
+
+        if (! $this->useUniqueId || $parentRef === null || $parentRef === '' || str_starts_with($parentRef, '#')) {
+            return null;
+        }
+
+        return $parentRef;
+    }
+
+    /**
+     * Pass 2: the row's relation columns — Redmine's
+     * IssueImport#build_relations. Each column holds comma-separated
+     * references: "#123" is an existing issue; with a unique id column
+     * mapped, anything else names a row by unique id; otherwise a bare
+     * number is an existing issue, as the parent column reads it. A
+     * precedes/follows reference may end in a delay ("#123 3d"). Every
+     * relation is created through IssueService::addRelation() with the
+     * importing user's view of the target; one that cannot be made is
+     * reported against the row, which stays imported.
+     */
+    private function buildRelations(int $index, int $issueId): void
+    {
+        $record = $this->record($index);
+        $issue = null;
+
+        foreach (self::RELATION_COLUMNS as $column => [$type, $reversed]) {
+            $cell = $this->mapped($record, $this->mapping, $column);
+
+            if ($cell === null || $cell === '') {
+                continue;
+            }
+
+            foreach (explode(',', $cell) as $declaration) {
+                $declaration = trim($declaration);
+
+                if ($declaration === '') {
+                    continue;
+                }
+
+                try {
+                    $issue ??= Issue::query()->findOrFail($issueId);
+                    [$otherId, $delay] = $this->relationTarget($declaration, in_array($type, ['precedes', 'follows'], true));
+                    [$from, $toId] = $reversed ? [Issue::query()->findOrFail($otherId), $issue->id] : [$issue, $otherId];
+
+                    if ($reversed && ! $from->isVisibleTo($this->import->user)) {
+                        throw new RuntimeException(__('課題が見つかりません。'));
+                    }
+
+                    $this->issueService->addRelation($from, $toId, $type, $delay, $this->import->user);
+                } catch (Throwable $e) {
+                    $message = $e instanceof ValidationException ? collect($e->errors())->flatten()->first() : $e->getMessage();
+                    $this->errors[] = ['row' => $index + 2, 'message' => __('関連「:declaration」を作成できません: :message', ['declaration' => $declaration, 'message' => $message])];
+                }
+            }
+        }
+    }
+
+    /**
+     * The issue id and delay one relation reference stands for.
+     *
+     * @return array{0: int, 1: int|null}
+     */
+    private function relationTarget(string $declaration, bool $allowsDelay): array
+    {
+        if (preg_match('/\A(?<ref>(?<is_id>#)?(?<id>\d+)|.+?)(?:\s+(?<delay>-?\d+)d)?\z/u', $declaration, $match) !== 1
+            || (($match['delay'] ?? '') !== '' && ! $allowsDelay)) {
+            throw new RuntimeException(__('書式が正しくありません。'));
+        }
+
+        $delay = ($match['delay'] ?? '') !== '' ? (int) $match['delay'] : null;
+
+        if (($match['is_id'] ?? '') !== '' || (! $this->useUniqueId && ($match['id'] ?? '') !== '')) {
+            return [(int) $match['id'], $delay];
+        }
+
+        if (! $this->useUniqueId) {
+            throw new RuntimeException(__('書式が正しくありません。'));
+        }
+
+        $otherIndex = $this->indexByUniqueId[$match['ref']] ?? null;
+
+        if ($otherIndex === null) {
+            throw new RuntimeException(__('一意なID「:id」の行が見つかりません。', ['id' => $match['ref']]));
+        }
+
+        return [
+            $this->issueIdByIndex[$otherIndex] ?? throw new RuntimeException(__(':row行目を取り込めなかったため、関連を作成できません。', ['row' => $otherIndex + 2])),
+            $delay,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function record(int $index): array
+    {
+        return array_combine($this->header, array_pad(array_slice($this->rows[$index], 0, count($this->header)), count($this->header), null));
+    }
+
+    private function fail(int $index, string $message): void
+    {
+        $this->failedIndexes[$index] = true;
+        $this->errors[] = ['row' => $index + 2, 'message' => $message];
     }
 
     /**
@@ -132,7 +391,7 @@ final class ImportIssuesJob implements ShouldQueue
      * @param  array<string, mixed>  $defaults
      * @return array<string, mixed>
      */
-    private function mapRowToAttributes(array $record, array $mapping, array $defaults): array
+    private function mapRowToAttributes(array $record, array $mapping, array $defaults, bool $skipParent = false): array
     {
         $subject = trim((string) $this->mapped($record, $mapping, 'subject'));
 
@@ -200,7 +459,8 @@ final class ImportIssuesJob implements ShouldQueue
         // would leave what was meant to be a subtask parented incorrectly
         // (or not at all) with no indication anything went wrong. Scoped
         // to this project, matching the manual form's parent_id rule.
-        $parentRef = $this->mapped($record, $mapping, 'parent');
+        $parentRef = $skipParent ? null : $this->mapped($record, $mapping, 'parent');
+        $parentRef = $parentRef === '' ? null : $parentRef;
         $parent = $parentRef !== null
             ? Issue::query()->where('project_id', $this->import->project_id)->visibleTo($this->import->user, $this->import->project)->find((int) ltrim($parentRef, '#'))
             : null;

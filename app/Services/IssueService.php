@@ -26,12 +26,15 @@ use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Models\Watcher;
+use App\Rules\IssueRelationTarget;
 use App\Support\Calendar\WorkingDays;
 use App\Support\Mail\MentionParser;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -419,6 +422,47 @@ final class IssueService
         }
 
         return $issue->refresh();
+    }
+
+    /**
+     * Creates a relation from $from to the issue $toIssueId with the same
+     * checks as the issue page's "add relation" (IssueRelationTarget, as
+     * $actor sees the target, plus existence, self and duplicate checks),
+     * then journals it on both issues and reschedules a precedes/follows
+     * successor, as the page does. The caller authorizes the action; the
+     * CSV import uses it for its relation columns (A1-28c).
+     *
+     * @throws ValidationException
+     */
+    public function addRelation(Issue $from, int $toIssueId, string $relationType, ?int $delay, User $actor): IssueRelation
+    {
+        Validator::make(
+            ['issue_to_id' => $toIssueId, 'relation_type' => $relationType, 'delay' => $delay],
+            [
+                'issue_to_id' => [
+                    'required', 'integer', Rule::exists('issues', 'id'),
+                    Rule::notIn([$from->id]),
+                    Rule::unique('issue_relations', 'issue_to_id')
+                        ->where('issue_from_id', $from->id)
+                        ->where('relation_type', $relationType),
+                    new IssueRelationTarget($from, $relationType, $actor),
+                ],
+                'relation_type' => ['required', Rule::in(['relates', 'blocks', 'duplicates', 'precedes', 'follows'])],
+                'delay' => ['nullable', 'integer', 'min:0'],
+            ],
+        )->validate();
+
+        $relation = IssueRelation::create([
+            'issue_from_id' => $from->id,
+            'issue_to_id' => $toIssueId,
+            'relation_type' => $relationType,
+            'delay' => in_array($relationType, ['precedes', 'follows'], true) ? $delay : null,
+        ]);
+
+        $this->journalizeRelation($relation, added: true, actor: $actor);
+        $this->rescheduleFromRelation($relation, $actor);
+
+        return $relation;
     }
 
     /**

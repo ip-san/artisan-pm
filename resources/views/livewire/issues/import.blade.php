@@ -39,6 +39,14 @@ new #[Layout('components.layouts.app')] class extends Component
         'start_date' => '開始日',
         'due_date' => '期日',
         'done_ratio' => '進捗率',
+        'unique_id' => '一意なID',
+        'relation_relates' => '関連',
+        'relation_blocks' => 'ブロックする',
+        'relation_blocked' => 'ブロックされている',
+        'relation_duplicates' => '重複する',
+        'relation_duplicated' => '重複されている',
+        'relation_precedes' => '先行',
+        'relation_follows' => '後続',
     ];
 
     /**
@@ -62,6 +70,14 @@ new #[Layout('components.layouts.app')] class extends Component
             'start_date' => __('開始日'),
             'due_date' => __('期日'),
             'done_ratio' => __('進捗率'),
+            'unique_id' => __('一意なID'),
+            'relation_relates' => __('関連'),
+            'relation_blocks' => __('ブロックする'),
+            'relation_blocked' => __('ブロックされている'),
+            'relation_duplicates' => __('重複する'),
+            'relation_duplicated' => __('重複されている'),
+            'relation_precedes' => __('先行'),
+            'relation_follows' => __('後続'),
         ];
     }
 
@@ -181,6 +197,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <input type="file" wire:model="csvFile" accept=".csv,text/csv" class="mt-1 block w-full text-sm text-neutral-700">
             @error('csvFile') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             <p class="mt-1 text-xs text-neutral-500">{{ __('1行目はヘッダー行として扱われます。') }}</p>
+            <p class="mt-1 text-xs text-neutral-500">{{ __('親課題と関連は「#番号」で既存の課題を指定します。「一意なID」の列を割り当てると、「#」の付かない値はファイル内の行の一意なIDを指します。先行/後続には「#12 3d」のように遅延日数を付けられます。関連は複数ならカンマで区切ります。') }}</p>
         </div>
 
         @if ($headers !== [])

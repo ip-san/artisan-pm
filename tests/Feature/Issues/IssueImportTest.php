@@ -8,10 +8,12 @@ use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueCategory;
 use App\Models\IssueImport;
+use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
@@ -562,4 +564,84 @@ test('the mapping form offers the editable custom fields and matches them to hea
 
     expect($component->get('mapping'))->toHaveKey("cf_{$field->id}", '顧客名')
         ->not->toHaveKey("cf_{$hidden->id}");
+});
+
+test('with a unique id column, a parent may be a later row and the rows form the tree (A1-28c)', function () {
+    ['project' => $project, 'user' => $user] = customFieldImportScenario();
+
+    $import = runQueuedImport($project, $user,
+        "id,subject,parent\nc1,子課題,p1\np1,親課題,\ng1,孫課題,c1\n",
+        ['unique_id' => 'id', 'subject' => 'subject', 'parent' => 'parent'],
+    );
+
+    $parent = Issue::where('subject', '親課題')->firstOrFail();
+    $child = Issue::where('subject', '子課題')->firstOrFail();
+
+    expect($import->imported_count)->toBe(3)
+        ->and($import->failed_count)->toBe(0)
+        ->and($import->processed_rows)->toBe(3)
+        ->and($child->parent_id)->toBe($parent->id)
+        ->and(Issue::where('subject', '孫課題')->value('parent_id'))->toBe($child->id);
+});
+
+test('duplicate unique ids, missing or failed parent rows and parent loops fail the rows instead of dropping the parent (A1-28c)', function () {
+    ['project' => $project, 'user' => $user] = customFieldImportScenario();
+
+    $import = runQueuedImport($project, $user,
+        "id,subject,parent\n".
+        "d1,重複A,\n".
+        "d1,重複B,\n".
+        "x1,重複の子,d1\n".
+        "x2,存在しない親の子,nope\n".
+        "e1,,\n".
+        "x3,失敗した親の子,e1\n".
+        "l1,ループA,l2\n".
+        "l2,ループB,l1\n".
+        "ok,正常,\n",
+        ['unique_id' => 'id', 'subject' => 'subject', 'parent' => 'parent'],
+    );
+
+    expect($import->imported_count)->toBe(1)
+        ->and($import->failed_count)->toBe(8)
+        ->and(collect($import->errors)->pluck('row')->all())->toBe([2, 3, 4, 5, 6, 7, 8, 9])
+        ->and(Issue::where('project_id', $project->id)->pluck('subject')->all())->toBe(['正常']);
+});
+
+test('relation columns link rows by unique id and existing issues by number through the validated path (A1-28c)', function () {
+    ['project' => $project, 'tracker' => $tracker, 'user' => $user] = customFieldImportScenario();
+    $existing = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'start_date' => '2026-01-05', 'due_date' => '2026-01-10']);
+    $hiddenProject = Project::factory()->private()->create();
+    $hidden = Issue::factory()->for($hiddenProject)->create();
+    Setting::set('cross_project_issue_relations', true);
+
+    $import = runQueuedImport($project, $user,
+        "id,subject,blocks,blocked,follows,relates\n".
+        "a,課題A,b,,,\n".
+        "b,課題B,,#{$existing->id},\"#{$existing->id} 2d\",\n".
+        "c,課題C,,,,\"#{$hidden->id}, zzz, b 3d\"\n",
+        ['unique_id' => 'id', 'subject' => 'subject', 'relation_blocks' => 'blocks', 'relation_blocked' => 'blocked', 'relation_follows' => 'follows', 'relation_relates' => 'relates'],
+    );
+
+    $a = Issue::where('subject', '課題A')->firstOrFail();
+    $b = Issue::where('subject', '課題B')->firstOrFail();
+
+    expect($import->imported_count)->toBe(3)
+        ->and($import->failed_count)->toBe(0)
+        ->and(IssueRelation::where(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => 'blocks'])->exists())->toBeTrue()
+        ->and(IssueRelation::where(['issue_from_id' => $existing->id, 'issue_to_id' => $b->id, 'relation_type' => 'blocks'])->exists())->toBeTrue()
+        ->and(IssueRelation::where(['issue_from_id' => $b->id, 'issue_to_id' => $existing->id, 'relation_type' => 'follows'])->value('delay'))->toBe(2)
+        ->and(IssueRelation::where('issue_to_id', $hidden->id)->orWhere('issue_from_id', $hidden->id)->exists())->toBeFalse()
+        ->and(collect($import->errors)->where('row', 4)->pluck('message')->all())->toHaveCount(3)
+        ->and(collect($import->errors)->where('row', 4)->pluck('message')->implode(' '))->toContain('課題が見つかりません。')
+        ->and($b->journals()->exists())->toBeTrue();
+});
+
+test('without a unique id column the parent column still names an existing issue by number (A1-28c)', function () {
+    ['project' => $project, 'tracker' => $tracker, 'user' => $user] = customFieldImportScenario();
+    $existing = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+
+    runQueuedImport($project, $user, "subject,parent\n子,{$existing->id}\n空欄の親,\n", ['subject' => 'subject', 'parent' => 'parent']);
+
+    expect(Issue::where('subject', '子')->value('parent_id'))->toBe($existing->id)
+        ->and(Issue::where('subject', '空欄の親')->exists())->toBeTrue();
 });
