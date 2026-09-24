@@ -444,21 +444,35 @@ new #[Layout('components.layouts.app')] class extends Component
         $column = $this->groupBy;
         $options = $this->engine->field($column)?->options() ?? [];
         $nullLabel = $column === 'assigned_to_id' ? __('未割当') : '';
-        $resolveLabel = fn (mixed $rawKey) => ($rawKey === null || $rawKey === '')
-            ? $nullLabel
-            : ($options[$rawKey] ?? (string) $rawKey);
+        // The assignee is a user or a group: group by one key that tells
+        // them apart (AssigneeChoice's `group:<id>`).
+        $keyExpression = fn (string $table) => $column === 'assigned_to_id'
+            ? "CASE WHEN {$table}assigned_to_group_id IS NOT NULL THEN CONCAT('".AssigneeChoice::GROUP_PREFIX."', {$table}assigned_to_group_id) ELSE CAST({$table}assigned_to_id AS VARCHAR) END"
+            : "{$table}{$column}";
+        $groupNames = $column === 'assigned_to_id'
+            ? \App\Models\Group::query()->whereIn('id', $this->filteredIssuesQuery()->reorder()->whereNotNull('assigned_to_group_id')->select('assigned_to_group_id'))->pluck('name', 'id')
+            : collect();
+        $resolveLabel = function (mixed $rawKey) use ($nullLabel, $options, $groupNames): string {
+            if ($rawKey === null || $rawKey === '') {
+                return $nullLabel;
+            }
+
+            $groupId = AssigneeChoice::decode((string) $rawKey)['assigned_to_group_id'];
+
+            return $options[$rawKey] ?? ($groupId !== null ? ($groupNames[$groupId] ?? (string) $rawKey) : (string) $rawKey);
+        };
 
         $spentByGroup = TimeEntry::query()
             ->join('issues', 'time_entries.issue_id', '=', 'issues.id')
             ->whereIn('issues.id', $this->filteredIssuesQuery()->reorder()->select('issues.id'))
-            ->selectRaw("issues.{$column} as group_key, SUM(time_entries.hours) as spent")
-            ->groupBy("issues.{$column}")
+            ->selectRaw($keyExpression('issues.').' as group_key, SUM(time_entries.hours) as spent')
+            ->groupByRaw($keyExpression('issues.'))
             ->pluck('spent', 'group_key');
 
         return $this->filteredIssuesQuery()
             ->reorder()
-            ->selectRaw("{$column} as group_key, COUNT(*) as total, COALESCE(SUM(estimated_hours), 0) as estimated")
-            ->groupBy($column)
+            ->selectRaw($keyExpression('').' as group_key, COUNT(*) as total, COALESCE(SUM(estimated_hours), 0) as estimated')
+            ->groupByRaw($keyExpression(''))
             ->get()
             ->mapWithKeys(fn ($row) => [
                 $resolveLabel($row->group_key) => [

@@ -26,13 +26,14 @@ trait BuildsQueryFilterConditions
     /**
      * Redmine's sql_for_assigned_to_role_field / sql_for_author_role_field.
      * The negated operators, as in Redmine, also match an issue with
-     * nobody in $userColumn.
+     * nobody in $userColumn. With $groupColumn (a group assignee), the
+     * group's own member row counts, as a group Principal's does in Redmine.
      *
      * @param  Builder<*>  $query
      * @param  array<int, mixed>  $values
      * @return Builder<*>
      */
-    private function applyRole(Builder $query, string $userColumn, FilterOperator $operator, array $values): Builder
+    private function applyRole(Builder $query, string $userColumn, FilterOperator $operator, array $values, ?string $groupColumn = null): Builder
     {
         if ($operator->requiresValue() && $values === []) {
             return $query;
@@ -40,14 +41,16 @@ trait BuildsQueryFilterConditions
 
         $roleIds = in_array($operator, [FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], true) ? null : self::idList($values);
         $userColumn = $query->qualifyColumn($userColumn);
+        $groupColumn = $groupColumn !== null ? $query->qualifyColumn($groupColumn) : null;
         $projectColumn = $query->qualifyColumn('project_id');
 
-        $membership = function (QueryBuilder $members) use ($userColumn, $projectColumn, $roleIds): void {
+        $membership = function (QueryBuilder $members) use ($userColumn, $groupColumn, $projectColumn, $roleIds): void {
             $members->select($members->raw('1'))
                 ->from('members')
                 ->whereColumn('members.project_id', $projectColumn)
                 ->where(fn (QueryBuilder $principal) => $principal->whereColumn('members.user_id', $userColumn)
-                    ->orWhereIn('members.group_id', fn (QueryBuilder $groups) => $groups->select('group_user.group_id')->from('group_user')->whereColumn('group_user.user_id', $userColumn)));
+                    ->orWhereIn('members.group_id', fn (QueryBuilder $groups) => $groups->select('group_user.group_id')->from('group_user')->whereColumn('group_user.user_id', $userColumn))
+                    ->when($groupColumn !== null, fn (QueryBuilder $group) => $group->orWhereColumn('members.group_id', $groupColumn)));
 
             if ($roleIds !== null) {
                 $members->whereExists(fn (QueryBuilder $memberRoles) => $memberRoles->select($memberRoles->raw('1'))
@@ -61,26 +64,39 @@ trait BuildsQueryFilterConditions
             return $query->whereExists($membership);
         }
 
-        return $query->where(fn (Builder $outside) => $outside->whereNull($userColumn)->orWhereNotExists($membership));
+        return $query->where(fn (Builder $outside) => $outside
+            ->where(fn (Builder $nobody) => $nobody->whereNull($userColumn)->when($groupColumn !== null, fn (Builder $q) => $q->whereNull($groupColumn)))
+            ->orWhereNotExists($membership));
     }
 
     /**
      * The users in $column belong to one of $groupIds (null: to any
      * group), or, negated, the column is empty or they belong to none.
+     * With $groupColumn (a group assignee), the group itself matches too,
+     * like Redmine's `group.user_ids + [group.id]`.
      *
      * @param  Builder<*>  $query
      * @param  ?array<int, int>  $groupIds
      * @return Builder<*>
      */
-    private static function whereUserInGroups(Builder $query, string $column, ?array $groupIds, bool $negated): Builder
+    private static function whereUserInGroups(Builder $query, string $column, ?array $groupIds, bool $negated, ?string $groupColumn = null): Builder
     {
         $groupUsers = fn (QueryBuilder $members) => $members->select('group_user.user_id')
             ->from('group_user')
             ->when($groupIds !== null, fn (QueryBuilder $chosen) => $chosen->whereIn('group_user.group_id', $groupIds ?? []));
 
-        return $negated
-            ? $query->where(fn (Builder $outside) => $outside->whereNull($column)->orWhereNotIn($column, $groupUsers))
-            : $query->whereIn($column, $groupUsers);
+        if ($negated) {
+            return $query
+                ->where(fn (Builder $outside) => $outside->whereNull($column)->orWhereNotIn($column, $groupUsers))
+                ->when($groupColumn !== null, fn (Builder $q) => $q->where(fn (Builder $group) => $groupIds === null
+                    ? $group->whereNull($groupColumn)
+                    : $group->whereNull($groupColumn)->orWhereNotIn($groupColumn, $groupIds)));
+        }
+
+        return $query->where(fn (Builder $inside) => $inside->whereIn($column, $groupUsers)
+            ->when($groupColumn !== null, fn (Builder $q) => $groupIds === null
+                ? $q->orWhereNotNull($groupColumn)
+                : $q->orWhereIn($groupColumn, $groupIds)));
     }
 
     /**

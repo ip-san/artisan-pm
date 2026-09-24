@@ -56,7 +56,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function issueCounts(): array
     {
         $assigned = Issue::query()->visibleToAcrossProjects(auth()->user(), $this->issueVisibleProjects())
-            ->where('assigned_to_id', $this->user->id);
+            ->assignedToUserOrGroups($this->user);
         $reported = Issue::query()->visibleToAcrossProjects(auth()->user(), $this->issueVisibleProjects())
             ->where('author_id', $this->user->id);
 

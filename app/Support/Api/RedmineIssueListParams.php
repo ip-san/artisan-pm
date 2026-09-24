@@ -180,7 +180,9 @@ final class RedmineIssueListParams
 
         $values = array_values(array_filter($values, fn ($value) => is_scalar($value) && (string) $value !== ''));
 
-        if (in_array(self::fieldKey($name), ['assigned_to_id', 'author_id'], true)) {
+        // `me` for the assignee is left to AssigneeFilter, which adds the
+        // caller's groups as Redmine does.
+        if (self::fieldKey($name) === 'author_id') {
             $values = array_map(fn ($value) => $value === 'me' ? (string) $user->id : $value, $values);
         }
 

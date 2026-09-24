@@ -9,6 +9,7 @@ use App\Enums\CustomizableType;
 use App\Enums\EnumerationType;
 use App\Models\CustomField;
 use App\Models\Enumeration;
+use App\Models\Group;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Journal;
@@ -18,6 +19,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Support\Attachments\AttachmentUploader;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\StartDateDefault;
 use App\Support\Mail\MailSuppression;
 use App\Support\Mail\MessageIdentity;
@@ -473,6 +475,13 @@ final class IncomingMailService
                 $keyword = mb_strtolower($matches[1]);
                 $value = $this->resolveKeywordValue($keyword, trim($matches[2]), $project, $author, $issue);
 
+                if ($value !== null && $keyword === 'assigned to') {
+                    // A user id, or `group:<id>` for a group assignee.
+                    $attributes = [...$attributes, ...AssigneeChoice::decode((string) $value)];
+
+                    continue;
+                }
+
                 if ($value !== null) {
                     $attributes[self::KEYWORD_ATTRIBUTES[$keyword]] = $value;
 
@@ -663,11 +672,26 @@ final class IncomingMailService
             return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
         }
 
+        // Redmine's find_assignee_from_keyword: an assignable user by mail or
+        // name, else (issue_group_assignment on) an assignable group by name.
+        if ($keyword === 'assigned to') {
+            $userId = $project->assignableUsers()
+                ->first(fn (User $user) => strcasecmp($user->email, $value) === 0 || strcasecmp($user->name, $value) === 0)?->id;
+
+            if ($userId !== null) {
+                return (int) $userId;
+            }
+
+            $group = Issue::groupAssignmentEnabled()
+                ? $project->assignableGroups()->first(fn (Group $group) => strcasecmp($group->name, $value) === 0)
+                : null;
+
+            return $group !== null ? AssigneeChoice::forGroup($group) : null;
+        }
+
         $id = match ($keyword) {
             'status' => IssueStatus::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($value)])->value('id'),
             'priority' => Enumeration::query()->ofType(EnumerationType::IssuePriority)->whereRaw('LOWER(name) = ?', [mb_strtolower($value)])->value('id'),
-            'assigned to' => $project->assignableUsers()
-                ->first(fn (User $user) => strcasecmp($user->email, $value) === 0 || strcasecmp($user->name, $value) === 0)?->id,
             // Scoped to the project's own trackers/categories/versions —
             // the same boundary the manual issue form enforces, so a
             // keyword line can't assign a tracker/category/version that

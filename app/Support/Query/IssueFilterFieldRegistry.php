@@ -10,11 +10,15 @@ use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
 use App\Models\CustomField;
 use App\Models\Enumeration;
+use App\Models\Group;
+use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\SubprojectScope;
+use Closure;
 use Illuminate\Support\Collection;
 
 /**
@@ -47,7 +51,7 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('tracker_id', __('トラッカー'), 'tracker_id', FilterFieldType::Select, $selectOperators, fn () => $project->trackers->pluck('name', 'id')->all()),
             new NativeColumnFilter('priority_id', __('優先度'), 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
             new NativeColumnFilter('category_id', __('カテゴリ'), 'category_id', FilterFieldType::Select, $selectOperators, fn () => $project->issueCategories->pluck('name', 'id')->all()),
-            new NativeColumnFilter('assigned_to_id', __('担当者'), 'assigned_to_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
+            self::assigneeFilter($selectOperators, fn () => $project->users, collect([$project->id]), $viewer),
             new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => $project->users->pluck('name', 'id')->all()),
             new NativeColumnFilter('fixed_version_id', __('対象バージョン'), 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $project->versions->pluck('name', 'id')->all()),
             new NativeColumnFilter('subject', __('題名'), 'subject', FilterFieldType::Text, $textOperators),
@@ -118,7 +122,7 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('tracker_id', __('トラッカー'), 'tracker_id', FilterFieldType::Select, $selectOperators, fn () => $trackers->pluck('name', 'id')->all()),
             new NativeColumnFilter('priority_id', __('優先度'), 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
             new NativeColumnFilter('category_id', __('カテゴリ'), 'category_id', FilterFieldType::Select, $selectOperators, fn () => $categories->pluck('name', 'id')->all()),
-            new NativeColumnFilter('assigned_to_id', __('担当者'), 'assigned_to_id', FilterFieldType::Select, $selectOperators, fn () => $users->pluck('name', 'id')->all()),
+            self::assigneeFilter($selectOperators, fn () => $users, $projects->pluck('id'), $viewer),
             new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => $users->pluck('name', 'id')->all()),
             new NativeColumnFilter('fixed_version_id', __('対象バージョン'), 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $versions->pluck('name', 'id')->all()),
             new NativeColumnFilter('subject', __('題名'), 'subject', FilterFieldType::Text, $textOperators),
@@ -168,6 +172,33 @@ final class IssueFilterFieldRegistry
             ->reject(fn (array $entry) => $entry['projectIds'] === [])
             ->map(fn (array $entry): FilterableField => new CustomFieldFilter($entry['field'], $entry['projectIds']))
             ->values();
+    }
+
+    /**
+     * Redmine's assigned_to_values: `<< me >>`, the users, and — with
+     * issue_group_assignment on — the member groups (`group:<id>`).
+     *
+     * @param  array<int, FilterOperator>  $operators
+     * @param  Closure(): Collection<int, User>  $users
+     * @param  Collection<int, int>  $projectIds
+     */
+    private static function assigneeFilter(array $operators, Closure $users, Collection $projectIds, ?User $viewer): AssigneeFilter
+    {
+        return new AssigneeFilter(__('担当者'), $operators, function () use ($users, $projectIds, $viewer): array {
+            $options = ($viewer !== null ? ['me' => __('<< 自分 >>')] : []) + $users()->pluck('name', 'id')->all();
+
+            if (Issue::groupAssignmentEnabled()) {
+                Group::query()
+                    ->whereHas('memberships', fn ($members) => $members->whereIn('project_id', $projectIds))
+                    ->orderBy('name')
+                    ->get()
+                    ->each(function (Group $group) use (&$options): void {
+                        $options[AssigneeChoice::forGroup($group)] = $group->name;
+                    });
+            }
+
+            return $options;
+        }, $viewer);
     }
 
     /**

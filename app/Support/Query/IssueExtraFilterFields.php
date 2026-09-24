@@ -586,7 +586,7 @@ final class IssueExtraFilterFields
                     ? null
                     : array_values(array_intersect(self::idList($values), array_keys($this->visibleGroupOptions())));
 
-                return self::whereUserInGroups($query, $column, $groupIds, in_array($operator, [FilterOperator::NotEquals, FilterOperator::NotIn, FilterOperator::IsEmpty], true));
+                return self::whereUserInGroups($query, $column, $groupIds, in_array($operator, [FilterOperator::NotEquals, FilterOperator::NotIn, FilterOperator::IsEmpty], true), $query->qualifyColumn('assigned_to_group_id'));
             },
             fn () => $this->visibleGroupOptions(),
         );
@@ -604,7 +604,7 @@ final class IssueExtraFilterFields
             __('担当者のロール'),
             FilterFieldType::Select,
             [...self::userOperators(), FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
-            fn (Builder $query, FilterOperator $operator, array $values) => $this->applyRole($query, 'assigned_to_id', $operator, $values),
+            fn (Builder $query, FilterOperator $operator, array $values) => $this->applyRole($query, 'assigned_to_id', $operator, $values, 'assigned_to_group_id'),
             fn () => self::roleOptions(),
         );
     }

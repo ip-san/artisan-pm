@@ -185,7 +185,9 @@ final class WorkflowService
     private function authorRelationScope(Issue $issue, User $user): Closure
     {
         $isAuthor = $issue->author_id === $user->id;
-        $isAssignee = $issue->assigned_to_id !== null && $issue->assigned_to_id === $user->id;
+        // Redmine's assignee_transitions_allowed: the assignee or a member of
+        // the assigned group.
+        $isAssignee = $issue->isAssignedTo($user);
 
         return function ($query) use ($isAuthor, $isAssignee) {
             $query->where(function ($group) {

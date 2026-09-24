@@ -6,9 +6,11 @@ namespace App\Support\Reports;
 
 use App\Enums\EnumerationType;
 use App\Models\Enumeration;
+use App\Models\Group;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\User;
+use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\SubprojectScope;
 use Illuminate\Support\Collection;
 
@@ -128,12 +130,16 @@ final class IssueReport
      */
     public function counts(string $dimension): array
     {
-        $column = self::column($dimension);
+        // A group assignee is keyed `group:<id>` (AssigneeChoice), apart
+        // from the user ids.
+        $column = $dimension === 'assigned_to'
+            ? "CASE WHEN assigned_to_group_id IS NOT NULL THEN CONCAT('".AssigneeChoice::GROUP_PREFIX."', assigned_to_group_id) ELSE CAST(assigned_to_id AS VARCHAR) END"
+            : self::column($dimension);
 
         $rows = Issue::query()
             ->visibleToAcrossProjects($this->viewer, $this->projects())
             ->selectRaw("{$column} as dimension_value, status_id, COUNT(*) as total")
-            ->groupBy($column, 'status_id')
+            ->groupByRaw("{$column}, status_id")
             ->get();
 
         $pivoted = [];
@@ -156,10 +162,36 @@ final class IssueReport
     {
         $rows = $this->rows($dimension)->map(fn ($row) => ['key' => $row->id, 'label' => $row->name])->all();
 
+        if ($dimension === 'assigned_to') {
+            $rows = [...$rows, ...$this->assigneeGroupRows($counts)];
+        }
+
         if (self::hasNoneRow($dimension) && array_key_exists('none', $counts)) {
             $rows[] = ['key' => 'none', 'label' => __('なし')];
         }
 
         return $rows;
+    }
+
+    /**
+     * Redmine lists the project's principals when issue_group_assignment is
+     * on: the assignable groups then, plus any group that has issues here
+     * (an assignment made before the setting was turned off).
+     *
+     * @param  array<int|string, array<int, int>>  $counts
+     * @return array<int, array{key: string, label: string}>
+     */
+    private function assigneeGroupRows(array $counts): array
+    {
+        $countedIds = collect(array_keys($counts))
+            ->map(fn (int|string $key) => AssigneeChoice::decode((string) $key)['assigned_to_group_id'])
+            ->filter();
+
+        $groups = (Issue::groupAssignmentEnabled() ? $this->project->assignableGroups() : collect())
+            ->concat(Group::query()->whereIn('id', $countedIds)->get())
+            ->unique('id')
+            ->sortBy('name');
+
+        return $groups->map(fn (Group $group) => ['key' => AssigneeChoice::forGroup($group), 'label' => $group->name])->values()->all();
     }
 }

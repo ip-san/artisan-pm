@@ -209,7 +209,8 @@ final class IssueController extends Controller
         $assignee = $request->query('assigned_to_id');
 
         if ($assignee === 'me') {
-            $query->where('assigned_to_id', $request->user()->id);
+            // Redmine's `me` includes the caller's groups.
+            $query->assignedToUserOrGroups($request->user());
             $consumed[] = 'assigned_to_id';
         } elseif (is_string($assignee) && ctype_digit($assignee)) {
             $query->where('assigned_to_id', (int) $assignee);

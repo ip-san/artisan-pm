@@ -627,6 +627,10 @@ final class IssueService
             $updates['assigned_to_id'] = null;
         }
 
+        if ($issue->assigned_to_group_id !== null && ! $this->isMemberGroup($targetProject, $issue->assigned_to_group_id)) {
+            $updates['assigned_to_group_id'] = null;
+        }
+
         $moved = $this->update($issue, $updates, $actor, "「{$targetProject->name}」へ移動しました。");
 
         Issue::query()->where('parent_id', $moved->id)->update(['parent_id' => null]);
@@ -658,6 +662,10 @@ final class IssueService
             $assignedToId = null;
         }
 
+        $assignedToGroupId = $source->assigned_to_group_id !== null && $this->isMemberGroup($targetProject, $source->assigned_to_group_id)
+            ? $source->assigned_to_group_id
+            : null;
+
         $customFieldData = $source->relevantCustomFields()
             ->mapWithKeys(fn (CustomField $field) => [$field->id => $this->normalizedCustomFieldValue($source, $field)])
             ->filter(fn (?string $value) => $value !== null)
@@ -671,6 +679,7 @@ final class IssueService
             'subject' => $source->subject,
             'description' => $source->description,
             'assigned_to_id' => $assignedToId,
+            'assigned_to_group_id' => $assignedToGroupId,
             'start_date' => $source->start_date,
             'due_date' => $source->due_date,
             'done_ratio' => $source->done_ratio,
@@ -762,6 +771,10 @@ final class IssueService
                     $assignedToId = null;
                 }
 
+                $assignedToGroupId = $child->assigned_to_group_id !== null && $this->isMemberGroup($targetProject, $child->assigned_to_group_id)
+                    ? $child->assigned_to_group_id
+                    : null;
+
                 $version = $child->fixedVersion;
                 $keepVersion = $version !== null && $version->status === VersionStatus::Open && $reachableVersionIds->contains($version->id);
 
@@ -778,6 +791,7 @@ final class IssueService
                     'subject' => $child->subject,
                     'description' => $child->description,
                     'assigned_to_id' => $assignedToId,
+                    'assigned_to_group_id' => $assignedToGroupId,
                     'fixed_version_id' => $keepVersion ? $child->fixed_version_id : null,
                     'category_id' => $child->project_id === $targetProject->id ? $child->category_id : null,
                     'start_date' => $child->start_date,
@@ -977,6 +991,15 @@ final class IssueService
     }
 
     /**
+     * Whether the group is a member of the project — a moved or copied
+     * group assignee is kept only then, as a user assignee is.
+     */
+    private function isMemberGroup(Project $project, int $groupId): bool
+    {
+        return $project->members()->where('group_id', $groupId)->exists();
+    }
+
+    /**
      * Redmine's auto_watch_on: the user starts watching the issue when the
      * event named by `$event` happens and their personal options list it —
      * `issue_created` (their own new issue), `issue_assigned_to_me`,
@@ -984,6 +1007,9 @@ final class IssueService
      * keep this app's long-standing behavior of watching what you create
      * and what is assigned to you. firstOrCreate since the same user can
      * already be watching (e.g. assigned to the issue they authored).
+     * A group assignee is never auto-watched — Redmine's Journal#add_watcher
+     * only watches a User assignee; its members are notified as assignees
+     * through NotificationRecipients instead, without watcher rows.
      */
     public function autoWatch(Issue $issue, ?int $userId, string $event): void
     {

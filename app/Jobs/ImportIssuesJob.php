@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Enums\EnumerationType;
 use App\Enums\ImportStatus;
 use App\Models\Enumeration;
+use App\Models\Group;
 use App\Models\Issue;
 use App\Models\IssueCategory;
 use App\Models\IssueImport;
@@ -155,6 +156,12 @@ final class ImportIssuesJob implements ShouldQueue
                 ->first()
             : null;
 
+        // Redmine matches the column against the assignable principals, so
+        // with issue_group_assignment on it may name an assignable group.
+        $assigneeGroup = $assigneeEmail !== null && $assignee === null && Issue::groupAssignmentEnabled()
+            ? $this->import->project->assignableGroups()->first(fn (Group $group) => strcasecmp($group->name, trim($assigneeEmail)) === 0)
+            : null;
+
         // A category/version name that matches nothing is auto-created
         // when the importing user opted in (and holds the permission a
         // manual creation would also require — see $defaults above); the
@@ -208,6 +215,7 @@ final class ImportIssuesJob implements ShouldQueue
             'subject' => $subject,
             'description' => $this->mapped($record, $mapping, 'description'),
             'assigned_to_id' => $assignee?->id,
+            'assigned_to_group_id' => $assigneeGroup?->id,
             'category_id' => $category?->id,
             'fixed_version_id' => $version?->id,
             'parent_id' => $parent?->id,

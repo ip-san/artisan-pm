@@ -28,7 +28,8 @@ final class AssignedIssuesBlock implements DashboardBlock
     {
         return Issue::query()
             ->visible($user)
-            ->where('assigned_to_id', $user->id)
+            // Redmine's "assigned to me" includes the user's groups.
+            ->assignedToUserOrGroups($user)
             ->whereHas('status', fn ($query) => $query->where('is_closed', false))
             ->with(['project', 'tracker'])
             ->orderBy('due_date')

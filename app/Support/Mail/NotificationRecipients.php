@@ -72,13 +72,18 @@ final class NotificationRecipients
 
         $watcherIds = $issue->watchers()->pluck('user_id');
 
-        $tiered = self::resolve($issue->project, $actor, $watcherIds, function (User $user) use ($issue) {
+        // Redmine's notified_users: the assignee — every current member of an
+        // assigned group (is_or_belongs_to?) — is involved in the issue like
+        // its watchers, each still subject to their own mail setting.
+        $assigneeIds = $issue->assigneeUserIds();
+
+        $tiered = self::resolve($issue->project, $actor, $watcherIds, function (User $user) use ($issue, $assigneeIds) {
             return match ($user->mail_notification) {
-                MailNotificationOption::OnlyAssigned => $issue->assigned_to_id === $user->id,
+                MailNotificationOption::OnlyAssigned => $assigneeIds->contains($user->id),
                 MailNotificationOption::OnlyOwner => $issue->author_id === $user->id,
                 default => true,
             };
-        });
+        }, involvedIds: $assigneeIds);
 
         return $tiered->merge(self::forHighPriorityIssue($issue, $actor))
             ->merge(self::forMentionedUsers($mentionedLogins, $actor))
@@ -240,10 +245,15 @@ final class NotificationRecipients
      *                                                  caller does; a future Document/Message notification caller
      *                                                  should confirm which single flag its own Redmine
      *                                                  notified_users check actually needs.
+     * @param  ?Collection<int, int>  $involvedIds  users involved in the thing
+     *                                              without watching it (an issue's group assignee members):
+     *                                              candidates and treated like watchers by the tiers
      * @return Collection<int, User>
      */
-    private static function resolve(Project $project, User $actor, Collection $watcherIds, callable $eventSpecificAllows, bool $assignedAndOwnerTiersRequireWatcher = false, bool $allTiersRequireMembershipOrWatch = false): Collection
+    private static function resolve(Project $project, User $actor, Collection $watcherIds, callable $eventSpecificAllows, bool $assignedAndOwnerTiersRequireWatcher = false, bool $allTiersRequireMembershipOrWatch = false, ?Collection $involvedIds = null): Collection
     {
+        $watcherIds = $watcherIds->merge($involvedIds ?? collect())->unique()->values();
+
         // Direct members plus the users of member groups, like Redmine's
         // Project#notified_users (each group user has a member row there).
         $memberIds = $project->memberUserIds();
