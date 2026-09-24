@@ -56,13 +56,14 @@ final class IssueRelationController extends Controller
         $other = Issue::findOrFail($data['issue_to_id']);
         Gate::authorize('view', $other);
 
-        $isSequential = in_array($data['relation_type'], ['precedes', 'follows'], true);
+        [$fromId, $toId, $type] = $request->normalized();
 
         $relation = IssueRelation::create([
-            'issue_from_id' => $issue->id,
-            'issue_to_id' => $data['issue_to_id'],
-            'relation_type' => $data['relation_type'],
-            'delay' => $isSequential ? ($data['delay'] ?? null) : null,
+            'issue_from_id' => $fromId,
+            'issue_to_id' => $toId,
+            'relation_type' => $type,
+            // Only a precedes relation keeps a delay, as in Redmine.
+            'delay' => $type === 'precedes' ? ($data['delay'] ?? null) : null,
         ]);
 
         app(IssueService::class)->journalizeRelation($relation, added: true, actor: $request->user());

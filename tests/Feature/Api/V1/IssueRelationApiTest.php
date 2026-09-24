@@ -264,7 +264,7 @@ test('a delay is recorded on a precedes relation but discarded for other types',
     ])->assertCreated()->assertJsonPath('data.delay', null);
 });
 
-test('a copied_to relation cannot be manually created through the api', function () {
+test('every Redmine relation type is accepted and a reverse one is stored swapped, like reverse_if_needed', function (string $given, string $stored, bool $swapped) {
     $project = Project::factory()->create();
     $user = apiRelationMember($project);
     $issue = apiRelationIssue($project);
@@ -274,8 +274,75 @@ test('a copied_to relation cannot be manually created through the api', function
 
     $this->postJson("/api/v1/issues/{$issue->id}/relations", [
         'issue_to_id' => $other->id,
-        'relation_type' => 'copied_to',
-    ])->assertUnprocessable()->assertJsonValidationErrors(['relation_type']);
+        'relation_type' => $given,
+    ])->assertCreated()
+        ->assertJsonPath('data.relation_type', $stored)
+        ->assertJsonPath('data.issue_id', $swapped ? $other->id : $issue->id)
+        ->assertJsonPath('data.issue_to_id', $swapped ? $issue->id : $other->id);
+
+    expect(IssueRelation::query()->where('issue_from_id', $swapped ? $other->id : $issue->id)->where('issue_to_id', $swapped ? $issue->id : $other->id)->where('relation_type', $stored)->exists())->toBeTrue();
+})->with([
+    'relates' => ['relates', 'relates', false],
+    'duplicates' => ['duplicates', 'duplicates', false],
+    'duplicated' => ['duplicated', 'duplicates', true],
+    'blocks' => ['blocks', 'blocks', false],
+    'blocked' => ['blocked', 'blocks', true],
+    'precedes' => ['precedes', 'precedes', false],
+    'follows' => ['follows', 'precedes', true],
+    'copied_to' => ['copied_to', 'copied_to', false],
+    'copied_from' => ['copied_from', 'copied_to', true],
+]);
+
+test('relates is stored from the lower issue id and an unknown type is rejected', function () {
+    $project = Project::factory()->create();
+    $user = apiRelationMember($project);
+    $first = apiRelationIssue($project);
+    $second = apiRelationIssue($project);
+
+    Passport::actingAs($user);
+
+    $this->postJson("/api/v1/issues/{$second->id}/relations", ['issue_to_id' => $first->id, 'relation_type' => 'relates'])
+        ->assertCreated()->assertJsonPath('data.issue_id', $first->id)->assertJsonPath('data.issue_to_id', $second->id);
+
+    $this->postJson("/api/v1/issues/{$first->id}/relations", ['issue_to_id' => $second->id, 'relation_type' => 'relates'])
+        ->assertUnprocessable()->assertJsonValidationErrors(['issue_to_id']);
+
+    $this->postJson("/api/v1/issues/{$first->id}/relations", ['issue_to_id' => $second->id, 'relation_type' => 'parent'])
+        ->assertUnprocessable()->assertJsonValidationErrors(['relation_type']);
+});
+
+test('follows keeps its delay on the stored precedes relation and a reverse duplicate is rejected', function () {
+    $project = Project::factory()->create();
+    $user = apiRelationMember($project);
+    $issue = apiRelationIssue($project);
+    $predecessor = apiRelationIssue($project);
+
+    Passport::actingAs($user);
+
+    $this->postJson("/api/v1/issues/{$issue->id}/relations", ['issue_to_id' => $predecessor->id, 'relation_type' => 'follows', 'delay' => 2])
+        ->assertCreated()->assertJsonPath('data.relation_type', 'precedes')->assertJsonPath('data.delay', 2);
+
+    $this->postJson("/api/v1/issues/{$predecessor->id}/relations", ['issue_to_id' => $issue->id, 'relation_type' => 'precedes'])
+        ->assertUnprocessable()->assertJsonValidationErrors(['issue_to_id']);
+
+    $this->postJson("/api/v1/issues/{$issue->id}/relations", ['issue_to_id' => $predecessor->id, 'relation_type' => 'blocked'])
+        ->assertCreated()->assertJsonPath('data.issue_id', $predecessor->id);
+
+    expect(IssueRelation::count())->toBe(2);
+});
+
+test('a reverse type still needs the target to be visible', function () {
+    $project = Project::factory()->create();
+    $user = apiRelationMember($project);
+    $issue = apiRelationIssue($project);
+    Setting::set('cross_project_issue_relations', true);
+    $foreign = apiRelationIssue(Project::factory()->create(['is_public' => false]));
+
+    Passport::actingAs($user);
+
+    $this->postJson("/api/v1/issues/{$issue->id}/relations", ['issue_to_id' => $foreign->id, 'relation_type' => 'follows'])->assertForbidden();
+
+    expect(IssueRelation::count())->toBe(0);
 });
 
 test('listing relations only shows the ones the requester can view, from both directions', function () {

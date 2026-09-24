@@ -25,11 +25,53 @@ final class IssueRelation extends Model
      */
     private const int MAX_CHAIN_LENGTH = 50;
 
+    /**
+     * The relation types a client may name, each with the stored type it
+     * is written as when its ends are swapped (Redmine's
+     * IssueRelation::TYPES `:reverse`); null means stored as given.
+     *
+     * @var array<string, string|null>
+     */
+    public const array WRITABLE_TYPES = [
+        'relates' => null,
+        'duplicates' => null,
+        'duplicated' => 'duplicates',
+        'blocks' => null,
+        'blocked' => 'blocks',
+        'precedes' => null,
+        'follows' => 'precedes',
+        'copied_to' => null,
+        'copied_from' => 'copied_to',
+    ];
+
     protected function casts(): array
     {
         return [
             'relation_type' => IssueRelationType::class,
         ];
+    }
+
+    /**
+     * Redmine's IssueRelation#reverse_if_needed: a reverse type
+     * (`follows`, `blocked`, `duplicated`, `copied_from`) is stored as its
+     * forward type with the ends swapped, and `relates` always runs from
+     * the lower id to the higher.
+     *
+     * @return array{0: int, 1: int, 2: string} [from id, to id, stored type]
+     */
+    public static function normalize(int $fromId, int $toId, string $type): array
+    {
+        $reverse = self::WRITABLE_TYPES[$type] ?? null;
+
+        if ($reverse !== null) {
+            return [$toId, $fromId, $reverse];
+        }
+
+        if ($type === IssueRelationType::Relates->value && $fromId > $toId) {
+            return [$toId, $fromId, $type];
+        }
+
+        return [$fromId, $toId, $type];
     }
 
     /**
