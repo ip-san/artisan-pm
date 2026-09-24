@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Mail\ProjectEventNotificationMail;
+use App\Models\Message;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -28,6 +29,7 @@ final class ProjectEventNotification extends Notification implements ShouldQueue
         public readonly string $title,
         public readonly string $url,
         public readonly ?string $body = null,
+        public readonly ?Message $threadMessage = null,
     ) {}
 
     /**
@@ -37,7 +39,7 @@ final class ProjectEventNotification extends Notification implements ShouldQueue
     public function subjectLine(): string
     {
         return match ($this->kind) {
-            'message_posted' => __('[:project - :board #:id] :subject', $this->replace),
+            'message_posted' => __('[:project - :board - msg:id] :subject', $this->replace),
             'document_added' => __('[:project] 文書を追加しました: :title', $this->replace),
             default => __('[:project] ファイルを追加しました: :names', $this->replace),
         };
@@ -63,7 +65,7 @@ final class ProjectEventNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): ProjectEventNotificationMail
     {
-        return (new ProjectEventNotificationMail($this->subjectLine(), $this->headline(), $this->title, $this->url, $this->body))
+        return (new ProjectEventNotificationMail($this->subjectLine(), $this->headline(), $this->title, $this->url, $this->body, $this->threadMessage))
             ->to($notifiable->routeNotificationFor('mail', $this))
             ->forRecipient($notifiable);
     }

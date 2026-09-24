@@ -10,11 +10,13 @@ use App\Models\NewsComment;
 use App\Models\Setting;
 use App\Models\User;
 use App\Support\Mail\EmailDecorations;
+use App\Support\Mail\MessageIdentity;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 /**
@@ -32,6 +34,24 @@ final class NewsNotificationMail extends Mailable
         public readonly User $actor,
         public readonly ?NewsComment $comment = null,
     ) {}
+
+    /**
+     * Redmine's threading headers: a news item is identified by itself, a
+     * comment by the comment and referencing the news item.
+     */
+    public function headers(): Headers
+    {
+        $recipientId = $this->dateRecipient?->id;
+
+        if ($this->comment !== null) {
+            return new Headers(
+                messageId: MessageIdentity::tokenFor($this->comment, $recipientId),
+                references: [MessageIdentity::tokenFor($this->news, $recipientId)],
+            );
+        }
+
+        return new Headers(messageId: MessageIdentity::tokenFor($this->news, $recipientId));
+    }
 
     public function envelope(): Envelope
     {

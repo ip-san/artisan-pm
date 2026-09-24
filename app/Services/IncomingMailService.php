@@ -6,12 +6,17 @@ namespace App\Services;
 
 use App\Enums\CustomizableType;
 use App\Enums\EnumerationType;
+use App\Events\MessagePosted;
+use App\Events\NewsCommentCreated;
 use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Group;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Journal;
+use App\Models\Message as ForumMessage;
+use App\Models\News;
+use App\Models\NewsComment;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Tracker;
@@ -131,7 +136,7 @@ final class IncomingMailService
      * Handles one raw RFC 822 message (what the mail_handler web service
      * receives) exactly as a mail fetched from the mailbox would be.
      */
-    public function processRawMessage(string $raw): ?Issue
+    public function processRawMessage(string $raw): Issue|ForumMessage|NewsComment|null
     {
         return $this->createIssueFromMail($this->parse(Message::fromString($raw)));
     }
@@ -230,7 +235,11 @@ final class IncomingMailService
         return $patterns->contains(fn (string $pattern) => fnmatch($pattern, $filename, FNM_CASEFOLD));
     }
 
-    public function createIssueFromMail(ParsedIncomingMail $mail): ?Issue
+    /**
+     * Handles one parsed mail: a new issue, or a reply to an issue, a forum
+     * topic or a news item. Null when nothing was recorded.
+     */
+    public function createIssueFromMail(ParsedIncomingMail $mail): Issue|ForumMessage|NewsComment|null
     {
         // Redmine's no_notification: what a received mail creates or changes
         // is not announced by mail.
@@ -239,7 +248,7 @@ final class IncomingMailService
             : $this->handleMail($mail);
     }
 
-    private function handleMail(ParsedIncomingMail $mail): ?Issue
+    private function handleMail(ParsedIncomingMail $mail): Issue|ForumMessage|NewsComment|null
     {
         // The sender may write from the primary address or an additional one.
         $author = User::query()->where('email', $mail->fromEmail)->first()
@@ -257,6 +266,16 @@ final class IncomingMailService
         $target = MessageIdentity::target($mail->replyHeaders);
 
         if ($target !== null) {
+            if ($target[0] === 'message') {
+                return $this->receiveMessageReply($target[1], $mail, $author);
+            }
+
+            if ($target[0] === 'news' || $target[0] === 'comment') {
+                $newsId = $target[0] === 'news' ? $target[1] : NewsComment::query()->whereKey($target[1])->value('news_id');
+
+                return $newsId === null ? null : $this->receiveNewsReply((int) $newsId, $mail, $author);
+            }
+
             $issueId = match ($target[0]) {
                 'issue' => $target[1],
                 'journal' => Journal::query()->whereKey($target[1])->value('issue_id'),
@@ -268,6 +287,11 @@ final class IncomingMailService
 
         if (preg_match('/\[(?:[^\]]*\s+)?#(\d+)\]/', $mail->subject, $matches) === 1) {
             return $this->receiveIssueReply((int) $matches[1], $mail, $author);
+        }
+
+        // Redmine's MESSAGE_REPLY_SUBJECT_RE: "[Project - Board - msg12]".
+        if (preg_match('/\[[^\]]*msg(\d+)\]/', $mail->subject, $matches) === 1) {
+            return $this->receiveMessageReply((int) $matches[1], $mail, $author);
         }
 
         $project = $this->resolveProject($mail->subject, $mail->recipients);
@@ -407,6 +431,99 @@ final class IncomingMailService
         }
 
         return $updated;
+    }
+
+    /**
+     * Redmine's receive_message_reply: the body becomes a reply to the
+     * topic (the root of the message replied to), unless the topic is
+     * locked or the sender may not post in the project's forums.
+     */
+    private function receiveMessageReply(int $messageId, ParsedIncomingMail $mail, User $author): ?ForumMessage
+    {
+        $message = ForumMessage::query()->with(['board.project', 'parent'])->find($messageId);
+        $topic = $message === null ? null : ($message->parent ?? $message);
+
+        if ($topic === null || ! Gate::forUser($author)->allows('view', $topic) || ! Gate::forUser($author)->allows('reply', $topic)) {
+            return null;
+        }
+
+        $content = trim($mail->body);
+
+        if ($content === '') {
+            return null;
+        }
+
+        $subject = trim((string) preg_replace('/^.*msg\d+\]/', '', $mail->subject));
+        $subject = trim((string) preg_replace('/^(re|fwd?)\s*:\s*/i', '', $subject));
+
+        $reply = ForumMessage::create([
+            'board_id' => $topic->board_id,
+            'parent_id' => $topic->id,
+            'author_id' => $author->id,
+            'subject' => mb_substr($subject !== '' ? $subject : "RE: {$topic->subject}", 0, 255),
+            'content' => $content,
+        ]);
+
+        $this->attachFiles($reply, $mail, $author);
+        MessagePosted::dispatch($reply);
+        $topic->touch();
+
+        return $reply;
+    }
+
+    /**
+     * Redmine's receive_news_reply: the body becomes a comment on the news
+     * item when the sender may comment on it.
+     */
+    private function receiveNewsReply(int $newsId, ParsedIncomingMail $mail, User $author): ?NewsComment
+    {
+        $news = News::query()->with('project')->find($newsId);
+
+        if ($news === null || ! Gate::forUser($author)->allows('view', $news) || ! Gate::forUser($author)->allows('comment', $news)) {
+            return null;
+        }
+
+        $content = trim($mail->body);
+
+        if ($content === '') {
+            return null;
+        }
+
+        $comment = NewsComment::create([
+            'news_id' => $news->id,
+            'author_id' => $author->id,
+            'content' => $content,
+        ]);
+
+        NewsCommentCreated::dispatch($comment);
+
+        return $comment;
+    }
+
+    /**
+     * Adds the mail's attachments to a forum post, one at a time so a file
+     * that fails does not lose the others.
+     */
+    private function attachFiles(ForumMessage $record, ParsedIncomingMail $mail, User $author): void
+    {
+        foreach ($mail->attachments as $attachment) {
+            if ($attachment['content'] === '') {
+                continue;
+            }
+
+            try {
+                $record->addMediaFromString($attachment['content'])
+                    ->usingFileName($attachment['filename'] !== '' ? $attachment['filename'] : 'attachment')
+                    ->withCustomProperties([AttachmentUploader::PROPERTY => $author->id])
+                    ->toMediaCollection('attachments');
+            } catch (Throwable $e) {
+                Log::warning('Incoming mail: failed to attach a file to a forum reply.', [
+                    'message_id' => $record->id,
+                    'filename' => $attachment['filename'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**

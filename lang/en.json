@@ -170,7 +170,7 @@
     "Wikiページが追加されたとき": "Wiki page added",
     "Wikiページが追加されました。": "A wiki page has been added.",
     "[:app] アカウント登録の確認": "[:app] Your account activation",
-    "[:project - :board #:id] :subject": "[:project - :board #:id] :subject",
+    "[:project - :board - msg:id] :subject": "[:project - :board - msg:id] :subject",
     "[:project] Wikiページ「:title」が更新されました": "[:project] Wiki page updated: :title",
     "[:project] Wikiページ「:title」が追加されました": "[:project] Wiki page added: :title",
     "[:project] お知らせ: :title": "[:project] News: :title",

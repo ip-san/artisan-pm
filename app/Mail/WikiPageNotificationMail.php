@@ -9,11 +9,13 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Models\WikiPage;
 use App\Support\Mail\EmailDecorations;
+use App\Support\Mail\MessageIdentity;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 /**
@@ -30,6 +32,15 @@ final class WikiPageNotificationMail extends Mailable
         public readonly string $eventType,
         public readonly User $actor,
     ) {}
+
+    /**
+     * Identifies the mail by the page, as Redmine's by the wiki content
+     * (replies to it are not received, as in Redmine).
+     */
+    public function headers(): Headers
+    {
+        return new Headers(messageId: MessageIdentity::tokenFor($this->wikiPage, $this->dateRecipient?->id));
+    }
 
     public function envelope(): Envelope
     {

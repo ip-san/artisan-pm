@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Mail;
 
+use App\Models\NewsComment;
 use App\Models\Setting;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -25,11 +26,12 @@ final class MessageIdentity
     /**
      * The token for `$object`, addressed to `$recipientId` when the mail
      * goes to one specific user. The kind is the model's snake-case class
-     * name: issue, journal.
+     * name (issue, journal, message, news, wiki_page), except that a news
+     * comment is `comment` as in Redmine.
      */
     public static function tokenFor(Model $object, ?int $recipientId = null): string
     {
-        $kind = Str::snake(class_basename($object));
+        $kind = $object instanceof NewsComment ? 'comment' : Str::snake(class_basename($object));
         $timestamp = ($object->created_at ?? $object->updated_at)->copy()->utc()->format('YmdHis');
 
         $parts = ['redmine', "{$kind}-{$object->getKey()}", $timestamp];

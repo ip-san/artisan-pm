@@ -62,6 +62,7 @@ final class SendProjectEventMailNotifications
                 $message->subject,
                 route('messages.show', [$project, $message->board, $topic]),
                 $message->content,
+                $message,
             ),
         ];
     }

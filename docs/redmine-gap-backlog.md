@@ -148,6 +148,7 @@
 | 68 | A1-15 | — | S | done(2026-09-20、グローバル一覧の列は未対応) |
 | 69 | A5-01 | — | S | done(2026-09-20) |
 | 70 | A6-06 | A5-01 | S | done(2026-09-20、対象は課題通知のみ) |
+| 70b | A6-06b | A6-06 | S | done(2026-09-25、フォーラム・ニュース・ニュースのコメント・Wiki の通知に Message-ID/References、受信側でフォーラムの返信とニュースのコメント(ヘッダーと件名の msgN)。Wiki の返信は Redmine と同じく受け付けない) |
 | 71 | A4-09 | — | S〜M | done(2026-09-20) |
 | 72 | A1-31 | A4-09 | S | done(2026-09-20、query_id 指定は A1-31b) |
 | 72b | A1-31b | A1-31, A2-11 | S | done(2026-09-25、一覧の URL 状態(statusFilter と絞り込み)と `query_id`。指定がなければ未完了の課題(Redmine の既定)。Redmine の `f[]`/`op[]`/`v[]` 形式は対象外) |
@@ -534,6 +535,7 @@
 | A6-04 | メール本文への添付/関連の差分表示 | Journal の `property=attr`/`cf` のみ描画 | `attachment`/`relation` の JournalDetail もメールテンプレートに描画 | — | S | 同上 |
 | A6-05 | 高優先度課題の通知(`notify_about_high_priority_issues`) | なし | A4-13 の設定を追加し、`priority.position >= 既定より上` の課題は `only_my_events` でも通知 | — | S | — (checklist 未掲載) |
 | A6-06 | In-Reply-To / References ヘッダーによる返信の課題特定 | 件名の `[... #123]` 一致のみ | 送信メールに `Message-ID`(`redmine.issue-123.20260919@host`)を付与し、受信側でヘッダーを解析 | A5-01 の `host_name` が前提 | S | 拡張性「メール返信による課題更新」 |
+| A6-06b | In-Reply-To/References による返信の特定の残り: フォーラム(`receive_message_reply`、件名の `msgN`)・ニュース(`receive_news_reply`)・ニュースのコメント(`receive_comment_reply`)。送信側は `message_id`/`references`(`mailer.rb` の `message_posted`・`news_added`・`news_comment_added`・`wiki_content_*`) | **done(2026-09-25)**。`MessageIdentity::tokenFor()`(ニュースのコメントは `comment`)、`NewsNotificationMail`・`WikiPageNotificationMail`・`ProjectEventNotificationMail`(フォーラムの投稿のみ)の `headers()`、`IncomingMailService::receiveMessageReply()`/`receiveNewsReply()`。フォーラムの通知の件名を `[… - msgN]` に。テスト: `ForumAndNewsReplyTest.php` | 課題の通知だけにヘッダー、返信は課題のみ | — | S | 拡張性「メール返信による課題更新」 |
 | A6-07 | `emails_header`、`show_status_changes_in_mail_subject` | なし | A5-11 参照 | — | S | — |
 | A6-09 | メールのヘッダー/フッターの書式(`layouts/mailer.html.erb` は `Redmine::WikiFormatting.to_html(Setting.text_formatting, Setting.emails_header)`) | **done(2026-09-25)**。`App\Support\Mail\EmailDecorations`(`WikiMarkdownRenderer`)で HTML パートに描画、4 種の通知メールの HTML テンプレートで使用。テキストパートはそのまま(Redmine と同じ)。テスト: `IssueMailNotificationTest.php` | HTML でも生のテキストを `<p>` に表示 | 相対リンクは絶対 URL にしない | S | 設定「メール通知」 |
 | A6-08 | 担当者を変更したとき、以前の担当者(グループならそのメンバー)にも通知する(Redmine の `Issue#notified_users` の `previous_assignee`、`User#notify_about?` の `only_assigned`/`only_my_events`) | **done(2026-09-24)**: `NotificationRecipients::forIssue()` に更新の Journal を渡し、`assigned_to_id`/`assigned_to_group_id` の明細の旧値から以前の担当者(グループは現在のメンバー)を求めて、現在の担当者と同じく関係者(ウォッチャー扱いの候補)と `only_assigned` の判定に加える。通知設定 `none` は除外、閲覧できなくなった人(非公開プロジェクトの非メンバー、閲覧範囲「自分の課題」)は既存の `can('view')` で除外。担当者を変えなかった後続の更新では対象外。テスト: `PreviousAssigneeNotificationTest.php` | Journal の `assigned_to_id`/`assigned_to_group_id` の旧値から以前の担当者を求め、候補と `only_assigned` 判定に加える | — | S | Journal「メール通知(課題)」 |
@@ -985,6 +987,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A1-31b | 課題の変更履歴 Atom は、絞り込みやステータスの指定がないと**未完了の課題の変更だけ**になる(従来は完了した課題も含む全課題。Redmine と同じ既定)。課題一覧のリンクは一覧の絞り込みを引き継ぐ。プロジェクト版はサブプロジェクトの課題も含む(一覧と同じ) | `statusFilter=all` を付ければ従来どおり全課題 |
 | A12-07 | **セキュリティ修正**: Webhook は送信のたびに宛先のホストを解決し直し、確認したアドレスに接続する(DNS リバインディング対策)。リダイレクトは追わない(3xx は失敗扱い)。**管理者が登録した Webhook も**ループバック(`localhost`/127.0.0.1/::1)・リンクローカル(169.254.x.x など)・0.0.0.0・マルチキャストと、ブラウザーが禁止するポート(25・22 など)には送らない(Redmine と同じ)。ユーザーの Webhook は保存時に IPv6 アドレスと禁止ポートも確認する | 管理者の Webhook をローカルホストや禁止ポートへ向けていた環境では届かなくなる(ログに警告)。プライベート範囲(10.x など)への管理者の Webhook は従来どおり |
 | A6-09 | HTML メールのヘッダー/フッター(設定「メールのヘッダー」「メールのフッター」)が Markdown として整形される(太字・リンクなど)。HTML タグはサニタイズされる | テキストメールは従来どおり |
+| A6-06b | フォーラム・ニュース・Wiki の通知メールに `Message-ID`/`References` が付く。フォーラムの投稿通知の件名が `[プロジェクト - フォーラム #ID]` から Redmine と同じ `[プロジェクト - フォーラム - msgID]` になる。これらのメールへの返信(受信メール)がフォーラムのトピックへの返信・ニュースへのコメントとして記録される(従来は無視、件名の `#ID` で同じ番号の課題へのコメントになることもあった) | 件名でメールを振り分けている場合は条件の見直しが必要 |
 
 **フロントエンドの再ビルドが必要**: A10-04・A9-02・A1-21・A1-13 などが新しい Tailwind クラスを使う。`public/build` は gitignore 対象のため、デプロイ時に `npm run build` を実行すること。
 

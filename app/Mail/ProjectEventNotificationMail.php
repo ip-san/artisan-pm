@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Mail;
 
 use App\Concerns\FormatsDatesForRecipient;
+use App\Models\Message;
 use App\Models\Setting;
 use App\Support\Mail\EmailDecorations;
+use App\Support\Mail\MessageIdentity;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 /**
@@ -28,7 +31,27 @@ final class ProjectEventNotificationMail extends Mailable
         public readonly string $title,
         public readonly string $url,
         public readonly ?string $body = null,
+        public readonly ?Message $threadMessage = null,
     ) {}
+
+    /**
+     * A forum post is identified by itself and references its topic, as in
+     * Redmine, so a reply leads back to the topic.
+     */
+    public function headers(): Headers
+    {
+        if ($this->threadMessage === null) {
+            return new Headers;
+        }
+
+        $recipientId = $this->dateRecipient?->id;
+        $topic = $this->threadMessage->parent ?? $this->threadMessage;
+
+        return new Headers(
+            messageId: MessageIdentity::tokenFor($this->threadMessage, $recipientId),
+            references: [MessageIdentity::tokenFor($topic, $recipientId)],
+        );
+    }
 
     public function envelope(): Envelope
     {
