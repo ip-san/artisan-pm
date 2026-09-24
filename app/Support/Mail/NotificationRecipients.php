@@ -9,12 +9,15 @@ use App\Enums\MailNotificationOption;
 use App\Enums\UserStatus;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\Journal;
+use App\Models\JournalDetail;
 use App\Models\News;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\WikiPage;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Resolves who receives a mail notification for a domain event, matching
@@ -62,9 +65,12 @@ final class NotificationRecipients
      *                                               above: Redmine's own mention delivery only happens inside
      *                                               the same deliver_issue_add/deliver_issue_edit calls that
      *                                               check Setting.notified_events first.
+     * @param  ?Journal  $journal  the update's journal: an assignee change
+     *                             recorded on it makes the previous assignee
+     *                             involved too (Redmine's previous_assignee)
      * @return Collection<int, User>
      */
-    public static function forIssue(Issue $issue, string $eventKey, User $actor, array $mentionedLogins = []): Collection
+    public static function forIssue(Issue $issue, string $eventKey, User $actor, array $mentionedLogins = [], ?Journal $journal = null): Collection
     {
         if (! in_array($eventKey, self::notifiedEvents(), true)) {
             return collect();
@@ -75,7 +81,9 @@ final class NotificationRecipients
         // Redmine's notified_users: the assignee — every current member of an
         // assigned group (is_or_belongs_to?) — is involved in the issue like
         // its watchers, each still subject to their own mail setting.
-        $assigneeIds = $issue->assigneeUserIds();
+        // Redmine's previous_assignee: whoever the update took the issue
+        // away from (a group's current members) is involved as well.
+        $assigneeIds = $issue->assigneeUserIds()->merge(self::previousAssigneeUserIds($journal))->unique()->values();
 
         $tiered = self::resolve($issue->project, $actor, $watcherIds, function (User $user) use ($issue, $assigneeIds) {
             return match ($user->mail_notification) {
@@ -90,6 +98,32 @@ final class NotificationRecipients
             ->unique('id')
             ->filter(fn (User $user) => $user->can('view', $issue))
             ->values();
+    }
+
+    /**
+     * The users the issue was assigned to before the change $journal
+     * records: the previous user, or the current members of the previous
+     * group. Empty when the journal did not change the assignee.
+     *
+     * @return Collection<int, int>
+     */
+    private static function previousAssigneeUserIds(?Journal $journal): Collection
+    {
+        if ($journal === null) {
+            return collect();
+        }
+
+        $details = $journal->loadMissing('details')->details
+            ->filter(fn (JournalDetail $detail) => $detail->property === 'attr' && filled($detail->old_value));
+
+        $userIds = $details->where('prop_key', 'assigned_to_id')->pluck('old_value')->map(fn ($id) => (int) $id);
+        $groupIds = $details->where('prop_key', 'assigned_to_group_id')->pluck('old_value')->map(fn ($id) => (int) $id);
+
+        if ($groupIds->isNotEmpty()) {
+            $userIds = $userIds->merge(DB::table('group_user')->whereIn('group_id', $groupIds)->pluck('user_id')->map(fn ($id) => (int) $id));
+        }
+
+        return $userIds->unique()->values();
     }
 
     /**

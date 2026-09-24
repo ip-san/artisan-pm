@@ -216,7 +216,7 @@
 | A1-45 | 全トラッカーが無効にした標準項目を課題一覧の列の候補からも外す(`issue_query.rb` の `available_columns` で `disabled_core_fields` の列を除外。予定工数なら合計予定工数・残工数も) | **done(2026-09-24)**。`IssueFilterFieldRegistry::coreColumnsDisabledByEveryTracker()`(フィルタと同じ `Tracker.disabled_core_fields(trackers)` の判定。`estimated_hours` なら `total_estimated_hours`/`estimated_remaining_hours` も。親課題は Redmine の `parent_issue_id` が列名 `parent` と一致しないため残る)と `rolledUpTrackers()`(サブプロジェクト込みのトラッカー)。プロジェクトの課題一覧は `nativeColumns`/`availableColumns`/`sortableColumns` から除き、選んだ列は `shownColumns`(利用できる列だけ、順序維持 = Redmine の `inline_columns`)で表・CSV・PDF に出す。グループ化の「優先度」「担当者」も無効なら出さず、保存済みのグループ化は無視。横断一覧は閲覧できるプロジェクトのトラッカーで同じ判定。保存クエリの `column_names` はそのまま(トラッカー設定を戻せば再表示)。テスト: `TrackerDisabledCoreFieldsTest` | `IssueFilterFieldRegistry` の除外と同じ判定を列の候補に適用 | A1-36 の後 | S | クエリ「列選択」 |
 | 105h | A1-42 | A1-34 | S | done(2026-09-24、`Project` の deleting で自プロジェクトとサブプロジェクトの課題を `deleteMany(Destroy)`。別プロジェクトの子孫・工数・添付も削除、`Project::delete()` をトランザクション化) |
 | 105i | A1-43 | A1-20 | S | done(2026-09-24、`projects.default_assigned_to_group_id`/`issue_categories.assigned_to_group_id`。プロジェクト設定・カテゴリのフォームと REST。新規課題フォームの既定担当に反映(グループ割当オフ・割り当て不可のグループは適用しない)。REST/CSV/メールでの課題作成に既定担当を適用しないのは既存どおり) |
-| 105j | A6-08 | A1-20 | S | todo |
+| 105j | A6-08 | A1-20 | S | done(2026-09-24、更新の Journal にある担当者の旧値(ユーザー/グループのメンバー)を関係者に加える。各自の通知設定・閲覧可否で絞る) |
 | 105l | A1-46 | A1-43 | S | todo |
 | 106 | A1-28 | — | M〜L | done(2026-09-24、A1-28a〜c。工数/ユーザーのインポートの CSV 読み取りは A1-28d) |
 | 106a | A1-28a | — | S | done(2026-09-24、`CsvReader`(fgetcsv、引用符内の改行、BOM)を課題インポートのジョブと列見出しの読み取りに適用。工数/ユーザーのインポートは A1-28d) |
@@ -482,7 +482,7 @@
 | A6-05 | 高優先度課題の通知(`notify_about_high_priority_issues`) | なし | A4-13 の設定を追加し、`priority.position >= 既定より上` の課題は `only_my_events` でも通知 | — | S | — (checklist 未掲載) |
 | A6-06 | In-Reply-To / References ヘッダーによる返信の課題特定 | 件名の `[... #123]` 一致のみ | 送信メールに `Message-ID`(`redmine.issue-123.20260919@host`)を付与し、受信側でヘッダーを解析 | A5-01 の `host_name` が前提 | S | 拡張性「メール返信による課題更新」 |
 | A6-07 | `emails_header`、`show_status_changes_in_mail_subject` | なし | A5-11 参照 | — | S | — |
-| A6-08 | 担当者を変更したとき、以前の担当者(グループならそのメンバー)にも通知する(Redmine の `Issue#notified_users` の `previous_assignee`、`User#notify_about?` の `only_assigned`/`only_my_events`) | `NotificationRecipients::forIssue()` は現在の担当者だけを判定。A1-20b の実装中に判明 | Journal の `assigned_to_id`/`assigned_to_group_id` の旧値から以前の担当者を求め、候補と `only_assigned` 判定に加える | — | S | Journal「メール通知(課題)」 |
+| A6-08 | 担当者を変更したとき、以前の担当者(グループならそのメンバー)にも通知する(Redmine の `Issue#notified_users` の `previous_assignee`、`User#notify_about?` の `only_assigned`/`only_my_events`) | **done(2026-09-24)**: `NotificationRecipients::forIssue()` に更新の Journal を渡し、`assigned_to_id`/`assigned_to_group_id` の明細の旧値から以前の担当者(グループは現在のメンバー)を求めて、現在の担当者と同じく関係者(ウォッチャー扱いの候補)と `only_assigned` の判定に加える。通知設定 `none` は除外、閲覧できなくなった人(非公開プロジェクトの非メンバー、閲覧範囲「自分の課題」)は既存の `can('view')` で除外。担当者を変えなかった後続の更新では対象外。テスト: `PreviousAssigneeNotificationTest.php` | Journal の `assigned_to_id`/`assigned_to_group_id` の旧値から以前の担当者を求め、候補と `only_assigned` 判定に加える | — | S | Journal「メール通知(課題)」 |
 
 ### A-7. Wiki / フォーラム / News / 文書 / 添付ファイル
 

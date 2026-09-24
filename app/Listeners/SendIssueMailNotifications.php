@@ -7,9 +7,10 @@ namespace App\Listeners;
 use App\Events\IssueCreated;
 use App\Events\IssueJournalRecorded;
 use App\Events\IssueUpdated;
+use App\Models\Journal;
 use App\Notifications\IssueNotification;
-use App\Support\Mail\NotificationRecipients;
 use App\Support\Mail\MailSuppression;
+use App\Support\Mail\NotificationRecipients;
 use Illuminate\Support\Facades\Notification;
 
 final class SendIssueMailNotifications
@@ -27,7 +28,7 @@ final class SendIssueMailNotifications
         $eventKey = $isCreated ? 'issue_added' : self::updateEventKey($journal);
         $mentionedLogins = $event instanceof IssueJournalRecorded ? [] : $event->mentionedLogins;
 
-        $recipients = NotificationRecipients::forIssue($event->issue, $eventKey, $actor, $mentionedLogins);
+        $recipients = NotificationRecipients::forIssue($event->issue, $eventKey, $actor, $mentionedLogins, $journal);
 
         if ($recipients->isEmpty()) {
             return;
@@ -44,7 +45,7 @@ final class SendIssueMailNotifications
      * `issue_updated` is on, or — for one that carries a comment — when only
      * `issue_note_added` is on.
      */
-    private static function updateEventKey(?\App\Models\Journal $journal): string
+    private static function updateEventKey(?Journal $journal): string
     {
         $events = NotificationRecipients::notifiedEventKeys();
 
