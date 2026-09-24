@@ -75,7 +75,7 @@ final class CreateNewUser implements CreatesNewUsers
 
         Validator::make([...$input, 'customFieldValues' => $customFieldInput], [
             ...CustomField::formValidationRules($customFields),
-            'name' => ['required', 'string', 'max:255'],
+            ...User::nameRules(),
             'login' => ['required', 'string', 'max:'.User::LOGIN_LENGTH_LIMIT, 'regex:'.User::LOGIN_FORMAT_REGEX, new UniqueUserValueIgnoringCase('login')],
             'email' => [
                 'required',
@@ -89,7 +89,11 @@ final class CreateNewUser implements CreatesNewUsers
         ])->validate();
 
         $user = User::create([
-            'name' => $input['name'],
+            ...User::normalizeNameInput([
+                'name' => $input['name'] ?? null,
+                'firstname' => $input['firstname'] ?? null,
+                'lastname' => $input['lastname'] ?? null,
+            ]),
             'login' => $input['login'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),

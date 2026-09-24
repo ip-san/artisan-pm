@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Rules\AllowedEmailDomain;
 use App\Rules\UniqueUserValueIgnoringCase;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\UpdatesUserProfileInformation;
 
@@ -29,7 +28,7 @@ final class UpdateUserProfileInformation implements UpdatesUserProfileInformatio
     public function update(User $user, array $input): void
     {
         Validator::make($input, [
-            'name' => ['required', 'string', 'max:255'],
+            ...User::nameRules(),
 
             'email' => [
                 'required',
@@ -41,9 +40,11 @@ final class UpdateUserProfileInformation implements UpdatesUserProfileInformatio
             ],
         ])->validateWithBag('updateProfileInformation');
 
-        $user->forceFill([
-            'name' => $input['name'],
+        $user->forceFill(User::normalizeNameInput([
+            'name' => $input['name'] ?? null,
+            'firstname' => $input['firstname'] ?? null,
+            'lastname' => $input['lastname'] ?? null,
             'email' => $input['email'],
-        ])->save();
+        ]))->save();
     }
 }

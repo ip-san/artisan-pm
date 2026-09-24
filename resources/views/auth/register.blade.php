@@ -21,10 +21,24 @@
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
             </div>
 
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="lastname" class="block text-sm font-medium text-neutral-700">{{ __('姓') }}</label>
+                    <input id="lastname" name="lastname" type="text" value="{{ old('lastname') }}" maxlength="255"
+                        class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+                </div>
+                <div>
+                    <label for="firstname" class="block text-sm font-medium text-neutral-700">{{ __('名') }}</label>
+                    <input id="firstname" name="firstname" type="text" value="{{ old('firstname') }}" maxlength="30"
+                        class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+                </div>
+            </div>
+
             <div>
                 <label for="name" class="block text-sm font-medium text-neutral-700">{{ __('氏名') }}</label>
-                <input id="name" name="name" type="text" value="{{ old('name') }}" required
+                <input id="name" name="name" type="text" value="{{ old('name') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+                <p class="mt-1 text-xs text-neutral-500">{{ __('姓と名を入力した場合は省略できます。') }}</p>
             </div>
 
             <div>

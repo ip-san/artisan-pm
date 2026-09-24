@@ -38,7 +38,7 @@ use Laravel\Passport\HasApiTokens;
  * form (resources/views/livewire/users/form.blade.php) sets it via a
  * direct property assignment instead.
  */
-#[Fillable(['name', 'email', 'password', 'language', 'time_zone', 'auth_source_id', 'login', 'status', 'mail_notification', 'no_self_notified'])]
+#[Fillable(['name', 'firstname', 'lastname', 'email', 'password', 'language', 'time_zone', 'auth_source_id', 'login', 'status', 'mail_notification', 'no_self_notified'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'api_key', 'atom_key'])]
 final class User extends Authenticatable implements HasLocalePreference, OAuthenticatable
 {
@@ -91,6 +91,15 @@ final class User extends Authenticatable implements HasLocalePreference, OAuthen
         self::saving(function (User $user): void {
             if ($user->isDirty('password')) {
                 $user->passwd_changed_on = now();
+            }
+        });
+
+        // Option A of docs/design/gap-A4-10b.md: `name` stays the stored name
+        // every reader (lists, search, sort, API, CSV) uses, so when both
+        // parts are entered it follows them in Redmine's default format.
+        self::saving(function (User $user): void {
+            if ($user->hasNameParts()) {
+                $user->name = $user->displayName('firstname_lastname');
             }
         });
 
@@ -212,16 +221,114 @@ final class User extends Authenticatable implements HasLocalePreference, OAuthen
     }
 
     /**
-     * How the user is named on screen, per the site's `user_format` (Redmine's
-     * setting): `name` (default), `name_login` ("Name (login)") or `login`.
-     * A missing login falls back to the name.
+     * The `user_format` values: this app's `name` (the default) and
+     * `name_login`, then Redmine's User::USER_FORMATS in its setting order
+     * (`username` is this app's `login`).
      */
-    public function displayName(): string
+    public const USER_FORMATS = [
+        'name', 'name_login', 'firstname_lastname', 'firstname_lastinitial', 'firstinitial_lastname',
+        'firstname', 'lastname_firstname', 'lastnamefirstname', 'lastname_comma_firstname', 'lastname', 'login',
+    ];
+
+    /**
+     * The settings screen's label for each `user_format`.
+     *
+     * @return array<string, string>
+     */
+    public static function userFormatLabels(): array
     {
-        return match (Setting::get('user_format', 'name')) {
-            'name_login' => filled($this->login) ? "{$this->name} ({$this->login})" : $this->name,
-            'login' => filled($this->login) ? $this->login : $this->name,
-            default => $this->name,
+        return [
+            'name' => __('名前'),
+            'name_login' => __('名前 (ログインID)'),
+            'firstname_lastname' => __('名 姓'),
+            'firstname_lastinitial' => __('名 姓の頭文字.'),
+            'firstinitial_lastname' => __('名の頭文字. 姓'),
+            'firstname' => __('名'),
+            'lastname_firstname' => __('姓 名'),
+            'lastnamefirstname' => __('姓名'),
+            'lastname_comma_firstname' => __('姓, 名'),
+            'lastname' => __('姓'),
+            'login' => __('ログインID'),
+        ];
+    }
+
+    /**
+     * Validation of the name inputs shared by the admin form, the account
+     * page, registration, the REST API and the CSV import: `name` is needed
+     * unless both parts are given (then it is derived), and a part needs the
+     * other (Redmine requires both; here both or neither).
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function nameRules(bool $nameRequired = true): array
+    {
+        return [
+            'name' => [$nameRequired ? 'required_without_all:firstname,lastname' : 'sometimes', 'nullable', 'string', 'max:255'],
+            'firstname' => ['nullable', 'string', 'max:30', 'required_with:lastname'],
+            'lastname' => ['nullable', 'string', 'max:255', 'required_with:firstname'],
+        ];
+    }
+
+    /**
+     * Blank name parts are stored as null, and a blank `name` is left out so
+     * the saving hook derives it from the parts.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<model-property<User>, mixed>
+     */
+    public static function normalizeNameInput(array $data): array
+    {
+        foreach (['firstname', 'lastname'] as $part) {
+            if (array_key_exists($part, $data)) {
+                $data[$part] = filled($data[$part]) ? trim((string) $data[$part]) : null;
+            }
+        }
+
+        if (array_key_exists('name', $data) && blank($data['name'])) {
+            unset($data['name']);
+        }
+
+        return $data;
+    }
+
+    /**
+     * Whether both name parts are entered — only then do the first/last
+     * name formats apply (docs/design/gap-A4-10b.md, option A).
+     */
+    public function hasNameParts(): bool
+    {
+        return filled($this->firstname) && filled($this->lastname);
+    }
+
+    /**
+     * How the user is named on screen, per the site's `user_format` (Redmine's
+     * User#name), or per `$format` when given. The first/last name formats
+     * fall back to `name` for a user without both parts; the login formats
+     * fall back to it without a login.
+     */
+    public function displayName(?string $format = null): string
+    {
+        $format ??= (string) Setting::get('user_format', 'name');
+
+        if (! in_array($format, ['name', 'name_login', 'login'], true) && ! $this->hasNameParts()) {
+            $format = 'name';
+        }
+
+        $first = (string) $this->firstname;
+        $last = (string) $this->lastname;
+
+        return match ($format) {
+            'name_login' => filled($this->login) ? "{$this->name} ({$this->login})" : (string) $this->name,
+            'login' => filled($this->login) ? $this->login : (string) $this->name,
+            'firstname_lastname' => "{$first} {$last}",
+            'firstname_lastinitial' => $first.' '.mb_substr($last, 0, 1).'.',
+            'firstinitial_lastname' => preg_replace('/(\p{L})\p{L}*\.?/u', '$1.', $first).' '.$last,
+            'firstname' => $first,
+            'lastname_firstname' => "{$last} {$first}",
+            'lastnamefirstname' => $last.$first,
+            'lastname_comma_firstname' => "{$last}, {$first}",
+            'lastname' => $last,
+            default => (string) $this->name,
         };
     }
 

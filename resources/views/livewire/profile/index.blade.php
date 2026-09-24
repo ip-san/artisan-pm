@@ -18,6 +18,7 @@ use App\Enums\QueryType;
 use App\Models\EmailAddress;
 use App\Models\Project;
 use App\Models\Setting;
+use App\Models\User;
 use App\Models\Query as SavedQuery;
 use App\Support\Preferences\UserPreferences;
 use Illuminate\Support\Collection;
@@ -30,6 +31,10 @@ new #[Layout('components.layouts.app')] class extends Component
     use RequiresPasswordConfirmation;
 
     public string $name = '';
+
+    public string $firstname = '';
+
+    public string $lastname = '';
 
     public string $email = '';
 
@@ -78,6 +83,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public function mount(): void
     {
         $this->name = auth()->user()->name;
+        $this->firstname = (string) auth()->user()->firstname;
+        $this->lastname = (string) auth()->user()->lastname;
         $this->email = auth()->user()->email;
         $this->mail_notification = auth()->user()->mail_notification->value;
         $this->language = (string) auth()->user()->language;
@@ -237,7 +244,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $user = auth()->user();
 
         $data = $this->validate([
-            'name' => ['required', 'string', 'max:255'],
+            ...User::nameRules(),
             'email' => ['required', 'string', 'email', 'max:255', new UniqueUserValueIgnoringCase('email', $user->id), new AllowedEmailDomain($user->email)],
             'mail_notification' => ['required', Rule::in(array_map(fn (MailNotificationOption $o) => $o->value, $this->notificationOptions))],
             'notified_project_ids' => ['array'],
@@ -245,12 +252,14 @@ new #[Layout('components.layouts.app')] class extends Component
             'no_self_notified' => ['boolean'],
             'language' => ['nullable', Rule::in(array_keys(\App\Support\Locale\SupportedLocales::all()))],
         ]);
+        $data = User::normalizeNameInput($data);
         $data['language'] = ($data['language'] ?? '') !== '' ? $data['language'] : null;
 
         $projectIds = $data['mail_notification'] === MailNotificationOption::Selected->value ? $data['notified_project_ids'] ?? [] : [];
         unset($data['notified_project_ids']);
 
         $user->update($data);
+        $this->name = $user->name;
         $user->setNotifiedProjectIds($projectIds);
         $this->notified_project_ids = array_map('strval', $projectIds);
 
@@ -445,11 +454,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('プロフィール') }}</h2>
 
         <form wire:submit="updateProfile" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
-                <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
-            </div>
+            <x-user-name-fields />
 
             <div>
                 <label class="block text-sm font-medium text-neutral-700">{{ __('メールアドレス') }}</label>

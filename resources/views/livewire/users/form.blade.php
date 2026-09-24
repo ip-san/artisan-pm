@@ -27,6 +27,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $name = '';
 
+    public string $firstname = '';
+
+    public string $lastname = '';
+
     public string $email = '';
 
     public bool $is_admin = false;
@@ -53,6 +57,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $this->user = $user;
             $this->name = $user->name;
+            $this->firstname = (string) $user->firstname;
+            $this->lastname = (string) $user->lastname;
             $this->email = $user->email;
             $this->is_admin = $user->is_admin;
             $this->must_change_passwd = $user->must_change_passwd;
@@ -95,7 +101,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $isLdapLinked = $this->auth_source_id !== null;
 
         $rules = [
-            'name' => ['required', 'string', 'max:255'],
+            ...User::nameRules(),
             'email' => ['required', 'string', 'email', 'max:255', new UniqueUserValueIgnoringCase('email', $this->user?->id), new AllowedEmailDomain($this->user?->email)],
             'is_admin' => ['boolean'],
             'must_change_passwd' => ['boolean'],
@@ -113,7 +119,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
 
-        $data = $this->validate($rules);
+        $data = User::normalizeNameInput($this->validate($rules));
         $customFieldData = CustomField::filterEditableValues($this->customFields, $data['customFieldValues'] ?? [], auth()->user());
         unset($data['customFieldValues']);
 
@@ -212,11 +218,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @error('login') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
-        <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-            @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
-        </div>
+        <x-user-name-fields />
 
         <div>
             <label class="block text-sm font-medium text-neutral-700">{{ __('メールアドレス') }}</label>

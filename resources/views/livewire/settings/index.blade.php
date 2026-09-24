@@ -691,7 +691,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'issue_list_default_columns.*' => [Rule::in(array_keys(self::issueListColumns()))],
             'start_of_week' => ['required', Rule::in([0, 1, 6])],
             'self_registration' => ['required', 'in:disabled,manual,email,automatic'],
-            'user_format' => ['required', 'in:name,name_login,login'],
+            'user_format' => ['required', Rule::in(\App\Models\User::USER_FORMATS)],
             'show_custom_fields_on_registration' => ['boolean'],
             'unsubscribe' => ['boolean'],
             'session_timeout' => ['required', Rule::in([0, 60, 120, 240, 480, 720, 1440, 2880])],
@@ -892,12 +892,13 @@ new #[Layout('components.layouts.app')] class extends Component
             <div>
                 <label class="block text-sm font-medium text-neutral-700">{{ __('ユーザー名の表示形式') }}</label>
                 <select wire:model="user_format" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <option value="name">{{ __('名前') }}</option>
-                    <option value="name_login">{{ __('名前 (ログインID)') }}</option>
-                    <option value="login">{{ __('ログインID') }}</option>
+                    @foreach (\App\Models\User::userFormatLabels() as $format => $label)
+                        <option value="{{ $format }}">{{ $label }}</option>
+                    @endforeach
                 </select>
                 @error('user_format') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-neutral-500">{{ __('課題・コメント・Wiki・お知らせ・活動・工数などでユーザーを表示するときの形式です(APIと管理画面の名前は変わりません)。') }}</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('姓・名を使う形式は、姓と名の両方が入力されたユーザーだけに適用され、それ以外は名前で表示されます。') }}</p>
             </div>
 
             <div>

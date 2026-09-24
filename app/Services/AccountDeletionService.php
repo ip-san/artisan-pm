@@ -7,8 +7,8 @@ namespace App\Services;
 use App\Enums\QueryVisibility;
 use App\Enums\UserStatus;
 use App\Models\Member;
-use App\Models\Project;
 use App\Models\PendingUpload;
+use App\Models\Project;
 use App\Models\Query;
 use App\Models\RepositoryCommitter;
 use App\Models\User;
@@ -60,6 +60,9 @@ final class AccountDeletionService
 
         $user->forceFill([
             'name' => '削除されたユーザー',
+            // Cleared, or the saving hook would rebuild the real name from them.
+            'firstname' => null,
+            'lastname' => null,
             'email' => $placeholder.'@deleted.invalid',
             // login is NOT NULL as of the 2026-07-30 mandatory-login
             // migration, so it can no longer be scrubbed to null the way
