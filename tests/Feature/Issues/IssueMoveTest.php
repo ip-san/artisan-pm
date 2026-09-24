@@ -101,7 +101,7 @@ test('moving an issue resets its category, fixed version and parent, and takes i
         ->and($child->fresh()->tracker_id)->toBe($sourceTracker->id);
 });
 
-test('moving an issue clears the assignee if they are not a member of the target project', function () {
+test('moving an issue keeps the assignee even when they are not a member of the target project (Redmine)', function () {
     $source = Project::factory()->create();
     $target = Project::factory()->create();
     $sourceTracker = Tracker::factory()->create();
@@ -126,7 +126,36 @@ test('moving an issue clears the assignee if they are not a member of the target
         ->set('moveToTrackerId', $targetTracker->id)
         ->call('moveIssue');
 
-    expect($issue->fresh()->assigned_to_id)->toBeNull();
+    expect($issue->fresh())
+        ->project_id->toBe($target->id)
+        ->assigned_to_id->toBe($assignee->id);
+});
+
+test('a moved issue whose assignee is not a member of the new project can still be edited, keeping or changing the assignee', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $editor = moveTestMember($project, ['view_issues', 'edit_issues']);
+    $outsider = User::factory()->create(['name' => 'Former Assignee']);
+    $issue = moveTestIssue($project, $tracker, ['assigned_to_id' => $outsider->id]);
+
+    Livewire::actingAs($editor)
+        ->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->assertSee('Former Assignee')
+        ->set('subject', 'Still editable')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($issue->fresh())
+        ->subject->toBe('Still editable')
+        ->assigned_to_id->toBe($outsider->id);
+
+    // Another non-member is still refused.
+    Livewire::actingAs($editor)
+        ->test('issues.form', ['project' => $project, 'issue' => $issue->fresh()])
+        ->set('assigned_to_id', User::factory()->create()->id)
+        ->call('save')
+        ->assertHasErrors('assigned_to_id');
 });
 
 test('moving an issue keeps the assignee if they are also a member of the target project', function () {

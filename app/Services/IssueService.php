@@ -779,8 +779,9 @@ final class IssueService
      * which Redmine only gives new issues), and the parent is cleared
      * (subtasks stay within one project here — Redmine's
      * valid_parent_project? without cross-project subtasks). The assignee
-     * is cleared when they are not a member of the target (Redmine keeps
-     * it; A1-50).
+     * (user or group) stays even when not assignable in the target:
+     * Redmine clears it only for a new issue (a copy), an existing issue's
+     * assignee still being valid.
      *
      * @return array<string, mixed>
      */
@@ -799,14 +800,6 @@ final class IssueService
             if (! $targetProject->trackers()->whereKey($issue->tracker_id)->exists()) {
                 $attributes['tracker_id'] = Issue::allowedTargetTrackers($targetProject, $actor)->first()?->id ?? $issue->tracker_id;
             }
-        }
-
-        if ($issue->assigned_to_id !== null && ! $targetProject->users()->whereKey($issue->assigned_to_id)->exists()) {
-            $attributes['assigned_to_id'] = null;
-        }
-
-        if ($issue->assigned_to_group_id !== null && ! $this->isMemberGroup($targetProject, $issue->assigned_to_group_id)) {
-            $attributes['assigned_to_group_id'] = null;
         }
 
         return $attributes;

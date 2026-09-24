@@ -204,7 +204,7 @@ test('assignee-only workflow transitions apply to members of the assigned group'
         ->and($workflow->allowedTransitions($s->issue, $s->other)->pluck('id'))->not->toContain($next->id);
 });
 
-test('moving or copying keeps a group assignee only where the group is a member', function () {
+test('a copy keeps a group assignee only where the group is a member, a move always keeps it', function () {
     $s = groupReaderScenario();
     $withGroup = Project::factory()->create();
     $withGroup->trackers()->attach($s->tracker);
@@ -216,7 +216,7 @@ test('moving or copying keeps a group assignee only where the group is a member'
 
     expect($service->copy($s->issue, $withGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBe($s->group->id)
         ->and($service->copy($s->issue, $withoutGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBeNull()
-        ->and($service->moveToProject($s->issue, $withoutGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBeNull();
+        ->and($service->moveToProject($s->issue, $withoutGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBe($s->group->id);
 });
 
 test('an incoming mail and a csv import may name an assignable group', function () {

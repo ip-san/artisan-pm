@@ -12,6 +12,7 @@ use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Tracker;
+use App\Models\User;
 use App\Models\Version;
 use App\Rules\IssueParentTarget;
 use App\Services\IssueService;
@@ -457,10 +458,18 @@ new #[Layout('components.layouts.app')] class extends Component
         return Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->get();
     }
 
+    /**
+     * The assignable users, plus the issue's current assignee — Redmine's
+     * Issue#assignable_users keeps them selectable, e.g. after a move to a
+     * project where they are not a member.
+     */
     #[Computed]
     public function projectMembers(): Collection
     {
-        return $this->project->assignableUsers();
+        $users = $this->project->assignableUsers();
+        $current = $this->issue?->assignedTo;
+
+        return $current === null || $users->contains('id', $current->id) ? $users : User::sortByFormat($users->push($current));
     }
 
     /**
@@ -729,7 +738,11 @@ new #[Layout('components.layouts.app')] class extends Component
             'category_id' => ['nullable', Rule::exists('issue_categories', 'id')->where('project_id', $this->project->id)],
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'assigned_to_id' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
+            // The issue's current assignee stays valid even when no longer
+            // a member (Redmine's Issue#assignable_users).
+            'assigned_to_id' => ['nullable', ...($this->assigned_to_id !== null && $this->assigned_to_id === $this->issue?->assigned_to_id
+                ? []
+                : [Rule::exists('members', 'user_id')->where('project_id', $this->project->id)])],
             // Redmine's assignable_users with issue_group_assignment: a member
             // group holding an assignable role, or the issue's current group.
             'assigned_to_group_id' => [
