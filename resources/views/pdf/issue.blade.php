@@ -21,7 +21,7 @@
 </head>
 <body>
     <h1>{{ $project->name }} - {{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}</h1>
-    <div class="meta">{{ $issue->created_at?->format('Y-m-d H:i') }} - {{ $issue->author->displayName() }}</div>
+    <div class="meta">{{ \App\Support\Format\DateTimes::dateTime($issue->created_at) }} - {{ $issue->author->displayName() }}</div>
 
     <table class="attrs">
         <tr>
@@ -37,8 +37,8 @@
             <td class="label">{{ __('進捗率') }}</td><td>{{ $issue->done_ratio }}%</td>
         </tr>
         <tr>
-            <td class="label">{{ __('開始日') }}</td><td>{{ $issue->start_date?->toDateString() ?? '-' }}</td>
-            <td class="label">{{ __('期日') }}</td><td>{{ $issue->due_date?->toDateString() ?? '-' }}</td>
+            <td class="label">{{ __('開始日') }}</td><td>{{ \App\Support\Format\DateTimes::date($issue->start_date) ?? '-' }}</td>
+            <td class="label">{{ __('期日') }}</td><td>{{ \App\Support\Format\DateTimes::date($issue->due_date) ?? '-' }}</td>
         </tr>
         <tr>
             <td class="label">{{ __('予定工数') }}</td><td>{{ $issue->estimated_hours ?? '-' }}</td>
@@ -60,7 +60,7 @@
         <div class="section-title">{{ __('履歴') }}</div>
         @foreach ($notes as $entry)
             <div class="note">
-                <div class="note-meta">{{ $entry['journal']->user->displayName() }} — {{ $entry['journal']->created_at->format('Y-m-d H:i') }}</div>
+                <div class="note-meta">{{ $entry['journal']->user->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($entry['journal']->created_at) }}</div>
                 <div class="prose">{!! $entry['html'] !!}</div>
             </div>
         @endforeach

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Query;
 
 use App\Enums\FilterOperator;
+use App\Support\Format\DateTimes;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -48,12 +49,42 @@ final class FilterOperatorApplier
             FilterOperator::LessOrEqual => $query->where($column, '<=', $values[0] ?? null),
             FilterOperator::Between => $query->whereBetween($column, [$values[0] ?? null, $values[1] ?? null]),
             FilterOperator::InTheLastDays => $query->where(
-                $column, '>=', now()->subDays((int) ($values[0] ?? 0))->startOfDay()
+                $column, '>=', DateTimes::today()->subDays((int) ($values[0] ?? 0))->toDateString()
             ),
             // The relation operators mean nothing for a plain column; no
             // column field offers them.
             FilterOperator::AnyOpenIssues, FilterOperator::NoOpenIssues,
             FilterOperator::AnyIssuesInProject, FilterOperator::AnyIssuesNotInProject, FilterOperator::NoIssuesInProject => $query,
+        };
+    }
+
+    /**
+     * A date filter on a timestamp column, as Redmine's Query#date_clause:
+     * each typed date is the whole day in the viewer's zone, so "<= 9/24"
+     * keeps what was stored later that day and "= 9/24" is not only midnight.
+     *
+     * @param  Builder<*>  $query
+     * @param  array<int, mixed>  $values
+     * @return Builder<*>
+     */
+    public static function applyToTimes(Builder $query, string $column, FilterOperator $operator, array $values): Builder
+    {
+        if (($values === [] && $operator->requiresValue()) || ($operator === FilterOperator::Between && count($values) < 2)) {
+            return $query;
+        }
+
+        $day = fn (int $index): array => DateTimes::dayBounds((string) $values[$index]);
+
+        return match ($operator) {
+            FilterOperator::Equals => $query->whereBetween($column, $day(0)),
+            FilterOperator::NotEquals => $query->whereNotBetween($column, $day(0)),
+            FilterOperator::GreaterOrEqual => $query->where($column, '>=', $day(0)[0]),
+            FilterOperator::LessOrEqual => $query->where($column, '<=', $day(0)[1]),
+            FilterOperator::Between => $query->whereBetween($column, [$day(0)[0], $day(1)[1]]),
+            FilterOperator::InTheLastDays => $query->where(
+                $column, '>=', DateTimes::dayBounds(DateTimes::today()->subDays((int) ($values[0] ?? 0))->toDateString())[0]
+            ),
+            default => self::apply($query, $column, $operator, $values),
         };
     }
 

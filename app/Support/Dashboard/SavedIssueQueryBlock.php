@@ -8,6 +8,7 @@ use App\Models\Issue;
 use App\Models\Query;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Format\DateTimes;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Illuminate\Support\Collection;
@@ -200,9 +201,9 @@ final class SavedIssueQueryBlock
             'priority' => (string) $issue->priority?->name,
             'assigned_to' => (string) ($issue->assignedTo?->displayName() ?? $issue->assignedToGroup?->name),
             'author' => (string) $issue->author?->displayName(),
-            'start_date' => (string) $issue->start_date?->toDateString(),
-            'due_date' => (string) $issue->due_date?->toDateString(),
-            'updated_at' => $issue->updated_at->toDateString(),
+            'start_date' => (string) DateTimes::date($issue->start_date),
+            'due_date' => (string) DateTimes::date($issue->due_date),
+            'updated_at' => (string) DateTimes::dateOf($issue->updated_at),
             default => '',
         };
     }

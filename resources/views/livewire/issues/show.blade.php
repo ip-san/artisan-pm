@@ -919,8 +919,8 @@ new #[Layout('components.layouts.app')] class extends Component
         <div><span class="text-neutral-500">{{ __('担当者:') }}</span> <x-avatar :user="$issue->assignedTo" :size="18" /> {{ $issue->assigneeName() ?? __('未割当') }}</div>
         <div><span class="text-neutral-500">{{ __('対象バージョン:') }}</span> {{ $issue->fixedVersion?->name ?? __('なし') }}</div>
         <div><span class="text-neutral-500">{{ __('進捗率:') }}</span> {{ $issue->done_ratio }}%</div>
-        <div><span class="text-neutral-500">{{ __('開始日:') }}</span> {{ $issue->start_date?->toDateString() ?? '-' }}</div>
-        <div><span class="text-neutral-500">{{ __('期日:') }}</span> {{ $issue->due_date?->toDateString() ?? '-' }}</div>
+        <div><span class="text-neutral-500">{{ __('開始日:') }}</span> {{ \App\Support\Format\DateTimes::date($issue->start_date) ?? '-' }}</div>
+        <div><span class="text-neutral-500">{{ __('期日:') }}</span> {{ \App\Support\Format\DateTimes::date($issue->due_date) ?? '-' }}</div>
         <div>
             <span class="text-neutral-500">{{ __('予定工数:') }}</span>
             {{ $issue->estimated_hours !== null ? __(':hours 時間', ['hours' => \App\Support\Format\Hours::format((float) $issue->estimated_hours)]) : '-' }}
@@ -1165,7 +1165,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <ul class="mb-6 space-y-1">
             @foreach ($issue->timeEntries as $entry)
                 <li class="flex items-center justify-between text-sm">
-                    <span>{{ $entry->spent_on->toDateString() }} — {{ $entry->user->displayName() }} — {{ $entry->activity->name }}</span>
+                    <span>{{ \App\Support\Format\DateTimes::date($entry->spent_on) }} — {{ $entry->user->displayName() }} — {{ $entry->activity->name }}</span>
                     <span class="text-neutral-500">{{ __(':hours 時間', ['hours' => $entry->hours]) }}</span>
                 </li>
             @endforeach
@@ -1187,7 +1187,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @foreach ($issue->changesets as $changeset)
                 <li class="rounded-md border border-neutral-200 bg-white p-3 text-sm" wire:key="issue-changeset-{{ $changeset->id }}">
                     <a href="{{ route($changeset->repository->routeName('repository.show'), $changeset->repository->routeParameters(['changeset' => $changeset])) }}" class="font-mono text-brand-bold hover:underline">{{ $changeset->shortRevision() }}</a>
-                    <span class="ml-2 text-xs text-neutral-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</span>
+                    <span class="ml-2 text-xs text-neutral-500">{{ $changeset->committer }} — {{ \App\Support\Format\DateTimes::dateTime($changeset->committed_on) }}</span>
                     <div class="mt-1 text-neutral-800">{{ $changeset->commentsHtml(firstLineOnly: true) }}</div>
                 </li>
             @endforeach
@@ -1203,12 +1203,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 <li wire:key="journal-{{ $journal->id }}" class="rounded-md border border-neutral-200 bg-white p-3 text-sm">
                     <div class="text-neutral-500 text-xs mb-1">
                         <x-avatar :user="$journal->user" :size="20" class="mr-1" />
-                        {{ $journal->user->displayName() }} — {{ $journal->created_at->format('Y-m-d H:i') }}
+                        {{ $journal->user->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($journal->created_at) }}
                         @if ($journal->private_notes)
                             <span class="ml-1 rounded bg-warning-subtler px-1.5 py-0.5 text-warning-bold">{{ __('非公開') }}</span>
                         @endif
                         @if ($journal->notes && $journal->updatedBy !== null)
-                            <span class="ml-1 italic" data-journal-edited>{{ __('(:user が編集 :time)', ['user' => $journal->updatedBy->displayName(), 'time' => $journal->updated_at->format('Y-m-d H:i')]) }}</span>
+                            <span class="ml-1 italic" data-journal-edited>{{ __('(:user が編集 :time)', ['user' => $journal->updatedBy->displayName(), 'time' => \App\Support\Format\DateTimes::dateTime($journal->updated_at)]) }}</span>
                         @elseif ($journal->notes && ! $journal->updated_at->equalTo($journal->created_at))
                             <span class="ml-1 italic">{{ __('(編集済み)') }}</span>
                         @endif

@@ -301,7 +301,7 @@ final class IncomingMailService
             'priority_id' => $priorityId,
             'subject' => $subject !== '' ? $subject : '(no subject)',
             'description' => $body,
-            'start_date' => StartDateDefault::forApiAndMail(),
+            'start_date' => StartDateDefault::forApiAndMail($author),
             ...$keywordAttributes,
         ], $author, $customFieldData);
 

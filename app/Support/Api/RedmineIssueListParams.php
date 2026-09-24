@@ -8,10 +8,10 @@ use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
 use App\Models\IssueStatus;
 use App\Models\User;
+use App\Support\Format\DateTimes;
 use App\Support\Query\FilterableField;
 use App\Support\Query\FilterSelectOptions;
 use App\Support\Query\QueryFilterEngine;
-use Carbon\CarbonImmutable;
 
 /**
  * Reads the REST issue list's Redmine-style query parameters into what
@@ -186,7 +186,7 @@ final class RedmineIssueListParams
             $values = array_map(fn ($value) => $value === 'me' ? (string) $user->id : $value, $values);
         }
 
-        $today = CarbonImmutable::today();
+        $today = DateTimes::today($user);
         $days = (int) ($values[0] ?? 0);
 
         [$operator, $values] = match ($redmineOperator) {

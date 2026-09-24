@@ -6,6 +6,7 @@ namespace App\Support\Issues;
 
 use App\Models\Issue;
 use App\Models\Setting;
+use App\Support\Format\DateTimes;
 
 /**
  * The extra columns shown for subtasks and related issues on an issue's
@@ -118,9 +119,9 @@ final class RelatedIssueColumns
             'assigned_to_id' => $issue->assigneeName() ?? '',
             'author_id' => $issue->author->displayName(),
             'fixed_version_id' => $issue->fixedVersion?->name ?? '',
-            'start_date' => $issue->start_date?->toDateString() ?? '',
-            'due_date' => $issue->due_date?->toDateString() ?? '',
-            'created_at' => $issue->created_at->toDateString(),
+            'start_date' => DateTimes::date($issue->start_date) ?? '',
+            'due_date' => DateTimes::date($issue->due_date) ?? '',
+            'created_at' => DateTimes::dateOf($issue->created_at) ?? '',
             'done_ratio' => "{$issue->done_ratio}%",
             default => '',
         };

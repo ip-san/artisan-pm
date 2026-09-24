@@ -247,9 +247,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'assigned_to_id' => $issue->assigneeName() ?? __('未割当'),
             'author_id' => $issue->author->displayName(),
             'fixed_version_id' => $issue->fixedVersion?->name ?? __('なし'),
-            'start_date' => $issue->start_date?->toDateString() ?? '',
-            'due_date' => $issue->due_date?->toDateString() ?? '',
-            'created_at' => $issue->created_at->toDateString(),
+            'start_date' => \App\Support\Format\DateTimes::date($issue->start_date) ?? '',
+            'due_date' => \App\Support\Format\DateTimes::date($issue->due_date) ?? '',
+            'created_at' => \App\Support\Format\DateTimes::dateOf($issue->created_at) ?? '',
             'done_ratio' => "{$issue->done_ratio}%",
             default => '',
         };

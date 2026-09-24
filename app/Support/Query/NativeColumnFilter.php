@@ -14,6 +14,8 @@ final class NativeColumnFilter implements FilterableField
     /**
      * @param  array<int, FilterOperator>  $operators
      * @param  ?Closure(): array<int|string, string>  $optionsResolver
+     * @param  bool  $storesTime  a date filter on a timestamp column (created_at…):
+     *                            the typed dates are days in the viewer's zone
      */
     public function __construct(
         private readonly string $key,
@@ -23,6 +25,7 @@ final class NativeColumnFilter implements FilterableField
         private readonly array $operators,
         private readonly ?Closure $optionsResolver = null,
         private readonly bool $sortable = true,
+        private readonly bool $storesTime = false,
     ) {}
 
     public function key(): string
@@ -52,7 +55,9 @@ final class NativeColumnFilter implements FilterableField
 
     public function apply(Builder $query, FilterOperator $operator, array $values): Builder
     {
-        return FilterOperatorApplier::apply($query, $this->column, $operator, $values);
+        return $this->storesTime
+            ? FilterOperatorApplier::applyToTimes($query, $this->column, $operator, $values)
+            : FilterOperatorApplier::apply($query, $this->column, $operator, $values);
     }
 
     public function applySort(Builder $query, string $direction): Builder

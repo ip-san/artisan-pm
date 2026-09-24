@@ -10,6 +10,7 @@ use App\CustomFields\Formats\ProjectScopedFormat;
 use App\Enums\CustomFieldDefaultValueMode;
 use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
+use App\Support\Format\DateTimes;
 use Database\Factories\CustomFieldFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -126,7 +127,7 @@ final class CustomField extends Model implements Sortable
         if ($this->field_format === CustomFieldFormat::Date
             && $this->default_value_mode === CustomFieldDefaultValueMode::DateOffset
             && filled($this->default_value)) {
-            return now()->addDays((int) $this->default_value)->toDateString();
+            return DateTimes::today()->addDays((int) $this->default_value)->toDateString();
         }
 
         return $this->default_value;

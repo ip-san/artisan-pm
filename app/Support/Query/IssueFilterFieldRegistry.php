@@ -57,9 +57,9 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('subject', __('題名'), 'subject', FilterFieldType::Text, $textOperators),
             new NativeColumnFilter('start_date', __('開始日'), 'start_date', FilterFieldType::Date, $dateOperators),
             new NativeColumnFilter('due_date', __('期日'), 'due_date', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('updated_at', __('更新日'), 'updated_at', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('closed_on', __('終了日'), 'closed_on', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
+            new NativeColumnFilter('updated_at', __('更新日'), 'updated_at', FilterFieldType::Date, $dateOperators, storesTime: true),
+            new NativeColumnFilter('closed_on', __('終了日'), 'closed_on', FilterFieldType::Date, $dateOperators, storesTime: true),
             new NativeColumnFilter('done_ratio', __('進捗率'), 'done_ratio', FilterFieldType::Integer, $integerOperators),
         ];
 
@@ -128,7 +128,7 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('subject', __('題名'), 'subject', FilterFieldType::Text, $textOperators),
             new NativeColumnFilter('start_date', __('開始日'), 'start_date', FilterFieldType::Date, $dateOperators),
             new NativeColumnFilter('due_date', __('期日'), 'due_date', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
             new NativeColumnFilter('done_ratio', __('進捗率'), 'done_ratio', FilterFieldType::Integer, $integerOperators),
         ];
 

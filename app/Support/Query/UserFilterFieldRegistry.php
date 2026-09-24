@@ -40,8 +40,8 @@ final class UserFilterFieldRegistry
             new NativeColumnFilter('login', __('ログインID'), 'login', FilterFieldType::Text, $text),
             new NativeColumnFilter('email', __('メールアドレス'), 'email', FilterFieldType::Text, $text),
             new NativeColumnFilter('is_admin', __('管理者'), 'is_admin', FilterFieldType::Boolean, [FilterOperator::Equals]),
-            new NativeColumnFilter('created_at', __('登録日'), 'created_at', FilterFieldType::Date, $date),
-            new NativeColumnFilter('last_login_at', __('最終ログイン'), 'last_login_at', FilterFieldType::Date, $date),
+            new NativeColumnFilter('created_at', __('登録日'), 'created_at', FilterFieldType::Date, $date, storesTime: true),
+            new NativeColumnFilter('last_login_at', __('最終ログイン'), 'last_login_at', FilterFieldType::Date, $date, storesTime: true),
         ];
 
         return collect($fields)->keyBy(fn (FilterableField $field) => $field->key());

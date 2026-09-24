@@ -187,7 +187,7 @@ new #[Layout('components.layouts.app')] class extends Component
             // wins. Redmine ships this off; this app has always defaulted to
             // today, so the setting defaults to on here.
             if (Setting::get('default_issue_start_date_to_creation_date', true)) {
-                $this->start_date ??= now()->toDateString();
+                $this->start_date ??= \App\Support\Format\DateTimes::today()->toDateString();
             }
 
             // Matches Redmine's Issue#default_assign and the fixed_version
@@ -401,7 +401,7 @@ new #[Layout('components.layouts.app')] class extends Component
             return null;
         }
 
-        return now()->addDays((int) $offset)->toDateString();
+        return \App\Support\Format\DateTimes::today()->addDays((int) $offset)->toDateString();
     }
 
     /**
@@ -776,7 +776,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     'issue_id' => $this->issue->id,
                     'user_id' => auth()->id(),
                     'hours' => $logTimeHours,
-                    'spent_on' => now()->toDateString(),
+                    'spent_on' => \App\Support\Format\DateTimes::today()->toDateString(),
                     'comments' => $logTimeComments,
                 ]);
             } catch (ValidationException $exception) {
@@ -884,7 +884,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 'user_id' => auth()->id(),
                 'activity_id' => $logTimeActivityId,
                 'hours' => $logTimeHours,
-                'spent_on' => now()->toDateString(),
+                'spent_on' => \App\Support\Format\DateTimes::today()->toDateString(),
                 'comments' => $logTimeComments,
             ]);
         }

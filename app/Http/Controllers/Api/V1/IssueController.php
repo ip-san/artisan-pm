@@ -286,7 +286,7 @@ final class IssueController extends Controller
             project: $project,
         );
 
-        $data['start_date'] = filled($data['start_date'] ?? null) ? $data['start_date'] : StartDateDefault::forApiAndMail();
+        $data['start_date'] = filled($data['start_date'] ?? null) ? $data['start_date'] : StartDateDefault::forApiAndMail($request->user());
 
         $issue = app(IssueService::class)->create(
             [...$data, 'project_id' => $project->id, 'status_id' => $this->defaultStatusId()],

@@ -848,9 +848,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'assigned_to_id' => $issue->assigneeName() ?? __('未割当'),
             'author_id' => $issue->author->displayName(),
             'fixed_version_id' => $issue->fixedVersion?->name ?? __('なし'),
-            'start_date' => $issue->start_date?->toDateString() ?? '',
-            'due_date' => $issue->due_date?->toDateString() ?? '',
-            'created_at' => $issue->created_at->toDateString(),
+            'start_date' => \App\Support\Format\DateTimes::date($issue->start_date) ?? '',
+            'due_date' => \App\Support\Format\DateTimes::date($issue->due_date) ?? '',
+            'created_at' => \App\Support\Format\DateTimes::dateOf($issue->created_at) ?? '',
             'done_ratio' => "{$issue->done_ratio}%",
             // Relations join with ", " (Redmine's own IssueRelation#to_s
             // list separator); attachments/watchers join with "\n" (one
@@ -869,8 +869,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'watchers' => $issue->watchers->map(fn (Watcher $watcher) => $watcher->user->displayName())->join("\n"),
             'project_id' => $issue->project->name,
             'parent_id' => $issue->parent_id !== null ? "#{$issue->parent_id}" : '',
-            'updated_at' => $issue->updated_at?->format('Y-m-d H:i') ?? '',
-            'closed_on' => $issue->closed_on?->format('Y-m-d H:i') ?? '',
+            'updated_at' => \App\Support\Format\DateTimes::dateTime($issue->updated_at) ?? '',
+            'closed_on' => \App\Support\Format\DateTimes::dateTime($issue->closed_on) ?? '',
             'last_updated_by' => ($issue->lastJournal?->user ?? $issue->author)->name,
             'is_private' => $issue->is_private ? __('はい') : __('いいえ'),
             'description' => (string) $issue->description,

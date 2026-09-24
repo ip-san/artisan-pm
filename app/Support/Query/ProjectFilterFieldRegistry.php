@@ -57,8 +57,8 @@ final class ProjectFilterFieldRegistry
                 ->pluck('name', 'id')
                 ->all()),
             new NativeColumnFilter('is_public', __('公開'), 'is_public', FilterFieldType::Select, [FilterOperator::Equals], fn () => ['1' => __('はい'), '0' => __('いいえ')]),
-            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $date),
-            new NativeColumnFilter('updated_at', __('更新日'), 'updated_at', FilterFieldType::Date, $date),
+            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $date, storesTime: true),
+            new NativeColumnFilter('updated_at', __('更新日'), 'updated_at', FilterFieldType::Date, $date, storesTime: true),
         ];
 
         $customFields = self::customFields($viewer)

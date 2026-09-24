@@ -17,7 +17,7 @@
 </head>
 <body>
     <h1>{{ __(':project - 課題', ['project' => $project->name]) }}</h1>
-    <p class="meta">{{ __(':date時点 / :count件', ['date' => now()->toDateString(), 'count' => count($rows)]) }}@if ($total > count($rows)) {{ __('(全:total件のうち先頭)', ['total' => $total]) }}@endif</p>
+    <p class="meta">{{ __(':date時点 / :count件', ['date' => \App\Support\Format\DateTimes::date(\App\Support\Format\DateTimes::today()), 'count' => count($rows)]) }}@if ($total > count($rows)) {{ __('(全:total件のうち先頭)', ['total' => $total]) }}@endif</p>
 
     <table>
         <thead>
