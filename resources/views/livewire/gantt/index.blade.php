@@ -6,6 +6,8 @@ use App\Models\Project;
 use App\Models\Version;
 use App\Services\GanttService;
 use App\Support\Gantt\GanttChart;
+use App\Support\Gantt\GanttImageRenderer;
+use App\Support\Gantt\GanttLine;
 use App\Support\Gantt\GanttRow;
 use App\Support\Gantt\GanttSettings;
 use App\Support\Query\IssueFilterFieldRegistry;
@@ -207,41 +209,38 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * The chart's rows for the PDF/PNG exports: the issue tree, then the
+     * milestones.
+     *
+     * @return array<int, GanttLine>
+     */
+    public function exportLines(): array
+    {
+        return [
+            ...$this->rows->map(fn (GanttRow $row) => GanttLine::issue($row, $row->depth))->all(),
+            ...$this->versions->map(fn (Version $version) => GanttLine::version($version, 0))->all(),
+        ];
+    }
+
+    /**
      * Matches Redmine's GanttsController#show format.pdf. Same
      * dompdf-over-a-print-styled-Blade-view approach as the issue/wiki PDF
      * exports; see resources/views/components/pdf/cjk-font.blade.php for why a
-     * bundled CJK font is required. The relation-line overlay the HTML
-     * chart draws via inline SVG is intentionally left out here — dompdf's
-     * SVG support is inconsistent enough that verifying it renders
-     * correctly (the same empirical bar the CJK font work was held to)
-     * wasn't practical within this slice; bars, month bands, and
-     * milestones (the chart's primary information) are unaffected.
+     * bundled CJK font is required.
      */
     public function exportPdf(): StreamedResponse
     {
         $this->authorize('viewGantt', $this->project);
 
-        if ($this->rangeStart === null) {
+        if ($this->chart->isEmpty()) {
             abort(404);
         }
 
-        $barPositions = $this->rows->mapWithKeys(fn (GanttRow $row) => [
-            $row->id => $row->hasDateRange()
-                ? ['left' => $this->barLeftPercent($row), 'width' => $this->barWidthPercent($row)]
-                : null,
-        ])->filter();
-
-        $versionPositions = $this->versions->mapWithKeys(fn (Version $version) => [
-            $version->id => $this->versionMarkerLeftPercent($version),
-        ]);
-
         $html = view('pdf.gantt', [
-            'project' => $this->project,
-            'rows' => $this->rows,
-            'versions' => $this->versions,
-            'monthBands' => $this->monthBands,
-            'barPositions' => $barPositions,
-            'versionPositions' => $versionPositions,
+            'documentTitle' => "{$this->project->identifier}-gantt",
+            'heading' => __(':project - ガントチャート (:date時点)', ['project' => $this->project->name, 'date' => \App\Support\Format\DateTimes::date(\App\Support\Format\DateTimes::today())]),
+            'chart' => $this->chart,
+            'lines' => $this->exportLines(),
         ])->render();
 
         $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape')->output();
@@ -252,15 +251,41 @@ new #[Layout('components.layouts.app')] class extends Component
             ['Content-Type' => 'application/pdf'],
         );
     }
+
+    /**
+     * Matches Redmine's GanttsController#show format.png (see
+     * GanttImageRenderer).
+     */
+    public function exportPng(): StreamedResponse
+    {
+        $this->authorize('viewGantt', $this->project);
+
+        if ($this->chart->isEmpty()) {
+            abort(404);
+        }
+
+        $png = app(GanttImageRenderer::class)->render($this->chart, $this->exportLines());
+
+        return response()->streamDownload(
+            fn () => print ($png),
+            "{$this->project->identifier}-gantt.png",
+            ['Content-Type' => 'image/png'],
+        );
+    }
 }; ?>
 
 <div>
     <div class="mb-6 flex items-center justify-between">
         <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — ガントチャート', ['project' => $project->name]) }}</h1>
         @if ($this->rangeStart !== null)
-            <button wire:click="exportPdf" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                PDF
-            </button>
+            <div class="flex gap-2">
+                <button wire:click="exportPdf" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    PDF
+                </button>
+                <button wire:click="exportPng" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    PNG
+                </button>
+            </div>
         @endif
     </div>
 

@@ -5,15 +5,20 @@ use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Version;
 use App\Services\GanttService;
+use App\Support\Format\DateTimes;
 use App\Support\Gantt\GanttChart;
+use App\Support\Gantt\GanttImageRenderer;
+use App\Support\Gantt\GanttLine;
 use App\Support\Gantt\GanttRow;
 use App\Support\Gantt\GanttSettings;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Redmine's top-level IssuesController#gantt (/issues/gantt, no project):
@@ -181,6 +186,55 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * The chart's rows for the PDF/PNG exports.
+     *
+     * @return array<int, GanttLine>
+     */
+    public function exportLines(): array
+    {
+        return $this->lines->map(fn (array $line) => match ($line['kind']) {
+            'project' => GanttLine::project($line['project'], $line['depth']),
+            'issue' => GanttLine::issue($line['row'], $line['depth']),
+            'version' => GanttLine::version($line['version'], $line['depth']),
+        })->all();
+    }
+
+    /**
+     * Redmine's /issues/gantt.pdf — the same view as the project chart's PDF.
+     */
+    public function exportPdf(): StreamedResponse
+    {
+        if ($this->chart->isEmpty()) {
+            abort(404);
+        }
+
+        $html = view('pdf.gantt', [
+            'documentTitle' => 'gantt',
+            'heading' => __(':project - ガントチャート (:date時点)', ['project' => __('全プロジェクト'), 'date' => DateTimes::date(DateTimes::today())]),
+            'chart' => $this->chart,
+            'lines' => $this->exportLines(),
+        ])->render();
+
+        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape')->output();
+
+        return response()->streamDownload(fn () => print ($pdf), 'gantt.pdf', ['Content-Type' => 'application/pdf']);
+    }
+
+    /**
+     * Redmine's /issues/gantt.png (see GanttImageRenderer).
+     */
+    public function exportPng(): StreamedResponse
+    {
+        if ($this->chart->isEmpty()) {
+            abort(404);
+        }
+
+        $png = app(GanttImageRenderer::class)->render($this->chart, $this->exportLines());
+
+        return response()->streamDownload(fn () => print ($png), 'gantt.png', ['Content-Type' => 'image/png']);
+    }
+
+    /**
      * The projects with drawn issues and their ancestors the viewer can see,
      * in hierarchy order with their depth among the listed projects —
      * Redmine's Gantt#projects + Project.project_tree.
@@ -226,6 +280,16 @@ new #[Layout('components.layouts.app')] class extends Component
 <div>
     <div class="mb-6 flex items-center justify-between">
         <h1 class="text-xl font-semibold text-neutral-900">{{ __('ガントチャート(全プロジェクト)') }}</h1>
+        @unless ($this->chart->isEmpty())
+            <div class="flex gap-2">
+                <button wire:click="exportPdf" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    PDF
+                </button>
+                <button wire:click="exportPng" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    PNG
+                </button>
+            </div>
+        @endunless
     </div>
 
     <div class="mb-4 rounded-md border border-neutral-200 bg-white p-4">

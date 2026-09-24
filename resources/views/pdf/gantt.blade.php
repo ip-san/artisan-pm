@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>{{ $project->identifier }}-gantt</title>
+    <title>{{ $documentTitle }}</title>
     <style>
         <x-pdf.cjk-font />
         @page { margin: 16px 20px; size: A4 landscape; }
@@ -28,43 +28,38 @@
         .bar { position: absolute; top: 2px; height: 12px; border-radius: 2px; background: #818cf8; }
         .bar.closed { background: #9ca3af; }
         .bar-done { height: 100%; border-radius: 2px; background: #4f46e5; }
+        .label.project { font-weight: bold; }
+        .timeline-row.project { background: #f9fafb; }
         .milestone { position: absolute; top: 0; height: 16px; line-height: 16px; color: #b45309; }
     </style>
 </head>
 <body>
-    <h1>{{ __(':project - ガントチャート (:date時点)', ['project' => $project->name, 'date' => \App\Support\Format\DateTimes::date(\App\Support\Format\DateTimes::today())]) }}</h1>
+    <h1>{{ $heading }}</h1>
 
     @php $rowHeight = 16; @endphp
 
-    <div class="chart" style="height: {{ $rowHeight * (count($rows) + count($versions) + 1) }}px">
+    <div class="chart" style="height: {{ $rowHeight * (count($lines) + 1) }}px">
         <div class="label header" style="top: 0"></div>
         <div class="timeline-row header" style="top: 0">
-            @foreach ($monthBands as $band)
+            @foreach ($chart->monthBands() as $band)
                 <div class="band" style="left: {{ $band['leftPercent'] }}%; width: {{ $band['widthPercent'] }}%">{{ $band['label'] }}</div>
             @endforeach
         </div>
 
-        @foreach ($rows as $row)
+        @foreach ($lines as $line)
             @php $top = $rowHeight * ($loop->index + 1); @endphp
-            <div class="label" style="top: {{ $top }}px; padding-left: {{ 4 + $row->depth * 10 }}px">
-                {{ $row->trackerName }} #{{ $row->id }}: {{ $row->subject }}
+            <div class="label {{ $line->kind === 'project' ? 'project' : '' }}" style="top: {{ $top }}px; padding-left: {{ 4 + $line->depth * 10 }}px">
+                {{ $line->kind === 'version' ? '◆ ' : '' }}{{ $line->label }}
             </div>
-            <div class="timeline-row" style="top: {{ $top }}px">
-                @if ($row->hasDateRange())
-                    <div class="bar {{ $row->isClosed ? 'closed' : '' }}"
-                        style="left: {{ $barPositions[$row->id]['left'] }}%; width: {{ $barPositions[$row->id]['width'] }}%">
-                        <div class="bar-done" style="width: {{ $row->doneRatio }}%"></div>
+            <div class="timeline-row {{ $line->kind === 'project' ? 'project' : '' }}" style="top: {{ $top }}px">
+                @if ($line->kind === 'issue' && $line->row->hasDateRange())
+                    <div class="bar {{ $line->row->isClosed ? 'closed' : '' }}"
+                        style="left: {{ $chart->barLeftPercent($line->row) }}%; width: {{ $chart->barWidthPercent($line->row) }}%">
+                        <div class="bar-done" style="width: {{ $line->row->doneRatio }}%"></div>
                     </div>
+                @elseif ($line->kind === 'version')
+                    <div class="milestone" style="left: {{ $chart->versionMarkerLeftPercent($line->version) }}%">◆ {{ $line->versionPercent }}%</div>
                 @endif
-            </div>
-        @endforeach
-
-        @php $versionOffset = count($rows) + 1; @endphp
-        @foreach ($versions as $version)
-            @php $top = $rowHeight * ($versionOffset + $loop->index); @endphp
-            <div class="label" style="top: {{ $top }}px">◆ {{ $version->name }}</div>
-            <div class="timeline-row" style="top: {{ $top }}px">
-                <div class="milestone" style="left: {{ $versionPositions[$version->id] }}%">◆ {{ round($version->asSeenBy(auth()->user())->completedPercent()) }}%</div>
             </div>
         @endforeach
     </div>

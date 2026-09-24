@@ -8,6 +8,7 @@ use App\Enums\IssueRelationType;
 use App\Models\IssueRelation;
 use App\Models\Version;
 use App\Support\Format\DateTimes;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use LogicException;
@@ -85,7 +86,7 @@ final class GanttChart
 
         while ($cursor->lte($this->rangeEnd)) {
             $bandStart = $cursor->max($this->rangeStart);
-            $bandEnd = $cursor->copy()->endOfMonth()->min($this->rangeEnd);
+            $bandEnd = $cursor->copy()->endOfMonth()->startOfDay()->min($this->rangeEnd);
 
             $bands[] = [
                 'label' => DateTimes::month($cursor),
@@ -119,7 +120,7 @@ final class GanttChart
         return $this->percentFromStart($version->due_date ?? throw new LogicException('Version is missing a due date.'));
     }
 
-    public function percentFromStart(Carbon $date): float
+    public function percentFromStart(CarbonInterface $date): float
     {
         return min(100.0, $this->rangeStart->diffInDays($date) / $this->totalDays() * 100);
     }
@@ -128,7 +129,7 @@ final class GanttChart
      * A bar that runs past the (possibly month-limited) end of the chart is
      * clipped there instead of overflowing it.
      */
-    public function percentWidth(Carbon $from, Carbon $to): float
+    public function percentWidth(CarbonInterface $from, CarbonInterface $to): float
     {
         $to = $to->min($this->rangeEnd);
 
