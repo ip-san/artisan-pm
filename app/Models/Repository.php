@@ -8,6 +8,7 @@ use App\Enums\RepositoryType;
 use App\Enums\ScmCapability;
 use App\Support\Scm\FilesystemAdapter;
 use App\Support\Scm\GitAdapter;
+use App\Support\Scm\MercurialAdapter;
 use App\Support\Scm\ScmAdapter;
 use App\Support\Scm\SvnAdapter;
 use Database\Factories\RepositoryFactory;
@@ -159,6 +160,7 @@ final class Repository extends Model
                 ? new SvnAdapter(url: $this->url, login: $this->login, password: $this->password)
                 : new SvnAdapter((string) $this->path),
             RepositoryType::Filesystem => new FilesystemAdapter((string) $this->path),
+            RepositoryType::Mercurial => new MercurialAdapter((string) $this->path, $this->log_encoding),
         };
     }
 
