@@ -227,3 +227,18 @@ test('an attachment field is offered for issues only and is never multiple or a 
         ->call('save')
         ->assertHasErrors('field_format');
 });
+
+test('the edit form shows the current file and removing it clears the value', function () {
+    ['project' => $project, 'field' => $field, 'issue' => $issue, 'member' => $member] = attachmentFieldSetup();
+    $media = attachFieldFile($issue, $field);
+
+    Livewire::actingAs($member)->test('issues.form', ['project' => $project, 'issue' => $issue->fresh()])
+        ->assertSee('spec.pdf')
+        ->assertSeeHtml("\$set('customFieldValues.{$field->id}', '')")
+        ->set("customFieldValues.{$field->id}", '')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Media::query()->find($media->id))->toBeNull()
+        ->and($issue->fresh()->load('customFieldValues')->customValue($field))->toBeNull();
+});
