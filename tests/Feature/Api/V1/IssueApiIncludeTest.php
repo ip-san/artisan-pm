@@ -1,15 +1,18 @@
 <?php
 
 use App\Enums\IssueRelationType;
+use App\Models\Changeset;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
+use App\Models\Repository;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\WorkflowTransition;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Passport\Passport;
@@ -229,7 +232,7 @@ test('allowed_statuses lists the statuses the caller may move to plus the curren
     $done = IssueStatus::factory()->create(['name' => 'Done', 'is_closed' => true, 'position' => 2]);
     $unreachable = IssueStatus::factory()->create(['name' => 'Unreachable', 'position' => 3]);
     $role = Role::query()->latest('id')->firstOrFail();
-    App\Models\WorkflowTransition::create(['tracker_id' => $tracker->id, 'role_id' => $role->id, 'old_status_id' => $open->id, 'new_status_id' => $done->id, 'author' => false, 'assignee' => false]);
+    WorkflowTransition::create(['tracker_id' => $tracker->id, 'role_id' => $role->id, 'old_status_id' => $open->id, 'new_status_id' => $done->id, 'author' => false, 'assignee' => false]);
     $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $open->id, 'priority_id' => Enumeration::factory()->create()->id]);
 
     Passport::actingAs($user);
@@ -256,8 +259,8 @@ test('changesets lists linked commits the caller may view and hides other projec
     $otherProject = Project::factory()->create();
     $user = includeTestMember($project, ['view_issues', 'view_changesets']);
     $issue = Issue::factory()->for($project)->create(includeTestIssueDefaults());
-    $visible = App\Models\Changeset::factory()->for(App\Models\Repository::factory()->for($project))->create(['revision' => 'abc123', 'comments' => 'Fix the thing', 'committed_on' => now()->subDay()]);
-    $hidden = App\Models\Changeset::factory()->for(App\Models\Repository::factory()->for($otherProject))->create(['revision' => 'def456']);
+    $visible = Changeset::factory()->for(Repository::factory()->for($project))->create(['revision' => 'abc123', 'comments' => 'Fix the thing', 'committed_on' => now()->subDay()]);
+    $hidden = Changeset::factory()->for(Repository::factory()->for($otherProject))->create(['revision' => 'def456']);
     $issue->changesets()->attach([$visible->id, $hidden->id]);
 
     Passport::actingAs($user);
@@ -270,11 +273,33 @@ test('changesets lists linked commits the caller may view and hides other projec
         ->and($changesets[0])->toHaveKeys(['committer', 'committed_on']);
 });
 
+test('a changeset names the user its committer resolves to, by mapping or by email', function () {
+    $project = Project::factory()->create();
+    $user = includeTestMember($project, ['view_issues', 'view_changesets']);
+    $issue = Issue::factory()->for($project)->create(includeTestIssueDefaults());
+    $repository = Repository::factory()->for($project)->create();
+    $author = User::factory()->create(['email' => 'dev@example.com', 'name' => 'Dev Person']);
+    $mapped = User::factory()->create(['name' => 'Mapped Person']);
+    $repository->committers()->create(['committer' => 'legacy-svn-user', 'user_id' => $mapped->id]);
+    $byEmail = Changeset::factory()->for($repository)->create(['committer' => 'Dev <dev@example.com>', 'committed_on' => now()->subDays(3)]);
+    $byMapping = Changeset::factory()->for($repository)->create(['committer' => 'legacy-svn-user', 'committed_on' => now()->subDays(2)]);
+    $unknown = Changeset::factory()->for($repository)->create(['committer' => 'nobody <nobody@nowhere.test>', 'committed_on' => now()->subDay()]);
+    $issue->changesets()->attach([$byEmail->id, $byMapping->id, $unknown->id]);
+
+    Passport::actingAs($user);
+
+    $changesets = $this->getJson("/api/v1/issues/{$issue->id}?include=changesets")->assertOk()->json('data.changesets');
+
+    expect($changesets[0]['user'])->toBe(['id' => $author->id, 'name' => 'Dev Person'])
+        ->and($changesets[1]['user'])->toBe(['id' => $mapped->id, 'name' => 'Mapped Person'])
+        ->and($changesets[2])->not->toHaveKey('user');
+});
+
 test('changesets is empty for a caller without view_changesets', function () {
     $project = Project::factory()->create();
     $user = includeTestMember($project, ['view_issues']);
     $issue = Issue::factory()->for($project)->create(includeTestIssueDefaults());
-    $changeset = App\Models\Changeset::factory()->for(App\Models\Repository::factory()->for($project))->create();
+    $changeset = Changeset::factory()->for(Repository::factory()->for($project))->create();
     $issue->changesets()->attach($changeset);
 
     Passport::actingAs($user);

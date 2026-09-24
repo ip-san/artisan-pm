@@ -108,6 +108,7 @@
 | 31 | A11-04 | — | S | done(2026-09-20) |
 | 32 | A11-08 | — | S | done(2026-09-20) |
 | 33 | A11-09 | — | S | done(2026-09-20) |
+| 33b | A11-09b | A11-09 | S | done(2026-09-25、`include=changesets` の各リビジョンに `user`(コミッターから解決したユーザー)) |
 | 34 | A11-14 | — | S | done(2026-09-20) |
 | 35 | A6-02 | (取り下げ)@mention の News コメント・フォーラム投稿への拡張 | — | Redmine 7.0.0 で `acts_as_mentionable` を持つのは Issue(`description`)・Journal(`notes`)・WikiContent(`text`) のみ(`app/models/{issue,journal,wiki_content}.rb`)。News コメントとフォーラム投稿は対象外 | 作業不要(チェックリストが「次点・未着手」と誤って書いていた) | — | Watchers「作成者/担当者の自動Watch・@mention」(C-22) |
 | 36 | A6-03 | — | S | done(2026-09-20) |
@@ -621,6 +622,7 @@
 | A11-07 | `POST/PUT/DELETE /users`、`show` の可視性ティア(本人/管理者/公開)と応答フィールド出し分け(`admin`/`mail`/`api_key`/`status`) | `GET` のみ、管理者限定、`UserResource` は常に同一形状 | 書き込み系を追加(`is_admin` は fillable 外のため明示的に扱う)、`UserPolicy::view` を Web の公開プロフィール(`User::isVisibleTo()`)に合わせる | パスワード/`must_change_passwd`/`generate_password`/`send_information` | M | REST API「Users」 |
 | A11-08 | `POST /groups/{id}/users.json`、`DELETE /groups/{id}/users/{user_id}.json` | `user_ids` の完全置換のみ | 追加/削除専用エンドポイント | — | S | REST API「Groups」 |
 | A11-09 | `GET /issues/{id}?include=allowed_statuses,changesets`、`include=children` の再帰、`journals` の `details` 完全形 | `include` は journals/relations/attachments/children(1階層)/watchers | `allowed_statuses` は `WorkflowService` で算出、`changesets` は `Changeset` 関連、`children` を再帰化 | — | S | REST API「Issues」 |
+| A11-09b | `include=changesets` の `user`(Redmine の `issues/show.api.rsb` は `changeset.user` があれば `user: {id, name}`) | **done(2026-09-25)**。`App\Support\Scm\CommitterResolver`(`RepositorySyncService` のコミッター解決を抽出: 管理画面の対応表 → メール/ログイン)で解決して `user` を付ける(解決できなければ省く、`committer` はそのまま)。テスト: `IssueApiIncludeTest.php` | `committer` の文字列のみ | Redmine はフェッチ時に `changesets.user_id` を保存するが、本アプリは表示時に解決(列を増やさない) | S | REST API「Issues」 |
 | A11-10 | 各リソースのカスタムフィールド値の読み書き(`custom_fields` 配列)、Wiki/News/Version/Project の `?include=attachments` | `app/Http/Resources/Api`・`app/Http/Requests/Api`・`app/Http/Controllers/Api` に `custom_field` の記述なし(grep 0件)。**Issue API を含む全リソースで CF の読み書き不可** | `custom_fields: [{id, name, value}]` を Issue/Project/Version/Group/User/TimeEntry の Resource と Store/Update Request に追加(ロール可視性は `Issue::relevantCustomFields()` を再利用)。`AttachmentResource` を共通化して `include=attachments` 対応 | Redmine API クライアントの多くは Issue の `custom_fields` を前提にする。優先度高 | M | REST API 各行 |
 | A11-11 | `GET /custom_fields.json` の `description`/`is_for_all`/`is_filter`/`visible`/`default_value_mode`/`trackers`/`roles` | 該当カラムが無いものは省略 | `is_filter`(A11-13)追加後に露出。`trackers`/`roles` は既存関連から出せる | — | S | REST API「Custom fields」 |
 | A11-12 | `GET /roles/{id}.json` の `users_visibility` | `RoleResource` に `users_visibility` なし(grep 0件)。機能自体は 2026-07-30 実装済み | Resource に追加 | チェックリスト記載は古い(C-04) | S | REST API「Roles」 |

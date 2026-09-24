@@ -16,6 +16,7 @@ use App\Models\Watcher;
 use App\Services\WorkflowService;
 use App\Support\Api\CustomFieldPayload;
 use App\Support\Attachments\AttachmentUploader;
+use App\Support\Scm\CommitterResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -248,6 +249,11 @@ final class IssueResource extends JsonResource
             ->sortBy('committed_on')
             ->map(fn (Changeset $changeset) => [
                 'revision' => $changeset->revision,
+                // Redmine's changeset.user: the committer resolved to a user
+                // (mapping, then email/login), omitted when there is none.
+                ...(($user = CommitterResolver::resolve($changeset->repository, (string) $changeset->committer)) !== null
+                    ? ['user' => ['id' => $user->id, 'name' => $user->displayName()]]
+                    : []),
                 'committer' => $changeset->committer,
                 'comments' => $changeset->comments,
                 'committed_on' => $changeset->committed_on->toIso8601String(),

@@ -11,6 +11,7 @@ use App\Models\Repository;
 use App\Models\Setting;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Scm\CommitterResolver;
 use DateTimeImmutable;
 use Illuminate\Validation\ValidationException;
 
@@ -360,28 +361,9 @@ final class RepositorySyncService
             ->value('id');
     }
 
-    /**
-     * An explicit mapping (see RepositoryCommitter, managed on the
-     * repository.committers admin screen) is checked first, against the
-     * exact raw committer string — the same one an admin would see on an
-     * unmatched changeset, so what they type there is what matches here.
-     * Only when there's no mapping does this fall back to the automatic
-     * heuristic: $committer is the SCM's raw "Name <email>" string (Git)
-     * or a bare username (Subversion) — extracts the email when present,
-     * falling back to matching the whole string against email/login
-     * otherwise.
-     */
     private function resolveCommitter(Repository $repository, string $committer): ?User
     {
-        $mapped = $repository->committers()->where('committer', $committer)->first()?->user;
-
-        if ($mapped !== null) {
-            return $mapped;
-        }
-
-        $email = preg_match('/<([^>]+)>/', $committer, $matches) === 1 ? $matches[1] : $committer;
-
-        return User::query()->where('email', $email)->orWhere('login', $email)->first();
+        return CommitterResolver::resolve($repository, $committer);
     }
 
     /**
