@@ -50,6 +50,14 @@ trait HasCustomFields
     }
 
     /**
+     * customValue() as a screen shows it (CustomFieldValue::displayValue()).
+     */
+    public function customDisplayValue(CustomField $field): mixed
+    {
+        return $this->customFieldValueFor($field)?->displayValue();
+    }
+
+    /**
      * This model's custom field values shaped for a Livewire form
      * property: field id => scalar, or array of scalars for a
      * multi-value field. Every custom-field-capable form's mount()

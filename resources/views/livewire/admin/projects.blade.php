@@ -259,7 +259,7 @@ new #[Layout('components.layouts.app')] class extends Component
         if (str_starts_with($key, 'cf_')) {
             return $project->customFieldValues
                 ->where('custom_field_id', (int) substr($key, 3))
-                ->map(fn (\App\Models\CustomFieldValue $value) => (string) $value->value())
+                ->map(fn (\App\Models\CustomFieldValue $value) => (string) $value->displayValue())
                 ->filter(fn (string $value) => $value !== '')
                 ->join(', ');
         }

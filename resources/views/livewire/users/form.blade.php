@@ -8,6 +8,7 @@ use App\Concerns\ManagesPrincipalMemberships;
 use App\Models\User;
 use App\Rules\AllowedEmailDomain;
 use App\Rules\UniqueUserValueIgnoringCase;
+use App\Support\Locale\SupportedLocales;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -35,6 +36,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $is_admin = false;
 
+    public string $language = '';
+
+    public string $time_zone = '';
+
     public bool $must_change_passwd = false;
 
     public string $status = 'active';
@@ -59,6 +64,8 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->name = $user->name;
             $this->firstname = (string) $user->firstname;
             $this->lastname = (string) $user->lastname;
+            $this->language = (string) $user->language;
+            $this->time_zone = (string) $user->time_zone;
             $this->email = $user->email;
             $this->is_admin = $user->is_admin;
             $this->must_change_passwd = $user->must_change_passwd;
@@ -104,6 +111,9 @@ new #[Layout('components.layouts.app')] class extends Component
             ...User::nameRules(),
             'email' => ['required', 'string', 'email', 'max:255', new UniqueUserValueIgnoringCase('email', $this->user?->id), new AllowedEmailDomain($this->user?->email)],
             'is_admin' => ['boolean'],
+            // Redmine's admin user form carries the preferences too (A4-12d).
+            'language' => ['nullable', Rule::in(array_keys(SupportedLocales::all()))],
+            'time_zone' => ['nullable', 'string', 'timezone:all'],
             'must_change_passwd' => ['boolean'],
             'status' => ['required', Rule::enum(UserStatus::class)],
             'auth_source_id' => ['nullable', 'exists:auth_sources,id'],
@@ -120,6 +130,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
 
         $data = User::normalizeNameInput($this->validate($rules));
+        $data['language'] = ($data['language'] ?? '') !== '' ? $data['language'] : null;
+        $data['time_zone'] = ($data['time_zone'] ?? '') !== '' ? $data['time_zone'] : null;
         $customFieldData = CustomField::filterEditableValues($this->customFields, $data['customFieldValues'] ?? [], auth()->user());
         unset($data['customFieldValues']);
 
@@ -234,6 +246,29 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </select>
             @error('status') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('言語') }}</label>
+                <select wire:model="language" data-user-language class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('未設定(既定の言語)') }}</option>
+                    @foreach (SupportedLocales::all() as $code => $languageName)
+                        <option value="{{ $code }}">{{ $languageName }}</option>
+                    @endforeach
+                </select>
+                @error('language') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('タイムゾーン') }}</label>
+                <select wire:model="time_zone" data-user-time-zone class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <option value="">{{ __('未設定(既定: :zone)', ['zone' => \App\Support\Locale\TimeZones::default()]) }}</option>
+                    @foreach (\App\Support\Locale\TimeZones::options() as $identifier => $label)
+                        <option value="{{ $identifier }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('time_zone') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
         </div>
 
         <label class="flex items-center gap-2 text-sm text-neutral-700">

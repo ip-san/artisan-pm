@@ -54,8 +54,8 @@ final class IssuePdfController extends Controller
             'customFieldValues' => $issue->relevantCustomFields()->map(fn (CustomField $field) => [
                 'field' => $field,
                 'value' => $field->multiple
-                    ? $issue->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->join(', ')
-                    : $issue->customValue($field),
+                    ? $issue->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->displayValue())->join(', ')
+                    : $issue->customDisplayValue($field),
             ]),
             // Matches issues.show's own visibleJournals: a private note is
             // visible to its own author even though nobody else on the

@@ -42,6 +42,24 @@ final class DateTimes
     ];
 
     /**
+     * Each date format without its day, for month headings (the gantt chart,
+     * the time report, the calendar).
+     *
+     * @var array<string, string>
+     */
+    public const array MONTH_FORMATS = [
+        'Y-m-d' => 'Y-m',
+        'd/m/Y' => 'm/Y',
+        'd.m.Y' => 'm.Y',
+        'd-m-Y' => 'm-Y',
+        'm/d/Y' => 'm/Y',
+        'd M Y' => 'M Y',
+        'd F Y' => 'F Y',
+        'M d, Y' => 'M Y',
+        'F d, Y' => 'F Y',
+    ];
+
+    /**
      * Redmine's Setting::TIME_FORMATS.
      *
      * @var array<string, string>
@@ -133,6 +151,26 @@ final class DateTimes
         $date = $value instanceof DateTimeInterface ? CarbonImmutable::instance($value) : CarbonImmutable::parse($value);
 
         return self::localized($date)->translatedFormat(self::dateFormat());
+    }
+
+    /**
+     * The month of a date-only value in the date format without its day
+     * (`2026-09` by default).
+     */
+    public static function month(DateTimeInterface|string $value): string
+    {
+        $date = $value instanceof DateTimeInterface ? CarbonImmutable::instance($value) : CarbonImmutable::parse($value);
+
+        return self::localized($date)->translatedFormat(self::MONTH_FORMATS[self::dateFormat()] ?? 'Y-m');
+    }
+
+    /**
+     * Whether the `date_format` setting chooses a format (empty keeps the
+     * app's own ISO dates and headings).
+     */
+    public static function hasDateFormat(): bool
+    {
+        return array_key_exists((string) Setting::get('date_format', ''), self::DATE_FORMATS);
     }
 
     /**

@@ -1,7 +1,18 @@
 <?php
 
+use App\Enums\CustomFieldFormat;
+use App\Enums\EnumerationType;
+use App\Models\CustomField;
+use App\Models\Enumeration;
+use App\Models\Issue;
+use App\Models\IssueStatus;
 use App\Models\JournalDetail;
+use App\Models\Member;
+use App\Models\Project;
+use App\Models\Role;
 use App\Models\Setting;
+use App\Models\TimeEntry;
+use App\Models\Tracker;
 use App\Models\User;
 use App\Support\Format\DateTimes;
 use Carbon\CarbonImmutable;
@@ -101,4 +112,108 @@ test('the issue history shows changed dates in the date format', function () {
     expect($detail->displayValue($detail->old_value))->toBe('04/09/2026')
         ->and($detail->displayValue(null))->toBeNull()
         ->and($other->displayValue($other->old_value))->toBe('2026-09-04');
+});
+
+/**
+ * A project issue with a date custom field set to 2026-09-04, and a member
+ * who can see and edit it and see spent time.
+ *
+ * @return array{project: Project, issue: Issue, field: CustomField, viewer: User}
+ */
+function dateFieldIssue(): array
+{
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $viewer = User::factory()->create();
+    Member::factory()->for($project)->for($viewer)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_issues', 'edit_issues', 'view_time_entries', 'log_time', 'view_gantt', 'view_calendar']])
+    );
+    $field = CustomField::factory()->create(['name' => 'Deadline', 'field_format' => CustomFieldFormat::Date->value]);
+    $field->trackers()->attach($tracker);
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => $tracker->id,
+        'status_id' => IssueStatus::factory()->create()->id,
+        'priority_id' => Enumeration::factory()->create(['type' => EnumerationType::IssuePriority->value])->id,
+        'start_date' => '2026-09-01',
+        'due_date' => '2026-09-30',
+    ]);
+    $issue->setCustomFieldValues([$field->id => '2026-09-04'], collect([$field]));
+
+    return ['project' => $project, 'issue' => $issue->fresh(), 'field' => $field, 'viewer' => $viewer];
+}
+
+test('a date custom field value is shown in the date format while its form input stays ISO', function () {
+    ['project' => $project, 'issue' => $issue, 'field' => $field, 'viewer' => $viewer] = dateFieldIssue();
+
+    expect($issue->customDisplayValue($field))->toBe('2026-09-04');
+
+    Setting::set('date_format', '%d/%m/%Y');
+
+    expect($issue->customDisplayValue($field))->toBe('04/09/2026')
+        ->and((string) $issue->customFieldFormValues(collect([$field]))[$field->id])->toStartWith('2026-09-04');
+
+    Livewire::actingAs($viewer)->test('issues.show', ['project' => $project, 'issue' => $issue])->assertSee('04/09/2026');
+    Livewire::actingAs($viewer)->test('issues.index', ['project' => $project])
+        ->set('columns', ['subject', "cf_{$field->id}"])
+        ->assertSee('04/09/2026');
+});
+
+test('a date custom field change in the issue history is shown in the date format', function () {
+    ['field' => $field] = dateFieldIssue();
+    Setting::set('date_format', '%d.%m.%Y');
+
+    $detail = new JournalDetail(['property' => 'cf', 'prop_key' => (string) $field->id, 'old_value' => '2026-09-04 00:00:00', 'new_value' => '2026-09-05']);
+    $text = CustomField::factory()->create(['field_format' => CustomFieldFormat::String->value]);
+    $other = new JournalDetail(['property' => 'cf', 'prop_key' => (string) $text->id, 'old_value' => '2026-09-04']);
+
+    expect($detail->displayValue($detail->old_value))->toBe('04.09.2026')
+        ->and($detail->displayValue($detail->new_value))->toBe('05.09.2026')
+        ->and($other->displayValue($other->old_value))->toBe('2026-09-04');
+});
+
+test('the time report headings, the gantt months and the calendar heading follow the date format', function () {
+    ['project' => $project, 'viewer' => $viewer] = dateFieldIssue();
+    TimeEntry::factory()->for($project)->for($viewer)->create([
+        'activity_id' => Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value])->id,
+        'spent_on' => '2026-09-04', 'hours' => 2,
+    ]);
+
+    $report = fn (string $period) => collect(Livewire::actingAs($viewer)->test('time-entries.report', ['project' => $project])
+        ->set('criteria', ['user'])->set('period', $period)->instance()->report->periods)->pluck('label')->all();
+
+    expect($report('day'))->toBe(['2026-09-04'])->and($report('month'))->toBe(['2026-09']);
+
+    Setting::set('date_format', '%d %B %Y');
+    app()->setLocale('en');
+
+    expect($report('day'))->toBe(['04 September 2026'])->and($report('month'))->toBe(['September 2026'])
+        ->and(DateTimes::month('2026-09-04'))->toBe('September 2026');
+
+    Setting::set('date_format', '%m/%d/%Y');
+    expect(collect(Livewire::actingAs($viewer)->test('gantt.index', ['project' => $project])->instance()->monthBands)->pluck('label')->all())->toBe(['09/2026']);
+
+    Livewire::actingAs($viewer)->test('calendar.index', ['project' => $project])->set('year', 2026)->set('month', 9)->assertSee('09/2026');
+});
+
+test('the admin user form sets a user\'s language and time zone', function () {
+    $admin = User::factory()->admin()->create();
+    $user = User::factory()->create(['language' => null, 'time_zone' => null]);
+
+    Livewire::actingAs($admin)->test('users.form', ['user' => $user])
+        ->assertSet('language', '')->assertSet('time_zone', '')
+        ->set('language', 'en')->set('time_zone', 'Asia/Tokyo')
+        ->call('save')->assertHasNoErrors();
+
+    expect($user->fresh()->only(['language', 'time_zone']))->toBe(['language' => 'en', 'time_zone' => 'Asia/Tokyo']);
+
+    Livewire::actingAs($admin)->test('users.form', ['user' => $user])
+        ->set('time_zone', 'Mars/Olympus')->set('language', 'xx')
+        ->call('save')->assertHasErrors(['time_zone', 'language']);
+
+    Livewire::actingAs($admin)->test('users.form', ['user' => $user])
+        ->set('language', '')->set('time_zone', '')
+        ->call('save')->assertHasNoErrors();
+
+    expect($user->fresh()->only(['language', 'time_zone']))->toBe(['language' => null, 'time_zone' => null]);
 });

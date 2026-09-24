@@ -177,7 +177,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — カレンダー', ['project' => $project->name]) }}</h1>
         <div class="flex items-center gap-3">
             <button wire:click="previousMonth" class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">‹</button>
-            <span class="text-sm font-medium text-neutral-900">{{ __(':year年:month月', ['year' => $year, 'month' => $month]) }}</span>
+            <span class="text-sm font-medium text-neutral-900">{{ \App\Support\Format\DateTimes::hasDateFormat() ? \App\Support\Format\DateTimes::month(sprintf('%04d-%02d-01', $year, $month)) : __(':year年:month月', ['year' => $year, 'month' => $month]) }}</span>
             <button wire:click="nextMonth" class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">›</button>
         </div>
     </div>

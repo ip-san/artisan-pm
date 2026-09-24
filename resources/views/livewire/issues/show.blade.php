@@ -373,8 +373,8 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->issue->relevantCustomFields()->map(fn (CustomField $field) => [
             'field' => $field,
             'value' => $field->multiple
-                ? $this->issue->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->join(', ')
-                : $this->issue->customValue($field),
+                ? $this->issue->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->displayValue())->join(', ')
+                : $this->issue->customDisplayValue($field),
         ]);
     }
 

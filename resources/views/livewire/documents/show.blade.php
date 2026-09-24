@@ -38,8 +38,8 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->document->relevantCustomFields()->map(fn (CustomField $field) => [
             'field' => $field,
             'value' => $field->multiple
-                ? $this->document->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->value())->join(', ')
-                : $this->document->customValue($field),
+                ? $this->document->customFieldValues->where('custom_field_id', $field->id)->map(fn ($v) => $v->displayValue())->join(', ')
+                : $this->document->customDisplayValue($field),
         ]);
     }
 

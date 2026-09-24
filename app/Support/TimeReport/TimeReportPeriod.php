@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\TimeReport;
 
+use App\Support\Format\DateTimes;
 use Illuminate\Support\Carbon;
 
 /**
@@ -43,15 +44,16 @@ enum TimeReportPeriod: string
     }
 
     /**
-     * A human-readable label for a bucket key produced by keyFor().
+     * A human-readable label for a bucket key produced by keyFor(): months
+     * and days in the `date_format` setting (A4-12d).
      */
     public function labelFor(string $key): string
     {
         return match ($this) {
             self::Year => $key,
-            self::Month => $key,
+            self::Month => DateTimes::month("{$key}-01"),
             self::Week => __(':year年第:week週', array_combine(['year', 'week'], array_pad(explode('-', $key, 2), 2, ''))),
-            self::Day => $key,
+            self::Day => (string) DateTimes::date($key),
         };
     }
 

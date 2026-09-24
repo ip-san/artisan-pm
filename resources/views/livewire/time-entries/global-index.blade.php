@@ -305,7 +305,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             return $entry->customFieldValues
                 ->where('custom_field_id', (int) substr($key, 3))
-                ->map(fn (\App\Models\CustomFieldValue $value) => (string) $value->value())
+                ->map(fn (\App\Models\CustomFieldValue $value) => (string) $value->displayValue())
                 ->join(', ');
         }
 

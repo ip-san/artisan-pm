@@ -828,7 +828,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return $issue->loadMissing('customFieldValues.customField')
             ->customFieldValues
             ->where('custom_field_id', $fieldId)
-            ->map(fn ($value) => ['field' => $value->customField, 'value' => $value->value()])
+            ->map(fn ($value) => ['field' => $value->customField, 'value' => $value->displayValue()])
             ->filter(fn (array $cell) => $cell['value'] !== null && $cell['value'] !== '')
             ->values();
     }

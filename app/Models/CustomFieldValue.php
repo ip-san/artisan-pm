@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\CustomFieldFormat;
+use App\Support\Format\DateTimes;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -49,5 +52,21 @@ final class CustomFieldValue extends Model
         $column = $this->customField->format()->storageColumn();
 
         return $this->customField->format()->castValue($this->{$column}, $this->customField);
+    }
+
+    /**
+     * The value as a screen, CSV or PDF shows it: a date field's value in the
+     * `date_format` setting (Redmine's format_object), anything else as
+     * value(). Forms, the API and filters keep value() (ISO dates).
+     */
+    public function displayValue(): mixed
+    {
+        $value = $this->value();
+
+        if ($this->customField->field_format === CustomFieldFormat::Date && ($value instanceof DateTimeInterface || (is_string($value) && $value !== ''))) {
+            return DateTimes::date($value);
+        }
+
+        return $value;
     }
 }

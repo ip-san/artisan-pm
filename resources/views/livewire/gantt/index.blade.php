@@ -193,7 +193,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $bandEnd = $cursor->copy()->endOfMonth()->min($this->rangeEnd);
 
             $bands[] = [
-                'label' => $cursor->format('Y-m'),
+                'label' => \App\Support\Format\DateTimes::month($cursor),
                 'leftPercent' => $this->percentFromStart($bandStart),
                 'widthPercent' => $this->percentWidth($bandStart, $bandEnd),
             ];

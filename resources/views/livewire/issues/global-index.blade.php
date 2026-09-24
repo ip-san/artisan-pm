@@ -233,7 +233,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             return $issue->customFieldValues
                 ->where('custom_field_id', $fieldId)
-                ->map(fn ($value) => $value->value())
+                ->map(fn ($value) => $value->displayValue())
                 ->filter(fn ($value) => $value !== null && $value !== '')
                 ->join(', ');
         }
