@@ -135,6 +135,7 @@ test('a viewer with own-issues-only visibility in a subproject sees only their i
 });
 
 test('the REST list reads subproject_id in both forms', function () {
+    Setting::set('display_subprojects_issues', false);
     ['parent' => $parent, 'a' => $a, 'b' => $b, 'hidden' => $hidden] = subFilterTree();
     $viewer = subFilterViewer($parent, $a, $b);
     foreach ([$parent, $a, $b, $hidden] as $project) {

@@ -90,7 +90,7 @@ final class ListDefaults
      */
     public static function issueTotals(): array
     {
-        $configured = Setting::get('issue_list_default_totals', ['estimated_hours', 'spent_hours']);
+        $configured = Setting::get('issue_list_default_totals', []);
 
         return array_values(array_filter(
             array_keys(self::ISSUE_TOTALS),

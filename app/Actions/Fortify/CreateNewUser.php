@@ -33,7 +33,7 @@ final class CreateNewUser implements CreatesNewUsers
      */
     public static function registrationCustomFields(): Collection
     {
-        $showAll = (bool) Setting::get('show_custom_fields_on_registration', false);
+        $showAll = (bool) Setting::get('show_custom_fields_on_registration', true);
 
         return CustomField::query()
             ->where('customized_type', CustomizableType::User)

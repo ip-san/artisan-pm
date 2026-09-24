@@ -46,6 +46,15 @@ final class PageSize
         return $values;
     }
 
+    /**
+     * The page size a list starts with: the first of the options (Redmine's
+     * per_page_option without a choice), 25 when none parse.
+     */
+    public static function defaultSize(): int
+    {
+        return self::options()[0] ?? 25;
+    }
+
     public static function resolve(?int $requested, int $default): int
     {
         return $requested !== null && in_array($requested, self::options(), true) ? $requested : $default;

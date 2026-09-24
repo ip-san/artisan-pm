@@ -22,13 +22,15 @@ function defaultsProjectMember(Project $project, array $permissions = ['view_iss
     return $user;
 }
 
-test('a new issue defaults its start date to today', function () {
+test('a new issue has no default start date unless the setting is on (off by default, as in Redmine)', function () {
     $project = Project::factory()->create();
     $user = defaultsProjectMember($project);
 
-    $component = Livewire::actingAs($user)->test('issues.form', ['project' => $project]);
+    expect(Livewire::actingAs($user)->test('issues.form', ['project' => $project])->get('start_date'))->toBeNull();
 
-    expect($component->get('start_date'))->toBe(Carbon::now()->toDateString());
+    Setting::set('default_issue_start_date_to_creation_date', true);
+
+    expect(Livewire::actingAs($user)->test('issues.form', ['project' => $project])->get('start_date'))->toBe(Carbon::now()->toDateString());
 });
 
 test('a new issue has no default due date when default_issue_due_date_offset is unset', function () {
@@ -173,10 +175,10 @@ test('the settings page saves the start date default', function () {
     $admin = User::factory()->admin()->create();
 
     Livewire::actingAs($admin)->test('settings.index')
-        ->assertSet('default_issue_start_date_to_creation_date', true)
-        ->set('default_issue_start_date_to_creation_date', false)
+        ->assertSet('default_issue_start_date_to_creation_date', false)
+        ->set('default_issue_start_date_to_creation_date', true)
         ->call('save')
         ->assertHasNoErrors();
 
-    expect(Setting::get('default_issue_start_date_to_creation_date', true))->toBeFalse();
+    expect(Setting::get('default_issue_start_date_to_creation_date'))->toBeTrue();
 });

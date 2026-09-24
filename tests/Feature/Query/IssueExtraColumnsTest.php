@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Support\Query\IssueFilterFieldRegistry;
 use Livewire\Livewire;
 
 function extraViewer(Project $project): User
@@ -52,7 +53,7 @@ test('the extra columns are offered and rendered for an issue', function () {
     $cell = fn (string $key) => $list->instance()->columnValue($child, $key);
 
     expect($cell('parent_id'))->toBe('#'.$parent->id)
-        ->and($cell('closed_on'))->toBe('2026-03-04 10:20')
+        ->and($cell('closed_on'))->toBe('2026/03/04 10:20')
         ->and($cell('last_updated_by'))->toBe('Ed Editor')
         ->and($cell('is_private'))->toBe('いいえ')
         ->and($cell('description'))->toBe('A long description')
@@ -112,7 +113,7 @@ test('updated and closed dates can be sorted and filtered', function () {
     expect($list->get('issues')->getCollection()->pluck('subject')->all())->toBe(['Newer', 'Older']);
 
     $list->call('sortBy', 'closed_on')->assertOk();
-    expect(App\Support\Query\IssueFilterFieldRegistry::forProject($project)->keys()->all())->toContain('updated_at', 'closed_on');
+    expect(IssueFilterFieldRegistry::forProject($project)->keys()->all())->toContain('updated_at', 'closed_on');
 });
 
 test('the CSV export carries the new columns and the private note never leaks', function () {

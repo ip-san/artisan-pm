@@ -46,7 +46,7 @@ test('subtasks and related issues show the default columns without table headers
     Livewire::actingAs($user)->test('issues.show', ['project' => $project, 'issue' => $parent])
         ->assertSee('Child task')
         ->assertSee('Assigned Person')
-        ->assertSee('2026-12-24')
+        ->assertSee('2026/12/24')
         ->assertSee('40%')
         ->assertSee('Related issue')
         ->assertDontSeeHtml('<thead');
@@ -62,7 +62,7 @@ test('the configured columns and the header row are applied to both tables', fun
         ->assertSee('作成者')
         ->assertSee('進捗率')
         ->assertDontSee('Assigned Person')
-        ->assertDontSee('2026-12-24');
+        ->assertDontSee('2026/12/24');
 });
 
 test('an empty column selection leaves just the subject', function () {

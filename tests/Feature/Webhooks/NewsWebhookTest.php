@@ -1,16 +1,24 @@
 <?php
 
 use App\Enums\WebhookEvent;
+use App\Events\NewsCreated;
 use App\Models\Member;
 use App\Models\News;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Webhook;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Passport\Passport;
 use Livewire\Livewire;
 use Spatie\WebhookServer\CallWebhookJob;
+
+// Webhooks are off by default (Redmine's webhooks_enabled); these tests exercise delivery.
+beforeEach(function () {
+    Setting::set('webhooks_enabled', true);
+});
 
 function newsWebhookManager(Project $project): User
 {
@@ -117,7 +125,7 @@ test('an API-created news item makes its author a watcher, like the web form', f
 });
 
 test('an API-created news item is mailed like a web-created one', function () {
-    Illuminate\Support\Facades\Event::fake([App\Events\NewsCreated::class]);
+    Event::fake([NewsCreated::class]);
     $project = Project::factory()->create();
     $user = newsWebhookManager($project);
 
@@ -125,5 +133,5 @@ test('an API-created news item is mailed like a web-created one', function () {
 
     $this->postJson("/api/v1/projects/{$project->id}/news", ['title' => 'Mailed', 'description' => 'Body'])->assertCreated();
 
-    Illuminate\Support\Facades\Event::assertDispatched(App\Events\NewsCreated::class);
+    Event::assertDispatched(NewsCreated::class);
 });

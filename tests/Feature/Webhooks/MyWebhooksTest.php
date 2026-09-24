@@ -9,6 +9,11 @@ use App\Models\User;
 use App\Models\Webhook;
 use Livewire\Livewire;
 
+// Webhooks are off by default (Redmine's webhooks_enabled); these tests exercise delivery.
+beforeEach(function () {
+    Setting::set('webhooks_enabled', true);
+});
+
 /**
  * @param  array<int, string>  $permissions
  */

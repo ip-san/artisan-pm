@@ -222,7 +222,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function issues(): LengthAwarePaginator
     {
-        return $this->filteredIssuesQuery()->paginate($this->pageSize(25));
+        return $this->filteredIssuesQuery()->paginate($this->pageSize());
     }
 
     public function sortBy(string $key): void

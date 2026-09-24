@@ -191,7 +191,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function timeEntries(): LengthAwarePaginator
     {
-        return $this->filteredTimeEntriesQuery()->paginate($this->pageSize(25));
+        return $this->filteredTimeEntriesQuery()->paginate($this->pageSize());
     }
 
     /**

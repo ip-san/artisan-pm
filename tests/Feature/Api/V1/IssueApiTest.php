@@ -403,7 +403,7 @@ test('a stale lock_version cannot be used to probe an issue the caller may not e
     $this->putJson("/api/v1/issues/{$issue->id}", ['lock_version' => 999])->assertForbidden();
 });
 
-test('an API-created issue only gets a start date when the API and mail switch is on', function () {
+test('an API-created issue gets the creation date as its start date only while both switches are on', function () {
     $project = Project::factory()->create();
     $user = apiIssueMember($project, ['view_issues', 'add_issues']);
     $tracker = Tracker::factory()->create();
@@ -416,6 +416,11 @@ test('an API-created issue only gets a start date when the API and mail switch i
         'tracker_id' => $tracker->id, 'priority_id' => $priority->id, 'subject' => 'Start date', ...$extra,
     ])->assertCreated();
 
+    // Off by default, as Redmine's default_issue_start_date_to_creation_date.
+    $create()->assertJsonPath('data.start_date', null);
+
+    Setting::set('default_issue_start_date_to_creation_date', true);
+    Setting::set('default_issue_start_date_for_api_and_mail', false);
     $create()->assertJsonPath('data.start_date', null);
 
     Setting::set('default_issue_start_date_for_api_and_mail', true);

@@ -13,9 +13,15 @@ use App\Models\User;
 use App\Support\Format\Hours;
 use Livewire\Livewire;
 
-test('decimal is the default and keeps the grouping the totals always had', function () {
-    expect(Hours::timespanFormat())->toBe('decimal')
-        ->and(Hours::format(1.5))->toBe('1.50')
+test('minutes is the default, as in Redmine', function () {
+    expect(Hours::timespanFormat())->toBe('minutes')
+        ->and(Hours::format(1.5))->toBe('1:30');
+});
+
+test('decimal keeps the grouping the totals always had', function () {
+    Setting::set('timespan_format', 'decimal');
+
+    expect(Hours::format(1.5))->toBe('1.50')
         ->and(Hours::format(1234.5))->toBe('1,234.50')
         ->and(Hours::format(1234.5, grouped: false))->toBe('1234.50')
         ->and(Hours::format('2.25'))->toBe('2.25')
@@ -34,10 +40,10 @@ test('minutes format shows hours and two-digit minutes like Redmine', function (
         ->and(Hours::format(1234.5, grouped: false))->toBe('1234:30');
 });
 
-test('an unknown stored value falls back to decimal', function () {
+test('an unknown stored value falls back to minutes', function () {
     Setting::set('timespan_format', 'sexagesimal');
 
-    expect(Hours::timespanFormat())->toBe('decimal');
+    expect(Hours::timespanFormat())->toBe('minutes');
 });
 
 test('the issue and time entry pages show hours in the chosen format', function () {
@@ -58,6 +64,7 @@ test('the issue and time entry pages show hours in the chosen format', function 
     TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 1.75]);
 
     Setting::set('timespan_format', 'minutes');
+    Setting::set('issue_list_default_totals', ['estimated_hours']);
 
     Livewire::actingAs($viewer)->test('issues.show', ['project' => $project, 'issue' => $issue])->assertSee('2:30 時間')->assertSee('1:45 時間');
     $entries = Livewire::actingAs($viewer)->test('time-entries.index', ['project' => $project]);
@@ -71,8 +78,8 @@ test('the issue and time entry pages show hours in the chosen format', function 
 test('the settings form saves the format and rejects others', function () {
     $admin = User::factory()->admin()->create();
 
-    Livewire::actingAs($admin)->test('settings.index')->set('timespan_format', 'minutes')->call('save')->assertHasNoErrors();
-    expect(Setting::get('timespan_format'))->toBe('minutes');
+    Livewire::actingAs($admin)->test('settings.index')->assertSet('timespan_format', 'minutes')->set('timespan_format', 'decimal')->call('save')->assertHasNoErrors();
+    expect(Setting::get('timespan_format'))->toBe('decimal');
 
     Livewire::actingAs($admin)->test('settings.index')->set('timespan_format', 'roman')->call('save')->assertHasErrors(['timespan_format']);
 });

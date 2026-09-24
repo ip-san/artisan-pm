@@ -66,7 +66,7 @@ test('an issue page names its author, assignee and commenter in the chosen forma
 test('the settings page saves the format and rejects an unknown one', function () {
     $admin = User::factory()->admin()->create();
 
-    Livewire::actingAs($admin)->test('settings.index')->assertSet('user_format', 'name')->set('user_format', 'login')->call('save')->assertHasNoErrors();
+    Livewire::actingAs($admin)->test('settings.index')->assertSet('user_format', 'firstname_lastname')->set('user_format', 'login')->call('save')->assertHasNoErrors();
     expect(Setting::get('user_format'))->toBe('login');
 
     Livewire::actingAs($admin)->test('settings.index')->set('user_format', 'initials')->call('save')->assertHasErrors(['user_format']);

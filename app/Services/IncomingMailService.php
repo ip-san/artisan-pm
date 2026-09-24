@@ -616,16 +616,15 @@ final class IncomingMailService
 
     /**
      * Redmine's allow_override: the attributes a sender may set with a
-     * "Keyword: value" line. `all` (the default here, which keeps every
-     * keyword working as it did) or a comma-separated list such as
-     * "status, priority, assigned_to"; matching ignores case and treats
-     * spaces as underscores.
+     * "Keyword: value" line — none by default (Redmine's empty option), `all`,
+     * or a comma-separated list such as "status, priority, assigned_to";
+     * matching ignores case and treats spaces as underscores.
      *
      * @return array<int, string>
      */
     private function overridableKeywords(): array
     {
-        return collect(explode(',', (string) Setting::get('mail_handler_allow_override', 'all')))
+        return collect(explode(',', (string) Setting::get('mail_handler_allow_override', '')))
             ->map(fn (string $name) => preg_replace('/\s+/', '_', mb_strtolower(trim($name))))
             ->filter()
             ->values()

@@ -8,6 +8,7 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
@@ -21,6 +22,11 @@ use App\Services\WikiPageService;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Spatie\WebhookServer\CallWebhookJob;
+
+// Webhooks are off by default (Redmine's webhooks_enabled); these tests exercise delivery.
+beforeEach(function () {
+    Setting::set('webhooks_enabled', true);
+});
 
 /**
  * @return array{tracker_id: int, status_id: int, priority_id: int}

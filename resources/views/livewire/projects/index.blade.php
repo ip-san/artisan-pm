@@ -217,7 +217,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $query = $this->projectQuery();
 
         return $this->isFiltering
-            ? $query->paginate($this->pageSize(25))
+            ? $query->paginate($this->pageSize())
             : $this->withDisplayLevels($query->get());
     }
 

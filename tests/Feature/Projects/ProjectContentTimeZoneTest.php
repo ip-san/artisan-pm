@@ -5,12 +5,18 @@ use App\Models\Member;
 use App\Models\News;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Version;
 use App\Services\WikiPageService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
+
+// ISO dates, so the expectations read as the stored values (an empty setting follows the language).
+beforeEach(function () {
+    Setting::set('date_format', '%Y-%m-%d');
+});
 
 afterEach(fn () => Carbon::setTestNow());
 

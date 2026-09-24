@@ -14,6 +14,11 @@ use App\Models\Version;
 use App\Services\IncomingMailService;
 use App\Support\Mail\ParsedIncomingMail;
 
+// No keyword may override by default (Redmine's allow_override); these tests exercise the keywords.
+beforeEach(function () {
+    Setting::set('mail_handler_allow_override', 'all');
+});
+
 function incomingMailAssignableUser(Project $project, string $name, string $email): User
 {
     $user = User::factory()->create(['name' => $name, 'email' => $email]);

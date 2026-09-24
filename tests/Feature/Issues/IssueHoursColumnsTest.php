@@ -6,11 +6,17 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
 use Laravel\Passport\Passport;
 use Livewire\Livewire;
+
+// Decimal hours, so the expectations read as the stored values (Redmine's default is minutes).
+beforeEach(function () {
+    Setting::set('timespan_format', 'decimal');
+});
 
 function hoursMember(Project $project, array $permissions = ['view_project', 'view_issues', 'view_time_entries']): User
 {

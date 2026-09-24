@@ -4,6 +4,7 @@ use App\Enums\EnumerationType;
 use App\Enums\UserStatus;
 use App\Enums\WebhookEvent;
 use App\Models\Enumeration;
+use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
@@ -18,7 +19,12 @@ use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Spatie\WebhookServer\CallWebhookJob;
 
-function ownerHookIssue(Project $project, User $author, bool $private = false): App\Models\Issue
+// Webhooks are off by default (Redmine's webhooks_enabled); these tests exercise delivery.
+beforeEach(function () {
+    Setting::set('webhooks_enabled', true);
+});
+
+function ownerHookIssue(Project $project, User $author, bool $private = false): Issue
 {
     return app(IssueService::class)->create([
         'project_id' => $project->id,

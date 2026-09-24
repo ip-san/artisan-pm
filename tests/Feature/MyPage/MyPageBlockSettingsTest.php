@@ -80,7 +80,7 @@ test('a query block shows the chosen columns and sorts as set', function () {
 
     $rows = $component->instance()->blockRows($key, $block->fresh()->settings);
     expect($rows->pluck('title')->all()[0])->toContain("#{$high->id}")
-        ->and($rows->first()->meta)->toBe("{$project->name} / 2026-01-01")
+        ->and($rows->first()->meta)->toBe("{$project->name} / 2026/01/01")
         ->and($rows->last()->title)->toContain("#{$low->id}");
 });
 

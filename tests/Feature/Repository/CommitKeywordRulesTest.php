@@ -94,9 +94,21 @@ test('with specific reference keywords only keyword-prefixed ids are linked', fu
     expect($changeset->issues()->pluck('issues.id')->sort()->values()->all())->toBe(collect([$linked->id, $fixed->id])->sort()->values()->all());
 });
 
-test('the default wildcard keeps linking every id', function () {
+test('by default only Redmine\'s reference keywords link an id', function () {
+    [$project] = commitRuleProject();
+    $mentioned = Issue::factory()->for($project)->create();
+    $referenced = Issue::factory()->for($project)->create();
+
+    $repository = Repository::factory()->for($project)->create(['path' => createTestGitRepo(["Mentions #{$mentioned->id} in passing, refs #{$referenced->id}"])]);
+    app(RepositorySyncService::class)->sync($repository);
+
+    expect($repository->changesets()->firstOrFail()->issues()->pluck('issues.id')->all())->toBe([$referenced->id]);
+});
+
+test('the * wildcard links every id', function () {
     [$project] = commitRuleProject();
     $issue = Issue::factory()->for($project)->create();
+    Setting::set('commit_ref_keywords', '*');
 
     $repository = Repository::factory()->for($project)->create(['path' => createTestGitRepo(["Mentions #{$issue->id} in passing"])]);
     app(RepositorySyncService::class)->sync($repository);
@@ -133,14 +145,20 @@ test('without cross-project references only the repository project, its parents 
         ->and($elsewhere->fresh()->status_id)->toBe($originalStatus);
 });
 
-test('cross-project references stay allowed by default', function () {
+test('cross-project references are refused by default and allowed with the setting on', function () {
     [$project] = commitRuleProject();
     $elsewhere = Issue::factory()->for(Project::factory()->create())->create();
 
-    $repository = Repository::factory()->for($project)->create(['path' => createTestGitRepo(["See #{$elsewhere->id}"])]);
+    $repository = Repository::factory()->for($project)->create(['path' => createTestGitRepo(["Refs #{$elsewhere->id}"])]);
     app(RepositorySyncService::class)->sync($repository);
 
-    expect($repository->changesets()->firstOrFail()->issues()->pluck('issues.id')->all())->toBe([$elsewhere->id]);
+    expect($repository->changesets()->firstOrFail()->issues()->count())->toBe(0);
+
+    Setting::set('commit_cross_project_ref', true);
+    $other = Repository::factory()->for($project)->create(['path' => createTestGitRepo(["Refs #{$elsewhere->id}"])]);
+    app(RepositorySyncService::class)->sync($other);
+
+    expect($other->changesets()->firstOrFail()->issues()->pluck('issues.id')->all())->toBe([$elsewhere->id]);
 });
 
 test('the settings form saves the new commit options and validates rule rows', function () {

@@ -41,22 +41,16 @@ test('an entry outside the default activity_days_default window is excluded', fu
     $response->assertOk()->assertDontSee('Too old for the feed', false);
 });
 
-test('an unset activity_days_default narrows the atom feed to 7 days, not Redmine\'s own 10-day default', function () {
-    // Pins an intentional deviation: this app's ActivityFeedController used
-    // to hardcode 10 days independently of any setting. Now that it shares
-    // Setting::activity_days_default with the HTML activity views (whose
-    // own pre-existing hardcoded default was 7, not 10), the two stay
-    // consistent with each other rather than each hardcoding a different
-    // number — but that means the unset-setting Atom window is narrower
-    // than Redmine's own default. An entry 8 days old is the case that
-    // distinguishes the two: present under a 10-day window, absent under 7.
+test('an unset activity_days_default gives the atom feed Redmine\'s 10-day window', function () {
+    // An entry 8 days old is inside Redmine's 10-day default and one 12 days
+    // old outside it.
     $project = Project::factory()->create();
     $user = atomFeedMember($project, ['view_project', 'view_issues']);
     Issue::factory()->for($project)->create(['subject' => 'Eight days old', 'created_at' => now()->subDays(8)]);
+    Issue::factory()->for($project)->create(['subject' => 'Twelve days old', 'created_at' => now()->subDays(12)]);
 
-    $response = $this->actingAs($user)->get(route('activity.atom', $project));
-
-    $response->assertOk()->assertDontSee('Eight days old', false);
+    $this->actingAs($user)->get(route('activity.atom', $project))
+        ->assertOk()->assertSee('Eight days old', false)->assertDontSee('Twelve days old', false);
 });
 
 test('activity_days_default widens the atom feed window when configured', function () {

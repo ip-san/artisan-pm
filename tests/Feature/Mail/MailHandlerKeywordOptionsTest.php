@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\MailNotificationOption;
 use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
@@ -10,8 +11,11 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Notifications\IssueNotification;
 use App\Services\IncomingMailService;
+use App\Support\Mail\MailSuppression;
 use App\Support\Mail\ParsedIncomingMail;
+use Illuminate\Support\Facades\Notification;
 
 /**
  * @return array{0: Project, 1: Tracker, 2: User}
@@ -47,9 +51,21 @@ function keywordOptionsField(Tracker $tracker, array $attributes = [], bool $lis
     return $field;
 }
 
-test('every keyword is honored while allow_override is the default all', function () {
-    [$project] = keywordOptionsSetup();
+test('no keyword is honored by default, as with Redmine\'s empty allow_override', function () {
+    keywordOptionsSetup();
     IssueStatus::factory()->create(['name' => 'Feedback']);
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail("Status: Feedback\nDone ratio: 40\nbody"));
+
+    expect($issue->status->name)->not->toBe('Feedback')
+        ->and($issue->done_ratio)->toBe(0)
+        ->and($issue->description)->toContain('Status: Feedback');
+});
+
+test('every keyword is honored with allow_override all', function () {
+    keywordOptionsSetup();
+    IssueStatus::factory()->create(['name' => 'Feedback']);
+    Setting::set('mail_handler_allow_override', 'all');
 
     $issue = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail("Status: Feedback\nDone ratio: 40\nbody"));
 
@@ -165,23 +181,23 @@ test('the settings form saves the override list and the subaddress', function ()
 
 test('a received mail notifies the members unless no_notification is on', function () {
     [$project, $tracker] = keywordOptionsSetup();
-    $bystander = User::factory()->create(['mail_notification' => App\Enums\MailNotificationOption::All]);
+    $bystander = User::factory()->create(['mail_notification' => MailNotificationOption::All]);
     Member::factory()->for($project)->for($bystander)->create()
         ->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
 
-    Illuminate\Support\Facades\Notification::fake();
+    Notification::fake();
     app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('body', 'First'));
-    Illuminate\Support\Facades\Notification::assertSentTo($bystander, App\Notifications\IssueNotification::class);
+    Notification::assertSentTo($bystander, IssueNotification::class);
 
     Setting::set('mail_handler_no_notification', true);
-    Illuminate\Support\Facades\Notification::fake();
+    Notification::fake();
     $issue = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('body', 'Second'));
-    Illuminate\Support\Facades\Notification::assertNothingSent();
+    Notification::assertNothingSent();
 
     // A reply is silent too, and the suppression ends with the mail.
     app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('a reply', "Re: [Issue #{$issue->id}]"));
-    Illuminate\Support\Facades\Notification::assertNothingSent();
-    expect(App\Support\Mail\MailSuppression::active())->toBeFalse();
+    Notification::assertNothingSent();
+    expect(MailSuppression::active())->toBeFalse();
 });
 
 test('the settings form saves no_notification', function () {
@@ -191,11 +207,17 @@ test('the settings form saves no_notification', function () {
     expect(Setting::get('mail_handler_no_notification'))->toBeTrue();
 });
 
-test('a mail issue gets no start date unless the API and mail switch is on', function () {
+test('a mail issue gets the creation date as its start date only while both switches are on', function () {
     keywordOptionsSetup();
+    Setting::set('mail_handler_allow_override', 'start_date');
 
+    // Off by default, as Redmine's default_issue_start_date_to_creation_date.
     $off = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('body', 'Off'));
     expect($off->start_date)->toBeNull();
+
+    Setting::set('default_issue_start_date_to_creation_date', true);
+    Setting::set('default_issue_start_date_for_api_and_mail', false);
+    expect(app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('body', 'Mail off'))->start_date)->toBeNull();
 
     Setting::set('default_issue_start_date_for_api_and_mail', true);
     $on = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('body', 'On'));

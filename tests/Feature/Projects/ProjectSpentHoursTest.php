@@ -35,7 +35,7 @@ test('a project with view_time_entries shows its total logged hours', function (
     $component = Livewire::actingAs($user)->test('projects.show', ['project' => $project]);
 
     expect($component->get('totalSpentHours'))->toBe(3.5);
-    $component->assertSee('実績工数')->assertSee('3.5');
+    $component->assertSee('実績工数')->assertSee('3:30');
 });
 
 test('the spent hours block is hidden without view_time_entries', function () {

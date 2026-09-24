@@ -24,12 +24,19 @@ afterEach(function () {
     app()->setLocale('ja');
 });
 
-test('without a setting dates are ISO and times use a 24-hour clock', function () {
+test('without a setting dates and times follow the display language, as in Redmine', function () {
     $stored = Carbon::parse('2026-09-24 15:05:00', 'UTC');
 
-    expect(DateTimes::date('2026-09-04'))->toBe('2026-09-04')
-        ->and(DateTimes::dateTime($stored))->toBe('2026-09-24 15:05')
-        ->and(DateTimes::time($stored))->toBe('15:05');
+    expect(DateTimes::date('2026-09-04'))->toBe('2026/09/04')
+        ->and(DateTimes::dateTime($stored))->toBe('2026/09/24 15:05')
+        ->and(DateTimes::time($stored))->toBe('15:05')
+        ->and(DateTimes::month('2026-09-04'))->toBe('2026/09');
+
+    app()->setLocale('en');
+
+    expect(DateTimes::date('2026-09-04'))->toBe('09/04/2026')
+        ->and(DateTimes::dateTime($stored))->toBe('09/24/2026 03:05 PM')
+        ->and(DateTimes::month('2026-09-04'))->toBe('09/2026');
 });
 
 test('each of Redmine\'s date formats is applied, with month names in the display language', function (string $setting, string $english, string $japanese) {
@@ -71,11 +78,11 @@ test('the format and the zone apply together', function () {
     expect(DateTimes::dateTime(Carbon::parse('2026-09-24 23:30:00', 'UTC'), $tokyo))->toBe('09/25/2026 08:30');
 });
 
-test('an unknown stored format falls back to the default', function () {
+test('an unknown stored format falls back to the language', function () {
     Setting::set('date_format', '%Q');
     Setting::set('time_format', 'nonsense');
 
-    expect(DateTimes::date('2026-09-04'))->toBe('2026-09-04')
+    expect(DateTimes::date('2026-09-04'))->toBe('2026/09/04')
         ->and(DateTimes::time(Carbon::parse('2026-09-24 15:05:00')))->toBe('15:05');
 });
 
@@ -84,7 +91,7 @@ test('an admin picks the date and time formats from Redmine\'s lists', function 
     $admin = User::factory()->admin()->create();
 
     $options = DateTimes::dateFormatOptions();
-    expect($options[''])->toBe('既定(2026-09-04)')
+    expect($options[''])->toBe('ユーザーの言語の設定に従う(2026/09/04)')
         ->and($options['%d/%m/%Y'])->toBe('04/09/2026 (dd/mm/yyyy)')
         ->and(DateTimes::timeFormatOptions()['%H:%M'])->toBe('15:05');
 
@@ -146,7 +153,7 @@ function dateFieldIssue(): array
 test('a date custom field value is shown in the date format while its form input stays ISO', function () {
     ['project' => $project, 'issue' => $issue, 'field' => $field, 'viewer' => $viewer] = dateFieldIssue();
 
-    expect($issue->customDisplayValue($field))->toBe('2026-09-04');
+    expect($issue->customDisplayValue($field))->toBe('2026/09/04');
 
     Setting::set('date_format', '%d/%m/%Y');
 
@@ -182,7 +189,7 @@ test('the time report headings, the gantt months and the calendar heading follow
     $report = fn (string $period) => collect(Livewire::actingAs($viewer)->test('time-entries.report', ['project' => $project])
         ->set('criteria', ['user'])->set('period', $period)->instance()->report->periods)->pluck('label')->all();
 
-    expect($report('day'))->toBe(['2026-09-04'])->and($report('month'))->toBe(['2026-09']);
+    expect($report('day'))->toBe(['2026/09/04'])->and($report('month'))->toBe(['2026/09']);
 
     Setting::set('date_format', '%d %B %Y');
     app()->setLocale('en');

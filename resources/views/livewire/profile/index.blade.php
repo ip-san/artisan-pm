@@ -724,7 +724,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </form>
     </section>
 
-    @if (\App\Models\Setting::get('webhooks_enabled', true) && app(\App\Support\Authorization\AuthorizationService::class)->canGlobally(auth()->user(), 'use_webhooks'))
+    @if (\App\Models\Setting::get('webhooks_enabled', false) && app(\App\Support\Authorization\AuthorizationService::class)->canGlobally(auth()->user(), 'use_webhooks'))
         <section class="rounded-md border border-neutral-200 bg-surface p-4">
             <h2 class="mb-2 text-sm font-semibold text-neutral-900">Webhook</h2>
             <a href="{{ route('my-webhooks.index') }}" class="text-sm text-brand-bold hover:underline">{{ __('自分のWebhookを管理する') }}</a>

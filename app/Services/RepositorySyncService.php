@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Enums\EnumerationType;
 use App\Models\Enumeration;
 use App\Models\Issue;
-use App\Models\IssueStatus;
 use App\Models\Repository;
 use App\Models\Setting;
 use App\Models\User;
@@ -26,14 +25,15 @@ use Illuminate\Validation\ValidationException;
  * SPECIFIC keyword used in that commit determines the target status for
  * the issues it references — matches Redmine's Changeset#fix_issue, which
  * likewise looks up `Setting.commit_update_keywords_array.detect` by the
- * matched keyword rather than applying one global target. If no rules are
- * configured at all, falls back to the classic default (fixes/fix/closes/
- * close → the first closed status). A rule may also set done_ratio and
+ * matched keyword rather than applying one global target. There are no
+ * rules until an administrator adds some (Redmine's commit_update_keywords
+ * default is empty). A rule may also set done_ratio and
  * be limited to one tracker (if_tracker_id), as Redmine's
  * commit_update_keywords allows; the first rule matching the keyword and
  * the issue's tracker wins.
  * Which `#id`s a commit links to is governed by commit_ref_keywords
- * (`*` = any, the default here) and commit_cross_project_ref.
+ * (`*` = any; Redmine's default is refs,references,IssueID) and
+ * commit_cross_project_ref (off by default, as in Redmine).
  * An issue already closed is left alone, matching Redmine's own
  * `return if issue.closed?` guard, rather than only skipping issues
  * already at that exact target status. This only fires when the commit's
@@ -63,8 +63,6 @@ use Illuminate\Validation\ValidationException;
  */
 final class RepositorySyncService
 {
-    private const string DEFAULT_FIXING_KEYWORDS = 'fixes, fix, closes, close';
-
     public function __construct(
         private readonly AuthorizationService $authorization,
         private readonly TimeEntryService $timeEntries,
@@ -110,7 +108,7 @@ final class RepositorySyncService
 
     /**
      * The issues a commit message references. With the `*` wildcard in
-     * commit_ref_keywords (the default here) every `#id` counts; otherwise
+     * commit_ref_keywords every `#id` counts; otherwise
      * only ids that follow one of the reference or fixing keywords
      * (Redmine's Changeset#scan_comment_for_issue_ids). Issues in other,
      * unrelated projects are skipped unless commit_cross_project_ref is on.
@@ -151,14 +149,14 @@ final class RepositorySyncService
      */
     private function referenceKeywords(): array
     {
-        $keywords = $this->splitKeywords((string) Setting::get('commit_ref_keywords', '*'));
+        $keywords = $this->splitKeywords((string) Setting::get('commit_ref_keywords', 'refs,references,IssueID'));
 
         return ['any' => in_array('*', $keywords, true), 'keywords' => array_values(array_diff($keywords, ['*']))];
     }
 
     /**
      * Narrows issue ids to the ones a commit may reference: any existing
-     * issue when commit_cross_project_ref is on (the default here), else
+     * issue when commit_cross_project_ref is on, else
      * only issues of the repository's project, its ancestors or its
      * descendants — Redmine's Changeset#find_referenced_issue_by_id.
      *
@@ -169,7 +167,7 @@ final class RepositorySyncService
     {
         $query = Issue::query()->whereIn('id', $ids);
 
-        if (! (bool) Setting::get('commit_cross_project_ref', true)) {
+        if (! (bool) Setting::get('commit_cross_project_ref', false)) {
             $project = $repository->project;
 
             $query->whereHas('project', fn ($related) => $related->where(fn ($either) => $either
@@ -455,16 +453,10 @@ final class RepositorySyncService
      */
     private function fixingKeywordRules(): array
     {
-        $configured = Setting::get('commit_fixing_keyword_rules');
+        $configured = Setting::get('commit_fixing_keyword_rules', []);
 
-        if ($configured === null) {
-            $closedStatusId = IssueStatus::query()->where('is_closed', true)->orderBy('position')->value('id');
-
-            if ($closedStatusId === null) {
-                return [];
-            }
-
-            return [['keywords' => $this->splitKeywords(self::DEFAULT_FIXING_KEYWORDS), 'statusId' => $closedStatusId, 'doneRatio' => null, 'trackerId' => null]];
+        if (! is_array($configured)) {
+            return [];
         }
 
         $rules = [];

@@ -37,7 +37,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function mount(): void
     {
         if ($this->from === '') {
-            $this->from = \App\Support\Format\DateTimes::today()->subDays(Setting::get('activity_days_default', 7))->toDateString();
+            $this->from = \App\Support\Format\DateTimes::today()->subDays(Setting::get('activity_days_default', 10))->toDateString();
         }
 
         if ($this->to === '') {

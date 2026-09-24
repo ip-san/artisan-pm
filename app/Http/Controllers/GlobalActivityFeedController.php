@@ -23,7 +23,7 @@ final class GlobalActivityFeedController extends Controller
     public function __invoke(): Response
     {
         $user = auth()->user();
-        $from = now()->subDays(Setting::get('activity_days_default', 7))->startOfDay();
+        $from = now()->subDays(Setting::get('activity_days_default', 10))->startOfDay();
         $to = now()->endOfDay();
 
         $providers = app(ActivityProviderRegistry::class)->all();

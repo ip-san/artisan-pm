@@ -1,17 +1,46 @@
 <?php
 
 use App\Enums\MailNotificationOption;
+use App\Enums\WebhookEvent;
+use App\Events\IssueCreated;
+use App\Events\IssueDeleted;
+use App\Events\IssueUpdated;
+use App\Events\NewsCommentCreated;
+use App\Events\NewsCreated;
+use App\Events\NewsUpdated;
+use App\Events\TimeEntryCreated;
+use App\Events\VersionCreated;
+use App\Events\WikiPageCreated;
+use App\Listeners\DispatchWebhooksForIssueEvent;
+use App\Listeners\DispatchWebhooksForNewsEvent;
+use App\Listeners\DispatchWebhooksForTimeEntryEvent;
+use App\Listeners\DispatchWebhooksForVersionEvent;
+use App\Listeners\DispatchWebhooksForWikiPageEvent;
+use App\Listeners\SendIssueMailNotifications;
+use App\Listeners\SendNewsMailNotifications;
+use App\Listeners\SendWikiPageMailNotifications;
 use App\Models\Enumeration;
 use App\Models\IssueStatus;
 use App\Models\Member;
+use App\Models\News;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Webhook;
 use App\Notifications\IssueNotification;
 use App\Services\IssueService;
+use App\Services\VersionService;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
+use Spatie\WebhookServer\CallWebhookJob;
+
+// Webhooks are off by default (Redmine's webhooks_enabled); these tests exercise delivery.
+beforeEach(function () {
+    Setting::set('webhooks_enabled', true);
+});
 
 /**
  * Regression: explicit registration plus Laravel's auto-discovery (which
@@ -28,15 +57,15 @@ test('every domain event has exactly one registration per listener class', funct
         expect($registered[$class] ?? 0)->toBe(1, "{$class} for {$event}");
     }
 })->with([
-    'IssueCreated' => [App\Events\IssueCreated::class, [App\Listeners\SendIssueMailNotifications::class, App\Listeners\DispatchWebhooksForIssueEvent::class]],
-    'IssueUpdated' => [App\Events\IssueUpdated::class, [App\Listeners\SendIssueMailNotifications::class, App\Listeners\DispatchWebhooksForIssueEvent::class]],
-    'IssueDeleted' => [App\Events\IssueDeleted::class, [App\Listeners\DispatchWebhooksForIssueEvent::class]],
-    'WikiPageCreated' => [App\Events\WikiPageCreated::class, [App\Listeners\SendWikiPageMailNotifications::class, App\Listeners\DispatchWebhooksForWikiPageEvent::class]],
-    'NewsCreated' => [App\Events\NewsCreated::class, [App\Listeners\SendNewsMailNotifications::class, App\Listeners\DispatchWebhooksForNewsEvent::class]],
-    'NewsCommentCreated' => [App\Events\NewsCommentCreated::class, [App\Listeners\SendNewsMailNotifications::class]],
-    'NewsUpdated' => [App\Events\NewsUpdated::class, [App\Listeners\DispatchWebhooksForNewsEvent::class]],
-    'TimeEntryCreated' => [App\Events\TimeEntryCreated::class, [App\Listeners\DispatchWebhooksForTimeEntryEvent::class]],
-    'VersionCreated' => [App\Events\VersionCreated::class, [App\Listeners\DispatchWebhooksForVersionEvent::class]],
+    'IssueCreated' => [IssueCreated::class, [SendIssueMailNotifications::class, DispatchWebhooksForIssueEvent::class]],
+    'IssueUpdated' => [IssueUpdated::class, [SendIssueMailNotifications::class, DispatchWebhooksForIssueEvent::class]],
+    'IssueDeleted' => [IssueDeleted::class, [DispatchWebhooksForIssueEvent::class]],
+    'WikiPageCreated' => [WikiPageCreated::class, [SendWikiPageMailNotifications::class, DispatchWebhooksForWikiPageEvent::class]],
+    'NewsCreated' => [NewsCreated::class, [SendNewsMailNotifications::class, DispatchWebhooksForNewsEvent::class]],
+    'NewsCommentCreated' => [NewsCommentCreated::class, [SendNewsMailNotifications::class]],
+    'NewsUpdated' => [NewsUpdated::class, [DispatchWebhooksForNewsEvent::class]],
+    'TimeEntryCreated' => [TimeEntryCreated::class, [DispatchWebhooksForTimeEntryEvent::class]],
+    'VersionCreated' => [VersionCreated::class, [DispatchWebhooksForVersionEvent::class]],
 ]);
 
 test('creating an issue sends each recipient exactly one mail', function () {
@@ -60,12 +89,12 @@ test('creating an issue sends each recipient exactly one mail', function () {
 });
 
 test('one webhook subscription produces exactly one call per event', function () {
-    Illuminate\Support\Facades\Queue::fake();
+    Queue::fake();
     $project = Project::factory()->create();
-    App\Models\Webhook::factory()->create(['url' => 'https://example.com/once', 'events' => [App\Enums\WebhookEvent::VersionCreated->value, App\Enums\WebhookEvent::NewsCreated->value]]);
+    Webhook::factory()->create(['url' => 'https://example.com/once', 'events' => [WebhookEvent::VersionCreated->value, WebhookEvent::NewsCreated->value]]);
 
-    app(App\Services\VersionService::class)->create(['project_id' => $project->id, 'name' => '1.0']);
-    App\Events\NewsCreated::dispatch(App\Models\News::factory()->for($project)->create());
+    app(VersionService::class)->create(['project_id' => $project->id, 'name' => '1.0']);
+    NewsCreated::dispatch(News::factory()->for($project)->create());
 
-    expect(Illuminate\Support\Facades\Queue::pushed(Spatie\WebhookServer\CallWebhookJob::class))->toHaveCount(2);
+    expect(Queue::pushed(CallWebhookJob::class))->toHaveCount(2);
 });

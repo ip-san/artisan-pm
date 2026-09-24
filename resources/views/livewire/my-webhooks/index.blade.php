@@ -37,7 +37,7 @@ new #[Layout('components.layouts.app')] class extends Component
     private function authorizeAccess(): void
     {
         abort_unless(
-            Setting::get('webhooks_enabled', true)
+            Setting::get('webhooks_enabled', false)
                 && app(AuthorizationService::class)->canGlobally(auth()->user(), 'use_webhooks'),
             403,
         );

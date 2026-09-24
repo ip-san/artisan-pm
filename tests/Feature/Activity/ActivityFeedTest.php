@@ -138,6 +138,7 @@ test('unchecking a type filters it out of the feed', function () {
 });
 
 test('with_subprojects off shows only the current project\'s entries', function () {
+    Setting::set('display_subprojects_issues', false);
     $parent = Project::factory()->create();
     $child = Project::factory()->create(['parent_id' => $parent->id]);
     $user = activityMember($parent, ['view_project', 'view_issues']);

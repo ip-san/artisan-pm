@@ -185,7 +185,7 @@ new #[Layout('components.layouts.app')] class extends Component
             // after copy_from handling so a copied issue's own start date
             // wins. Redmine ships this off; this app has always defaulted to
             // today, so the setting defaults to on here.
-            if (Setting::get('default_issue_start_date_to_creation_date', true)) {
+            if (Setting::get('default_issue_start_date_to_creation_date', false)) {
                 $this->start_date ??= \App\Support\Format\DateTimes::today()->toDateString();
             }
 

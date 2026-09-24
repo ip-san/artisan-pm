@@ -116,7 +116,12 @@ test('a non-admin can read a visible user with only the public fields', function
     Passport::actingAs($viewer);
     $body = $this->getJson("/api/v1/users/{$other->id}")->assertOk()->json('data');
 
-    expect($body)->toHaveKeys(['id', 'login', 'name', 'email', 'created_at'])->not->toHaveKeys(['is_admin', 'status', 'api_key', 'auth_source_id', 'mail_notification']);
+    // The address is hidden by default (Redmine's default_users_hide_mail).
+    expect($body)->toHaveKeys(['id', 'login', 'name', 'created_at'])->not->toHaveKeys(['email', 'is_admin', 'status', 'api_key', 'auth_source_id', 'mail_notification']);
+
+    UserPreferences::save($other, ['hide_mail' => false]);
+
+    expect($this->getJson("/api/v1/users/{$other->id}")->json('data.email'))->toBe('bob@example.com');
 });
 
 test('a user who hides their mail address is shown without it to non-admins but not to admins', function () {

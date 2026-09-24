@@ -109,11 +109,11 @@ new #[Layout('components.layouts.app')] class extends Component
     // pre-existing hardcoded activity-feed window (activity/index.blade.php,
     // activity/global-index.blade.php), so introducing this setting doesn't
     // silently change the default view for existing installs.
-    public int $activity_days_default = 7;
+    public int $activity_days_default = 10;
 
     public int $feeds_limit = 15;
 
-    public bool $webhooks_enabled = true;
+    public bool $webhooks_enabled = false;
 
     public int $issues_export_limit = 500;
 
@@ -127,18 +127,18 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $new_item_menu_tab = '2';
 
-    public bool $display_subprojects_issues = false;
+    public bool $display_subprojects_issues = true;
 
     public ?int $default_issue_query = null;
 
-    public bool $default_users_hide_mail = false;
+    public bool $default_users_hide_mail = true;
 
     public string $default_users_time_zone = '';
 
     /** @var array<int, string> */
     public array $default_users_auto_watch_on = [];
 
-    public string $timespan_format = 'decimal';
+    public string $timespan_format = 'minutes';
 
     public string $ui_theme = 'light';
 
@@ -180,7 +180,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $mail_handler_excluded_filenames = '';
 
-    public string $mail_handler_allow_override = 'all';
+    public string $mail_handler_allow_override = '';
 
     public string $mail_handler_project_from_subaddress = '';
 
@@ -216,9 +216,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $commit_logs_formatting = true;
 
-    public string $commit_ref_keywords = '*';
+    public string $commit_ref_keywords = 'refs,references,IssueID';
 
-    public bool $commit_cross_project_ref = true;
+    public bool $commit_cross_project_ref = false;
 
     public bool $commit_logtime_enabled = false;
 
@@ -274,9 +274,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $copy_attachments_on_issue_copy = 'ask';
 
-    public bool $default_issue_start_date_to_creation_date = true;
+    public bool $default_issue_start_date_to_creation_date = false;
 
-    public bool $default_issue_start_date_for_api_and_mail = false;
+    public bool $default_issue_start_date_for_api_and_mail = true;
 
     public ?int $default_issue_due_date_offset = null;
 
@@ -292,9 +292,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $self_registration = 'automatic';
 
-    public string $user_format = 'name';
+    public string $user_format = 'firstname_lastname';
 
-    public bool $show_custom_fields_on_registration = false;
+    public bool $show_custom_fields_on_registration = true;
 
     public bool $unsubscribe = true;
 
@@ -325,7 +325,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $login_required = true;
 
-    public string $twofa = '0';
+    public string $twofa = '1';
 
     public bool $default_projects_public = true;
 
@@ -368,8 +368,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('manage', Setting::class);
 
         $this->self_registration = Setting::get('self_registration', 'automatic');
-        $this->user_format = (string) Setting::get('user_format', 'name');
-        $this->show_custom_fields_on_registration = (bool) Setting::get('show_custom_fields_on_registration', false);
+        $this->user_format = (string) Setting::get('user_format', 'firstname_lastname');
+        $this->show_custom_fields_on_registration = (bool) Setting::get('show_custom_fields_on_registration', true);
         $this->unsubscribe = Setting::get('unsubscribe', true);
         $this->session_timeout = Setting::get('session_timeout', 0);
         $this->session_lifetime = Setting::get('session_lifetime', 0);
@@ -384,16 +384,16 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->rest_api_enabled = Setting::get('rest_api_enabled', false);
         $this->jsonp_enabled = Setting::get('jsonp_enabled', false);
         $this->login_required = Setting::get('login_required', true);
-        $this->twofa = Setting::get('twofa', '0');
+        $this->twofa = Setting::get('twofa', '1');
         $this->app_title = Setting::get('app_title', config('app.name'));
         $this->default_language = \App\Support\Locale\SupportedLocales::default();
         $this->force_default_language_for_anonymous = (bool) Setting::get('force_default_language_for_anonymous', false);
         $this->force_default_language_for_loggedin = (bool) Setting::get('force_default_language_for_loggedin', false);
         $this->welcome_text = Setting::get('welcome_text', '');
-        $this->default_issues_per_page = Setting::get('default_issues_per_page', 25);
-        $this->activity_days_default = Setting::get('activity_days_default', 7);
+        $this->default_issues_per_page = Setting::get('default_issues_per_page', \App\Support\Pagination\PageSize::defaultSize());
+        $this->activity_days_default = Setting::get('activity_days_default', 10);
         $this->feeds_limit = Setting::get('feeds_limit', 15);
-        $this->webhooks_enabled = (bool) Setting::get('webhooks_enabled', true);
+        $this->webhooks_enabled = (bool) Setting::get('webhooks_enabled', false);
         $this->issues_export_limit = ExportLimit::issues();
         $this->per_page_options = Setting::get('per_page_options', PageSize::DEFAULT_OPTIONS);
         $this->search_results_per_page = Setting::get('search_results_per_page', PageSize::DEFAULT_SEARCH_RESULTS);
@@ -402,7 +402,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->new_item_menu_tab = (string) Setting::get('new_item_menu_tab', '2');
         $this->display_subprojects_issues = SubprojectScope::enabled();
         $this->default_issue_query = filled(Setting::get('default_issue_query')) ? (int) Setting::get('default_issue_query') : null;
-        $this->default_users_hide_mail = (bool) Setting::get('default_users_hide_mail', false);
+        $this->default_users_hide_mail = (bool) Setting::get('default_users_hide_mail', true);
         $this->default_users_time_zone = \App\Support\Locale\TimeZones::isSupported(Setting::get('default_users_time_zone')) ? Setting::get('default_users_time_zone') : '';
         $this->default_users_auto_watch_on = UserPreferences::defaults()['auto_watch_on'];
         $this->timespan_format = Hours::timespanFormat();
@@ -431,8 +431,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->non_working_week_days = array_map('strval', WorkingDays::nonWorkingWeekDays());
         $this->link_copied_issue = CopyOptions::linkMode();
         $this->copy_attachments_on_issue_copy = CopyOptions::attachmentsMode();
-        $this->default_issue_start_date_to_creation_date = Setting::get('default_issue_start_date_to_creation_date', true);
-        $this->default_issue_start_date_for_api_and_mail = (bool) Setting::get('default_issue_start_date_for_api_and_mail', false);
+        $this->default_issue_start_date_to_creation_date = Setting::get('default_issue_start_date_to_creation_date', false);
+        $this->default_issue_start_date_for_api_and_mail = (bool) Setting::get('default_issue_start_date_for_api_and_mail', true);
         $this->default_issue_due_date_offset = Setting::get('default_issue_due_date_offset');
         $this->related_issues_default_columns = array_keys(RelatedIssueColumns::selected());
         $this->display_related_issues_table_headers = RelatedIssueColumns::showHeaders();
@@ -448,7 +448,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->incoming_mail_default_status_id = Setting::get('incoming_mail_default_status_id');
         $this->mail_handler_body_delimiters = Setting::get('mail_handler_body_delimiters', '');
         $this->mail_handler_excluded_filenames = Setting::get('mail_handler_excluded_filenames', '');
-        $this->mail_handler_allow_override = Setting::get('mail_handler_allow_override', 'all');
+        $this->mail_handler_allow_override = Setting::get('mail_handler_allow_override', '');
         $this->mail_handler_project_from_subaddress = Setting::get('mail_handler_project_from_subaddress', '');
         $this->mail_handler_preferred_body_part = Setting::get('mail_handler_preferred_body_part', 'plain');
         $this->autofetch_changesets = Setting::get('autofetch_changesets', false);
@@ -466,22 +466,13 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->repositories_encodings = Setting::get('repositories_encodings', '');
         $this->commit_logs_encoding = Setting::get('commit_logs_encoding', 'UTF-8');
         $this->commit_logs_formatting = Setting::get('commit_logs_formatting', true);
-        $this->commit_ref_keywords = Setting::get('commit_ref_keywords', '*');
-        $this->commit_cross_project_ref = Setting::get('commit_cross_project_ref', true);
+        $this->commit_ref_keywords = Setting::get('commit_ref_keywords', 'refs,references,IssueID');
+        $this->commit_cross_project_ref = Setting::get('commit_cross_project_ref', false);
         $this->commit_logtime_enabled = Setting::get('commit_logtime_enabled', false);
         $this->commit_logtime_activity_id = Setting::get('commit_logtime_activity_id');
         $this->enabled_scm_types = Setting::get('enabled_scm_types', RepositoryType::defaultEnabledValues());
-        // Unconfigured default: a single rule covering the classic keyword
-        // list, targeting the first closed status — matches
-        // RepositorySyncService's own fallback when no rules are stored,
-        // so the UI's initial suggestion mirrors the actual runtime
-        // default. Only offered when a closed status actually exists;
-        // otherwise there's nothing sensible to pre-select and the row
-        // would just fail validation the moment the form is saved as-is.
-        $defaultFixingStatusId = IssueStatus::query()->where('is_closed', true)->orderBy('position')->value('id');
-        $this->commit_fixing_keyword_rules = Setting::get('commit_fixing_keyword_rules', $defaultFixingStatusId !== null
-            ? [['keywords' => 'fixes, fix, closes, close', 'status_id' => $defaultFixingStatusId]]
-            : []);
+        // No rule until one is added (Redmine's commit_update_keywords default).
+        $this->commit_fixing_keyword_rules = Setting::get('commit_fixing_keyword_rules', []);
         $this->timelog_required_fields = TimeLogConstraints::requiredFields();
         $this->timelog_accept_0_hours = TimeLogConstraints::acceptsZeroHours();
         $this->timelog_max_hours_per_day = TimeLogConstraints::maxHoursPerDay();
@@ -1016,7 +1007,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input type="checkbox" wire:model="default_issue_start_date_for_api_and_mail" class="rounded border-neutral-300">
                     {{ __('REST APIと受信メールで作る課題にも適用する') }}
                 </label>
-                <p class="mt-1 text-xs text-neutral-500">{{ __('既定はオフです(オンにすると、開始日を省略した既存のAPIクライアントやメールの課題に開始日が付きます)。') }}</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ __('既定はオンです(Redmine と同じ)。オフにすると、REST API と受信メールで作る課題には開始日を補いません。') }}</p>
             </div>
 
             <div>

@@ -220,6 +220,7 @@ test('a copy keeps a group assignee only where the group is a member, a move alw
 });
 
 test('an incoming mail and a csv import may name an assignable group', function () {
+    Setting::set('mail_handler_allow_override', 'all');
     Storage::fake('local');
     Setting::set('issue_group_assignment', true);
     $s = groupReaderScenario(['email' => 'sender@example.com']);

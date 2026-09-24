@@ -76,6 +76,7 @@ test('the report only counts issues the viewer may see', function () {
 });
 
 test('subprojects appear as a report section only when the setting includes them', function () {
+    Setting::set('display_subprojects_issues', false);
     $project = Project::factory()->create();
     $child = Project::factory()->create(['parent_id' => $project->id, 'name' => 'Child Project']);
     $user = reportDetailsMember($project);

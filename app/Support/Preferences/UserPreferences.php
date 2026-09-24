@@ -146,7 +146,7 @@ final class UserPreferences
             'comments_sorting' => 'asc',
             'warn_on_leaving_unsaved' => true,
             'textarea_font' => '',
-            'hide_mail' => (bool) Setting::get('default_users_hide_mail', false),
+            'hide_mail' => (bool) Setting::get('default_users_hide_mail', true),
             'notify_about_high_priority_issues' => false,
             'history_default_tab' => 'history',
             'recently_used_projects' => 3,

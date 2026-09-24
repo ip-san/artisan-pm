@@ -122,7 +122,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $query = $this->engine->applyFilters($query, $this->builtFilters());
         $query = ProjectFilterFieldRegistry::applySort($query, $this->sortKey, $this->sortDirection, auth()->user());
 
-        return $query->orderBy('_lft')->paginate($this->pageSize(25));
+        return $query->orderBy('_lft')->paginate($this->pageSize());
     }
 
     /**

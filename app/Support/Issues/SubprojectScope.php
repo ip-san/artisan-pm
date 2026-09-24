@@ -36,7 +36,7 @@ final class SubprojectScope
 
     public static function enabled(): bool
     {
-        return (bool) Setting::get('display_subprojects_issues', false);
+        return (bool) Setting::get('display_subprojects_issues', true);
     }
 
     /**

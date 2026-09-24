@@ -9,7 +9,7 @@ use Illuminate\Support\Number;
 
 /**
  * Redmine's format_hours and its `timespan_format` setting: hours shown as a
- * decimal ("1.50", the default) or as hours and minutes ("1:30").
+ * decimal ("1.50") or as hours and minutes ("1:30", the default as in Redmine).
  */
 final class Hours
 {
@@ -40,9 +40,9 @@ final class Hours
 
     public static function timespanFormat(): string
     {
-        $format = (string) Setting::get('timespan_format', self::DECIMAL);
+        $format = (string) Setting::get('timespan_format', self::MINUTES);
 
-        return array_key_exists($format, self::FORMATS) ? $format : self::DECIMAL;
+        return array_key_exists($format, self::FORMATS) ? $format : self::MINUTES;
     }
 
     /**

@@ -79,7 +79,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function twofaGroupSwitchEnabled(): bool
     {
-        return in_array(Setting::get('twofa', '0'), ['1', '3'], true);
+        return in_array(Setting::get('twofa', '1'), ['1', '3'], true);
     }
 
     public function save(): void
@@ -194,7 +194,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @disabled(! $this->twofaGroupSwitchEnabled)>
                 {{ __('このグループのメンバーに二要素認証を必須にする') }}
             </label>
-            @if (\App\Models\Setting::get('twofa', '0') === '2')
+            @if (\App\Models\Setting::get('twofa', '1') === '2')
                 <p class="mt-1 text-xs text-neutral-500">{{ __('二要素認証は全ユーザーに必須のため、この設定は不要です。') }}</p>
             @elseif (! $this->twofaGroupSwitchEnabled)
                 <p class="mt-1 text-xs text-neutral-500">{{ __('サイト設定の二要素認証が「任意」または「管理者のみ必須」のときに使えます。') }}</p>

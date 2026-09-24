@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\WebhookEvent;
+use App\Support\Authorization\AuthorizationService;
 use Database\Factories\WebhookFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Support\Authorization\AuthorizationService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -59,7 +59,7 @@ final class Webhook extends Model
      */
     public static function deliverableFor(Model $object, int $projectId, WebhookEvent $event): Collection
     {
-        if (! Setting::get('webhooks_enabled', true)) {
+        if (! Setting::get('webhooks_enabled', false)) {
             return new Collection;
         }
 

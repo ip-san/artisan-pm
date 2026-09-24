@@ -13,6 +13,11 @@ use App\Models\User;
 use App\Support\Query\ListDefaults;
 use Livewire\Livewire;
 
+// Decimal hours, so the expectations read as the stored values (Redmine's default is minutes).
+beforeEach(function () {
+    Setting::set('timespan_format', 'decimal');
+});
+
 function listDefaultsViewer(Project $project): User
 {
     $user = User::factory()->create();
@@ -36,8 +41,8 @@ function listDefaultsIssue(Project $project, array $attributes): Issue
     ]);
 }
 
-test('the defaults keep estimated and spent totals and every time entry column', function () {
-    expect(ListDefaults::issueTotals())->toBe(['estimated_hours', 'spent_hours'])
+test('the defaults show no issue totals and Redmine\'s time entry columns', function () {
+    expect(ListDefaults::issueTotals())->toBe([])
         ->and(ListDefaults::timeEntryColumns())->toBe(['spent_on', 'user_id', 'activity_id', 'issue_id', 'comments', 'hours'])
         ->and(ListDefaults::timeEntriesShowHoursTotal())->toBeTrue();
 });

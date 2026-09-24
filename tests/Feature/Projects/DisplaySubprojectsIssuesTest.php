@@ -50,7 +50,8 @@ function subprojectIssue(Project $project, string $subject): Issue
     ]);
 }
 
-test('by default a project list shows only its own issues', function () {
+test('with the setting off a project list shows only its own issues', function () {
+    Setting::set('display_subprojects_issues', false);
     ['parent' => $parent, 'child' => $child] = subprojectTree();
     $viewer = subprojectViewer($parent, $child);
     subprojectIssue($parent, 'Own issue');
@@ -110,6 +111,7 @@ test('the project overview totals subproject hours only with the setting on and 
     TimeEntry::factory()->for($parent)->create(['hours' => 2]);
     TimeEntry::factory()->for($child)->create(['hours' => 3]);
 
+    Setting::set('display_subprojects_issues', false);
     expect(Livewire::actingAs($viewer)->test('projects.show', ['project' => $parent])->get('totalSpentHours'))->toBe(2.0);
 
     Setting::set('display_subprojects_issues', true);
@@ -131,7 +133,8 @@ test('a project without subprojects is unaffected by the setting', function () {
 test('the settings form stores the option', function () {
     $admin = User::factory()->admin()->create();
 
-    expect(SubprojectScope::enabled())->toBeFalse();
-    Livewire::actingAs($admin)->test('settings.index')->set('display_subprojects_issues', true)->call('save')->assertHasNoErrors();
+    // On by default, as in Redmine.
     expect(SubprojectScope::enabled())->toBeTrue();
+    Livewire::actingAs($admin)->test('settings.index')->set('display_subprojects_issues', false)->call('save')->assertHasNoErrors();
+    expect(SubprojectScope::enabled())->toBeFalse();
 });

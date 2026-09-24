@@ -8,6 +8,11 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 
+// ISO dates, so the expectations read as the stored values (an empty setting follows the language).
+beforeEach(function () {
+    Setting::set('date_format', '%Y-%m-%d');
+});
+
 afterEach(fn () => Carbon::setTestNow());
 
 test('a user sees their own zone, else the default setting, else the server zone', function () {

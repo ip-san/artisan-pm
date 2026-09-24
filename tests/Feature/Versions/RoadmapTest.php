@@ -202,6 +202,7 @@ function roadmapSubprojectTree(): array
 }
 
 test('the roadmap lists the visible subprojects\' versions with the subprojects switch', function () {
+    Setting::set('display_subprojects_issues', false);
     ['parent' => $parent, 'user' => $user] = roadmapSubprojectTree();
 
     $roadmap = Livewire::actingAs($user)->test('versions.roadmap', ['project' => $parent]);

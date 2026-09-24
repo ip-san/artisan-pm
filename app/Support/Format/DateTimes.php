@@ -49,6 +49,7 @@ final class DateTimes
      */
     public const array MONTH_FORMATS = [
         'Y-m-d' => 'Y-m',
+        'Y/m/d' => 'Y/m',
         'd/m/Y' => 'm/Y',
         'd.m.Y' => 'm.Y',
         'd-m-Y' => 'm-Y',
@@ -70,13 +71,25 @@ final class DateTimes
     ];
 
     /**
-     * What an empty `date_format` / `time_format` means here: ISO dates and a
-     * 24-hour clock, as this app has always shown (Redmine's empty setting
-     * follows the language instead).
+     * What an empty `date_format` / `time_format` means: the display
+     * language's own format, as Redmine's empty setting follows the locale
+     * (`date.formats.default` and `time.formats.time` of its ja/en files).
+     *
+     * @var array<string, string>
      */
-    public const string DEFAULT_DATE_FORMAT = 'Y-m-d';
+    public const array LANGUAGE_DATE_FORMATS = ['ja' => 'Y/m/d', 'en' => 'm/d/Y'];
 
-    public const string DEFAULT_TIME_FORMAT = 'H:i';
+    /**
+     * @var array<string, string>
+     */
+    public const array LANGUAGE_TIME_FORMATS = ['ja' => 'H:i', 'en' => 'h:i A'];
+
+    /**
+     * The formats for a language the app has no entry for.
+     */
+    public const string FALLBACK_DATE_FORMAT = 'Y-m-d';
+
+    public const string FALLBACK_TIME_FORMAT = 'H:i';
 
     private static ?User $viewerOverride = null;
 
@@ -155,7 +168,7 @@ final class DateTimes
 
     /**
      * The month of a date-only value in the date format without its day
-     * (`2026-09` by default).
+     * (`2026/09` in Japanese by default).
      */
     public static function month(DateTimeInterface|string $value): string
     {
@@ -165,8 +178,8 @@ final class DateTimes
     }
 
     /**
-     * Whether the `date_format` setting chooses a format (empty keeps the
-     * app's own ISO dates and headings).
+     * Whether the `date_format` setting chooses a format (empty follows the
+     * language, and the calendar keeps its own month heading).
      */
     public static function hasDateFormat(): bool
     {
@@ -227,7 +240,7 @@ final class DateTimes
      */
     public static function dateFormat(): string
     {
-        return self::DATE_FORMATS[(string) Setting::get('date_format', '')] ?? self::DEFAULT_DATE_FORMAT;
+        return self::DATE_FORMATS[(string) Setting::get('date_format', '')] ?? self::languageDateFormat();
     }
 
     /**
@@ -235,7 +248,23 @@ final class DateTimes
      */
     public static function timeFormat(): string
     {
-        return self::TIME_FORMATS[(string) Setting::get('time_format', '')] ?? self::DEFAULT_TIME_FORMAT;
+        return self::TIME_FORMATS[(string) Setting::get('time_format', '')] ?? self::languageTimeFormat();
+    }
+
+    /**
+     * The date format of the display language (an empty `date_format`).
+     */
+    public static function languageDateFormat(): string
+    {
+        return self::LANGUAGE_DATE_FORMATS[app()->getLocale()] ?? self::FALLBACK_DATE_FORMAT;
+    }
+
+    /**
+     * The time format of the display language (an empty `time_format`).
+     */
+    public static function languageTimeFormat(): string
+    {
+        return self::LANGUAGE_TIME_FORMATS[app()->getLocale()] ?? self::FALLBACK_TIME_FORMAT;
     }
 
     /**
@@ -247,7 +276,7 @@ final class DateTimes
     public static function dateFormatOptions(): array
     {
         $today = self::localized(self::today());
-        $options = ['' => __('既定(:example)', ['example' => $today->translatedFormat(self::DEFAULT_DATE_FORMAT)])];
+        $options = ['' => __('ユーザーの言語の設定に従う(:example)', ['example' => $today->translatedFormat(self::languageDateFormat())])];
 
         foreach (self::DATE_FORMATS as $stored => $format) {
             $pattern = strtr(str_replace('%', '', $stored), ['d' => 'dd', 'm' => 'mm', 'Y' => 'yyyy']);
@@ -263,7 +292,7 @@ final class DateTimes
     public static function timeFormatOptions(): array
     {
         $now = self::localized(self::local(CarbonImmutable::now()));
-        $options = ['' => __('既定(:example)', ['example' => $now->translatedFormat(self::DEFAULT_TIME_FORMAT)])];
+        $options = ['' => __('ユーザーの言語の設定に従う(:example)', ['example' => $now->translatedFormat(self::languageTimeFormat())])];
 
         foreach (self::TIME_FORMATS as $stored => $format) {
             $options[$stored] = $now->translatedFormat($format);

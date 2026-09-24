@@ -77,7 +77,7 @@ test('syncing again only fetches commits after the last synced revision', functi
 test('a commit message referencing #123 links the changeset to that issue', function () {
     $project = Project::factory()->create();
     $issue = Issue::factory()->for($project)->create();
-    $path = createTestGitRepo(["Fixes #{$issue->id}"]);
+    $path = createTestGitRepo(["Refs #{$issue->id}"]);
     $repository = Repository::factory()->for($project)->create(['path' => $path]);
 
     app(RepositorySyncService::class)->sync($repository);
@@ -89,6 +89,7 @@ test('a commit message referencing #123 links the changeset to that issue', func
 test('a "fixes #N" commit closes the issue when the committer matches a real user with edit_issues', function () {
     $project = Project::factory()->create();
     $closed = IssueStatus::factory()->closed()->create();
+    Setting::set('commit_fixing_keyword_rules', [['keywords' => 'fixes', 'status_id' => $closed->id]]);
     $issue = Issue::factory()->for($project)->create();
     $committerUser = User::factory()->create(['email' => 'test@example.com']);
     $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
@@ -136,6 +137,7 @@ test('a "fixes #N" commit does not change status when the committer matches no u
 test('a "fixes #N" commit closes the issue when the committer matches via an explicit repository mapping', function () {
     $project = Project::factory()->create();
     $closed = IssueStatus::factory()->closed()->create();
+    Setting::set('commit_fixing_keyword_rules', [['keywords' => 'fixes', 'status_id' => $closed->id]]);
     $issue = Issue::factory()->for($project)->create();
     $mappedUser = User::factory()->create(['email' => 'jane@example.com']);
     $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);

@@ -91,7 +91,7 @@ final class UserAvatar
         if ($user instanceof User && $user->hasNameParts()) {
             $first = (string) $user->firstname;
             $last = (string) $user->lastname;
-            $initials = match ((string) Setting::get('user_format', 'name')) {
+            $initials = match ((string) Setting::get('user_format', 'firstname_lastname')) {
                 'firstname' => mb_substr($first, 0, 2),
                 'lastname' => mb_substr($last, 0, 2),
                 'lastname_firstname', 'lastnamefirstname', 'lastname_comma_firstname' => mb_substr($last, 0, 1).mb_substr($first, 0, 1),

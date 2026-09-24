@@ -222,6 +222,7 @@ test('an issue created from incoming mail gets the project defaults', function (
 });
 
 test('an incoming mail category keyword brings the category default assignee', function () {
+    Setting::set('mail_handler_allow_override', 'all');
     ['project' => $project, 'tracker' => $tracker, 'status' => $status] = creationDefaultsProject();
     $projectDefault = creationDefaultsMember($project);
     $categoryDefault = creationDefaultsMember($project);

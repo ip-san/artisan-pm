@@ -224,7 +224,8 @@ final class User extends Authenticatable implements HasLocalePreference, HasMedi
     }
 
     /**
-     * The `user_format` values: this app's `name` (the default) and
+     * The `user_format` values (Redmine's default is `firstname_lastname`,
+     * which shows `name` for a user without both names): this app's `name` and
      * `name_login`, then Redmine's User::USER_FORMATS in its setting order
      * (`username` is this app's `login`).
      */
@@ -307,7 +308,7 @@ final class User extends Authenticatable implements HasLocalePreference, HasMedi
      */
     public static function orderFieldsForFormat(?string $format = null): array
     {
-        $format ??= (string) Setting::get('user_format', 'name');
+        $format ??= (string) Setting::get('user_format', 'firstname_lastname');
 
         return match ($format) {
             'firstname_lastname', 'firstname_lastinitial', 'firstinitial_lastname' => ['firstname', 'lastname'],
@@ -449,7 +450,7 @@ final class User extends Authenticatable implements HasLocalePreference, HasMedi
      */
     public function displayName(?string $format = null): string
     {
-        $format ??= (string) Setting::get('user_format', 'name');
+        $format ??= (string) Setting::get('user_format', 'firstname_lastname');
 
         if (! in_array($format, ['name', 'name_login', 'login'], true) && ! $this->hasNameParts()) {
             $format = 'name';
@@ -616,7 +617,7 @@ final class User extends Authenticatable implements HasLocalePreference, HasMedi
             return false;
         }
 
-        $tier = Setting::get('twofa', '0');
+        $tier = Setting::get('twofa', '1');
 
         if ($tier === '2' || ($tier === '3' && $this->is_admin)) {
             return true;

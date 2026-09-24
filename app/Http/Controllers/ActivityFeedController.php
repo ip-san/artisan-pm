@@ -41,7 +41,7 @@ final class ActivityFeedController extends Controller
     {
         Gate::authorize('view', $project);
 
-        $from = now()->subDays(Setting::get('activity_days_default', 7))->startOfDay();
+        $from = now()->subDays(Setting::get('activity_days_default', 10))->startOfDay();
         $to = now()->endOfDay();
 
         $entries = app(ActivityProviderRegistry::class)->all()

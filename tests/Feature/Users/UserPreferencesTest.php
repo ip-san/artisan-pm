@@ -21,27 +21,27 @@ test('every option has a default and a stored value wins', function () {
 
     expect($user->preference('comments_sorting'))->toBe('asc')
         ->and($user->preference('warn_on_leaving_unsaved'))->toBeTrue()
-        ->and($user->preference('hide_mail'))->toBeFalse()
+        ->and($user->preference('hide_mail'))->toBeTrue()
         ->and($user->preference('auto_watch_on'))->toBe(['issue_created', 'issue_assigned_to_me'])
         ->and($user->preference('default_issue_query'))->toBeNull();
 
-    UserPreferences::save($user, ['comments_sorting' => 'desc', 'hide_mail' => true]);
+    UserPreferences::save($user, ['comments_sorting' => 'desc', 'hide_mail' => false]);
 
     expect($user->fresh()->preference('comments_sorting'))->toBe('desc')
-        ->and($user->fresh()->preference('hide_mail'))->toBeTrue()
+        ->and($user->fresh()->preference('hide_mail'))->toBeFalse()
         ->and($user->fresh()->preference('warn_on_leaving_unsaved'))->toBeTrue();
 });
 
 test('new accounts start from the site-wide default_users settings', function () {
-    Setting::set('default_users_hide_mail', true);
+    Setting::set('default_users_hide_mail', false);
     Setting::set('default_users_auto_watch_on', ['issue_created', 'bogus']);
 
     $user = User::factory()->create();
 
-    expect($user->preference('hide_mail'))->toBeTrue()->and($user->preference('auto_watch_on'))->toBe(['issue_created']);
+    expect($user->preference('hide_mail'))->toBeFalse()->and($user->preference('auto_watch_on'))->toBe(['issue_created']);
 
-    UserPreferences::save($user, ['hide_mail' => false]);
-    expect($user->fresh()->preference('hide_mail'))->toBeFalse();
+    UserPreferences::save($user, ['hide_mail' => true]);
+    expect($user->fresh()->preference('hide_mail'))->toBeTrue();
 });
 
 test('saving cleans values and ignores unknown keys', function () {
@@ -103,7 +103,8 @@ test('the email on a public profile hides when its owner asked for it', function
     $viewer = User::factory()->create();
     $shown = User::factory()->create(['email' => 'visible@example.com']);
     $hidden = User::factory()->create(['email' => 'hidden@example.com']);
-    UserPreferences::save($hidden, ['hide_mail' => true]);
+    // Hidden by default (Redmine's default_users_hide_mail); $shown opts out.
+    UserPreferences::save($shown, ['hide_mail' => false]);
     $project = Project::factory()->create();
     foreach ([$viewer, $shown, $hidden] as $user) {
         Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_project']]));

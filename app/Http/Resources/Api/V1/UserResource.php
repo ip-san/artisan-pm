@@ -38,7 +38,9 @@ final class UserResource extends JsonResource
             'name' => $user->name,
             'firstname' => $user->firstname,
             'lastname' => $user->lastname,
-            ...($isAdmin || ! $user->preference('hide_mail') ? ['email' => $user->email] : []),
+            // Redmine's users/show hides a hide_mail address from everyone but
+            // administrators; /my/account always shows the user their own.
+            ...($isAdmin || $isSelf || ! $user->preference('hide_mail') ? ['email' => $user->email] : []),
             ...($isAdmin || $isSelf ? [
                 'is_admin' => $user->is_admin,
                 'language' => $user->language,

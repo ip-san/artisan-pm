@@ -391,7 +391,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function issues(): LengthAwarePaginator
     {
-        return $this->filteredIssuesQuery()->paginate($this->pageSize((int) Setting::get('default_issues_per_page', 25)));
+        return $this->filteredIssuesQuery()->paginate($this->pageSize((int) Setting::get('default_issues_per_page', \App\Support\Pagination\PageSize::defaultSize())));
     }
 
     /**

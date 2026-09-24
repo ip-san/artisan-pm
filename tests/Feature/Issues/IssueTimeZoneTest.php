@@ -14,6 +14,11 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 
+// ISO dates, so the expectations read as the stored values (an empty setting follows the language).
+beforeEach(function () {
+    Setting::set('date_format', '%Y-%m-%d');
+});
+
 afterEach(fn () => Carbon::setTestNow());
 
 function zonedIssueMember(Project $project, string $zone, array $permissions = ['view_project', 'view_issues', 'add_issues', 'edit_issues', 'log_time']): User
@@ -61,6 +66,7 @@ test('the issue list and its CSV show timestamps in the viewer zone', function (
 
 test('a new issue defaults its dates to the viewer today', function () {
     Carbon::setTestNow(CarbonImmutable::parse('2026-09-24 23:30:00', 'UTC'));
+    Setting::set('default_issue_start_date_to_creation_date', true);
     Setting::set('default_issue_due_date_offset', 7);
     $project = Project::factory()->create();
 

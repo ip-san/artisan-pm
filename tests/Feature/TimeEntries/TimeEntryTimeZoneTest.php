@@ -14,6 +14,11 @@ use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
+// ISO dates, so the expectations read as the stored values (an empty setting follows the language).
+beforeEach(function () {
+    Setting::set('date_format', '%Y-%m-%d');
+});
+
 afterEach(fn () => Carbon::setTestNow());
 
 /**

@@ -335,6 +335,7 @@ test('the csv import ignores read-only fields and fails a row missing a required
 // --- Incoming mail ------------------------------------------------------------
 
 test('incoming mail ignores read-only keywords and rejects a mail missing a required field', function () {
+    Setting::set('mail_handler_allow_override', 'all');
     $setup = fieldRulesSetup(['add_issues', 'edit_issues'], ['due_date' => 'read_only', 'start_date' => 'required']);
     Setting::set('incoming_mail_default_project_id', $setup['project']->id);
     Setting::set('incoming_mail_default_tracker_id', $setup['tracker']->id);

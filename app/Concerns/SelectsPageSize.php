@@ -17,9 +17,13 @@ trait SelectsPageSize
     #[Url(as: 'per_page')]
     public ?int $perPage = null;
 
-    public function pageSize(int $default): int
+    /**
+     * The chosen size, else $default — the first per_page_options value when
+     * none is given (Redmine's per_page_option).
+     */
+    public function pageSize(?int $default = null): int
     {
-        return PageSize::resolve($this->perPage, $default);
+        return PageSize::resolve($this->perPage, $default ?? PageSize::defaultSize());
     }
 
     public function updatedPerPage(): void

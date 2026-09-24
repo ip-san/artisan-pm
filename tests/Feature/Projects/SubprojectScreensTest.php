@@ -15,6 +15,11 @@ use App\Models\Version;
 use App\Support\Dashboard\SavedIssueQueryBlock;
 use Livewire\Livewire;
 
+// Each test compares the setting off (set here; Redmine's default is on) with it on.
+beforeEach(function () {
+    Setting::set('display_subprojects_issues', false);
+});
+
 /**
  * A3-06b: display_subprojects_issues on the gantt, calendar, time entry
  * list and report, activity, Atom feed, REST list and my-page query block.

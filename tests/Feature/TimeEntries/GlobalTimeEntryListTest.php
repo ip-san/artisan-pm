@@ -6,9 +6,15 @@ use App\Models\Enumeration;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\User;
 use Livewire\Livewire;
+
+// Decimal hours, so the expectations read as the stored values (Redmine's default is minutes).
+beforeEach(function () {
+    Setting::set('timespan_format', 'decimal');
+});
 
 function globalListActivity(): Enumeration
 {

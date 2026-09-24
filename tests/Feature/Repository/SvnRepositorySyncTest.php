@@ -66,7 +66,7 @@ test('syncing an svn repository again only fetches revisions after the last sync
 test('an svn commit message referencing #123 links the changeset to that issue', function () {
     $project = Project::factory()->create();
     $issue = Issue::factory()->for($project)->create();
-    $path = createTestSvnRepo(["Fixes #{$issue->id}"]);
+    $path = createTestSvnRepo(["Refs #{$issue->id}"]);
     $repository = Repository::factory()->for($project)->create(['type' => RepositoryType::Svn, 'path' => $path]);
 
     app(RepositorySyncService::class)->sync($repository);

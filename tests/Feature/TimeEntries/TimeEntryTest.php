@@ -9,11 +9,17 @@ use App\Models\Member;
 use App\Models\Project;
 use App\Models\Query;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
+
+// Decimal hours, so the expectations read as the stored values (Redmine's default is minutes).
+beforeEach(function () {
+    Setting::set('timespan_format', 'decimal');
+});
 
 function timeEntryMember(Project $project, array $permissions = ['log_time', 'view_time_entries', 'save_queries', 'view_issues']): User
 {
@@ -243,7 +249,7 @@ test('the selected display columns control what appears in the csv export', func
         ->call('exportCsv')
         ->assertFileDownloaded(
             "{$project->identifier}-time_entries.csv",
-            "\xEF\xBB\xBF".csvRow(['日付', '時間']).csvRow(['2026-01-15', '3.50'])
+            "\xEF\xBB\xBF".csvRow(['日付', '時間']).csvRow(['2026/01/15', '3.50'])
         );
 });
 

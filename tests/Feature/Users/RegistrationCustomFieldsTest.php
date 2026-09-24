@@ -24,7 +24,8 @@ function registrationField(array $attributes = []): CustomField
     return CustomField::factory()->create(['customized_type' => 'user', ...$attributes]);
 }
 
-test('by default only required user fields appear on the registration form', function () {
+test('with the setting off only required user fields appear on the registration form', function () {
+    Setting::set('show_custom_fields_on_registration', false);
     registrationField(['name' => 'Optional field']);
     registrationField(['name' => 'Required field', 'is_required' => true]);
 
@@ -61,6 +62,7 @@ test('submitted values are validated and saved on the new user', function () {
 });
 
 test('a field that was not offered cannot be filled by posting its id', function () {
+    Setting::set('show_custom_fields_on_registration', false);
     $hidden = registrationField(['name' => 'Not offered']);
 
     $this->post(route('register'), registrationPayload(['custom_fields' => [$hidden->id => 'sneaky']]))->assertRedirect();
