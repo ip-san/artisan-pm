@@ -152,6 +152,17 @@ test('the issue list sorts and groups by a group assignee\'s name', function () 
     $sorted = $engine->applySort(Issue::query()->where('project_id', $s->project->id), [['assigned_to_id', 'asc']])->pluck('id')->all();
     expect($sorted[0])->toBe($s->issue->id);
 
+    Livewire::actingAs($s->member)->test('issues.index', ['project' => $s->project])
+        ->set('sortKey', 'assigned_to_id')
+        ->assertOk()
+        ->assertSeeInOrder(['Support team', 'Zed issue']);
+
+    Livewire::actingAs($s->member)->test('issues.global-index')
+        ->set('sortKey', 'assigned_to_id')
+        ->set('sortDirection', 'desc')
+        ->assertOk()
+        ->assertSeeInOrder(['Zed issue', 'Support team']);
+
     $totals = Livewire::actingAs($s->member)->test('issues.index', ['project' => $s->project])
         ->set('groupBy', 'assigned_to_id')
         ->assertSee('Support team')
