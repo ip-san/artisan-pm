@@ -4,6 +4,7 @@ use App\Jobs\AutofetchRepositoryChangesetsJob;
 use App\Jobs\ProcessIncomingMailJob;
 use App\Jobs\PruneExpiredPendingUploadsJob;
 use App\Jobs\PruneUnwatchableWatchersJob;
+use App\Support\System\SchedulerHeartbeat;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -40,3 +41,8 @@ Schedule::call(fn () => Artisan::call('queue:work', [
     ->everyMinute()
     ->withoutOverlapping(15)
     ->when(fn (): bool => config('queue.default') === 'database');
+
+// Admin → Information shows when schedule:run last ran (A14-04b).
+Schedule::call(fn () => SchedulerHeartbeat::record())
+    ->name('scheduler heartbeat')
+    ->everyMinute();

@@ -4,10 +4,12 @@ use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\System\SchedulerHeartbeat;
 use App\Support\System\SystemInfo;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 
@@ -94,3 +96,28 @@ test('the checklist names the PDO extension of the configured database and intl'
     'mariadb' => ['mariadb', 'pdo_mysql'],
     'sqlite' => ['sqlite', 'pdo_sqlite'],
 ]);
+
+test('schedule:run records the scheduler heartbeat', function () {
+    Queue::fake();
+    $this->travelTo(now()->startOfMinute());
+
+    expect(SchedulerHeartbeat::lastRun())->toBeNull();
+
+    $this->artisan('schedule:run')->assertSuccessful();
+
+    expect(SchedulerHeartbeat::lastRun()?->toIso8601String())->toBe(now()->toIso8601String())
+        ->and(SchedulerHeartbeat::status())->toBe('ok');
+});
+
+test('the information page reports a scheduler that never ran, stopped or runs', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin)->get(route('admin.info'))->assertOk()->assertSee('記録なし')->assertSee('schedule:run');
+
+    SchedulerHeartbeat::record();
+    $this->travel(10)->minutes();
+    $this->actingAs($admin)->get(route('admin.info'))->assertSee('スケジューラが5分以上実行されていません。');
+
+    SchedulerHeartbeat::record();
+    $this->actingAs($admin)->get(route('admin.info'))->assertDontSee('記録なし')->assertDontSee('実行されていません');
+});

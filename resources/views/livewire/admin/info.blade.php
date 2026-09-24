@@ -60,6 +60,25 @@ new #[Layout('components.layouts.app')] class extends Component
         </ul>
     </section>
 
+    <section data-scheduler-status>
+        <h2 class="mb-2 text-sm font-semibold text-neutral-900">{{ __('スケジューラ') }}</h2>
+        @php($schedulerStatus = \App\Support\System\SchedulerHeartbeat::status())
+        @php($schedulerLastRun = \App\Support\System\SchedulerHeartbeat::lastRun())
+        <dl class="divide-y divide-neutral-100 rounded-md border border-neutral-200 bg-surface text-sm">
+            <div class="flex justify-between px-4 py-2">
+                <dt class="text-neutral-500">{{ __('最後の実行') }}</dt>
+                <dd class="{{ $schedulerStatus === 'ok' ? 'text-neutral-900' : 'text-danger-bolder' }}">
+                    {{ $schedulerLastRun !== null ? \App\Support\Format\DateTimes::dateTime($schedulerLastRun) : __('記録なし') }}
+                </dd>
+            </div>
+        </dl>
+        @if ($schedulerStatus === 'never')
+            <p class="mt-2 text-xs text-warning-bold">{{ __('スケジューラ(schedule:run)の実行が記録されていません。cron に「php artisan schedule:run」を毎分実行する設定があるか確認してください。受信メール・リポジトリの取り込み・データベースキューの処理はこれで動きます。') }}</p>
+        @elseif ($schedulerStatus === 'stale')
+            <p class="mt-2 text-xs text-warning-bold">{{ __('スケジューラが:minutes分以上実行されていません。cron が止まっていないか確認してください。', ['minutes' => \App\Support\System\SchedulerHeartbeat::STALE_AFTER_MINUTES]) }}</p>
+        @endif
+    </section>
+
     <section>
         <h2 class="mb-2 text-sm font-semibold text-neutral-900">{{ __('キュー') }}</h2>
         @php($queue = $this->info->queue())

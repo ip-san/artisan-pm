@@ -157,7 +157,8 @@
 | 72b | A1-31b | A1-31, A2-11 | S | done(2026-09-25、一覧の URL 状態(statusFilter と絞り込み)と `query_id`。指定がなければ未完了の課題(Redmine の既定)。Redmine の `f[]`/`op[]`/`v[]` 形式は対象外) |
 | A1-32 | バージョンフォームの「既定バージョンにする」チェックボックス(`versions/_form.html.erb:14`、`Version#default_project_version`)と、バージョン一覧・設定画面での既定バージョン表示 | A1-23 で `projects.default_version_id` は実装済み。`versions/form.blade.php` にチェックボックスなし | チェックで `projects.default_version_id` を更新、外すと(自分が既定なら)NULL。一覧に既定マークを表示 | A1-23 完了が前提 | S | Versions「Wikiページ紐付け・既定バージョン設定」 |
 | 73 | A4-11 | — | S | done(2026-09-20、アップロード式アバターは対象外) |
-| 74 | A14-04 | — | S | done(2026-09-20、スケジューラ稼働状況は未対応) |
+| 74 | A14-04 | — | S | done(2026-09-20、スケジューラ稼働状況は A14-04b) |
+| 74b | A14-04b | A14-04 | S | done(2026-09-25、`schedule:run` が毎分キャッシュに時刻を記録し、管理 → 情報に最後の実行と未設定/停止の警告) |
 | 75 | A14-05 | — | S | done(2026-09-20) |
 | 76 | A2-09 | — | S | done(2026-09-20、数値カスタムフィールドの合計は A2-09b) |
 | 76c | A2-09c | A2-09b | S | todo |
@@ -694,6 +695,7 @@
 | A14-02 | ユーザータイムゾーン・日付/時刻形式 | A4-12 | — | — | M |
 | A14-03 | テーマ切替(`ui_theme`) | ~~Tailwind 単一テーマ~~ → **done(2026-09-24)**: 設定 `ui_theme`・個人設定 `ui_theme`(`UserPreferences::theme()`)、`layouts/app` の `<html data-theme>` | A5-06 | — | M |
 | A14-04 | 管理 → 情報(`admin/info`: バージョン・環境・チェックリスト(ファイル書込可否・ImageMagick・SCM バイナリ有無)) | なし(`admin.info` grep 0件) | `/admin/info` に PHP/Laravel/DB バージョン、`storage/` 書込可否、`git`/`svn` バイナリ有無、キュー/スケジューラ稼働状況を表示 | 管理者専用 | S |
+| A14-04b | 管理 → 情報のスケジューラ稼働状況(本アプリ独自: Redmine は cron を使わない) | **done(2026-09-25)**。`App\Support\System\SchedulerHeartbeat`(`routes/console.php` の毎分のタスクがキャッシュに記録、5 分を超えたら停止扱い)。テスト: `SystemInfoTest.php` | 表示なし | キャッシュが `array`(プロセスごと)の環境では常に「記録なし」になる | S |
 | A14-05 | 「デフォルト設定のロード」(`admin/default_configuration`: ロール/トラッカー/ステータス/ワークフロー/優先度の初期データを管理画面から投入) | DB シーダーのみ | 管理画面から初期データ投入ボタン(既存シーダーを呼ぶ)、言語選択付き | A14-01 と連動 | S |
 | A14-06 | 新規作成メニュー「+」(`new_item_menu_tab`) | A5-04 | — | — | S |
 | A14-07 | プロジェクトジャンプボックス | A9-07 | — | — | S |
