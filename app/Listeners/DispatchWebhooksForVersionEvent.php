@@ -11,7 +11,6 @@ use App\Events\VersionUpdated;
 use App\Http\Resources\Api\V1\VersionResource;
 use App\Models\Version;
 use App\Models\Webhook;
-use Spatie\WebhookServer\WebhookCall;
 
 final class DispatchWebhooksForVersionEvent
 {
@@ -36,17 +35,7 @@ final class DispatchWebhooksForVersionEvent
         ];
 
         foreach ($webhooks as $webhook) {
-            $call = WebhookCall::create()
-                ->url($webhook->url)
-                ->payload($payload);
-
-            if ($webhook->secret !== null) {
-                $call->useSecret($webhook->secret);
-            } else {
-                $call->doNotSign();
-            }
-
-            $call->dispatch();
+            $webhook->deliver($payload);
         }
     }
 }

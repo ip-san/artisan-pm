@@ -11,7 +11,6 @@ use App\Events\WikiPageUpdated;
 use App\Http\Resources\Api\V1\WikiPageResource;
 use App\Models\Webhook;
 use App\Models\WikiPage;
-use Spatie\WebhookServer\WebhookCall;
 
 final class DispatchWebhooksForWikiPageEvent
 {
@@ -36,17 +35,7 @@ final class DispatchWebhooksForWikiPageEvent
         ];
 
         foreach ($webhooks as $webhook) {
-            $call = WebhookCall::create()
-                ->url($webhook->url)
-                ->payload($payload);
-
-            if ($webhook->secret !== null) {
-                $call->useSecret($webhook->secret);
-            } else {
-                $call->doNotSign();
-            }
-
-            $call->dispatch();
+            $webhook->deliver($payload);
         }
     }
 }

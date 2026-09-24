@@ -224,6 +224,7 @@
 | 105k | A1-44 | A1-41 | S〜M | done(2026-09-24、プロジェクト一覧・概要、全体の課題一覧/カレンダー/ガント/検索/活動、プロジェクトのフォーラム(ボード・トピック)・ニュース・文書・ファイルを `login.required` に。全体の画面の `?->can` を `Gate::allows` に、概要のブックマークをログイン時のみ・サブプロジェクトを見られるものだけに、ゲスト用のヘッダーメニュー。全体のお知らせ一覧は承認範囲外のため A1-52) |
 | 105u | A1-52 | A1-44 | S | done(2026-09-25、`/news` を `login.required` に、閲覧可否を `Gate::allows`(ゲストは Anonymous ロール)に、ゲストのヘッダーに「お知らせ」) |
 | 105v | A12-06e | A12-06d | S | todo |
+| A12-07 | Webhook の送信時の宛先確認(Redmine の `Webhook::Executor#call` は送信のたびに `WebhookEndpointValidator.ips_for_uri` で解決し直し、確認した IP に `ipaddr:` で接続。ループバック/リンクローカル/0.0.0.0/マルチキャストと禁止ポートは常に拒否、`webhook_blocklist` で追加) | **done(2026-09-25)**。`App\Jobs\DeliverWebhookJob`(Spatie の `CallWebhookJob` の派生、`webhook-server.webhook_job`)が送信直前に `WebhookEndpoint::safeAddresses()` で A/AAAA を解決し直して全アドレスを確認、`CURLOPT_RESOLVE` で確認したアドレスに固定し `allow_redirects=false`。拒否時は送らず再試行しない(ログに警告)。ユーザー所有(`meta.public_only`)はプライベート/予約範囲も拒否。保存時の `PublicWebhookUrl` も同じクラスを使い AAAA と禁止ポートを確認。配信 5 リスナーは `Webhook::deliver()` に集約。テスト: `WebhookDeliveryTargetTest.php` | 保存時(ユーザー所有のみ)に 1 回解決して確認するだけ、配信は Guzzle が改めて解決(DNS リバインディングで内部へ届く)、リダイレクトを追う、AAAA を見ない | `webhook_blocklist`(設定ファイルでの追加の拒否リスト)は未対応(本アプリはユーザー所有の Webhook でプライベート範囲を常に拒否) | S | 拡張性「Webhook」 |
 | 105w | A5-17 | — | S | todo(要承認: 自己登録の既定が承認制になる) |
 | A1-45 | 全トラッカーが無効にした標準項目を課題一覧の列の候補からも外す(`issue_query.rb` の `available_columns` で `disabled_core_fields` の列を除外。予定工数なら合計予定工数・残工数も) | **done(2026-09-24)**。`IssueFilterFieldRegistry::coreColumnsDisabledByEveryTracker()`(フィルタと同じ `Tracker.disabled_core_fields(trackers)` の判定。`estimated_hours` なら `total_estimated_hours`/`estimated_remaining_hours` も。親課題は Redmine の `parent_issue_id` が列名 `parent` と一致しないため残る)と `rolledUpTrackers()`(サブプロジェクト込みのトラッカー)。プロジェクトの課題一覧は `nativeColumns`/`availableColumns`/`sortableColumns` から除き、選んだ列は `shownColumns`(利用できる列だけ、順序維持 = Redmine の `inline_columns`)で表・CSV・PDF に出す。グループ化の「優先度」「担当者」も無効なら出さず、保存済みのグループ化は無視。横断一覧は閲覧できるプロジェクトのトラッカーで同じ判定。保存クエリの `column_names` はそのまま(トラッカー設定を戻せば再表示)。テスト: `TrackerDisabledCoreFieldsTest` | `IssueFilterFieldRegistry` の除外と同じ判定を列の候補に適用 | A1-36 の後 | S | クエリ「列選択」 |
 | 105h | A1-42 | A1-34 | S | done(2026-09-24、`Project` の deleting で自プロジェクトとサブプロジェクトの課題を `deleteMany(Destroy)`。別プロジェクトの子孫・工数・添付も削除、`Project::delete()` をトランザクション化) |
@@ -340,6 +341,7 @@
 | 139c | B'-02c | B'-02b | S | done(2026-09-24、アカウント削除でユーザーのカスタムフィールド値と添付ファイル形式のファイル(ディスクからも)を削除。Redmineの`User#destroy`に合わせ、他レコードのユーザー形式値・Atomキー・個人設定・OAuthトークン・リアクション・本人のWebhook・課題/カテゴリの担当者も削除/NULL化) |
 | 140 | B'-03 | 承認 | S〜M | done(2026-09-24、`ScmCapability`+`ScmAdapter::supports()`、`FilesystemAdapter`(entries/cat のみ)。ファイル名の `path_encoding` 変換は対象外) |
 | 141 | B'-01 | 承認 | M×3 | done(2026-09-24、Mercurial・Bazaar・CVS。ブランチ/タグの表示、CVS のブランチリビジョンは対象外) |
+| 142 | A12-07 | — | S | done(2026-09-25、送信直前の再解決・全アドレスの確認・確認したアドレスへの固定・リダイレクトを追わない。管理者の Webhook もループバック等と禁止ポートは拒否。`webhook_blocklist` は対象外) |
 
 ### 0.4 起動方法
 
@@ -973,6 +975,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A2-11c | 横断の課題一覧(`/issues`)で、どこかのプロジェクトで課題の編集権限を持つ利用者には選択欄と右クリックメニュー・一括編集/移動/コピー/削除が出る | 権限の無い課題を含む選択は従来どおり 403 |
 | A2-04b | 管理画面のユーザー一覧がページ分割される(既定の件数ずつ、表示件数を選べる)。保存クエリとユーザーカスタムフィールドの列・フィルタが増える | CSV は従来どおり絞り込み後の全件 |
 | A1-31b | 課題の変更履歴 Atom は、絞り込みやステータスの指定がないと**未完了の課題の変更だけ**になる(従来は完了した課題も含む全課題。Redmine と同じ既定)。課題一覧のリンクは一覧の絞り込みを引き継ぐ。プロジェクト版はサブプロジェクトの課題も含む(一覧と同じ) | `statusFilter=all` を付ければ従来どおり全課題 |
+| A12-07 | **セキュリティ修正**: Webhook は送信のたびに宛先のホストを解決し直し、確認したアドレスに接続する(DNS リバインディング対策)。リダイレクトは追わない(3xx は失敗扱い)。**管理者が登録した Webhook も**ループバック(`localhost`/127.0.0.1/::1)・リンクローカル(169.254.x.x など)・0.0.0.0・マルチキャストと、ブラウザーが禁止するポート(25・22 など)には送らない(Redmine と同じ)。ユーザーの Webhook は保存時に IPv6 アドレスと禁止ポートも確認する | 管理者の Webhook をローカルホストや禁止ポートへ向けていた環境では届かなくなる(ログに警告)。プライベート範囲(10.x など)への管理者の Webhook は従来どおり |
 
 **フロントエンドの再ビルドが必要**: A10-04・A9-02・A1-21・A1-13 などが新しい Tailwind クラスを使う。`public/build` は gitignore 対象のため、デプロイ時に `npm run build` を実行すること。
 

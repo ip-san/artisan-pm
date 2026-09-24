@@ -3,6 +3,7 @@
 use App\Enums\EnumerationType;
 use App\Enums\UserStatus;
 use App\Enums\WebhookEvent;
+use App\Jobs\DeliverWebhookJob;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -17,7 +18,6 @@ use App\Services\IssueService;
 use App\Services\TimeEntryService;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
-use Spatie\WebhookServer\CallWebhookJob;
 
 // Webhooks are off by default (Redmine's webhooks_enabled); these tests exercise delivery.
 beforeEach(function () {
@@ -54,7 +54,7 @@ test('an ownerless webhook keeps firing for everything', function () {
 
     ownerHookIssue($project, User::factory()->create());
 
-    Queue::assertPushed(CallWebhookJob::class);
+    Queue::assertPushed(DeliverWebhookJob::class);
 });
 
 test('an owned webhook fires only when the owner holds use_webhooks and may see the issue', function () {
@@ -65,7 +65,7 @@ test('an owned webhook fires only when the owner holds use_webhooks and may see 
 
     ownerHookIssue($project, User::factory()->create());
 
-    Queue::assertPushed(CallWebhookJob::class, 1);
+    Queue::assertPushed(DeliverWebhookJob::class, 1);
 });
 
 test('an owned webhook stays silent without use_webhooks', function () {
@@ -76,7 +76,7 @@ test('an owned webhook stays silent without use_webhooks', function () {
 
     ownerHookIssue($project, User::factory()->create());
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('an owned webhook never carries an issue its owner may not see', function () {
@@ -87,7 +87,7 @@ test('an owned webhook never carries an issue its owner may not see', function (
 
     ownerHookIssue($project, User::factory()->create(), private: true);
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('an owned webhook of a locked or removed owner is skipped', function () {
@@ -99,7 +99,7 @@ test('an owned webhook of a locked or removed owner is skipped', function () {
 
     ownerHookIssue($project, User::factory()->create());
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('an owned webhook does not fire for a project the owner is not in', function () {
@@ -110,7 +110,7 @@ test('an owned webhook does not fire for a project the owner is not in', functio
 
     ownerHookIssue($other, User::factory()->create());
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('webhooks_enabled off stops every delivery', function () {
@@ -121,7 +121,7 @@ test('webhooks_enabled off stops every delivery', function () {
 
     ownerHookIssue($project, User::factory()->create());
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('the owner check also applies to time entry webhooks', function () {
@@ -137,7 +137,7 @@ test('the owner check also applies to time entry webhooks', function () {
         'activity_id' => Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value])->id,
     ]);
 
-    Queue::assertPushed(CallWebhookJob::class, 1);
+    Queue::assertPushed(DeliverWebhookJob::class, 1);
 });
 
 test('the admin form can set and clear the owner, and only an active user qualifies', function () {

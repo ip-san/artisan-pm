@@ -11,7 +11,6 @@ use App\Events\NewsUpdated;
 use App\Http\Resources\Api\V1\NewsResource;
 use App\Models\News;
 use App\Models\Webhook;
-use Spatie\WebhookServer\WebhookCall;
 
 final class DispatchWebhooksForNewsEvent
 {
@@ -36,17 +35,7 @@ final class DispatchWebhooksForNewsEvent
         ];
 
         foreach ($webhooks as $webhook) {
-            $call = WebhookCall::create()
-                ->url($webhook->url)
-                ->payload($payload);
-
-            if ($webhook->secret !== null) {
-                $call->useSecret($webhook->secret);
-            } else {
-                $call->doNotSign();
-            }
-
-            $call->dispatch();
+            $webhook->deliver($payload);
         }
     }
 }

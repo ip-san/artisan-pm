@@ -2,6 +2,7 @@
 
 use App\Enums\EnumerationType;
 use App\Enums\WebhookEvent;
+use App\Jobs\DeliverWebhookJob;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -21,7 +22,6 @@ use App\Services\VersionService;
 use App\Services\WikiPageService;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
-use Spatie\WebhookServer\CallWebhookJob;
 
 // Webhooks are off by default (Redmine's webhooks_enabled); these tests exercise delivery.
 beforeEach(function () {
@@ -49,7 +49,7 @@ test('creating an issue dispatches a webhook subscribed to issue.created', funct
 
     $issue = app(IssueService::class)->create([...webhookIssueDefaults(), 'project_id' => $project->id, 'subject' => 'New issue'], $author);
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->webhookUrl === $webhook->url
         && $job->payload['issue']['id'] === $issue->id
         && $job->payload['event'] === WebhookEvent::IssueCreated->value);
 });
@@ -63,7 +63,7 @@ test('a webhook not subscribed to the event is not dispatched', function () {
 
     app(IssueService::class)->create([...webhookIssueDefaults(), 'project_id' => $project->id, 'subject' => 'New issue'], $author);
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('a webhook scoped to a different project is not dispatched', function () {
@@ -76,7 +76,7 @@ test('a webhook scoped to a different project is not dispatched', function () {
 
     app(IssueService::class)->create([...webhookIssueDefaults(), 'project_id' => $project->id, 'subject' => 'New issue'], $author);
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('an inactive webhook is not dispatched', function () {
@@ -88,7 +88,7 @@ test('an inactive webhook is not dispatched', function () {
 
     app(IssueService::class)->create([...webhookIssueDefaults(), 'project_id' => $project->id, 'subject' => 'New issue'], $author);
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('updating an issue dispatches a webhook subscribed to issue.updated, but not a no-op update', function () {
@@ -100,10 +100,10 @@ test('updating an issue dispatches a webhook subscribed to issue.updated, but no
     $issue = Issue::factory()->for($project)->create(webhookIssueDefaults());
 
     app(IssueService::class)->update($issue, [], $actor);
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 
     app(IssueService::class)->update($issue, ['subject' => 'Changed'], $actor);
-    Queue::assertPushed(CallWebhookJob::class);
+    Queue::assertPushed(DeliverWebhookJob::class);
 });
 
 test('a comment-only update (no attribute changes) still dispatches issue.updated', function () {
@@ -116,7 +116,7 @@ test('a comment-only update (no attribute changes) still dispatches issue.update
 
     app(IssueService::class)->update($issue, [], $actor, 'Just a comment, nothing else changed');
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::IssueUpdated->value);
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->payload['event'] === WebhookEvent::IssueUpdated->value);
 });
 
 test('deleting an issue dispatches a webhook subscribed to issue.deleted', function () {
@@ -131,7 +131,7 @@ test('deleting an issue dispatches a webhook subscribed to issue.deleted', funct
 
     expect(Issue::find($issueId))->toBeNull();
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->webhookUrl === $webhook->url
         && $job->payload['issue']['id'] === $issueId
         && $job->payload['event'] === WebhookEvent::IssueDeleted->value);
 });
@@ -145,7 +145,7 @@ test('a webhook subscribed only to issue.created is not dispatched on delete', f
 
     app(IssueService::class)->delete($issue);
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('deleting an issue from the issue detail page dispatches issue.deleted', function () {
@@ -162,7 +162,7 @@ test('deleting an issue from the issue detail page dispatches issue.deleted', fu
         ->test('issues.show', ['project' => $project, 'issue' => $issue])
         ->call('deleteIssue');
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::IssueDeleted->value);
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->payload['event'] === WebhookEvent::IssueDeleted->value);
 });
 
 test('creating a wiki page dispatches a webhook subscribed to wiki_page.created', function () {
@@ -174,7 +174,7 @@ test('creating a wiki page dispatches a webhook subscribed to wiki_page.created'
 
     $page = app(WikiPageService::class)->create($project, ['title' => 'Introduction'], 'Some text', $author);
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->webhookUrl === $webhook->url
         && $job->payload['wiki_page']['id'] === $page->id
         && $job->payload['event'] === WebhookEvent::WikiPageCreated->value);
 });
@@ -189,7 +189,7 @@ test('updating a wiki page dispatches a webhook subscribed to wiki_page.updated'
 
     app(WikiPageService::class)->update($page, [], 'Updated text', $author);
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::WikiPageUpdated->value);
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->payload['event'] === WebhookEvent::WikiPageUpdated->value);
 });
 
 test('deleting a wiki page dispatches a webhook subscribed to wiki_page.deleted', function () {
@@ -204,7 +204,7 @@ test('deleting a wiki page dispatches a webhook subscribed to wiki_page.deleted'
 
     expect(WikiPage::find($pageId))->toBeNull();
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->webhookUrl === $webhook->url
         && $job->payload['wiki_page']['id'] === $pageId
         && $job->payload['event'] === WebhookEvent::WikiPageDeleted->value);
 });
@@ -218,7 +218,7 @@ test('a webhook subscribed only to wiki_page.created is not dispatched on wiki p
 
     app(WikiPageService::class)->delete($page);
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('deleting a wiki page from the wiki show page dispatches wiki_page.deleted', function () {
@@ -235,7 +235,7 @@ test('deleting a wiki page from the wiki show page dispatches wiki_page.deleted'
         ->test('wiki.show', ['project' => $project, 'wikiPage' => $page])
         ->call('delete');
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::WikiPageDeleted->value);
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->payload['event'] === WebhookEvent::WikiPageDeleted->value);
 });
 
 test('creating a time entry dispatches a webhook subscribed to time_entry.created', function () {
@@ -254,7 +254,7 @@ test('creating a time entry dispatches a webhook subscribed to time_entry.create
         'spent_on' => now()->toDateString(),
     ]);
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->webhookUrl === $webhook->url
         && $job->payload['time_entry']['id'] === $timeEntry->id
         && $job->payload['event'] === WebhookEvent::TimeEntryCreated->value);
 });
@@ -275,7 +275,7 @@ test('a webhook not subscribed to time_entry.created is not dispatched when a ti
         'spent_on' => now()->toDateString(),
     ]);
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('updating a time entry dispatches a webhook subscribed to time_entry.updated', function () {
@@ -287,7 +287,7 @@ test('updating a time entry dispatches a webhook subscribed to time_entry.update
 
     app(TimeEntryService::class)->update($timeEntry, ['hours' => 4]);
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['time_entry']['id'] === $timeEntry->id
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->payload['time_entry']['id'] === $timeEntry->id
         && $job->payload['event'] === WebhookEvent::TimeEntryUpdated->value);
 });
 
@@ -303,7 +303,7 @@ test('deleting a time entry dispatches a webhook subscribed to time_entry.delete
 
     expect(TimeEntry::find($timeEntryId))->toBeNull();
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->webhookUrl === $webhook->url
         && $job->payload['time_entry']['id'] === $timeEntryId
         && $job->payload['event'] === WebhookEvent::TimeEntryDeleted->value);
 });
@@ -325,7 +325,7 @@ test('a webhook scoped to a different project is not dispatched for a time entry
         'spent_on' => now()->toDateString(),
     ]);
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('deleting a time entry from the time entries list dispatches time_entry.deleted', function () {
@@ -342,7 +342,7 @@ test('deleting a time entry from the time entries list dispatches time_entry.del
         ->test('time-entries.index', ['project' => $project])
         ->call('deleteEntry', $timeEntry->id);
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['event'] === WebhookEvent::TimeEntryDeleted->value);
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->payload['event'] === WebhookEvent::TimeEntryDeleted->value);
 });
 
 test('creating a version dispatches a webhook subscribed to version.created', function () {
@@ -353,7 +353,7 @@ test('creating a version dispatches a webhook subscribed to version.created', fu
 
     $version = app(VersionService::class)->create(['project_id' => $project->id, 'name' => '1.0']);
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->webhookUrl === $webhook->url
         && $job->payload['version']['id'] === $version->id
         && $job->payload['event'] === WebhookEvent::VersionCreated->value);
 });
@@ -366,7 +366,7 @@ test('a webhook not subscribed to version.created is not dispatched when a versi
 
     app(VersionService::class)->create(['project_id' => $project->id, 'name' => '1.0']);
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('updating a version dispatches a webhook subscribed to version.updated', function () {
@@ -378,7 +378,7 @@ test('updating a version dispatches a webhook subscribed to version.updated', fu
 
     app(VersionService::class)->update($version, ['description' => 'Updated']);
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['version']['id'] === $version->id
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->payload['version']['id'] === $version->id
         && $job->payload['event'] === WebhookEvent::VersionUpdated->value);
 });
 
@@ -394,7 +394,7 @@ test('deleting a version dispatches a webhook subscribed to version.deleted', fu
 
     expect(Version::find($versionId))->toBeNull();
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->webhookUrl === $webhook->url
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->webhookUrl === $webhook->url
         && $job->payload['version']['id'] === $versionId
         && $job->payload['event'] === WebhookEvent::VersionDeleted->value);
 });
@@ -408,7 +408,7 @@ test('a webhook scoped to a different project is not dispatched for a version', 
 
     app(VersionService::class)->create(['project_id' => $project->id, 'name' => '1.0']);
 
-    Queue::assertNotPushed(CallWebhookJob::class);
+    Queue::assertNotPushed(DeliverWebhookJob::class);
 });
 
 test('closing completed versions dispatches version.updated for each one closed', function () {
@@ -426,7 +426,7 @@ test('closing completed versions dispatches version.updated for each one closed'
         ->test('versions.index', ['project' => $project])
         ->call('closeCompleted');
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => $job->payload['version']['id'] === $completed->id
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => $job->payload['version']['id'] === $completed->id
         && $job->payload['event'] === WebhookEvent::VersionUpdated->value);
 });
 
@@ -439,5 +439,5 @@ test('a webhook with a secret signs its request', function () {
 
     app(IssueService::class)->create([...webhookIssueDefaults(), 'project_id' => $project->id, 'subject' => 'Signed issue'], $author);
 
-    Queue::assertPushed(CallWebhookJob::class, fn (CallWebhookJob $job) => array_key_exists('Signature', $job->headers));
+    Queue::assertPushed(DeliverWebhookJob::class, fn (DeliverWebhookJob $job) => array_key_exists('Signature', $job->headers));
 });

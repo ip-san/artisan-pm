@@ -1,7 +1,7 @@
 <?php
 
+use App\Jobs\DeliverWebhookJob;
 use Spatie\WebhookServer\BackoffStrategy\ExponentialBackoffStrategy;
-use Spatie\WebhookServer\CallWebhookJob;
 use Spatie\WebhookServer\Signer\DefaultSigner;
 
 return [
@@ -71,7 +71,7 @@ return [
     /*
      * This class is used to dispatch webhooks onto the queue.
      */
-    'webhook_job' => CallWebhookJob::class,
+    'webhook_job' => DeliverWebhookJob::class,
 
     /*
      * By default we will verify that the ssl certificate of the destination

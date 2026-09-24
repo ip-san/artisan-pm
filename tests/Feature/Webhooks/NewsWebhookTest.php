@@ -2,6 +2,7 @@
 
 use App\Enums\WebhookEvent;
 use App\Events\NewsCreated;
+use App\Jobs\DeliverWebhookJob;
 use App\Models\Member;
 use App\Models\News;
 use App\Models\Project;
@@ -13,7 +14,6 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Passport\Passport;
 use Livewire\Livewire;
-use Spatie\WebhookServer\CallWebhookJob;
 
 // Webhooks are off by default (Redmine's webhooks_enabled); these tests exercise delivery.
 beforeEach(function () {
@@ -32,7 +32,7 @@ function newsWebhookManager(Project $project): User
 
 function newsHookPayloads(): array
 {
-    return Queue::pushed(CallWebhookJob::class)->map(fn (CallWebhookJob $job) => $job->payload)->all();
+    return Queue::pushed(DeliverWebhookJob::class)->map(fn (DeliverWebhookJob $job) => $job->payload)->all();
 }
 
 test('the news events are offered on the webhook form', function () {
@@ -108,7 +108,7 @@ test('a webhook that is not subscribed, inactive, or scoped to another project g
     Passport::actingAs($user);
     $this->postJson("/api/v1/projects/{$project->id}/news", ['title' => 'Scoped', 'description' => 'Body'])->assertCreated();
 
-    $urls = Queue::pushed(CallWebhookJob::class)->map(fn (CallWebhookJob $job) => $job->webhookUrl)->all();
+    $urls = Queue::pushed(DeliverWebhookJob::class)->map(fn (DeliverWebhookJob $job) => $job->webhookUrl)->all();
 
     expect($urls)->toBe(['https://example.com/d']);
 });

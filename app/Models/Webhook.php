@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\WebhookEvent;
+use App\Jobs\DeliverWebhookJob;
 use App\Support\Authorization\AuthorizationService;
 use Database\Factories\WebhookFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\WebhookServer\WebhookCall;
 
 #[Fillable(['name', 'url', 'secret', 'project_id', 'user_id', 'events', 'is_active'])]
 #[Hidden(['secret'])]
@@ -84,6 +86,29 @@ final class Webhook extends Model
                     && $owner->can('view', $object);
             })
             ->values();
+    }
+
+    /**
+     * Queues one call of this hook with $payload (DeliverWebhookJob), signed
+     * when the hook has a secret. A hook owned by a user may only ever reach
+     * public addresses, which the job checks again at send time.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function deliver(array $payload): void
+    {
+        $call = WebhookCall::create()
+            ->url($this->url)
+            ->payload($payload)
+            ->meta([DeliverWebhookJob::PUBLIC_ONLY => $this->user_id !== null]);
+
+        if ($this->secret !== null) {
+            $call->useSecret($this->secret);
+        } else {
+            $call->doNotSign();
+        }
+
+        $call->dispatch();
     }
 
     public function listensFor(WebhookEvent $event): bool

@@ -11,6 +11,7 @@ use App\Events\NewsUpdated;
 use App\Events\TimeEntryCreated;
 use App\Events\VersionCreated;
 use App\Events\WikiPageCreated;
+use App\Jobs\DeliverWebhookJob;
 use App\Listeners\DispatchWebhooksForIssueEvent;
 use App\Listeners\DispatchWebhooksForNewsEvent;
 use App\Listeners\DispatchWebhooksForTimeEntryEvent;
@@ -35,7 +36,6 @@ use App\Services\VersionService;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
-use Spatie\WebhookServer\CallWebhookJob;
 
 // Webhooks are off by default (Redmine's webhooks_enabled); these tests exercise delivery.
 beforeEach(function () {
@@ -96,5 +96,5 @@ test('one webhook subscription produces exactly one call per event', function ()
     app(VersionService::class)->create(['project_id' => $project->id, 'name' => '1.0']);
     NewsCreated::dispatch(News::factory()->for($project)->create());
 
-    expect(Queue::pushed(CallWebhookJob::class))->toHaveCount(2);
+    expect(Queue::pushed(DeliverWebhookJob::class))->toHaveCount(2);
 });

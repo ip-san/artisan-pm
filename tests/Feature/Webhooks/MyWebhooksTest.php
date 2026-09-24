@@ -103,6 +103,7 @@ test('a hook cannot aim at the local network', function (string $url) {
     'private' => 'http://10.0.0.5/hook',
     'link-local' => 'http://169.254.169.254/latest/meta-data',
     'ftp' => 'ftp://8.8.8.8/hook',
+    'refused port' => 'http://8.8.8.8:25/hook',
 ]);
 
 test('editing keeps the secret when left blank and never edits someone else\'s hook', function () {

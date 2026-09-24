@@ -11,7 +11,6 @@ use App\Events\TimeEntryUpdated;
 use App\Http\Resources\Api\V1\TimeEntryResource;
 use App\Models\TimeEntry;
 use App\Models\Webhook;
-use Spatie\WebhookServer\WebhookCall;
 
 final class DispatchWebhooksForTimeEntryEvent
 {
@@ -36,17 +35,7 @@ final class DispatchWebhooksForTimeEntryEvent
         ];
 
         foreach ($webhooks as $webhook) {
-            $call = WebhookCall::create()
-                ->url($webhook->url)
-                ->payload($payload);
-
-            if ($webhook->secret !== null) {
-                $call->useSecret($webhook->secret);
-            } else {
-                $call->doNotSign();
-            }
-
-            $call->dispatch();
+            $webhook->deliver($payload);
         }
     }
 }
