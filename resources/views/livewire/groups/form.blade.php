@@ -10,10 +10,11 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
-    use ManagesPrincipalMemberships;
+    use ManagesPrincipalMemberships, WithFileUploads;
 
     public ?Group $group = null;
 
@@ -203,7 +204,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->customFields->isNotEmpty())
             <div class="space-y-4 border-t border-neutral-200 pt-4">
                 @foreach ($this->customFields as $field)
-                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" />
+                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :record="$group" :current="$customFieldValues[$field->id] ?? null" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" />
                 @endforeach
             </div>
         @endif

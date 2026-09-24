@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Concerns\HasCustomFields;
+use App\CustomFields\Formats\AttachmentFormat;
 use App\Enums\CustomizableType;
 use Database\Factories\GroupFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -13,12 +14,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 #[Fillable(['name', 'twofa_required'])]
-final class Group extends Model
+final class Group extends Model implements HasMedia
 {
     /** @use HasFactory<GroupFactory> */
-    use HasCustomFields, HasFactory;
+    use HasCustomFields, HasFactory, InteractsWithMedia;
 
     /**
      * Eloquent doesn't read back column defaults on an unrefreshed model.
@@ -80,5 +83,14 @@ final class Group extends Model
             ->where('customized_type', CustomizableType::Group)
             ->orderBy('position')
             ->get();
+    }
+
+    /**
+     * Files of attachment custom fields (B'-02b); the model has no other
+     * media.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(AttachmentFormat::COLLECTION);
     }
 }

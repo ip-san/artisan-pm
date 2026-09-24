@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Concerns\HasCustomFields;
 use App\Concerns\HasThumbnails;
+use App\CustomFields\Formats\AttachmentFormat;
 use App\Enums\CustomizableType;
 use App\Enums\VersionSharing;
 use App\Enums\VersionStatus;
@@ -319,6 +320,8 @@ final class Version extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('files');
+        // Files of attachment custom fields (B'-02b), apart from the Files module.
+        $this->addMediaCollection(AttachmentFormat::COLLECTION);
     }
 
     /**

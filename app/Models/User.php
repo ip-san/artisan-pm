@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Concerns\HasCustomFields;
+use App\CustomFields\Formats\AttachmentFormat;
 use App\Enums\CustomizableType;
 use App\Enums\MailNotificationOption;
 use App\Enums\UserStatus;
@@ -27,6 +28,8 @@ use Illuminate\Support\Collection;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * is_admin is deliberately excluded from Fillable — every current
@@ -40,10 +43,10 @@ use Laravel\Passport\HasApiTokens;
  */
 #[Fillable(['name', 'firstname', 'lastname', 'email', 'password', 'language', 'time_zone', 'auth_source_id', 'login', 'status', 'mail_notification', 'no_self_notified'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'api_key', 'atom_key'])]
-final class User extends Authenticatable implements HasLocalePreference, OAuthenticatable
+final class User extends Authenticatable implements HasLocalePreference, HasMedia, OAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasCustomFields, HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasCustomFields, HasFactory, InteractsWithMedia, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * Matches Redmine's User::LOGIN_LENGTH_LIMIT and login format
@@ -697,5 +700,14 @@ final class User extends Authenticatable implements HasLocalePreference, OAuthen
     public function preferredLocale(): string
     {
         return SupportedLocales::forUser($this);
+    }
+
+    /**
+     * Files of attachment custom fields (B'-02b); the model has no other
+     * media.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(AttachmentFormat::COLLECTION);
     }
 }

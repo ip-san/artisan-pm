@@ -30,6 +30,10 @@
                 <option value="{{ $value }}" @selected(in_array((string) $value, array_map('strval', (array) $old), true))>{{ $label }}</option>
             @endforeach
         </select>
+    @elseif ($format === \App\Enums\CustomFieldFormat::Attachment)
+        {{-- A file is not re-filled after a failed submit; it is chosen again. --}}
+        @php $allowedExtensions = \App\CustomFields\Formats\AttachmentFormat::allowedExtensions($field); @endphp
+        <input type="file" name="{{ $name }}" @if ($allowedExtensions !== []) accept="{{ collect($allowedExtensions)->map(fn ($extension) => '.'.$extension)->implode(',') }}" @endif class="mt-1 block w-full text-sm text-neutral-700">
     @elseif ($format === \App\Enums\CustomFieldFormat::Text)
         <textarea name="{{ $name }}" rows="3" class="{{ $inputClass }}">{{ is_array($old) ? '' : $old }}</textarea>
     @elseif ($format === \App\Enums\CustomFieldFormat::Date)

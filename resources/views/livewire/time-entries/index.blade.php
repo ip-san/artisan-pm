@@ -532,7 +532,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function bulkCustomFields(): Collection
     {
         return (new TimeEntry)->forceFill(['project_id' => $this->bulkTargetProject->id])->relevantCustomFields()
-            ->filter(fn (\App\Models\CustomField $field) => ! $field->multiple && ! $field->format() instanceof \App\CustomFields\Formats\ProjectScopedFormat && $field->editableBy(auth()->user()))
+            ->filter(fn (\App\Models\CustomField $field) => ! $field->multiple && ! $field->format() instanceof \App\CustomFields\Formats\ProjectScopedFormat && ! $field->format() instanceof \App\CustomFields\Formats\AttachmentFormat && $field->editableBy(auth()->user()))
             ->values();
     }
 

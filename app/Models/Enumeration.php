@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Concerns\HasCustomFields;
+use App\CustomFields\Formats\AttachmentFormat;
 use App\Enums\CustomizableType;
 use App\Enums\EnumerationType;
 use Database\Factories\EnumerationFactory;
@@ -17,12 +18,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Spatie\EloquentSortable\Sortable;
 use Spatie\EloquentSortable\SortableTrait;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 #[Fillable(['type', 'name', 'position', 'is_default', 'active', 'project_id', 'parent_id'])]
-final class Enumeration extends Model implements Sortable
+final class Enumeration extends Model implements HasMedia, Sortable
 {
     /** @use HasFactory<EnumerationFactory> */
-    use HasCustomFields, HasFactory, SortableTrait;
+    use HasCustomFields, HasFactory, InteractsWithMedia, SortableTrait;
 
     /** @var array{order_column_name: string, sort_when_creating: bool} */
     public array $sortable = [
@@ -150,5 +153,14 @@ final class Enumeration extends Model implements Sortable
             ->where('customized_type', $customizableType)
             ->orderBy('position')
             ->get();
+    }
+
+    /**
+     * Files of attachment custom fields (B'-02b); the model has no other
+     * media.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(AttachmentFormat::COLLECTION);
     }
 }

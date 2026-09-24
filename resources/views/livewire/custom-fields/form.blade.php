@@ -265,8 +265,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            // An attachment field is offered for issues only (B'-02).
-            ...($this->customField ? [] : ['field_format' => ['required', Rule::enum(CustomFieldFormat::class), Rule::when(! $isForIssues, Rule::notIn([CustomFieldFormat::Attachment->value]))]]),
+            ...($this->customField ? [] : ['field_format' => ['required', Rule::enum(CustomFieldFormat::class)]]),
             'extensionsAllowed' => ['nullable', 'string', 'max:255'],
             'is_required' => ['boolean'],
             'multiple' => ['boolean'],
@@ -413,7 +412,6 @@ new #[Layout('components.layouts.app')] class extends Component
                 <select wire:model.live="field_format" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('選択してください') }}</option>
                     @foreach (\App\Enums\CustomFieldFormat::cases() as $format)
-                        @continue($format === \App\Enums\CustomFieldFormat::Attachment && ! $this->isForIssues())
                         <option value="{{ $format->value }}">{{ app(\App\CustomFields\FormatRegistry::class)->get($format)->label() }}</option>
                     @endforeach
                 </select>

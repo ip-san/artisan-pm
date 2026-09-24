@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Concerns\HasCustomFields;
 use App\Concerns\HasThumbnails;
+use App\CustomFields\Formats\AttachmentFormat;
 use App\Enums\CustomizableType;
 use App\Support\Authorization\AuthorizationService;
 use Database\Factories\DocumentFactory;
@@ -78,6 +79,8 @@ final class Document extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('attachments');
+        // Files of attachment custom fields (B'-02b), apart from the document's attachments.
+        $this->addMediaCollection(AttachmentFormat::COLLECTION);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Concerns\HasCustomFields;
+use App\CustomFields\Formats\AttachmentFormat;
 use App\Enums\CustomizableType;
 use App\Enums\TimeEntryVisibility;
 use App\Support\Authorization\AuthorizationService;
@@ -15,12 +16,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Collection;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 #[Fillable(['project_id', 'issue_id', 'user_id', 'author_id', 'activity_id', 'hours', 'spent_on', 'comments'])]
-final class TimeEntry extends Model
+final class TimeEntry extends Model implements HasMedia
 {
     /** @use HasFactory<TimeEntryFactory> */
-    use HasCustomFields, HasFactory;
+    use HasCustomFields, HasFactory, InteractsWithMedia;
 
     protected function casts(): array
     {
@@ -150,5 +153,14 @@ final class TimeEntry extends Model
                 $outer->orWhere(fn ($q) => $q->whereIn($projectColumn, $ownIds)->where($userColumn, $userId));
             }
         });
+    }
+
+    /**
+     * Files of attachment custom fields (B'-02b); the model has no other
+     * media.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(AttachmentFormat::COLLECTION);
     }
 }

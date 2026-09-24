@@ -18,7 +18,7 @@ use Illuminate\Http\UploadedFile;
  * and the stored value (value_int) is the media id — Redmine stores the
  * attachment id too. Setting the value needs the record, so HasCustomFields
  * hands it to AttachmentFieldValue::assign() instead of prepareValue().
- * Offered for issue custom fields only; never multiple, searchable or a
+ * Offered for every customizable type, like Redmine (B'-02b); never multiple, searchable or a
  * filter (Redmine: is_filter_supported = false).
  */
 final class AttachmentFormat implements FormatContract

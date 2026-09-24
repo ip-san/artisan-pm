@@ -11,9 +11,12 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use WithFileUploads;
+
     public Project $project;
 
     public ?TimeEntry $timeEntry = null;
@@ -334,7 +337,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         @foreach ($this->customFields as $field)
-            <x-custom-field-input :field="$field" wire-model="customFieldValues" :project="$this->targetProject" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" wire:key="time-entry-cf-{{ $field->id }}" />
+            <x-custom-field-input :field="$field" wire-model="customFieldValues" :record="$timeEntry" :current="$customFieldValues[$field->id] ?? null" :project="$this->targetProject" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" wire:key="time-entry-cf-{{ $field->id }}" />
         @endforeach
 
         <div class="flex gap-3">

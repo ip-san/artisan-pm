@@ -37,3 +37,14 @@ Spatie MediaLibrary の `media.model_type` / `model_id` は非 null。
 ## 影響範囲
 
 `app/Enums/CustomFieldFormat.php`、`app/CustomFields/Formats/AttachmentFormat.php`、`app/Concerns/HasCustomFields.php`、`app/Models/Issue.php`、添付の各コントローラ、`<x-custom-field-input>` / `<x-custom-field-value>`、CF 管理フォーム、`JournalDetail`、課題フォーム・詳細・一覧。
+
+## B'-02b(2026-09-24 実装): 課題以外の種類
+
+- Redmine の `AttachmentFormat` は `customized_class_names = nil`(全種類)なので、プロジェクト・バージョン・文書・工数・ユーザー・グループ・工数の作業分類・優先度・文書カテゴリのすべてで選べるようにした。`HasMedia` でなかった `TimeEntry`/`User`/`Group`/`Enumeration` に `InteractsWithMedia` と `custom_field_attachments` コレクションを追加(レコード削除で MediaLibrary がファイルも削除)。
+- 値の設定・差し替え・削除・他レコードの id の拒否は B'-02 の `AttachmentFieldValue::assign()` をそのまま使う(`HasCustomFields` 経由なので各フォーム・REST・自己登録が共通)。各フォームに `WithFileUploads` と `<x-custom-field-input :record :current>`。自己登録は `multipart/form-data` にしてファイル欄を追加。工数の一括編集では候補から外す。
+- **レコードの閲覧可否(Redmine の `customized.visible?`)**: `AttachmentFieldValue::ownerVisibleTo()`。
+  - バージョン: ロードマップの `viewRoadmap`(`view_issues`、Redmine の `Version#visible?`)。`VersionPolicy::view` はファイルモジュールの `view_files` なので使わない。
+  - ユーザー: `User::isVisibleTo()`(ユーザーの表示範囲。`GET /users/{id}` と同じ)。
+  - プロジェクト・文書・工数(・課題): 各ポリシーの `view`。
+  - グループ・列挙値: 各ポリシーの `view`(= 管理者のみ)。Redmine はグループを Principal の表示範囲で、列挙値を誰にでも見せるが、本アプリにはこれらの値を一般利用者に表示する画面が無いため、見せる範囲を広げない側に倒した。
+- フィールドの可視性(役割)は B'-02 と同じく `relevantCustomFields()`(課題以外は現在の利用者で判定)。

@@ -201,7 +201,7 @@ test('copying an issue does not copy the file', function () {
         ->and($copy->fresh()->getMedia(AttachmentFormat::COLLECTION))->toHaveCount(0);
 });
 
-test('an attachment field is offered for issues only and is never multiple or a filter', function () {
+test('an attachment field is never multiple or a filter', function () {
     $admin = User::factory()->admin()->create();
     $tracker = Tracker::factory()->create();
 
@@ -219,13 +219,6 @@ test('an attachment field is offered for issues only and is never multiple or a 
     expect($field->multiple)->toBeFalse()
         ->and($field->is_filter)->toBeFalse()
         ->and($field->format_options)->toBe(['extensions_allowed' => 'pdf']);
-
-    Livewire::actingAs($admin)->test('custom-fields.form')
-        ->set('customized_type', 'project')
-        ->set('name', 'Project drawing')
-        ->set('field_format', 'attachment')
-        ->call('save')
-        ->assertHasErrors('field_format');
 });
 
 test('the edit form shows the current file and removing it clears the value', function () {

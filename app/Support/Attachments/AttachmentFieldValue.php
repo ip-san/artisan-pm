@@ -8,6 +8,7 @@ use App\CustomFields\Formats\AttachmentFormat;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
 use App\Models\User;
+use App\Models\Version;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
@@ -91,9 +92,31 @@ final class AttachmentFieldValue
 
         abort_if($owner === null, 404);
 
-        Gate::forUser($user)->authorize('view', $owner);
+        if ($media->collection_name === AttachmentFormat::COLLECTION) {
+            abort_unless(self::ownerVisibleTo($owner, $user), 403);
+        } else {
+            Gate::forUser($user)->authorize('view', $owner);
+        }
 
         abort_unless(self::visibleTo($media, $user), 403);
+    }
+
+    /**
+     * Whether $user may see the record an attachment field's file belongs
+     * to (Redmine's customized.visible?, B'-02b): a version by the roadmap's
+     * view_issues rather than VersionPolicy::view (the Files module's
+     * view_files), a user by the users_visibility rule of their profile and
+     * GET /users/{id}; everything else by its own `view` ability. Groups and
+     * enumerations have no page outside administration, so their `view`
+     * leaves the files to administrators.
+     */
+    private static function ownerVisibleTo(Model $owner, ?User $user): bool
+    {
+        return match (true) {
+            $owner instanceof Version => Gate::forUser($user)->allows('viewRoadmap', [Version::class, $owner->project]),
+            $owner instanceof User => $owner->isVisibleTo($user),
+            default => Gate::forUser($user)->allows('view', $owner),
+        };
     }
 
     /**
