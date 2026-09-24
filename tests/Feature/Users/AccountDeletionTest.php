@@ -1,18 +1,31 @@
 <?php
 
+use App\CustomFields\Formats\AttachmentFormat;
+use App\Enums\CustomFieldFormat;
+use App\Enums\CustomizableType;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
 use App\Enums\UserStatus;
+use App\Models\CustomField;
+use App\Models\CustomFieldValue;
 use App\Models\Group;
 use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Query;
+use App\Models\Reaction;
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\Webhook;
 use App\Services\AccountDeletionService;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Laravel\Passport\Passport;
 use Livewire\Livewire;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 test('a user with unsubscribe disabled is not deletable', function () {
     Setting::set('unsubscribe', false);
@@ -202,4 +215,91 @@ test('a client-tampered request cannot delete an account the server-side deletab
         ->assertForbidden();
 
     expect($admin->fresh()->status)->toBe(UserStatus::Active);
+});
+
+test('account deletion removes the user\'s custom field values and deletes their attachment files', function () {
+    $admin = User::factory()->admin()->create();
+    $user = User::factory()->create();
+    $textField = CustomField::factory()->create(['customized_type' => CustomizableType::User, 'field_format' => CustomFieldFormat::String]);
+    $fileField = CustomField::factory()->create(['customized_type' => CustomizableType::User, 'field_format' => CustomFieldFormat::Attachment]);
+    $user->setCustomFieldValues([
+        $textField->id => 'Personal note',
+        $fileField->id => UploadedFile::fake()->create('passport.pdf', 10),
+    ], collect([$textField, $fileField]));
+    $media = $user->getMedia(AttachmentFormat::COLLECTION)->sole();
+    $path = $media->getPath();
+
+    $this->actingAs($admin)->get(route('attachments.show', $media))->assertOk();
+    expect(file_exists($path))->toBeTrue();
+
+    app(AccountDeletionService::class)->delete($user);
+
+    expect($user->customFieldValues()->count())->toBe(0)
+        ->and(Media::find($media->id))->toBeNull()
+        ->and(file_exists($path))->toBeFalse();
+
+    $this->actingAs($admin)->get(route('attachments.show', $media))->assertNotFound();
+    Passport::actingAs($admin);
+    $this->getJson(route('api.attachments.download', $media))->assertNotFound();
+});
+
+test('account deletion leaves other users\' custom field values and files alone', function () {
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+    $fileField = CustomField::factory()->create(['customized_type' => CustomizableType::User, 'field_format' => CustomFieldFormat::Attachment]);
+    $other->setCustomFieldValues([$fileField->id => UploadedFile::fake()->create('other.pdf', 10)], collect([$fileField]));
+    $media = $other->getMedia(AttachmentFormat::COLLECTION)->sole();
+
+    app(AccountDeletionService::class)->delete($user);
+
+    expect(Media::find($media->id))->not->toBeNull()
+        ->and(file_exists($media->getPath()))->toBeTrue()
+        ->and($other->customFieldValues()->count())->toBe(1);
+});
+
+test('account deletion removes what Redmine removes with the user rather than reassigning it', function () {
+    $project = Project::factory()->create();
+    $user = User::factory()->create(['preferences' => ['comments_sorting' => 'desc']]);
+    $user->atomKey();
+    $userField = CustomField::factory()->create(['customized_type' => CustomizableType::Issue, 'field_format' => CustomFieldFormat::User]);
+    $issue = Issue::factory()->for($project)->create(['assigned_to_id' => $user->id]);
+    $issue->setCustomFieldValues([$userField->id => (string) $user->id], collect([$userField]));
+    $category = IssueCategory::create(['project_id' => $project->id, 'name' => 'Backend', 'assigned_to_id' => $user->id]);
+    Reaction::factory()->create(['user_id' => $user->id]);
+    $webhook = Webhook::factory()->create(['user_id' => $user->id]);
+    $siteWebhook = Webhook::factory()->create();
+
+    app(AccountDeletionService::class)->delete($user);
+    $user->refresh();
+
+    expect($user->atom_key)->toBeNull()
+        ->and($user->preferences)->toBeNull()
+        ->and($issue->fresh()->assigned_to_id)->toBeNull()
+        ->and($issue->fresh()->journals()->count())->toBe(0)
+        ->and(CustomFieldValue::query()->where('custom_field_id', $userField->id)->exists())->toBeFalse()
+        ->and($category->fresh()->assigned_to_id)->toBeNull()
+        ->and(Reaction::query()->where('user_id', $user->id)->exists())->toBeFalse()
+        ->and(Webhook::find($webhook->id))->toBeNull()
+        ->and(Webhook::find($siteWebhook->id))->not->toBeNull();
+});
+
+test('account deletion deletes the user\'s OAuth access and refresh tokens', function () {
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+    $clientId = (string) Str::uuid();
+    DB::table('oauth_access_tokens')->insert([
+        ['id' => 'mine', 'user_id' => $user->id, 'client_id' => $clientId, 'revoked' => false],
+        ['id' => 'theirs', 'user_id' => $other->id, 'client_id' => $clientId, 'revoked' => false],
+    ]);
+    DB::table('oauth_refresh_tokens')->insert([
+        ['id' => 'mine-refresh', 'access_token_id' => 'mine', 'revoked' => false],
+        ['id' => 'theirs-refresh', 'access_token_id' => 'theirs', 'revoked' => false],
+    ]);
+
+    app(AccountDeletionService::class)->delete($user);
+
+    expect(DB::table('oauth_access_tokens')->where('user_id', $user->id)->exists())->toBeFalse()
+        ->and(DB::table('oauth_access_tokens')->where('user_id', $other->id)->exists())->toBeTrue()
+        ->and(DB::table('oauth_refresh_tokens')->count())->toBe(1)
+        ->and(DB::table('oauth_refresh_tokens')->where('access_token_id', 'theirs')->exists())->toBeTrue();
 });

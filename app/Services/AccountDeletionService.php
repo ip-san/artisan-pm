@@ -4,18 +4,27 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\CustomFields\Formats\AttachmentFormat;
+use App\Enums\CustomFieldFormat;
 use App\Enums\QueryVisibility;
 use App\Enums\UserStatus;
+use App\Models\CustomField;
+use App\Models\CustomFieldValue;
+use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\Member;
 use App\Models\PendingUpload;
 use App\Models\Project;
 use App\Models\Query;
+use App\Models\Reaction;
 use App\Models\RepositoryCommitter;
 use App\Models\User;
 use App\Models\UserDashboardBlock;
 use App\Models\Watcher;
+use App\Models\Webhook;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Laravel\Passport\Passport;
 
 /**
  * Redmine's User#destroy reassigns almost everything the user authored
@@ -38,6 +47,13 @@ use Illuminate\Support\Str;
  * row remains the distinct author of record, which is arguably more
  * faithful to history than Redmine's single shared Anonymous, so this is
  * treated as an acceptable deviation rather than a gap.
+ *
+ * What Redmine removes rather than reassigns is removed here too (B'-02c):
+ * the user's own custom field values and their attachment files (Redmine
+ * deletes them with the users row; here the row stays, so they would stay
+ * downloadable), other records' user-format values pointing at the user,
+ * tokens (API/Atom keys and Passport tokens), preferences, reactions,
+ * webhooks, and the user as assignee of issues and categories.
  */
 final class AccountDeletionService
 {
@@ -45,6 +61,9 @@ final class AccountDeletionService
     {
         Member::query()->where('user_id', $user->id)->delete();
         Project::query()->where('default_assigned_to_id', $user->id)->update(['default_assigned_to_id' => null]);
+        IssueCategory::query()->where('assigned_to_id', $user->id)->update(['assigned_to_id' => null]);
+        // Like Redmine's update_all: no journal entry for the unassignment.
+        Issue::query()->where('assigned_to_id', $user->id)->update(['assigned_to_id' => null]);
         $user->groups()->detach();
         $user->additionalEmails()->delete();
         $user->bookmarkedProjects()->detach();
@@ -52,6 +71,17 @@ final class AccountDeletionService
         Query::query()->where('user_id', $user->id)->where('visibility', QueryVisibility::Private)->delete();
         UserDashboardBlock::query()->where('user_id', $user->id)->delete();
         RepositoryCommitter::query()->where('user_id', $user->id)->delete();
+        Reaction::query()->where('user_id', $user->id)->delete();
+        Webhook::query()->where('user_id', $user->id)->delete();
+        $this->deletePassportTokens($user);
+
+        $user->customFieldValues()->delete();
+        // Deleting the media removes the files from disk.
+        $user->clearMediaCollection(AttachmentFormat::COLLECTION);
+        CustomFieldValue::query()
+            ->whereIn('custom_field_id', CustomField::query()->where('field_format', CustomFieldFormat::User)->select('id'))
+            ->where('value_int', $user->id)
+            ->delete();
 
         PendingUpload::query()->where('user_id', $user->id)->lazy()
             ->each(fn (PendingUpload $upload) => $upload->delete());
@@ -72,10 +102,21 @@ final class AccountDeletionService
             'password' => Hash::make(Str::random(40)),
             'remember_token' => null,
             'api_key' => null,
+            'atom_key' => null,
+            'preferences' => null,
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
             'status' => UserStatus::Deleted,
         ])->save();
+    }
+
+    private function deletePassportTokens(User $user): void
+    {
+        $accessTokenIds = Passport::tokenModel()::query()->where('user_id', $user->id)->pluck('id');
+
+        Passport::refreshTokenModel()::query()->whereIn('access_token_id', $accessTokenIds)->delete();
+        Passport::tokenModel()::query()->whereIn('id', $accessTokenIds)->delete();
+        Passport::authCodeModel()::query()->where('user_id', $user->id)->delete();
     }
 }
