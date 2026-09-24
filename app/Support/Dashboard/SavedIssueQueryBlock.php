@@ -136,7 +136,7 @@ final class SavedIssueQueryBlock
         $builder = Issue::query()
             ->where('project_id', $project->id)
             ->visibleTo($user, $project)
-            ->with(['project', 'tracker', 'status', 'priority', 'assignedTo', 'author']);
+            ->with(['project', 'tracker', 'status', 'priority', 'assignedTo', 'assignedToGroup', 'author']);
 
         $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, $user));
         $builder = $engine->applyFilters($builder, $savedQuery->filters);
@@ -198,7 +198,7 @@ final class SavedIssueQueryBlock
             'tracker' => $issue->tracker->name,
             'status' => $issue->status->name,
             'priority' => (string) $issue->priority?->name,
-            'assigned_to' => (string) $issue->assignedTo?->displayName(),
+            'assigned_to' => (string) ($issue->assignedTo?->displayName() ?? $issue->assignedToGroup?->name),
             'author' => (string) $issue->author?->displayName(),
             'start_date' => (string) $issue->start_date?->toDateString(),
             'due_date' => (string) $issue->due_date?->toDateString(),

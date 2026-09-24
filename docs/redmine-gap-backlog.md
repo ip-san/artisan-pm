@@ -204,7 +204,7 @@
 | 105b | A1-27b | A1-27a | M | done(2026-09-24、view_issues を全読み取り経路に適用。監査表はコミットメッセージ。匿名の非公開課題は A1-38、グループ担当は A1-39) |
 | 105c | A1-27c | A1-27a | M | done(2026-09-24、ポリシー・トラッカー選択肢(新規/編集/一括編集/右クリック/移動/コピー/子課題コピー)・REST 作成/更新・インポート・受信メール) |
 | 105d | A1-38 | — | S | done(2026-09-24、`issueVisibilityRules()` で匿名の閲覧範囲を「公開課題のみ」に集約。ロール編集画面で Anonymous の閲覧範囲を非表示) |
-| 105e | A1-39 | — | S | todo |
+| 105e | A1-39 | A1-20a | S | todo |
 | 105f | A1-40 | A1-34 | S | todo |
 | 105g | A1-41 | A1-38 | S〜M | todo |
 | 105h | A1-42 | A1-34 | S | todo |
@@ -257,7 +257,9 @@
 | 135 | A5-06 / A14-03 | — | M | todo(2026-09-24 承認: 設計メモの推奨案) |
 | **段 3: L 項目(設計メモ→`blocked(要承認)`→承認後に実装)** | | | | |
 | 136 | A4-10b | A4-10a | L | todo(2026-09-24 承認: 設計メモの推奨案) |
-| 137 | A1-20 | — | L | todo(2026-09-24 承認: 設計メモの推奨案) |
+| 137 | A1-20 | — | L | wip(2026-09-24) |
+| 137x | A1-20a | — | M | done(2026-09-24、列・設定・担当者候補・フォーム/一括編集/右クリック/REST 書き込み・表示。通知・フィルタ・並べ替え等は A1-20b) |
+| 137y | A1-20b | A1-20a | M | todo |
 | 137a | A5-05 | A1-20 | S | blocked(依存: A1-20) |
 | 138 | A14-01 | — | L | done(2026-09-20、A14-01a。承認: 推奨案 A。画面の置換は A14-01b 以降)|
 | 138a | A14-01a | A14-01 | S | done(2026-09-20) |
@@ -320,7 +322,7 @@
 | A1-42 | プロジェクト削除で、別プロジェクトにある子孫課題も削除する(Redmine の `Project#destroy` → 課題の `destroy` が入れ子集合で子孫を削除) | 課題は `project_id` の `cascadeOnDelete` で DB が消すだけなので、別プロジェクトの子課題は `parent_id` の `nullOnDelete` で最上位に残る。工数・添付の後始末も DB 任せ。A1-34 の実装中に判明 | プロジェクト削除時に `IssueService::deleteMany()` を通す(工数はプロジェクトごと消えるため destroy 相当) | データ削除の範囲が広がる変更 | S | Projects「プロジェクト削除」 |
 | A1-18 | 稼働日ベースの日付計算(`non_working_week_days` 設定、`Redmine::Utils::DateCalculation`) | 暦日計算のみ(`IssueService::rescheduleSuccessors()`、grep「稼働日」0件) | 設定「課題トラッキング」に非稼働曜日チェックボックス、`working_days`/`add_working_days` ヘルパーを導入しリスケジュール・遅延計算(`IssueRelation.delay`)・ガントに適用 | 既存のリスケジュールテストを暦日→稼働日で更新 | M | Issue Relations「関連日付からの自動リスケジュール」 |
 | A1-19 | リスケジュールの親子階層への伝播(`Issue#reschedule_on!` の leaves/ancestors) | `precedes`/`follows` チェーンのみ。子・親には伝播しない | 後続課題の子孫にも同じシフトを適用し、親の日付は `parent_issue_dates` 設定に従って再集計 | 循環ガード(最大50ホップ)を維持 | M | 同上 |
-| A1-20 | グループへの課題割当(`issue_group_assignment` 設定、`Principal` 担当) | `issues.assigned_to_id` は users FK のみ、設定なし(grep 0件) | `assigned_to` を polymorphic 化するか `assigned_to_group_id` 列を追加。担当者候補にグループを含め、通知はグループ展開 | **スキーマ判断**: Redmine は `principals` 単一テーブル継承。本アプリは users/groups 分離のため設計メモが必要 | L | Issues本体 |
+| A1-20 | グループへの課題割当(`issue_group_assignment` 設定、`Principal` 担当) | **A1-20a done(2026-09-24)**: `issues.assigned_to_group_id`(groups FK、`nullOnDelete`、`assigned_to_id` と排他の CHECK 制約。モデルの `saving` で片方を設定すると他方を解除)、設定「グループへの課題の割り当てを許可」(既定オフ)、`Project::assignableGroups()`(割り当て可能なロールを持つメンバーグループ、継承行を含む)、`App\Support\Issues\AssigneeChoice`(ユーザーは id、グループは `group:<id>`)。課題フォーム・一括編集・右クリックでグループを選択(オフ時は候補に出さないが既存の割当は表示・保持)、REST は `assigned_to_group_id` で書き込み(`assigned_to_id` と同時指定は 422、`assigned_to_id: null` はグループも解除)、応答に `assigned_to_group_id` と `assigned_to {id,name,type}`。表示は `Issue::assigneeName()`(詳細・一覧・横断一覧・PDF・関連課題列・マイページのクエリブロック)。Journal は `assigned_to_group_id` を別の明細行で記録。テスト: `IssueGroupAssignmentTest.php`。通知・フィルタ等は A1-20b | `assigned_to` を polymorphic 化するか `assigned_to_group_id` 列を追加。担当者候補にグループを含め、通知はグループ展開 | **スキーマ判断**: Redmine は `principals` 単一テーブル継承。本アプリは users/groups 分離のため設計メモが必要 | L | Issues本体 |
 | A1-21 | 関連課題テーブルの列選択(`related_issues_default_columns`、`display_related_issues_table_headers`) | 課題詳細の関連課題は固定表示 | 設定に列選択を追加し、`issues/show.blade.php` の関連課題ブロックを列設定に従って描画 | — | S | 設定「課題トラッキング」 |
 | A1-22 | Journal 編集者・編集日時の記録(`journals.updated_by_id`/`updated_on`)、非公開フラグの編集 | `journals` テーブルに `updated_by` なし(migration grep 0件)。編集フォーム・API は本文のみ | 列追加+編集時に記録し「(編集済み by X)」表示。編集フォームと `PUT /journals/{id}` で `private_notes` 切替を許可(`set_notes_private` 権限) | — | S | Journal「個別 Journal の編集」、REST API「Journals」 |
 | A1-23 | プロジェクトの既定バージョン・既定担当者(`projects.default_version_id`/`default_assigned_to_id`、`project.rb:43-44`) | `projects` テーブルに列なし | 列追加+プロジェクト設定フォームに選択欄、新規課題フォームで対象バージョン/担当者の初期値に使用(カテゴリの既定担当者より優先度は低い) | チェックリストで「既定バージョン設定に該当する Redmine 機能未特定」とされていた項目の正体 | S | Versions「Wikiページ紐付け・既定バージョン設定」 |

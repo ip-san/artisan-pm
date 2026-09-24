@@ -39,7 +39,7 @@ final class IssuePdfController extends Controller
         Gate::authorize('view', $issue);
 
         $issue->load([
-            'tracker', 'status', 'priority', 'category', 'author', 'assignedTo',
+            'tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'assignedToGroup',
             'fixedVersion', 'parent', 'customFieldValues', 'journals.user',
         ]);
 

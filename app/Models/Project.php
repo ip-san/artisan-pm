@@ -138,6 +138,25 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * Groups that may be picked as an issue's assignee (Redmine's
+     * assignable_users with issue_group_assignment on): member groups
+     * holding a role with `assignable = true`, inherited group rows
+     * included. Callers decide whether group assignment is enabled.
+     *
+     * @return Collection<int, Group>
+     */
+    public function assignableGroups(): Collection
+    {
+        return Group::query()
+            ->whereHas('memberships', function (Builder $query): void {
+                $query->where('project_id', $this->id)
+                    ->whereHas('roles', fn (Builder $roles) => $roles->where('assignable', true));
+            })
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
      * @return HasMany<ProjectModuleAssignment, $this>
      */
     public function moduleAssignments(): HasMany

@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Laravel\Scout\Searchable;
+use LogicException;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
@@ -31,7 +32,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 #[Fillable([
     'project_id', 'tracker_id', 'status_id', 'priority_id', 'author_id',
-    'assigned_to_id', 'fixed_version_id', 'parent_id', 'category_id', 'subject',
+    'assigned_to_id', 'assigned_to_group_id', 'fixed_version_id', 'parent_id', 'category_id', 'subject',
     'description', 'start_date', 'due_date', 'done_ratio', 'estimated_hours', 'is_private',
 ])]
 final class Issue extends Model implements HasMedia
@@ -54,6 +55,24 @@ final class Issue extends Model implements HasMedia
         'is_private' => false,
         'lock_version' => 0,
     ];
+
+    protected static function booted(): void
+    {
+        // An issue has one assignee, a user or a group (Redmine's single
+        // Principal). Setting one side clears the other, so every caller
+        // can simply fill the column it means.
+        self::saving(function (Issue $issue): void {
+            if ($issue->assigned_to_id === null || $issue->assigned_to_group_id === null) {
+                return;
+            }
+
+            match (true) {
+                $issue->isDirty('assigned_to_id') && ! $issue->isDirty('assigned_to_group_id') => $issue->assigned_to_group_id = null,
+                $issue->isDirty('assigned_to_group_id') && ! $issue->isDirty('assigned_to_id') => $issue->assigned_to_id = null,
+                default => throw new LogicException('An issue is assigned to a user or a group, not both.'),
+            };
+        });
+    }
 
     protected function casts(): array
     {
@@ -122,6 +141,98 @@ final class Issue extends Model implements HasMedia
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_id');
+    }
+
+    /**
+     * A group assignee (Redmine's issue_group_assignment) — set instead of
+     * assigned_to_id, never together with it.
+     *
+     * @return BelongsTo<Group, $this>
+     */
+    public function assignedToGroup(): BelongsTo
+    {
+        return $this->belongsTo(Group::class, 'assigned_to_group_id');
+    }
+
+    /**
+     * Redmine's Setting.issue_group_assignment (off by default): whether
+     * groups are offered as assignees. Existing group assignments stay
+     * and keep working when it is turned off.
+     */
+    public static function groupAssignmentEnabled(): bool
+    {
+        return (bool) Setting::get('issue_group_assignment', false);
+    }
+
+    /**
+     * Redmine's Issue#assigned_to: the user or group the issue is assigned to.
+     */
+    public function assignee(): User|Group|null
+    {
+        if ($this->assigned_to_group_id !== null) {
+            return $this->assignedToGroup;
+        }
+
+        return $this->assigned_to_id !== null ? $this->assignedTo : null;
+    }
+
+    public function assigneeName(): ?string
+    {
+        return $this->assignee()?->name;
+    }
+
+    /**
+     * Redmine's User#is_or_belongs_to?(assigned_to): the user is the
+     * assignee or a current member of the assigned group, resolved when
+     * asked so a group's membership changes apply at once.
+     */
+    public function isAssignedTo(?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        if ($this->assigned_to_id !== null) {
+            return $this->assigned_to_id === $user->id;
+        }
+
+        return $this->assigned_to_group_id !== null
+            && app(AuthorizationService::class)->groupIdsFor($user)->contains($this->assigned_to_group_id);
+    }
+
+    /**
+     * The users the issue is assigned to: the assignee, or every current
+     * member of the assigned group.
+     *
+     * @return Collection<int, int>
+     */
+    public function assigneeUserIds(): Collection
+    {
+        if ($this->assigned_to_id !== null) {
+            return collect([$this->assigned_to_id]);
+        }
+
+        if ($this->assigned_to_group_id === null) {
+            return collect();
+        }
+
+        return DB::table('group_user')->where('group_id', $this->assigned_to_group_id)->pluck('user_id')->map(fn ($id) => (int) $id);
+    }
+
+    /**
+     * Issues assigned to $user directly or to one of their groups
+     * (Redmine's "assigned to me", whose `me` includes the user's groups).
+     *
+     * @param  Builder<Issue>  $query
+     * @return Builder<Issue>
+     */
+    public function scopeAssignedToUserOrGroups(Builder $query, User $user): Builder
+    {
+        $groupIds = app(AuthorizationService::class)->groupIdsFor($user);
+
+        return $query->where(fn (Builder $assigned) => $assigned
+            ->where($assigned->qualifyColumn('assigned_to_id'), $user->id)
+            ->when($groupIds->isNotEmpty(), fn (Builder $q) => $q->orWhereIn($q->qualifyColumn('assigned_to_group_id'), $groupIds->all())));
     }
 
     /**

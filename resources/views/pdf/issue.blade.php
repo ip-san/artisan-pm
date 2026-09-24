@@ -29,7 +29,7 @@
             <td class="label">{{ __('優先度') }}</td><td>{{ $issue->priority->name }}</td>
         </tr>
         <tr>
-            <td class="label">{{ __('担当者') }}</td><td>{{ $issue->assignedTo?->name ?? '-' }}</td>
+            <td class="label">{{ __('担当者') }}</td><td>{{ $issue->assigneeName() ?? '-' }}</td>
             <td class="label">{{ __('カテゴリ') }}</td><td>{{ $issue->category?->name ?? '-' }}</td>
         </tr>
         <tr>

@@ -46,6 +46,7 @@ final class IssueNotificationMail extends Mailable
             'subject' => __('題名'),
             'is_private' => __('非公開'),
             ...Tracker::disablableCoreFieldLabels(),
+            'assigned_to_group_id' => __('担当者(グループ)'),
         ];
     }
 

@@ -27,6 +27,7 @@ use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\ListQueryString;
 use App\Support\Export\ExportLimit;
+use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\CopyOptions;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\CustomFieldFilter;
@@ -190,6 +191,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $bulkAssignedToId = null;
 
+    /** A group to assign the selection to (issue_group_assignment). */
+    public ?int $bulkAssignedToGroupId = null;
+
+    /** The bulk assignee select's value — see AssigneeChoice. */
+    public string $bulkAssigneeChoice = '';
+
     public ?int $bulkFixedVersionId = null;
 
     public ?int $bulkStatusId = null;
@@ -281,7 +288,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $query = Issue::query()
             ->visibleToAcrossProjects(auth()->user(), $this->scopeProjects)
-            ->with(['tracker', 'status', 'priority', 'category', 'assignedTo', 'author', 'fixedVersion'])
+            ->with(['tracker', 'status', 'priority', 'category', 'assignedTo', 'assignedToGroup', 'author', 'fixedVersion'])
             ->when(
                 collect($this->columns)->contains(fn (string $column) => str_starts_with($column, 'cf_')),
                 fn (Builder $q) => $q->with('customFieldValues.customField')
@@ -823,7 +830,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'priority_id' => $issue->priority->name,
             'subject' => $issue->subject,
             'category_id' => $issue->category?->name ?? __('なし'),
-            'assigned_to_id' => $issue->assignedTo?->name ?? __('未割当'),
+            'assigned_to_id' => $issue->assigneeName() ?? __('未割当'),
             'author_id' => $issue->author->displayName(),
             'fixed_version_id' => $issue->fixedVersion?->name ?? __('なし'),
             'start_date' => $issue->start_date?->toDateString() ?? '',
@@ -1069,6 +1076,22 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->project->versions;
     }
 
+    /**
+     * Groups the bulk edit and context menu offer as assignees.
+     *
+     * @return Collection<int, \App\Models\Group>
+     */
+    #[Computed]
+    public function assignableGroups(): Collection
+    {
+        return AssigneeChoice::groupOptions($this->project);
+    }
+
+    public function updatedBulkAssigneeChoice(string $value): void
+    {
+        ['assigned_to_id' => $this->bulkAssignedToId, 'assigned_to_group_id' => $this->bulkAssignedToGroupId] = AssigneeChoice::decode($value);
+    }
+
     public function applyBulkEdit(): void
     {
         $issues = $this->selectedIssues;
@@ -1086,6 +1109,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $data = $this->validate([
             'bulkPriorityId' => ['nullable', Rule::exists('enumerations', 'id')->where('type', EnumerationType::IssuePriority->value)],
             'bulkAssignedToId' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
+            'bulkAssignedToGroupId' => ['nullable', 'integer', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (! AssigneeChoice::allowsGroup($this->project, (int) $value)) {
+                    $fail(__('選択した担当者は無効です。'));
+                }
+            }],
             'bulkFixedVersionId' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $this->project->id)],
             'bulkStatusId' => ['nullable', 'exists:issue_statuses,id'],
             'bulkDoneRatio' => ['nullable', 'integer', 'min:0', 'max:100'],
@@ -1137,6 +1165,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $changes = array_filter([
             'priority_id' => $data['bulkPriorityId'],
             'assigned_to_id' => $data['bulkAssignedToId'],
+            'assigned_to_group_id' => $data['bulkAssignedToId'] === null ? $data['bulkAssignedToGroupId'] : null,
             'fixed_version_id' => $data['bulkFixedVersionId'],
             'status_id' => $data['bulkStatusId'],
             'done_ratio' => $data['bulkDoneRatio'],
@@ -1156,6 +1185,11 @@ new #[Layout('components.layouts.app')] class extends Component
             $changes[$field] = null;
         }
 
+        // Clearing the assignee clears a group assignee too.
+        if (in_array('assigned_to_id', $clearable, true)) {
+            $changes['assigned_to_group_id'] = null;
+        }
+
         if (isset($changes['status_id'])) {
             $targetStatus = IssueStatus::findOrFail($changes['status_id']);
 
@@ -1170,7 +1204,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $count = $issues->count();
 
-        $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear', 'bulkCustomFieldValues']);
+        $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkAssignedToGroupId', 'bulkAssigneeChoice', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear', 'bulkCustomFieldValues']);
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
@@ -1245,13 +1279,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
         abort_unless($this->canBulkEdit && isset($properties[$field]), 403);
 
-        $this->reset(['bulkPriorityId', 'bulkAssignedToId', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear']);
+        $this->reset(['bulkPriorityId', 'bulkAssignedToId', 'bulkAssignedToGroupId', 'bulkAssigneeChoice', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear']);
 
         if ($value === 'none') {
             abort_unless(in_array($field, ['assigned_to_id', 'fixed_version_id', 'category_id'], true), 422);
             $this->bulkClear = [$field];
+        } elseif ($field === 'assigned_to_id') {
+            ['assigned_to_id' => $this->bulkAssignedToId, 'assigned_to_group_id' => $this->bulkAssignedToGroupId] = AssigneeChoice::decode($value === 'me' ? (string) auth()->id() : $value);
         } else {
-            $this->{$properties[$field]} = (int) ($value === 'me' && $field === 'assigned_to_id' ? auth()->id() : $value);
+            $this->{$properties[$field]} = (int) $value;
         }
 
         $this->applyBulkEdit();
@@ -1543,6 +1579,11 @@ new #[Layout('components.layouts.app')] class extends Component
                             @foreach ($menuOptions as $menuOption)
                                 <button type="button" wire:click="contextUpdate('{{ $menuField }}', '{{ $menuOption->id }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $menuOption->name }}</button>
                             @endforeach
+                            @if ($menuField === 'assigned_to_id')
+                                @foreach ($this->assignableGroups as $group)
+                                    <button type="button" wire:click="contextUpdate('assigned_to_id', '{{ AssigneeChoice::forGroup($group) }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $group->name }}</button>
+                                @endforeach
+                            @endif
                             <button type="button" wire:click="contextUpdate('{{ $menuField }}', 'none')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-500 hover:bg-neutral-100">{{ $menuNone }}</button>
                         </div>
                     </div>
@@ -1739,11 +1780,24 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-neutral-700">{{ __('担当者') }}</label>
-                    <select wire:model="bulkAssignedToId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <select wire:model="bulkAssigneeChoice" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
-                        @foreach ($this->projectMembers as $member)
-                            <option value="{{ $member->id }}">{{ $member->name }}</option>
-                        @endforeach
+                        @if ($this->assignableGroups->isEmpty())
+                            @foreach ($this->projectMembers as $member)
+                                <option value="{{ $member->id }}">{{ $member->name }}</option>
+                            @endforeach
+                        @else
+                            <optgroup label="{{ __('ユーザー') }}">
+                                @foreach ($this->projectMembers as $member)
+                                    <option value="{{ $member->id }}">{{ $member->name }}</option>
+                                @endforeach
+                            </optgroup>
+                            <optgroup label="{{ __('グループ') }}">
+                                @foreach ($this->assignableGroups as $group)
+                                    <option value="{{ AssigneeChoice::forGroup($group) }}">{{ $group->name }}</option>
+                                @endforeach
+                            </optgroup>
+                        @endif
                     </select>
                 </div>
                 <div>

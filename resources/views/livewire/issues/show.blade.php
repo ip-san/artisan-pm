@@ -126,7 +126,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $issue);
 
         $this->project = $project;
-        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'fixedVersion', ...self::JOURNAL_RELATIONS, 'reactions', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user', 'changesets.repository.project']);
+        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'assignedToGroup', 'fixedVersion', ...self::JOURNAL_RELATIONS, 'reactions', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user', 'changesets.repository.project']);
 
         foreach ($this->issue->attachments() as $media) {
             $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
@@ -968,7 +968,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div><span class="text-neutral-500">{{ __('優先度:') }}</span> {{ $issue->priority->name }}</div>
         <div><span class="text-neutral-500">{{ __('カテゴリ:') }}</span> {{ $issue->category?->name ?? __('なし') }}</div>
         <div><span class="text-neutral-500">{{ __('作成者:') }}</span> <x-avatar :user="$issue->author" :size="18" /> {{ $issue->author->displayName() }}</div>
-        <div><span class="text-neutral-500">{{ __('担当者:') }}</span> <x-avatar :user="$issue->assignedTo" :size="18" /> {{ $issue->assignedTo?->name ?? __('未割当') }}</div>
+        <div><span class="text-neutral-500">{{ __('担当者:') }}</span> <x-avatar :user="$issue->assignedTo" :size="18" /> {{ $issue->assigneeName() ?? __('未割当') }}</div>
         <div><span class="text-neutral-500">{{ __('対象バージョン:') }}</span> {{ $issue->fixedVersion?->name ?? __('なし') }}</div>
         <div><span class="text-neutral-500">{{ __('進捗率:') }}</span> {{ $issue->done_ratio }}%</div>
         <div><span class="text-neutral-500">{{ __('開始日:') }}</span> {{ $issue->start_date?->toDateString() ?? '-' }}</div>

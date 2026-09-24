@@ -19,6 +19,7 @@ use App\Support\TimeLog\TimeLogConstraints;
 use App\Services\WorkflowService;
 use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\CopyOptions;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Support\Collection;
@@ -60,6 +61,15 @@ new #[Layout('components.layouts.app')] class extends Component
     public ?int $category_id = null;
 
     public ?int $assigned_to_id = null;
+
+    /** A group assignee, set instead of assigned_to_id (issue_group_assignment). */
+    public ?int $assigned_to_group_id = null;
+
+    /**
+     * The assignee select's value: a user id, or `group:<id>` for a group
+     * (see AssigneeChoice). Kept in step with the two id properties.
+     */
+    public string $assigneeChoice = '';
 
     public ?int $fixed_version_id = null;
 
@@ -124,6 +134,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->priority_id = $issue->priority_id;
             $this->category_id = $issue->category_id;
             $this->assigned_to_id = $issue->assigned_to_id;
+            $this->assigned_to_group_id = $issue->assigned_to_group_id;
             $this->fixed_version_id = $issue->fixed_version_id;
             $this->parent_id = $issue->parent_id;
             $this->subject = $issue->subject;
@@ -185,9 +196,11 @@ new #[Layout('components.layouts.app')] class extends Component
             // while they are still usable (open shared version / member with
             // an assignable role).
             $this->fixed_version_id ??= $project->usableDefaultVersionId();
-            $this->assigned_to_id ??= ($this->category_id !== null
-                ? IssueCategory::query()->whereKey($this->category_id)->value('assigned_to_id')
-                : null) ?? $project->usableDefaultAssigneeId();
+            if ($this->assigned_to_group_id === null) {
+                $this->assigned_to_id ??= ($this->category_id !== null
+                    ? IssueCategory::query()->whereKey($this->category_id)->value('assigned_to_id')
+                    : null) ?? $project->usableDefaultAssigneeId();
+            }
 
             // Matches Redmine's build_new_issue_from_params, which applies
             // this default (via ||=) after copy_from handling — a copied
@@ -361,6 +374,10 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->priority_id = $source->priority_id;
         $this->category_id = $source->category_id;
         $this->assigned_to_id = $source->assigned_to_id;
+        // A copied group assignment is kept only while it could be picked.
+        $this->assigned_to_group_id = $source->assigned_to_group_id !== null && AssigneeChoice::allowsGroup($this->project, $source->assigned_to_group_id)
+            ? $source->assigned_to_group_id
+            : null;
         $this->fixed_version_id = $source->fixed_version_id;
         $this->subject = $source->subject;
         $this->description = (string) $source->description;
@@ -452,6 +469,45 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->project->assignableUsers();
     }
 
+    /**
+     * Groups offered as assignees — see AssigneeChoice::groupOptions().
+     *
+     * @return Collection<int, \App\Models\Group>
+     */
+    #[Computed]
+    public function assignableGroups(): Collection
+    {
+        return AssigneeChoice::groupOptions($this->project, $this->issue?->assigned_to_group_id);
+    }
+
+    public function updatedAssigneeChoice(string $value): void
+    {
+        ['assigned_to_id' => $this->assigned_to_id, 'assigned_to_group_id' => $this->assigned_to_group_id] = AssigneeChoice::decode($value);
+    }
+
+    public function updatedAssignedToId(?int $value): void
+    {
+        if ($value !== null) {
+            $this->assigned_to_group_id = null;
+        }
+    }
+
+    public function updatedAssignedToGroupId(?int $value): void
+    {
+        if ($value !== null) {
+            $this->assigned_to_id = null;
+        }
+    }
+
+    /**
+     * Keeps the select's value in step with assigned_to_id /
+     * assigned_to_group_id, whichever way they were last changed.
+     */
+    public function dehydrate(): void
+    {
+        $this->assigneeChoice = AssigneeChoice::encode($this->assigned_to_id, $this->assigned_to_group_id);
+    }
+
     #[Computed]
     public function projectCategories(): Collection
     {
@@ -465,7 +521,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function updatedCategoryId(): void
     {
-        if ($this->assigned_to_id !== null || $this->category_id === null) {
+        if ($this->assigned_to_id !== null || $this->assigned_to_group_id !== null || $this->category_id === null) {
             return;
         }
 
@@ -624,6 +680,17 @@ new #[Layout('components.layouts.app')] class extends Component
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'assigned_to_id' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
+            // Redmine's assignable_users with issue_group_assignment: a member
+            // group holding an assignable role, or the issue's current group.
+            'assigned_to_group_id' => [
+                'nullable',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value !== null && ! AssigneeChoice::allowsGroup($this->project, (int) $value, $this->issue?->assigned_to_group_id)) {
+                        $fail(__('選択した担当者は無効です。'));
+                    }
+                },
+            ],
             'fixed_version_id' => ['nullable', Rule::in($this->projectVersions->pluck('id')->all())],
             'parent_id' => [
                 'nullable',
@@ -668,6 +735,11 @@ new #[Layout('components.layouts.app')] class extends Component
             if ($rule === 'required' && isset($rules[$field])) {
                 $rules[$field] = [...array_diff($rules[$field], ['nullable']), 'required'];
             }
+        }
+
+        // A required assignee may be a group.
+        if (in_array('required', $rules['assigned_to_id'], true)) {
+            $rules['assigned_to_id'] = [...array_diff($rules['assigned_to_id'], ['required']), 'nullable', 'required_without:assigned_to_group_id'];
         }
 
         if ($this->issue) {
@@ -926,13 +998,28 @@ new #[Layout('components.layouts.app')] class extends Component
                             </button>
                         @endif
                     </label>
-                    <select wire:model="assigned_to_id" @disabled($this->isReadOnly('assigned_to_id'))
+                    <select wire:model="assigneeChoice" @disabled($this->isReadOnly('assigned_to_id'))
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">{{ __('未割当') }}</option>
-                        @foreach ($this->projectMembers as $member)
-                            <option value="{{ $member->id }}">{{ $member->name }}</option>
-                        @endforeach
+                        @if ($this->assignableGroups->isEmpty())
+                            @foreach ($this->projectMembers as $member)
+                                <option value="{{ $member->id }}">{{ $member->name }}</option>
+                            @endforeach
+                        @else
+                            <optgroup label="{{ __('ユーザー') }}">
+                                @foreach ($this->projectMembers as $member)
+                                    <option value="{{ $member->id }}">{{ $member->name }}</option>
+                                @endforeach
+                            </optgroup>
+                            <optgroup label="{{ __('グループ') }}">
+                                @foreach ($this->assignableGroups as $group)
+                                    <option value="{{ AssigneeChoice::forGroup($group) }}">{{ $group->name }}</option>
+                                @endforeach
+                            </optgroup>
+                        @endif
                     </select>
+                    @error('assigned_to_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+                    @error('assigned_to_group_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
             @endunless
         </div>

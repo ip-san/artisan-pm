@@ -94,15 +94,15 @@ final class RelatedIssueColumns
     public static function relationsFor(array $keys): array
     {
         $map = [
-            'status_id' => 'status',
-            'priority_id' => 'priority',
-            'category_id' => 'category',
-            'assigned_to_id' => 'assignedTo',
-            'author_id' => 'author',
-            'fixed_version_id' => 'fixedVersion',
+            'status_id' => ['status'],
+            'priority_id' => ['priority'],
+            'category_id' => ['category'],
+            'assigned_to_id' => ['assignedTo', 'assignedToGroup'],
+            'author_id' => ['author'],
+            'fixed_version_id' => ['fixedVersion'],
         ];
 
-        return array_values(array_intersect_key($map, array_flip($keys)));
+        return array_merge(...array_values(array_intersect_key($map, array_flip($keys))));
     }
 
     /**
@@ -115,7 +115,7 @@ final class RelatedIssueColumns
             'status_id' => $issue->status->name,
             'priority_id' => $issue->priority->name,
             'category_id' => $issue->category?->name ?? '',
-            'assigned_to_id' => $issue->assignedTo?->name ?? '',
+            'assigned_to_id' => $issue->assigneeName() ?? '',
             'author_id' => $issue->author->displayName(),
             'fixed_version_id' => $issue->fixedVersion?->name ?? '',
             'start_date' => $issue->start_date?->toDateString() ?? '',

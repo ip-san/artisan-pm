@@ -6,6 +6,8 @@ namespace App\Http\Requests\Api\V1;
 
 use App\Enums\EnumerationType;
 use App\Models\Issue;
+use App\Support\Issues\AssigneeChoice;
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -35,6 +37,11 @@ final class UpdateIssueRequest extends FormRequest
             'subject' => ['sometimes', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'assigned_to_id' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $projectId)],
+            'assigned_to_group_id' => ['nullable', 'integer', 'prohibits:assigned_to_id', function (string $attribute, mixed $value, Closure $fail) use ($issue): void {
+                if (! AssigneeChoice::allowsGroup($issue->project, (int) $value, $issue->assigned_to_group_id)) {
+                    $fail(__('選択した担当者は無効です。'));
+                }
+            }],
             'fixed_version_id' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $projectId)],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],

@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Resources\Api\V1;
 
 use App\Models\Changeset;
+use App\Models\Group;
 use App\Models\Issue;
-use App\Models\TimeEntry;
 use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Journal;
+use App\Models\TimeEntry;
 use App\Models\Watcher;
-use App\Support\Attachments\AttachmentUploader;
 use App\Services\WorkflowService;
 use App\Support\Api\CustomFieldPayload;
+use App\Support\Attachments\AttachmentUploader;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -62,6 +63,10 @@ final class IssueResource extends JsonResource
             'priority_id' => $issue->priority_id,
             'author_id' => $issue->author_id,
             'assigned_to_id' => $issue->assigned_to_id,
+            'assigned_to_group_id' => $issue->assigned_to_group_id,
+            // Redmine's assigned_to {id, name}, for a user or a group; the
+            // type tells them apart since their ids overlap here.
+            'assigned_to' => $this->assignee($issue),
             'fixed_version_id' => $issue->fixed_version_id,
             'parent_id' => $issue->parent_id,
             'subject' => $issue->subject,
@@ -165,6 +170,28 @@ final class IssueResource extends JsonResource
             'relation_type' => $relation->relation_type->value,
             'delay' => $relation->delay,
         ])->all();
+    }
+
+    /**
+     * @return array{id: int, name: string, type: string}|null
+     */
+    private function assignee(Issue $issue): ?array
+    {
+        if ($issue->assigned_to_id === null && $issue->assigned_to_group_id === null) {
+            return null;
+        }
+
+        $assignee = $issue->loadMissing($issue->assigned_to_group_id !== null ? 'assignedToGroup' : 'assignedTo')->assignee();
+
+        if ($assignee === null) {
+            return null;
+        }
+
+        return [
+            'id' => $assignee->id,
+            'name' => $assignee->name,
+            'type' => $assignee instanceof Group ? 'group' : 'user',
+        ];
     }
 
     /**

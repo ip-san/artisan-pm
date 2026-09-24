@@ -7,6 +7,8 @@ namespace App\Http\Requests\Api\V1;
 use App\Enums\EnumerationType;
 use App\Models\Issue;
 use App\Models\Project;
+use App\Support\Issues\AssigneeChoice;
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -37,6 +39,13 @@ final class StoreIssueRequest extends FormRequest
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'assigned_to_id' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $project->id)],
+            // Users and groups have separate ids here, so a group assignee
+            // (Redmine's assigned_to_id with a group id) has its own key.
+            'assigned_to_group_id' => ['nullable', 'integer', 'prohibits:assigned_to_id', function (string $attribute, mixed $value, Closure $fail) use ($project): void {
+                if (! AssigneeChoice::allowsGroup($project, (int) $value)) {
+                    $fail(__('選択した担当者は無効です。'));
+                }
+            }],
             'fixed_version_id' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $project->id)],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],

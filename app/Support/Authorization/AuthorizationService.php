@@ -214,6 +214,17 @@ final class AuthorizationService
      * from a new member or role to a module switch can change the rules,
      * and several of those writes (pivot attaches) fire no model event.
      */
+    /**
+     * The ids of the groups the user belongs to, memoized with the rest of
+     * this request's authorization state.
+     *
+     * @return Collection<int, int>
+     */
+    public function groupIdsFor(User $user): Collection
+    {
+        return $this->groupIdsCache[$user->id] ??= $user->groups()->pluck('groups.id')->map(fn ($id) => (int) $id);
+    }
+
     public function flushCache(): void
     {
         $this->issueVisibilityRulesCache = [];
@@ -585,7 +596,7 @@ final class AuthorizationService
             return;
         }
 
-        $groupIds = $this->groupIdsCache[$user->id] ??= $user->groups()->pluck('groups.id');
+        $groupIds = $this->groupIdsFor($user);
 
         $members = Member::query()
             ->whereIn('project_id', $projectIds)

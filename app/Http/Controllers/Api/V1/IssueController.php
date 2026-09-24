@@ -133,7 +133,7 @@ final class IssueController extends Controller
 
         // One query each for the child count and logged hours, instead of
         // one per issue when the resource asks isLeaf()/spentHours().
-        $query->withCount('children')->withSum('timeEntries', 'hours');
+        $query->withCount('children')->withSum('timeEntries', 'hours')->with(['assignedTo', 'assignedToGroup']);
 
         if (in_array('relations', $this->parseIncludes($request, self::INDEX_INCLUDES), true)) {
             $query->with(['relationsFrom.to', 'relationsTo.from']);
@@ -315,6 +315,11 @@ final class IssueController extends Controller
         $uploads = $data['uploads'] ?? [];
         $expectedLockVersion = isset($data['lock_version']) ? (int) $data['lock_version'] : null;
         unset($data['uploads'], $data['lock_version']);
+
+        // `assigned_to_id: null` unassigns the issue, a group assignee too.
+        if (array_key_exists('assigned_to_id', $data) && $data['assigned_to_id'] === null && ! array_key_exists('assigned_to_group_id', $data)) {
+            $data['assigned_to_group_id'] = null;
+        }
 
         if (isset($data['status_id']) && $data['status_id'] !== $issue->status_id) {
             Gate::authorize('transitionTo', [$issue, IssueStatus::findOrFail($data['status_id'])]);

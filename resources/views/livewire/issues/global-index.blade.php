@@ -177,7 +177,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $query = Issue::query()
             ->visibleToAcrossProjects(auth()->user(), $this->visibleProjects)
-            ->with(['project', 'tracker', 'status', 'priority', 'assignedTo', 'author', 'fixedVersion'])
+            ->with(['project', 'tracker', 'status', 'priority', 'assignedTo', 'assignedToGroup', 'author', 'fixedVersion'])
             ->when(
                 collect($this->columns)->contains(fn (string $column) => str_starts_with($column, 'cf_')),
                 fn (Builder $q) => $q->with('customFieldValues.customField')
@@ -244,7 +244,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'status_id' => $issue->status->name,
             'priority_id' => $issue->priority->name,
             'subject' => $issue->subject,
-            'assigned_to_id' => $issue->assignedTo?->name ?? __('未割当'),
+            'assigned_to_id' => $issue->assigneeName() ?? __('未割当'),
             'author_id' => $issue->author->displayName(),
             'fixed_version_id' => $issue->fixedVersion?->name ?? __('なし'),
             'start_date' => $issue->start_date?->toDateString() ?? '',
