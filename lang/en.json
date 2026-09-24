@@ -47,7 +47,7 @@
     "60日": "60 days",
     "7日": "7 days",
     "8時間": "8 hours",
-    ":all はすべて許可。例: :example(項目: status, priority, assigned_to, done_ratio, tracker, category, fixed_version, start_date, due_date, estimated_hours, private, parent_issue)。カスタムフィールドの行は常に有効です。": ":all allows every attribute. e.g. :example (attributes: status, priority, assigned_to, done_ratio, tracker, category, fixed_version, start_date, due_date, estimated_hours, private, parent_issue). Custom field lines always apply.",
+    ":all はすべて許可。例: :example(項目: status, priority, assigned_to, done_ratio, tracker, category, fixed_version, start_date, due_date, estimated_hours, private, parent_issue)。カスタムフィールドは名前で指定します(小文字、空白は _)。": ":all allows every attribute. e.g. :example (attributes: status, priority, assigned_to, done_ratio, tracker, category, fixed_version, start_date, due_date, estimated_hours, private, parent_issue). Name a custom field by its name (lowercase, spaces as _).",
     ":author さんがバージョン「:version」にファイルを追加しました。": ":author added files to version :version.",
     ":author さんがフォーラムに投稿しました。": ":author posted to the forum.",
     ":author さんがプロジェクトにファイルを追加しました。": ":author added files to the project.",

@@ -637,9 +637,10 @@ final class IncomingMailService
 
     /**
      * Scans the body for "Custom field name: value" lines (Redmine's
-     * custom_field_values_from_keywords). Unlike the built-in keywords these
-     * are always honored, but only for a field the sender could fill in on the
-     * form: one of the issue's tracker and project, visible to the sender's
+     * custom_field_values_from_keywords). Like the built-in keywords a line
+     * counts only when mail_handler_allow_override names the field (its name
+     * lowercased, spaces as underscores) or is `all` — Redmine's get_keyword
+     * — and only for a field the sender could fill in on the form: one of the issue's tracker and project, visible to the sender's
      * roles, and editable. A value the field would not accept (not one of a
      * list's options, not a number, ...) leaves its line in the body.
      *
@@ -647,7 +648,11 @@ final class IncomingMailService
      */
     private function extractCustomFieldKeywords(string $body, Project $project, int $trackerId, User $author): array
     {
-        $fields = $this->keywordCustomFields($project, $trackerId, $author);
+        $allowed = $this->overridableKeywords();
+        $fields = $this->keywordCustomFields($project, $trackerId, $author)
+            ->filter(fn (CustomField $field) => in_array('all', $allowed, true)
+                || in_array(preg_replace('/\s+/', '_', mb_strtolower(trim($field->name))), $allowed, true))
+            ->values();
 
         if ($fields->isEmpty()) {
             return ['values' => [], 'body' => $body];

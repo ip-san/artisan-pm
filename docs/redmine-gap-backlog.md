@@ -230,7 +230,7 @@
 | 105g | A1-41 | A1-38 | S〜M | done(2026-09-24、プロジェクトのカレンダー/ガント/検索/活動/ロードマップと全 Atom(`atom.key` がログイン不要時はゲストを通す)。全体の画面・プロジェクト概要などは A1-44。検索の CF・課題の更新 Atom の CF 詳細を役割で制限) |
 | 105k | A1-44 | A1-41 | S〜M | done(2026-09-24、プロジェクト一覧・概要、全体の課題一覧/カレンダー/ガント/検索/活動、プロジェクトのフォーラム(ボード・トピック)・ニュース・文書・ファイルを `login.required` に。全体の画面の `?->can` を `Gate::allows` に、概要のブックマークをログイン時のみ・サブプロジェクトを見られるものだけに、ゲスト用のヘッダーメニュー。全体のお知らせ一覧は承認範囲外のため A1-52) |
 | 105u | A1-52 | A1-44 | S | done(2026-09-25、`/news` を `login.required` に、閲覧可否を `Gate::allows`(ゲストは Anonymous ロール)に、ゲストのヘッダーに「お知らせ」) |
-| 105v | A12-06e | A12-06d | S | todo |
+| 105v | A12-06e | A12-06d | S | done(2026-09-25、カスタムフィールドの行も allow_override のフィールド名か all のときだけ。設定画面の説明も) |
 | A12-07 | Webhook の送信時の宛先確認(Redmine の `Webhook::Executor#call` は送信のたびに `WebhookEndpointValidator.ips_for_uri` で解決し直し、確認した IP に `ipaddr:` で接続。ループバック/リンクローカル/0.0.0.0/マルチキャストと禁止ポートは常に拒否、`webhook_blocklist` で追加) | **done(2026-09-25)**。`App\Jobs\DeliverWebhookJob`(Spatie の `CallWebhookJob` の派生、`webhook-server.webhook_job`)が送信直前に `WebhookEndpoint::safeAddresses()` で A/AAAA を解決し直して全アドレスを確認、`CURLOPT_RESOLVE` で確認したアドレスに固定し `allow_redirects=false`。拒否時は送らず再試行しない(ログに警告)。ユーザー所有(`meta.public_only`)はプライベート/予約範囲も拒否。保存時の `PublicWebhookUrl` も同じクラスを使い AAAA と禁止ポートを確認。配信 5 リスナーは `Webhook::deliver()` に集約。テスト: `WebhookDeliveryTargetTest.php` | 保存時(ユーザー所有のみ)に 1 回解決して確認するだけ、配信は Guzzle が改めて解決(DNS リバインディングで内部へ届く)、リダイレクトを追う、AAAA を見ない | `webhook_blocklist`(設定ファイルでの追加の拒否リスト)は未対応(本アプリはユーザー所有の Webhook でプライベート範囲を常に拒否) | S | 拡張性「Webhook」 |
 | 105w | A5-17 | — | S | todo(要承認: 自己登録の既定が承認制になる) |
 | A1-45 | 全トラッカーが無効にした標準項目を課題一覧の列の候補からも外す(`issue_query.rb` の `available_columns` で `disabled_core_fields` の列を除外。予定工数なら合計予定工数・残工数も) | **done(2026-09-24)**。`IssueFilterFieldRegistry::coreColumnsDisabledByEveryTracker()`(フィルタと同じ `Tracker.disabled_core_fields(trackers)` の判定。`estimated_hours` なら `total_estimated_hours`/`estimated_remaining_hours` も。親課題は Redmine の `parent_issue_id` が列名 `parent` と一致しないため残る)と `rolledUpTrackers()`(サブプロジェクト込みのトラッカー)。プロジェクトの課題一覧は `nativeColumns`/`availableColumns`/`sortableColumns` から除き、選んだ列は `shownColumns`(利用できる列だけ、順序維持 = Redmine の `inline_columns`)で表・CSV・PDF に出す。グループ化の「優先度」「担当者」も無効なら出さず、保存済みのグループ化は無視。横断一覧は閲覧できるプロジェクトのトラッカーで同じ判定。保存クエリの `column_names` はそのまま(トラッカー設定を戻せば再表示)。テスト: `TrackerDisabledCoreFieldsTest` | `IssueFilterFieldRegistry` の除外と同じ判定を列の候補に適用 | A1-36 の後 | S | クエリ「列選択」 |
@@ -660,7 +660,7 @@
 | A12-06b | 受信メールの残り: `allow_override` によるキーワード上書きの許可リスト、カスタムフィールド名でのキーワード、`+project` サブアドレスによるプロジェクト指定、`default_group`、`no_account_notice`/`no_notification` | `POST /mail_handler`(A12-06)は受信のみ。キーワードは 11 個固定・CF 非対応 | 許可リスト設定、CF 名一致でのキーワード解釈、宛先サブアドレスの解釈を `IncomingMailService` に追加 | A12-06 で分離 | M | 「メール本文のキーワードコマンド」 |
 | A12-06c | 受信メールの `unknown_user`(未登録の差出人からのアカウント作成/匿名受付)、`no_permission_check`、`default_group`、`no_account_notice`、`no_notification` | 未登録の差出人のメールは捨てる(`From:` 詐称対策) | 設計メモ参照(実装しない案を推奨) | A12-06b で分離。セキュリティ判断 | M | 「メール本文のキーワードコマンド」 |
 | A12-06d | 受信メールの `no_notification`(受信メールで作成・更新した内容の通知メールを送らない) | なし | 設定 `mail_handler_no_notification`。処理中だけ通知リスナーを止める(`MailSuppression`) | A12-06c で「実装しない」案が承認され、残りとして分離 | S | 「メール本文のキーワードコマンド」 |
-| A12-06e | 受信メールのカスタムフィールドの「名前: 値」行も `allow_override` に従う(Redmine の `get_keyword` はカスタムフィールドも `allow_override` に名前が無ければ無視) | `IncomingMailService` はカスタムフィールドの行を `mail_handler_allow_override` に関わらず常に処理する(設定画面の説明にも「カスタムフィールドの行は常に有効」)。2026-09-25 に `allow_override` の既定が空(何も上書きできない)になって判明 | カスタムフィールドの行も許可リスト(フィールド名、`all`)で判定し、画面の説明を直す | 既存の運用でカスタムフィールドの行が効かなくなるため挙動変更ログに記載 | S | 「メール本文のキーワードコマンド」 |
+| A12-06e | 受信メールのカスタムフィールドの「名前: 値」行も `allow_override` に従う(Redmine の `get_keyword` はカスタムフィールドも `allow_override` に名前が無ければ無視) | **done(2026-09-25)**。`IncomingMailService::extractCustomFieldKeywords()` が `overridableKeywords()` にフィールド名(小文字・空白は `_`)か `all` がある項目だけを読む(作成・返信とも)。設定画面の説明を「カスタムフィールドは名前で指定」に。テスト: `MailHandlerKeywordOptionsTest.php` | カスタムフィールドの行も許可リスト(フィールド名、`all`)で判定し、画面の説明を直す | 既存の運用でカスタムフィールドの行が効かなくなるため挙動変更ログに記載 | S | 「メール本文のキーワードコマンド」 |
 
 ### A-13. 権限の粒度(Redmine 80 権限中、本アプリに無い 27 件)
 
@@ -1011,6 +1011,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A6-09 | HTML メールのヘッダー/フッター(設定「メールのヘッダー」「メールのフッター」)が Markdown として整形される(太字・リンクなど)。HTML タグはサニタイズされる | テキストメールは従来どおり |
 | A6-06b | フォーラム・ニュース・Wiki の通知メールに `Message-ID`/`References` が付く。フォーラムの投稿通知の件名が `[プロジェクト - フォーラム #ID]` から Redmine と同じ `[プロジェクト - フォーラム - msgID]` になる。これらのメールへの返信(受信メール)がフォーラムのトピックへの返信・ニュースへのコメントとして記録される(従来は無視、件名の `#ID` で同じ番号の課題へのコメントになることもあった) | 件名でメールを振り分けている場合は条件の見直しが必要 |
 | A6-04c | 課題の編集(フォーム・REST の更新)と同時にファイルを追加すると、通知メールが 1 通(変更・コメント・添付ファイルを 1 つの履歴に記録)になる(従来は編集と添付で 2 通・2 つの履歴) | ファイルだけの追加は従来どおり |
+| A12-06e | 受信メールのカスタムフィールドの「名前: 値」行は、設定「受信メールで上書きできる項目」にフィールド名(小文字、空白は `_`。例: `ticket_ref`)か `all` があるときだけ反映される(従来は常に反映) | 既定(空)では反映されない。従来どおりにするには `all` またはフィールド名を設定する |
 | A9-01d | ガントに拡大/縮小(既定は週番号の見出し付き)と、予定より遅れている棒の赤い部分が出る。PNG/PDF も既定で週番号の見出しが付くため画像の高さが 1 行ぶん増える | 月だけの見出しにするにはズームを 1 にしてから出力する |
 
 **フロントエンドの再ビルドが必要**: A10-04・A9-02・A1-21・A1-13 などが新しい Tailwind クラスを使う。`public/build` は gitignore 対象のため、デプロイ時に `npm run build` を実行すること。

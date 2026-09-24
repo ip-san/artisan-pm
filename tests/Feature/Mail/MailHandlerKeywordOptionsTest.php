@@ -109,6 +109,7 @@ test('a custom field keyword sets the field and leaves the body', function () {
     [, $tracker] = keywordOptionsSetup();
     $ticket = keywordOptionsField($tracker, ['name' => 'Ticket ref']);
     $color = keywordOptionsField($tracker, ['name' => 'Color'], list: true);
+    Setting::set('mail_handler_allow_override', 'all');
 
     $issue = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail("Ticket ref: REF-7\ncolor: green\nreal body"));
 
@@ -121,6 +122,7 @@ test('an invalid custom field value or one the sender may not edit is ignored', 
     [, $tracker] = keywordOptionsSetup();
     $color = keywordOptionsField($tracker, ['name' => 'Color'], list: true);
     $locked = keywordOptionsField($tracker, ['name' => 'Locked', 'editable' => false]);
+    Setting::set('mail_handler_allow_override', 'all');
 
     $issue = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail("Color: Purple\nLocked: x\nbody"));
 
@@ -133,10 +135,29 @@ test('a custom field keyword in a reply is recorded on the issue', function () {
     [$project, $tracker] = keywordOptionsSetup();
     $ticket = keywordOptionsField($tracker, ['name' => 'Ticket ref']);
     $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    Setting::set('mail_handler_allow_override', 'ticket_ref');
 
     app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail("Ticket ref: REF-9\nthanks", "Re: [Issue #{$issue->id}]"));
 
     expect($issue->fresh()->customValue($ticket))->toBe('REF-9');
+});
+
+test('a custom field line needs allow_override to name the field (or all), as in Redmine', function () {
+    [, $tracker] = keywordOptionsSetup();
+    $ticket = keywordOptionsField($tracker, ['name' => 'Ticket ref']);
+    $color = keywordOptionsField($tracker, ['name' => 'Color'], list: true);
+
+    $untouched = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail("Ticket ref: REF-1\nColor: green\nbody"));
+
+    expect($untouched->customValue($ticket))->toBeNull()
+        ->and($untouched->description)->toBe("Ticket ref: REF-1\nColor: green\nbody");
+
+    Setting::set('mail_handler_allow_override', 'status, Ticket Ref');
+    $partly = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail("Ticket ref: REF-2\nColor: green\nbody"));
+
+    expect($partly->customValue($ticket))->toBe('REF-2')
+        ->and($partly->customValue($color))->toBeNull()
+        ->and($partly->description)->toBe("Color: green\nbody");
 });
 
 test('the project comes from a plus address when project_from_subaddress is set', function () {

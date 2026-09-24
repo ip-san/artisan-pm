@@ -1786,7 +1786,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-neutral-700">{{ __('本文のキーワードで上書きを許す項目(カンマ区切り)') }}</label>
                 <input type="text" wire:model="mail_handler_allow_override" placeholder="all"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                <p class="mt-1 text-xs text-neutral-500">{!! __(':all はすべて許可。例: :example(項目: status, priority, assigned_to, done_ratio, tracker, category, fixed_version, start_date, due_date, estimated_hours, private, parent_issue)。カスタムフィールドの行は常に有効です。', ['all' => '<code>all</code>', 'example' => '<code>status, priority, assigned_to</code>']) !!}</p>
+                <p class="mt-1 text-xs text-neutral-500">{!! __(':all はすべて許可。例: :example(項目: status, priority, assigned_to, done_ratio, tracker, category, fixed_version, start_date, due_date, estimated_hours, private, parent_issue)。カスタムフィールドは名前で指定します(小文字、空白は _)。', ['all' => '<code>all</code>', 'example' => '<code>status, priority, assigned_to</code>']) !!}</p>
                 @error('mail_handler_allow_override') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
