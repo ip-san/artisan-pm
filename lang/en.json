@@ -7,6 +7,7 @@
     "(:days日超過)": "(:days days late)",
     "(:user が編集 :time)": "(edited by :user :time)",
     "(あと:days日)": "(:days days left)",
+    "(すべての管理者に表示されます)": "(Shown to every administrator)",
     "(なし)": "(none)",
     "(マッピングしない)": "(do not map)",
     "(不明)": "(unknown)",

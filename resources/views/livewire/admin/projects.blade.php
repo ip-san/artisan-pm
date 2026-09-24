@@ -5,7 +5,10 @@ use App\Concerns\ReordersColumns;
 use App\Concerns\SelectsPageSize;
 use App\Enums\FilterOperator;
 use App\Enums\ProjectStatus;
+use App\Enums\QueryType;
+use App\Enums\QueryVisibility;
 use App\Models\Project;
+use App\Models\Query as SavedQuery;
 use App\Models\Setting;
 use App\Support\Activity\ProjectLastActivity;
 use App\Support\Auth\RequiresPasswordConfirmation;
@@ -32,6 +35,9 @@ use Livewire\WithPagination;
  * several can only be deleted together, after typing "はい" in sudo mode
  * (ProjectsController#bulk_destroy). Close/reopen stay on the overview —
  * Redmine's admin menu does not offer them either.
+ *
+ * Its saved queries are Redmine's ProjectAdminQuery (QueryType::ProjectAdmin):
+ * every administrator sees and uses all of them, nobody else any.
  */
 new #[Layout('components.layouts.app')] class extends Component
 {
@@ -57,6 +63,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $confirmingBulkDelete = false;
 
     public string $bulkDeleteConfirmation = '';
+
+    public string $newQueryName = '';
+
+    public bool $showSaveForm = false;
 
     public function mount(): void
     {
@@ -171,6 +181,72 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->sortKey = null;
         $this->sortDirection = 'asc';
         $this->resetPage();
+    }
+
+    /**
+     * @return Collection<int, SavedQuery>
+     */
+    #[Computed]
+    public function savedQueries(): Collection
+    {
+        return SavedQuery::visibleGlobally(QueryType::ProjectAdmin, auth()->user());
+    }
+
+    public function saveQuery(): void
+    {
+        $this->authorize('manage', Setting::class);
+
+        $data = $this->validate(['newQueryName' => ['required', 'string', 'max:255']]);
+
+        SavedQuery::create([
+            'name' => $data['newQueryName'],
+            'type' => QueryType::ProjectAdmin->value,
+            'user_id' => auth()->id(),
+            'project_id' => null,
+            'visibility' => QueryVisibility::Private->value,
+            'filters' => $this->builtFilters(),
+            'column_names' => $this->visibleColumns,
+            'sort_criteria' => $this->sortKey !== null ? [[$this->sortKey, $this->sortDirection]] : [],
+            'group_by' => null,
+        ]);
+
+        $this->reset(['newQueryName', 'showSaveForm']);
+        unset($this->savedQueries);
+        session()->flash('status', __('クエリを保存しました。'));
+    }
+
+    public function loadQuery(int $queryId): void
+    {
+        $this->authorize('manage', Setting::class);
+
+        $query = SavedQuery::query()
+            ->where('type', QueryType::ProjectAdmin->value)
+            ->whereNull('project_id')
+            ->find($queryId);
+
+        abort_if($query === null, 404);
+        abort_unless($query->visibleTo(auth()->user()), 403);
+
+        $this->activeFilterKeys = array_keys($query->filters ?? []);
+        $this->filterOperators = [];
+        $this->filterValues = [];
+
+        foreach ($query->filters ?? [] as $key => $filter) {
+            $this->filterOperators[$key] = $filter['operator'];
+            $this->filterValues[$key] = $filter['values'] ?? [];
+        }
+
+        $this->columns = $query->column_names ?? [];
+        $this->sortKey = null;
+        $this->sortDirection = 'asc';
+
+        if (isset($query->sort_criteria[0])) {
+            [$this->sortKey, $this->sortDirection] = $query->sort_criteria[0];
+        }
+
+        $this->resetPage();
+        unset($this->visibleColumns);
+        $this->finishAction();
     }
 
     /**
@@ -368,6 +444,17 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     @endif
 
+    <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
+        @forelse ($this->savedQueries as $savedQuery)
+            <button wire:key="admin-saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
+                {{ $savedQuery->name }}
+            </button>
+        @empty
+            <span class="text-neutral-400">{{ __('なし') }}</span>
+        @endforelse
+    </div>
+
     <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
@@ -385,7 +472,17 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($sortKey !== null)
                 <button wire:click="clearSort" class="text-sm text-brand-bold hover:underline">{{ __('並べ替えを解除') }}</button>
             @endif
+            <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
         </div>
+
+        @if ($showSaveForm)
+            <form wire:submit="saveQuery" class="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3">
+                <input type="text" wire:model="newQueryName" placeholder="{{ __('クエリ名') }}" class="rounded-md border-neutral-300 text-sm">
+                <span class="text-xs text-neutral-500">{{ __('(すべての管理者に表示されます)') }}</span>
+                <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
+                @error('newQueryName') <span class="text-sm text-danger-bolder">{{ $message }}</span> @enderror
+            </form>
+        @endif
 
         <div class="mt-3">
             <x-column-order :columns="$this->visibleColumns" :labels="$this->availableColumns" />

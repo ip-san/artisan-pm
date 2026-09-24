@@ -11,6 +11,7 @@ use App\Http\Resources\Api\V1\QueryResource;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Query;
+use App\Models\Setting;
 use App\Models\TimeEntry;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
@@ -53,6 +54,7 @@ final class QueryController extends Controller
                 QueryType::Issue => Gate::authorize('viewAny', [Issue::class, $project]),
                 QueryType::TimeEntry => Gate::authorize('viewAny', [TimeEntry::class, $project]),
                 QueryType::Project => Gate::authorize('view', $project),
+                QueryType::ProjectAdmin => Gate::authorize('manage', Setting::class),
             };
 
             $queries = Query::visibleIn($project, $type, $request->user());

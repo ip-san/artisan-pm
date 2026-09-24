@@ -1,12 +1,16 @@
 <?php
 
 use App\Enums\ProjectStatus;
+use App\Enums\QueryType;
+use App\Enums\QueryVisibility;
 use App\Models\Issue;
 use App\Models\Member;
 use App\Models\Project;
+use App\Models\Query;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Version;
+use Laravel\Passport\Passport;
 use Livewire\Livewire;
 
 /**
@@ -139,4 +143,59 @@ test('a non-administrator cannot run the list actions', function () {
     Livewire::actingAs($manager)->test('admin.projects')->assertForbidden();
 
     expect($project->fresh()->status)->toBe(ProjectStatus::Active);
+});
+
+/**
+ * A2-05b: Redmine's ProjectAdminQuery — saved queries of the admin list,
+ * shared by every administrator and by nobody else.
+ */
+test('an administrator saves the admin list query and any administrator loads it', function () {
+    Project::factory()->create(['name' => 'Alpha']);
+    Project::factory()->create(['name' => 'Beta']);
+
+    Livewire::actingAs(User::factory()->admin()->create())->test('admin.projects')
+        ->set('activeFilterKeys', ['name'])
+        ->set('filterOperators', ['name' => '~'])
+        ->set('filterValues', ['name' => ['alp']])
+        ->set('columns', ['name', 'identifier'])
+        ->call('sortBy', 'name')
+        ->set('newQueryName', 'Alphas')
+        ->call('saveQuery')
+        ->assertHasNoErrors();
+
+    $saved = Query::query()->where('name', 'Alphas')->firstOrFail();
+    expect($saved->type)->toBe(QueryType::ProjectAdmin)
+        ->and($saved->filters)->toBe(['name' => ['operator' => '~', 'values' => ['alp']]]);
+
+    $list = Livewire::actingAs(User::factory()->admin()->create())->test('admin.projects')
+        ->assertSee('Alphas')
+        ->call('loadQuery', $saved->id);
+
+    expect(adminProjectListNames($list))->toBe(['Alpha'])
+        ->and($list->get('columns'))->toBe(['name', 'identifier'])
+        ->and($list->get('sortKey'))->toBe('name');
+});
+
+test('admin list queries stay out of reach of non-administrators and off the project list', function () {
+    $query = Query::query()->create([
+        'name' => 'Admin only', 'type' => QueryType::ProjectAdmin->value, 'user_id' => User::factory()->admin()->create()->id,
+        'project_id' => null, 'visibility' => QueryVisibility::Public->value,
+        'filters' => [], 'column_names' => ['name'], 'sort_criteria' => [], 'group_by' => null,
+    ]);
+    $user = User::factory()->create();
+
+    expect($query->visibleTo($user))->toBeFalse()
+        ->and($query->visibleTo(null))->toBeFalse()
+        ->and(Query::visibleGlobally(QueryType::ProjectAdmin, $user))->toBeEmpty();
+
+    Livewire::actingAs($user)->test('projects.index')->assertDontSee('Admin only');
+    Livewire::actingAs($user)->test('projects.index')->call('loadQuery', $query->id)->assertNotFound();
+    Livewire::actingAs(User::factory()->admin()->create())->test('projects.index')->assertDontSee('Admin only');
+
+    Passport::actingAs($user);
+    expect($this->getJson('/api/v1/queries?type=project_admin')->assertOk()->json('data'))->toBe([]);
+
+    Passport::actingAs(User::factory()->admin()->create());
+    $names = collect($this->getJson('/api/v1/queries?type=project_admin')->assertOk()->json('data'))->pluck('name')->all();
+    expect($names)->toBe(['Admin only']);
 });

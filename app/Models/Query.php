@@ -70,6 +70,12 @@ final class Query extends Model
      */
     public function visibleTo(?User $user, ?Collection $userRoleIds = null): bool
     {
+        // Redmine's ProjectAdminQuery#visible?: administrators only, all of
+        // them, whoever saved it and whatever its visibility.
+        if ($this->type === QueryType::ProjectAdmin) {
+            return (bool) $user?->is_admin;
+        }
+
         if ($user?->is_admin || ($user !== null && $this->user_id === $user->id)) {
             return true;
         }
@@ -135,6 +141,12 @@ final class Query extends Model
      */
     public static function visibleGlobally(QueryType $type, ?User $user): Collection
     {
+        if ($type === QueryType::ProjectAdmin) {
+            return $user?->is_admin
+                ? self::query()->whereNull('project_id')->where('type', $type->value)->orderBy('name')->get()
+                : collect();
+        }
+
         return self::query()
             ->whereNull('project_id')
             ->where('type', $type->value)
