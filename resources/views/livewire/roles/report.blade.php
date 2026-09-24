@@ -70,7 +70,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 fn (string $key) => $checked[$key] ?? false
             ));
 
-            $role->update(['permissions' => $permissions]);
+            $role->update(['permissions' => $role->withUnregisteredPermissions($permissions)]);
         }
 
         unset($this->roles);

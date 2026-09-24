@@ -207,7 +207,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'managedRoleIds.*' => [Rule::in($this->otherGivableRoles->pluck('id')->all())],
         ]);
 
-        $data['permissions'] = array_values(array_intersect($this->permissions, $this->availablePermissions));
+        $data['permissions'] = ($this->role ?? new Role)->withUnregisteredPermissions(array_values(array_intersect($this->permissions, $this->availablePermissions)));
         $data['issues_visibility'] = $data['issuesVisibility'];
         $data['time_entries_visibility'] = $data['timeEntriesVisibility'];
         $data['users_visibility'] = $data['usersVisibility'];

@@ -1,0 +1,5 @@
+{
+    "id": "missing_provider",
+    "provider": "ArtisanPmFixture\\MissingProvider\\Nowhere",
+    "autoload": {"ArtisanPmFixture\\MissingProvider\\": "src/"}
+}

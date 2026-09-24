@@ -1,0 +1,5 @@
+{
+    "id": "dotdot_path",
+    "provider": "ArtisanPmFixture\\ValidPlugin\\ValidPluginServiceProvider",
+    "autoload": {"ArtisanPmFixture\\ValidPlugin\\": "src/../../valid_plugin/src/"}
+}

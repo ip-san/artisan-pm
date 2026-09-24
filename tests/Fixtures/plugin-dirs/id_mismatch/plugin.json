@@ -1,0 +1,5 @@
+{
+    "id": "something_else",
+    "provider": "ArtisanPmFixture\\IdMismatch\\Provider",
+    "autoload": {"ArtisanPmFixture\\IdMismatch\\": "src/"}
+}

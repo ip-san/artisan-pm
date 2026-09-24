@@ -1,0 +1,5 @@
+{
+    "id": "absolute_path",
+    "provider": "ArtisanPmFixture\\AbsolutePath\\Provider",
+    "autoload": {"ArtisanPmFixture\\AbsolutePath\\": "/etc/"}
+}

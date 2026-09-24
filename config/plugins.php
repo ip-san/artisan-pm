@@ -19,4 +19,19 @@ return [
 
     'core_version' => env('APP_CORE_VERSION', '1.0.0'),
 
+    /*
+    |--------------------------------------------------------------------
+    | Plugins Path
+    |--------------------------------------------------------------------
+    |
+    | Where PluginLoader looks for plugin folders (A12-03), Redmine's
+    | plugins/ directory: each `<path>/<id>/plugin.json` describes one
+    | plugin. Operators place plugins here on disk (there is no upload from
+    | the admin screen); a plugin is loaded only after an administrator
+    | enables it on the plugins screen (setting `plugins_enabled`).
+    |
+    */
+
+    'path' => env('PLUGINS_PATH', base_path('plugins')),
+
 ];

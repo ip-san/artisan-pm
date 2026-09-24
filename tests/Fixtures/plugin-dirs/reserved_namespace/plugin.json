@@ -1,0 +1,5 @@
+{
+    "id": "reserved_namespace",
+    "provider": "App\\Providers\\AppServiceProvider",
+    "autoload": {"App\\": "src/"}
+}

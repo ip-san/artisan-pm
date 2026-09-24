@@ -1,0 +1,6 @@
+{
+    "id": "newer_core_plugin",
+    "requires_core_version": "99.0.0",
+    "provider": "ArtisanPmFixture\\NewerCorePlugin\\Provider",
+    "autoload": {"ArtisanPmFixture\\NewerCorePlugin\\": "src/"}
+}

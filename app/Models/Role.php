@@ -8,6 +8,7 @@ use App\Enums\IssueVisibility;
 use App\Enums\RoleBuiltin;
 use App\Enums\TimeEntryVisibility;
 use App\Enums\UsersVisibility;
+use App\Support\Permissions\PermissionRegistry;
 use Database\Factories\RoleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -131,6 +132,24 @@ final class Role extends Model
     public function hasPermission(string $permission): bool
     {
         return in_array($permission, $this->permissionKeys(), true);
+    }
+
+    /**
+     * $permissions plus the keys this role holds that no loaded code
+     * registers — a disabled plugin's permissions (A12-03). They grant
+     * nothing while unregistered, but saving the role from a screen that
+     * can't show them must not drop them, so re-enabling the plugin brings
+     * the grants back.
+     *
+     * @param  array<int, string>  $permissions
+     * @return array<int, string>
+     */
+    public function withUnregisteredPermissions(array $permissions): array
+    {
+        $registry = app(PermissionRegistry::class);
+        $unregistered = array_filter($this->permissionKeys(), fn (string $key) => ! $registry->has($key));
+
+        return array_values(array_unique([...$permissions, ...$unregistered]));
     }
 
     /**

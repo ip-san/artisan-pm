@@ -1,0 +1,10 @@
+{
+    "id": "valid_plugin",
+    "name": "Valid Fixture Plugin",
+    "version": "1.2.3",
+    "author": "Fixture Author",
+    "description": "Loads cleanly.",
+    "requires_core_version": "1.0.0",
+    "provider": "ArtisanPmFixture\\ValidPlugin\\ValidPluginServiceProvider",
+    "autoload": {"ArtisanPmFixture\\ValidPlugin\\": "src/"}
+}

@@ -14,6 +14,8 @@
 /.zed
 /auth.json
 /node_modules
+/plugins/*
+!/plugins/.gitkeep
 /public/build
 /public/fonts-manifest.dev.json
 /public/hot
