@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\CustomFields\Formats\AttachmentFormat;
 use App\Enums\EnumerationType;
 use App\Enums\IssueRelationType;
 use App\Enums\IssueTimeEntryDisposition;
@@ -432,6 +433,10 @@ final class IssueService
             $this->afterProjectChange($issue, $targetProject, $movingIssueIds, $actor);
         }
 
+        if ($targetProject !== null || $issue->wasChanged('tracker_id')) {
+            $this->deleteUnavailableCustomFieldValues($issue);
+        }
+
         $issue->setCustomFieldValues($customFieldData, $issue->relevantCustomFields($actor));
 
         if ($assignedToChanged) {
@@ -840,6 +845,26 @@ final class IssueService
     }
 
     /**
+     * Redmine's reassign_custom_field_values on a project or tracker change:
+     * the values of custom fields the issue's new project and tracker don't
+     * use are deleted (with an attachment field's file), not kept for a
+     * move back. Not journaled — Redmine's journal only compares the fields
+     * the issue has after the change.
+     */
+    private function deleteUnavailableCustomFieldValues(Issue $issue): void
+    {
+        $availableIds = $issue->availableCustomFields()->pluck('id')->all();
+
+        $issue->customFieldValues()->whereNotIn('custom_field_id', $availableIds)->delete();
+
+        $issue->getMedia(AttachmentFormat::COLLECTION)
+            ->reject(fn (Media $media): bool => in_array((int) $media->getCustomProperty('custom_field_id'), $availableIds, true))
+            ->each(fn (Media $media) => $media->delete());
+
+        $issue->unsetRelation('customFieldValues');
+    }
+
+    /**
      * Redmine's Issue#after_project_change for $issue and the subtasks that
      * moved with it: their time entries follow them to the target, their
      * relations are removed unless cross-project relations are allowed, and
@@ -854,6 +879,7 @@ final class IssueService
         foreach ($subtasks as $subtask) {
             $subtask->fill([...$this->projectChangeAttributes($subtask, $targetProject, $actor, keepTracker: true), 'project_id' => $targetProject->id]);
             $subtask->save();
+            $this->deleteUnavailableCustomFieldValues($subtask->setRelation('project', $targetProject));
         }
 
         $movedIds = $subtasks->pluck('id')->push($issue->id);
