@@ -16,28 +16,56 @@ use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Support\Api\CustomFieldPayload;
+use App\Support\Api\RedmineIssueListParams;
+use App\Support\Authorization\AuthorizationService;
+use App\Support\Query\ProjectFilterFieldRegistry;
+use App\Support\Query\QueryFilterEngine;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 final class ProjectController extends Controller
 {
     /**
-     * Mirrors the projects.index Livewire component's own visibility
-     * filtering — there's no blanket "view any project" permission, only a
-     * per-project one, so every candidate is checked individually.
+     * Redmine's GET /projects.json: the projects the caller may see (the
+     * same set as the projects.index list), narrowed by the ProjectQuery
+     * filters in Redmine's f[]/op[]/v[] or short `field=[operator]value`
+     * form (RedmineIssueListParams, as GET /issues.json reads them), with
+     * limit/offset (or page) and total_count/offset/limit beside the data.
+     * Still ordered by name, as this endpoint always has been.
      */
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
-        $projects = Project::query()
-            ->with(['defaultVersion', 'defaultAssignedTo'])
-            ->orderBy('name')
-            ->get()
-            ->filter(fn (Project $project) => Gate::allows('view', $project))
-            ->values();
+        $user = $request->user();
+        $input = $request->query();
+        $visibleProjectIds = app(AuthorizationService::class)->visibleProjectIds($user, 'view_project');
+        $engine = new QueryFilterEngine(ProjectFilterFieldRegistry::forViewer($user, $visibleProjectIds));
 
-        return ProjectResource::collection($projects);
+        $query = $engine->applyFilters(
+            Project::query()->whereIn('id', $visibleProjectIds)->with(['defaultVersion', 'defaultAssignedTo']),
+            RedmineIssueListParams::filters($input, $engine, $user),
+        )->orderBy('name')->orderBy('id');
+
+        [$offset, $limit] = RedmineIssueListParams::offsetAndLimit($input);
+        $total = (clone $query)->toBase()->getCountForPagination();
+
+        $projects = new LengthAwarePaginator(
+            $query->skip($offset)->take($limit)->get(),
+            $total,
+            $limit,
+            intdiv($offset, $limit) + 1,
+            ['path' => $request->url(), 'query' => Arr::except($input, ['page', 'offset'])],
+        );
+
+        return ProjectResource::collection($projects)->additional([
+            'total_count' => $total,
+            'offset' => $offset,
+            'limit' => $limit,
+        ]);
     }
 
     public function show(Project $project): ProjectResource

@@ -226,6 +226,7 @@
 | 108a | A2-03a | — | M | done(2026-09-24、保存クエリ/既定クエリは A2-03b、ボード表示と設定は A2-03c) |
 | 108b | A2-03b | A2-03a | S〜M | done(2026-09-24、個人設定 `default_project_query` も配線=A4-13b 完了) |
 | 108c | A2-03c | A2-03a | S | done(2026-09-24、表示形式は保存クエリには保存しない) |
+| 108d | A11-18 | A2-03a | S | done(2026-09-24、プロジェクト一覧と同じ可視範囲にフィルタ(f[]/op[]/v[] と短縮形)と limit/offset/page、`total_count`。並びは従来どおり名前順) |
 | 109 | A2-05 | A2-03 | S〜M | done(2026-09-24、保存クエリは A2-05b、アーカイブの連鎖は A3-13。クローズ/再オープン・コピーは Redmine の管理メニューにも無い) |
 | 109b | A2-05b | A2-05 | S | todo |
 | 109c | A3-13 | — | S〜M | todo |
@@ -559,7 +560,7 @@
 | A11-14 | `PUT /my/account.json` の password/2FA/通知設定/CF、`GET /my/api_key`、`POST /my/api_key`(リセット) | name/email のみ | フィールド拡張。API キーはプロフィール画面で再生成できるため Resource に露出のみ | sudo mode は B-08 | S | REST API「My account」 |
 | A11-15 | `jsonp_enabled`(JSONP コールバック) | なし | 設定+`callback` パラメータ対応ミドルウェア | 優先度低・セキュリティ注意 | S | — |
 | A11-16 | Memberships の `inherited_from` | 2026-09-24 完了。`MembershipResource` に `inherited_role_ids`(`role_ids` のうち親から継承したもの。Redmine はロール配列の各要素に `inherited: true`、本アプリは既存の扁平な形に合わせた)。あわせて Projects API に `inherit_members` の読み書き(Redmine の `projects/show.api.rsb` と `safe_attributes`: 親を閲覧できない利用者の指定は無視) | A3-03 実装後に露出 | — | S | REST API「Memberships」 |
-| A11-18 | `GET /projects.json` のクエリ対応(Redmine は `ProjectQuery` のフィルタ・`limit`/`offset` を API にも適用) | `Api/V1/ProjectController::index` は全件を名前順に取得して `Gate::allows('view')` で絞るのみ(2026-09-24、A2-03a で確認) | `ProjectFilterFieldRegistry`+`visibleProjectIds(..., 'view_project')` を API 一覧にも適用し、`limit`/`offset` を受け付ける | A2-03a の基盤上に | S | REST API「Projects」 |
+| A11-18 | `GET /projects.json` のクエリ対応(Redmine は `ProjectQuery` のフィルタ・`limit`/`offset` を API にも適用) | **done(2026-09-24)**。`Api/V1/ProjectController::index` は `AuthorizationService::visibleProjectIds(..., 'view_project')`(プロジェクト一覧と同じ)に `ProjectFilterFieldRegistry` のフィルタを `RedmineIssueListParams` 経由で適用し、`limit`/`offset`/`page` と `total_count`/`offset`/`limit` を返す。ロール制限のあるプロジェクト CF は管理者以外に出ない(既存の規則)。並びは従来の名前順のまま(Redmine の既定は階層順)。あわせて短縮形の演算子に `*~`/`^`/`$`(A1-36)を追加 | `ProjectFilterFieldRegistry`+`visibleProjectIds(..., 'view_project')` を API 一覧にも適用し、`limit`/`offset` を受け付ける | A2-03a の基盤上に | S | REST API「Projects」 |
 
 ### A-12. 拡張性(プラグイン / Webhook / 受信メール)
 

@@ -39,13 +39,13 @@ final class RedmineIssueListParams
 
     /**
      * Redmine's operators that this app spells differently or does not
-     * have; the others (=, !, ~, !~, >=, <=, ><, *o, !o, =p, =!p, !p) are
+     * have; the others (=, !, ~, !~, *~, ^, $, >=, <=, ><, *o, !o, =p, =!p, !p) are
      * FilterOperator values as they are.
      *
      * @var array<int, string>
      */
     private const array SHORT_FILTER_OPERATORS = [
-        '=p', '=!p', '!p', '*o', '!o', '!*', '!~', '>=', '<=', '><', '>t-', '<t-', 't-', 'l2w', 'ld', 'lw', 'lm', '!', '*', '~', 'o', 'c', 't', 'w', 'm', 'y',
+        '=p', '=!p', '!p', '*o', '!o', '!*', '!~', '*~', '>=', '<=', '><', '>t-', '<t-', 't-', 'l2w', 'ld', 'lw', 'lm', '!', '*', '~', '^', '$', 'o', 'c', 't', 'w', 'm', 'y',
     ];
 
     /**
