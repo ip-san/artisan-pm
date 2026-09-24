@@ -102,3 +102,19 @@ test('the scheduled queue worker stops when the queue is empty and never overlap
         ->and($event->withoutOverlapping)->toBeTrue()
         ->and($event->expiresAt)->toBe(15);
 });
+
+test('SCHEDULE_TIMEZONE sets the scheduler\'s zone while stored times stay UTC', function () {
+    expect(collect(app(Schedule::class)->events())->every(fn ($event) => $event->timezone === null))->toBeTrue();
+
+    $_ENV['SCHEDULE_TIMEZONE'] = $_SERVER['SCHEDULE_TIMEZONE'] = 'Asia/Tokyo';
+
+    try {
+        $this->refreshApplication();
+        $this->artisan('schedule:list')->assertSuccessful();
+
+        expect(config('app.timezone'))->toBe('UTC')
+            ->and(collect(app(Schedule::class)->events())->pluck('timezone')->unique()->all())->toBe(['Asia/Tokyo']);
+    } finally {
+        unset($_ENV['SCHEDULE_TIMEZONE'], $_SERVER['SCHEDULE_TIMEZONE']);
+    }
+});

@@ -84,6 +84,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Schedule Timezone
+    |--------------------------------------------------------------------------
+    |
+    | The zone the scheduler's times are read in (routes/console.php): a
+    | daily job runs at midnight of this zone. `timezone` above stays UTC on
+    | purpose, since timestamps are stored in UTC and converted to each
+    | user's time zone for display, so it isn't taken from APP_TIMEZONE.
+    | Defaults to `timezone` (UTC, i.e. 09:00 in Japan) when unset.
+    |
+    */
+
+    'schedule_timezone' => env('SCHEDULE_TIMEZONE'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |
