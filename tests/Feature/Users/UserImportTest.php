@@ -150,3 +150,13 @@ test('the name column is optional only when both first and last names are mapped
         ->set('mapping.name', '')->set('mapping.firstname', 'firstname')
         ->call('startImport')->assertHasErrors(['mapping.name']);
 });
+
+test('a blank line counts as a failed row, as in the issue import', function () {
+    $csv = "login,name,email,password\nfirst,First,first@example.com,a-strong-password-1\n\nsecond,Second,second@example.com,a-strong-password-1\n";
+
+    $import = userImportRun($csv);
+
+    expect($import->imported_count)->toBe(2)
+        ->and($import->failed_count)->toBe(1)
+        ->and($import->errors[0]['row'])->toBe(3);
+});

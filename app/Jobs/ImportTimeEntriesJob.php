@@ -11,6 +11,7 @@ use App\Models\TimeEntryImport;
 use App\Models\User;
 use App\Services\TimeEntryService;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Import\CsvReader;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -52,8 +53,7 @@ final class ImportTimeEntriesJob implements ShouldQueue
             return;
         }
 
-        $rows = array_map('str_getcsv', file($disk->path($this->import->file_path)));
-        $header = array_shift($rows) ?? [];
+        ['header' => $header, 'rows' => $rows] = CsvReader::read($disk->path($this->import->file_path));
 
         $this->import->update(['total_rows' => count($rows)]);
 

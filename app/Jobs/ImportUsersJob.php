@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\UserImport;
 use App\Rules\AllowedEmailDomain;
 use App\Rules\UniqueUserValueIgnoringCase;
+use App\Support\Import\CsvReader;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -59,7 +60,7 @@ final class ImportUsersJob implements ShouldQueue
             return;
         }
 
-        [$header, $rows] = self::readCsv($disk->path($this->import->file_path));
+        ['header' => $header, 'rows' => $rows] = CsvReader::read($disk->path($this->import->file_path));
 
         $this->import->update(['total_rows' => count($rows)]);
 
@@ -92,35 +93,6 @@ final class ImportUsersJob implements ShouldQueue
             'failed_count' => count($errors),
             'errors' => $errors,
         ]);
-    }
-
-    /**
-     * The header and data rows of a CSV file, quoted fields with line breaks
-     * included; a UTF-8 byte-order mark is dropped and blank lines skipped.
-     *
-     * @return array{0: array<int, string>, 1: array<int, array<int, string|null>>}
-     */
-    public static function readCsv(string $path): array
-    {
-        $handle = fopen($path, 'r');
-        $header = fgetcsv($handle, escape: '') ?: [];
-        $rows = [];
-
-        if (isset($header[0])) {
-            $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', $header[0]);
-        }
-
-        while (($row = fgetcsv($handle, escape: '')) !== false) {
-            if ($row === [null]) {
-                continue;
-            }
-
-            $rows[] = $row;
-        }
-
-        fclose($handle);
-
-        return [$header, $rows];
     }
 
     /**

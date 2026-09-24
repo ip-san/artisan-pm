@@ -246,3 +246,30 @@ test('the import status page shows progress and errors once finished', function 
         ->assertSee('完了しました')
         ->assertSee('1');
 });
+
+test('a quoted comment with a line break and a byte-order mark are read correctly', function () {
+    Storage::fake('local');
+
+    $project = Project::factory()->create();
+    Enumeration::factory()->create(['type' => 'time_entry_activity', 'is_default' => true]);
+    $user = timeEntryImportMember($project);
+
+    $csv = "\xEF\xBB\xBFspent_on,hours,comments\n2026-01-01,2.5,\"First line\nSecond line\"\n2026-01-02,1,Plain\n";
+
+    $component = Livewire::actingAs($user)
+        ->test('time-entries.import', ['project' => $project])
+        ->set('csvFile', timeEntryCsvFile('time_entries.csv', $csv));
+
+    expect($component->get('headers'))->toBe(['spent_on', 'hours', 'comments']);
+
+    $component->set('mapping.spent_on', 'spent_on')
+        ->set('mapping.hours', 'hours')
+        ->set('mapping.comments', 'comments')
+        ->call('startImport');
+
+    $import = TimeEntryImport::firstOrFail();
+
+    expect($import->imported_count)->toBe(2)
+        ->and($import->failed_count)->toBe(0)
+        ->and(TimeEntry::where('comments', "First line\nSecond line")->where('hours', 2.5)->exists())->toBeTrue();
+});

@@ -220,7 +220,7 @@
 | 106a | A1-28a | — | S | done(2026-09-24、`CsvReader`(fgetcsv、引用符内の改行、BOM)を課題インポートのジョブと列見出しの読み取りに適用。工数/ユーザーのインポートは A1-28d) |
 | 106b | A1-28b | A1-28a | M | done(2026-09-24、`relevantCustomFields(?User)`・`IssueService` の CF 保存/比較を作成者/実行者で・マッピング画面の CF 列(名前一致の自動割当)・`CustomField::valueFromKeyword()`(受信メールと共通)・必須/形式の検証で行エラー。ワークフローの必須/読み取り専用は従来どおりインポートに未適用) |
 | 106c | A1-28c | A1-28b | M | done(2026-09-24、`unique_id`・親の前方参照(依存順に作成)・重複/参照先なし/親の失敗/循環は行エラー・関連列 7 種(遅延付き)を `IssueService::addRelation()` で。一意なID 列が無いときの数字は従来どおり既存課題の番号(Redmine の行番号参照は採らない)。関連の検証は画面/API と `IssueRelationTarget` に共通化) |
-| 106d | A1-28d | A1-28a | S | todo |
+| 106d | A1-28d | A1-28a | **done(2026-09-24)**。`ImportTimeEntriesJob`・`ImportUsersJob` と両画面の見出し読み取りを `CsvReader::read()`/`header()` に置き換え(引用符内の改行と BOM 付き見出しを正しく読む)。`ImportUsersJob::readCsv()` は削除。ユーザーインポートの空行は従来の読み飛ばしをやめ、課題インポートと同じく失敗行として数える | done(2026-09-24、工数/ユーザーのジョブと見出し読み取りを `CsvReader` に。ユーザーの空行は読み飛ばしから課題と同じ失敗行へ) |
 | 107 | A1-29 | — | S〜M | done(2026-09-20) |
 | 108 | A2-03 | — | M | done(2026-09-24、A2-03a〜c。API は A11-18) |
 | 108a | A2-03a | — | M | done(2026-09-24、保存クエリ/既定クエリは A2-03b、ボード表示と設定は A2-03c) |

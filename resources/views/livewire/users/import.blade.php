@@ -4,6 +4,7 @@ use App\Jobs\ImportUsersJob;
 use App\Models\CustomField;
 use App\Models\User;
 use App\Models\UserImport;
+use App\Support\Import\CsvReader;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -68,7 +69,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->validate(['csvFile' => ['required', 'file', 'mimes:csv,txt', 'max:5120']]);
 
-        [$this->headers] = ImportUsersJob::readCsv($this->csvFile->getRealPath());
+        $this->headers = CsvReader::header($this->csvFile->getRealPath());
 
         $targets = $this->importableFieldLabels() + $this->customFields->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => $field->name])->all();
 
