@@ -852,7 +852,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <label class="block text-xs font-medium text-neutral-700">{{ __('ユーザー') }}</label>
                     <select wire:model="bulkUserId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
-                        @foreach ($this->bulkTargetProject->loadMissing('users')->users as $member)
+                        @foreach (\App\Models\User::sortByFormat($this->bulkTargetProject->loadMissing('users')->users) as $member)
                             <option value="{{ $member->id }}">{{ $member->displayName() }}</option>
                         @endforeach
                     </select>

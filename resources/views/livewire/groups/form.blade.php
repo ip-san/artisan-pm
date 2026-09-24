@@ -146,7 +146,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return User::query()
             ->whereNotIn('id', $existingUserIds)
             ->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
-            ->orderBy('name')
+            ->sortedByFormat()
             ->limit(10)
             ->get();
     }

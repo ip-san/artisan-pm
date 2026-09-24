@@ -3,6 +3,7 @@
 use App\Models\CustomField;
 use App\Models\Project;
 use App\Models\TimeEntry;
+use App\Models\User;
 use App\Services\TimeEntryService;
 use App\Support\Authorization\AuthorizationService;
 use Illuminate\Support\Collection;
@@ -136,7 +137,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function projectMembers(): Collection
     {
-        return $this->targetProject->loadMissing('users')->users;
+        return User::sortByFormat($this->targetProject->loadMissing('users')->users);
     }
 
     /**

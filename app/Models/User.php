@@ -294,8 +294,91 @@ final class User extends Authenticatable implements HasLocalePreference, OAuthen
     }
 
     /**
-     * Select options for users, labelled in the site's `user_format`
-     * (Redmine's principals_options_for_select uses User#name too).
+     * The name columns users are ordered by in the site's `user_format`,
+     * like Redmine's User.fields_for_order_statement (`lastname_*` formats:
+     * last name then first name). The first/last name formats need both
+     * parts ({@see self::hasNameParts()}), so a user without them sorts by
+     * `name`, the same fallback {@see self::displayName()} applies.
+     *
+     * @return list<string>
+     */
+    public static function orderFieldsForFormat(?string $format = null): array
+    {
+        $format ??= (string) Setting::get('user_format', 'name');
+
+        return match ($format) {
+            'firstname_lastname', 'firstname_lastinitial', 'firstinitial_lastname' => ['firstname', 'lastname'],
+            'firstname' => ['firstname'],
+            'lastname_firstname', 'lastnamefirstname', 'lastname_comma_firstname' => ['lastname', 'firstname'],
+            'lastname' => ['lastname'],
+            'login' => ['login'],
+            default => ['name'],
+        };
+    }
+
+    /**
+     * Orders users by {@see self::orderFieldsForFormat()} (case-insensitively),
+     * then id.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeSortedByFormat(Builder $query): Builder
+    {
+        $table = $this->getTable();
+        $hasParts = "(COALESCE({$table}.firstname, '') <> '' AND COALESCE({$table}.lastname, '') <> '')";
+
+        foreach (self::orderFieldsForFormat() as $position => $field) {
+            $expression = match ($field) {
+                'name' => "{$table}.name",
+                'login' => "COALESCE(NULLIF({$table}.login, ''), {$table}.name)",
+                // Without both parts the user is named (and sorted) by
+                // `name`; only the first field falls back, the second is empty.
+                default => $position === 0
+                    ? "CASE WHEN {$hasParts} THEN {$table}.{$field} ELSE {$table}.name END"
+                    : "CASE WHEN {$hasParts} THEN {$table}.{$field} ELSE '' END",
+            };
+
+            $query->orderByRaw("LOWER({$expression})");
+        }
+
+        return $query->orderBy("{$table}.id");
+    }
+
+    /**
+     * $users in the same order as {@see self::scopeSortedByFormat()}, for
+     * lists assembled in memory (Redmine's assignable_users are sorted by
+     * their displayed name as well).
+     *
+     * @template TKey of array-key
+     *
+     * @param  iterable<TKey, User>  $users
+     * @return Collection<int, User>
+     */
+    public static function sortByFormat(iterable $users): Collection
+    {
+        $fields = self::orderFieldsForFormat();
+
+        return collect($users)
+            ->sortBy(fn (User $user) => [...array_map(fn (string $field, int $position) => $user->sortValue($field, $position), $fields, array_keys($fields)), $user->id])
+            ->values();
+    }
+
+    private function sortValue(string $field, int $position): string
+    {
+        $value = match ($field) {
+            'name' => (string) $this->name,
+            'login' => filled($this->login) ? (string) $this->login : (string) $this->name,
+            default => $this->hasNameParts() ? (string) $this->{$field} : ($position === 0 ? (string) $this->name : ''),
+        };
+
+        return mb_strtolower($value);
+    }
+
+    /**
+     * Select options for users, labelled and ordered in the site's
+     * `user_format` (Redmine's principals_options_for_select uses User#name
+     * too, over lists sorted by it).
      *
      * @param  iterable<User>  $users
      * @return array<int, string>
@@ -304,7 +387,7 @@ final class User extends Authenticatable implements HasLocalePreference, OAuthen
     {
         $options = [];
 
-        foreach ($users as $user) {
+        foreach (self::sortByFormat($users) as $user) {
             $options[$user->id] = $user->displayName();
         }
 

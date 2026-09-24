@@ -174,6 +174,7 @@ final class Project extends Model implements HasMedia
                 $query->where('project_id', $this->id)
                     ->whereHas('roles', fn (Builder $roles) => $roles->where('assignable', true));
             })
+            ->sortedByFormat()
             ->get();
     }
 

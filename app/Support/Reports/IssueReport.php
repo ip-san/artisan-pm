@@ -117,7 +117,7 @@ final class IssueReport
             'category' => $this->project->issueCategories()->orderBy('name')->get(),
             'version' => $this->project->versions()->orderBy('name')->get(),
             'assigned_to' => $this->project->assignableUsers(),
-            'author' => $this->project->users()->orderBy('name')->get(),
+            'author' => $this->project->users()->sortedByFormat()->get(),
             'subproject' => $this->subprojects(),
         };
     }

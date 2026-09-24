@@ -134,7 +134,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->where('status', UserStatus::Active->value)
             ->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
             ->visibleTo(auth()->user())
-            ->orderBy('name')
+            ->sortedByFormat()
             ->limit(10)
             ->get();
     }

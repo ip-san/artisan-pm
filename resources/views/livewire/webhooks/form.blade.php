@@ -64,7 +64,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function owners(): Collection
     {
-        return User::query()->where('status', UserStatus::Active)->orderBy('name')->get();
+        return User::query()->where('status', UserStatus::Active)->sortedByFormat()->get();
     }
 
     public function save(): void

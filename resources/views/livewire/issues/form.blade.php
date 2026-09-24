@@ -325,7 +325,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function watcherOptions(): Collection
     {
-        return $this->project->users()->where('users.status', \App\Enums\UserStatus::Active->value)->orderBy('users.name')->get();
+        return $this->project->users()->where('users.status', \App\Enums\UserStatus::Active->value)->sortedByFormat()->get();
     }
 
     #[Computed]

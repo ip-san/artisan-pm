@@ -73,7 +73,7 @@ final class UserFormat implements ProjectScopedFormat
 
     public function optionsFor(CustomField $field, ?Project $project): array
     {
-        $query = User::query()->where('status', UserStatus::Active)->orderBy('name');
+        $query = User::query()->where('status', UserStatus::Active)->sortedByFormat();
 
         if ($project !== null) {
             $query->whereIn('id', $this->memberIds($field, $project));

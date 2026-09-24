@@ -226,8 +226,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 fn (Collection $users) => $users->push($this->project->defaultAssignedTo)
             )
             ->unique('id')
-            ->sortBy('name')
-            ->values();
+            ->pipe(fn (Collection $users) => User::sortByFormat($users));
     }
 
     /**

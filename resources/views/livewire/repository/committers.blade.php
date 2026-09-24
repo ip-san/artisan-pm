@@ -3,6 +3,7 @@
 use App\Enums\ScmCapability;
 use App\Models\Project;
 use App\Models\Repository;
+use App\Models\User;
 use App\Models\RepositoryCommitter;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -45,7 +46,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function projectMembers(): Collection
     {
-        return $this->project->users;
+        return User::sortByFormat($this->project->users);
     }
 
     public function addMapping(): void

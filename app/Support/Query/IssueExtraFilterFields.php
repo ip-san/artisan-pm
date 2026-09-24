@@ -884,7 +884,6 @@ final class IssueExtraFilterFields
         return $this->scopeProjects()
             ->flatMap(fn (Project $project) => $project->users)
             ->unique('id')
-            ->sortBy('name')
             ->pipe(fn ($users) => User::nameOptions($users));
     }
 
