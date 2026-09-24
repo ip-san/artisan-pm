@@ -607,7 +607,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'date_format' => ['nullable', Rule::in(array_keys(\App\Support\Format\DateTimes::DATE_FORMATS))],
             'time_format' => ['nullable', Rule::in(array_keys(\App\Support\Format\DateTimes::TIME_FORMATS))],
             'issue_list_default_totals' => ['array'],
-            'issue_list_default_totals.*' => [Rule::in(array_keys(ListDefaults::ISSUE_TOTALS))],
+            'issue_list_default_totals.*' => [Rule::in(array_keys(ListDefaults::issueTotalLabels()))],
             'time_entry_list_default_columns' => ['array', 'min:1'],
             'time_entry_list_default_columns.*' => [Rule::in(array_keys(ListDefaults::TIME_ENTRY_COLUMNS))],
             'time_entry_list_show_total' => ['boolean'],

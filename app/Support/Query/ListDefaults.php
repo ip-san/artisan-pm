@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Support\Query;
 
+use App\Enums\CustomFieldFormat;
+use App\Enums\CustomizableType;
+use App\Models\CustomField;
 use App\Models\Setting;
+use Illuminate\Support\Collection;
 
 /**
  * Redmine's `issue_list_default_totals` and `time_entry_list_defaults`:
@@ -51,7 +55,9 @@ final class ListDefaults
     public const array DEFAULT_TIME_ENTRY_COLUMNS = ['spent_on', 'user_id', 'activity_id', 'issue_id', 'comments', 'hours'];
 
     /**
-     * ISSUE_TOTALS' labels, translated for display.
+     * The sums the issue list can total, translated for display:
+     * ISSUE_TOTALS then, keyed `cf_<id>`, the numeric issue custom fields
+     * (Redmine's totalable columns — integer and float formats).
      *
      * @return array<string, string>
      */
@@ -61,7 +67,23 @@ final class ListDefaults
             'estimated_hours' => __('予定工数'),
             'spent_hours' => __('実績工数'),
             'estimated_remaining_hours' => __('残り工数(予定)'),
+            ...self::totalableIssueCustomFields()->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => $field->name])->all(),
         ];
+    }
+
+    /**
+     * Issue custom fields whose values can be summed (Redmine's
+     * `totalable_supported`: the numeric formats).
+     *
+     * @return Collection<int, CustomField>
+     */
+    public static function totalableIssueCustomFields(): Collection
+    {
+        return CustomField::query()
+            ->where('customized_type', CustomizableType::Issue)
+            ->whereIn('field_format', [CustomFieldFormat::Int->value, CustomFieldFormat::Float->value])
+            ->orderBy('position')
+            ->get();
     }
 
     /**
@@ -86,16 +108,23 @@ final class ListDefaults
     }
 
     /**
-     * @return array<int, string> keys of ISSUE_TOTALS, in that order
+     * @return array<int, string> the configured keys of issueTotalLabels(), in that order
      */
     public static function issueTotals(): array
     {
         $configured = Setting::get('issue_list_default_totals', []);
 
-        return array_values(array_filter(
-            array_keys(self::ISSUE_TOTALS),
-            fn (string $key) => is_array($configured) && in_array($key, $configured, true),
-        ));
+        if (! is_array($configured) || $configured === []) {
+            return [];
+        }
+
+        $available = array_keys(self::ISSUE_TOTALS);
+
+        if (collect($configured)->contains(fn ($key) => is_string($key) && str_starts_with($key, 'cf_'))) {
+            $available = array_keys(self::issueTotalLabels());
+        }
+
+        return array_values(array_filter($available, fn (string $key) => in_array($key, $configured, true)));
     }
 
     /**

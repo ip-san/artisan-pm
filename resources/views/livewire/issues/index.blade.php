@@ -588,13 +588,17 @@ new #[Layout('components.layouts.app')] class extends Component
      * from groupTotals() rather than re-querying.
      *
      * `remaining` (estimate not yet worked off) is summed only when the
-     * issue_list_default_totals setting asks for it.
+     * issue_list_default_totals setting asks for it, and so is each numeric
+     * custom field (`custom`, by field id) the list can show — over the
+     * rows of the projects where the viewer may see the field.
      *
-     * @return array{estimated: float, spent: float, remaining: float}
+     * @return array{estimated: float, spent: float, remaining: float, custom: array<int, float>}
      */
     #[Computed]
     public function listTotals(): array
     {
+        $custom = $this->customFieldTotals();
+
         $remaining = in_array('estimated_remaining_hours', ListDefaults::issueTotals(), true)
             ? (float) $this->filteredIssuesQuery()->reorder()->sum(DB::raw('COALESCE(issues.estimated_hours, 0) * (100 - COALESCE(issues.done_ratio, 0)) / 100.0'))
             : 0.0;
@@ -604,6 +608,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 'estimated' => (float) $this->groupTotals->sum('estimated'),
                 'spent' => (float) $this->groupTotals->sum('spent'),
                 'remaining' => $remaining,
+                'custom' => $custom,
             ];
         }
 
@@ -613,7 +618,48 @@ new #[Layout('components.layouts.app')] class extends Component
             ->whereIn('issue_id', $this->filteredIssuesQuery()->reorder()->select('issues.id'))
             ->sum('hours');
 
-        return ['estimated' => $estimated, 'spent' => $spent, 'remaining' => $remaining];
+        return ['estimated' => $estimated, 'spent' => $spent, 'remaining' => $remaining, 'custom' => $custom];
+    }
+
+    /**
+     * The configured custom field totals this list can show (the field is
+     * one of the list's visible custom fields), by field id.
+     *
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function totalledCustomFields(): Collection
+    {
+        $fieldIds = collect(ListDefaults::issueTotals())
+            ->filter(fn (string $key) => str_starts_with($key, 'cf_'))
+            ->map(fn (string $key) => (int) substr($key, 3));
+
+        return $this->projectIssueCustomFields
+            ->filter(fn (CustomField $field) => $fieldIds->contains($field->id) && in_array($field->field_format, [\App\Enums\CustomFieldFormat::Int, \App\Enums\CustomFieldFormat::Float], true))
+            ->keyBy('id');
+    }
+
+    /**
+     * @return array<int, float>
+     */
+    private function customFieldTotals(): array
+    {
+        $issueMorphClass = (new Issue)->getMorphClass();
+
+        return $this->totalledCustomFields->map(function (CustomField $field) use ($issueMorphClass): float {
+            $issueIds = $this->filteredIssuesQuery()->reorder()->select('issues.id');
+            $visibleProjectIds = $this->customFieldVisibleProjectIds[$field->id] ?? null;
+
+            if ($visibleProjectIds !== null) {
+                $issueIds->whereIn('issues.project_id', $visibleProjectIds);
+            }
+
+            return (float) DB::table('custom_field_values')
+                ->where('custom_field_id', $field->id)
+                ->where('customized_type', $issueMorphClass)
+                ->whereIn('customized_id', $issueIds)
+                ->sum($field->format()->storageColumn());
+        })->all();
     }
 
     public function applyFilters(): void
@@ -2326,10 +2372,17 @@ new #[Layout('components.layouts.app')] class extends Component
         <p class="mb-2 text-xs text-neutral-500" data-list-totals>
             {{ __('合計:') }}
             @foreach (ListDefaults::issueTotals() as $totalKey)
-                @php
-                    $totalValue = ['estimated_hours' => 'estimated', 'spent_hours' => 'spent', 'estimated_remaining_hours' => 'remaining'][$totalKey];
-                @endphp
-                {{ $loop->first ? '' : '/ ' }}{{ ListDefaults::issueTotalLabels()[$totalKey] }} {{ __(':hours 時間', ['hours' => \App\Support\Format\Hours::format($this->listTotals[$totalValue])]) }}
+                @if (str_starts_with($totalKey, 'cf_'))
+                    @php $totalField = $this->totalledCustomFields[(int) substr($totalKey, 3)] ?? null; @endphp
+                    @if ($totalField !== null)
+                        <span data-list-total="{{ $totalKey }}">{{ $loop->first ? '' : '/ ' }}{{ $totalField->name }} {{ $totalField->field_format === \App\Enums\CustomFieldFormat::Int ? number_format($this->listTotals['custom'][$totalField->id] ?? 0) : number_format($this->listTotals['custom'][$totalField->id] ?? 0, 2) }}</span>
+                    @endif
+                @else
+                    @php
+                        $totalValue = ['estimated_hours' => 'estimated', 'spent_hours' => 'spent', 'estimated_remaining_hours' => 'remaining'][$totalKey];
+                    @endphp
+                    {{ $loop->first ? '' : '/ ' }}{{ ListDefaults::issueTotalLabels()[$totalKey] }} {{ __(':hours 時間', ['hours' => \App\Support\Format\Hours::format($this->listTotals[$totalValue])]) }}
+                @endif
             @endforeach
         </p>
     @endif

@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\CustomFieldFormat;
+use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -120,4 +122,55 @@ test('the settings form stores the defaults the way Redmine does and validates t
 
     Livewire::actingAs($admin)->test('settings.index')->set('time_entry_list_default_columns', [])->call('save')->assertHasErrors(['time_entry_list_default_columns']);
     Livewire::actingAs($admin)->test('settings.index')->set('issue_list_default_totals', ['bogus'])->call('save')->assertHasErrors(['issue_list_default_totals.0']);
+});
+
+test('numeric issue custom fields can be chosen as totals and are summed over the filtered list', function () {
+    $admin = User::factory()->admin()->create();
+    $points = CustomField::factory()->create(['name' => 'Points', 'field_format' => CustomFieldFormat::Int->value]);
+    $cost = CustomField::factory()->create(['name' => 'Cost', 'field_format' => CustomFieldFormat::Float->value]);
+    $text = CustomField::factory()->create(['name' => 'Note']);
+
+    expect(ListDefaults::issueTotalLabels())->toHaveKeys(["cf_{$points->id}", "cf_{$cost->id}"])->not->toHaveKey("cf_{$text->id}");
+
+    Livewire::actingAs($admin)->test('settings.index')
+        ->assertSee('Points')
+        ->set('issue_list_default_totals', ['estimated_hours', "cf_{$points->id}", "cf_{$cost->id}"])
+        ->call('save')->assertHasNoErrors();
+    Livewire::actingAs($admin)->test('settings.index')->set('issue_list_default_totals', ["cf_{$text->id}"])->call('save')->assertHasErrors(['issue_list_default_totals.0']);
+
+    expect(ListDefaults::issueTotals())->toBe(['estimated_hours', "cf_{$points->id}", "cf_{$cost->id}"]);
+
+    $project = Project::factory()->create();
+    $viewer = listDefaultsViewer($project);
+    $a = listDefaultsIssue($project, ['subject' => 'Alpha']);
+    $b = listDefaultsIssue($project, ['subject' => 'Beta']);
+    $points->trackers()->attach([$a->tracker_id, $b->tracker_id]);
+    $cost->trackers()->attach([$a->tracker_id, $b->tracker_id]);
+    $a->setCustomFieldValues([$points->id => '3', $cost->id => '1.25']);
+    $b->setCustomFieldValues([$points->id => '5', $cost->id => '2.5']);
+
+    $list = Livewire::actingAs($viewer)->test('issues.index', ['project' => $project]);
+    expect($list->get('listTotals')['custom'])->toBe([$points->id => 8.0, $cost->id => 3.75]);
+    $list->assertSeeHtml('data-list-total="cf_'.$points->id.'"')->assertSee('Points 8')->assertSee('Cost 3.75');
+
+    $filtered = Livewire::actingAs($viewer)->test('issues.index', ['project' => $project])
+        ->set('activeFilterKeys', ['subject'])->set('filterOperators', ['subject' => '~'])->set('filterValues', ['subject' => ['Alpha']])
+        ->call('applyFilters');
+    expect($filtered->get('listTotals')['custom'])->toBe([$points->id => 3.0, $cost->id => 1.25]);
+});
+
+test('a custom field total leaves out the rows where the viewer may not see the field', function () {
+    $points = CustomField::factory()->create(['name' => 'Secret points', 'field_format' => CustomFieldFormat::Int->value]);
+    $points->roles()->attach(Role::factory()->create());
+    Setting::set('issue_list_default_totals', ["cf_{$points->id}"]);
+    $project = Project::factory()->create();
+    $viewer = listDefaultsViewer($project);
+    $issue = listDefaultsIssue($project, []);
+    $points->trackers()->attach($issue->tracker_id);
+    $issue->setCustomFieldValues([$points->id => '9']);
+
+    $list = Livewire::actingAs($viewer)->test('issues.index', ['project' => $project]);
+
+    expect($list->get('listTotals')['custom'])->toBe([])->and($list->get('totalledCustomFields'))->toBeEmpty();
+    $list->assertDontSee('Secret points');
 });
