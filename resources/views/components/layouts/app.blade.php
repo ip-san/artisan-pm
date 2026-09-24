@@ -33,6 +33,7 @@
                             <a href="{{ route('time-entries.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('工数') }}</a>
                             <a href="{{ route('news.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('お知らせ') }}</a>
                             <a href="{{ route('calendar.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('カレンダー') }}</a>
+                            <a href="{{ route('gantt.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('ガントチャート') }}</a>
                             <a href="{{ route('activity.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('活動') }}</a>
                             <a href="{{ route('search.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('検索') }}</a>
                             @can('viewAny', \App\Models\Role::class)

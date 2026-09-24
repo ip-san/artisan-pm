@@ -70,6 +70,7 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Volt::route('/time_entries/report', 'time-entries.report')->name('time-entries.global-report');
     Volt::route('/search', 'search.global-index')->name('search.global-index');
     Volt::route('/issues/calendar', 'calendar.global-index')->name('calendar.global-index');
+    Volt::route('/issues/gantt', 'gantt.global-index')->name('gantt.global-index');
     Volt::route('/activity', 'activity.global-index')->name('activity.global-index');
     Route::get('/activity.atom', GlobalActivityFeedController::class)->name('activity.global-atom')
         ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');

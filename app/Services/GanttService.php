@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\IssueRelationType;
+use App\Enums\VersionSharing;
 use App\Models\Issue;
 use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Tracker;
+use App\Models\Version;
 use App\Support\Gantt\GanttRow;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -32,19 +36,7 @@ final class GanttService
      */
     public function issueTree(Project $project, ?Collection $onlyIssueIds = null, ?Collection $visibleIssueIds = null): Collection
     {
-        $issues = (new Issue)->getTable();
-        $trackers = (new Tracker)->getTable();
-        $statuses = (new IssueStatus)->getTable();
-
-        $rows = DB::table("{$issues} as i")
-            ->join("{$trackers} as tr", 'tr.id', '=', 'i.tracker_id')
-            ->join("{$statuses} as st", 'st.id', '=', 'i.status_id')
-            ->where('i.project_id', $project->id)
-            ->orderBy('i.id')
-            ->get([
-                'i.id', 'i.parent_id', 'i.subject', 'i.start_date', 'i.due_date', 'i.done_ratio',
-                'tr.name as tracker_name', 'st.name as status_name', 'st.is_closed',
-            ]);
+        $rows = $this->baseQuery()->where('i.project_id', $project->id)->get();
 
         if ($visibleIssueIds !== null) {
             $visible = array_flip($visibleIssueIds->map(fn ($id) => (int) $id)->all());
@@ -56,15 +48,72 @@ final class GanttService
             });
         }
 
-        $tree = $this->orderDepthFirst($rows);
+        return $this->keepMatched($this->orderDepthFirst($rows), $onlyIssueIds);
+    }
 
+    /**
+     * The cross-project chart's trees (Redmine's /issues/gantt): the issues
+     * $visibleIssues selects, one depth-first tree per project. An issue
+     * whose parent isn't drawn — hidden from the viewer, or in another
+     * project (Redmine groups issues under their own project too) — is
+     * drawn as a root of its own project's tree.
+     *
+     * @param  Builder<Issue>  $visibleIssues  the issues the viewer may see (Issue::scopeVisibleToAcrossProjects())
+     * @param  Collection<int, int>|null  $onlyIssueIds  see issueTree()
+     * @return Collection<int, Collection<int, GanttRow>> keyed by project id
+     */
+    public function issueTreesByProject(Builder $visibleIssues, ?Collection $onlyIssueIds = null): Collection
+    {
+        $rows = $this->baseQuery()
+            ->whereIn('i.id', $visibleIssues->clone()->select($visibleIssues->qualifyColumn('id'))->toBase())
+            ->get();
+
+        $projectById = $rows->mapWithKeys(fn (object $row) => [(int) $row->id => (int) $row->project_id])->all();
+        $rows->each(function (object $row) use ($projectById): void {
+            if ($row->parent_id !== null && ($projectById[(int) $row->parent_id] ?? null) !== (int) $row->project_id) {
+                $row->parent_id = null;
+            }
+        });
+
+        return $rows->groupBy(fn (object $row) => (int) $row->project_id)
+            ->map(fn (Collection $projectRows) => $this->keepMatched($this->orderDepthFirst($projectRows->values()), $onlyIssueIds));
+    }
+
+    /**
+     * Every issue with its tracker and status, by id. Table names are
+     * pulled from the models rather than hardcoded.
+     */
+    private function baseQuery(): QueryBuilder
+    {
+        $issues = (new Issue)->getTable();
+        $trackers = (new Tracker)->getTable();
+        $statuses = (new IssueStatus)->getTable();
+
+        return DB::table("{$issues} as i")
+            ->join("{$trackers} as tr", 'tr.id', '=', 'i.tracker_id')
+            ->join("{$statuses} as st", 'st.id', '=', 'i.status_id')
+            ->orderBy('i.id')
+            ->select([
+                'i.id', 'i.parent_id', 'i.project_id', 'i.fixed_version_id', 'i.subject', 'i.start_date', 'i.due_date', 'i.done_ratio',
+                'tr.name as tracker_name', 'st.name as status_name', 'st.is_closed',
+            ]);
+    }
+
+    /**
+     * Keep each matched issue plus its ancestor chain — a filtered child
+     * rendered without its parents would show a misleading depth indent
+     * pointing at nothing.
+     *
+     * @param  Collection<int, GanttRow>  $tree
+     * @param  Collection<int, int>|null  $onlyIssueIds
+     * @return Collection<int, GanttRow>
+     */
+    private function keepMatched(Collection $tree, ?Collection $onlyIssueIds): Collection
+    {
         if ($onlyIssueIds === null) {
             return $tree;
         }
 
-        // Keep each matched issue plus its ancestor chain — a filtered
-        // child rendered without its parents would show a misleading
-        // depth indent pointing at nothing.
         $byId = $tree->keyBy('id');
         $keep = [];
 
@@ -119,6 +168,32 @@ final class GanttService
         }
 
         return $ordered;
+    }
+
+    /**
+     * The milestones drawn on $project's chart: its own versions with a due
+     * date, plus dated versions shared from another project (sharing other
+     * than none) that one of the drawn issues targets — Redmine's
+     * Gantt#project_versions, which lists the versions of the project's
+     * issues wherever they're defined.
+     *
+     * @param  Collection<int, GanttRow>  $rows  the issue rows drawn for $project
+     * @return Collection<int, Version>
+     */
+    public function milestones(Project $project, Collection $rows): Collection
+    {
+        $targeted = $rows->pluck('fixedVersionId')->filter()->unique()->values();
+
+        return Version::query()
+            ->whereNotNull('due_date')
+            ->where(fn (Builder $query) => $query
+                ->where('project_id', $project->id)
+                ->orWhere(fn (Builder $shared) => $shared
+                    ->whereIn('id', $targeted)
+                    ->where('sharing', '!=', VersionSharing::None->value)))
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->get();
     }
 
     /**

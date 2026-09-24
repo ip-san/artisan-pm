@@ -377,6 +377,7 @@
     "カンマ": "Comma",
     "カンマまたは空白区切り(例: 25,50,100)。課題・プロジェクト・お知らせ一覧の「表示件数」に出る選択肢です。": "Comma- or space-separated (e.g. 25,50,100). The choices offered as \"Per page\" on the issue, project and news lists.",
     "ガントチャート": "Gantt",
+    "ガントチャート(全プロジェクト)": "Gantt (all projects)",
     "ガントチャートの最大表示月数(0で無制限)": "Maximum number of months displayed on the gantt chart (0 for unlimited)",
     "ガントチャートの最大表示課題数(0で無制限)": "Maximum number of items displayed on the gantt chart (0 for unlimited)",
     "キャッシュ": "Cache",
@@ -1448,6 +1449,7 @@
     "非稼働日(曜日)": "Non-working days",
     "非表示にするフィールド(このトラッカーの課題フォームから除外)": "Hidden fields (removed from this tracker's issue form)",
     "項目がありません。": "No data to display.",
+    "項目が多いため、先頭:count行だけを表示しています。": "There are many items; only the first :count rows are shown.",
     "題名": "Subject",
     "題名(必須)": "Subject (required)",
     "題名が空です。": "Subject is empty."

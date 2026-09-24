@@ -24,6 +24,8 @@ final readonly class GanttRow
         public string $statusName,
         public bool $isClosed,
         public int $depth,
+        public ?int $projectId = null,
+        public ?int $fixedVersionId = null,
     ) {}
 
     public static function fromRow(object $row): self
@@ -39,6 +41,8 @@ final readonly class GanttRow
             statusName: $row->status_name,
             isClosed: (bool) $row->is_closed,
             depth: (int) $row->depth,
+            projectId: isset($row->project_id) ? (int) $row->project_id : null,
+            fixedVersionId: isset($row->fixed_version_id) ? (int) $row->fixed_version_id : null,
         );
     }
 

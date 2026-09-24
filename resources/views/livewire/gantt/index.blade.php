@@ -1,13 +1,13 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
-use App\Enums\IssueRelationType;
 use App\Models\Issue;
 use App\Models\Project;
-use App\Models\Setting;
 use App\Models\Version;
 use App\Services\GanttService;
+use App\Support\Gantt\GanttChart;
 use App\Support\Gantt\GanttRow;
+use App\Support\Gantt\GanttSettings;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -44,7 +44,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public static function itemsLimit(): int
     {
-        return max(0, (int) Setting::get('gantt_items_limit', 500));
+        return GanttSettings::itemsLimit();
     }
 
     /**
@@ -53,7 +53,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public static function monthsLimit(): int
     {
-        return max(0, (int) Setting::get('gantt_months_limit', 24));
+        return GanttSettings::monthsLimit();
     }
 
     /**
@@ -99,59 +99,41 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function applyFilters(): void
     {
-        unset($this->allRows, $this->rows, $this->rangeStart, $this->rangeEnd, $this->totalDays, $this->monthBands);
+        unset($this->allRows, $this->rows, $this->versions, $this->chart, $this->relationLines);
     }
 
     /**
-     * This project's own versions with a due date — matches Redmine's
-     * milestone markers on the Gantt chart. Deliberately scoped to the
-     * project's own versions rather than shared versions reachable from
-     * other projects (issues.form's assignableVersions pulls those in for
-     * assignment purposes, but a cross-project version's milestone
-     * belongs on that other project's own Gantt, not this one's).
+     * The milestones on this chart: the project's own dated versions and
+     * dated shared versions a drawn issue targets (GanttService::milestones()).
      *
      * @return Collection<int, Version>
      */
     #[Computed]
     public function versions(): Collection
     {
-        return $this->project->versions()->whereNotNull('due_date')->orderBy('due_date')->get();
+        return app(GanttService::class)->milestones($this->project, $this->rows);
+    }
+
+    #[Computed]
+    public function chart(): GanttChart
+    {
+        return new GanttChart($this->rows, $this->versions, self::monthsLimit());
     }
 
     #[Computed]
     public function rangeStart(): ?Carbon
     {
-        return $this->rows->pluck('startDate')->filter()->min();
+        return $this->chart->rangeStart;
     }
 
     /**
-     * The later of the last issue due date and the last version's due
-     * date, so a milestone landing after every issue still falls inside
-     * the chart's date range instead of being positioned past 100%. Only
-     * extended when there's at least one dated issue to begin with — a
-     * project with milestones but no dated issues still shows the
-     * existing "no issues" empty state rather than a chart with nothing
-     * but milestones, a deliberate scope limitation.
+     * The later of the last issue due date and the last milestone, cut to
+     * the months limit (see GanttChart).
      */
     #[Computed]
     public function rangeEnd(): ?Carbon
     {
-        $issuesEnd = $this->rows->pluck('dueDate')->filter()->max();
-
-        if ($issuesEnd === null) {
-            return null;
-        }
-
-        $versionsEnd = $this->versions->pluck('due_date')->filter()->max();
-
-        $end = collect([$issuesEnd, $versionsEnd])->filter()->max();
-        $months = self::monthsLimit();
-
-        if ($months > 0 && $this->rangeStart !== null) {
-            $end = $end->min($this->rangeStart->copy()->addMonthsNoOverflow($months)->subDay());
-        }
-
-        return $end;
+        return $this->chart->rangeEnd;
     }
 
     /**
@@ -160,66 +142,37 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function monthsTruncated(): bool
     {
-        $last = $this->rows->pluck('dueDate')->filter()->max();
-
-        return $last !== null && $this->rangeEnd !== null && $last->gt($this->rangeEnd);
+        return $this->chart->monthsTruncated;
     }
 
     #[Computed]
     public function totalDays(): int
     {
-        if ($this->rangeStart === null || $this->rangeEnd === null) {
-            return 0;
-        }
-
-        return max(1, (int) $this->rangeStart->diffInDays($this->rangeEnd) + 1);
+        return $this->chart->totalDays();
     }
 
     /**
-     * @return array<int, array{label: string, leftPercent: float, widthPercent: float}>
+     * @return array<int, array{label: string, leftPercent: float, widthPercent: float, start: Carbon, end: Carbon}>
      */
     #[Computed]
     public function monthBands(): array
     {
-        if ($this->rangeStart === null || $this->rangeEnd === null) {
-            return [];
-        }
-
-        $bands = [];
-        $cursor = $this->rangeStart->copy()->startOfMonth();
-
-        while ($cursor->lte($this->rangeEnd)) {
-            $bandStart = $cursor->max($this->rangeStart);
-            $bandEnd = $cursor->copy()->endOfMonth()->min($this->rangeEnd);
-
-            $bands[] = [
-                'label' => \App\Support\Format\DateTimes::month($cursor),
-                'leftPercent' => $this->percentFromStart($bandStart),
-                'widthPercent' => $this->percentWidth($bandStart, $bandEnd),
-            ];
-
-            $cursor->addMonthNoOverflow();
-        }
-
-        return $bands;
+        return $this->chart->monthBands();
     }
 
     public function barLeftPercent(GanttRow $row): float
     {
-        return $this->percentFromStart($row->startDate ?? throw new LogicException('Gantt row is missing a start date.'));
+        return $this->chart->barLeftPercent($row);
     }
 
     public function barWidthPercent(GanttRow $row): float
     {
-        return $this->percentWidth(
-            $row->startDate ?? throw new LogicException('Gantt row is missing a start date.'),
-            $row->dueDate ?? throw new LogicException('Gantt row is missing a due date.'),
-        );
+        return $this->chart->barWidthPercent($row);
     }
 
     public function versionMarkerLeftPercent(Version $version): float
     {
-        return $this->percentFromStart($version->due_date ?? throw new LogicException('Version is missing a due date.'));
+        return $this->chart->versionMarkerLeftPercent($version);
     }
 
     /**
@@ -230,54 +183,27 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /**
      * Connector lines between related issues currently visible on this
-     * chart — matches Redmine's Gantt#relations (only precedes/blocks are
-     * drawn, Redmine's own DRAW_TYPES; a line is skipped if either end
-     * has no date range, since there's no bar edge to anchor it to).
+     * chart (GanttChart::relationLines()).
      *
-     * @return array<int, array{x1: float, y1: float, x2: float, y2: float, color: string}>
+     * @return array<int, array{x1: float, y1: float, x2: float, y2: float, color: string, type: string}>
      */
     #[Computed]
     public function relationLines(): array
     {
-        $rowsById = $this->rows->keyBy('id');
-        $indexById = $this->rows->values()->map(fn (GanttRow $row) => $row->id)->flip();
-
-        $lines = [];
-
-        foreach (app(GanttService::class)->relationsWithin($this->rows->pluck('id')) as $relation) {
-            $from = $rowsById->get($relation->issue_from_id);
-            $to = $rowsById->get($relation->issue_to_id);
-
-            if ($from === null || $to === null || ! $from->hasDateRange() || ! $to->hasDateRange()) {
-                continue;
-            }
-
-            $lines[] = [
-                'x1' => $this->barLeftPercent($from) + $this->barWidthPercent($from),
-                'y1' => ($indexById[$from->id] + 0.5) * self::ROW_HEIGHT_PX,
-                'x2' => $this->barLeftPercent($to),
-                'y2' => ($indexById[$to->id] + 0.5) * self::ROW_HEIGHT_PX,
-                'color' => $relation->relation_type === IssueRelationType::Blocks ? '#fa5252' : '#228be6',
-            ];
-        }
-
-        return $lines;
-    }
-
-    private function percentFromStart(Carbon $date): float
-    {
-        return min(100.0, $this->rangeStart->diffInDays($date) / $this->totalDays * 100);
+        return $this->relationLinesFor(self::ROW_HEIGHT_PX);
     }
 
     /**
-     * A bar that runs past the (possibly month-limited) end of the chart is
-     * clipped there instead of overflowing it.
+     * @return array<int, array{x1: float, y1: float, x2: float, y2: float, color: string, type: string}>
      */
-    private function percentWidth(Carbon $from, Carbon $to): float
+    private function relationLinesFor(int $rowHeight): array
     {
-        $to = $to->min($this->rangeEnd);
-
-        return max(0.0, min(100.0 - $this->percentFromStart($from), (($from->diffInDays($to) + 1) / $this->totalDays) * 100));
+        return $this->chart->relationLines(
+            app(GanttService::class)->relationsWithin($this->rows->pluck('id')),
+            $this->rows,
+            $this->rows->values()->map(fn (GanttRow $row) => $row->id)->flip()->all(),
+            $rowHeight,
+        );
     }
 
     /**

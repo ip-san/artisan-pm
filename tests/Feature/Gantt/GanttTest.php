@@ -351,3 +351,23 @@ test('a relation where one issue has no date range draws no line', function () {
 
     expect($lines)->toBeEmpty();
 });
+
+test('a version shared from another project is a milestone when one of the drawn issues targets it', function () {
+    $owner = Project::factory()->create();
+    $project = Project::factory()->create();
+    $user = ganttMember($project);
+    $shared = Version::factory()->for($owner)->create(['sharing' => 'system', 'due_date' => now()->addDays(20)]);
+    $untargeted = Version::factory()->for($owner)->create(['sharing' => 'system', 'due_date' => now()->addDays(21)]);
+    $own = Version::factory()->for($project)->create(['due_date' => now()->addDays(22)]);
+    Issue::factory()->for($project)->create([
+        ...ganttIssueDefaults(),
+        'fixed_version_id' => $shared->id,
+        'start_date' => now()->toDateString(),
+        'due_date' => now()->addDays(10)->toDateString(),
+    ]);
+
+    $versions = Livewire::actingAs($user)->test('gantt.index', ['project' => $project])->get('versions');
+
+    expect($versions->pluck('id')->all())->toBe([$shared->id, $own->id])
+        ->not->toContain($untargeted->id);
+});
