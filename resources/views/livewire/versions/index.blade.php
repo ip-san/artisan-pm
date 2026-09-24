@@ -94,7 +94,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             <span class="ml-2 rounded bg-warning-subtlest px-1.5 py-0.5 text-xs text-warning-bold">{{ __('既定') }}</span>
                         @endif
                         @if ($version->due_date)
-                            <span class="ml-2 text-xs text-neutral-500">{{ __('期日: :date', ['date' => $version->due_date->toDateString()]) }}</span>
+                            <span class="ml-2 text-xs text-neutral-500">{{ __('期日: :date', ['date' => \App\Support\Format\DateTimes::date($version->due_date)]) }}</span>
                         @endif
                         @if ($version->sharing !== \App\Enums\VersionSharing::None)
                             <span class="ml-2 rounded bg-brand-subtlest px-1.5 py-0.5 text-xs text-brand-bolder">{{ $version->sharing->label() }}</span>

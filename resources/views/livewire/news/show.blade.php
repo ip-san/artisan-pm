@@ -228,7 +228,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
-    <p class="mb-4 text-xs text-neutral-500">{{ $news->author->displayName() }} — {{ $news->created_at->format('Y-m-d H:i') }}</p>
+    <p class="mb-4 text-xs text-neutral-500">{{ $news->author->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($news->created_at) }}</p>
 
     <div class="rounded-md border border-neutral-200 bg-white p-4 mb-4">
         <p class="whitespace-pre-line text-sm text-neutral-800">{{ $news->description }}</p>
@@ -307,7 +307,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <li wire:key="news-comment-{{ $comment->id }}" class="rounded-md border border-neutral-200 bg-white p-4">
                 <p class="whitespace-pre-line text-sm text-neutral-800">{{ $comment->content }}</p>
                 <div class="mt-2 flex items-center justify-between text-xs text-neutral-500">
-                    <span>{{ $comment->author->displayName() }} — {{ $comment->created_at->format('Y-m-d H:i') }}</span>
+                    <span>{{ $comment->author->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($comment->created_at) }}</span>
                     <div class="flex items-center gap-2">
                         <x-reaction-button :reactable="$comment" type="news_comment" />
                         @can('delete', $comment)

@@ -118,7 +118,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         <a href="{{ route('wiki.annotate', [$project, $wikiPage, $version->version]) }}" class="text-xs text-brand hover:underline">
                             {{ __('(注釈)') }}
                         </a>
-                        <span class="text-neutral-500">— {{ $version->author->displayName() }} — {{ $version->created_at->format('Y-m-d H:i') }}</span>
+                        <span class="text-neutral-500">— {{ $version->author->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($version->created_at) }}</span>
                         @if ($version->comments)
                             <span class="text-neutral-400">({{ $version->comments }})</span>
                         @endif

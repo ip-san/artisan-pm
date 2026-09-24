@@ -122,6 +122,17 @@ final class DateTimes
     }
 
     /**
+     * Whole days from the viewer's today to a date-only value: negative when
+     * it has passed, 0 on the day itself (Redmine's `date < User.current.today`).
+     */
+    public static function daysFromToday(DateTimeInterface|string $date, ?User $viewer = null): int
+    {
+        $day = CarbonImmutable::parse($date instanceof DateTimeInterface ? $date->format('Y-m-d') : substr($date, 0, 10));
+
+        return (int) round(CarbonImmutable::parse(self::today($viewer)->toDateString())->diffInDays($day));
+    }
+
+    /**
      * The first and last moment (UTC) of a day in the viewer's zone, for
      * comparing a date typed into a filter with a stored time — Redmine's
      * Query#date_clause.

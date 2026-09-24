@@ -32,7 +32,7 @@
     </style>
 </head>
 <body>
-    <h1>{{ __(':project - ガントチャート (:date時点)', ['project' => $project->name, 'date' => now()->toDateString()]) }}</h1>
+    <h1>{{ __(':project - ガントチャート (:date時点)', ['project' => $project->name, 'date' => \App\Support\Format\DateTimes::date(\App\Support\Format\DateTimes::today())]) }}</h1>
 
     @php $rowHeight = 16; @endphp
 

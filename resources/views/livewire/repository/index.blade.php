@@ -248,7 +248,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             </td>
                             <td class="px-4 py-2">{{ $changeset->commentsHtml(firstLineOnly: true) }}</td>
                             <td class="px-4 py-2 text-neutral-500">{{ $changeset->committer }}</td>
-                            <td class="px-4 py-2 text-neutral-500">{{ $changeset->committed_on->format('Y-m-d H:i') }}</td>
+                            <td class="px-4 py-2 text-neutral-500">{{ \App\Support\Format\DateTimes::dateTime($changeset->committed_on) }}</td>
                         </tr>
                     @empty
                         <tr>

@@ -40,7 +40,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         return match ($this->sortBy) {
             'date' => $documents->sortByDesc('updated_at')
-                ->groupBy(fn (Document $document) => $document->updated_at->toDateString())
+                ->groupBy(fn (Document $document) => \App\Support\Format\DateTimes::local($document->updated_at)->toDateString())
                 ->sortKeysDesc(),
             'title' => $documents->sortBy('title', SORT_NATURAL | SORT_FLAG_CASE)
                 ->groupBy(fn (Document $document) => mb_strtoupper(mb_substr($document->title, 0, 1)))
@@ -94,7 +94,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @forelse ($this->groupedDocuments as $groupKey => $documents)
         <h2 class="mt-4 mb-1 text-sm font-semibold text-neutral-900">
-            {{ $sortBy === 'category' ? ($groupKey !== '' ? $groupKey : __('未分類')) : ($sortBy === 'author' && $groupKey === '' ? __('(不明)') : $groupKey) }}
+            {{ $sortBy === 'category' ? ($groupKey !== '' ? $groupKey : __('未分類')) : ($sortBy === 'author' && $groupKey === '' ? __('(不明)') : ($sortBy === 'date' ? \App\Support\Format\DateTimes::date($groupKey) : $groupKey)) }}
         </h2>
         <ul class="mb-2 divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
             @foreach ($documents as $document)

@@ -327,8 +327,8 @@ new #[Layout('components.layouts.app')] class extends Component
             // A parent the viewer cannot see stays unnamed.
             'parent_id' => $project->parent !== null && $this->visibleProjectIds->contains($project->parent_id) ? $project->parent->name : '',
             'is_public' => $project->is_public ? __('はい') : __('いいえ'),
-            'created_at' => $project->created_at?->format('Y-m-d H:i') ?? '',
-            'updated_at' => $project->updated_at?->format('Y-m-d H:i') ?? '',
+            'created_at' => \App\Support\Format\DateTimes::dateTime($project->created_at) ?? '',
+            'updated_at' => \App\Support\Format\DateTimes::dateTime($project->updated_at) ?? '',
             default => '',
         };
     }

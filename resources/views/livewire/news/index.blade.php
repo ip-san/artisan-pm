@@ -57,7 +57,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <p class="text-sm text-neutral-600">{{ $item->summary }}</p>
                 @endif
                 <p class="mt-1 text-xs text-neutral-500">
-                    {{ $item->author->displayName() }} — {{ $item->created_at->format('Y-m-d H:i') }}
+                    {{ $item->author->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($item->created_at) }}
                     — {{ __('コメント:count件', ['count' => $item->comments_count]) }}
                 </p>
             </li>

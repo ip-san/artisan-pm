@@ -235,7 +235,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="border-b border-neutral-200 bg-neutral-50 px-4 py-2">
                 <span class="text-sm font-medium text-neutral-900">{{ $version->name }}</span>
                 @if ($version->due_date)
-                    <span class="ml-2 text-xs text-neutral-500">{{ __('期日: :date', ['date' => $version->due_date->toDateString()]) }}</span>
+                    <span class="ml-2 text-xs text-neutral-500">{{ __('期日: :date', ['date' => \App\Support\Format\DateTimes::date($version->due_date)]) }}</span>
                 @endif
             </div>
             <ul class="divide-y divide-neutral-100">

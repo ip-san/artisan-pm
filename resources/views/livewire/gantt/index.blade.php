@@ -391,7 +391,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             @if ($row->hasDateRange())
                                 <div class="absolute top-1.5 h-5 rounded {{ $row->isClosed ? 'bg-neutral-400' : 'bg-brand' }}"
                                     style="left: {{ $this->barLeftPercent($row) }}%; width: {{ $this->barWidthPercent($row) }}%"
-                                    title="{{ $row->subject }} ({{ $row->startDate->toDateString() }} 〜 {{ $row->dueDate->toDateString() }}, {{ $row->doneRatio }}%)">
+                                    title="{{ $row->subject }} ({{ \App\Support\Format\DateTimes::date($row->startDate) }} 〜 {{ \App\Support\Format\DateTimes::date($row->dueDate) }}, {{ $row->doneRatio }}%)">
                                     <div class="h-full rounded bg-brand-bold" style="width: {{ $row->doneRatio }}%"></div>
                                 </div>
                             @endif
@@ -413,7 +413,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         <div wire:key="version-row-{{ $version->id }}" class="relative h-8 border-b border-neutral-100">
                             <div class="absolute top-1 flex h-6 -translate-x-1/2 items-center gap-1 text-warning"
                                 style="left: {{ $this->versionMarkerLeftPercent($version) }}%"
-                                title="{{ $version->name }} ({{ $version->due_date->toDateString() }}, {{ round($version->asSeenBy(auth()->user())->completedPercent()) }}%)">
+                                title="{{ $version->name }} ({{ \App\Support\Format\DateTimes::date($version->due_date) }}, {{ round($version->asSeenBy(auth()->user())->completedPercent()) }}%)">
                                 <span class="text-lg leading-none">◆</span>
                                 <span class="text-xs text-neutral-500">{{ round($version->asSeenBy(auth()->user())->completedPercent()) }}%</span>
                             </div>

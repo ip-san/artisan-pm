@@ -68,7 +68,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function commitsByMonth(): Collection
     {
         return $this->changesets
-            ->groupBy(fn ($changeset) => $changeset->committed_on->format('Y-m'))
+            ->groupBy(fn ($changeset) => \App\Support\Format\DateTimes::local($changeset->committed_on)->format('Y-m'))
             ->map(fn (EloquentCollection $group) => $group->count())
             ->sortKeys();
     }

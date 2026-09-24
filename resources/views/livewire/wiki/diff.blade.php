@@ -72,10 +72,10 @@ new #[Layout('components.layouts.app')] class extends Component
         {{ __('v:old_version (:old_author — :old_date) から v:new_version (:new_author — :new_date) への変更', [
             'old_version' => $versionFrom->version,
             'old_author' => $versionFrom->author->displayName(),
-            'old_date' => $versionFrom->created_at->format('Y-m-d H:i'),
+            'old_date' => \App\Support\Format\DateTimes::dateTime($versionFrom->created_at),
             'new_version' => $versionTo->version,
             'new_author' => $versionTo->author->displayName(),
-            'new_date' => $versionTo->created_at->format('Y-m-d H:i'),
+            'new_date' => \App\Support\Format\DateTimes::dateTime($versionTo->created_at),
         ]) }}
     </p>
 

@@ -10,6 +10,7 @@ use App\Enums\CustomizableType;
 use App\Enums\VersionSharing;
 use App\Enums\VersionStatus;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Format\DateTimes;
 use Database\Factories\VersionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -214,7 +215,7 @@ final class Version extends Model implements HasMedia
         }
 
         return $this->due_date !== null
-            && $this->due_date->isPast()
+            && DateTimes::daysFromToday($this->due_date) < 0
             && ! $this->issues()->whereHas('status', fn ($query) => $query->where('is_closed', false))->exists();
     }
 

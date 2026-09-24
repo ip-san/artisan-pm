@@ -83,7 +83,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </td>
                         <td class="px-4 py-2 text-neutral-500">{{ $topic->author->displayName() }}</td>
                         <td class="px-4 py-2 text-neutral-500">{{ $topic->replies_count }}</td>
-                        <td class="px-4 py-2 text-neutral-500">{{ $topic->updated_at->format('Y-m-d H:i') }}</td>
+                        <td class="px-4 py-2 text-neutral-500">{{ \App\Support\Format\DateTimes::dateTime($topic->updated_at) }}</td>
                     </tr>
                 @empty
                     <tr>

@@ -32,7 +32,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->with('currentVersion')
             ->get()
             ->filter(fn (WikiPage $page) => $page->currentVersion !== null)
-            ->groupBy(fn (WikiPage $page) => $page->currentVersion->created_at->toDateString())
+            ->groupBy(fn (WikiPage $page) => \App\Support\Format\DateTimes::local($page->currentVersion->created_at)->toDateString())
             ->sortKeysDesc();
     }
 }; ?>
@@ -47,7 +47,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     @forelse ($this->pagesByDate as $date => $pages)
-        <h2 class="mt-4 mb-1 text-sm font-semibold text-neutral-900">{{ $date }}</h2>
+        <h2 class="mt-4 mb-1 text-sm font-semibold text-neutral-900">{{ \App\Support\Format\DateTimes::date($date) }}</h2>
         <ul class="mb-2 divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-white">
             @foreach ($pages as $page)
                 <li wire:key="wiki-date-{{ $page->id }}" class="px-4 py-2">

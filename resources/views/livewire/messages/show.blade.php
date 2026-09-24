@@ -419,7 +419,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endforeach
         </ul>
     @endif
-    <p class="mb-6 text-xs text-neutral-500">{{ $topic->author->displayName() }} — {{ $topic->created_at->format('Y-m-d H:i') }}</p>
+    <p class="mb-6 text-xs text-neutral-500">{{ $topic->author->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($topic->created_at) }}</p>
 
     <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('返信 (:count)', ['count' => $this->replies->total()]) }}</h2>
     <ul class="mb-2 space-y-3">
@@ -465,7 +465,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </ul>
                 @endif
                 <div class="mt-2 flex items-center justify-between text-xs text-neutral-500">
-                    <span>{{ $reply->author->displayName() }} — {{ $reply->created_at->format('Y-m-d H:i') }}</span>
+                    <span>{{ $reply->author->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($reply->created_at) }}</span>
                     <span class="flex items-center gap-2">
                         <x-reaction-button :reactable="$reply" type="message" />
                         @can('update', $reply)

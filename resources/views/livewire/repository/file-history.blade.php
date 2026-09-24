@@ -90,7 +90,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $changeset, 'path' => $match['path']])) }}" class="font-mono text-sm text-brand-bold hover:underline">
                             {{ $changeset->shortRevision() }}
                         </a>
-                        <span class="text-xs text-neutral-500">{{ $changeset->committer }} — {{ $changeset->committed_on->format('Y-m-d H:i') }}</span>
+                        <span class="text-xs text-neutral-500">{{ $changeset->committer }} — {{ \App\Support\Format\DateTimes::dateTime($changeset->committed_on) }}</span>
                         @if ($match['path'] !== $this->path)
                             <span class="text-xs text-neutral-400 font-mono">({{ $match['path'] }})</span>
                         @endif

@@ -105,12 +105,13 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
 
                 @if ($version->due_date)
-                    <p class="mt-1 text-sm {{ $version->due_date->isPast() ? 'font-medium text-danger-bolder' : 'text-neutral-600' }}">
-                        {{ __('期日: :date', ['date' => $version->due_date->toDateString()]) }}
-                        @if ($version->due_date->isPast())
-                            {{ __('(:days日超過)', ['days' => $version->due_date->diffInDays(now())]) }}
+                    @php($daysLeft = \App\Support\Format\DateTimes::daysFromToday($version->due_date))
+                    <p class="mt-1 text-sm {{ $daysLeft < 0 ? 'font-medium text-danger-bolder' : 'text-neutral-600' }}">
+                        {{ __('期日: :date', ['date' => \App\Support\Format\DateTimes::date($version->due_date)]) }}
+                        @if ($daysLeft < 0)
+                            {{ __('(:days日超過)', ['days' => -$daysLeft]) }}
                         @else
-                            {{ __('(あと:days日)', ['days' => now()->diffInDays($version->due_date)]) }}
+                            {{ __('(あと:days日)', ['days' => $daysLeft]) }}
                         @endif
                     </p>
                 @endif

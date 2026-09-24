@@ -16,7 +16,7 @@
 <body>
     <h1>{{ $wikiPage->title }}</h1>
     <div class="meta">
-        {{ $wikiPage->currentVersion?->created_at?->format('Y-m-d H:i') }}
+        {{ \App\Support\Format\DateTimes::dateTime($wikiPage->currentVersion?->created_at) }}
         @if ($wikiPage->currentVersion?->author)
             - {{ $wikiPage->currentVersion->author->displayName() }}
         @endif

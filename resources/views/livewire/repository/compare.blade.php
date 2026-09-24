@@ -93,9 +93,9 @@ new #[Layout('components.layouts.app')] class extends Component
     <p class="mb-4 text-sm text-neutral-500">
         {!! __(':from (:from_date) から :to (:to_date) までの差分', [
             'from' => $fromLink,
-            'from_date' => e($fromChangeset->committed_on->format('Y-m-d H:i')),
+            'from_date' => e(\App\Support\Format\DateTimes::dateTime($fromChangeset->committed_on)),
             'to' => $toLink,
-            'to_date' => e($toChangeset->committed_on->format('Y-m-d H:i')),
+            'to_date' => e(\App\Support\Format\DateTimes::dateTime($toChangeset->committed_on)),
         ]) !!}
     </p>
 

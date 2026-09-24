@@ -453,7 +453,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @if ($wikiPage->currentVersion)
         <p class="mt-2 text-xs text-neutral-500">
-            {{ __('最終更新: :author — :date', ['author' => $wikiPage->currentVersion->author->displayName(), 'date' => $wikiPage->currentVersion->created_at->format('Y-m-d H:i')]) }}
+            {{ __('最終更新: :author — :date', ['author' => $wikiPage->currentVersion->author->displayName(), 'date' => \App\Support\Format\DateTimes::dateTime($wikiPage->currentVersion->created_at)]) }}
             (v{{ $wikiPage->currentVersion->version }})
         </p>
     @endif
