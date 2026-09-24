@@ -57,3 +57,84 @@ test('the time report CSV neutralizes a formula in a row label', function () {
 
     expect(base64_decode($component->effects['download']['content']))->toContain("'=1+1");
 });
+
+/**
+ * @param  array<int, string>  $permissions
+ */
+function csvInjectionMember(Project $project, array $permissions): User
+{
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => $permissions]));
+
+    return $user;
+}
+
+function downloadedCsv(\Livewire\Features\SupportTesting\Testable $component): string
+{
+    return base64_decode($component->effects['download']['content']);
+}
+
+test('the cross-project issue list CSV neutralizes a formula in a subject', function () {
+    $project = Project::factory()->create();
+    $user = csvInjectionMember($project, ['view_issues']);
+    Issue::factory()->for($project)->create(['subject' => '+cmd|calc']);
+
+    $component = Livewire::actingAs($user)->test('issues.index')->set('statusFilter', 'all')->set('columns', ['subject'])->call('exportCsv');
+
+    expect(downloadedCsv($component))->toContain("'+cmd|calc");
+});
+
+test('the project list CSV neutralizes a formula in a name', function () {
+    Project::factory()->create(['name' => '=EVIL()', 'identifier' => 'evil']);
+
+    $component = Livewire::actingAs(User::factory()->create())->test('projects.index')->set('columns', ['name'])->call('exportCsv');
+
+    expect(downloadedCsv($component))->toContain("'=EVIL()");
+});
+
+test('the time entry list CSVs neutralize a formula in a comment', function (bool $crossProject) {
+    $project = Project::factory()->create();
+    $user = csvInjectionMember($project, ['view_time_entries']);
+    App\Models\TimeEntry::factory()->for($project)->create(['user_id' => $user->id, 'hours' => 1, 'comments' => '-2+3+cmd']);
+
+    $component = $crossProject
+        ? Livewire::actingAs($user)->test('time-entries.global-index')->set('columns', ['comments'])->call('exportCsv')
+        : Livewire::actingAs($user)->test('time-entries.index', ['project' => $project])->set('columns', ['comments'])->call('exportCsv');
+
+    expect(downloadedCsv($component))->toContain("'-2+3+cmd");
+})->with(['project list' => false, 'cross-project list' => true]);
+
+test('the issue report details CSV neutralizes a formula in a row label', function () {
+    $project = Project::factory()->create();
+    $user = csvInjectionMember($project, ['view_issues']);
+    $tracker = App\Models\Tracker::factory()->create(['name' => '@SUM(9)']);
+    $project->trackers()->attach($tracker);
+    Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+
+    $component = Livewire::actingAs($user)->test('issues.report-details', ['project' => $project, 'detail' => 'tracker'])->call('exportCsv');
+
+    expect(downloadedCsv($component))->toContain("'@SUM(9)");
+});
+
+test('every CSV writer in the application goes through CsvCell', function () {
+    $files = collect([
+        ...Illuminate\Support\Facades\File::allFiles(app_path()),
+        ...Illuminate\Support\Facades\File::allFiles(resource_path('views')),
+    ])->filter(fn (SplFileInfo $file) => str_contains((string) file_get_contents($file->getPathname()), 'fputcsv('));
+
+    expect($files)->not->toBeEmpty();
+
+    foreach ($files as $file) {
+        $source = (string) file_get_contents($file->getPathname());
+
+        expect(substr_count($source, 'CsvCell::row('))
+            ->toBeGreaterThanOrEqual(1, "{$file->getRelativePathname()} writes CSV without CsvCell");
+
+        preg_match_all('/fputcsv\(\$handle, (.*)$/m', $source, $calls);
+
+        foreach ($calls[1] as $arguments) {
+            expect(str_contains($arguments, 'CsvCell::row(') || str_starts_with($arguments, '$row,'))
+                ->toBeTrue("{$file->getRelativePathname()}: fputcsv(\$handle, {$arguments}");
+        }
+    }
+});
