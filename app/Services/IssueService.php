@@ -18,6 +18,7 @@ use App\Models\CustomField;
 use App\Models\CustomFieldValue;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Journal;
@@ -65,6 +66,9 @@ final class IssueService
     private const MAX_RESCHEDULE_CHAIN_LENGTH = 50;
 
     /**
+     * Leaving `fixed_version_id` out of $attributes lets the project's
+     * default version fill it; passing it (even as null) keeps it as given.
+     *
      * @param  array<string, mixed>  $attributes
      * @param  array<int, mixed>  $customFieldData  custom_field_id => raw input
      */
@@ -73,6 +77,7 @@ final class IssueService
         $issue = new Issue;
         $issue->fill($attributes);
         $issue->author_id = $author->id;
+        $this->applyCreationDefaults($issue, versionGiven: array_key_exists('fixed_version_id', $attributes));
         $this->applyStatusDoneRatio($issue);
         $issue->save();
 
@@ -88,6 +93,39 @@ final class IssueService
         IssueCreated::dispatch($issue, MentionParser::extractLogins($issue->description));
 
         return $issue;
+    }
+
+    /**
+     * The defaults every new issue gets, whichever way it is created (form,
+     * REST, CSV import, incoming mail, copy): Redmine's Issue#default_assign
+     * (before_validation on create) — with no assignee, the category's
+     * default assignee, else the project's — and the project's default
+     * version, which Issue#project= sets on a new issue without one. Only
+     * defaults that are still usable apply (an open shared version; a user
+     * or group that can be assigned issues in the project).
+     */
+    private function applyCreationDefaults(Issue $issue, bool $versionGiven): void
+    {
+        $project = $issue->project_id !== null ? Project::query()->find($issue->project_id) : null;
+
+        if ($project === null) {
+            return;
+        }
+
+        if (! $versionGiven && $issue->fixed_version_id === null) {
+            $issue->fixed_version_id = $project->usableDefaultVersionId();
+        }
+
+        if ($issue->assigned_to_id !== null || $issue->assigned_to_group_id !== null) {
+            return;
+        }
+
+        $category = $issue->category_id !== null
+            ? IssueCategory::query()->where('project_id', $project->id)->find($issue->category_id)
+            : null;
+
+        ['assigned_to_id' => $issue->assigned_to_id, 'assigned_to_group_id' => $issue->assigned_to_group_id] = $category?->usableDefaultAssignee()
+            ?? ['assigned_to_id' => $project->usableDefaultAssigneeId(), 'assigned_to_group_id' => $project->usableDefaultAssigneeGroupId()];
     }
 
     /**
@@ -733,6 +771,8 @@ final class IssueService
             'description' => $source->description,
             'assigned_to_id' => $assignedToId,
             'assigned_to_group_id' => $assignedToGroupId,
+            // Not copied (see above) and not defaulted either (A1-47).
+            'fixed_version_id' => null,
             'start_date' => $source->start_date,
             'due_date' => $source->due_date,
             'done_ratio' => $source->done_ratio,

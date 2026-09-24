@@ -487,7 +487,9 @@ final class ImportIssuesJob implements ShouldQueue
             'assigned_to_id' => $assignee?->id,
             'assigned_to_group_id' => $assigneeGroup?->id,
             'category_id' => $category?->id,
-            'fixed_version_id' => $version?->id,
+            // Left out when the row names no version, so the project's
+            // default version applies (Redmine's IssueImport).
+            ...($version !== null ? ['fixed_version_id' => $version->id] : []),
             'parent_id' => $parent?->id,
             'is_private' => $isPrivate,
             'start_date' => $this->mapped($record, $mapping, 'start_date') ?: null,

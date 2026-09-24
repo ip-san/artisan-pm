@@ -66,7 +66,7 @@ final class IssueCategory extends Model
                 : null;
         }
 
-        return $this->assigned_to_id !== null
+        return $this->assigned_to_id !== null && $this->project->assignableUsers()->contains('id', $this->assigned_to_id)
             ? ['assigned_to_id' => $this->assigned_to_id, 'assigned_to_group_id' => null]
             : null;
     }
