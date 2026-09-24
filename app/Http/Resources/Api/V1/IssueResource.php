@@ -68,8 +68,10 @@ final class IssueResource extends JsonResource
             // Redmine's assigned_to {id, name}, for a user or a group; the
             // type tells them apart since their ids overlap here.
             'assigned_to' => $this->assignee($issue),
+            'category_id' => $issue->category_id,
             'fixed_version_id' => $issue->fixed_version_id,
             'parent_id' => $issue->parent_id,
+            'is_private' => (bool) $issue->is_private,
             'subject' => $issue->subject,
             'description' => $issue->description,
             'start_date' => $issue->start_date?->toDateString(),

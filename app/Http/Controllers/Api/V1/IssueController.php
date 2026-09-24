@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\IssueTimeEntryDisposition;
 use App\Enums\QueryType;
+use App\Enums\UserStatus;
 use App\Exceptions\StaleIssueUpdateException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreIssueRequest;
@@ -15,11 +16,14 @@ use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
+use App\Models\Tracker;
 use App\Models\User;
 use App\Services\IssueService;
+use App\Services\WorkflowService;
 use App\Support\Api\CustomFieldPayload;
 use App\Support\Api\RedmineIssueListParams;
 use App\Support\Attachments\PendingUploadAttacher;
+use App\Support\Authorization\AuthorizationService;
 use App\Support\Issues\StartDateDefault;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\IssueFilterFieldRegistry;
@@ -290,32 +294,85 @@ final class IssueController extends Controller
 
     public function store(StoreIssueRequest $request, Project $project): JsonResponse
     {
+        return $this->createIssue($request, $project);
+    }
+
+    /**
+     * Redmine's POST /issues.json: the project comes from the body's
+     * project_id (an id or an identifier).
+     */
+    public function storeWithProjectInBody(StoreIssueRequest $request): JsonResponse
+    {
+        return $this->createIssue($request, $request->targetProject());
+    }
+
+    /**
+     * Mirrors the issue form's save(): the fields gated by a permission —
+     * parent_issue_id (manage_subtasks), is_private (set_issues_private or
+     * set_own_issues_private) and watcher_user_ids (add_issue_watchers) —
+     * are dropped for a caller without it, as Redmine's safe_attributes
+     * drop them. The status is one the workflow lets the caller start in,
+     * else the tracker's default; a tracker that is private by default
+     * makes the issue private unless is_private is given.
+     */
+    private function createIssue(StoreIssueRequest $request, Project $project): JsonResponse
+    {
+        $user = $request->user();
         $data = $request->validated();
         $uploads = $data['uploads'] ?? [];
-        unset($data['uploads']);
+        $watcherIds = $data['watcher_user_ids'] ?? [];
+        $parentId = $data['parent_issue_id'] ?? null;
+        $requestedStatusId = isset($data['status_id']) ? (int) $data['status_id'] : null;
+        unset($data['uploads'], $data['watcher_user_ids'], $data['parent_issue_id'], $data['status_id'], $data['project_id']);
+
+        $tracker = Tracker::query()->findOrFail($data['tracker_id']);
+
+        if ($user->can('manageSubtasks', [Issue::class, $project]) && $parentId !== null) {
+            $data['parent_id'] = (int) $parentId;
+        }
+
+        if ($user->can('setPrivate', [Issue::class, $project])) {
+            $data['is_private'] = array_key_exists('is_private', $data) ? (bool) $data['is_private'] : (bool) $tracker->private_by_default;
+        } else {
+            unset($data['is_private']);
+        }
+
+        $workflow = app(WorkflowService::class);
+        $statusId = $requestedStatusId !== null && $workflow->initialStatuses($project, $tracker, $user)->contains('id', $requestedStatusId)
+            ? $requestedStatusId
+            : $workflow->defaultInitialStatusId($project, $tracker, $user);
 
         $customFieldData = CustomFieldPayload::extract(
             $request,
-            (new Issue)->forceFill(['project_id' => $project->id, 'tracker_id' => $data['tracker_id']])->relevantCustomFields(),
-            $request->user(),
+            (new Issue)->forceFill(['project_id' => $project->id, 'tracker_id' => $tracker->id])->relevantCustomFields(),
+            $user,
             requireAll: true,
             project: $project,
         );
 
-        $data['start_date'] = filled($data['start_date'] ?? null) ? $data['start_date'] : StartDateDefault::forApiAndMail($request->user());
+        $data['start_date'] = filled($data['start_date'] ?? null) ? $data['start_date'] : StartDateDefault::forApiAndMail($user);
 
         $issue = app(IssueService::class)->create(
-            [...$data, 'project_id' => $project->id, 'status_id' => $this->defaultStatusId()],
-            $request->user(),
+            [...$data, 'project_id' => $project->id, 'status_id' => $statusId],
+            $user,
             $customFieldData,
         );
+
+        // Active members only, like the form's watcher picker.
+        if ($watcherIds !== [] && app(AuthorizationService::class)->can($user, 'add_issue_watchers', $project)) {
+            $project->users()
+                ->where('users.status', UserStatus::Active->value)
+                ->whereIn('users.id', array_map('intval', $watcherIds))
+                ->pluck('users.id')
+                ->each(fn (int $watcherId) => $issue->watchers()->firstOrCreate(['user_id' => $watcherId]));
+        }
 
         // Not journaled — an issue's creation itself isn't journaled
         // either, matching the web form's own reasoning for uploads
         // attached while creating vs. editing an issue.
-        $this->attachUploads($issue, $uploads, journalize: false, actor: $request->user());
+        $this->attachUploads($issue, $uploads, journalize: false, actor: $user);
 
-        return (new IssueResource($issue))->response()->setStatusCode(201);
+        return (new IssueResource($issue->refresh()))->response()->setStatusCode(201);
     }
 
     /**
@@ -328,10 +385,33 @@ final class IssueController extends Controller
      */
     public function update(UpdateIssueRequest $request, Issue $issue): IssueResource|JsonResponse
     {
+        $user = $request->user();
         $data = $request->validated();
         $uploads = $data['uploads'] ?? [];
         $expectedLockVersion = isset($data['lock_version']) ? (int) $data['lock_version'] : null;
-        unset($data['uploads'], $data['lock_version']);
+        $notes = filled($data['notes'] ?? null) ? $data['notes'] : null;
+        $notesArePrivate = (bool) ($data['private_notes'] ?? false) && $user->can('setNotesPrivate', $issue);
+        $canEdit = $user->can('update', $issue);
+        $isPrivate = array_key_exists('is_private', $data) && $user->can('setPrivateOn', $issue) ? (bool) $data['is_private'] : null;
+        unset($data['uploads'], $data['lock_version'], $data['notes'], $data['private_notes'], $data['is_private']);
+
+        // Mirrors the issue form's save() and Redmine's safe_attributes: a
+        // caller who may only add notes changes no field (is_private aside,
+        // which has its own permission), and the parent is taken only from
+        // those holding manage_subtasks.
+        if (! $canEdit) {
+            $data = [];
+        } elseif (array_key_exists('parent_issue_id', $data)) {
+            if ($user->can('manageSubtasks', [Issue::class, $issue->project])) {
+                $data['parent_id'] = $data['parent_issue_id'] !== null ? (int) $data['parent_issue_id'] : null;
+            }
+
+            unset($data['parent_issue_id']);
+        }
+
+        if ($isPrivate !== null) {
+            $data['is_private'] = $isPrivate;
+        }
 
         // `assigned_to_id: null` unassigns the issue, a group assignee too.
         if (array_key_exists('assigned_to_id', $data) && $data['assigned_to_id'] === null && ! array_key_exists('assigned_to_group_id', $data)) {
@@ -343,8 +423,10 @@ final class IssueController extends Controller
         }
 
         try {
-            $customFieldData = CustomFieldPayload::extract($request, $issue->relevantCustomFields(), $request->user(), project: $issue->loadMissing('project')->project);
-            $issue = app(IssueService::class)->update($issue, $data, $request->user(), customFieldData: $customFieldData, expectedLockVersion: $expectedLockVersion);
+            $customFieldData = $canEdit
+                ? CustomFieldPayload::extract($request, $issue->relevantCustomFields(), $user, project: $issue->project)
+                : [];
+            $issue = app(IssueService::class)->update($issue, $data, $user, $notes, $customFieldData, $expectedLockVersion, $notesArePrivate);
         } catch (StaleIssueUpdateException $exception) {
             return response()->json([
                 'message' => __('課題が他のユーザーによって更新されています。最新の内容を取得して、もう一度やり直してください。'),
@@ -353,7 +435,7 @@ final class IssueController extends Controller
             ], 409);
         }
 
-        $this->attachUploads($issue, $uploads, journalize: true, actor: $request->user());
+        $this->attachUploads($issue, $uploads, journalize: true, actor: $user);
 
         return new IssueResource($issue);
     }
@@ -382,11 +464,6 @@ final class IssueController extends Controller
         );
 
         return response()->json(status: 204);
-    }
-
-    private function defaultStatusId(): int
-    {
-        return IssueStatus::query()->orderBy('position')->value('id');
     }
 
     /**

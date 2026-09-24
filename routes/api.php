@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\CustomFieldController;
 use App\Http\Controllers\Api\V1\EnumerationController;
 use App\Http\Controllers\Api\V1\FileController;
@@ -18,7 +19,6 @@ use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SearchController;
 use App\Http\Controllers\Api\V1\TimeEntryController;
 use App\Http\Controllers\Api\V1\TrackerController;
-use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\VersionController;
@@ -43,6 +43,7 @@ Route::middleware(['rest-api.enabled', 'auth:api,api-key', 'jsonp'])->group(func
     Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])->name('api.projects.destroy');
 
     Route::get('/issues', [IssueController::class, 'globalIndex'])->name('api.issues.global_index');
+    Route::post('/issues', [IssueController::class, 'storeWithProjectInBody'])->name('api.issues.store_with_project_in_body');
     Route::get('/projects/{project}/issues', [IssueController::class, 'index'])->name('api.issues.index');
     Route::post('/projects/{project}/issues', [IssueController::class, 'store'])->name('api.issues.store');
     Route::get('/issues/{issue}', [IssueController::class, 'show'])->name('api.issues.show');

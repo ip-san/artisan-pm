@@ -95,6 +95,21 @@ final class WorkflowService
     }
 
     /**
+     * The status a new issue starts in when none (or one outside
+     * initialStatuses()) is chosen: the tracker's default status, else the
+     * first status; when the workflow's "new issue" row doesn't list it, the
+     * first status that row does allow — Redmine's safe_attributes= falling
+     * back to new_statuses_allowed_to.first.
+     */
+    public function defaultInitialStatusId(Project $project, Tracker $tracker, User $creator): ?int
+    {
+        $default = $tracker->default_status_id ?? IssueStatus::query()->orderBy('position')->value('id');
+        $allowed = $this->initialStatuses($project, $tracker, $creator)->pluck('id');
+
+        return $allowed->contains($default) ? $default : ($allowed->first() ?? $default);
+    }
+
+    /**
      * Drops closed statuses other than the issue's current one when it
      * can't actually be closed (blocked by an open issue, or has open
      * subtasks) — matches Redmine's Issue#closable? gate on

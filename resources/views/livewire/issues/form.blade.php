@@ -13,6 +13,7 @@ use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\Version;
+use App\Rules\IssueParentTarget;
 use App\Services\IssueService;
 use App\Services\TimeEntryService;
 use App\Support\TimeLog\TimeLogConstraints;
@@ -238,16 +239,11 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private function defaultStatusIdForTracker(?int $trackerId): ?int
     {
-        $trackerDefault = $trackerId !== null
-            ? Tracker::query()->whereKey($trackerId)->value('default_status_id')
-            : null;
+        $tracker = $trackerId !== null ? Tracker::query()->find($trackerId) : null;
 
-        $default = $trackerDefault ?? IssueStatus::query()->orderBy('position')->first()?->id;
-        $allowed = $this->initialStatuses->pluck('id');
-
-        // The workflow's "new issue" row may not list the tracker's default
-        // status; then the first status it does allow is the starting point.
-        return $allowed->contains($default) ? $default : ($allowed->first() ?? $default);
+        return $tracker !== null
+            ? app(WorkflowService::class)->defaultInitialStatusId($this->project, $tracker, auth()->user())
+            : IssueStatus::query()->orderBy('position')->value('id');
     }
 
     /**
@@ -712,32 +708,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_id' => [
                 'nullable',
                 Rule::exists('issues', 'id')->where('project_id', $this->project->id),
-                function (string $attribute, mixed $value, \Closure $fail): void {
-                    // Redmine's parent_issue_id=: the parent must be an issue
-                    // the user may see, unless it is left unchanged.
-                    if ($value !== null && (int) $value !== $this->issue?->parent_id
-                        && ! Issue::query()->whereKey((int) $value)->visibleTo(auth()->user(), $this->project)->exists()) {
-                        $fail(__('課題が見つかりません。'));
-
-                        return;
-                    }
-
-                    if ($value === null || $this->issue === null) {
-                        return;
-                    }
-
-                    $ancestorId = (int) $value;
-
-                    while ($ancestorId !== null) {
-                        if ($ancestorId === $this->issue->id) {
-                            $fail(__('選択した課題はこの課題自身またはその子孫であるため、親に設定できません。'));
-
-                            return;
-                        }
-
-                        $ancestorId = Issue::query()->whereKey($ancestorId)->value('parent_id');
-                    }
-                },
+                new IssueParentTarget($this->project, auth()->user(), $this->issue),
             ],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],

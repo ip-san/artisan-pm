@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api\V1;
 
 use App\Enums\EnumerationType;
+use App\Enums\VersionStatus;
 use App\Models\Issue;
+use App\Models\Version;
+use App\Rules\IssueParentTarget;
 use App\Support\Issues\AssigneeChoice;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -14,9 +17,16 @@ use Illuminate\Validation\Rule;
 
 final class UpdateIssueRequest extends FormRequest
 {
+    /**
+     * Redmine's issues#update is open to editors and to those who may only
+     * add notes (add_issue_notes); the controller keeps a notes-only
+     * caller's other fields out, as Redmine's safe_attributes do.
+     */
     public function authorize(): bool
     {
-        return $this->user()->can('update', $this->route('issue'));
+        $issue = $this->route('issue');
+
+        return $this->user()->can('update', $issue) || $this->user()->can('addNotes', $issue);
     }
 
     /**
@@ -25,7 +35,7 @@ final class UpdateIssueRequest extends FormRequest
     public function rules(): array
     {
         /** @var Issue $issue */
-        $issue = $this->route('issue');
+        $issue = $this->route('issue')->loadMissing('project');
         $projectId = $issue->project_id;
 
         return [
@@ -42,7 +52,20 @@ final class UpdateIssueRequest extends FormRequest
                     $fail(__('選択した担当者は無効です。'));
                 }
             }],
-            'fixed_version_id' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $projectId)],
+            'category_id' => ['nullable', Rule::exists('issue_categories', 'id')->where('project_id', $projectId)],
+            // Redmine's assignable_versions: an open version shared with the
+            // project, or the issue's current one.
+            'fixed_version_id' => ['nullable', Rule::in($issue->project->sharedVersions()
+                ->filter(fn (Version $version) => $version->status === VersionStatus::Open || $version->id === $issue->fixed_version_id)
+                ->pluck('id')->all())],
+            // Taken only from callers holding manage_subtasks.
+            'parent_issue_id' => ['nullable', 'integer', Rule::exists('issues', 'id')->where('project_id', $projectId), new IssueParentTarget($issue->project, $this->user(), $issue)],
+            // Taken only from callers who may set it on this issue.
+            'is_private' => ['boolean'],
+            'estimated_hours' => ['nullable', 'numeric', 'min:0', 'max:9999.99'],
+            'notes' => ['nullable', 'string'],
+            // Honored only for callers holding set_notes_private.
+            'private_notes' => ['boolean'],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
             'done_ratio' => ['sometimes', 'integer', 'min:0', 'max:100'],
