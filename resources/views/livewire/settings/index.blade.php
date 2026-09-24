@@ -25,6 +25,7 @@ use App\Support\TimeLog\TimeLogConstraints;
 use App\Rules\RequiredPasswordCharacterClasses;
 use App\Support\Calendar\WorkingDays;
 use App\Support\Export\ExportLimit;
+use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\CopyOptions;
 use App\Support\Issues\DoneRatioSteps;
 use App\Support\Issues\RelatedIssueColumns;
@@ -248,6 +249,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $issue_group_assignment = false;
 
+    public string $assignee_dropdown_display_format = 'users_then_groups';
+
     public bool $parent_issue_priority = true;
 
     public bool $parent_issue_dates = true;
@@ -408,6 +411,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->issue_done_ratio_interval = DoneRatioSteps::interval();
         $this->close_duplicate_issues = Setting::get('close_duplicate_issues', true);
         $this->issue_group_assignment = (bool) Setting::get('issue_group_assignment', false);
+        $this->assignee_dropdown_display_format = AssigneeChoice::displayFormat();
         $this->parent_issue_priority = Setting::get('parent_issue_priority', true);
         $this->parent_issue_dates = Setting::get('parent_issue_dates', true);
         $this->parent_issue_done_ratio = Setting::get('parent_issue_done_ratio', true);
@@ -656,6 +660,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'issue_done_ratio_interval' => ['required', 'integer', Rule::in(DoneRatioSteps::INTERVALS)],
             'close_duplicate_issues' => ['boolean'],
             'issue_group_assignment' => ['boolean'],
+            'assignee_dropdown_display_format' => ['required', Rule::in(array_keys(AssigneeChoice::displayFormats()))],
             'parent_issue_priority' => ['boolean'],
             'parent_issue_dates' => ['boolean'],
             'parent_issue_done_ratio' => ['boolean'],
@@ -906,6 +911,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ __('グループへの課題の割り当てを許可') }}
                 </label>
                 <p class="mt-1 text-xs text-neutral-500">{{ __('オンにすると、プロジェクトのメンバーで割り当て可能なロールを持つグループを担当者に選べます。グループのメンバー全員が担当者として扱われます。オフにしても既存の割り当ては残ります。') }}</p>
+                <label class="mt-2 block text-sm font-medium text-neutral-700" for="assignee_dropdown_display_format">{{ __('担当者ドロップダウンの表示形式') }}</label>
+                <select id="assignee_dropdown_display_format" wire:model="assignee_dropdown_display_format" x-bind:disabled="! $wire.issue_group_assignment"
+                    class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm disabled:opacity-50 sm:text-sm">
+                    @foreach (AssigneeChoice::displayFormats() as $format => $formatLabel)
+                        <option value="{{ $format }}">{{ $formatLabel }}</option>
+                    @endforeach
+                </select>
+                @error('assignee_dropdown_display_format') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">

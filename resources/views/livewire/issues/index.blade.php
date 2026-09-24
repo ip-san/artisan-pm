@@ -1796,22 +1796,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <label class="block text-xs font-medium text-neutral-700">{{ __('担当者') }}</label>
                     <select wire:model="bulkAssigneeChoice" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
-                        @if ($this->assignableGroups->isEmpty())
-                            @foreach ($this->projectMembers as $member)
-                                <option value="{{ $member->id }}">{{ $member->name }}</option>
-                            @endforeach
-                        @else
-                            <optgroup label="{{ __('ユーザー') }}">
-                                @foreach ($this->projectMembers as $member)
-                                    <option value="{{ $member->id }}">{{ $member->name }}</option>
-                                @endforeach
-                            </optgroup>
-                            <optgroup label="{{ __('グループ') }}">
-                                @foreach ($this->assignableGroups as $group)
-                                    <option value="{{ AssigneeChoice::forGroup($group) }}">{{ $group->name }}</option>
-                                @endforeach
-                            </optgroup>
-                        @endif
+                        <x-assignee-options :users="$this->projectMembers" :groups="$this->assignableGroups" />
                     </select>
                 </div>
                 <div>

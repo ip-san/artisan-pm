@@ -1001,22 +1001,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <select wire:model="assigneeChoice" @disabled($this->isReadOnly('assigned_to_id'))
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">{{ __('未割当') }}</option>
-                        @if ($this->assignableGroups->isEmpty())
-                            @foreach ($this->projectMembers as $member)
-                                <option value="{{ $member->id }}">{{ $member->name }}</option>
-                            @endforeach
-                        @else
-                            <optgroup label="{{ __('ユーザー') }}">
-                                @foreach ($this->projectMembers as $member)
-                                    <option value="{{ $member->id }}">{{ $member->name }}</option>
-                                @endforeach
-                            </optgroup>
-                            <optgroup label="{{ __('グループ') }}">
-                                @foreach ($this->assignableGroups as $group)
-                                    <option value="{{ AssigneeChoice::forGroup($group) }}">{{ $group->name }}</option>
-                                @endforeach
-                            </optgroup>
-                        @endif
+                        <x-assignee-options :users="$this->projectMembers" :groups="$this->assignableGroups" />
                     </select>
                     @error('assigned_to_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                     @error('assigned_to_group_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror

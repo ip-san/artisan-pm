@@ -259,3 +259,55 @@ test('the setting is saved from the administration settings page', function () {
 
     expect(Setting::get('issue_group_assignment'))->toBeTrue();
 });
+
+test('the assignee select lays out users and groups by the display format setting', function (string $format, array $expected) {
+    Setting::set('issue_group_assignment', true);
+    Setting::set('assignee_dropdown_display_format', $format);
+    $project = Project::factory()->create();
+    $alice = User::factory()->create(['name' => 'Alice']);
+    $bob = User::factory()->create(['name' => 'Bob']);
+    $group = Group::factory()->create(['name' => 'Team']);
+    $group->users()->attach($alice);
+
+    $sections = AssigneeChoice::optionGroups(collect([$alice, $bob]), collect([$group]));
+
+    expect(array_map(fn (array $section) => [$section['label'], array_column($section['options'], 'name')], $sections))->toBe($expected);
+})->with([
+    'users then groups' => ['users_then_groups', [['ユーザー', ['Alice', 'Bob']], ['グループ', ['Team']]]],
+    'groups then users' => ['groups_then_users', [['グループ', ['Team']], ['ユーザー', ['Alice', 'Bob']]]],
+    'users by group' => ['users_by_group', [['グループ', ['Team']], ['Team', ['Alice']], ['ユーザー', ['Bob']]]],
+]);
+
+test('without groups to offer the assignee select lists the users plainly', function () {
+    Setting::set('assignee_dropdown_display_format', 'groups_then_users');
+    $alice = User::factory()->create(['name' => 'Alice']);
+
+    expect(AssigneeChoice::optionGroups(collect([$alice]), collect()))->toBe([['label' => null, 'options' => [['value' => (string) $alice->id, 'name' => 'Alice']]]]);
+});
+
+test('the issue form renders the chosen display format', function () {
+    Setting::set('issue_group_assignment', true);
+    Setting::set('assignee_dropdown_display_format', 'groups_then_users');
+    $project = Project::factory()->create();
+    $editor = groupAssignMember($project);
+    $group = groupAssignMemberGroup($project);
+    $issue = groupAssignIssue($project);
+
+    Livewire::actingAs($editor)->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->assertSeeHtmlInOrder(['<optgroup label="グループ">', $group->name, '<optgroup label="ユーザー">', $editor->name]);
+});
+
+test('the display format is saved from the settings page and must be a known one', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+
+    Livewire::actingAs($admin)->test('settings.index')
+        ->assertSet('assignee_dropdown_display_format', 'users_then_groups')
+        ->set('assignee_dropdown_display_format', 'nonsense')
+        ->call('save')
+        ->assertHasErrors('assignee_dropdown_display_format')
+        ->set('assignee_dropdown_display_format', 'users_by_group')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('assignee_dropdown_display_format'))->toBe('users_by_group');
+});

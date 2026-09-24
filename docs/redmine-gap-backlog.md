@@ -262,7 +262,7 @@
 | 137 | A1-20 | — | L | done(2026-09-24、A1-20a/b。設計メモ案 A、`issue_group_assignment` 既定オフ) |
 | 137x | A1-20a | — | M | done(2026-09-24、列・設定・担当者候補・フォーム/一括編集/右クリック/REST 書き込み・表示。通知・フィルタ・並べ替え等は A1-20b) |
 | 137y | A1-20b | A1-20a | M | done(2026-09-24、グループへの自動ウォッチは Redmine どおり行わない。以前の担当者への通知は A6-08、既定担当者のグループ化は A1-43) |
-| 137a | A5-05 | A1-20 | S | wip(2026-09-24) |
+| 137a | A5-05 | A1-20 | S | done(2026-09-24、3 形式。編集時の「関係者」optgroup は未対応) |
 | 138 | A14-01 | — | L | done(2026-09-20、A14-01a。承認: 推奨案 A。画面の置換は A14-01b 以降)|
 | 138a | A14-01a | A14-01 | S | done(2026-09-20) |
 | 138b | A14-01b | A14-01a | M×n | done(2026-09-23、A14-01b1: 共通レイアウトと課題画面。既定の言語を ja に変更。残りは A14-01b2〜b8) |
@@ -414,7 +414,7 @@
 | A5-02 | `feeds_limit` | `ActivityFeedController` 等で定数 | 設定化(既定 15) | S | A9-05 |
 | A5-03 | `cache_formatted_text` | Markdown を毎回レンダリング | `WikiMarkdownRenderer::render()` の出力を `Cache::remember`(キー: 本文ハッシュ+プロジェクト) | S | — |
 | A5-04 | `new_item_menu_tab`(ヘッダーの「+」メニュー: 非表示/新規課題のみ/全て) | 「+」メニュー自体なし | ヘッダーに新規作成ドロップダウン(課題/News/文書/Wiki/ファイル/バージョン/工数)と設定 | S | — |
-| A5-05 | `assignee_dropdown_display_format`(担当者ドロップダウンにグループ名等を表示) | 該当なし | 担当者選択の表示形式設定 | S | A1-20 |
+| A5-05 | `assignee_dropdown_display_format`(担当者ドロップダウンにグループ名等を表示) | **done(2026-09-24)**: 設定「課題トラッキング」に「担当者ドロップダウンの表示形式」(`users_then_groups` 既定 / `groups_then_users` / `users_by_group`、グループ割当がオフのときは無効化)。`AssigneeChoice::optionGroups()` と `<x-assignee-options>` で課題フォーム・一括編集の担当者選択に適用(グループを出さないときは従来どおりの平らな一覧)。Redmine の課題編集時の「関係者」optgroup(作成者・以前の担当者)は未対応。テスト: `IssueGroupAssignmentTest.php` | 担当者選択の表示形式設定 | S | A1-20 |
 | A5-06 | `ui_theme` | テーマ切替基盤なし | Tailwind のダーク/ライトまたは複数カラーテーマを CSS 変数で切替、設定+ユーザー設定 | M | A14-03 |
 | A5-07 | `attachment` 系: `bulk_download_max_size`、`file_max_size_displayed`、`diff_max_lines_displayed`、`thumbnails_size`(`thumbnails_enabled` は設定キーとして未定義) | `attachment_max_size`/`attachment_extensions_*` は `AttachmentValidationRules.php` で実装済み。残りなし | 一括 ZIP ダウンロード上限、リポジトリ/Wiki のファイル表示上限、Diff 行数上限、サムネイル寸法 | S | A7-10, A10-06 |
 | A5-08 | `wiki_compression`、`wiki_tablesort_enabled` | Wiki 本文は非圧縮保存、テーブルソートなし | 圧縮は優先度低(スキップ可)。テーブルソートはクライアント JS で `<table>` にソート可能属性を付与 | S | A7 |
