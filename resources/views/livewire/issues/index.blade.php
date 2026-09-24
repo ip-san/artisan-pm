@@ -1054,16 +1054,80 @@ new #[Layout('components.layouts.app')] class extends Component
         );
     }
 
+    /**
+     * Whether the list offers selection and the bulk/context menu actions:
+     * edit_issues in the project — or, on the cross-project list, in any
+     * listed project (each action still authorizes every selected issue).
+     */
     #[Computed]
     public function canBulkEdit(): bool
     {
-        return $this->project !== null && app(AuthorizationService::class)->can(auth()->user(), 'edit_issues', $this->project);
+        return $this->holdsInListedProject('edit_issues');
     }
 
     #[Computed]
     public function canBulkCopy(): bool
     {
-        return $this->project !== null && app(AuthorizationService::class)->can(auth()->user(), 'copy_issues', $this->project);
+        return $this->holdsInListedProject('copy_issues');
+    }
+
+    private function holdsInListedProject(string $permission): bool
+    {
+        $authorization = app(AuthorizationService::class);
+
+        return $this->project !== null
+            ? $authorization->can(auth()->user(), $permission, $this->project)
+            : $this->scopeProjects->contains(fn (Project $project) => $authorization->can(auth()->user(), $permission, $project));
+    }
+
+    /**
+     * The projects of the selected issues — the project itself on a
+     * project's list. The bulk form and context menu offer only what every
+     * one of them allows (Redmine's bulk_edit over `@projects`).
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function bulkProjects(): Collection
+    {
+        if ($this->project !== null) {
+            return collect([$this->project]);
+        }
+
+        return $this->selectedIssues->pluck('project')->unique('id')->values();
+    }
+
+    /**
+     * The candidates common to every bulk project, in the first project's
+     * order (Redmine's `.reduce(:&)`).
+     *
+     * @param  \Closure(Project): Collection<int, \Illuminate\Database\Eloquent\Model>  $candidatesIn
+     * @return Collection<int, \Illuminate\Database\Eloquent\Model>
+     */
+    private function commonToBulkProjects(\Closure $candidatesIn): Collection
+    {
+        $perProject = $this->bulkProjects->map(fn (Project $project) => $candidatesIn($project));
+
+        if ($perProject->isEmpty()) {
+            return collect();
+        }
+
+        $commonIds = $perProject->map(fn (Collection $candidates) => $candidates->pluck('id'))
+            ->reduce(fn (?Collection $carry, Collection $ids) => $carry === null ? $ids : $carry->intersect($ids));
+
+        return $perProject->first()->whereIn('id', $commonIds->all())->values();
+    }
+
+    /**
+     * The one project a parent issue for the selection is looked up in —
+     * the list's, or on the cross-project list the selected issues' when
+     * they all share one (a simplification of Redmine's cross-project
+     * subtasks for bulk edits).
+     */
+    #[Computed]
+    public function bulkParentProject(): ?Project
+    {
+        return $this->bulkProjects->count() === 1 ? $this->bulkProjects->first() : null;
     }
 
     /**
@@ -1072,16 +1136,27 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function selectedIssues(): EloquentCollection
     {
-        if ($this->selected === [] || $this->project === null) {
+        if ($this->selected === []) {
             return new EloquentCollection;
         }
 
-        return Issue::query()
-            ->whereIn('id', $this->selected)
-            ->where('project_id', $this->project->id)
-            ->visibleTo(auth()->user(), $this->project)
+        return $this->bulkSelectableIssues()
+            ->whereIn('issues.id', array_map('intval', $this->selected))
             ->with(['status', 'project', 'customFieldValues'])
             ->get();
+    }
+
+    /**
+     * The issues a selection may hold: the project's own visible issues,
+     * or on the cross-project list every issue the list may show.
+     *
+     * @return Builder<Issue>
+     */
+    private function bulkSelectableIssues(): Builder
+    {
+        return $this->project !== null
+            ? Issue::query()->where('issues.project_id', $this->project->id)->visibleTo(auth()->user(), $this->project)
+            : Issue::query()->visibleToAcrossProjects(auth()->user(), $this->scopeProjects);
     }
 
     /**
@@ -1119,7 +1194,9 @@ new #[Layout('components.layouts.app')] class extends Component
     public function bulkTrackers(): Collection
     {
         // Redmine's bulk edit / context menu offer allowed_target_trackers.
-        return Issue::allowedTargetTrackers($this->project, auth()->user());
+        return $this->project !== null
+            ? Issue::allowedTargetTrackers($this->project, auth()->user())
+            : $this->commonToBulkProjects(fn (Project $project) => Issue::allowedTargetTrackers($project, auth()->user()));
     }
 
     /**
@@ -1128,7 +1205,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function bulkCategories(): Collection
     {
-        return $this->project->issueCategories()->orderBy('name')->get();
+        return $this->project !== null
+            ? $this->project->issueCategories()->orderBy('name')->get()
+            : $this->commonToBulkProjects(fn (Project $project) => $project->issueCategories()->orderBy('name')->get());
     }
 
     /**
@@ -1176,13 +1255,17 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function projectMembers(): Collection
     {
-        return $this->project->assignableUsers();
+        return $this->project !== null
+            ? $this->project->assignableUsers()
+            : $this->commonToBulkProjects(fn (Project $project) => $project->assignableUsers());
     }
 
     #[Computed]
     public function projectVersions(): Collection
     {
-        return $this->project->versions;
+        return $this->project !== null
+            ? $this->project->versions
+            : $this->commonToBulkProjects(fn (Project $project) => $project->versions()->get());
     }
 
     /**
@@ -1193,7 +1276,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function assignableGroups(): Collection
     {
-        return AssigneeChoice::groupOptions($this->project);
+        return $this->project !== null
+            ? AssigneeChoice::groupOptions($this->project)
+            : $this->commonToBulkProjects(fn (Project $project) => AssigneeChoice::groupOptions($project));
     }
 
     public function updatedBulkAssigneeChoice(string $value): void
@@ -1217,13 +1302,23 @@ new #[Layout('components.layouts.app')] class extends Component
         // fix in issues/form.blade.php's single-issue save()).
         $data = $this->validate([
             'bulkPriorityId' => ['nullable', Rule::exists('enumerations', 'id')->where('type', EnumerationType::IssuePriority->value)],
-            'bulkAssignedToId' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
+            // On the cross-project list only what every selected issue's
+            // project offers (projectMembers/assignableGroups/projectVersions).
+            'bulkAssignedToId' => ['nullable', $this->project !== null
+                ? Rule::exists('members', 'user_id')->where('project_id', $this->project->id)
+                : Rule::in($this->projectMembers->pluck('id')->all())],
             'bulkAssignedToGroupId' => ['nullable', 'integer', function (string $attribute, mixed $value, \Closure $fail): void {
-                if (! AssigneeChoice::allowsGroup($this->project, (int) $value)) {
+                $allowed = $this->project !== null
+                    ? AssigneeChoice::allowsGroup($this->project, (int) $value)
+                    : Issue::groupAssignmentEnabled() && $this->assignableGroups->contains('id', (int) $value);
+
+                if (! $allowed) {
                     $fail(__('選択した担当者は無効です。'));
                 }
             }],
-            'bulkFixedVersionId' => ['nullable', Rule::exists('versions', 'id')->where('project_id', $this->project->id)],
+            'bulkFixedVersionId' => ['nullable', $this->project !== null
+                ? Rule::exists('versions', 'id')->where('project_id', $this->project->id)
+                : Rule::in($this->projectVersions->pluck('id')->all())],
             'bulkStatusId' => ['nullable', 'exists:issue_statuses,id'],
             'bulkDoneRatio' => ['nullable', 'integer', 'min:0', 'max:100'],
             'bulkTrackerId' => ['nullable', Rule::in($this->bulkTrackers->pluck('id')->all())],
@@ -1231,11 +1326,11 @@ new #[Layout('components.layouts.app')] class extends Component
             'bulkStartDate' => ['nullable', 'date'],
             'bulkDueDate' => ['nullable', 'date'],
             'bulkIsPrivate' => ['nullable', Rule::in(['yes', 'no'])],
-            'bulkParentId' => ['nullable', Rule::exists('issues', 'id')->where('project_id', $this->project->id), function (string $attribute, mixed $value, \Closure $fail) use ($issues): void {
+            'bulkParentId' => ['nullable', Rule::exists('issues', 'id')->where('project_id', $this->bulkParentProject?->id), function (string $attribute, mixed $value, \Closure $fail) use ($issues): void {
                 // A parent may not be one of the issues being edited, nor
                 // anything below them (that would loop the tree).
                 // Redmine's parent_issue_id=: only an issue the user may see.
-                if (! Issue::query()->whereKey((int) $value)->visibleTo(auth()->user(), $this->project)->exists()) {
+                if ($this->bulkParentProject === null || ! Issue::query()->whereKey((int) $value)->visibleTo(auth()->user(), $this->bulkParentProject)->exists()) {
                     $fail(__('課題が見つかりません。'));
 
                     return;
@@ -1271,7 +1366,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if ($data['bulkParentId'] !== null) {
-            $this->authorize('manageSubtasks', [Issue::class, $this->project]);
+            $this->authorize('manageSubtasks', [Issue::class, $this->bulkParentProject]);
         }
 
         $clearable = array_values(array_intersect($this->bulkClear, ['assigned_to_id', 'fixed_version_id', 'category_id']));
@@ -1352,7 +1447,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         abort_unless($this->canBulkEdit, 403);
 
-        $issue = Issue::query()->where('project_id', $this->project->id)->visibleTo(auth()->user(), $this->project)->find($issueId);
+        $issue = $this->bulkSelectableIssues()->find($issueId);
 
         abort_if($issue === null, 404);
 
@@ -1360,7 +1455,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->selected = [(string) $issue->id];
         }
 
-        unset($this->selectedIssues, $this->bulkStatusOptions);
+        unset($this->selectedIssues, $this->bulkStatusOptions, $this->bulkProjects, $this->bulkParentProject, $this->projectMembers, $this->projectVersions, $this->assignableGroups, $this->bulkTrackers, $this->bulkCategories, $this->bulkCustomFields, $this->contextMenuCustomFields);
     }
 
     /**
@@ -1457,7 +1552,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function bulkMoveTargetProjects(): Collection
     {
         return Project::query()
-            ->where('id', '!=', $this->project->id)
+            ->when($this->project !== null, fn (Builder $query) => $query->where('id', '!=', $this->project->id))
             ->get()
             ->filter(fn (Project $candidate) => auth()->user()?->can('create', [Issue::class, $candidate]))
             ->values();
@@ -1715,7 +1810,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div x-show="menu.open" x-cloak x-on:click.stop x-bind:style="`left:${menu.x}px;top:${menu.y}px`" data-context-menu
             class="fixed z-50 w-52 rounded-md border border-neutral-200 bg-surface py-1 text-sm shadow-lg">
             @if (count($selected) === 1)
-                <a href="{{ route('issues.edit', [$project, $this->selectedIssues->first()]) }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('編集') }}</a>
+                <a href="{{ route('issues.edit', [$this->selectedIssues->first()->project, $this->selectedIssues->first()]) }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('編集') }}</a>
             @else
                 <a href="#bulk-edit-form" x-on:click="menu.open = false" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('一括編集') }}</a>
             @endif
@@ -1791,13 +1886,13 @@ new #[Layout('components.layouts.app')] class extends Component
             @endauth
             @if (count($selected) === 1)
                 @php $menuIssue = $this->selectedIssues->first(); @endphp
-                @if (auth()->user()?->can('manageSubtasks', [\App\Models\Issue::class, $project]) && auth()->user()?->can('create', [\App\Models\Issue::class, $project]))
-                    <a href="{{ route('issues.create', $project) }}?parent_id={{ $menuIssue->id }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('子課題を追加') }}</a>
+                @if (auth()->user()?->can('manageSubtasks', [\App\Models\Issue::class, $menuIssue->project]) && auth()->user()?->can('create', [\App\Models\Issue::class, $menuIssue->project]))
+                    <a href="{{ route('issues.create', $menuIssue->project) }}?parent_id={{ $menuIssue->id }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('子課題を追加') }}</a>
                 @endif
-                @if (app(\App\Support\Authorization\AuthorizationService::class)->can(auth()->user(), 'log_time', $project))
-                    <a href="{{ route('time-entries.create', $project) }}?issue_id={{ $menuIssue->id }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('作業時間を記録') }}</a>
+                @if (app(\App\Support\Authorization\AuthorizationService::class)->can(auth()->user(), 'log_time', $menuIssue->project))
+                    <a href="{{ route('time-entries.create', $menuIssue->project) }}?issue_id={{ $menuIssue->id }}" class="block px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('作業時間を記録') }}</a>
                 @endif
-                <button type="button" x-on:click="navigator.clipboard?.writeText('{{ route('issues.show', [$project, $menuIssue]) }}'); menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ __('URLをコピー') }}</button>
+                <button type="button" x-on:click="navigator.clipboard?.writeText('{{ route('issues.show', [$menuIssue->project, $menuIssue]) }}'); menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ __('URLをコピー') }}</button>
             @endif
             @if ($this->canBulkCopy)
                 <a href="#bulk-copy-form" x-on:click="menu.open = false" class="block border-t border-neutral-100 px-3 py-1.5 text-neutral-700 hover:bg-neutral-100">{{ __('コピー') }}</a>
@@ -2024,13 +2119,13 @@ new #[Layout('components.layouts.app')] class extends Component
                         <option value="no">{{ __('公開にする') }}</option>
                     </select>
                 </div>
-                @can('manageSubtasks', [\App\Models\Issue::class, $project])
+                @if ($this->bulkParentProject !== null && auth()->user()?->can('manageSubtasks', [\App\Models\Issue::class, $this->bulkParentProject]))
                     <div>
                         <label class="block text-xs font-medium text-neutral-700">{{ __('親課題(番号)') }}</label>
                         <input type="number" wire:model="bulkParentId" placeholder="{{ __('変更なし') }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         @error('bulkParentId') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                     </div>
-                @endcan
+                @endif
                 <div>
                     <label class="block text-xs font-medium text-neutral-700">{{ __('進捗率') }}</label>
                     <select wire:model="bulkDoneRatio" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
@@ -2196,12 +2291,14 @@ new #[Layout('components.layouts.app')] class extends Component
                             <input type="radio" wire:model.live="bulkTimeEntryTodo" value="destroy">
                             {{ __('作業時間も一緒に削除する') }}
                         </label>
+                        @if ($this->bulkProjects->count() === 1)
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
                             <input type="radio" wire:model.live="bulkTimeEntryTodo" value="reassign">
                             {{ __('このプロジェクトの別の課題へ付け替える:') }} #
                             <input type="number" min="1" wire:model="bulkReassignToId" wire:focus="$set('bulkTimeEntryTodo', 'reassign')"
                                 class="w-24 rounded-md border-neutral-300 text-sm">
                         </label>
+                        @endif
                         @error('bulkTimeEntryTodo') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                         @error('bulkReassignToId') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                         <div class="flex gap-2">

@@ -14,6 +14,7 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use Livewire\Livewire;
 
 function globalListIssue(Project $project, array $attributes = []): Issue
@@ -148,19 +149,140 @@ test('the cross-project list is the issue list without a project: it opens on a 
     Livewire::actingAs($user)->test('issues.index')->call('loadQuery', $projectQuery->id)->assertNotFound();
 });
 
-test('the cross-project list offers no bulk actions and refuses them', function () {
-    $project = Project::factory()->create();
+/**
+ * @param  array<int, string>  $permissions
+ */
+function globalBulkMember(User $user, Project $project, array $permissions = ['view_issues', 'edit_issues', 'delete_issues']): void
+{
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => $permissions, 'assignable' => true]));
+}
+
+test('a cross-project selection is bulk edited across its projects', function () {
+    $alpha = Project::factory()->create();
+    $beta = Project::factory()->create();
     $user = User::factory()->create();
-    Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues', 'edit_issues', 'delete_issues', 'copy_issues']]));
-    $issue = globalListIssue($project, ['subject' => 'Keep me']);
+    globalBulkMember($user, $alpha);
+    globalBulkMember($user, $beta);
+    $a = globalListIssue($alpha);
+    $b = globalListIssue($beta);
 
-    $list = Livewire::actingAs($user)->test('issues.index')->set('selected', [(string) $issue->id]);
+    Livewire::actingAs($user)->test('issues.index')
+        ->set('selected', [(string) $a->id, (string) $b->id])
+        ->assertSeeHtml('bulk-edit-form')
+        ->set('bulkDoneRatio', 40)
+        ->set('bulkAssignedToId', $user->id)
+        ->call('applyBulkEdit')
+        ->assertHasNoErrors();
 
-    $list->assertDontSeeHtml('data-context-menu')->assertDontSeeHtml('bulk-edit-form');
-    $list->call('contextUpdate', 'done_ratio', '50')->assertForbidden();
-    Livewire::actingAs($user)->test('issues.index')->set('selected', [(string) $issue->id])->call('applyBulkDelete')->assertNotFound();
+    expect($a->fresh()->done_ratio)->toBe(40)->and($b->fresh()->done_ratio)->toBe(40)
+        ->and($a->fresh()->assigned_to_id)->toBe($user->id)->and($b->fresh()->assigned_to_id)->toBe($user->id);
+});
 
-    expect($issue->fresh())->not->toBeNull()->and($issue->fresh()->done_ratio)->toBe(0);
+test('only candidates common to every selected project are offered and accepted', function () {
+    $alpha = Project::factory()->create();
+    $beta = Project::factory()->create();
+    $user = User::factory()->create();
+    globalBulkMember($user, $alpha);
+    globalBulkMember($user, $beta);
+    $alphaOnly = User::factory()->create();
+    globalBulkMember($alphaOnly, $alpha, ['view_issues']);
+    $alphaVersion = Version::factory()->for($alpha)->create(['name' => 'Alpha 1.0']);
+    $a = globalListIssue($alpha);
+    $b = globalListIssue($beta);
+
+    $list = Livewire::actingAs($user)->test('issues.index')->set('selected', [(string) $a->id, (string) $b->id]);
+
+    expect($list->get('projectMembers')->pluck('id')->all())->toBe([$user->id])
+        ->and($list->get('projectVersions'))->toBeEmpty()
+        ->and($list->get('bulkCategories'))->toBeEmpty();
+
+    $list->set('bulkAssignedToId', $alphaOnly->id)->call('applyBulkEdit')->assertHasErrors('bulkAssignedToId');
+    Livewire::actingAs($user)->test('issues.index')->set('selected', [(string) $a->id, (string) $b->id])
+        ->set('bulkFixedVersionId', $alphaVersion->id)->call('applyBulkEdit')->assertHasErrors('bulkFixedVersionId');
+
+    expect($a->fresh()->assigned_to_id)->toBeNull()->and($a->fresh()->fixed_version_id)->toBeNull();
+
+    Livewire::actingAs($user)->test('issues.index')->set('selected', [(string) $a->id])
+        ->set('bulkAssignedToId', $alphaOnly->id)->call('applyBulkEdit')->assertHasNoErrors();
+
+    expect($a->fresh()->assigned_to_id)->toBe($alphaOnly->id);
+});
+
+test('a selection including an issue the user may not edit is refused as a whole', function () {
+    $alpha = Project::factory()->create();
+    $beta = Project::factory()->create();
+    $user = User::factory()->create();
+    globalBulkMember($user, $alpha);
+    globalBulkMember($user, $beta, ['view_issues']);
+    $a = globalListIssue($alpha);
+    $b = globalListIssue($beta);
+
+    Livewire::actingAs($user)->test('issues.index')
+        ->set('selected', [(string) $a->id, (string) $b->id])
+        ->set('bulkDoneRatio', 70)
+        ->call('applyBulkEdit')
+        ->assertForbidden();
+
+    Livewire::actingAs($user)->test('issues.index')->set('selected', [(string) $a->id, (string) $b->id])->call('contextUpdate', 'done_ratio', '70')->assertForbidden();
+
+    expect($a->fresh()->done_ratio)->toBe(0)->and($b->fresh()->done_ratio)->toBe(0);
+});
+
+test('issues the user cannot see never join a cross-project selection', function () {
+    $alpha = Project::factory()->create();
+    $hidden = Project::factory()->create(['is_public' => false]);
+    $user = User::factory()->create();
+    Member::factory()->for($alpha)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues', 'edit_issues', 'delete_issues'], 'issues_visibility' => IssueVisibility::Default->value]));
+    $mine = globalListIssue($alpha);
+    $private = globalListIssue($alpha, ['is_private' => true]);
+    $elsewhere = globalListIssue($hidden);
+
+    Livewire::actingAs($user)->test('issues.index')->call('openContextMenu', $elsewhere->id)->assertNotFound();
+    Livewire::actingAs($user)->test('issues.index')->call('openContextMenu', $private->id)->assertNotFound();
+
+    $list = Livewire::actingAs($user)->test('issues.index')->set('selected', [(string) $mine->id, (string) $private->id, (string) $elsewhere->id]);
+    expect($list->get('selectedIssues')->pluck('id')->all())->toBe([$mine->id]);
+
+    $list->call('applyBulkDelete');
+
+    expect(Issue::query()->whereKey([$private->id, $elsewhere->id])->count())->toBe(2)->and($mine->fresh())->toBeNull();
+});
+
+test('the cross-project context menu links a single issue to its own project', function () {
+    $alpha = Project::factory()->create();
+    $user = User::factory()->create();
+    globalBulkMember($user, $alpha);
+    $issue = globalListIssue($alpha);
+
+    Livewire::actingAs($user)->test('issues.index')
+        ->call('openContextMenu', $issue->id)
+        ->assertSet('selected', [(string) $issue->id])
+        ->assertSee(route('issues.edit', [$alpha, $issue]), false);
+});
+
+test('a user without edit_issues anywhere gets no selection on the cross-project list', function () {
+    $project = Project::factory()->create();
+    $user = globalListMember($project);
+    $issue = globalListIssue($project);
+
+    Livewire::actingAs($user)->test('issues.index')
+        ->assertDontSeeHtml('data-context-menu')
+        ->call('openContextMenu', $issue->id)
+        ->assertForbidden();
+});
+
+test('the cross-project CSV export contains only visible issues', function () {
+    $alpha = Project::factory()->create();
+    $hidden = Project::factory()->create(['is_public' => false]);
+    $user = globalListMember($alpha);
+    globalListIssue($alpha, ['subject' => 'Exported subject']);
+    globalListIssue($hidden, ['subject' => 'Secret subject']);
+
+    $component = Livewire::actingAs($user)->test('issues.index')->set('statusFilter', 'all')->call('exportCsv');
+    $csv = base64_decode($component->effects['download']['content']);
+
+    expect($component->effects['download']['name'])->toBe('issues.csv')
+        ->and($csv)->toContain('Exported subject')->not->toContain('Secret subject');
 });
 
 test('the cross-project list groups by project with counts over visible issues only', function () {
