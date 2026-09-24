@@ -256,7 +256,9 @@ final class User extends Authenticatable implements HasLocalePreference, OAuthen
      * Validation of the name inputs shared by the admin form, the account
      * page, registration, the REST API and the CSV import: `name` is needed
      * unless both parts are given (then it is derived), and a part needs the
-     * other (Redmine requires both; here both or neither).
+     * other (Redmine requires both; here both or neither). For a partial
+     * update (`$nameRequired` false, the REST API's PUT) every field is
+     * optional and a part may change alone.
      *
      * @return array<string, array<int, string>>
      */
@@ -264,8 +266,8 @@ final class User extends Authenticatable implements HasLocalePreference, OAuthen
     {
         return [
             'name' => [$nameRequired ? 'required_without_all:firstname,lastname' : 'sometimes', 'nullable', 'string', 'max:255'],
-            'firstname' => ['nullable', 'string', 'max:30', 'required_with:lastname'],
-            'lastname' => ['nullable', 'string', 'max:255', 'required_with:firstname'],
+            'firstname' => $nameRequired ? ['nullable', 'string', 'max:30', 'required_with:lastname'] : ['sometimes', 'nullable', 'string', 'max:30'],
+            'lastname' => $nameRequired ? ['nullable', 'string', 'max:255', 'required_with:firstname'] : ['sometimes', 'nullable', 'string', 'max:255'],
         ];
     }
 

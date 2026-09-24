@@ -22,7 +22,7 @@ use LdapRecord\Query\EscapedValue;
 final class LdapAuthenticator
 {
     /**
-     * @return array{name: ?string, mail: ?string}|null the directory's name/mail attributes on success, null on any failure
+     * @return array{name: ?string, firstname: ?string, lastname: ?string, mail: ?string}|null the directory's name/mail attributes on success, null on any failure
      */
     public function attempt(AuthSource $source, string $login, string $password): ?array
     {
@@ -98,7 +98,7 @@ final class LdapAuthenticator
     }
 
     /**
-     * @return array{name: ?string, mail: ?string}|null
+     * @return array{name: ?string, firstname: ?string, lastname: ?string, mail: ?string}|null
      */
     private function searchThenBind(Connection $connection, AuthSource $source, string $login, string $password): ?array
     {
@@ -118,7 +118,7 @@ final class LdapAuthenticator
     }
 
     /**
-     * @return array{name: ?string, mail: ?string}|null
+     * @return array{name: ?string, firstname: ?string, lastname: ?string, mail: ?string}|null
      */
     private function directBind(Connection $connection, AuthSource $source, string $login, string $password): ?array
     {
@@ -168,13 +168,17 @@ final class LdapAuthenticator
 
     /**
      * @param  array<string, mixed>  $entry
-     * @return array{name: ?string, mail: ?string}
+     * @return array{name: ?string, firstname: ?string, lastname: ?string, mail: ?string}
      */
     private function extractAttributes(array $entry, AuthSource $source): array
     {
+        $value = fn (?string $attribute): ?string => filled($attribute) ? ($entry[$attribute][0] ?? $entry[mb_strtolower($attribute)][0] ?? null) : null;
+
         return [
-            'name' => $entry[$source->attr_name][0] ?? null,
-            'mail' => $entry[$source->attr_mail][0] ?? null,
+            'name' => $value($source->attr_name),
+            'firstname' => $value($source->attr_firstname),
+            'lastname' => $value($source->attr_lastname),
+            'mail' => $value($source->attr_mail),
         ];
     }
 }

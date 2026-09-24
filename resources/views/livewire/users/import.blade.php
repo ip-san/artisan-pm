@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\UserImport;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -17,7 +18,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /**
      * The user fields a CSV column can be mapped to — Redmine's
-     * UserImport::AUTO_MAPPABLE_FIELDS, with this app's single name field.
+     * UserImport::AUTO_MAPPABLE_FIELDS, plus this app's single name field
+     * (needed unless both first and last names are mapped).
      *
      * @return array<string, string>
      */
@@ -25,7 +27,9 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         return [
             'login' => __('ログインID(必須)'),
-            'name' => __('名前(必須)'),
+            'lastname' => __('姓'),
+            'firstname' => __('名'),
+            'name' => __('名前(姓・名が無い場合は必須)'),
             'email' => __('メールアドレス(必須)'),
             'password' => __('パスワード(認証方式が無い場合は必須)'),
             'language' => __('言語'),
@@ -84,7 +88,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->validate([
             'csvFile' => ['required', 'file'],
             'mapping.login' => ['required', 'string'],
-            'mapping.name' => ['required', 'string'],
+            'mapping.name' => [Rule::requiredIf(blank($this->mapping['firstname'] ?? null) || blank($this->mapping['lastname'] ?? null)), 'nullable', 'string'],
             'mapping.email' => ['required', 'string'],
         ]);
 

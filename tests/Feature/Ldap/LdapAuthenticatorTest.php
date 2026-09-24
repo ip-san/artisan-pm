@@ -19,7 +19,7 @@ test('search-then-bind succeeds and returns the directory attributes', function 
 
     $result = app(LdapAuthenticator::class)->attempt($source, 'jdoe', 'whatever-password');
 
-    expect($result)->toBe(['name' => 'John Doe', 'mail' => 'jdoe@example.com']);
+    expect($result)->toBe(['name' => 'John Doe', 'firstname' => null, 'lastname' => null, 'mail' => 'jdoe@example.com']);
 });
 
 test('search-then-bind fails when no directory entry matches the login', function () {
@@ -54,7 +54,7 @@ test('direct bind succeeds by constructing the DN from the login', function () {
 
     $result = app(LdapAuthenticator::class)->attempt($source, 'jdoe', 'whatever-password');
 
-    expect($result)->toBe(['name' => 'John Doe', 'mail' => 'jdoe@example.com']);
+    expect($result)->toBe(['name' => 'John Doe', 'firstname' => null, 'lastname' => null, 'mail' => 'jdoe@example.com']);
 });
 
 test('direct bind fails when the constructed DN is not authorized to bind', function () {
@@ -125,5 +125,5 @@ test('a login still succeeds end-to-end through search-then-bind when a filter i
 
     $result = app(LdapAuthenticator::class)->attempt($source, 'jdoe', 'whatever-password');
 
-    expect($result)->toBe(['name' => 'John Doe', 'mail' => 'jdoe@example.com']);
+    expect($result)->toBe(['name' => 'John Doe', 'firstname' => null, 'lastname' => null, 'mail' => 'jdoe@example.com']);
 });

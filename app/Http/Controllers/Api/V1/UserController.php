@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
 use App\Enums\UserStatus;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\IndexUserRequest;
 use App\Http\Requests\Api\V1\StoreUserRequest;
 use App\Http\Requests\Api\V1\UpdateUserRequest;
@@ -60,7 +60,7 @@ final class UserController extends Controller
 
         $user = new User([
             'login' => $data['login'],
-            'name' => $data['name'],
+            ...User::normalizeNameInput(array_intersect_key($data, array_flip(['name', 'firstname', 'lastname']))),
             'email' => $data['email'],
             // A directory-backed account never uses a local password; an
             // unguessable placeholder satisfies the column, like the admin form.
@@ -85,7 +85,7 @@ final class UserController extends Controller
     {
         $data = $request->validated();
 
-        $attributes = collect($data)->only(['login', 'name', 'email', 'language', 'status', 'mail_notification', 'no_self_notified'])->all();
+        $attributes = User::normalizeNameInput(collect($data)->only(['login', 'name', 'firstname', 'lastname', 'email', 'language', 'status', 'mail_notification', 'no_self_notified'])->all());
 
         if (array_key_exists('auth_source_id', $data)) {
             $attributes['auth_source_id'] = $data['auth_source_id'];

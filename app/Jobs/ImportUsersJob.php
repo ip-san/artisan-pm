@@ -144,6 +144,8 @@ final class ImportUsersJob implements ShouldQueue
 
         $data = [
             'name' => $this->mapped($record, $mapping, 'name'),
+            'firstname' => $this->mapped($record, $mapping, 'firstname'),
+            'lastname' => $this->mapped($record, $mapping, 'lastname'),
             'login' => $this->mapped($record, $mapping, 'login'),
             'email' => $this->mapped($record, $mapping, 'email'),
             'password' => $password,
@@ -160,7 +162,7 @@ final class ImportUsersJob implements ShouldQueue
         }
 
         $rules = [
-            'name' => ['required', 'string', 'max:255'],
+            ...User::nameRules(),
             'email' => ['required', 'string', 'email', 'max:255', new UniqueUserValueIgnoringCase('email'), new AllowedEmailDomain],
             'login' => ['required', 'string', 'max:'.User::LOGIN_LENGTH_LIMIT, 'regex:'.User::LOGIN_FORMAT_REGEX, new UniqueUserValueIgnoringCase('login')],
             // A directory-backed account never uses a local password; every
@@ -175,7 +177,7 @@ final class ImportUsersJob implements ShouldQueue
         $isAdmin = self::isYes($this->mapped($record, $mapping, 'admin'));
 
         $user = new User([
-            'name' => $validated['name'],
+            ...User::normalizeNameInput(array_intersect_key($validated, array_flip(['name', 'firstname', 'lastname']))),
             'login' => $validated['login'],
             'email' => $validated['email'],
             'password' => $authSource === null ? Hash::make($validated['password']) : Hash::make(Str::random(40)),

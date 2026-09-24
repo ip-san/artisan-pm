@@ -83,11 +83,32 @@ final class AuthenticateUser
             return null;
         }
 
-        if ($attributes['name'] !== null) {
-            $user->update(['name' => $attributes['name']]);
-        }
+        $user->update(self::nameAttributes($attributes, $user->name));
 
         return $user;
+    }
+
+    /**
+     * The account's name from the directory: both of Redmine's first/last
+     * name attributes when the source maps them and the entry has both (the
+     * saving hook then derives `name`), else the single name attribute.
+     *
+     * @param  array{name: ?string, firstname: ?string, lastname: ?string, mail: ?string}  $attributes
+     * @return array{name: string, firstname?: string, lastname?: string}
+     */
+    private static function nameAttributes(array $attributes, string $fallbackName): array
+    {
+        $name = filled($attributes['name']) ? (string) $attributes['name'] : $fallbackName;
+
+        if (filled($attributes['firstname']) && filled($attributes['lastname'])) {
+            return [
+                'name' => $name,
+                'firstname' => mb_substr((string) $attributes['firstname'], 0, 30),
+                'lastname' => mb_substr((string) $attributes['lastname'], 0, 255),
+            ];
+        }
+
+        return ['name' => mb_substr($name, 0, 255)];
     }
 
     private function provisionFromDirectory(string $login, string $password): ?User
@@ -112,7 +133,7 @@ final class AuthenticateUser
             return User::create([
                 'auth_source_id' => $source->id,
                 'login' => $login,
-                'name' => $attributes['name'] ?? $login,
+                ...self::nameAttributes($attributes, $login),
                 'email' => $attributes['mail'],
                 // Never checked for LDAP-linked accounts (reauthenticate()
                 // always defers to the directory) — just satisfies the

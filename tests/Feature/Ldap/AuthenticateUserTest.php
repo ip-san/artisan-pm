@@ -147,3 +147,39 @@ test('a locked LDAP-linked account cannot authenticate even when the directory a
 
     expect($result)->toBeNull();
 });
+
+test('a source mapping first and last name attributes provisions the name parts', function () {
+    $source = AuthSource::factory()->onTheFly()->create(['attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com', 'attr_firstname' => 'givenName', 'attr_lastname' => 'sn']);
+    $fake = fakeAuthSourceDirectory($source);
+
+    $dn = 'uid=tyamada,dc=example,dc=com';
+    $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => ['tyamada'], 'cn' => ['Yamada Taro'], 'givenName' => ['Taro'], 'sn' => ['Yamada'], 'mail' => ['tyamada@example.com']]);
+    $fake->actingAs($dn);
+
+    $user = app(AuthenticateUser::class)(loginRequest('tyamada', 'whatever-password'));
+
+    expect($user->only(['name', 'firstname', 'lastname']))->toBe(['name' => 'Taro Yamada', 'firstname' => 'Taro', 'lastname' => 'Yamada']);
+});
+
+test('a source mapping first and last name attributes falls back to the name attribute for an entry without them', function () {
+    $source = AuthSource::factory()->onTheFly()->create(['attr_login' => 'uid', 'base_dn' => 'dc=example,dc=com', 'attr_firstname' => 'givenName', 'attr_lastname' => 'sn']);
+    $fake = fakeAuthSourceDirectory($source);
+
+    $dn = 'uid=cnonly,dc=example,dc=com';
+    $fake->query()->insert($dn, ['objectclass' => ['inetOrgPerson'], 'uid' => ['cnonly'], 'cn' => ['Only Cn'], 'mail' => ['cnonly@example.com']]);
+    $fake->actingAs($dn);
+
+    $other = app(AuthenticateUser::class)(loginRequest('cnonly', 'whatever-password'));
+
+    expect($other->only(['name', 'firstname', 'lastname']))->toBe(['name' => 'Only Cn', 'firstname' => null, 'lastname' => null]);
+});
+
+test('the authentication source form saves the first and last name attributes', function () {
+    $source = AuthSource::factory()->create();
+
+    Livewire\Livewire::actingAs(User::factory()->admin()->create())->test('auth-sources.form', ['authSource' => $source])
+        ->set('attr_firstname', 'givenName')->set('attr_lastname', 'sn')
+        ->call('save')->assertHasNoErrors();
+
+    expect($source->fresh()->only(['attr_firstname', 'attr_lastname']))->toBe(['attr_firstname' => 'givenName', 'attr_lastname' => 'sn']);
+});

@@ -1,7 +1,12 @@
 <?php
 
 use App\Enums\UserStatus;
+use App\Models\AuthSource;
+use App\Models\Member;
+use App\Models\Project;
 use App\Models\User;
+use App\Support\Preferences\UserPreferences;
+use Illuminate\Support\Facades\Hash;
 use Laravel\Passport\Passport;
 
 test('unauthenticated requests are rejected', function () {
@@ -103,9 +108,9 @@ test('a non-admin cannot show a user outside their visible circle (Redmine\'s no
 test('a non-admin can read a visible user with only the public fields', function () {
     $viewer = User::factory()->create();
     $other = User::factory()->create(['name' => 'Bob', 'email' => 'bob@example.com']);
-    $project = App\Models\Project::factory()->create();
-    App\Models\Member::factory()->for($project)->for($viewer)->create();
-    App\Models\Member::factory()->for($project)->for($other)->create();
+    $project = Project::factory()->create();
+    Member::factory()->for($project)->for($viewer)->create();
+    Member::factory()->for($project)->for($other)->create();
 
     Passport::actingAs($viewer);
     $body = $this->getJson("/api/v1/users/{$other->id}")->assertOk()->json('data');
@@ -116,10 +121,10 @@ test('a non-admin can read a visible user with only the public fields', function
 test('a user who hides their mail address is shown without it to non-admins but not to admins', function () {
     $viewer = User::factory()->create();
     $hidden = User::factory()->create(['email' => 'private@example.com']);
-    App\Support\Preferences\UserPreferences::save($hidden, ['hide_mail' => true]);
-    $project = App\Models\Project::factory()->create();
-    App\Models\Member::factory()->for($project)->for($viewer)->create();
-    App\Models\Member::factory()->for($project)->for($hidden)->create();
+    UserPreferences::save($hidden, ['hide_mail' => true]);
+    $project = Project::factory()->create();
+    Member::factory()->for($project)->for($viewer)->create();
+    Member::factory()->for($project)->for($hidden)->create();
 
     Passport::actingAs($viewer);
     expect($this->getJson("/api/v1/users/{$hidden->id}")->assertOk()->json('data'))->not->toHaveKey('email');
@@ -156,7 +161,7 @@ test('an admin creates a local user with a password and flags', function () {
 
     $user = User::where('login', 'newbie')->firstOrFail();
     expect($response->json('data.login'))->toBe('newbie')
-        ->and(Illuminate\Support\Facades\Hash::check('a-strong-password-1', $user->password))->toBeTrue()
+        ->and(Hash::check('a-strong-password-1', $user->password))->toBeTrue()
         ->and($user->is_admin)->toBeTrue()->and($user->status)->toBe(UserStatus::Locked)->and($user->must_change_passwd)->toBeTrue();
 });
 
@@ -172,7 +177,7 @@ test('creation validates login format, duplicates, email and password', function
 });
 
 test('a directory-backed user needs no password', function () {
-    $source = App\Models\AuthSource::factory()->create();
+    $source = AuthSource::factory()->create();
     Passport::actingAs(User::factory()->admin()->create());
 
     $this->postJson('/api/v1/users', ['login' => 'ldapper', 'name' => 'L', 'email' => 'l@example.com', 'auth_source_id' => $source->id, 'must_change_passwd' => true])->assertCreated();
@@ -198,10 +203,10 @@ test('an admin updates fields without touching the rest, and a blank password ke
     $this->putJson("/api/v1/users/{$target->id}", ['name' => 'After', 'is_admin' => true])->assertOk()->assertJsonPath('data.name', 'After');
 
     $fresh = $target->fresh();
-    expect($fresh->is_admin)->toBeTrue()->and(Illuminate\Support\Facades\Hash::check('old-password-123', $fresh->password))->toBeTrue();
+    expect($fresh->is_admin)->toBeTrue()->and(Hash::check('old-password-123', $fresh->password))->toBeTrue();
 
     $this->putJson("/api/v1/users/{$target->id}", ['password' => 'A-new-password-456'])->assertOk();
-    expect(Illuminate\Support\Facades\Hash::check('A-new-password-456', $target->fresh()->password))->toBeTrue();
+    expect(Hash::check('A-new-password-456', $target->fresh()->password))->toBeTrue();
 });
 
 test('updating keeps a user\'s own login and email valid but rejects another user\'s', function () {
@@ -232,4 +237,29 @@ test('an admin can delete another user, but not themselves or the last active ad
     Passport::actingAs($locked);
     $this->deleteJson("/api/v1/users/{$lastAdmin->id}")->assertStatus(422);
     expect($lastAdmin->fresh()->status)->toBe(UserStatus::Active);
+});
+
+test('the API creates and updates a user by first and last name, like Redmine', function () {
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $this->postJson('/api/v1/users', ['login' => 'jdoe', 'firstname' => 'John', 'lastname' => 'Doe', 'email' => 'jdoe@example.com', 'password' => 'a-strong-password-1'])
+        ->assertCreated()
+        ->assertJsonPath('data.firstname', 'John')->assertJsonPath('data.lastname', 'Doe')->assertJsonPath('data.name', 'John Doe');
+
+    $user = User::where('login', 'jdoe')->firstOrFail();
+
+    $this->putJson("/api/v1/users/{$user->id}", ['firstname' => 'Johnny'])->assertOk()->assertJsonPath('data.name', 'Johnny Doe');
+
+    $this->postJson('/api/v1/users', ['login' => 'half', 'firstname' => 'Half', 'email' => 'half@example.com', 'password' => 'a-strong-password-1'])
+        ->assertUnprocessable()->assertJsonValidationErrors(['lastname']);
+    $this->postJson('/api/v1/users', ['login' => 'none', 'email' => 'none@example.com', 'password' => 'a-strong-password-1'])
+        ->assertUnprocessable()->assertJsonValidationErrors(['name']);
+});
+
+test('a user updates their own first and last names through my/account', function () {
+    $user = User::factory()->create(['name' => 'Before']);
+    Passport::actingAs($user);
+
+    $this->putJson('/api/v1/my/account', ['firstname' => 'Jane', 'lastname' => 'Roe'])->assertOk()->assertJsonPath('data.name', 'Jane Roe');
+    expect($user->fresh()->only(['firstname', 'lastname']))->toBe(['firstname' => 'Jane', 'lastname' => 'Roe']);
 });

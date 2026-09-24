@@ -131,3 +131,22 @@ test('the status page shows the outcome to an administrator only', function () {
     Livewire::actingAs(User::factory()->admin()->create())->test('users.import-status', ['import' => $import])->assertSee('成功 1 件');
     Livewire::actingAs(User::factory()->create())->test('users.import-status', ['import' => $import])->assertForbidden();
 });
+
+test('first and last names can be imported instead of a name', function () {
+    $import = userImportRun("login,lastname,firstname,email,password\ntyamada,山田,太郎,t@example.com,a-strong-password-1\nhalf,,Half,h@example.com,a-strong-password-1\n", [
+        'mapping.name' => '', 'mapping.lastname' => 'lastname', 'mapping.firstname' => 'firstname',
+    ]);
+
+    expect($import->imported_count)->toBe(1)->and($import->failed_count)->toBe(1)
+        ->and(User::where('login', 'tyamada')->firstOrFail()->only(['name', 'firstname', 'lastname']))->toBe(['name' => '太郎 山田', 'firstname' => '太郎', 'lastname' => '山田'])
+        ->and(User::where('login', 'half')->exists())->toBeFalse();
+});
+
+test('the name column is optional only when both first and last names are mapped', function () {
+    Storage::fake('local');
+
+    Livewire::actingAs(User::factory()->admin()->create())->test('users.import')
+        ->set('csvFile', UploadedFile::fake()->createWithContent('users.csv', "login,firstname,email\nx,X,x@example.com\n"))
+        ->set('mapping.name', '')->set('mapping.firstname', 'firstname')
+        ->call('startImport')->assertHasErrors(['mapping.name']);
+});

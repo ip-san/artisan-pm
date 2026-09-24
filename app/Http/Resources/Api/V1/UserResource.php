@@ -14,8 +14,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * everyone gets the public ones (the email address unless the user hides it);
  * administrators and the user themselves also see the admin flag, language and
  * notification settings; only administrators see status and the authentication
- * source; only the user sees their own API key. `name` is a
- * single combined field — this app has no firstname/lastname split. Custom
+ * source; only the user sees their own API key. `name` is this app's stored
+ * name; `firstname`/`lastname` are Redmine's (null when not entered). Custom
  * field values are omitted, like every other API resource here.
  *
  * @property User $resource
@@ -36,6 +36,8 @@ final class UserResource extends JsonResource
             'id' => $user->id,
             'login' => $user->login,
             'name' => $user->name,
+            'firstname' => $user->firstname,
+            'lastname' => $user->lastname,
             ...($isAdmin || ! $user->preference('hide_mail') ? ['email' => $user->email] : []),
             ...($isAdmin || $isSelf ? [
                 'is_admin' => $user->is_admin,

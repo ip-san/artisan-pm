@@ -38,7 +38,7 @@ class StoreUserRequest extends FormRequest
 
         return [
             'login' => [$presence, 'string', 'max:'.User::LOGIN_LENGTH_LIMIT, 'regex:'.User::LOGIN_FORMAT_REGEX, new UniqueUserValueIgnoringCase('login', $ignoreId)],
-            'name' => [$presence, 'string', 'max:255'],
+            ...User::nameRules($isCreate),
             'email' => [$presence, 'string', 'email', 'max:255', new UniqueUserValueIgnoringCase('email', $ignoreId), new AllowedEmailDomain($user?->email)],
             'password' => [$this->passwordRequired($isCreate) ? 'required' : 'nullable', 'string', Password::default()],
             'auth_source_id' => ['nullable', 'integer', 'exists:auth_sources,id'],

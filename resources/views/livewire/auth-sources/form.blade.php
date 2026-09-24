@@ -29,6 +29,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $attr_name = 'cn';
 
+    public string $attr_firstname = '';
+
+    public string $attr_lastname = '';
+
     public string $attr_mail = 'mail';
 
     public string $filter = '';
@@ -58,6 +62,8 @@ new #[Layout('components.layouts.app')] class extends Component
             // with this field blank keeps the existing password unchanged.
             $this->attr_login = $authSource->attr_login;
             $this->attr_name = $authSource->attr_name;
+            $this->attr_firstname = (string) $authSource->attr_firstname;
+            $this->attr_lastname = (string) $authSource->attr_lastname;
             $this->attr_mail = $authSource->attr_mail;
             $this->filter = (string) $authSource->filter;
             $this->onthefly_register = $authSource->onthefly_register;
@@ -104,6 +110,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'account_password' => ['nullable', 'string'],
             'attr_login' => ['required', 'string', 'max:255'],
             'attr_name' => ['required', 'string', 'max:255'],
+            'attr_firstname' => ['nullable', 'string', 'max:255'],
+            'attr_lastname' => ['nullable', 'string', 'max:255'],
             'attr_mail' => ['required', 'string', 'max:255'],
             'filter' => ['nullable', 'string', 'max:1000', function (string $attribute, mixed $value, \Closure $fail): void {
                 if ($value === '' || $value === null) {
@@ -120,6 +128,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $data['account'] = $data['account'] !== '' ? $data['account'] : null;
         $data['filter'] = $data['filter'] !== '' ? $data['filter'] : null;
+        $data['attr_firstname'] = ($data['attr_firstname'] ?? '') !== '' ? $data['attr_firstname'] : null;
+        $data['attr_lastname'] = ($data['attr_lastname'] ?? '') !== '' ? $data['attr_lastname'] : null;
 
         if ($data['account_password'] === '') {
             unset($data['account_password']);
@@ -205,6 +215,20 @@ new #[Layout('components.layouts.app')] class extends Component
                 <input type="text" wire:model="attr_mail" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attr_mail') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('姓の属性') }}</label>
+                <input type="text" wire:model="attr_lastname" placeholder="sn" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('attr_lastname') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('名の属性') }}</label>
+                <input type="text" wire:model="attr_firstname" placeholder="givenName" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('attr_firstname') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+            <p class="col-span-2 text-xs text-neutral-500">{{ __('姓と名の両方の属性に値があるユーザーは姓・名が設定され、名前は「名 姓」になります。無ければ氏名属性を使います。') }}</p>
         </div>
 
         <div>

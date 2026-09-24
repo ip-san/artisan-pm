@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\UpdateMyAccountRequest;
 use App\Http\Resources\Api\V1\UserResource;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,7 +20,7 @@ use Illuminate\Http\Request;
  * 持つが、本アプリには既存のsudo mode/OAuth区別の仕組みがWeb側にもない
  * ため対象外。パスワード変更・2FA・通知設定・カスタムフィールドは
  * 対象外(既存Web UIの`profile/index.blade.php`の`updateProfile()`と
- * 同じくname/emailのみ)。既存の`GET /user`(生のモデルダンプ、認証疎通
+ * 同じくname/firstname/lastname/emailのみ)。既存の`GET /user`(生のモデルダンプ、認証疎通
  * 確認用の最小ルート)とは別物として残す — 混同を避けるためこちらが
  * 唯一の「マイアカウント」APIとして機能する。
  */
@@ -32,7 +33,7 @@ final class MyAccountController extends Controller
 
     public function update(UpdateMyAccountRequest $request): UserResource
     {
-        $request->user()->update($request->validated());
+        $request->user()->update(User::normalizeNameInput($request->validated()));
 
         return new UserResource($request->user());
     }
