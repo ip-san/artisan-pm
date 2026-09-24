@@ -10,6 +10,7 @@ use App\Models\Member;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Issues\SubprojectScope;
 use Illuminate\Support\Collection;
 
 /**
@@ -37,14 +38,15 @@ final class TimeEntryFilterFieldRegistry
         $integerOperators = self::integerOperators();
 
         /** @var array<int, FilterableField> $fields */
-        $fields = [
+        $fields = array_values(array_filter([
+            SubprojectScope::filter($project, $viewer, forTimeEntries: true),
             new NativeColumnFilter('user_id', __('ユーザー'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users())),
             new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users())),
             new NativeColumnFilter('activity_id', __('作業分類'), 'activity_id', FilterFieldType::Select, $selectOperators, fn () => $project->activities(includeInactive: true)->pluck('name', 'id')->all()),
             new NativeColumnFilter('spent_on', __('日付'), 'spent_on', FilterFieldType::Date, $dateOperators),
             new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
             new NativeColumnFilter('hours', __('時間'), 'hours', FilterFieldType::Integer, $integerOperators),
-        ];
+        ]));
 
         $extraFields = (new TimeEntryExtraFilterFields(fn () => $scopeProjects, $viewer, app(AuthorizationService::class), $project))->fields();
 

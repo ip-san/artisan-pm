@@ -136,10 +136,10 @@ final class SavedIssueQueryBlock
         }
 
         $builder = Issue::query()
-            ->visibleToAcrossProjects($user, SubprojectScope::projectsForIssues($project, $user))
+            ->visibleToAcrossProjects($user, $scopeProjects = SubprojectScope::projectsForIssues($project, $user, $savedQuery->filters))
             ->with(['project', 'tracker', 'status', 'priority', 'assignedTo', 'assignedToGroup', 'author']);
 
-        $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, $user));
+        $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, $user, $scopeProjects));
         $builder = $engine->applyFilters($builder, $savedQuery->filters);
 
         $settings = self::normalizeSettings($settings);

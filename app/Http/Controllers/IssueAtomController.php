@@ -36,10 +36,11 @@ final class IssueAtomController extends Controller
         $state = ListQueryString::fromRequestInput($request->query());
         $requestedStatus = $request->query('statusFilter', 'open');
         $statusFilter = is_string($requestedStatus) ? $requestedStatus : 'open';
-        $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project));
+        $scopeProjects = SubprojectScope::projectsForIssues($project, auth()->user(), $state['filters']);
+        $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, scopeProjects: $scopeProjects));
 
         $query = Issue::query()
-            ->visibleToAcrossProjects(auth()->user(), SubprojectScope::projectsForIssues($project, auth()->user()))
+            ->visibleToAcrossProjects(auth()->user(), $scopeProjects)
             ->with(['author', 'project']);
 
         if (in_array($statusFilter, ['open', 'closed'], true)) {

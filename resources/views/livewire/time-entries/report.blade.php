@@ -59,7 +59,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function scopeProjects(): Collection
     {
         if ($this->project !== null) {
-            return SubprojectScope::projectsForTimeEntries($this->project, auth()->user());
+            return SubprojectScope::projectsForTimeEntries($this->project, auth()->user(), $this->builtFilters());
         }
 
         return Project::query()->with('users')->get()
@@ -130,7 +130,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function applyFilters(): void
     {
-        unset($this->report);
+        unset($this->report, $this->scopeProjects, $this->engine, $this->availableAxes, $this->selectedCriteria);
     }
 
     #[Url]

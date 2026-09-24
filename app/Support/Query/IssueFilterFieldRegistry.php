@@ -36,9 +36,10 @@ use Illuminate\Support\Collection;
 final class IssueFilterFieldRegistry
 {
     /**
+     * @param  ?Collection<int, Project>  $scopeProjects  the projects the list covers (SubprojectScope::projectsForIssues() with the list's filters); worked out from the setting when null
      * @return Collection<string, FilterableField>
      */
-    public static function forProject(Project $project, ?User $viewer = null): Collection
+    public static function forProject(Project $project, ?User $viewer = null, ?Collection $scopeProjects = null): Collection
     {
         $viewer ??= auth()->user();
 
@@ -48,7 +49,8 @@ final class IssueFilterFieldRegistry
         $integerOperators = self::integerOperators();
 
         /** @var array<int, FilterableField> $nativeFields */
-        $nativeFields = [
+        $nativeFields = array_values(array_filter([
+            SubprojectScope::filter($project, $viewer),
             new NativeColumnFilter('status_id', __('ステータス'), 'status_id', FilterFieldType::Select, $selectOperators, fn () => IssueStatus::query()->orderBy('position')->pluck('name', 'id')->all()),
             new NativeColumnFilter('tracker_id', __('トラッカー'), 'tracker_id', FilterFieldType::Select, $selectOperators, fn () => $project->trackers->pluck('name', 'id')->all()),
             new NativeColumnFilter('priority_id', __('優先度'), 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
@@ -63,9 +65,8 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('updated_at', __('更新日'), 'updated_at', FilterFieldType::Date, $dateOperators, storesTime: true),
             new NativeColumnFilter('closed_on', __('終了日'), 'closed_on', FilterFieldType::Date, $dateOperators, storesTime: true),
             new NativeColumnFilter('done_ratio', __('進捗率'), 'done_ratio', FilterFieldType::Integer, $integerOperators),
-        ];
+        ]));
 
-        $scopeProjects = null;
         $resolveScopeProjects = function () use (&$scopeProjects, $project, $viewer): Collection {
             return $scopeProjects ??= SubprojectScope::projectsForIssues($project, $viewer);
         };

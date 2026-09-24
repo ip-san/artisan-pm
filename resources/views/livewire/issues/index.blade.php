@@ -267,7 +267,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function engine(): QueryFilterEngine
     {
-        return new QueryFilterEngine(IssueFilterFieldRegistry::forProject($this->project));
+        return new QueryFilterEngine(IssueFilterFieldRegistry::forProject($this->project, scopeProjects: $this->scopeProjects));
     }
 
     /**
@@ -279,7 +279,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function scopeProjects(): Collection
     {
-        return SubprojectScope::projectsForIssues($this->project, auth()->user());
+        return SubprojectScope::projectsForIssues($this->project, auth()->user(), $this->builtFilters());
     }
 
     /**
@@ -582,7 +582,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function applyFilters(): void
     {
         $this->resetPage();
-        unset($this->issues, $this->groupedIssues, $this->groupTotals);
+        unset($this->issues, $this->groupedIssues, $this->groupTotals, $this->scopeProjects, $this->engine);
     }
 
     public function sortBy(string $key): void
@@ -719,7 +719,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $this->resetPage();
-        unset($this->issues, $this->groupedIssues, $this->groupTotals);
+        unset($this->issues, $this->groupedIssues, $this->groupTotals, $this->scopeProjects, $this->engine);
     }
 
     #[Computed]

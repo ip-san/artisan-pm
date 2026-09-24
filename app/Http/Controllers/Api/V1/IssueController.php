@@ -24,6 +24,7 @@ use App\Support\Issues\StartDateDefault;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
@@ -72,11 +73,16 @@ final class IssueController extends Controller
     {
         Gate::authorize('viewAny', [Issue::class, $project]);
 
-        return $this->listIssues(
-            $request,
-            Issue::query()->visibleToAcrossProjects($request->user(), SubprojectScope::projectsForIssues($project, $request->user())),
-            new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, $request->user())),
-        );
+        // The projects covered depend on a subproject_id filter, as in
+        // Redmine's project_statement (SubprojectScope).
+        return $this->listIssues($request, function (array $filters) use ($project, $request): array {
+            $projects = SubprojectScope::projectsForIssues($project, $request->user(), $filters);
+
+            return [
+                Issue::query()->visibleToAcrossProjects($request->user(), $projects),
+                new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, $request->user(), $projects)),
+            ];
+        });
     }
 
     /**
@@ -92,11 +98,9 @@ final class IssueController extends Controller
             ->filter(fn (Project $project) => $user->can('viewAny', [Issue::class, $project]))
             ->values();
 
-        return $this->listIssues(
-            $request,
-            Issue::query()->visibleToAcrossProjects($user, $projects),
-            new QueryFilterEngine(IssueFilterFieldRegistry::forProjects($projects, $user)),
-        );
+        $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProjects($projects, $user));
+
+        return $this->listIssues($request, fn (array $filters): array => [Issue::query()->visibleToAcrossProjects($user, $projects), $engine]);
     }
 
     /**
@@ -117,17 +121,28 @@ final class IssueController extends Controller
      * - Redmine's limit (default 25, at most 100) and offset, or page;
      *   total_count/offset/limit are returned next to the usual meta.
      *
-     * @param  Builder<Issue>  $query
+     * @param  Closure(array<string, mixed>): array{0: Builder<Issue>, 1: QueryFilterEngine}  $listFor  the issues the caller may see and the filter engine, for the given filters
      */
-    private function listIssues(Request $request, Builder $query, QueryFilterEngine $engine): AnonymousResourceCollection
+    private function listIssues(Request $request, Closure $listFor): AnonymousResourceCollection
     {
         $input = $request->query();
+        [$query, $engine] = $listFor([]);
         $consumed = $this->applyIndexFilters($request, $query);
         $savedQuery = $this->savedQuery($request);
 
         $filters = $savedQuery !== null
             ? $savedQuery->filters
             : RedmineIssueListParams::filters($input, $engine, $request->user(), $consumed);
+
+        // A subproject_id filter widens the projects covered; the filters
+        // are then read again against that list's own fields.
+        if (SubprojectScope::takesInSubprojects($filters) !== SubprojectScope::takesInSubprojects([])) {
+            [$query, $engine] = $listFor($filters);
+            $this->applyIndexFilters($request, $query);
+            $filters = $savedQuery !== null
+                ? $savedQuery->filters
+                : RedmineIssueListParams::filters($input, $engine, $request->user(), $consumed);
+        }
 
         $engine->applyFilters($query, $filters);
         $this->applySort($request, $query, $engine, $savedQuery);

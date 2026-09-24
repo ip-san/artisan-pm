@@ -39,7 +39,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function engine(): QueryFilterEngine
     {
-        return new QueryFilterEngine(IssueFilterFieldRegistry::forProject($this->project));
+        return new QueryFilterEngine(IssueFilterFieldRegistry::forProject($this->project, scopeProjects: $this->scopeProjects));
     }
 
     /**
@@ -160,7 +160,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function scopeProjects(): Collection
     {
-        return SubprojectScope::projectsForIssues($this->project, auth()->user());
+        return SubprojectScope::projectsForIssues($this->project, auth()->user(), $this->builtFilters());
     }
 
     public function previousMonth(): void
@@ -181,7 +181,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function applyFilters(): void
     {
-        unset($this->weeks);
+        unset($this->weeks, $this->scopeProjects, $this->engine);
     }
 }; ?>
 

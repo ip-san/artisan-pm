@@ -38,7 +38,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function engine(): QueryFilterEngine
     {
-        return new QueryFilterEngine(IssueFilterFieldRegistry::forProject($this->project));
+        return new QueryFilterEngine(IssueFilterFieldRegistry::forProject($this->project, scopeProjects: $this->scopeProjects));
     }
 
     /**
@@ -91,7 +91,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function scopeProjects(): Collection
     {
-        return SubprojectScope::projectsForIssues($this->project, auth()->user());
+        return SubprojectScope::projectsForIssues($this->project, auth()->user(), $this->builtFilters());
     }
 
     /**
@@ -123,7 +123,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function applyFilters(): void
     {
-        unset($this->allRows, $this->rows, $this->versions, $this->chart, $this->relationLines);
+        unset($this->allRows, $this->rows, $this->versions, $this->chart, $this->relationLines, $this->scopeProjects, $this->engine);
     }
 
     /**

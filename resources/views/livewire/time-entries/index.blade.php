@@ -158,7 +158,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function scopeProjects(): Collection
     {
-        return SubprojectScope::projectsForTimeEntries($this->project, auth()->user());
+        return SubprojectScope::projectsForTimeEntries($this->project, auth()->user(), $this->builtFilters());
     }
 
     /**
@@ -234,7 +234,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function applyFilters(): void
     {
         $this->resetPage();
-        unset($this->timeEntries, $this->groupedTimeEntries, $this->groupSubtotals);
+        unset($this->timeEntries, $this->groupedTimeEntries, $this->groupSubtotals, $this->scopeProjects, $this->engine);
     }
 
     public function sortBy(string $key): void
