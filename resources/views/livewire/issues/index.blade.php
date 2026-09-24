@@ -152,6 +152,16 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public array $columns = [];
 
+    /**
+     * The sums shown above the list and in each group heading (Redmine's
+     * `t[]` / a saved query's totalable_names); null means the site default
+     * (issue_list_default_totals).
+     *
+     * @var array<int, string>|null
+     */
+    #[Url]
+    public ?array $totals = null;
+
     public string $csvEncoding = 'UTF-8';
 
     public string $csvSeparator = ',';
@@ -523,9 +533,11 @@ new #[Layout('components.layouts.app')] class extends Component
             ->groupByRaw($keyExpression('issues.'))
             ->pluck('spent', 'group_key');
 
+        $customByGroup = $this->customFieldTotalsByGroup($keyExpression('issues.'));
+
         return $this->filteredIssuesQuery()
             ->reorder()
-            ->selectRaw($keyExpression('').' as group_key, COUNT(*) as total, COALESCE(SUM(estimated_hours), 0) as estimated')
+            ->selectRaw($keyExpression('').' as group_key, COUNT(*) as total, COALESCE(SUM(estimated_hours), 0) as estimated, '.self::REMAINING_SUM.' as remaining')
             ->groupByRaw($keyExpression(''))
             ->get()
             ->mapWithKeys(fn ($row) => [
@@ -533,6 +545,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     'count' => (int) $row->total,
                     'estimated' => (float) $row->estimated,
                     'spent' => (float) ($spentByGroup[$row->group_key] ?? 0),
+                    'remaining' => (float) $row->remaining,
+                    'custom' => array_map(fn (array $sums) => (float) ($sums[$row->group_key] ?? 0), $customByGroup),
                 ],
             ]);
     }
@@ -581,10 +595,12 @@ new #[Layout('components.layouts.app')] class extends Component
             ->groupBy("custom_field_values.{$storageColumn}")
             ->pluck('spent', 'group_key');
 
+        $customByGroup = $this->customFieldTotalsByGroup("custom_field_values.{$storageColumn}", fn (Builder $query) => $query->leftJoin('custom_field_values', $joinValueForField));
+
         return $this->filteredIssuesQuery()
             ->reorder()
             ->leftJoin('custom_field_values', $joinValueForField)
-            ->selectRaw("custom_field_values.{$storageColumn} as group_key, COUNT(*) as total, COALESCE(SUM(issues.estimated_hours), 0) as estimated")
+            ->selectRaw("custom_field_values.{$storageColumn} as group_key, COUNT(*) as total, COALESCE(SUM(issues.estimated_hours), 0) as estimated, ".self::REMAINING_SUM.' as remaining')
             ->groupBy("custom_field_values.{$storageColumn}")
             ->get()
             ->mapWithKeys(fn ($row) => [
@@ -592,8 +608,100 @@ new #[Layout('components.layouts.app')] class extends Component
                     'count' => (int) $row->total,
                     'estimated' => (float) $row->estimated,
                     'spent' => (float) ($spentByGroup[$row->group_key] ?? 0),
+                    'remaining' => (float) $row->remaining,
+                    'custom' => array_map(fn (array $sums) => (float) ($sums[$row->group_key] ?? 0), $customByGroup),
                 ],
             ]);
+    }
+
+    /**
+     * The estimate not yet worked off, summed (Redmine's
+     * estimated_remaining_hours total).
+     */
+    private const string REMAINING_SUM = 'COALESCE(SUM(COALESCE(issues.estimated_hours, 0) * (100 - COALESCE(issues.done_ratio, 0)) / 100.0), 0)';
+
+    /**
+     * Per totalled custom field, its sum in each group (Redmine's
+     * totals_by_group), keyed by the raw group key — over the rows of the
+     * projects where the viewer may see the field.
+     *
+     * @param  (\Closure(Builder): Builder)|null  $joinGroup  joins what $groupKey reads, when it is not on issues
+     * @return array<int, array<string, float>>
+     */
+    private function customFieldTotalsByGroup(string $groupKey, ?\Closure $joinGroup = null): array
+    {
+        $issueMorphClass = (new Issue)->getMorphClass();
+        $sums = [];
+
+        foreach ($this->totalledCustomFields as $field) {
+            $query = $this->filteredIssuesQuery()->reorder();
+            $query = $joinGroup !== null ? $joinGroup($query) : $query;
+            $visibleProjectIds = $this->customFieldVisibleProjectIds[$field->id] ?? null;
+
+            if ($visibleProjectIds !== null) {
+                $query->whereIn('issues.project_id', $visibleProjectIds);
+            }
+
+            $sums[$field->id] = $query
+                ->join('custom_field_values as total_values', function (\Illuminate\Database\Query\JoinClause $join) use ($field, $issueMorphClass): void {
+                    $join->on('total_values.customized_id', '=', 'issues.id')
+                        ->where('total_values.customized_type', $issueMorphClass)
+                        ->where('total_values.custom_field_id', $field->id);
+                })
+                ->selectRaw("{$groupKey} as group_key, SUM(total_values.{$field->format()->storageColumn()}) as total")
+                ->groupByRaw($groupKey)
+                ->pluck('total', 'group_key')
+                ->map(fn ($total) => (float) $total)
+                ->all();
+        }
+
+        return $sums;
+    }
+
+    /**
+     * The totals this list shows, in the order of the choices: the chosen
+     * ones ($totals) or the site default.
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function totalNames(): array
+    {
+        $chosen = $this->totals ?? ListDefaults::issueTotals();
+        $available = array_keys($this->totalChoices);
+
+        return array_values(array_filter($available, fn (string $key) => in_array($key, $chosen, true)));
+    }
+
+    /**
+     * What the list can total: the hours and the numeric issue custom
+     * fields the list shows.
+     *
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function totalChoices(): array
+    {
+        $numeric = $this->projectIssueCustomFields
+            ->filter(fn (CustomField $field) => in_array($field->field_format, [\App\Enums\CustomFieldFormat::Int, \App\Enums\CustomFieldFormat::Float], true))
+            ->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => $field->name])
+            ->all();
+
+        return [...array_intersect_key(ListDefaults::issueTotalLabels(), ListDefaults::ISSUE_TOTALS), ...$numeric];
+    }
+
+    public function toggleTotal(string $key): void
+    {
+        if (! array_key_exists($key, $this->totalChoices)) {
+            return;
+        }
+
+        $current = $this->totalNames;
+        $this->totals = in_array($key, $current, true)
+            ? array_values(array_diff($current, [$key]))
+            : [...$current, $key];
+
+        unset($this->totalNames, $this->totalledCustomFields, $this->listTotals, $this->groupTotals);
     }
 
     /**
@@ -615,7 +723,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $custom = $this->customFieldTotals();
 
-        $remaining = in_array('estimated_remaining_hours', ListDefaults::issueTotals(), true)
+        $remaining = in_array('estimated_remaining_hours', $this->totalNames, true)
             ? (float) $this->filteredIssuesQuery()->reorder()->sum(DB::raw('COALESCE(issues.estimated_hours, 0) * (100 - COALESCE(issues.done_ratio, 0)) / 100.0'))
             : 0.0;
 
@@ -646,7 +754,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function totalledCustomFields(): Collection
     {
-        $fieldIds = collect(ListDefaults::issueTotals())
+        $fieldIds = collect($this->totalNames)
             ->filter(fn (string $key) => str_starts_with($key, 'cf_'))
             ->map(fn (string $key) => (int) substr($key, 3));
 
@@ -754,6 +862,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'column_names' => $this->columns,
             'sort_criteria' => $this->sortCriteria(),
             'group_by' => $this->groupBy,
+            // Redmine's totalable_names.
+            'options' => ['totalable_names' => $this->totalNames],
         ]);
 
         if ($visibility === QueryVisibility::Roles->value) {
@@ -803,6 +913,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->columns = $query->column_names;
         $this->groupBy = $query->group_by;
+        $this->totals = isset($query->options['totalable_names']) && is_array($query->options['totalable_names']) ? $query->options['totalable_names'] : null;
+        unset($this->totalNames, $this->totalledCustomFields, $this->listTotals);
 
         $this->sortKey = null;
         $this->sortKey2 = null;
@@ -2059,6 +2171,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
             </label>
 
+            <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700" data-total-choices>
+                {{ __('合計する項目:') }}
+                @foreach ($this->totalChoices as $totalKey => $totalLabel)
+                    <label class="flex items-center gap-1" wire:key="total-option-{{ $totalKey }}">
+                        <input type="checkbox" wire:click="toggleTotal('{{ $totalKey }}')" @checked(in_array($totalKey, $this->totalNames, true)) class="rounded border-neutral-300">
+                        {{ $totalLabel }}
+                    </label>
+                @endforeach
+            </div>
+
             <div class="flex items-center gap-2 text-sm text-neutral-700">
                 {{ __('表示列:') }}
                 @foreach ($this->availableColumns as $key => $label)
@@ -2384,10 +2506,10 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     @endif
 
-    @if (ListDefaults::issueTotals() !== [])
+    @if ($this->totalNames !== [])
         <p class="mb-2 text-xs text-neutral-500" data-list-totals>
             {{ __('合計:') }}
-            @foreach (ListDefaults::issueTotals() as $totalKey)
+            @foreach ($this->totalNames as $totalKey)
                 @if (str_starts_with($totalKey, 'cf_'))
                     @php $totalField = $this->totalledCustomFields[(int) substr($totalKey, 3)] ?? null; @endphp
                     @if ($totalField !== null)
@@ -2411,10 +2533,18 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($groupBy !== null)
             <h2 wire:key="group-heading-{{ $groupKey }}" class="mb-2 mt-4 text-sm font-semibold text-neutral-900">
                 {{ $groupLabel ?: __('(未設定)') }} ({{ $groupTotal['count'] ?? $groupIssues->count() }})
-                @if ($groupTotal !== null)
-                    <span class="ml-2 text-xs font-normal text-neutral-500">
-                        {{ __('予定 :hours 時間', ['hours' => \App\Support\Format\Hours::format($groupTotal['estimated'])]) }}
-                        / {{ __('実績 :hours 時間', ['hours' => \App\Support\Format\Hours::format($groupTotal['spent'])]) }}
+                @if ($groupTotal !== null && $this->totalNames !== [])
+                    <span class="ml-2 text-xs font-normal text-neutral-500" data-group-totals>
+                        @foreach ($this->totalNames as $totalKey)
+                            @if (str_starts_with($totalKey, 'cf_'))
+                                @php $totalField = $this->totalledCustomFields[(int) substr($totalKey, 3)] ?? null; @endphp
+                                @if ($totalField !== null)
+                                    {{ $loop->first ? '' : '/ ' }}{{ $totalField->name }} {{ $totalField->field_format === \App\Enums\CustomFieldFormat::Int ? number_format($groupTotal['custom'][$totalField->id] ?? 0) : number_format($groupTotal['custom'][$totalField->id] ?? 0, 2) }}
+                                @endif
+                            @else
+                                {{ $loop->first ? '' : '/ ' }}{{ ListDefaults::issueTotalLabels()[$totalKey] }} {{ __(':hours 時間', ['hours' => \App\Support\Format\Hours::format($groupTotal[['estimated_hours' => 'estimated', 'spent_hours' => 'spent', 'estimated_remaining_hours' => 'remaining'][$totalKey]] ?? 0)]) }}
+                            @endif
+                        @endforeach
                     </span>
                 @endif
             </h2>

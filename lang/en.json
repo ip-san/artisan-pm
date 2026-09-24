@@ -855,6 +855,7 @@
     "合計": "Total",
     "合計:": "Total:",
     "合計: :hours 時間": "Total: :hours hours",
+    "合計する項目:": "Totals:",
     "合計予定工数": "Total estimated time",
     "合計作業時間": "Total spent time",
     "同じユーザーが同じ日に記録できる工数の合計の上限です。": "Upper limit on the total time a user can log on a single day.",
