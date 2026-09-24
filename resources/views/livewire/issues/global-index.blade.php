@@ -164,6 +164,22 @@ new #[Layout('components.layouts.app')] class extends Component
             ->all();
     }
 
+    /**
+     * The chosen columns less the core fields every tracker of the listed
+     * projects disables (Redmine's IssueQuery#available_columns).
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function shownColumns(): array
+    {
+        $hidden = IssueFilterFieldRegistry::coreColumnsDisabledByEveryTracker(
+            $this->visibleProjects->flatMap(fn (Project $project) => $project->trackers)->unique('id')->values(),
+        );
+
+        return array_values(array_diff($this->columns, $hidden));
+    }
+
     #[Computed]
     public function engine(): QueryFilterEngine
     {
@@ -406,7 +422,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <table class="min-w-full divide-y divide-neutral-200 text-sm">
             <thead class="bg-neutral-50 text-left text-xs font-medium uppercase text-neutral-500">
                 <tr>
-                    @foreach ($columns as $column)
+                    @foreach ($this->shownColumns as $column)
                         <th class="px-3 py-2">
                             <button wire:click="sortBy('{{ $column }}')" class="flex items-center gap-1 hover:text-neutral-900">
                                 {{ $this->displayColumnLabels()[$column] ?? $column }}
@@ -421,7 +437,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <tbody class="divide-y divide-neutral-100">
                 @forelse ($this->issues as $issue)
                     <tr wire:key="issue-{{ $issue->id }}" class="hover:bg-neutral-50">
-                        @foreach ($columns as $column)
+                        @foreach ($this->shownColumns as $column)
                             <td class="px-3 py-2 text-neutral-700">
                                 @if ($column === 'subject')
                                     <a href="{{ route('issues.show', [$issue->project, $issue]) }}" class="text-brand-bold hover:underline">
@@ -435,7 +451,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ count($columns) }}" class="px-3 py-6 text-center text-neutral-500">{{ __('課題がありません。') }}</td>
+                        <td colspan="{{ count($this->shownColumns) }}" class="px-3 py-6 text-center text-neutral-500">{{ __('課題がありません。') }}</td>
                     </tr>
                 @endforelse
             </tbody>

@@ -179,7 +179,7 @@
 | 90c | A1-17c | A1-17a | M | done(2026-09-24、`author.group`/`author.role` はキーを `author_group`/`author_role` に。匿名ユーザーの選択肢は無し) |
 | 90d | A1-17d | A1-17a | S〜M | done(2026-09-24、`subproject_id` は A3-06b 未了のため A1-17e に分離) |
 | 90e | A1-36 | A1-17a | S | done(2026-09-24、演算子 `*~`/`^`/`$` と Redmine の語分割を全テキストフィルタに、検索・テキストフィルタとも PostgreSQL で ILIKE。全トラッカーが無効にした標準項目のフィルタを除外(親課題は Redmine 同様に残す)。無効項目の列の除外は A1-45) |
-| 90e2 | A1-45 | A1-36 | S | todo |
+| 90e2 | A1-45 | A1-36 | S | done(2026-09-24、課題一覧(プロジェクト・横断)の列・並べ替え・グループ化の候補と表・CSV/PDF から、全トラッカーが無効にした標準項目の列を除外。予定工数なら合計予定工数・残り工数も。親課題は Redmine 同様に残す) |
 | 90h | A1-37 | A1-17 | S | done(2026-09-24、フィルタ・列・並べ替え・グループ・CSV/PDF・Atom・REST・マイページ。否定演算子は Redmine と違い見えない行を含めない。工数一覧の課題/プロジェクト CF 列は元々無い) |
 | 90f | A3-06b | A3-06 | **done(2026-09-24)**。`SubprojectScope::projectsForIssues`/`projectsForTimeEntries`(アーカイブ済みの子孫は除外)をガント(行はプロジェクトの木順、マイルストーンも対象プロジェクト分、行のリンクは課題自身のプロジェクト)・カレンダー(課題とバージョン)・工数一覧/レポート(`visibleToAcrossProjects`、フィルタの課題条件もサブプロジェクトを見る。レポートはプロジェクト軸を追加)・課題 Atom・`GET /projects/:id/issues.json`・マイページの保存クエリブロックに適用。活動は `with_subprojects` の指定が無ければ設定に従う。課題レポートは A3-06 で対応済み。工数一覧でサブプロジェクトの工数は表示・編集リンクのみで、選択・一括編集・行削除はこのプロジェクト自身の工数に限る(親の一覧からの一括編集が工数を親へ移さないように)。ロードマップ/バージョンと、ガントのサブプロジェクト見出し行は A3-14。`subproject_id` フィルタは A1-17e | done(2026-09-24、ガント・カレンダー・工数一覧/レポート・活動の既定・課題 Atom・REST の課題一覧・マイページのクエリブロック。課題レポートは既存。ロードマップとガントのサブプロジェクト見出し行は A3-14、フィルタは A1-17e) |
 | 90f2 | A3-14 | A3-06b | S〜M | done(2026-09-24、ロードマップの「サブプロジェクト」切替(`with_subprojects`、既定は `display_subprojects_issues`)で閲覧できるサブプロジェクトのバージョンも表示。ガントはサブプロジェクトを含むときプロジェクトごとの見出し行+課題+マイルストーン。共有バージョン・完了済みの表示・トラッカー選択・バージョンごとの課題一覧は A3-14b) |
@@ -213,7 +213,7 @@
 | 105f | A1-40 | A1-34 | S | done(2026-09-24、Web(詳細/一括/右クリック)・REST とも nullify を拒否し選択肢から除外、この設定時の既定は destroy。設定がなければ既定 nullify のまま) |
 | 105g | A1-41 | A1-38 | S〜M | done(2026-09-24、プロジェクトのカレンダー/ガント/検索/活動/ロードマップと全 Atom(`atom.key` がログイン不要時はゲストを通す)。全体の画面・プロジェクト概要などは A1-44。検索の CF・課題の更新 Atom の CF 詳細を役割で制限) |
 | 105k | A1-44 | A1-41 | S〜M | todo |
-| A1-45 | 全トラッカーが無効にした標準項目を課題一覧の列の候補からも外す(`issue_query.rb` の `available_columns` で `disabled_core_fields` の列を除外。予定工数なら合計予定工数・残工数も) | 未実装(列は常に候補に出る)。A1-36 で判明 | `IssueFilterFieldRegistry` の除外と同じ判定を列の候補に適用 | A1-36 の後 | S | クエリ「列選択」 |
+| A1-45 | 全トラッカーが無効にした標準項目を課題一覧の列の候補からも外す(`issue_query.rb` の `available_columns` で `disabled_core_fields` の列を除外。予定工数なら合計予定工数・残工数も) | **done(2026-09-24)**。`IssueFilterFieldRegistry::coreColumnsDisabledByEveryTracker()`(フィルタと同じ `Tracker.disabled_core_fields(trackers)` の判定。`estimated_hours` なら `total_estimated_hours`/`estimated_remaining_hours` も。親課題は Redmine の `parent_issue_id` が列名 `parent` と一致しないため残る)と `rolledUpTrackers()`(サブプロジェクト込みのトラッカー)。プロジェクトの課題一覧は `nativeColumns`/`availableColumns`/`sortableColumns` から除き、選んだ列は `shownColumns`(利用できる列だけ、順序維持 = Redmine の `inline_columns`)で表・CSV・PDF に出す。グループ化の「優先度」「担当者」も無効なら出さず、保存済みのグループ化は無視。横断一覧は閲覧できるプロジェクトのトラッカーで同じ判定。保存クエリの `column_names` はそのまま(トラッカー設定を戻せば再表示)。テスト: `TrackerDisabledCoreFieldsTest` | `IssueFilterFieldRegistry` の除外と同じ判定を列の候補に適用 | A1-36 の後 | S | クエリ「列選択」 |
 | 105h | A1-42 | A1-34 | S | done(2026-09-24、`Project` の deleting で自プロジェクトとサブプロジェクトの課題を `deleteMany(Destroy)`。別プロジェクトの子孫・工数・添付も削除、`Project::delete()` をトランザクション化) |
 | 105i | A1-43 | A1-20 | S | todo |
 | 105j | A6-08 | A1-20 | S | todo |

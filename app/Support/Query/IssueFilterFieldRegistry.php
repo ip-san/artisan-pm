@@ -87,16 +87,9 @@ final class IssueFilterFieldRegistry
 
         $extraFields = (new IssueExtraFilterFields($resolveScopeProjects, $viewer, app(AuthorizationService::class), $project))->fields();
 
-        // Redmine's project.rolled_up_trackers: the trackers of the project
-        // and of the subprojects the list takes in.
-        $scopeProjectIds = $resolveScopeProjects()->pluck('id');
-        $trackers = $scopeProjectIds->count() > 1
-            ? Tracker::query()->whereHas('projects', fn ($projects) => $projects->whereIn('projects.id', $scopeProjectIds->push($project->id)))->get()
-            : $project->trackers;
-
         return self::withoutCoreFieldsDisabledByEveryTracker(
             collect($nativeFields)->concat($extraFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key()),
-            $trackers,
+            self::rolledUpTrackers($project, $resolveScopeProjects()),
         );
     }
 
@@ -181,15 +174,62 @@ final class IssueFilterFieldRegistry
      */
     private static function withoutCoreFieldsDisabledByEveryTracker(Collection $fields, Collection $trackers): Collection
     {
-        if ($trackers->isEmpty()) {
-            return $fields;
+        return $fields->except(array_diff(self::coreFieldsDisabledByEveryTracker($trackers), ['parent_id']));
+    }
+
+    /**
+     * Redmine's project.rolled_up_trackers as a project issue list sees
+     * them: the trackers of the project and of the subprojects it takes in.
+     *
+     * @param  Collection<int, Project>  $scopeProjects
+     * @return Collection<int, Tracker>
+     */
+    public static function rolledUpTrackers(Project $project, Collection $scopeProjects): Collection
+    {
+        $scopeProjectIds = $scopeProjects->pluck('id');
+
+        return $scopeProjectIds->count() > 1
+            ? Tracker::query()->whereHas('projects', fn ($projects) => $projects->whereIn('projects.id', $scopeProjectIds->push($project->id)))->get()
+            : $project->trackers;
+    }
+
+    /**
+     * The issue list columns IssueQuery#available_columns drops because
+     * every tracker of the list disables their core field — with the
+     * estimated time, its total and remaining columns too. The parent
+     * column stays, as in Redmine (its field is parent_issue_id, which
+     * names no column).
+     *
+     * @param  Collection<int, Tracker>  $trackers
+     * @return array<int, string>
+     */
+    public static function coreColumnsDisabledByEveryTracker(Collection $trackers): array
+    {
+        $disabled = array_values(array_diff(self::coreFieldsDisabledByEveryTracker($trackers), ['parent_id']));
+
+        if (in_array('estimated_hours', $disabled, true)) {
+            $disabled = [...$disabled, 'total_estimated_hours', 'estimated_remaining_hours'];
         }
 
-        $disabledByEvery = $trackers
-            ->map(fn (Tracker $tracker): array => $tracker->disabled_core_fields ?? [])
-            ->reduce(fn (?array $common, array $disabled): array => $common === null ? $disabled : array_values(array_intersect($common, $disabled)));
+        return $disabled;
+    }
 
-        return $fields->except(array_diff($disabledByEvery ?? [], ['parent_id']));
+    /**
+     * Redmine's Tracker.disabled_core_fields(trackers): the core fields
+     * every one of $trackers disables (none without trackers).
+     *
+     * @param  Collection<int, Tracker>  $trackers
+     * @return array<int, string>
+     */
+    private static function coreFieldsDisabledByEveryTracker(Collection $trackers): array
+    {
+        if ($trackers->isEmpty()) {
+            return [];
+        }
+
+        return $trackers
+            ->map(fn (Tracker $tracker): array => $tracker->disabled_core_fields ?? [])
+            ->reduce(fn (?array $common, array $disabled): array => $common === null ? $disabled : array_values(array_intersect($common, $disabled))) ?? [];
     }
 
     /**

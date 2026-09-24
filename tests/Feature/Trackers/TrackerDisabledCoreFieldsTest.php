@@ -103,3 +103,63 @@ test('saving an issue still works when its tracker hides some core fields', func
     expect($issue->category_id)->toBeNull()
         ->and($issue->estimated_hours)->toBeNull();
 });
+
+/**
+ * A1-45: IssueQuery#available_columns drops the columns of core fields
+ * every tracker of the list disables.
+ */
+test('the issue list drops the columns of core fields every tracker disables, estimated hours with its totals', function () {
+    $project = Project::factory()->create();
+    $bug = Tracker::factory()->create(['disabled_core_fields' => ['category_id', 'estimated_hours', 'priority_id', 'parent_id', 'due_date']]);
+    $task = Tracker::factory()->create(['disabled_core_fields' => ['category_id', 'estimated_hours', 'priority_id', 'parent_id']]);
+    $project->trackers()->sync([$bug->id, $task->id]);
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+    Issue::factory()->for($project)->create(['tracker_id' => $bug->id, 'subject' => 'Listed issue']);
+
+    $list = Livewire::actingAs($user)->test('issues.index', ['project' => $project->fresh()])
+        ->set('columns', ['subject', 'category_id', 'estimated_hours', 'total_estimated_hours', 'estimated_remaining_hours', 'priority_id', 'due_date', 'parent_id']);
+
+    expect(array_keys($list->get('availableColumns')))
+        ->not->toContain('category_id', 'estimated_hours', 'total_estimated_hours', 'estimated_remaining_hours', 'priority_id')
+        ->toContain('due_date', 'parent_id', 'subject')
+        ->and(array_keys($list->get('sortableColumns')))->not->toContain('category_id')
+        ->and($list->get('shownColumns'))->toBe(['subject', 'due_date', 'parent_id']);
+
+    $list->assertSee('Listed issue')
+        ->assertSeeHtml('wire:key="column-heading-due_date"')
+        ->assertDontSeeHtml('wire:key="column-heading-estimated_hours"')
+        ->assertDontSeeHtml('wire:key="column-heading-category_id"')
+        ->assertDontSeeHtml('value="priority_id" wire:key="group-by-priority_id"');
+
+    $list->call('exportCsv')->assertFileDownloaded("{$project->identifier}-issues.csv");
+});
+
+test('grouping by a core field every tracker disables falls back to no grouping', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create(['disabled_core_fields' => ['priority_id']]);
+    $project->trackers()->sync([$tracker->id]);
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+    Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+
+    $list = Livewire::actingAs($user)->test('issues.index', ['project' => $project->fresh()])->set('groupBy', 'priority_id');
+
+    expect($list->get('groupedIssues')->keys()->all())->toBe([''])
+        ->and($list->get('groupTotals'))->toBeEmpty();
+});
+
+test('a column stays while one tracker of the list still uses its field, and on the cross-project list', function () {
+    $project = Project::factory()->create();
+    $bug = Tracker::factory()->create(['disabled_core_fields' => ['category_id']]);
+    $task = Tracker::factory()->create(['disabled_core_fields' => []]);
+    $project->trackers()->sync([$bug->id, $task->id]);
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+
+    expect(array_keys(Livewire::actingAs($user)->test('issues.index', ['project' => $project->fresh()])->get('availableColumns')))->toContain('category_id');
+
+    $project->trackers()->sync([$bug->id]);
+
+    expect(Livewire::actingAs($user)->test('issues.global-index')->set('columns', ['subject', 'category_id'])->get('shownColumns'))->toBe(['subject']);
+});

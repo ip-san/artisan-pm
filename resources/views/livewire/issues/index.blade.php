@@ -407,7 +407,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $pageIssues = $this->issues->getCollection();
 
-        if ($this->groupBy === null) {
+        if ($this->groupBy === null || (! str_starts_with($this->groupBy, 'cf_') && ! array_key_exists($this->groupBy, $this->nativeColumns))) {
             return collect(['' => $pageIssues]);
         }
 
@@ -438,7 +438,7 @@ new #[Layout('components.layouts.app')] class extends Component
             return $field === null ? collect() : $this->groupTotalsByCustomField($field);
         }
 
-        if (! array_key_exists($this->groupBy, self::displayColumns())) {
+        if (! array_key_exists($this->groupBy, $this->nativeColumns)) {
             return collect();
         }
 
@@ -582,7 +582,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function applyFilters(): void
     {
         $this->resetPage();
-        unset($this->issues, $this->groupedIssues, $this->groupTotals, $this->scopeProjects, $this->engine);
+        unset($this->issues, $this->groupedIssues, $this->groupTotals, $this->scopeProjects, $this->engine, $this->nativeColumns, $this->availableColumns, $this->sortableColumns, $this->shownColumns, $this->projectIssueCustomFields);
     }
 
     public function sortBy(string $key): void
@@ -719,7 +719,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $this->resetPage();
-        unset($this->issues, $this->groupedIssues, $this->groupTotals, $this->scopeProjects, $this->engine);
+        unset($this->issues, $this->groupedIssues, $this->groupTotals, $this->scopeProjects, $this->engine, $this->nativeColumns, $this->availableColumns, $this->sortableColumns, $this->shownColumns, $this->projectIssueCustomFields);
     }
 
     #[Computed]
@@ -742,7 +742,37 @@ new #[Layout('components.layouts.app')] class extends Component
             ->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => $field->name])
             ->all();
 
-        return [...self::displayColumns(), ...$customFieldLabels];
+        return [...$this->nativeColumns, ...$customFieldLabels];
+    }
+
+    /**
+     * displayColumns() less the core fields every tracker of the list
+     * disables (Redmine's IssueQuery#available_columns).
+     *
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function nativeColumns(): array
+    {
+        $hidden = IssueFilterFieldRegistry::coreColumnsDisabledByEveryTracker(
+            IssueFilterFieldRegistry::rolledUpTrackers($this->project, $this->scopeProjects),
+        );
+
+        return array_diff_key(self::displayColumns(), array_flip($hidden));
+    }
+
+    /**
+     * The chosen columns the list can show, in the chosen order — a column
+     * that is not available (a core field every tracker disables, a custom
+     * field the viewer may not see) is left out of the table and the
+     * exports, as Redmine's inline_columns are.
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function shownColumns(): array
+    {
+        return array_values(array_unique(array_filter($this->columns, fn ($key) => is_string($key) && array_key_exists($key, $this->availableColumns))));
     }
 
     /**
@@ -755,7 +785,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function sortableColumns(): array
     {
         return [
-            ...self::displayColumns(),
+            ...$this->nativeColumns,
             ...$this->projectIssueCustomFields
                 ->reject(fn (CustomField $field) => $field->multiple)
                 ->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => $field->name])
@@ -888,7 +918,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('viewAny', [Issue::class, $this->project]);
 
-        $columns = $this->columns;
+        $columns = $this->shownColumns;
         $issues = $this->exportedIssues();
         // Re-validated against the allowlist here rather than trusted from
         // the live property, since these drive raw file-writing behavior.
@@ -946,8 +976,8 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('viewAny', [Issue::class, $this->project]);
 
-        $columns = array_diff($this->columns, self::BLOCK_COLUMNS);
-        $blockColumns = array_values(array_intersect(self::BLOCK_COLUMNS, $this->columns));
+        $columns = array_diff($this->shownColumns, self::BLOCK_COLUMNS);
+        $blockColumns = array_values(array_intersect(self::BLOCK_COLUMNS, $this->shownColumns));
         $issues = $this->exportedIssues();
 
         $html = view('pdf.issues', [
@@ -1716,8 +1746,11 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="">{{ __('なし') }}</option>
                     <option value="status_id">{{ __('ステータス') }}</option>
                     <option value="tracker_id">{{ __('トラッカー') }}</option>
-                    <option value="priority_id">{{ __('優先度') }}</option>
-                    <option value="assigned_to_id">{{ __('担当者') }}</option>
+                    @foreach (['priority_id', 'assigned_to_id'] as $groupKey)
+                        @if (array_key_exists($groupKey, $this->nativeColumns))
+                            <option value="{{ $groupKey }}" wire:key="group-by-{{ $groupKey }}">{{ $this->nativeColumns[$groupKey] }}</option>
+                        @endif
+                    @endforeach
                     @foreach ($this->projectIssueCustomFields as $field)
                         @if (! $field->multiple)
                             <option value="cf_{{ $field->id }}" wire:key="group-by-cf-{{ $field->id }}">{{ $field->name }}</option>
@@ -1736,7 +1769,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </div>
 
-            <x-column-order :columns="$columns" :labels="$this->availableColumns" />
+            <x-column-order :columns="$this->shownColumns" :labels="$this->availableColumns" />
 
             <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
                 {{ __('並べ替え(最大3列。列見出しのクリックは1列目のみ変更):') }}
@@ -2086,7 +2119,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             <th class="px-4 py-2"></th>
                         @endif
                         <th class="px-4 py-2">#</th>
-                        @foreach (array_diff($columns, self::BLOCK_COLUMNS) as $columnKey)
+                        @foreach (array_diff($this->shownColumns, self::BLOCK_COLUMNS) as $columnKey)
                             <th wire:key="column-heading-{{ $columnKey }}" class="px-4 py-2">
                                 @if (in_array($columnKey, self::COMPUTED_HOUR_COLUMNS, true))
                                     {{ $this->availableColumns[$columnKey] ?? $columnKey }}
@@ -2111,7 +2144,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 </td>
                             @endif
                             <td class="px-4 py-2 text-neutral-500">{{ $issue->id }}</td>
-                            @foreach (array_diff($columns, self::BLOCK_COLUMNS) as $columnKey)
+                            @foreach (array_diff($this->shownColumns, self::BLOCK_COLUMNS) as $columnKey)
                                 <td wire:key="issue-{{ $issue->id }}-column-{{ $columnKey }}" class="px-4 py-2">
                                     @if ($columnKey === 'subject')
                                         <a href="{{ route('issues.show', [$project, $issue]) }}" class="text-brand-bold hover:underline">
@@ -2127,10 +2160,10 @@ new #[Layout('components.layouts.app')] class extends Component
                                 </td>
                             @endforeach
                         </tr>
-                        @foreach (array_intersect(self::BLOCK_COLUMNS, $columns) as $blockKey)
+                        @foreach (array_intersect(self::BLOCK_COLUMNS, $this->shownColumns) as $blockKey)
                             @if (filled($this->columnValue($issue, $blockKey)))
                                 <tr wire:key="issue-{{ $issue->id }}-block-{{ $blockKey }}" class="bg-neutral-50" data-block-column="{{ $blockKey }}">
-                                    <td colspan="{{ count($columns) + 2 }}" class="px-4 py-2 text-xs text-neutral-600">
+                                    <td colspan="{{ count($this->shownColumns) + 2 }}" class="px-4 py-2 text-xs text-neutral-600">
                                         <span class="font-medium text-neutral-500">{{ $this->availableColumns[$blockKey] }}:</span>
                                         <span class="whitespace-pre-line">{{ \Illuminate\Support\Str::limit($this->columnValue($issue, $blockKey), 600) }}</span>
                                     </td>
@@ -2139,7 +2172,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endforeach
                     @empty
                         <tr>
-                            <td colspan="{{ count($columns) + 2 }}" class="px-4 py-6 text-center text-neutral-500">{{ __('課題がありません。') }}</td>
+                            <td colspan="{{ count($this->shownColumns) + 2 }}" class="px-4 py-6 text-center text-neutral-500">{{ __('課題がありません。') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
