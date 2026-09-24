@@ -142,7 +142,7 @@ test('editing keeps the current tracker and otherwise offers only the add_issues
 });
 
 test('bulk edit, the context menu, move and copy only offer the add_issues trackers', function () {
-    $s = trackerPermissionScenario(['edit_issues', 'add_issues', 'move_issues', 'copy_issues'], ['add_issues' => ['Bug']]);
+    $s = trackerPermissionScenario(['edit_issues', 'add_issues', 'copy_issues'], ['add_issues' => ['Bug']]);
     $target = Project::factory()->create(['is_public' => false]);
     $target->trackers()->attach([$s->bug->id, $s->feature->id]);
     Member::factory()->for($target)->for($s->user)->create()->roles()->attach(
@@ -164,7 +164,8 @@ test('bulk edit, the context menu, move and copy only offer the add_issues track
 
     $show = Livewire::actingAs($s->user)->test('issues.show', ['project' => $s->project, 'issue' => $s->bugIssue])->set('moveToProjectId', $target->id);
 
-    expect($show->instance()->moveTargetTrackers->pluck('id')->all())->toBe([$s->feature->id]);
+    // Redmine's allowed_target_trackers also keeps the issue's own tracker when the target uses it.
+    expect($show->instance()->moveTargetTrackers->pluck('id')->all())->toEqualCanonicalizing([$s->bug->id, $s->feature->id]);
 });
 
 test('copying needs an allowed tracker in the target project', function () {

@@ -1404,17 +1404,35 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $targetProject = Project::findOrFail($data['bulkMoveToProjectId']);
 
+        // As Redmine's bulk_update: an issue that cannot move (a subtask's
+        // tracker unused in the target) stays, the others move.
+        $failedIds = [];
+
         foreach ($issues as $issue) {
-            app(IssueService::class)->moveToProject($issue, $targetProject, $data['bulkMoveToTrackerId'], auth()->user());
+            $this->authorize('moveTo', [$issue, $targetProject]);
+
+            try {
+                app(IssueService::class)->moveToProject($issue, $targetProject, $data['bulkMoveToTrackerId'], auth()->user());
+            } catch (ValidationException) {
+                $failedIds[] = $issue->id;
+            }
         }
 
-        $count = $issues->count();
+        $count = $issues->count() - count($failedIds);
 
         $this->reset(['selected', 'bulkMoveToProjectId', 'bulkMoveToTrackerId']);
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
         session()->flash('status', __(':count件の課題を「:project」へ移動しました。', ['count' => $count, 'project' => $targetProject->name]));
+
+        if ($failedIds !== []) {
+            session()->flash('error', __('選択した:total件のうち:count件の課題を保存できませんでした: :ids', [
+                'total' => $issues->count(),
+                'count' => count($failedIds),
+                'ids' => collect($failedIds)->map(fn (int $id) => "#{$id}")->implode(', '),
+            ]));
+        }
     }
 
     public bool $confirmingBulkDelete = false;

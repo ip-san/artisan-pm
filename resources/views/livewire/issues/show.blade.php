@@ -22,6 +22,7 @@ use App\Support\Preferences\UserPreferences;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -740,9 +741,8 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Other projects the user could move this issue into — must hold
-     * add_issues there, matching Redmine's own requirement that moving
-     * somewhere still lets you create issues in the destination.
+     * Other projects the user could move this issue into — Redmine's
+     * allowed_target_projects: add_issues there (IssuePolicy::moveTo()).
      *
      * @return Collection<int, Project>
      */
@@ -768,7 +768,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $target = $this->moveTargetProjects->firstWhere('id', $this->moveToProjectId);
 
-        return $target !== null ? Issue::allowedTargetTrackers($target, auth()->user()) : collect();
+        // Redmine's allowed_target_trackers: the trackers the user may add
+        // in the target, plus the issue's own when the target uses it.
+        return $target !== null ? Issue::allowedTargetTrackers($target, auth()->user(), $this->issue->tracker_id) : collect();
     }
 
     public function moveIssue(): void
@@ -781,8 +783,15 @@ new #[Layout('components.layouts.app')] class extends Component
         ]);
 
         $targetProject = Project::findOrFail($data['moveToProjectId']);
+        $this->authorize('moveTo', [$this->issue, $targetProject]);
 
-        $issue = app(IssueService::class)->moveToProject($this->issue, $targetProject, $data['moveToTrackerId'], auth()->user());
+        try {
+            $issue = app(IssueService::class)->moveToProject($this->issue, $targetProject, $data['moveToTrackerId'], auth()->user());
+        } catch (ValidationException $exception) {
+            $this->addError('moveToProjectId', collect($exception->errors())->flatten()->first());
+
+            return;
+        }
 
         $this->redirect(route('issues.show', [$targetProject, $issue]), navigate: true);
     }

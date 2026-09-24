@@ -404,7 +404,16 @@ final class IssueController extends Controller
         $notesArePrivate = (bool) ($data['private_notes'] ?? false) && $user->can('setNotesPrivate', $issue);
         $canEdit = $user->can('update', $issue);
         $isPrivate = array_key_exists('is_private', $data) && $user->can('setPrivateOn', $issue) ? (bool) $data['is_private'] : null;
-        unset($data['uploads'], $data['lock_version'], $data['notes'], $data['private_notes'], $data['is_private']);
+        // Redmine's project_id: moves the issue into another project the
+        // caller may add issues to (validated by UpdateIssueRequest); the
+        // other fields are then those of the target project.
+        $movingTo = $canEdit ? $request->movingTo() : null;
+        $project = $movingTo ?? $issue->project;
+        unset($data['uploads'], $data['lock_version'], $data['notes'], $data['private_notes'], $data['is_private'], $data['project_id']);
+
+        if ($movingTo !== null) {
+            $data['project_id'] = $movingTo->id;
+        }
 
         // Mirrors the issue form's save() and Redmine's safe_attributes: a
         // caller who may only add notes changes no field (is_private aside,
@@ -413,7 +422,7 @@ final class IssueController extends Controller
         if (! $canEdit) {
             $data = [];
         } elseif (array_key_exists('parent_issue_id', $data)) {
-            if ($user->can('manageSubtasks', [Issue::class, $issue->project])) {
+            if ($user->can('manageSubtasks', [Issue::class, $project])) {
                 $data['parent_id'] = $data['parent_issue_id'] !== null ? (int) $data['parent_issue_id'] : null;
             }
 
@@ -437,8 +446,9 @@ final class IssueController extends Controller
             // A custom field read-only under the resulting tracker and status
             // is ignored before its value is validated, as in Redmine.
             $targetRules = $canEdit ? IssueFieldRules::filterInput($issue, $data, [], $user)[2] : null;
+            $targetState = (clone $issue)->forceFill(['project_id' => $project->id, 'tracker_id' => $data['tracker_id'] ?? $issue->tracker_id])->setRelation('project', $project);
             $customFieldData = $targetRules !== null
-                ? CustomFieldPayload::extract($request, $issue->relevantCustomFields()->reject(fn (CustomField $field) => $targetRules->isReadOnly("cf_{$field->id}")), $user, project: $issue->project)
+                ? CustomFieldPayload::extract($request, $targetState->relevantCustomFields()->reject(fn (CustomField $field) => $targetRules->isReadOnly("cf_{$field->id}")), $user, project: $project)
                 : [];
             // Like the issue form: read-only and disabled fields are ignored and
             // the required ones must stay filled — for a caller who edits; a

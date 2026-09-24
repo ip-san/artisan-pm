@@ -33,7 +33,7 @@ function moveTestIssue(Project $project, Tracker $tracker, array $attributes = [
     ]);
 }
 
-test('a user with move_issues can move an issue to a project they can add issues to', function () {
+test('a user with edit_issues (no move permission, as in Redmine) can move an issue to a project they can add issues to', function () {
     $source = Project::factory()->create();
     $target = Project::factory()->create();
     $sourceTracker = Tracker::factory()->create();
@@ -41,7 +41,7 @@ test('a user with move_issues can move an issue to a project they can add issues
     $source->trackers()->attach($sourceTracker);
     $target->trackers()->attach($targetTracker);
 
-    $user = moveTestMember($source, ['view_issues', 'move_issues']);
+    $user = moveTestMember($source, ['view_issues', 'edit_issues']);
     Member::factory()->for($target)->for($user)->create()->roles()->attach(
         Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
     );
@@ -59,17 +59,18 @@ test('a user with move_issues can move an issue to a project they can add issues
         ->and($issue->fresh()->tracker_id)->toBe($targetTracker->id);
 });
 
-test('moving an issue resets its category, fixed version, and parent', function () {
+test('moving an issue resets its category, fixed version and parent, and takes its subtasks along', function () {
     $source = Project::factory()->create();
     $target = Project::factory()->create();
     $sourceTracker = Tracker::factory()->create();
     $targetTracker = Tracker::factory()->create();
     $source->trackers()->attach($sourceTracker);
-    $target->trackers()->attach($targetTracker);
+    // The subtask keeps its tracker (Redmine's after_project_change), so the target must use it.
+    $target->trackers()->attach([$targetTracker->id, $sourceTracker->id]);
 
     $user = User::factory()->create();
     Member::factory()->for($source)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_issues', 'move_issues']])
+        Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']])
     );
     Member::factory()->for($target)->for($user)->create()->roles()->attach(
         Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
@@ -95,7 +96,9 @@ test('moving an issue resets its category, fixed version, and parent', function 
     expect($issue->category_id)->toBeNull()
         ->and($issue->fixed_version_id)->toBeNull()
         ->and($issue->parent_id)->toBeNull()
-        ->and($child->fresh()->parent_id)->toBeNull();
+        ->and($child->fresh()->parent_id)->toBe($issue->id)
+        ->and($child->fresh()->project_id)->toBe($target->id)
+        ->and($child->fresh()->tracker_id)->toBe($sourceTracker->id);
 });
 
 test('moving an issue clears the assignee if they are not a member of the target project', function () {
@@ -108,7 +111,7 @@ test('moving an issue clears the assignee if they are not a member of the target
 
     $user = User::factory()->create();
     Member::factory()->for($source)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_issues', 'move_issues']])
+        Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']])
     );
     Member::factory()->for($target)->for($user)->create()->roles()->attach(
         Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
@@ -136,7 +139,7 @@ test('moving an issue keeps the assignee if they are also a member of the target
 
     $user = User::factory()->create();
     Member::factory()->for($source)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_issues', 'move_issues']])
+        Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']])
     );
     Member::factory()->for($target)->for($user)->create()->roles()->attach(
         Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
@@ -157,7 +160,7 @@ test('moving an issue keeps the assignee if they are also a member of the target
     expect($issue->fresh()->assigned_to_id)->toBe($assignee->id);
 });
 
-test('a user without move_issues cannot move an issue', function () {
+test('a user without edit_issues cannot move an issue', function () {
     $source = Project::factory()->create();
     $target = Project::factory()->create();
     $sourceTracker = Tracker::factory()->create();
@@ -181,7 +184,7 @@ test('a project the user cannot add issues to is not offered as a move target', 
     $sourceTracker = Tracker::factory()->create();
     $source->trackers()->attach($sourceTracker);
 
-    $user = moveTestMember($source, ['view_issues', 'move_issues']);
+    $user = moveTestMember($source, ['view_issues', 'edit_issues']);
     $issue = moveTestIssue($source, $sourceTracker);
 
     $component = Livewire::actingAs($user)->test('issues.show', ['project' => $source, 'issue' => $issue]);
@@ -199,7 +202,7 @@ test('the move records a journal entry with the project change', function () {
 
     $user = User::factory()->create();
     Member::factory()->for($source)->for($user)->create()->roles()->attach(
-        Role::factory()->create(['permissions' => ['view_issues', 'move_issues']])
+        Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']])
     );
     Member::factory()->for($target)->for($user)->create()->roles()->attach(
         Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
@@ -224,7 +227,7 @@ test('moving an issue keeps a shared version and takes the same-named category, 
     $source->trackers()->attach($tracker);
     $target->trackers()->attach($tracker);
 
-    $user = moveTestMember($source, ['view_issues', 'move_issues']);
+    $user = moveTestMember($source, ['view_issues', 'edit_issues']);
     Member::factory()->for($target)->for($user)->create()->roles()->attach(
         Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
     );
@@ -251,7 +254,7 @@ test('a moved issue whose version the target does not share gets no version, not
     $source->trackers()->attach($tracker);
     $target->trackers()->attach($tracker);
 
-    $user = moveTestMember($source, ['view_issues', 'move_issues']);
+    $user = moveTestMember($source, ['view_issues', 'edit_issues']);
     Member::factory()->for($target)->for($user)->create()->roles()->attach(
         Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
     );

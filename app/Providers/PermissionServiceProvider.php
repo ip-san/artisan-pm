@@ -68,7 +68,6 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('manage_issue_relations', module: ProjectModuleKey::IssueTracking);
         $registry->register('set_issues_private', module: ProjectModuleKey::IssueTracking);
         $registry->register('set_own_issues_private', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::LoggedIn);
-        $registry->register('move_issues', module: ProjectModuleKey::IssueTracking);
         $registry->register('copy_issues', module: ProjectModuleKey::IssueTracking);
         $registry->register('view_issue_watchers', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('add_issue_watchers', module: ProjectModuleKey::IssueTracking);

@@ -32,7 +32,7 @@ function bulkMoveIssue(Project $project, Tracker $tracker): Issue
     ]);
 }
 
-test('a user with move_issues can bulk move selected issues to another project', function () {
+test('a user with edit_issues (no move permission, as in Redmine) can bulk move selected issues to another project', function () {
     $source = Project::factory()->create();
     $target = Project::factory()->create();
     $sourceTracker = Tracker::factory()->create();
@@ -40,7 +40,7 @@ test('a user with move_issues can bulk move selected issues to another project',
     $source->trackers()->attach($sourceTracker);
     $target->trackers()->attach($targetTracker);
 
-    $user = bulkMoveMember($source, ['view_issues', 'move_issues']);
+    $user = bulkMoveMember($source, ['view_issues', 'edit_issues']);
     bulkMoveMember($target, ['view_issues', 'add_issues']);
     Member::factory()->for($target)->for($user)->create()->roles()->attach(
         Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
@@ -61,7 +61,7 @@ test('a user with move_issues can bulk move selected issues to another project',
         ->and($issueA->fresh()->tracker_id)->toBe($targetTracker->id);
 });
 
-test('a user without move_issues cannot bulk move issues', function () {
+test('a user without edit_issues cannot bulk move issues', function () {
     $source = Project::factory()->create();
     $target = Project::factory()->create();
     $tracker = Tracker::factory()->create();
@@ -85,7 +85,7 @@ test('bulk move is not offered when there is no eligible target project', functi
     $tracker = Tracker::factory()->create();
     $source->trackers()->attach($tracker);
 
-    $user = bulkMoveMember($source, ['view_issues', 'move_issues']);
+    $user = bulkMoveMember($source, ['view_issues', 'edit_issues']);
     $issue = bulkMoveIssue($source, $tracker);
 
     $component = Livewire::actingAs($user)
@@ -102,7 +102,7 @@ test('a bulk move carries each issue\'s shared version and same-named category',
     $source->trackers()->attach($tracker);
     $target->trackers()->attach($tracker);
 
-    $user = bulkMoveMember($source, ['view_issues', 'move_issues']);
+    $user = bulkMoveMember($source, ['view_issues', 'edit_issues']);
     Member::factory()->for($target)->for($user)->create()->roles()->attach(
         Role::factory()->create(['permissions' => ['view_issues', 'add_issues']])
     );

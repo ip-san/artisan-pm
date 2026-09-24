@@ -374,19 +374,44 @@ final class IssueService
             throw new StaleIssueUpdateException($issue);
         }
 
+        $fieldRules = null;
+
         if ($applyFieldRules) {
             [$attributes, $customFieldData, $fieldRules] = IssueFieldRules::filterInput($issue, $attributes, $customFieldData, $actor);
-            $fieldRules->assertRequiredFilled(
-                (clone $issue)->fill($attributes),
-                $customFieldData + $issue->customFieldFormValues($fieldRules->customFields()),
-            );
         }
+
+        // A project change is Redmine's Issue#project=: the fields scoped to
+        // the old project are adjusted (whatever the caller sets explicitly
+        // wins), and after the save the subtasks, time entries and relations
+        // follow (afterProjectChange()).
+        $oldProjectId = $issue->project_id;
+        $targetProject = isset($attributes['project_id']) && (int) $attributes['project_id'] !== $oldProjectId
+            ? Project::query()->findOrFail((int) $attributes['project_id'])
+            : null;
+
+        if ($targetProject !== null) {
+            $movingIssueIds = $this->assertSubtasksCanMove($issue, $targetProject);
+            $attributes = [...$this->projectChangeAttributes($issue, $targetProject, $actor), ...$attributes];
+        }
+
+        $fieldRules?->assertRequiredFilled(
+            (clone $issue)->fill($attributes),
+            $customFieldData + $issue->customFieldFormValues($fieldRules->customFields()),
+        );
 
         $original = $issue->only(self::JOURNALED_ATTRIBUTES);
         $originalCustomValues = $this->customFieldSnapshot($issue, $actor);
 
         $issue->fill($attributes);
         $issue->lock_version++;
+
+        if ($targetProject !== null) {
+            $issue->setRelation('project', $targetProject);
+
+            if ($issue->relationLoaded('tracker')) {
+                $issue->load('tracker');
+            }
+        }
 
         $assignedToChanged = $issue->isDirty('assigned_to_id');
 
@@ -402,6 +427,10 @@ final class IssueService
         $this->applyStatusDoneRatio($issue);
 
         $issue->save();
+
+        if ($targetProject !== null) {
+            $this->afterProjectChange($issue, $targetProject, $movingIssueIds, $actor);
+        }
 
         $issue->setCustomFieldValues($customFieldData, $issue->relevantCustomFields($actor));
 
@@ -726,44 +755,123 @@ final class IssueService
     }
 
     /**
-     * Moves an issue to a different project, adjusting whatever fields are
-     * scoped to the old project as Redmine's Issue#project= does for an
-     * existing issue: the category is swapped for the target's category of
-     * the same name (none if it has no such category), the fixed version
-     * stays while the target shares it — open or not — and is cleared
-     * otherwise (a moved issue does not get the target's default version,
-     * which Redmine only gives new issues); the assignee is cleared only if
-     * they're not also a member of the target project, and the parent (subtasks are deliberately kept single-project
-     * elsewhere in this app, so a stale cross-project parent would just
-     * fail re-validation on the next edit). Any of this issue's own
-     * children get detached rather than silently left pointing at a
-     * parent that moved out from under them.
+     * Moves an issue to a different project with the given tracker — an
+     * update() of its project (see projectChangeAttributes() and
+     * afterProjectChange() for what follows the issue), journaled with a
+     * note naming the target.
+     *
+     * @throws ValidationException when a subtask's tracker is not used in the target project
      */
     public function moveToProject(Issue $issue, Project $targetProject, int $trackerId, User $actor): Issue
     {
-        $updates = [
-            'project_id' => $targetProject->id,
-            'tracker_id' => $trackerId,
+        return $this->update($issue, ['project_id' => $targetProject->id, 'tracker_id' => $trackerId], $actor, "「{$targetProject->name}」へ移動しました。");
+    }
+
+    /**
+     * The fields scoped to the old project, as Redmine's Issue#project=
+     * adjusts them on an existing issue moved to $targetProject: a tracker
+     * the target does not use gives way to the first one $actor may add
+     * there (Redmine takes the target's first tracker; the A1-27 limits
+     * are kept here), the category is swapped for the target's category of
+     * the same name (none if it has no such category), the fixed version
+     * stays while the target shares it — open or not — and is cleared
+     * otherwise (a moved issue does not get the target's default version,
+     * which Redmine only gives new issues), and the parent is cleared
+     * (subtasks stay within one project here — Redmine's
+     * valid_parent_project? without cross-project subtasks). The assignee
+     * is cleared when they are not a member of the target (Redmine keeps
+     * it; A1-50).
+     *
+     * @return array<string, mixed>
+     */
+    private function projectChangeAttributes(Issue $issue, Project $targetProject, ?User $actor, bool $keepTracker = false): array
+    {
+        $attributes = [
             'category_id' => $this->carriedCategoryId($issue, $targetProject),
             'fixed_version_id' => $issue->fixed_version_id !== null && $targetProject->sharedVersions()->contains('id', $issue->fixed_version_id)
                 ? $issue->fixed_version_id
                 : null,
-            'parent_id' => null,
         ];
 
+        if (! $keepTracker) {
+            $attributes['parent_id'] = null;
+
+            if (! $targetProject->trackers()->whereKey($issue->tracker_id)->exists()) {
+                $attributes['tracker_id'] = Issue::allowedTargetTrackers($targetProject, $actor)->first()?->id ?? $issue->tracker_id;
+            }
+        }
+
         if ($issue->assigned_to_id !== null && ! $targetProject->users()->whereKey($issue->assigned_to_id)->exists()) {
-            $updates['assigned_to_id'] = null;
+            $attributes['assigned_to_id'] = null;
         }
 
         if ($issue->assigned_to_group_id !== null && ! $this->isMemberGroup($targetProject, $issue->assigned_to_group_id)) {
-            $updates['assigned_to_group_id'] = null;
+            $attributes['assigned_to_group_id'] = null;
         }
 
-        $moved = $this->update($issue, $updates, $actor, "「{$targetProject->name}」へ移動しました。");
+        return $attributes;
+    }
 
-        Issue::query()->where('parent_id', $moved->id)->update(['parent_id' => null]);
+    /**
+     * The subtasks that move with $issue — Redmine's after_project_change
+     * moves the children that were in the same project (and theirs in turn)
+     * keeping their trackers, and a child whose tracker the target does not
+     * use fails the whole move.
+     *
+     * @return Collection<int, Issue>
+     *
+     * @throws ValidationException
+     */
+    private function assertSubtasksCanMove(Issue $issue, Project $targetProject): Collection
+    {
+        $subtasks = collect();
+        $level = collect([$issue->id]);
 
-        return $moved;
+        while ($level->isNotEmpty()) {
+            $children = Issue::query()->whereIn('parent_id', $level)->where('project_id', $issue->project_id)->with('tracker')->orderBy('id')->get();
+            $subtasks = $subtasks->merge($children);
+            $level = $children->pluck('id');
+        }
+
+        $targetTrackerIds = $targetProject->trackers()->pluck('trackers.id');
+
+        foreach ($subtasks as $subtask) {
+            if (! $targetTrackerIds->contains($subtask->tracker_id)) {
+                throw ValidationException::withMessages([
+                    'project_id' => __('サブタスク #:id を移動できません: トラッカー「:tracker」は移動先のプロジェクトで使用されていません。', ['id' => $subtask->id, 'tracker' => $subtask->tracker?->name]),
+                ]);
+            }
+        }
+
+        return $subtasks;
+    }
+
+    /**
+     * Redmine's Issue#after_project_change for $issue and the subtasks that
+     * moved with it: their time entries follow them to the target, their
+     * relations are removed unless cross-project relations are allowed, and
+     * the subtasks take the target's category/version like the issue
+     * (projectChangeAttributes(), trackers kept) — saved without a journal,
+     * as Redmine saves them.
+     *
+     * @param  Collection<int, Issue>  $subtasks
+     */
+    private function afterProjectChange(Issue $issue, Project $targetProject, Collection $subtasks, User $actor): void
+    {
+        foreach ($subtasks as $subtask) {
+            $subtask->fill([...$this->projectChangeAttributes($subtask, $targetProject, $actor, keepTracker: true), 'project_id' => $targetProject->id]);
+            $subtask->save();
+        }
+
+        $movedIds = $subtasks->pluck('id')->push($issue->id);
+
+        TimeEntry::query()->whereIn('issue_id', $movedIds)->update(['project_id' => $targetProject->id]);
+
+        if (! Setting::get('cross_project_issue_relations', false)) {
+            IssueRelation::query()
+                ->where(fn (Builder $query) => $query->whereIn('issue_from_id', $movedIds)->orWhereIn('issue_to_id', $movedIds))
+                ->delete();
+        }
     }
 
     /**

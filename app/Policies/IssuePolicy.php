@@ -163,9 +163,26 @@ final class IssuePolicy
         return $this->authorization->can($user, 'set_notes_private', $this->projectOf($issue));
     }
 
+    /**
+     * Redmine 7 has no move permission: project_id is a safe attribute of
+     * whoever may edit the issue (attributes_editable?), and the target must
+     * be one they may add issues to (allowed_target_projects — see
+     * moveTo()).
+     */
     public function move(User $user, Issue $issue): bool
     {
-        return $this->authorization->can($user, 'move_issues', $this->projectOf($issue));
+        return $this->update($user, $issue);
+    }
+
+    /**
+     * Moving $issue into $targetProject: Redmine's allowed_target_projects —
+     * add_issues there (with a tracker the user may add, see create()).
+     */
+    public function moveTo(User $user, Issue $issue, Project $targetProject): bool
+    {
+        return $targetProject->id !== $issue->project_id
+            && $this->move($user, $issue)
+            && $this->create($user, $targetProject);
     }
 
     public function copy(User $user, Issue $issue, Project $targetProject): bool
