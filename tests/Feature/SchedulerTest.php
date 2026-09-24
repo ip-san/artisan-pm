@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Repository;
 use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 
@@ -68,4 +69,36 @@ test('the autofetch job hands repository syncs to the connection it was queued o
     $job->handle();
 
     Queue::assertPushed(RepositorySyncJob::class, fn ($sync) => $sync->connection === 'database');
+});
+
+test('with the database queue, schedule:run also works off the queued jobs', function () {
+    config(['queue.default' => 'database']);
+
+    dispatch(fn () => cache()->put('scheduler-drained-queue', true))->onConnection('database');
+    expect(DB::table('jobs')->count())->toBe(1);
+
+    $this->artisan('schedule:run')->assertSuccessful();
+
+    expect(DB::table('jobs')->count())->toBe(0)
+        ->and(cache()->get('scheduler-drained-queue'))->toBeTrue();
+});
+
+test('with the sync queue, schedule:run leaves the queue worker off', function () {
+    config(['queue.default' => 'sync']);
+
+    dispatch(fn () => cache()->put('scheduler-drained-queue', true))->onConnection('database');
+
+    $this->artisan('schedule:run')->assertSuccessful();
+
+    expect(DB::table('jobs')->count())->toBe(1)
+        ->and(cache()->get('scheduler-drained-queue'))->toBeNull();
+});
+
+test('the scheduled queue worker stops when the queue is empty and never overlaps', function () {
+    $event = collect(app(Schedule::class)->events())->first(fn ($event) => $event->description === 'queue:work database');
+
+    expect($event)->not->toBeNull()
+        ->and($event->expression)->toBe('* * * * *')
+        ->and($event->withoutOverlapping)->toBeTrue()
+        ->and($event->expiresAt)->toBe(15);
 });

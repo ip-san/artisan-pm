@@ -17,7 +17,7 @@ use Throwable;
  * them — run on a schedule (see routes/console.php) rather than the web
  * request cycle, since it's pure background IO with no user waiting on it.
  *
- * $timeout is kept under the database queue connection's retry_after (90s,
+ * $timeout is kept under the database queue connection's retry_after (660s,
  * config/queue.php) — same reasoning as RepositorySyncJob: a run that took
  * longer than retry_after would be treated as abandoned and handed to
  * another worker while the first was still going, racing to create

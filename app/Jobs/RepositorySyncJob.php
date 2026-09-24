@@ -20,7 +20,7 @@ use Throwable;
  * shouldn't block an HTTP response.
  *
  * $timeout is kept under the database queue connection's retry_after
- * (90s, config/queue.php) on purpose: if a run took longer than
+ * (660s, config/queue.php) on purpose: if a run took longer than
  * retry_after, the worker would treat it as abandoned and hand the same
  * job to another worker while the first was still running, racing to
  * insert the same changesets. 80s covers GitAdapter/SvnAdapter's own

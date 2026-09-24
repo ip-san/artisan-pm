@@ -34,6 +34,15 @@ final class ImportTimeEntriesJob implements ShouldQueue
 
     public int $tries = 1;
 
+    /**
+     * A large CSV can take minutes. Kept under the database queue's
+     * retry_after (660s) and the 15-minute overlap lock of the scheduler's
+     * queue:work (routes/console.php), so no second worker picks the
+     * import up while it is still running. Only enforced where the pcntl
+     * extension is available.
+     */
+    public int $timeout = 600;
+
     public function __construct(
         private readonly TimeEntryImport $import,
     ) {}
