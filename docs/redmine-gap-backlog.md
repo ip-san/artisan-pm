@@ -348,7 +348,8 @@
 | 139 | B'-02 | 承認 | M | done(2026-09-24、課題のカスタムフィールドのみ。設計メモ docs/design/gap-B-02.md。他の種類は B'-02b) |
 | 139b | B'-02b | B'-02 | M | done(2026-09-24、Redmine と同じく全種類(プロジェクト・バージョン・文書・工数・ユーザー・グループ・工数の作業分類・優先度・文書カテゴリ)。レコードの閲覧可否は種類ごと(docs/design/gap-B-02.md の B'-02b 節)。グループ・列挙値のファイルは管理者のみ) |
 | 139c | B'-02c | B'-02b | S | done(2026-09-24、アカウント削除でユーザーのカスタムフィールド値と添付ファイル形式のファイル(ディスクからも)を削除。Redmineの`User#destroy`に合わせ、他レコードのユーザー形式値・Atomキー・個人設定・OAuthトークン・リアクション・本人のWebhook・課題/カテゴリの担当者も削除/NULL化) |
-| 140 | B'-03 | 承認 | S〜M | done(2026-09-24、`ScmCapability`+`ScmAdapter::supports()`、`FilesystemAdapter`(entries/cat のみ)。ファイル名の `path_encoding` 変換は対象外) |
+| 140 | B'-03 | 承認 | S〜M | done(2026-09-24、`ScmCapability`+`ScmAdapter::supports()`、`FilesystemAdapter`(entries/cat のみ)。ファイル名の `path_encoding` 変換は B'-03b) |
+| 140b | B'-03b | B'-03 | S | done(2026-09-25、Filesystem のファイル名の `path_encoding`: 一覧は UTF-8 に変換して表示、パスは元のエンコーディングに戻して読む) |
 | 141 | B'-01 | 承認 | M×3 | done(2026-09-24、Mercurial・Bazaar・CVS。ブランチ/タグの表示、CVS のブランチリビジョンは対象外) |
 | 142 | A12-07 | — | S | done(2026-09-25、送信直前の再解決・全アドレスの確認・確認したアドレスへの固定・リダイレクトを追わない。管理者の Webhook もループバック等と禁止ポートは拒否。`webhook_blocklist` は対象外) |
 | 143 | A14-08 | — | S | done(既存+テスト追加, 2026-09-25、8 箇所すべて `CsvCell` 経由。未テストの 5 つにテストとガードテスト) |
@@ -715,6 +716,7 @@
 | B'-02 | カスタムフィールド形式 `attachment` | ~~Spatie MediaLibrary の `model_type/model_id` 非 null 制約により「CF 値としての添付」の所有者モデル設計が必要~~ → **done(2026-09-24、課題のみ)**: 設計メモ [gap-B-02](design/gap-B-02.md)(ファイルはレコード自体の `custom_field_attachments` コレクション、値は media id)。**B'-02b done(2026-09-24)**: 全カスタマイズ可能な種類に拡大 | `CustomFieldValue` を HasMedia にするか、専用の中間モデルを作る設計メモを先に書く | M |
 | B'-02c | アカウント削除(`AccountDeletionService::delete()`)でユーザーのカスタムフィールド値と `custom_field_attachments` のファイルも消す | **done(2026-09-24)**: Redmine は users 行を削除するので値(と添付)も消えるが、本アプリは行を匿名化して残すため、値と B'-02b で付けたファイルが残り管理者はダウンロードできる。B'-02b の実装後に判明 | 匿名化の前に `$user->customFieldValues()->delete()` と `clearMediaCollection(AttachmentFormat::COLLECTION)` | — | S |
 | B'-03 | Filesystem アダプタ | **done(2026-09-24)**: `RepositoryType::Filesystem`+`FilesystemAdapter`(`repositories_root` 配下のディレクトリ、`..` と外部へのシンボリックリンクを拒否)。`ScmAdapter::supports(ScmCapability)` を追加し、非対応の変更履歴/統計/コミッター/同期/比較/注釈/ファイル履歴は非表示かつ 404 | `ScmAdapter` に `supports(Capability)` を追加し、非対応タブを UI で非表示にする方式が候補 | S〜M |
+| B'-03b | Filesystem のファイル名のエンコーディング(Redmine の `filesystem_adapter.rb` の `path_encoding` と `scm_iconv`) | **done(2026-09-25)**。`FilesystemAdapter` に `pathEncoding`(リポジトリの「パス名のエンコーディング」)。テスト: `FilesystemRepositoryTest.php` | 名前はそのまま(UTF-8 以外は `?` に置換して表示、そのパスでは読めない) | — | S |
 | B'-04 | A1-20(グループ割当)・A4-10b(姓名分離)・A14-01(i18n) | いずれもスキーマ/全画面に波及する。着手前に設計メモをユーザーに提示して承認を得る | — | L |
 
 **2026-09-24 承認**: B'-01(`docker/` への hg/cvs/bzr バイナリ追加を含む)、B'-02、B'-03 と、A1-17・A1-20・A1-27・A1-28・A1-34・A2-03・A3-03・A4-10b・A4-12・A5-06・A9-01・A10-01b・A12-03 を設計メモの推奨案で承認。A1-34 は子孫の再帰削除に変更する(既存テスト 'orphans its children' の期待値を反転)。 A1-34 は、削除する人が見えない・削除できないサブタスクも親と一緒に削除する Redmine の挙動を維持すると決定(2026-09-24)。

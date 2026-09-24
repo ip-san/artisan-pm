@@ -21,8 +21,14 @@ use App\Enums\ScmCapability;
  */
 final readonly class FilesystemAdapter implements ScmAdapter
 {
+    /**
+     * @param  ?string  $pathEncoding  the encoding the file names on disk are in, when not UTF-8
+     *                                 (Redmine's path_encoding): names are shown converted to
+     *                                 UTF-8 and paths converted back to find the files
+     */
     public function __construct(
         private string $path,
+        private ?string $pathEncoding = null,
     ) {}
 
     public function isAvailable(): bool
@@ -62,11 +68,12 @@ final readonly class FilesystemAdapter implements ScmAdapter
 
         $entries = [];
 
-        foreach ($names as $name) {
-            if ($name === '.' || $name === '..') {
+        foreach ($names as $rawName) {
+            if ($rawName === '.' || $rawName === '..') {
                 continue;
             }
 
+            $name = $this->fromDisk($rawName);
             $target = $this->resolve($path === '' ? $name : "{$path}/{$name}");
 
             // Skips symlinks leading outside the repository and special
@@ -103,6 +110,31 @@ final readonly class FilesystemAdapter implements ScmAdapter
         return [];
     }
 
+    private function hasPathEncoding(): bool
+    {
+        return $this->pathEncoding !== null && $this->pathEncoding !== ''
+            && strcasecmp($this->pathEncoding, 'UTF-8') !== 0
+            && CodesetConverter::isKnownEncoding($this->pathEncoding);
+    }
+
+    /**
+     * A name read from disk, as UTF-8.
+     */
+    private function fromDisk(string $name): string
+    {
+        return $this->hasPathEncoding()
+            ? mb_convert_encoding($name, 'UTF-8', (string) $this->pathEncoding)
+            : CodesetConverter::toUtf8($name);
+    }
+
+    /**
+     * A UTF-8 path, as the names on disk are encoded.
+     */
+    private function toDisk(string $path): string
+    {
+        return $this->hasPathEncoding() ? mb_convert_encoding($path, (string) $this->pathEncoding, 'UTF-8') : $path;
+    }
+
     private function root(): ?string
     {
         $root = realpath($this->path);
@@ -126,7 +158,7 @@ final readonly class FilesystemAdapter implements ScmAdapter
             return $root;
         }
 
-        $target = realpath($root.DIRECTORY_SEPARATOR.$relativePath);
+        $target = realpath($root.DIRECTORY_SEPARATOR.$this->toDisk($relativePath));
 
         if ($target === false || ($target !== $root && ! str_starts_with($target, $root.DIRECTORY_SEPARATOR))) {
             return null;

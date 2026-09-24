@@ -170,7 +170,7 @@ final class Repository extends Model
         return match ($this->type) {
             RepositoryType::Git => new GitAdapter($path, $this->log_encoding, $this->path_encoding),
             RepositoryType::Svn => new SvnAdapter($path),
-            RepositoryType::Filesystem => new FilesystemAdapter($path),
+            RepositoryType::Filesystem => new FilesystemAdapter($path, $this->path_encoding),
             RepositoryType::Mercurial => new MercurialAdapter($path, $this->log_encoding),
             RepositoryType::Bazaar => new BazaarAdapter($path, $this->log_encoding),
             RepositoryType::Cvs => new CvsAdapter($path, $this->log_encoding),

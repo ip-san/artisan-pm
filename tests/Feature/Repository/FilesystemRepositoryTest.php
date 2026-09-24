@@ -187,3 +187,21 @@ test('syncing a filesystem repository is refused', function () {
 
     Queue::assertNotPushed(RepositorySyncJob::class);
 });
+
+test('with path_encoding, names stored in that encoding are listed and read as UTF-8', function () {
+    // The container's own /tmp: the bind-mounted project may be on a filesystem
+    // that only accepts UTF-8 names.
+    $path = sys_get_temp_dir().'/fs-sjis-'.uniqid();
+    $GLOBALS['__testGitRepoPaths'][] = $path;
+    $directory = mb_convert_encoding('資料', 'SJIS-win', 'UTF-8');
+    $file = mb_convert_encoding('仕様書.txt', 'SJIS-win', 'UTF-8');
+    mkdir("{$path}/{$directory}", 0777, true);
+    file_put_contents("{$path}/{$directory}/{$file}", "spec\n");
+
+    $adapter = new FilesystemAdapter($path, 'SJIS-win');
+
+    expect(collect($adapter->tree('HEAD'))->pluck('name')->all())->toBe(['資料'])
+        ->and(collect($adapter->tree('HEAD', '資料'))->pluck('path')->all())->toBe(['資料/仕様書.txt'])
+        ->and($adapter->fileContentAt('HEAD', '資料/仕様書.txt'))->toBe("spec\n")
+        ->and(Repository::factory()->make(['type' => RepositoryType::Filesystem, 'path' => $path, 'path_encoding' => 'SJIS-win'])->adapter()->fileContentAt('HEAD', '資料/仕様書.txt'))->toBe("spec\n");
+});
