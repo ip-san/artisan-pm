@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Services\TimeEntryService;
 use App\Support\Query\QueryFilterEngine;
+use App\Support\Query\TimeEntryColumns;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -124,7 +125,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $query = TimeEntry::query()
             ->visibleToAcrossProjects(auth()->user(), $this->visibleProjects)
-            ->with(['project', 'user', 'author', 'activity', 'issue', 'customFieldValues']);
+            ->with(['project', 'user', 'author', 'activity', 'issue', 'customFieldValues', ...TimeEntryColumns::relations($this->columns)]);
 
         $query = $this->engine->applyFilters($query, $this->builtFilters());
 
@@ -260,21 +261,22 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * The fixed columns plus a cf_{id} one per time entry custom field the
-     * viewer may see everywhere (an admin's, or one with no role restriction).
+     * The fixed columns plus the issue's attributes and the custom field
+     * columns the viewer may see in one of the listed projects; each row
+     * shows a field only where the viewer may see it (TimeEntryColumns).
      *
      * @return array<string, string>
      */
     #[Computed]
     public function availableColumns(): array
     {
-        return [
-            ...$this->displayColumnLabels(),
-            ...(new TimeEntry)->relevantCustomFields()
-                ->filter(fn (\App\Models\CustomField $field) => auth()->user()?->is_admin || $field->roles->isEmpty())
-                ->mapWithKeys(fn (\App\Models\CustomField $field) => ["cf_{$field->id}" => $field->name])
-                ->all(),
-        ];
+        return [...$this->displayColumnLabels(), ...$this->extraColumns->labels()];
+    }
+
+    #[Computed]
+    public function extraColumns(): TimeEntryColumns
+    {
+        return new TimeEntryColumns(auth()->user(), $this->visibleProjects);
     }
 
     /** @var array<int, bool> issue id => whether the viewer may see it */
@@ -296,17 +298,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function columnValue(TimeEntry $entry, string $key): string
     {
-        if (str_starts_with($key, 'cf_')) {
+        if (TimeEntryColumns::handles($key)) {
             // Only a column the viewer is offered: a URL or saved query
             // naming a role-restricted field shows nothing.
-            if (! array_key_exists($key, $this->availableColumns)) {
-                return '';
-            }
-
-            return $entry->customFieldValues
-                ->where('custom_field_id', (int) substr($key, 3))
-                ->map(fn (\App\Models\CustomFieldValue $value) => (string) $value->displayValue())
-                ->join(', ');
+            return array_key_exists($key, $this->availableColumns) ? $this->extraColumns->value($entry, $key) : '';
         }
 
         return match ($key) {

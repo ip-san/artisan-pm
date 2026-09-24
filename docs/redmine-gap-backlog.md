@@ -185,7 +185,7 @@
 | 90f2 | A3-14 | A3-06b | S〜M | todo |
 | 90g | A1-17e | A3-06b | **done(2026-09-24)**。`SubprojectScope::filter()`(キー `subproject_id`、サブプロジェクトを持つプロジェクトの一覧にだけ出る。選択肢は閲覧できるアーカイブ以外の子孫)。有効な `subproject_id` があれば `projectsForIssues`/`projectsForTimeEntries` が設定に関係なく子孫を取り込み、フィルタの条件は `project_id` を絞るだけ(=/いずれか: 本体+選んだもの、!/いずれにも: 本体+選ばなかったもの、未設定(`!*`): 本体のみ、設定済み(`*`): すべて)。見えない・アーカイブ済み・無関係なプロジェクトを指定しても何も増えない。課題一覧・ガント・カレンダー・課題 Atom・REST(`subproject_id=*`、`f[]=subproject_id`)・マイページのクエリブロック・工数一覧/レポートで有効 | done(2026-09-24、課題一覧・ガント・カレンダー・Atom・REST・マイページのクエリブロック・工数一覧/レポート。工数側は A2-08 の保留分) |
 | 91 | A2-08 | A1-17 | M | done(2026-09-24、`subproject_id` は A1-17e と同じく A3-06b 待ち、カスタムフィールドのフィルタと課題/プロジェクト側の関連列は A2-08b) |
-| 91a | A2-08b | A2-08 | S〜M | todo |
+| 91a | A2-08b | A2-08 | **done(2026-09-24)**。フィルタ: `TimeEntryExtraFilterFields::customFieldFields()` が「フィルタとして使用」の工数 CF(`cf_N`)・課題 CF(`issue_cf_N`、閲覧できる課題だけを見る)・プロジェクト CF(`project_cf_N`)・ユーザー CF(`user_cf_N`)を出す。各 CF は対象プロジェクトのうち閲覧ロールで見えるところだけを条件にし(`CustomFieldVisibility`、A1-37 と同じく否定演算子も見えない行を含めない)、どこでも見えない CF は出さない。ユーザー CF は本アプリでは管理者しか値を見られないため管理者にだけ出す。列: 新設の `App\Support\Query\TimeEntryColumns` が `issue_tracker`/`issue_parent`/`issue_status`/`issue_category`/`issue_fixed_version`(閲覧できる課題のみ値)、課題 CF(`issue_cf_N`)、プロジェクト CF(`project_cf_N`)を工数一覧(プロジェクト/横断)に追加。工数 CF 列もロール制限のあるものは閲覧できるプロジェクトの行だけ値を出す(従来は横断一覧では出さなかった)。新しい列は並べ替え・グループ化の対象外 | done(2026-09-24、CF フィルタ 4 種と課題属性・課題 CF・プロジェクト CF の列。ユーザー CF フィルタは管理者のみ。新列は並べ替え対象外) |
 | 92 | A1-25 | — | M | done(2026-09-20、API の status_id は未対応) |
 | 93 | A1-06 | A1-25 | M | done(2026-09-20、カスタムフィールドの一括編集は A1-06b) |
 | 93b | A1-06b | A1-06 | M | done(2026-09-20、右クリックメニューのCFサブメニューは対象外) |

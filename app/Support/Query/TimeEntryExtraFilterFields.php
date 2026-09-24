@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Support\Query;
 
 use App\Concerns\BuildsQueryFilterConditions;
+use App\Enums\CustomFieldFormat;
+use App\Enums\CustomizableType;
 use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
 use App\Enums\ProjectStatus;
+use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
@@ -58,7 +61,7 @@ final class TimeEntryExtraFilterFields
         $listOperators = [FilterOperator::Equals, FilterOperator::NotEquals, FilterOperator::In, FilterOperator::NotIn];
         $optionalListOperators = [...$listOperators, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty];
 
-        return array_values(array_filter([
+        return array_merge(array_values(array_filter([
             $this->issueId(),
             $this->issueAttribute('issue_tracker_id', __('課題のトラッカー'), FilterFieldType::Select, $listOperators,
                 fn (Builder $issues, FilterOperator $operator, array $values) => FilterOperatorApplier::apply($issues, 'issues.tracker_id', $operator, $values),
@@ -91,7 +94,160 @@ final class TimeEntryExtraFilterFields
                     return $query;
                 },
             ),
-        ]));
+        ])), $this->customFieldFields());
+    }
+
+    /**
+     * Redmine's custom field filters of a time entry list
+     * (add_custom_fields_filters / add_associations_custom_fields_filters):
+     * the entry's own fields (cf_N), and those of its issue (issue_cf_N),
+     * project (project_cf_N) and user (user_cf_N). Only fields marked "used
+     * as filter" that the viewer may see in one of the listed projects are
+     * offered, and each only looks at the rows of the projects where the
+     * viewer may see it (CustomFieldVisibility, A1-37): a negated operator
+     * does not match the rows where the field is hidden. User fields are
+     * shown to administrators only here, so they are offered to them only.
+     *
+     * @return array<int, FilterableField>
+     */
+    private function customFieldFields(): array
+    {
+        $fields = CustomField::query()
+            ->whereIn('customized_type', [CustomizableType::TimeEntry, CustomizableType::Issue, CustomizableType::Project, CustomizableType::User])
+            ->where('is_filter', true)
+            ->where('field_format', '!=', CustomFieldFormat::Attachment)
+            ->with(['projects', 'roles'])
+            ->orderBy('position')
+            ->get();
+
+        if ($fields->isEmpty()) {
+            return [];
+        }
+
+        $visibility = CustomFieldVisibility::for($this->viewer);
+        $projects = $this->scopeProjects();
+        $filters = [];
+
+        foreach ($fields as $field) {
+            if ($field->customized_type === CustomizableType::User) {
+                if ($this->viewer?->is_admin) {
+                    $filters[] = $this->userCustomField($field);
+                }
+
+                continue;
+            }
+
+            $applicable = $projects->filter(fn (Project $project) => $field->appliesToProject($project))->values();
+            $visibleIds = $visibility->visibleProjectIds($field, $applicable) ?? $applicable->pluck('id')->all();
+
+            if ($visibleIds === []) {
+                continue;
+            }
+
+            $filters[] = match ($field->customized_type) {
+                CustomizableType::TimeEntry => new CustomFieldFilter($field, $visibleIds),
+                CustomizableType::Issue => $this->issueCustomField($field, $visibleIds),
+                default => $this->projectCustomField($field, $visibleIds),
+            };
+        }
+
+        return $filters;
+    }
+
+    /**
+     * Redmine's issue.cf_N: a condition on the entry's issue, among the
+     * visible issues of the projects where the field is visible.
+     *
+     * @param  array<int, int>  $visibleProjectIds
+     */
+    private function issueCustomField(CustomField $field, array $visibleProjectIds): FilterableField
+    {
+        $condition = new CustomFieldFilter($field, $visibleProjectIds);
+
+        return $this->issueAttribute(
+            "issue_cf_{$field->id}",
+            __('課題の:name', ['name' => $field->name]),
+            $condition->type(),
+            $condition->operators(),
+            function (Builder $issues, FilterOperator $operator, array $values) use ($condition): void {
+                $condition->apply($issues, $operator, $values);
+            },
+            fn () => $condition->options(),
+        );
+    }
+
+    /**
+     * Redmine's project.cf_N: the entry's project has a matching value.
+     *
+     * @param  array<int, int>  $visibleProjectIds
+     */
+    private function projectCustomField(CustomField $field, array $visibleProjectIds): FilterableField
+    {
+        $condition = new CustomFieldFilter($field);
+
+        return new CallbackFilter(
+            "project_cf_{$field->id}",
+            __('プロジェクトの:name', ['name' => $field->name]),
+            $condition->type(),
+            $condition->operators(),
+            function (Builder $query, FilterOperator $operator, array $values) use ($condition, $visibleProjectIds): Builder {
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                [$positive, $negated] = self::positiveOf($operator);
+                $matching = $condition->apply(Project::query()->select('projects.id')->whereIn('projects.id', $visibleProjectIds), $positive, $values);
+                $column = $query->qualifyColumn('project_id');
+
+                return $negated
+                    ? $query->whereIn($column, $visibleProjectIds)->whereNotIn($column, $matching)
+                    : $query->whereIn($column, $matching);
+            },
+            fn () => $condition->options(),
+        );
+    }
+
+    /**
+     * Redmine's user.cf_N: the entry's user has a matching value.
+     */
+    private function userCustomField(CustomField $field): FilterableField
+    {
+        $condition = new CustomFieldFilter($field);
+
+        return new CallbackFilter(
+            "user_cf_{$field->id}",
+            __('ユーザーの:name', ['name' => $field->name]),
+            $condition->type(),
+            $condition->operators(),
+            function (Builder $query, FilterOperator $operator, array $values) use ($condition): Builder {
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                [$positive, $negated] = self::positiveOf($operator);
+                $matching = $condition->apply(User::query()->select('users.id'), $positive, $values);
+                $column = $query->qualifyColumn('user_id');
+
+                return $negated ? $query->whereNotIn($column, $matching) : $query->whereIn($column, $matching);
+            },
+            fn () => $condition->options(),
+        );
+    }
+
+    /**
+     * The positive form of a negated operator, as Redmine's
+     * sql_for_custom_field puts NOT in front of the associated subquery.
+     *
+     * @return array{0: FilterOperator, 1: bool}
+     */
+    private static function positiveOf(FilterOperator $operator): array
+    {
+        return match ($operator) {
+            FilterOperator::NotEquals => [FilterOperator::Equals, true],
+            FilterOperator::NotIn => [FilterOperator::In, true],
+            FilterOperator::IsEmpty => [FilterOperator::IsNotEmpty, true],
+            default => [$operator, false],
+        };
     }
 
     /**
