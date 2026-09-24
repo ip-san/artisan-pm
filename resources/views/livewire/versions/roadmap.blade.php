@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\VersionStatus;
+use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Tracker;
 use App\Models\Version;
@@ -21,6 +22,20 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     #[Url(as: 'with_subprojects', except: '')]
     public string $withSubprojects = '';
+
+    /** Redmine's `completed=1`: completed versions are listed too. */
+    #[Url(as: 'completed', except: false)]
+    public bool $showCompleted = false;
+
+    /**
+     * Redmine's `tracker_ids[]`: the trackers whose issues the roadmap
+     * counts and lists; null for the default (the project's trackers shown
+     * in the roadmap, Tracker#is_in_roadmap).
+     *
+     * @var array<int, int|string>|null
+     */
+    #[Url(as: 'tracker_ids', except: null)]
+    public ?array $trackerIds = null;
 
     public function mount(Project $project): void
     {
@@ -44,51 +59,183 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->withSubprojects = $this->includesSubprojects ? '0' : '1';
 
-        unset($this->includesSubprojects, $this->versions);
+        $this->forgetRoadmap();
+    }
+
+    public function toggleCompleted(): void
+    {
+        $this->showCompleted = ! $this->showCompleted;
+
+        $this->forgetRoadmap();
+    }
+
+    public function toggleTracker(int $trackerId): void
+    {
+        $selected = $this->roadmapTrackerIds;
+
+        $this->trackerIds = ($selected->contains($trackerId) ? $selected->reject(fn (int $id) => $id === $trackerId) : $selected->push($trackerId))
+            ->values()->all();
+
+        $this->forgetRoadmap();
+    }
+
+    private function forgetRoadmap(): void
+    {
+        unset($this->includesSubprojects, $this->roadmapTrackerIds, $this->projectIds, $this->candidateVersions, $this->issuesByVersion, $this->relevantVersions, $this->completedVersionIds, $this->versions, $this->completedVersions);
     }
 
     /**
-     * Not-yet-completed versions only, due-soonest first (no due date
-     * sorts last, then by name) — matches Redmine's roadmap default of
-     * hiding completed versions unless explicitly asked to include them,
-     * a toggle this page doesn't offer (a documented, intentional scope
-     * cut). With subprojects, the versions of the subprojects whose issues
-     * the viewer may see are listed too (Redmine's rolled_up_versions.visible,
-     * archived subprojects left out).
+     * The trackers the sidebar offers: the project's own (Redmine's
+     * @project.trackers.sorted).
      *
-     * @return Collection<int, Version>
+     * @return Collection<int, Tracker>
      */
     #[Computed]
-    public function versions(): Collection
+    public function trackers(): Collection
     {
-        $projectIds = SubprojectScope::projectsForIssuesWhen($this->project, auth()->user(), $this->includesSubprojects)->pluck('id');
-
-        return Version::query()
-            ->whereIn('project_id', $projectIds)
-            ->with('project')
-            ->orderByRaw('due_date IS NULL, due_date ASC')
-            ->orderBy('name')
-            ->orderBy('id')
-            ->get()
-            ->reject(fn (Version $version) => $version->isCompleted())
-            ->values();
+        return $this->project->trackers()->orderBy('position')->orderBy('trackers.id')->get();
     }
 
     /**
-     * Only trackers that opted into the roadmap count toward each
-     * version's progress bar/issue counts on this page — matches
-     * Redmine's own roadmap, which defaults to trackers where
-     * is_in_roadmap? is true. Applied here rather than inside Version's
-     * own issueCounts()/completedPercent(), since those are also used
-     * where every issue should count regardless of tracker (e.g. the
-     * version's own edit/show page).
+     * The selected trackers (Redmine's retrieve_selected_tracker_ids): the
+     * `tracker_ids` given, else the project's trackers that are shown in
+     * the roadmap (is_in_roadmap). Only their issues count toward each
+     * version's progress and are listed under it — applied here rather
+     * than inside Version's own issueCounts()/completedPercent(), which
+     * other pages use for every tracker.
      *
      * @return Collection<int, int>
      */
     #[Computed]
     public function roadmapTrackerIds(): Collection
     {
-        return Tracker::query()->where('is_in_roadmap', true)->pluck('id');
+        if ($this->trackerIds !== null) {
+            return collect($this->trackerIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        }
+
+        return $this->trackers->where('is_in_roadmap', true)->pluck('id')->values();
+    }
+
+    /**
+     * The project, plus with subprojects the subprojects whose issues the
+     * viewer may see (archived ones left out).
+     *
+     * @return Collection<int, int>
+     */
+    #[Computed]
+    public function projectIds(): Collection
+    {
+        return SubprojectScope::projectsForIssuesWhen($this->project, auth()->user(), $this->includesSubprojects)->pluck('id');
+    }
+
+    /**
+     * Redmine's @project.shared_versions, plus with subprojects their
+     * versions (rolled_up_versions.visible), due-soonest first (no due
+     * date last, then by name and id — Version#<=>).
+     *
+     * @return Collection<int, Version>
+     */
+    #[Computed]
+    public function candidateVersions(): Collection
+    {
+        $rolledUp = Version::query()->whereIn('project_id', $this->projectIds)->with('project')->get();
+
+        return $this->project->sharedVersions()
+            ->merge($rolledUp)
+            ->unique('id')
+            ->sortBy([
+                fn (Version $a, Version $b) => ($a->due_date === null) <=> ($b->due_date === null),
+                fn (Version $a, Version $b) => $a->due_date?->toDateString() <=> $b->due_date?->toDateString(),
+                fn (Version $a, Version $b) => strcmp($a->name, $b->name),
+                fn (Version $a, Version $b) => $a->id <=> $b->id,
+            ])
+            ->values();
+    }
+
+    /**
+     * The visible issues of the selected trackers in the project (and its
+     * subprojects when included) fixed to the listed versions, by version
+     * id, in Redmine's order: project, tracker position, id.
+     *
+     * @return Collection<int, Collection<int, Issue>>
+     */
+    #[Computed]
+    public function issuesByVersion(): Collection
+    {
+        $versionIds = $this->candidateVersions->pluck('id');
+
+        if ($this->roadmapTrackerIds->isEmpty() || $versionIds->isEmpty()) {
+            return collect();
+        }
+
+        $projects = Project::query()->whereIn('id', $this->projectIds)->get();
+
+        return Issue::query()
+            ->visibleToAcrossProjects(auth()->user(), $projects)
+            ->whereIn('issues.project_id', $this->projectIds)
+            ->whereIn('issues.tracker_id', $this->roadmapTrackerIds)
+            ->whereIn('issues.fixed_version_id', $versionIds)
+            ->join('projects', 'projects.id', '=', 'issues.project_id')
+            ->join('trackers', 'trackers.id', '=', 'issues.tracker_id')
+            ->orderBy('projects._lft')
+            ->orderBy('trackers.position')
+            ->orderBy('issues.id')
+            ->select('issues.*')
+            ->with(['project', 'tracker', 'status', 'assignedTo', 'assignedToGroup'])
+            ->get()
+            ->groupBy('fixed_version_id');
+    }
+
+    /**
+     * The versions on the roadmap: the not-yet-completed ones unless
+     * `completed` is on. A version shared from outside the project (and
+     * its listed subprojects) only appears while some of the listed issues
+     * target it, as in Redmine.
+     *
+     * @return Collection<int, Version>
+     */
+    #[Computed]
+    public function versions(): Collection
+    {
+        return $this->relevantVersions
+            ->when(! $this->showCompleted, fn (Collection $versions) => $versions->reject(fn (Version $version) => $this->completedVersionIds->contains($version->id)))
+            ->values();
+    }
+
+    /**
+     * With completed versions hidden, the sidebar still lists them, most
+     * recent first (Redmine's @completed_versions).
+     *
+     * @return Collection<int, Version>
+     */
+    #[Computed]
+    public function completedVersions(): Collection
+    {
+        if ($this->showCompleted) {
+            return collect();
+        }
+
+        return $this->relevantVersions->filter(fn (Version $version) => $this->completedVersionIds->contains($version->id))->reverse()->values();
+    }
+
+    /**
+     * @return Collection<int, int>
+     */
+    #[Computed]
+    public function completedVersionIds(): Collection
+    {
+        return $this->relevantVersions->filter(fn (Version $version) => $version->isCompleted())->pluck('id');
+    }
+
+    /**
+     * @return Collection<int, Version>
+     */
+    #[Computed]
+    public function relevantVersions(): Collection
+    {
+        return $this->candidateVersions
+            ->filter(fn (Version $version) => $this->projectIds->contains($version->project_id) || $this->issuesByVersion->has($version->id))
+            ->values();
     }
 
     /**
@@ -110,15 +257,10 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 }; ?>
 
-<div class="max-w-3xl">
-    <div class="mb-6 flex items-center justify-between gap-4">
+<div class="flex flex-col gap-6 lg:flex-row lg:items-start">
+<div class="min-w-0 max-w-3xl flex-1">
+    <div class="mb-6">
         <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — ロードマップ', ['project' => $project->name]) }}</h1>
-        @if ($this->hasSubprojects())
-            <label class="flex items-center gap-2 text-sm text-neutral-700">
-                <input type="checkbox" wire:click="toggleSubprojects" @checked($this->includesSubprojects) class="rounded border-neutral-300">
-                {{ __('サブプロジェクト') }}
-            </label>
-        @endif
     </div>
 
     @if ($this->versions->isEmpty())
@@ -182,7 +324,88 @@ new #[Layout('components.layouts.app')] class extends Component
                 @else
                     <p class="mt-3 text-xs text-neutral-400">{{ __('このバージョンに割り当てられた課題はありません。') }}</p>
                 @endif
+
+                @php($versionIssues = $this->issuesByVersion->get($version->id, collect()))
+                @if ($versionIssues->isNotEmpty())
+                    <table class="mt-3 w-full text-sm" data-roadmap-issues>
+                        <caption class="mb-1 text-left text-xs font-medium text-neutral-500">{{ __('関連する課題') }}</caption>
+                        <tbody class="divide-y divide-neutral-100">
+                            @foreach ($versionIssues as $issue)
+                                <tr wire:key="roadmap-issue-{{ $issue->id }}">
+                                    <td class="w-7 py-1 align-middle">
+                                        @if ($issue->assignedTo)
+                                            <x-avatar :user="$issue->assignedTo" :size="16" />
+                                        @endif
+                                    </td>
+                                    <td class="py-1">
+                                        <a href="{{ route('issues.show', [$issue->project, $issue]) }}" @class(['hover:underline', 'text-brand-bold', 'line-through' => $issue->status?->is_closed])>
+                                            @if ($issue->project->isNot($project)){{ $issue->project->name }} - @endif{{ $issue->tracker?->name }} #{{ $issue->id }}</a>: {{ $issue->subject }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
             </article>
         @endforeach
     </div>
+</div>
+
+<aside class="w-full shrink-0 space-y-5 text-sm lg:w-64" data-roadmap-sidebar>
+    <section>
+        <h2 class="mb-2 font-semibold text-neutral-900">{{ __('ロードマップ') }}</h2>
+        <ul class="space-y-1">
+            @foreach ($this->trackers as $tracker)
+                <li wire:key="roadmap-tracker-{{ $tracker->id }}">
+                    <label class="flex items-center gap-2 text-neutral-700">
+                        <input type="checkbox" wire:click="toggleTracker({{ $tracker->id }})" @checked($this->roadmapTrackerIds->contains($tracker->id)) class="rounded border-neutral-300">
+                        {{ $tracker->name }}
+                    </label>
+                </li>
+            @endforeach
+        </ul>
+        <ul class="mt-3 space-y-1">
+            <li>
+                <label class="flex items-center gap-2 text-neutral-700">
+                    <input type="checkbox" wire:click="toggleCompleted" @checked($showCompleted) class="rounded border-neutral-300">
+                    {{ __('完了したバージョンを表示') }}
+                </label>
+            </li>
+            @if ($this->hasSubprojects())
+                <li>
+                    <label class="flex items-center gap-2 text-neutral-700">
+                        <input type="checkbox" wire:click="toggleSubprojects" @checked($this->includesSubprojects) class="rounded border-neutral-300">
+                        {{ __('サブプロジェクト') }}
+                    </label>
+                </li>
+            @endif
+        </ul>
+    </section>
+
+    @if ($this->versions->isNotEmpty())
+        <section>
+            <h2 class="mb-2 font-semibold text-neutral-900">{{ __('バージョン') }}</h2>
+            <ul class="space-y-1">
+                @foreach ($this->versions as $version)
+                    <li wire:key="roadmap-sidebar-version-{{ $version->id }}">
+                        <a href="#roadmap-version-{{ $version->id }}" class="text-brand-bold hover:underline">{{ $version->project->isNot($project) ? $version->project->name.' - '.$version->name : $version->name }}</a>
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
+
+    @if ($this->completedVersions->isNotEmpty())
+        <details data-roadmap-completed-versions>
+            <summary class="cursor-pointer font-semibold text-neutral-900">{{ __('完了したバージョン') }}</summary>
+            <ul class="mt-2 space-y-1">
+                @foreach ($this->completedVersions as $version)
+                    <li wire:key="roadmap-completed-version-{{ $version->id }}">
+                        <a href="{{ route('versions.edit', [$version->project, $version]) }}" class="text-brand-bold hover:underline">{{ $version->project->isNot($project) ? $version->project->name.' - '.$version->name : $version->name }}</a>
+                    </li>
+                @endforeach
+            </ul>
+        </details>
+    @endif
+</aside>
 </div>

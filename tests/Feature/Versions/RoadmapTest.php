@@ -119,6 +119,8 @@ test('the roadmap excludes issues under a tracker with is_in_roadmap disabled', 
 
     $roadmapTracker = Tracker::factory()->create(['is_in_roadmap' => true]);
     $excludedTracker = Tracker::factory()->create(['is_in_roadmap' => false]);
+    // The default selection is the project's trackers shown in the roadmap.
+    $project->trackers()->attach([$roadmapTracker->id, $excludedTracker->id]);
 
     roadmapIssue($project, ['tracker_id' => $roadmapTracker->id, 'status_id' => $status->id, 'fixed_version_id' => $version->id]);
     roadmapIssue($project, ['tracker_id' => $excludedTracker->id, 'status_id' => $status->id, 'fixed_version_id' => $version->id]);
@@ -240,4 +242,122 @@ test('a leaf project\'s roadmap has no subprojects switch', function () {
 
     Livewire::actingAs(roadmapMember($project))->test('versions.roadmap', ['project' => $project])
         ->assertDontSee('サブプロジェクト');
+});
+
+/**
+ * @return array{project: Project, user: User, bug: Tracker, support: Tracker, open: IssueStatus, closed: IssueStatus}
+ */
+function roadmapTrackerSetup(): array
+{
+    $project = Project::factory()->create();
+    $bug = Tracker::factory()->create(['name' => 'Bug', 'is_in_roadmap' => true, 'position' => 1]);
+    $support = Tracker::factory()->create(['name' => 'Support', 'is_in_roadmap' => false, 'position' => 2]);
+    $project->trackers()->attach([$bug->id, $support->id]);
+
+    return [
+        'project' => $project,
+        'user' => roadmapMember($project),
+        'bug' => $bug,
+        'support' => $support,
+        'open' => IssueStatus::factory()->create(['is_closed' => false]),
+        'closed' => IssueStatus::factory()->create(['is_closed' => true]),
+    ];
+}
+
+test('completed versions are listed in the sidebar and shown with the completed switch', function () {
+    ['project' => $project, 'user' => $user] = roadmapTrackerSetup();
+    Version::factory()->for($project)->create(['name' => 'Shipped', 'status' => 'closed']);
+    Version::factory()->for($project)->create(['name' => 'Next']);
+
+    $roadmap = Livewire::actingAs($user)->test('versions.roadmap', ['project' => $project]);
+    expect($roadmap->get('versions')->pluck('name')->all())->toBe(['Next'])
+        ->and($roadmap->get('completedVersions')->pluck('name')->all())->toBe(['Shipped']);
+    $roadmap->assertSee('完了したバージョン');
+
+    $roadmap->call('toggleCompleted');
+    expect($roadmap->get('showCompleted'))->toBeTrue()
+        ->and($roadmap->get('versions')->pluck('name')->sort()->values()->all())->toBe(['Next', 'Shipped'])
+        ->and($roadmap->get('completedVersions'))->toBeEmpty();
+
+    expect(Livewire::withQueryParams(['completed' => '1'])->actingAs($user)->test('versions.roadmap', ['project' => $project])->get('versions'))->toHaveCount(2);
+});
+
+test('each version lists its visible issues of the selected trackers, and the tracker selection changes them', function () {
+    ['project' => $project, 'user' => $user, 'bug' => $bug, 'support' => $support, 'open' => $open, 'closed' => $closed] = roadmapTrackerSetup();
+    $version = Version::factory()->for($project)->create();
+    $bugIssue = roadmapIssue($project, ['tracker_id' => $bug->id, 'status_id' => $open->id, 'fixed_version_id' => $version->id, 'subject' => 'Crash on save']);
+    $closedBug = roadmapIssue($project, ['tracker_id' => $bug->id, 'status_id' => $closed->id, 'fixed_version_id' => $version->id, 'subject' => 'Old crash']);
+    $supportIssue = roadmapIssue($project, ['tracker_id' => $support->id, 'status_id' => $open->id, 'fixed_version_id' => $version->id, 'subject' => 'Help request']);
+
+    $roadmap = Livewire::actingAs($user)->test('versions.roadmap', ['project' => $project])
+        ->assertSee('Crash on save')
+        ->assertSee('Old crash')
+        ->assertDontSee('Help request')
+        ->assertSee('2件の課題');
+    expect($roadmap->get('issuesByVersion')->get($version->id)->pluck('id')->all())->toBe([$bugIssue->id, $closedBug->id]);
+
+    $roadmap->call('toggleTracker', $support->id)
+        ->assertSee('Help request')
+        ->assertSee('3件の課題');
+    expect($roadmap->get('trackerIds'))->toBe([$bug->id, $support->id]);
+
+    $roadmap->call('toggleTracker', $bug->id)
+        ->assertDontSee('Crash on save')
+        ->assertSee('Help request');
+
+    Livewire::withQueryParams(['tracker_ids' => [(string) $support->id]])->actingAs($user)->test('versions.roadmap', ['project' => $project])
+        ->assertSee('Help request')
+        ->assertDontSee('Crash on save');
+});
+
+test('the version issue list leaves out issues the viewer cannot see', function () {
+    ['project' => $project, 'bug' => $bug, 'open' => $open] = roadmapTrackerSetup();
+    $viewer = User::factory()->create();
+    Member::factory()->for($project)->for($viewer)->create()->roles()->attach(
+        Role::factory()->create(['permissions' => ['view_issues'], 'issues_visibility' => 'default'])
+    );
+    $version = Version::factory()->for($project)->create();
+    roadmapIssue($project, ['tracker_id' => $bug->id, 'status_id' => $open->id, 'fixed_version_id' => $version->id, 'subject' => 'Public bug']);
+    roadmapIssue($project, ['tracker_id' => $bug->id, 'status_id' => $open->id, 'fixed_version_id' => $version->id, 'subject' => 'Secret bug', 'is_private' => true]);
+
+    Livewire::actingAs($viewer)->test('versions.roadmap', ['project' => $project])
+        ->assertSee('Public bug')
+        ->assertDontSee('Secret bug');
+});
+
+test('a version shared from another project appears only while this project\'s issues target it', function () {
+    ['project' => $project, 'user' => $user, 'bug' => $bug, 'open' => $open] = roadmapTrackerSetup();
+    $other = Project::factory()->create(['name' => 'Platform']);
+    $shared = Version::factory()->for($other)->create(['name' => 'Platform 2.0', 'sharing' => 'system']);
+    Version::factory()->for($other)->create(['name' => 'Unshared', 'sharing' => 'none']);
+    $otherTracker = Tracker::factory()->create();
+    roadmapIssue($other, ['tracker_id' => $otherTracker->id, 'status_id' => $open->id, 'fixed_version_id' => $shared->id, 'subject' => 'Platform task']);
+
+    $roadmap = Livewire::actingAs($user)->test('versions.roadmap', ['project' => $project]);
+    expect($roadmap->get('versions')->pluck('name')->all())->not->toContain('Platform 2.0')->not->toContain('Unshared');
+
+    roadmapIssue($project, ['tracker_id' => $bug->id, 'status_id' => $open->id, 'fixed_version_id' => $shared->id, 'subject' => 'Adopt platform']);
+
+    Livewire::actingAs($user)->test('versions.roadmap', ['project' => $project])
+        ->assertSee('Platform - Platform 2.0')
+        ->assertSee('Adopt platform')
+        ->assertDontSee('Platform task')
+        ->assertDontSee('Unshared');
+});
+
+test('subproject issues are listed only with the subprojects switch', function () {
+    ['parent' => $parent, 'child' => $child, 'user' => $user] = roadmapSubprojectTree();
+    $tracker = Tracker::factory()->create(['is_in_roadmap' => true]);
+    $parent->trackers()->attach($tracker);
+    $child->trackers()->attach($tracker);
+    $version = Version::query()->where('name', 'Parent release')->sole();
+    $version->update(['sharing' => 'descendants']);
+    roadmapIssue($child, ['tracker_id' => $tracker->id, 'status_id' => IssueStatus::factory()->create()->id, 'fixed_version_id' => $version->id, 'subject' => 'Child work']);
+
+    Livewire::withQueryParams(['with_subprojects' => '0'])->actingAs($user)->test('versions.roadmap', ['project' => $parent])
+        ->assertDontSee('Child work');
+
+    Livewire::withQueryParams(['with_subprojects' => '1'])->actingAs($user)->test('versions.roadmap', ['project' => $parent])
+        ->assertSee('Child work')
+        ->assertSee('Child project - ');
 });
