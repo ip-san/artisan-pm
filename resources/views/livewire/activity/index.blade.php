@@ -40,11 +40,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->project = $project;
 
         if ($this->from === '') {
-            $this->from = now()->subDays(Setting::get('activity_days_default', 7))->toDateString();
+            $this->from = \App\Support\Format\DateTimes::today()->subDays(Setting::get('activity_days_default', 7))->toDateString();
         }
 
         if ($this->to === '') {
-            $this->to = now()->toDateString();
+            $this->to = \App\Support\Format\DateTimes::today()->toDateString();
         }
 
         if ($this->activeTypes === []) {
@@ -102,8 +102,10 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function entries(): Collection
     {
-        $from = Carbon::parse($this->from)->startOfDay();
-        $to = Carbon::parse($this->to)->endOfDay();
+        // The days are the viewer's: from the start of the first to the end
+        // of the last in their zone.
+        $from = Carbon::instance(\App\Support\Format\DateTimes::dayBounds($this->from)[0]);
+        $to = Carbon::instance(\App\Support\Format\DateTimes::dayBounds($this->to)[1]);
 
         $activeProviders = $this->providers->filter(fn ($provider) => in_array($provider->type(), $this->activeTypes, true));
 
@@ -120,7 +122,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function groupedEntries(): Collection
     {
-        return $this->entries->groupBy(fn ($entry) => $entry->occurredAt->toDateString());
+        return $this->entries->groupBy(fn ($entry) => \App\Support\Format\DateTimes::local($entry->occurredAt)->toDateString());
     }
 
     public function applyFilters(): void
@@ -167,7 +169,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @forelse ($this->groupedEntries as $date => $dayEntries)
         <div wire:key="activity-day-{{ $date }}" class="mb-6">
-            <h2 class="mb-2 text-sm font-semibold text-neutral-900">{{ $date }}</h2>
+            <h2 class="mb-2 text-sm font-semibold text-neutral-900">{{ \App\Support\Format\DateTimes::date($date) }}</h2>
             <ul class="space-y-2">
                 @foreach ($dayEntries as $entry)
                     <li wire:key="activity-{{ $entry->type }}-{{ $entry->url }}-{{ $entry->occurredAt->timestamp }}"

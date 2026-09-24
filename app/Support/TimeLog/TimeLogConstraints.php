@@ -7,6 +7,8 @@ namespace App\Support\TimeLog;
 use App\Models\Issue;
 use App\Models\Setting;
 use App\Models\TimeEntry;
+use App\Models\User;
+use App\Support\Format\DateTimes;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -123,7 +125,7 @@ final class TimeLogConstraints
         $spentOn = $value('spent_on');
         $dateChanged = $existing === null || (array_key_exists('spent_on', $attributes) && substr((string) $attributes['spent_on'], 0, 10) !== $existing->spent_on->toDateString());
 
-        if ($spentOn !== null && $dateChanged && ! self::acceptsFutureDates() && substr((string) $spentOn, 0, 10) > now()->toDateString()) {
+        if ($spentOn !== null && $dateChanged && ! self::acceptsFutureDates() && substr((string) $spentOn, 0, 10) > DateTimes::today(User::query()->find($value('user_id')))->toDateString()) {
             $errors['spent_on'][] = __('未来の日付には工数を記録できません。');
         }
 

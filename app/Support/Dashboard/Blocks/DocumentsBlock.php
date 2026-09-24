@@ -8,6 +8,7 @@ use App\Models\Document;
 use App\Models\User;
 use App\Support\Dashboard\DashboardBlock;
 use App\Support\Dashboard\DashboardBlockRow;
+use App\Support\Format\DateTimes;
 use Illuminate\Support\Collection;
 
 final class DocumentsBlock implements DashboardBlock
@@ -44,7 +45,7 @@ final class DocumentsBlock implements DashboardBlock
             ->map(fn (Document $document) => new DashboardBlockRow(
                 title: "{$document->project->name}: {$document->title}",
                 url: route('documents.show', [$document->project, $document]),
-                meta: $document->created_at->toDateString(),
+                meta: DateTimes::dateOf($document->created_at, $user),
             ));
     }
 }

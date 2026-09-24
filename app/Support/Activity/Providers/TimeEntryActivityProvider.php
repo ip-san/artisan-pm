@@ -12,6 +12,7 @@ use App\Support\Activity\ActivityEntry;
 use App\Support\Activity\MultiProjectActivityProvider;
 use App\Support\Activity\OffByDefault;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Format\DateTimes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -44,9 +45,14 @@ final class TimeEntryActivityProvider implements MultiProjectActivityProvider, O
             return collect();
         }
 
+        // spent_on is a day, not a moment: the range's days as the viewer
+        // sees them, and each entry dated at the start of its day in their zone
+        // so grouping by the viewer's day keeps it on its own date.
+        $zone = DateTimes::timeZone($viewer);
+
         $entries = TimeEntry::query()
             ->whereIn('project_id', $projects->keys())
-            ->whereBetween('spent_on', [$from, $to])
+            ->whereBetween('spent_on', [$from->copy()->setTimezone($zone)->toDateString(), $to->copy()->setTimezone($zone)->toDateString()])
             ->with(['activity', 'issue.project', 'user'])
             ->get();
 
@@ -60,7 +66,7 @@ final class TimeEntryActivityProvider implements MultiProjectActivityProvider, O
                 title: __(':hours時間 (:activity)', ['hours' => $entry->hours, 'activity' => $entry->activity->name]).($entry->issue && $visibleIssueIds->has($entry->issue->id) ? " — #{$entry->issue->id} {$entry->issue->subject}" : ''),
                 url: $entry->issue && $visibleIssueIds->has($entry->issue->id) ? route('issues.show', [$projects[$entry->project_id], $entry->issue]) : route('time-entries.index', $projects[$entry->project_id]),
                 authorName: $entry->user->displayName(),
-                occurredAt: $entry->spent_on,
+                occurredAt: Carbon::parse($entry->spent_on->toDateString(), $zone),
                 authorId: $entry->user_id,
             ));
     }

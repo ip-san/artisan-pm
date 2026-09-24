@@ -8,6 +8,7 @@ use App\Models\Issue;
 use App\Models\User;
 use App\Support\Dashboard\DashboardBlock;
 use App\Support\Dashboard\DashboardBlockRow;
+use App\Support\Format\DateTimes;
 use Illuminate\Support\Collection;
 
 final class WatchedIssuesBlock implements DashboardBlock
@@ -36,7 +37,7 @@ final class WatchedIssuesBlock implements DashboardBlock
             ->map(fn (Issue $issue) => new DashboardBlockRow(
                 title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
                 url: route('issues.show', [$issue->project, $issue]),
-                meta: $issue->due_date?->toDateString(),
+                meta: DateTimes::date($issue->due_date),
             ));
     }
 }

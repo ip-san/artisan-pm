@@ -34,8 +34,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount(): void
     {
-        $this->year = $this->year ?: now()->year;
-        $this->month = $this->month ?: now()->month;
+        $this->year = $this->year ?: \App\Support\Format\DateTimes::today()->year;
+        $this->month = $this->month ?: \App\Support\Format\DateTimes::today()->month;
     }
 
     /**
@@ -220,7 +220,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @foreach ($week as $day)
                             <td wire:key="day-{{ $day['date']->toDateString() }}"
                                 class="h-28 px-2 py-1 {{ $day['isCurrentMonth'] ? 'bg-white' : 'bg-neutral-50 text-neutral-400' }}">
-                                <div class="text-xs {{ $day['date']->isToday() ? 'font-bold text-brand-bold' : 'text-neutral-500' }}">
+                                <div class="text-xs {{ $day['date']->toDateString() === \App\Support\Format\DateTimes::today()->toDateString() ? 'font-bold text-brand-bold' : 'text-neutral-500' }}">
                                     {{ $day['date']->day }}
                                 </div>
                                 <ul class="mt-1 space-y-0.5">

@@ -8,6 +8,7 @@ use App\Models\News;
 use App\Models\User;
 use App\Support\Dashboard\DashboardBlock;
 use App\Support\Dashboard\DashboardBlockRow;
+use App\Support\Format\DateTimes;
 use Illuminate\Support\Collection;
 
 final class LatestNewsBlock implements DashboardBlock
@@ -44,7 +45,7 @@ final class LatestNewsBlock implements DashboardBlock
             ->map(fn (News $news) => new DashboardBlockRow(
                 title: "{$news->project->name}: {$news->title}",
                 url: route('news.show', [$news->project, $news]),
-                meta: $news->created_at->toDateString(),
+                meta: DateTimes::dateOf($news->created_at, $user),
             ));
     }
 }

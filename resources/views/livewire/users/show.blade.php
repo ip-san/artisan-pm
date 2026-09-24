@@ -135,7 +135,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function recentActivity(): Collection
     {
         $providers = app(ActivityProviderRegistry::class)->all();
-        $from = now()->subDays(30)->startOfDay();
+        $from = \Illuminate\Support\Carbon::instance(\App\Support\Format\DateTimes::today()->subDays(30)->utc());
         $to = now();
 
         return $this->visibleProjects()

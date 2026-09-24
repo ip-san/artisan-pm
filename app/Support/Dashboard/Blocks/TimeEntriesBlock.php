@@ -8,6 +8,7 @@ use App\Models\TimeEntry;
 use App\Models\User;
 use App\Support\Dashboard\ConfigurableDashboardBlock;
 use App\Support\Dashboard\DashboardBlockRow;
+use App\Support\Format\DateTimes;
 use Illuminate\Support\Collection;
 
 final class TimeEntriesBlock implements ConfigurableDashboardBlock
@@ -47,7 +48,7 @@ final class TimeEntriesBlock implements ConfigurableDashboardBlock
 
         return TimeEntry::query()
             ->where('user_id', $user->id)
-            ->when($days > 0, fn ($query) => $query->whereDate('spent_on', '>=', today()->subDays($days - 1)))
+            ->when($days > 0, fn ($query) => $query->whereDate('spent_on', '>=', DateTimes::today($user)->subDays($days - 1)->toDateString()))
             ->with(['project', 'activity'])
             ->latest('spent_on')
             ->limit(self::MAX_ROWS)
@@ -55,7 +56,7 @@ final class TimeEntriesBlock implements ConfigurableDashboardBlock
             ->map(fn (TimeEntry $entry) => new DashboardBlockRow(
                 title: "{$entry->project->name} — {$entry->activity->name} ({$entry->hours}h)",
                 url: route('time-entries.index', $entry->project),
-                meta: $entry->spent_on->toDateString(),
+                meta: DateTimes::date($entry->spent_on),
             ));
     }
 }

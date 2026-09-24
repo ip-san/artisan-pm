@@ -9,7 +9,9 @@ use App\Models\Project;
 use App\Models\User;
 use App\Support\Dashboard\DashboardBlock;
 use App\Support\Dashboard\DashboardBlockRow;
+use App\Support\Format\DateTimes;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -36,8 +38,9 @@ final class CalendarBlock implements DashboardBlock
     public function rows(User $user): Collection
     {
         $projects = $user->projects()->get()->filter(fn (Project $project) => $user->can('viewAny', [Issue::class, $project]))->values();
-        $from = now()->startOfDay();
-        $to = now()->addDays(self::DAYS_AHEAD)->endOfDay();
+        // The user's today, as a date (start/due dates are days, not moments).
+        $from = Carbon::parse(DateTimes::today($user)->toDateString());
+        $to = $from->copy()->addDays(self::DAYS_AHEAD)->endOfDay();
 
         return Issue::query()
             ->visibleToAcrossProjects($user, $projects)
@@ -61,8 +64,8 @@ final class CalendarBlock implements DashboardBlock
                     title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
                     url: route('issues.show', [$issue->project, $issue]),
                     meta: implode(' / ', array_filter([
-                        $startsNow ? __('開始 :date', ['date' => $issue->start_date->toDateString()]) : null,
-                        $dueNow ? __('期日 :date', ['date' => $issue->due_date->toDateString()]) : null,
+                        $startsNow ? __('開始 :date', ['date' => DateTimes::date($issue->start_date)]) : null,
+                        $dueNow ? __('期日 :date', ['date' => DateTimes::date($issue->due_date)]) : null,
                     ])),
                 );
             });

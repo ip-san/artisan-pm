@@ -10,6 +10,8 @@ use App\Support\Activity\ActivityEntry;
 use App\Support\Activity\ActivityProviderRegistry;
 use App\Support\Dashboard\DashboardBlock;
 use App\Support\Dashboard\DashboardBlockRow;
+use App\Support\Format\DateTimes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -42,8 +44,8 @@ final class ActivityBlock implements DashboardBlock
     public function rows(User $user): Collection
     {
         $projects = $user->projects()->get();
-        $from = now()->subDays(self::LOOKBACK_DAYS)->startOfDay();
-        $to = now()->endOfDay();
+        $from = Carbon::instance(DateTimes::today($user)->subDays(self::LOOKBACK_DAYS)->utc());
+        $to = Carbon::instance(DateTimes::today($user)->endOfDay()->utc());
 
         return $projects
             ->flatMap(fn (Project $project) => $this->providers->all()
@@ -53,7 +55,7 @@ final class ActivityBlock implements DashboardBlock
             ->map(fn (ActivityEntry $entry) => new DashboardBlockRow(
                 title: $entry->title,
                 url: $entry->url,
-                meta: $entry->occurredAt->toDateString(),
+                meta: DateTimes::dateOf($entry->occurredAt, $user),
             ))
             ->values();
     }

@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Support\Dashboard\DashboardBlock;
 use App\Support\Dashboard\DashboardBlockRow;
+use App\Support\Format\DateTimes;
 use Illuminate\Support\Collection;
 
 /**
@@ -50,7 +51,7 @@ final class UpdatedByMeBlock implements DashboardBlock
             ->map(fn (Issue $issue) => new DashboardBlockRow(
                 title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
                 url: route('issues.show', [$issue->project, $issue]),
-                meta: $issue->updated_at?->toDateString(),
+                meta: DateTimes::dateOf($issue->updated_at, $user),
             ));
     }
 }

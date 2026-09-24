@@ -64,7 +64,7 @@ new #[Layout('components.layouts.app')] class extends Component
             }
             $this->user_id = auth()->id();
             $this->activity_id = $project->defaultActivityId(auth()->user());
-            $this->spent_on = now()->toDateString();
+            $this->spent_on = \App\Support\Format\DateTimes::today()->toDateString();
         }
     }
 
