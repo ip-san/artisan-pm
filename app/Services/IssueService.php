@@ -732,10 +732,9 @@ final class IssueService
     /**
      * Creates a new issue with the same core attributes and custom field
      * values as $source, in $targetProject. Matches a deliberately scoped
-     * subset of Redmine's Issue#copy: category and fixed version are
-     * project-local so they're reset (same reasoning as moveToProject),
-     * and the assignee is dropped if they aren't a member of the target
-     * project. Attachments and watchers are duplicated when the
+     * subset of Redmine's Issue#copy: the version and category follow
+     * Redmine's Issue#project= (see carriedVersionAndCategory()), and the
+     * assignee is dropped if they aren't a member of the target project. Attachments and watchers are duplicated when the
      * corresponding flag is true (both default true, matching Redmine's
      * bulk-copy form, whose checkboxes are checked by default). Subtasks
      * are duplicated only when $copySubtasks is true (see copySubtasks()).
@@ -763,6 +762,7 @@ final class IssueService
             ->all();
 
         $copy = $this->create([
+            ...$this->carriedVersionAndCategory($source, $targetProject, $targetProject->sharedVersions()->pluck('id')),
             'project_id' => $targetProject->id,
             'tracker_id' => $trackerId,
             'status_id' => $source->status_id,
@@ -771,8 +771,6 @@ final class IssueService
             'description' => $source->description,
             'assigned_to_id' => $assignedToId,
             'assigned_to_group_id' => $assignedToGroupId,
-            // Not copied (see above) and not defaulted either (A1-47).
-            'fixed_version_id' => null,
             'start_date' => $source->start_date,
             'due_date' => $source->due_date,
             'done_ratio' => $source->done_ratio,
@@ -826,9 +824,9 @@ final class IssueService
      * parent (a skipped subtask takes its whole subtree with it, since its
      * children have no copied parent to hang from). Each subtask keeps its
      * own tracker, so one the target project doesn't use, or the actor may
-     * not create issues with, is skipped; the
-     * version survives only when it is open and reachable from the target
-     * project, the category only inside the same project, and the assignee
+     * not create issues with, is skipped; an open version is carried over
+     * as for the copied issue itself (carriedVersionAndCategory()), any
+     * other is cleared, the category is kept or matched by name, and the assignee
      * only while active and a member of the target project. Subtasks the
      * actor may not see are never copied (no disclosure of private
      * issues). No copied_to relation is created for subtasks, like Redmine.
@@ -850,7 +848,7 @@ final class IssueService
                 ->visibleTo($actor, $source->project)
                 ->where('parent_id', $parentId)
                 ->orderBy('id')
-                ->with('fixedVersion')
+                ->with(['fixedVersion', 'category'])
                 ->get();
 
             foreach ($children as $child) {
@@ -868,8 +866,13 @@ final class IssueService
                     ? $child->assigned_to_group_id
                     : null;
 
-                $version = $child->fixedVersion;
-                $keepVersion = $version !== null && $version->status === VersionStatus::Open && $reachableVersionIds->contains($version->id);
+                $carried = $this->carriedVersionAndCategory($child, $targetProject, $reachableVersionIds);
+
+                // Redmine's after_create_from_copy clears the version of a
+                // subtask whose own version isn't open, default included.
+                if ($child->fixedVersion?->status !== VersionStatus::Open) {
+                    $carried['fixed_version_id'] = null;
+                }
 
                 $customFieldData = $child->relevantCustomFields()
                     ->mapWithKeys(fn (CustomField $field) => [$field->id => $this->normalizedCustomFieldValue($child, $field)])
@@ -885,8 +888,7 @@ final class IssueService
                     'description' => $child->description,
                     'assigned_to_id' => $assignedToId,
                     'assigned_to_group_id' => $assignedToGroupId,
-                    'fixed_version_id' => $keepVersion ? $child->fixed_version_id : null,
-                    'category_id' => $child->project_id === $targetProject->id ? $child->category_id : null,
+                    ...$carried,
                     'start_date' => $child->start_date,
                     'due_date' => $child->due_date,
                     'done_ratio' => $child->done_ratio,
@@ -911,6 +913,42 @@ final class IssueService
                 $queue[] = $child->id;
             }
         }
+    }
+
+    /**
+     * The version and category a copy of $issue takes into $targetProject,
+     * as Redmine's Issue#project= decides them: the version stays while it
+     * is open and shared with the target ($reachableVersionIds); otherwise
+     * the key is left out so create() fills in the target's default version
+     * — except for a copy within the same project of an issue without one,
+     * which Redmine leaves empty. The category stays within the same
+     * project and is matched by name in another one.
+     *
+     * @param  Collection<int, int>  $reachableVersionIds
+     * @return array{fixed_version_id?: ?int, category_id: ?int}
+     */
+    private function carriedVersionAndCategory(Issue $issue, Project $targetProject, Collection $reachableVersionIds): array
+    {
+        $issue->loadMissing(['fixedVersion', 'category']);
+        $sameProject = $issue->project_id === $targetProject->id;
+        $version = $issue->fixedVersion;
+        $attributes = [];
+
+        if ($version !== null && $version->status === VersionStatus::Open && $reachableVersionIds->contains($version->id)) {
+            $attributes['fixed_version_id'] = $version->id;
+        } elseif ($sameProject && $version === null) {
+            $attributes['fixed_version_id'] = null;
+        }
+
+        $category = $issue->category;
+
+        $attributes['category_id'] = match (true) {
+            $category === null => null,
+            $sameProject => $category->id,
+            default => IssueCategory::query()->where('project_id', $targetProject->id)->where('name', $category->name)->value('id'),
+        };
+
+        return $attributes;
     }
 
     /**

@@ -2,9 +2,11 @@
 
 use App\Enums\IssueRelationType;
 use App\Enums\UserStatus;
+use App\Enums\VersionStatus;
 use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Member;
@@ -12,6 +14,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use App\Services\IssueService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -226,4 +229,101 @@ test('the bulk copy form offers checkboxes to copy attachments and watchers, che
 
     expect($component->get('bulkCopyAttachments'))->toBeTrue()
         ->and($component->get('bulkCopyWatchers'))->toBeTrue();
+});
+
+/**
+ * @return array{source: Project, target: Project, tracker: Tracker, actor: User}
+ */
+function bulkCopyProjects(): array
+{
+    $source = Project::factory()->create();
+    $target = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $source->trackers()->attach($tracker);
+    $target->trackers()->attach($tracker);
+
+    return ['source' => $source, 'target' => $target, 'tracker' => $tracker, 'actor' => User::factory()->admin()->create()];
+}
+
+test('a copy keeps a version that is still open and shared with the target project (A1-47)', function () {
+    ['source' => $source, 'target' => $target, 'tracker' => $tracker, 'actor' => $actor] = bulkCopyProjects();
+    $shared = Version::factory()->for($source)->create(['sharing' => 'system']);
+    $default = Version::factory()->for($target)->create();
+    $target->update(['default_version_id' => $default->id]);
+    $issue = bulkCopyIssue($source, $tracker);
+    $issue->update(['fixed_version_id' => $shared->id]);
+
+    $copy = app(IssueService::class)->copy($issue, $target, $tracker->id, $actor);
+
+    expect($copy->fixed_version_id)->toBe($shared->id);
+});
+
+test('a copy takes the target default version when its own is not usable there (A1-47)', function () {
+    ['source' => $source, 'target' => $target, 'tracker' => $tracker, 'actor' => $actor] = bulkCopyProjects();
+    $own = Version::factory()->for($source)->create();
+    $closedShared = Version::factory()->for($source)->create(['sharing' => 'system', 'status' => VersionStatus::Closed]);
+    $default = Version::factory()->for($target)->create();
+    $target->update(['default_version_id' => $default->id]);
+    $unversioned = bulkCopyIssue($source, $tracker);
+    $notShared = bulkCopyIssue($source, $tracker);
+    $notShared->update(['fixed_version_id' => $own->id]);
+    $closed = bulkCopyIssue($source, $tracker);
+    $closed->update(['fixed_version_id' => $closedShared->id]);
+
+    foreach ([$unversioned, $notShared, $closed] as $issue) {
+        expect(app(IssueService::class)->copy($issue, $target, $tracker->id, $actor)->fixed_version_id)->toBe($default->id);
+    }
+});
+
+test('a copy within the project keeps its version, and one without a version stays without (A1-47)', function () {
+    ['source' => $source, 'tracker' => $tracker, 'actor' => $actor] = bulkCopyProjects();
+    $version = Version::factory()->for($source)->create();
+    $default = Version::factory()->for($source)->create();
+    $source->update(['default_version_id' => $default->id]);
+    $versioned = bulkCopyIssue($source, $tracker);
+    $versioned->update(['fixed_version_id' => $version->id]);
+    $unversioned = bulkCopyIssue($source, $tracker);
+
+    expect(app(IssueService::class)->copy($versioned, $source, $tracker->id, $actor)->fixed_version_id)->toBe($version->id)
+        ->and(app(IssueService::class)->copy($unversioned, $source, $tracker->id, $actor)->fixed_version_id)->toBeNull();
+});
+
+test('a copy keeps its category within the project and takes the same-named one in another project (A1-47)', function () {
+    ['source' => $source, 'target' => $target, 'tracker' => $tracker, 'actor' => $actor] = bulkCopyProjects();
+    $backend = IssueCategory::factory()->for($source)->create(['name' => 'Backend']);
+    $frontend = IssueCategory::factory()->for($source)->create(['name' => 'Frontend']);
+    $targetBackend = IssueCategory::factory()->for($target)->create(['name' => 'Backend']);
+    $withBackend = bulkCopyIssue($source, $tracker);
+    $withBackend->update(['category_id' => $backend->id]);
+    $withFrontend = bulkCopyIssue($source, $tracker);
+    $withFrontend->update(['category_id' => $frontend->id]);
+
+    expect(app(IssueService::class)->copy($withBackend, $source, $tracker->id, $actor)->category_id)->toBe($backend->id)
+        ->and(app(IssueService::class)->copy($withBackend, $target, $tracker->id, $actor)->category_id)->toBe($targetBackend->id)
+        ->and(app(IssueService::class)->copy($withFrontend, $target, $tracker->id, $actor)->category_id)->toBeNull();
+});
+
+test('copied subtasks take the target default only in place of an open version, and match categories by name (A1-47)', function () {
+    ['source' => $source, 'target' => $target, 'tracker' => $tracker, 'actor' => $actor] = bulkCopyProjects();
+    $openOwn = Version::factory()->for($source)->create();
+    $closedOwn = Version::factory()->for($source)->create(['status' => VersionStatus::Closed]);
+    $default = Version::factory()->for($target)->create();
+    $target->update(['default_version_id' => $default->id]);
+    $category = IssueCategory::factory()->for($source)->create(['name' => 'Backend']);
+    $targetCategory = IssueCategory::factory()->for($target)->create(['name' => 'Backend']);
+    $root = bulkCopyIssue($source, $tracker);
+    foreach (['open' => $openOwn->id, 'closed' => $closedOwn->id, 'none' => null] as $subject => $versionId) {
+        Issue::factory()->for($source)->create([
+            'tracker_id' => $tracker->id, 'status_id' => $root->status_id, 'priority_id' => $root->priority_id,
+            'parent_id' => $root->id, 'subject' => $subject, 'fixed_version_id' => $versionId, 'category_id' => $category->id,
+        ]);
+    }
+
+    app(IssueService::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
+    $copies = Issue::query()->where('project_id', $target->id)->whereNotNull('parent_id')->get()->keyBy('subject');
+
+    expect($copies['open']->fixed_version_id)->toBe($default->id)
+        ->and($copies['closed']->fixed_version_id)->toBeNull()
+        ->and($copies['none']->fixed_version_id)->toBeNull()
+        ->and($copies->pluck('category_id')->unique()->all())->toBe([$targetCategory->id]);
 });
