@@ -30,6 +30,8 @@
         .bar-done { height: 100%; border-radius: 2px; background: #4f46e5; }
         .label.project { font-weight: bold; }
         .timeline-row.project { background: #f9fafb; }
+        .relations { position: absolute; left: 220px; right: 0; }
+        .relation-segment { position: absolute; }
         .milestone { position: absolute; top: 0; height: 16px; line-height: 16px; color: #b45309; }
     </style>
 </head>
@@ -62,6 +64,14 @@
                 @endif
             </div>
         @endforeach
+
+        @if ($relationSegments !== [])
+            <div class="relations" style="top: {{ $rowHeight }}px; height: {{ $rowHeight * count($lines) }}px">
+                @foreach ($relationSegments as $segment)
+                    <div class="relation-segment" style="left: {{ $segment['left'] }}; width: {{ $segment['width'] }}; top: {{ $segment['top'] }}; height: {{ $segment['height'] }}; background: {{ $segment['color'] }}"></div>
+                @endforeach
+            </div>
+        @endif
     </div>
 </body>
 </html>

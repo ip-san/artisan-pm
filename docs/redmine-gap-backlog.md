@@ -252,10 +252,10 @@
 | 123b | A8-02b | A8-02 | S〜M | done(2026-09-20、API は A11-10 で対応済み) |
 | 124 | A8-04 | A8-02 | M | done(2026-09-20) |
 | 125 | A8-05 | — | S〜M | done(2026-09-20、一括編集は対象外) |
-| 126 | A9-01 | — | M | wip(2026-09-24、A9-01a〜c に分割) |
+| 126 | A9-01 | — | M | done(2026-09-24、A9-01a〜c) |
 | 126a | A9-01a | — | M | done(2026-09-24、行数上限はプロジェクト見出し・マイルストーンも数える。祖先プロジェクトは閲覧できるものだけ見出しに出す) |
 | 126b | A9-01b | A9-01a | M | done(2026-09-24、GD+同梱 IPAGothic。週/日の見出し(zoom)と遅延部分の赤は対象外。横断ガントの PDF も追加) |
-| 126c | A9-01c | A9-01a | S | todo |
+| 126c | A9-01c | A9-01a | S | done(2026-09-24、L 字の 2 本の div で近似。矢印なし) |
 | 127 | A9-03 | — | M | done(2026-09-20、max_occurs とブロック設定は A9-03b) |
 | 127b | A9-03b | A9-03 | M | done(2026-09-20、カレンダー等の設定は対象外) |
 | 128 | A9-04 | — | M | done(2026-09-20、ページング/件数上限は A9-04b) |
@@ -505,7 +505,7 @@
 
 | ID | Redmine 側の機能 | 本アプリの現状 | 残作業 | 前提・設計上の注意 | 規模 | checklist 行 |
 |---|---|---|---|---|---|---|
-| A9-01 | プロジェクト横断ガント(`/issues/gantt`)、PNG エクスポート、共有バージョンのマイルストーン、PDF 内の関連線、`gantt_items_limit`/`gantt_months_limit` | ~~ガントは `/projects/{project}/gantt` のみ~~ → A9-01a(2026-09-24): `gantt.global-index`(`/issues/gantt`)と共有バージョンのマイルストーンを追加。A9-01b(2026-09-24): PNG(GD)。PDF に関連線なし | `gantt.global-index` を他の global-index 群と同じ構成で追加。PNG は `Imagick`/`gd` で SVG→PNG。共有バージョン(`Version::sharing`)をマイルストーン候補に含める | 関連線の PDF は dompdf の SVG 対応が不安定なため要検証 | M | ダッシュボード「ガント」 |
+| A9-01 | プロジェクト横断ガント(`/issues/gantt`)、PNG エクスポート、共有バージョンのマイルストーン、PDF 内の関連線、`gantt_items_limit`/`gantt_months_limit` | ~~ガントは `/projects/{project}/gantt` のみ~~ → A9-01a(2026-09-24): `gantt.global-index`(`/issues/gantt`)と共有バージョンのマイルストーンを追加。A9-01b(2026-09-24): PNG(GD)。A9-01c(2026-09-24): PDF の関連線(div の L 字) | `gantt.global-index` を他の global-index 群と同じ構成で追加。PNG は `Imagick`/`gd` で SVG→PNG。共有バージョン(`Version::sharing`)をマイルストーン候補に含める | 関連線の PDF は dompdf の SVG 対応が不安定なため要検証 | M | ダッシュボード「ガント」 |
 | A9-02 | カレンダーへのバージョン期日表示 | `calendar/index.blade.php` に version の記述なし | プロジェクト(および共有)バージョンの `due_date` を◆で表示 | ガントのマイルストーン実装(`versions.roadmap`)を流用 | S | ダッシュボード「カレンダー」 |
 | A9-03 | マイページのブロック: `issuesupdatedbyme`(自分が更新した課題)、`calendar`、同一クエリの最大3回配置(`max_occurs`)、ブロックごとの設定(`my_page_settings`: 列/ソート) | `app/Support/Dashboard/Blocks/` は Activity/AssignedIssues/Documents/LatestNews/ReportedIssues/TimeEntries/WatchedIssues + SavedIssueQuery。同一クエリは1つまで | `UpdatedByMeBlock`(Journal の user_id 基準)、`CalendarBlock`(週表示)、ブロック設定 UI | calendar ブロックは「一覧形式に馴染まない」として見送られていた | M | ダッシュボード「マイページ」 |
 | A9-03b | マイページ: 同一の保存クエリを最大3回まで配置(`max_occurs`)、ブロックごとの設定(`my_page_settings`: 列/ソート) | 同一クエリは1つまで、ブロック設定なし | `user_dashboard_blocks` に設定 JSON 列を追加し、設定 UI とブロック側の反映を実装 | A9-03 で分離 | M | 「マイページ」 |

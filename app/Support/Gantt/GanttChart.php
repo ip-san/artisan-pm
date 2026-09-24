@@ -177,4 +177,47 @@ final class GanttChart
 
         return $lines;
     }
+
+    /**
+     * relationLines() as thin, absolutely positioned boxes for the PDF
+     * export: dompdf's SVG support isn't dependable, so each line is drawn
+     * as an elbow of two 1px segments (one along a row, one between the
+     * rows) instead of a diagonal. Corners are
+     * square and there's no arrowhead, a rougher version of Redmine's
+     * orthogonal connectors. left/width are percentages of the timeline,
+     * top/height pixels.
+     *
+     * @param  array<int, array{x1: float, y1: float, x2: float, y2: float, color: string, type: string}>  $relationLines
+     * @return array<int, array{left: string, width: string, top: string, height: string, color: string}>
+     */
+    public static function relationSegments(array $relationLines): array
+    {
+        $segments = [];
+
+        foreach ($relationLines as $line) {
+            // A target starting after the source ends: along the source row
+            // to the target's start, then down to it. Otherwise down from
+            // the source's end first, then back along the target row.
+            $forward = $line['x2'] >= $line['x1'];
+            $elbowX = $forward ? $line['x2'] : $line['x1'];
+            $horizontalFrom = min($line['x1'], $line['x2']);
+
+            $segments[] = [
+                'left' => round($horizontalFrom, 4).'%',
+                'width' => round(abs($line['x2'] - $line['x1']), 4).'%',
+                'top' => round($forward ? $line['y1'] : $line['y2']).'px',
+                'height' => '1px',
+                'color' => $line['color'],
+            ];
+            $segments[] = [
+                'left' => round($elbowX, 4).'%',
+                'width' => '1px',
+                'top' => round(min($line['y1'], $line['y2'])).'px',
+                'height' => (round(abs($line['y2'] - $line['y1'])) + 1).'px',
+                'color' => $line['color'],
+            ];
+        }
+
+        return $segments;
+    }
 }

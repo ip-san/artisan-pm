@@ -184,6 +184,11 @@ new #[Layout('components.layouts.app')] class extends Component
     private const int ROW_HEIGHT_PX = 32;
 
     /**
+     * The PDF export's row height (resources/views/pdf/gantt.blade.php).
+     */
+    private const int PDF_ROW_HEIGHT_PX = 16;
+
+    /**
      * Connector lines between related issues currently visible on this
      * chart (GanttChart::relationLines()).
      *
@@ -223,6 +228,20 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * The HTML the PDF export hands to dompdf.
+     */
+    public function pdfHtml(): string
+    {
+        return view('pdf.gantt', [
+            'documentTitle' => "{$this->project->identifier}-gantt",
+            'heading' => __(':project - ガントチャート (:date時点)', ['project' => $this->project->name, 'date' => \App\Support\Format\DateTimes::date(\App\Support\Format\DateTimes::today())]),
+            'chart' => $this->chart,
+            'lines' => $this->exportLines(),
+            'relationSegments' => GanttChart::relationSegments($this->relationLinesFor(self::PDF_ROW_HEIGHT_PX)),
+        ])->render();
+    }
+
+    /**
      * Matches Redmine's GanttsController#show format.pdf. Same
      * dompdf-over-a-print-styled-Blade-view approach as the issue/wiki PDF
      * exports; see resources/views/components/pdf/cjk-font.blade.php for why a
@@ -236,12 +255,7 @@ new #[Layout('components.layouts.app')] class extends Component
             abort(404);
         }
 
-        $html = view('pdf.gantt', [
-            'documentTitle' => "{$this->project->identifier}-gantt",
-            'heading' => __(':project - ガントチャート (:date時点)', ['project' => $this->project->name, 'date' => \App\Support\Format\DateTimes::date(\App\Support\Format\DateTimes::today())]),
-            'chart' => $this->chart,
-            'lines' => $this->exportLines(),
-        ])->render();
+        $html = $this->pdfHtml();
 
         $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape')->output();
 

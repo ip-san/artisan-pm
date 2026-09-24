@@ -46,6 +46,11 @@ new #[Layout('components.layouts.app')] class extends Component
     private const int ROW_HEIGHT_PX = 32;
 
     /**
+     * The PDF export's row height (resources/views/pdf/gantt.blade.php).
+     */
+    private const int PDF_ROW_HEIGHT_PX = 16;
+
+    /**
      * The projects whose issues are drawn: those the viewer can view_gantt in.
      *
      * @return Collection<int, Project>
@@ -200,6 +205,20 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * The HTML the PDF export hands to dompdf.
+     */
+    public function pdfHtml(): string
+    {
+        return view('pdf.gantt', [
+            'documentTitle' => 'gantt',
+            'heading' => __(':project - ガントチャート (:date時点)', ['project' => __('全プロジェクト'), 'date' => DateTimes::date(DateTimes::today())]),
+            'chart' => $this->chart,
+            'lines' => $this->exportLines(),
+            'relationSegments' => GanttChart::relationSegments($this->relationLinesFor(self::PDF_ROW_HEIGHT_PX)),
+        ])->render();
+    }
+
+    /**
      * Redmine's /issues/gantt.pdf — the same view as the project chart's PDF.
      */
     public function exportPdf(): StreamedResponse
@@ -208,12 +227,7 @@ new #[Layout('components.layouts.app')] class extends Component
             abort(404);
         }
 
-        $html = view('pdf.gantt', [
-            'documentTitle' => 'gantt',
-            'heading' => __(':project - ガントチャート (:date時点)', ['project' => __('全プロジェクト'), 'date' => DateTimes::date(DateTimes::today())]),
-            'chart' => $this->chart,
-            'lines' => $this->exportLines(),
-        ])->render();
+        $html = $this->pdfHtml();
 
         $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape')->output();
 

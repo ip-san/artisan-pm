@@ -2,6 +2,7 @@
 
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
@@ -9,6 +10,7 @@ use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
+use App\Support\Gantt\GanttChart;
 use Livewire\Livewire;
 
 function ganttPdfMember(Project $project, array $permissions = ['view_gantt', 'view_issues']): User
@@ -98,4 +100,48 @@ test('a milestone version with a due date appears in the exported PDF', function
     // Both render successfully; the milestone marker's presence is what
     // should make the version's PDF larger, not an error either way.
     expect(strlen($withVersion))->toBeGreaterThan(strlen($withoutVersion));
+});
+
+test('precedes and blocks relations are drawn in the PDF as two thin segments each', function () {
+    $project = Project::factory()->create();
+    $user = ganttPdfMember($project);
+    $first = Issue::factory()->for($project)->create([...ganttPdfIssueDefaults(), 'start_date' => '2026-01-01', 'due_date' => '2026-01-10']);
+    $second = Issue::factory()->for($project)->create([...ganttPdfIssueDefaults(), 'start_date' => '2026-01-11', 'due_date' => '2026-01-20']);
+    $third = Issue::factory()->for($project)->create([...ganttPdfIssueDefaults(), 'start_date' => '2026-01-05', 'due_date' => '2026-01-25']);
+    IssueRelation::create(['issue_from_id' => $first->id, 'issue_to_id' => $second->id, 'relation_type' => 'precedes']);
+    IssueRelation::create(['issue_from_id' => $second->id, 'issue_to_id' => $third->id, 'relation_type' => 'blocks']);
+    IssueRelation::create(['issue_from_id' => $first->id, 'issue_to_id' => $third->id, 'relation_type' => 'relates']);
+
+    $component = Livewire::actingAs($user)->test('gantt.index', ['project' => $project]);
+    $html = $component->instance()->pdfHtml();
+
+    expect(substr_count($html, 'class="relation-segment"'))->toBe(4)
+        ->and(substr_count($html, 'background: #228be6'))->toBe(2)
+        ->and(substr_count($html, 'background: #fa5252'))->toBe(2);
+
+    $pdf = base64_decode($component->call('exportPdf')->effects['download']['content']);
+    expect(substr($pdf, 0, 4))->toBe('%PDF');
+});
+
+test('an elbow reaches the target start whether it begins after or before the source ends', function () {
+    $forward = GanttChart::relationSegments([['x1' => 20.0, 'y1' => 8.0, 'x2' => 50.0, 'y2' => 40.0, 'color' => '#228be6', 'type' => 'precedes']]);
+    $backward = GanttChart::relationSegments([['x1' => 60.0, 'y1' => 8.0, 'x2' => 30.0, 'y2' => 40.0, 'color' => '#228be6', 'type' => 'precedes']]);
+
+    expect($forward)->toBe([
+        ['left' => '20%', 'width' => '30%', 'top' => '8px', 'height' => '1px', 'color' => '#228be6'],
+        ['left' => '50%', 'width' => '1px', 'top' => '8px', 'height' => '33px', 'color' => '#228be6'],
+    ])->and($backward)->toBe([
+        ['left' => '30%', 'width' => '30%', 'top' => '40px', 'height' => '1px', 'color' => '#228be6'],
+        ['left' => '60%', 'width' => '1px', 'top' => '8px', 'height' => '33px', 'color' => '#228be6'],
+    ]);
+});
+
+test('no relation segments are drawn when the chart has no relations', function () {
+    $project = Project::factory()->create();
+    $user = ganttPdfMember($project);
+    Issue::factory()->for($project)->create([...ganttPdfIssueDefaults(), 'start_date' => '2026-01-01', 'due_date' => '2026-01-10']);
+
+    $html = Livewire::actingAs($user)->test('gantt.index', ['project' => $project])->instance()->pdfHtml();
+
+    expect($html)->not->toContain('relation-segment"');
 });
