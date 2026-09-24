@@ -1,6 +1,7 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
+use App\Concerns\UsesSavedIssueQueriesOnGantt;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Version;
@@ -25,6 +26,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
+    use UsesSavedIssueQueriesOnGantt;
 
     /**
      * Redmine's gantt zoom (1-4, default 2): months, then week numbers, days
@@ -32,6 +34,11 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     #[Url]
     public int $zoom = 2;
+
+    protected function ganttProject(): ?Project
+    {
+        return $this->project;
+    }
 
     public function zoomIn(): void
     {
@@ -50,6 +57,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('viewGantt', $project);
 
         $this->project = $project;
+
+        // Redmine's gantt?query_id=: opens on a saved issue query.
+        if (request()->filled('query_id')) {
+            $this->loadQuery(request()->integer('query_id'));
+        }
     }
 
     #[Computed]
@@ -459,6 +471,28 @@ new #[Layout('components.layouts.app')] class extends Component
             </button>
         </div>
     </div>
+
+    <div class="mb-4 flex flex-wrap items-center gap-2 text-sm" data-gantt-saved-queries>
+        <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
+        @forelse ($this->savedQueries as $savedQuery)
+            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
+                {{ $savedQuery->name }}
+            </button>
+        @empty
+            <span class="text-neutral-400">{{ __('なし') }}</span>
+        @endforelse
+        @if ($this->canSaveQueries)
+            <button wire:click="$toggle('showSaveForm')" class="ml-2 text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
+        @endif
+    </div>
+    @if ($showSaveForm)
+        <div class="mb-4">
+            <x-saved-query-save-form
+                :can-manage-public-queries="$this->canManagePublicQueries"
+                :visibility="$newQueryVisibility"
+                :roles="$this->availableRoles" />
+        </div>
+    @endif
 
     <div class="mb-2 flex items-center gap-2 text-sm text-neutral-700" data-gantt-zoom-controls>
         <span>{{ __('ズーム') }}</span>

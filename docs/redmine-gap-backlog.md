@@ -273,7 +273,8 @@
 | 111 | A2-06 | — | S〜M | done(2026-09-20、グラフは対象外) |
 | 112 | A3-01 | — | M | done(2026-09-20) |
 | 113 | A3-02 / A3-11 / A13-05 | A3-01 | M | done(2026-09-20、save_queries と search_project は A13-05b) |
-| 113b | A13-05b | A13-05 | S〜M | done(2026-09-20、ガントの保存クエリは対象外) |
+| 113b | A13-05b | A13-05 | S〜M | done(2026-09-20、ガントの保存クエリは対象外 → A13-05c) |
+| 113c | A13-05c | A13-05b | S | done(2026-09-25、ガント(プロジェクト・横断)で課題の保存クエリの読み込みと保存。Redmine の gantt 固有オプション(関連線・進捗線の表示の保存)は対象外) |
 | 114 | A3-03 | — | M | done(2026-09-24、A3-03a/b。REST の `inherited` は A11-16) |
 | 114a | A3-03a | — | M | done(2026-09-24、親のメンバー変更の伝播・継承行の保護・移動/新規作成は A3-03b) |
 | 114b | A3-03b | A3-03a | M | done(2026-09-24) |
@@ -660,6 +661,7 @@
 | A13-04 | `manage_wiki`、`view_wiki_edits`、`delete_wiki_pages_attachments` | `delete_wiki_pages`/`edit_wiki_pages` に包含 | 権限追加+`WikiPagePolicy` | S | A7-05, A7-06 |
 | A13-05 | `add_project`、`select_project_publicity`、`view_members`、`manage_project_activities`、`save_queries`、`search_project` | 管理者専用/`edit_project`/`view_project`/`manage_public_queries` に包含 | グローバル権限の仕組み(A3-01)を導入したうえで追加。`view_members` はメンバー一覧タブの表示ゲート、`save_queries` は非公開クエリ保存のゲート、`search_project` は検索対象プロジェクトの制御 | M | A3-01, A3-02, A3-11 |
 | A13-05b | 権限 `save_queries`(課題/工数/ガントの保存クエリの作成・編集・削除のゲート。`allowed_to?(:save_queries, project, global: true)`)と `search_project`(検索のゲート) | 保存クエリは閲覧できれば誰でも保存でき、検索は `view_project` で開ける | 2 権限を登録し、既存ロールへ現行の挙動を保つ移行(保存クエリ=匿名以外の全ロール、検索=`view_project` 保持ロール)を付与、保存フォーム・検索ページ・API をゲート | A13-05 で分離 | S〜M | A13-05 |
+| A13-05c | ガントの保存クエリ(Redmine の `GanttsController` は `retrieve_query(IssueQuery)` で `query_id` を受け、サイドバーに課題のクエリ、保存は `save_queries`) | **done(2026-09-25)**。`App\Concerns\UsesSavedIssueQueriesOnGantt`(保存済みクエリの一覧・`loadQuery()`(フィルタのみ)・`saveQuery()`)をプロジェクト/横断のガントに。`?query_id=`。テスト: `GanttSavedQueryTest.php` | 保存クエリなし | 関連線・進捗線の表示オプションの保存は無い | S | A13-05 |
 | A13-06 | `commit_access`(リポジトリへの書き込み権限、`/sys` WS でのアクセス制御に使用) | なし | A10-03 と同時 | S | A10-03 |
 | A13-07 | `use_webhooks` | なし | A12-02 と同時 | S | A12-02 |
 
