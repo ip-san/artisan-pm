@@ -4,6 +4,7 @@ use App\Concerns\SelectsPageSize;
 use App\Models\News;
 use App\Models\Project;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -31,7 +32,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $visibleProjectIds = Project::query()
             ->whereIn('id', News::query()->distinct()->pluck('project_id'))
             ->get()
-            ->filter(fn (Project $project) => auth()->user()?->can('viewAny', [News::class, $project]))
+            ->filter(fn (Project $project) => Gate::allows('viewAny', [News::class, $project]))
             ->pluck('id');
 
         return News::query()

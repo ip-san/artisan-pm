@@ -73,6 +73,7 @@ function anonymousGlobalUrls(object $scenario): array
         'gantt' => [route('gantt.global-index'), '見えてよい課題ZQX'],
         'search' => [route('search.global-index', ['query' => 'ZQX']), '見えてよい課題ZQX'],
         'activity' => [route('activity.global-index'), '見えてよい課題ZQX'],
+        'global news' => [route('news.global-index'), '公開ニュースZQX'],
         'boards' => [route('boards.index', $project), '公開フォーラムZQX'],
         'board' => [route('boards.show', [$project, $scenario->board]), '公開トピックZQX'],
         'topic' => [route('messages.show', [$project, $scenario->board, $scenario->topic]), '公開トピックZQX'],
@@ -152,6 +153,25 @@ test('without the permission the global pages show nothing of that project', fun
     }
 });
 
+test('the global news list shows a guest only the news of public projects whose Anonymous role may view news (A1-52)', function () {
+    $scenario = anonymousGlobalScenario();
+    News::factory()->for($scenario->private)->create(['title' => '非公開のニュースZQX']);
+    $noModule = Project::factory()->create(['is_public' => true]);
+    $noModule->syncModules([ProjectModuleKey::IssueTracking]);
+    News::factory()->for($noModule)->create(['title' => 'モジュール無効のニュースZQX']);
+
+    $this->get(route('news.global-index'))->assertOk()
+        ->assertSee('公開ニュースZQX')
+        ->assertDontSee('非公開のニュースZQX')
+        ->assertDontSee('モジュール無効のニュースZQX');
+});
+
+test('without view_news the global news list shows a guest nothing', function () {
+    anonymousGlobalScenario(['view_project']);
+
+    $this->get(route('news.global-index'))->assertOk()->assertDontSee('公開ニュースZQX');
+});
+
 test('a guest is refused the pages of a disabled module and the global pages skip it', function () {
     $scenario = anonymousGlobalScenario();
     $scenario->project->syncModules(collect(ProjectModuleKey::defaults())
@@ -197,6 +217,7 @@ test('the header offers a guest the pages open to them only while login_required
         ->assertSee(route('issues.global-index'))
         ->assertSee(route('activity.global-index'))
         ->assertSee(route('search.global-index'))
+        ->assertSee(route('news.global-index'))
         ->assertDontSee(route('my-page.index'))
         ->assertDontSee(route('time-entries.global-index'));
 });
