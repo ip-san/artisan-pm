@@ -27,6 +27,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 use Webklex\PHPIMAP\ClientManager;
 use Webklex\PHPIMAP\Exceptions\ConnectionFailedException;
@@ -294,16 +295,27 @@ final class IncomingMailService
 
         ['values' => $customFieldData, 'body' => $body] = $this->extractCustomFieldKeywords($body, $project, (int) ($keywordAttributes['tracker_id'] ?? $trackerId), $author);
 
-        $issue = $this->issues->create([
-            'project_id' => $project->id,
-            'tracker_id' => $trackerId,
-            'status_id' => $statusId,
-            'priority_id' => $priorityId,
-            'subject' => $subject !== '' ? $subject : '(no subject)',
-            'description' => $body,
-            'start_date' => StartDateDefault::forApiAndMail($author),
-            ...$keywordAttributes,
-        ], $author, $customFieldData);
+        // Redmine's receive_issue: the keyword attributes and custom fields
+        // go through the sender's workflow (read-only fields and those the
+        // tracker disables are ignored), the subject and description are set
+        // as they are, and a required field left blank rejects the mail.
+        try {
+            $issue = $this->issues->create([
+                'project_id' => $project->id,
+                'tracker_id' => $trackerId,
+                'status_id' => $statusId,
+                'priority_id' => $priorityId,
+                'start_date' => StartDateDefault::forApiAndMail($author),
+                ...$keywordAttributes,
+            ], $author, $customFieldData, applyFieldRules: true, attributesOutsideFieldRules: [
+                'subject' => $subject !== '' ? $subject : '(no subject)',
+                'description' => $body,
+            ]);
+        } catch (ValidationException $exception) {
+            Log::info('Incoming mail: the issue was not created.', ['from' => $mail->fromEmail, 'errors' => $exception->errors()]);
+
+            return null;
+        }
 
         foreach ($mail->attachments as $attachment) {
             if ($attachment['content'] === '') {
@@ -361,7 +373,18 @@ final class IncomingMailService
             $customFieldData = [];
         }
         $comment = trim($body);
-        $updated = $this->issues->update($issue, $keywordAttributes, $author, $comment !== '' ? $comment : null, $customFieldData);
+
+        // A sender who may edit the issue goes through the workflow like the
+        // issue form (read-only and disabled fields ignored, required ones
+        // must stay filled — otherwise the reply is rejected, as Redmine's
+        // save! fails); a notes-only reply is a comment.
+        try {
+            $updated = $this->issues->update($issue, $keywordAttributes, $author, $comment !== '' ? $comment : null, $customFieldData, applyFieldRules: Gate::forUser($author)->allows('update', $issue));
+        } catch (ValidationException $exception) {
+            Log::info('Incoming mail: the reply was not recorded.', ['issue_id' => $issue->id, 'errors' => $exception->errors()]);
+
+            return null;
+        }
 
         foreach ($mail->attachments as $attachment) {
             if ($attachment['content'] === '') {

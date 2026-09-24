@@ -29,6 +29,7 @@ use App\Models\User;
 use App\Models\Watcher;
 use App\Rules\IssueRelationTarget;
 use App\Support\Calendar\WorkingDays;
+use App\Support\Issues\IssueFieldRules;
 use App\Support\Mail\MentionParser;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -69,16 +70,36 @@ final class IssueService
      * Leaving `fixed_version_id` out of $attributes lets the project's
      * default version fill it; passing it (even as null) keeps it as given.
      *
+     * With $applyFieldRules (input from a user: the form, REST, CSV import,
+     * incoming mail) the workflow's read-only fields and the fields the
+     * tracker disables are dropped and its required fields must be filled
+     * once the defaults are in — Redmine's safe_attributes= and
+     * validate_required_fields (IssueFieldRules).
+     *
      * @param  array<string, mixed>  $attributes
      * @param  array<int, mixed>  $customFieldData  custom_field_id => raw input
+     * @param  array<string, mixed>  $attributesOutsideFieldRules  set as given even with $applyFieldRules
+     *                                                             (incoming mail's subject and description,
+     *                                                             which Redmine's MailHandler assigns directly)
+     *
+     * @throws ValidationException when $applyFieldRules and a required field is blank
      */
-    public function create(array $attributes, User $author, array $customFieldData = []): Issue
+    public function create(array $attributes, User $author, array $customFieldData = [], bool $applyFieldRules = false, array $attributesOutsideFieldRules = []): Issue
     {
         $issue = new Issue;
-        $issue->fill($attributes);
         $issue->author_id = $author->id;
+        $fieldRules = null;
+
+        if ($applyFieldRules) {
+            [$attributes, $customFieldData, $fieldRules] = IssueFieldRules::filterInput($issue, $attributes, $customFieldData, $author);
+        }
+
+        $attributes = [...$attributes, ...$attributesOutsideFieldRules];
+
+        $issue->fill($attributes);
         $this->applyCreationDefaults($issue, versionGiven: array_key_exists('fixed_version_id', $attributes));
         $this->applyStatusDoneRatio($issue);
+        $fieldRules?->assertRequiredFilled($issue, $customFieldData);
         $issue->save();
 
         // The fields the author may set, not whoever is signed in: a queued
@@ -335,11 +356,15 @@ final class IssueService
      *                                                back on itself (not fully caught by relation-creation
      *                                                validation, see the checklist's "循環/プロジェクト間検証"
      *                                                note) can't recurse forever
+     * @param  bool  $applyFieldRules  input from a user: drop the fields the workflow makes read-only or
+     *                                 the tracker disables, and require the workflow's required fields
+     *                                 (see create())
      *
      * @throws StaleIssueUpdateException if $expectedLockVersion is given and no longer matches — someone
      *                                   else saved a change since the caller loaded this issue
+     * @throws ValidationException when $applyFieldRules and a required field would be left blank
      */
-    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null, array $customFieldData = [], ?int $expectedLockVersion = null, bool $commentIsPrivate = false, array $rescheduledIssueIds = []): Issue
+    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null, array $customFieldData = [], ?int $expectedLockVersion = null, bool $commentIsPrivate = false, array $rescheduledIssueIds = [], bool $applyFieldRules = false): Issue
     {
         if (in_array($issue->id, $rescheduledIssueIds, true) || count($rescheduledIssueIds) >= self::MAX_RESCHEDULE_CHAIN_LENGTH) {
             return $issue;
@@ -347,6 +372,14 @@ final class IssueService
 
         if ($expectedLockVersion !== null && $expectedLockVersion !== $issue->lock_version) {
             throw new StaleIssueUpdateException($issue);
+        }
+
+        if ($applyFieldRules) {
+            [$attributes, $customFieldData, $fieldRules] = IssueFieldRules::filterInput($issue, $attributes, $customFieldData, $actor);
+            $fieldRules->assertRequiredFilled(
+                (clone $issue)->fill($attributes),
+                $customFieldData + $issue->customFieldFormValues($fieldRules->customFields()),
+            );
         }
 
         $original = $issue->only(self::JOURNALED_ATTRIBUTES);

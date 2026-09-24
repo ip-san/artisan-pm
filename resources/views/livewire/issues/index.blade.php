@@ -1243,17 +1243,35 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         }
 
+        // Redmine's bulk_update: each issue takes the change through its own
+        // workflow — fields read-only for it (or disabled by its tracker) are
+        // left as they are, and an issue whose required field would be blank
+        // is not saved; the others are.
+        $failedIds = [];
+
         foreach ($issues as $issue) {
-            app(IssueService::class)->update($issue, $changes, auth()->user(), $this->bulkComment ?: null, $customFieldInput);
+            try {
+                app(IssueService::class)->update($issue, $changes, auth()->user(), $this->bulkComment ?: null, $customFieldInput, applyFieldRules: true);
+            } catch (ValidationException) {
+                $failedIds[] = $issue->id;
+            }
         }
 
-        $count = $issues->count();
+        $count = $issues->count() - count($failedIds);
 
         $this->reset(['selected', 'bulkPriorityId', 'bulkAssignedToId', 'bulkAssignedToGroupId', 'bulkAssigneeChoice', 'bulkFixedVersionId', 'bulkStatusId', 'bulkDoneRatio', 'bulkTrackerId', 'bulkCategoryId', 'bulkStartDate', 'bulkDueDate', 'bulkIsPrivate', 'bulkParentId', 'bulkComment', 'bulkClear', 'bulkCustomFieldValues']);
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals);
 
         session()->flash('status', __(':count件の課題を更新しました。', ['count' => $count]));
+
+        if ($failedIds !== []) {
+            session()->flash('error', __('選択した:total件のうち:count件の課題を保存できませんでした: :ids', [
+                'total' => $issues->count(),
+                'count' => count($failedIds),
+                'ids' => collect($failedIds)->map(fn (int $id) => "#{$id}")->implode(', '),
+            ]));
+        }
     }
 
     /**

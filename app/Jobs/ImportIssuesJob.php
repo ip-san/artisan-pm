@@ -256,10 +256,15 @@ final class ImportIssuesJob implements ShouldQueue
                 $attributes['parent_id'] = $parentId;
             }
 
+            // Redmine's IssueImport sets the row through safe_attributes= as
+            // the importing user: the workflow's read-only fields and those
+            // the tracker disables are ignored, a required one left blank
+            // fails the row.
             $issue = $this->issueService->create(
                 $attributes,
                 $this->import->user,
                 $this->customFieldData($record, $this->mapping, $attributes['tracker_id']),
+                applyFieldRules: true,
             );
 
             $this->issueIdByIndex[$index] = $issue->id;

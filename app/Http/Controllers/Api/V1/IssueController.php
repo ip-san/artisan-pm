@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreIssueRequest;
 use App\Http\Requests\Api\V1\UpdateIssueRequest;
 use App\Http\Resources\Api\V1\IssueResource;
+use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
@@ -24,6 +25,7 @@ use App\Support\Api\CustomFieldPayload;
 use App\Support\Api\RedmineIssueListParams;
 use App\Support\Attachments\PendingUploadAttacher;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Issues\IssueFieldRules;
 use App\Support\Issues\StartDateDefault;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\IssueFilterFieldRegistry;
@@ -342,9 +344,15 @@ final class IssueController extends Controller
             ? $requestedStatusId
             : $workflow->defaultInitialStatusId($project, $tracker, $user);
 
+        // A custom field the workflow makes read-only is not the caller's to
+        // fill, so it is neither validated nor kept (Redmine validates only
+        // editable_custom_field_values).
+        $newIssue = (new Issue)->forceFill(['project_id' => $project->id, 'tracker_id' => $tracker->id, 'status_id' => $statusId, 'author_id' => $user->id]);
+        $fieldRules = IssueFieldRules::for($newIssue, $user);
+
         $customFieldData = CustomFieldPayload::extract(
             $request,
-            (new Issue)->forceFill(['project_id' => $project->id, 'tracker_id' => $tracker->id])->relevantCustomFields(),
+            $newIssue->relevantCustomFields()->reject(fn (CustomField $field) => $fieldRules->isReadOnly("cf_{$field->id}")),
             $user,
             requireAll: true,
             project: $project,
@@ -352,10 +360,13 @@ final class IssueController extends Controller
 
         $data['start_date'] = filled($data['start_date'] ?? null) ? $data['start_date'] : StartDateDefault::forApiAndMail($user);
 
+        // The workflow's read-only fields and those the tracker disables are
+        // ignored, its required ones must be given (422 otherwise).
         $issue = app(IssueService::class)->create(
             [...$data, 'project_id' => $project->id, 'status_id' => $statusId],
             $user,
             $customFieldData,
+            applyFieldRules: true,
         );
 
         // Active members only, like the form's watcher picker.
@@ -423,10 +434,16 @@ final class IssueController extends Controller
         }
 
         try {
-            $customFieldData = $canEdit
-                ? CustomFieldPayload::extract($request, $issue->relevantCustomFields(), $user, project: $issue->project)
+            // A custom field read-only under the resulting tracker and status
+            // is ignored before its value is validated, as in Redmine.
+            $targetRules = $canEdit ? IssueFieldRules::filterInput($issue, $data, [], $user)[2] : null;
+            $customFieldData = $targetRules !== null
+                ? CustomFieldPayload::extract($request, $issue->relevantCustomFields()->reject(fn (CustomField $field) => $targetRules->isReadOnly("cf_{$field->id}")), $user, project: $issue->project)
                 : [];
-            $issue = app(IssueService::class)->update($issue, $data, $user, $notes, $customFieldData, $expectedLockVersion, $notesArePrivate);
+            // Like the issue form: read-only and disabled fields are ignored and
+            // the required ones must stay filled — for a caller who edits; a
+            // notes-only update is a comment, as on the issue page.
+            $issue = app(IssueService::class)->update($issue, $data, $user, $notes, $customFieldData, $expectedLockVersion, $notesArePrivate, applyFieldRules: $canEdit);
         } catch (StaleIssueUpdateException $exception) {
             return response()->json([
                 'message' => __('課題が他のユーザーによって更新されています。最新の内容を取得して、もう一度やり直してください。'),

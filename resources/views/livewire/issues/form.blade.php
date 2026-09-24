@@ -22,6 +22,7 @@ use App\Support\Attachments\AttachmentValidationRules;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\CopyOptions;
+use App\Support\Issues\IssueFieldRules;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -112,9 +113,6 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
     public array $customFieldValues = [];
 
-    /** @var array<string, string> */
-    public array $fieldRules = [];
-
     /** @var array<int, IssueStatus> */
     public Collection $allowedStatuses;
 
@@ -151,7 +149,6 @@ new #[Layout('components.layouts.app')] class extends Component
                 $this->logTimeActivityId = $project->defaultActivityId(auth()->user());
             }
 
-            $this->fieldRules = app(WorkflowService::class)->fieldRules($issue, auth()->user());
             $this->allowedStatuses = app(WorkflowService::class)->allowedTransitions($issue, auth()->user())
                 ->push($issue->status)
                 ->unique('id');
@@ -583,14 +580,54 @@ new #[Layout('components.layouts.app')] class extends Component
             ->relevantCustomFields();
     }
 
-    public function isRequired(string $field): bool
+    /**
+     * The workflow's read-only/required rules and the tracker's disabled
+     * fields for the issue as it would be saved: the chosen tracker and
+     * status (a new issue's starting status). Worked out on the server from
+     * the form's state on every request, never taken from the client.
+     */
+    #[Computed]
+    public function fieldRules(): IssueFieldRules
     {
-        return ($this->fieldRules[$field] ?? null) === 'required';
+        $user = auth()->user();
+
+        if ($this->issue !== null) {
+            return IssueFieldRules::filterInput($this->issue, ['tracker_id' => $this->tracker_id, 'status_id' => $this->status_id], [], $user)[2];
+        }
+
+        $issue = (new Issue)->forceFill(['project_id' => $this->project->id, 'author_id' => $user->id]);
+
+        return IssueFieldRules::filterInput($issue, ['tracker_id' => $this->tracker_id, 'status_id' => $this->newIssueStatusId()], [], $user)[2];
     }
 
+    public function isRequired(string $field): bool
+    {
+        return $this->fieldRules->isRequired($field);
+    }
+
+    /**
+     * The tracker is read-only by the rules of the issue as it stands
+     * (Redmine checks it before the tracker changes); every other field by
+     * those of the issue as it would be saved.
+     */
     public function isReadOnly(string $field): bool
     {
-        return ($this->fieldRules[$field] ?? null) === 'read_only';
+        if ($field === 'tracker_id' && $this->issue !== null) {
+            return IssueFieldRules::for($this->issue, auth()->user())->isReadOnly('tracker_id');
+        }
+
+        return $this->fieldRules->isReadOnly($field);
+    }
+
+    /**
+     * Only a status the workflow lets this user start in; anything else (a
+     * tampered value) falls back to the tracker's default.
+     */
+    private function newIssueStatusId(): ?int
+    {
+        return $this->initialStatuses->contains('id', $this->status_id)
+            ? $this->status_id
+            : $this->defaultStatusIdForTracker($this->tracker_id);
     }
 
     #[Computed]
@@ -719,8 +756,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'newAttachments.*' => AttachmentValidationRules::rules(),
         ];
 
-        foreach ($this->fieldRules as $field => $rule) {
-            if ($rule === 'required' && isset($rules[$field])) {
+        foreach (array_keys($this->fieldRules->rules()) as $field) {
+            if ($this->isRequired($field) && isset($rules[$field])) {
                 $rules[$field] = [...array_diff($rules[$field], ['nullable']), 'required'];
             }
         }
@@ -743,8 +780,10 @@ new #[Layout('components.layouts.app')] class extends Component
             $rules['logTimeComments'] = ['nullable', 'string'];
         }
 
+        // A custom field the workflow makes read-only is not validated (it is
+        // ignored when saving, as in Redmine).
         $rules = [...$rules, ...CustomField::formValidationRules(
-            $this->customFields,
+            $this->customFields->reject(fn (CustomField $field) => $this->isReadOnly("cf_{$field->id}")),
             fn (CustomField $field) => $this->isRequired("cf_{$field->id}"),
             $this->project,
         )];
@@ -810,6 +849,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     // Trusts the checkbox's own gate, not the client: see
                     // issues/show.blade.php's addComment() for the same check.
                     $this->commentIsPrivate && auth()->user()->can('setNotesPrivate', $this->issue),
+                    applyFieldRules: true,
                 );
             } catch (StaleIssueUpdateException) {
                 $this->addError('lockVersion', __('この課題は他のユーザーによって更新されています。ページを再読み込みして最新の内容を確認してから、再度保存してください。'));
@@ -818,12 +858,10 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         } else {
             $data['project_id'] = $this->project->id;
-            // Only a status the workflow lets this user start in; anything
-            // else (a tampered value) falls back to the tracker's default.
-            $data['status_id'] = $this->initialStatuses->contains('id', $this->status_id)
-                ? $this->status_id
-                : $this->defaultStatusIdForTracker($this->tracker_id);
-            $issue = app(IssueService::class)->create($data, auth()->user(), $customFieldData);
+            $data['status_id'] = $this->newIssueStatusId();
+            // The workflow's read-only fields and the tracker's disabled ones
+            // are dropped on the server, whatever the client sent.
+            $issue = app(IssueService::class)->create($data, auth()->user(), $customFieldData, applyFieldRules: true);
 
             // Only members the picker offered (a crafted id is dropped), and
             // only for someone who may add watchers.
@@ -906,7 +944,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @if (! $issue && $this->initialStatuses->count() > 1)
                 <div>
                     <label class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
-                    <select wire:model="status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm" data-initial-status>
+                    <select wire:model.live="status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm" data-initial-status>
                         @foreach ($this->initialStatuses as $status)
                             <option value="{{ $status->id }}">{{ $status->name }}</option>
                         @endforeach
@@ -918,7 +956,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($issue)
                 <div>
                     <label class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
-                    <select wire:model="status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <select wire:model.live="status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         @foreach ($allowedStatuses as $status)
                             <option value="{{ $status->id }}">{{ $status->name }}</option>
                         @endforeach
