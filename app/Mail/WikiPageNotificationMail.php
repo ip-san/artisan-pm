@@ -8,6 +8,7 @@ use App\Concerns\FormatsDatesForRecipient;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\WikiPage;
+use App\Support\Mail\EmailDecorations;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -52,6 +53,8 @@ final class WikiPageNotificationMail extends Mailable
             'actor' => $this->actor,
             'header' => Setting::get('emails_header', ''),
             'footer' => Setting::get('emails_footer', ''),
+            'headerHtml' => EmailDecorations::headerHtml(),
+            'footerHtml' => EmailDecorations::footerHtml(),
             'url' => route('wiki.show', [$this->wikiPage->project, $this->wikiPage]),
         ];
 

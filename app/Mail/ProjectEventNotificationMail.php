@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Concerns\FormatsDatesForRecipient;
 use App\Models\Setting;
+use App\Support\Mail\EmailDecorations;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -48,6 +49,8 @@ final class ProjectEventNotificationMail extends Mailable
             'body' => $this->body,
             'header' => Setting::get('emails_header', ''),
             'footer' => Setting::get('emails_footer', ''),
+            'headerHtml' => EmailDecorations::headerHtml(),
+            'footerHtml' => EmailDecorations::footerHtml(),
         ];
 
         if ((bool) Setting::get('plain_text_mail', false)) {

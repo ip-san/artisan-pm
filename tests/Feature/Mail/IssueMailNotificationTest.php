@@ -2,16 +2,22 @@
 
 use App\Enums\MailNotificationOption;
 use App\Mail\IssueNotificationMail;
+use App\Mail\NewsNotificationMail;
+use App\Mail\WikiPageNotificationMail;
 use App\Models\CustomField;
 use App\Models\Enumeration;
-use App\Models\IssueStatus;
 use App\Models\Group;
+use App\Models\Issue;
+use App\Models\IssueStatus;
+use App\Models\Journal;
 use App\Models\Member;
+use App\Models\News;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\WikiPage;
 use App\Notifications\IssueNotification;
 use App\Services\IssueService;
 use Illuminate\Support\Facades\Notification;
@@ -253,13 +259,13 @@ function issueMailWithDetails(array $details): array
 {
     $project = Project::factory()->create();
     $actor = notifiableMember($project, MailNotificationOption::OnlyMyEvents);
-    $issue = App\Models\Issue::factory()->for($project)->create(mailIssueDefaults());
-    $journal = App\Models\Journal::create(['issue_id' => $issue->id, 'user_id' => $actor->id, 'notes' => null]);
+    $issue = Issue::factory()->for($project)->create(mailIssueDefaults());
+    $journal = Journal::create(['issue_id' => $issue->id, 'user_id' => $actor->id, 'notes' => null]);
     foreach ($details as $detail) {
         $journal->details()->create($detail);
     }
 
-    $mail = new App\Mail\IssueNotificationMail($issue->fresh(), 'updated', $actor, $journal->load('details'));
+    $mail = new IssueNotificationMail($issue->fresh(), 'updated', $actor, $journal->load('details'));
 
     return [$mail, $mail->render()];
 }
@@ -315,13 +321,13 @@ function issueMailSubject(string $eventType, array $details = []): string
     $project = Project::factory()->create(['name' => 'Acme']);
     $actor = notifiableMember($project, MailNotificationOption::OnlyMyEvents);
     $status = IssueStatus::query()->firstOrCreate(['name' => 'In Progress']);
-    $issue = App\Models\Issue::factory()->for($project)->create([...mailIssueDefaults(), 'status_id' => $status->id, 'subject' => 'Broken page']);
-    $journal = App\Models\Journal::create(['issue_id' => $issue->id, 'user_id' => $actor->id, 'notes' => null]);
+    $issue = Issue::factory()->for($project)->create([...mailIssueDefaults(), 'status_id' => $status->id, 'subject' => 'Broken page']);
+    $journal = Journal::create(['issue_id' => $issue->id, 'user_id' => $actor->id, 'notes' => null]);
     foreach ($details as $detail) {
         $journal->details()->create($detail);
     }
 
-    return (new App\Mail\IssueNotificationMail($issue->fresh(), $eventType, $actor, $journal->load('details')))->envelope()->subject;
+    return (new IssueNotificationMail($issue->fresh(), $eventType, $actor, $journal->load('details')))->envelope()->subject;
 }
 
 test('a new issue subject carries the status by default', function () {
@@ -357,16 +363,31 @@ test('the email header is printed above the content in issue, wiki and news mail
 
     $project = Project::factory()->create();
     $actor = notifiableMember($project, MailNotificationOption::OnlyMyEvents);
-    $page = App\Models\WikiPage::factory()->for($project)->create();
-    $news = App\Models\News::factory()->for($project)->create();
+    $page = WikiPage::factory()->for($project)->create();
+    $news = News::factory()->for($project)->create();
 
     Setting::set('plain_text_mail', false);
-    expect((new App\Mail\WikiPageNotificationMail($page, 'created', $actor))->render())->toContain('HEADER-LINE')
-        ->and((new App\Mail\NewsNotificationMail($news, 'added', $actor))->render())->toContain('HEADER-LINE');
+    expect((new WikiPageNotificationMail($page, 'created', $actor))->render())->toContain('HEADER-LINE')
+        ->and((new NewsNotificationMail($news, 'added', $actor))->render())->toContain('HEADER-LINE');
 
     Setting::set('plain_text_mail', true);
-    expect((new App\Mail\WikiPageNotificationMail($page, 'created', $actor))->render())->toContain('HEADER-LINE')
-        ->and((new App\Mail\NewsNotificationMail($news, 'added', $actor))->render())->toContain('HEADER-LINE');
+    expect((new WikiPageNotificationMail($page, 'created', $actor))->render())->toContain('HEADER-LINE')
+        ->and((new NewsNotificationMail($news, 'added', $actor))->render())->toContain('HEADER-LINE');
+});
+
+test('the email header and footer are formatted as Markdown in the html part and kept raw in the text part', function () {
+    Setting::set('emails_header', '**Bold notice** <script>alert(1)</script>');
+    Setting::set('emails_footer', 'Manage settings at [your account](https://example.test/my/account)');
+
+    [, $html] = issueMailWithDetails([['property' => 'attr', 'prop_key' => 'subject', 'old_value' => 'a', 'new_value' => 'b']]);
+    Setting::set('plain_text_mail', true);
+    [, $text] = issueMailWithDetails([['property' => 'attr', 'prop_key' => 'subject', 'old_value' => 'a', 'new_value' => 'b']]);
+
+    expect($html)->toContain('<strong>Bold notice</strong>')
+        ->and($html)->toContain('<a href="https://example.test/my/account"')
+        ->and($html)->not->toContain('<script>alert(1)</script>')
+        ->and($text)->toContain('**Bold notice**')
+        ->and($text)->toContain('[your account](https://example.test/my/account)');
 });
 
 test('no header block is printed when the header is empty', function () {

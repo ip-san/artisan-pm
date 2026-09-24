@@ -9,6 +9,7 @@ use App\Models\News;
 use App\Models\NewsComment;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\Mail\EmailDecorations;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -54,6 +55,8 @@ final class NewsNotificationMail extends Mailable
             'comment' => $this->comment,
             'header' => Setting::get('emails_header', ''),
             'footer' => Setting::get('emails_footer', ''),
+            'headerHtml' => EmailDecorations::headerHtml(),
+            'footerHtml' => EmailDecorations::footerHtml(),
             'url' => route('news.show', [$this->news->project, $this->news]),
         ];
 

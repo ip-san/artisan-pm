@@ -11,6 +11,7 @@ use App\Models\Journal;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Support\Mail\EmailDecorations;
 use App\Support\Mail\MessageIdentity;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -142,6 +143,8 @@ final class IssueNotificationMail extends Mailable
             'changes' => $this->changes(),
             'header' => Setting::get('emails_header', ''),
             'footer' => Setting::get('emails_footer', ''),
+            'headerHtml' => EmailDecorations::headerHtml(),
+            'footerHtml' => EmailDecorations::footerHtml(),
             'url' => route('issues.show', [$this->issue->project, $this->issue]),
         ];
 

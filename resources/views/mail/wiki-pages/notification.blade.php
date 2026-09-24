@@ -2,7 +2,7 @@
 <html>
 <body style="font-family: sans-serif; font-size: 14px; color: #1f2933;">
     @if ($header)
-        <p style="color: #6b7280; font-size: 12px;">{{ $header }}</p>
+        <div style="color: #6b7280; font-size: 12px;">{!! $headerHtml !!}</div>
         <hr>
     @endif
 
@@ -17,7 +17,7 @@
 
     @if ($footer)
         <hr>
-        <p style="color: #6b7280; font-size: 12px;">{{ $footer }}</p>
+        <div style="color: #6b7280; font-size: 12px;">{!! $footerHtml !!}</div>
     @endif
 </body>
 </html>
