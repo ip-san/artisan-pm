@@ -49,7 +49,7 @@ final class SubprojectScope
      */
     public static function projectsForIssues(Project $project, ?User $user, array $filters = []): Collection
     {
-        return self::projects($project, self::issueViewer($user), self::takesInSubprojects($filters));
+        return self::projects($project, self::issueViewer($user), fn () => self::takesInSubprojects($filters));
     }
 
     /**
@@ -58,7 +58,7 @@ final class SubprojectScope
      */
     public static function projectsForTimeEntries(Project $project, ?User $user, array $filters = []): Collection
     {
-        return self::projects($project, self::timeEntryViewer($user), self::takesInSubprojects($filters));
+        return self::projects($project, self::timeEntryViewer($user), fn () => self::takesInSubprojects($filters));
     }
 
     /**
@@ -147,11 +147,12 @@ final class SubprojectScope
 
     /**
      * @param  callable(Project): bool  $mayLook
+     * @param  bool|Closure(): bool  $withSubprojects  asked only for a project that has subprojects (it may read the setting)
      * @return Collection<int, Project>
      */
-    private static function projects(Project $project, callable $mayLook, bool $withSubprojects): Collection
+    private static function projects(Project $project, callable $mayLook, bool|Closure $withSubprojects): Collection
     {
-        if (! $withSubprojects || $project->_rgt - $project->_lft <= 1) {
+        if ($project->_rgt - $project->_lft <= 1 || ! ($withSubprojects instanceof Closure ? $withSubprojects() : $withSubprojects)) {
             return collect([$project]);
         }
 

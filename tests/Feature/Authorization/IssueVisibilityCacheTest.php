@@ -89,9 +89,11 @@ test('the time report resolves issue visibility once for every issue axis', func
         ->assertOk());
 
     // Before memoization: 37 queries / 11 on roles; after: 19 / 2. One more
-    // since A4-12d: the period headings read the date_format setting once.
+    // since A4-12d: the period headings read the date_format setting once;
+    // two more since A2-08b: the custom field filters are looked up once
+    // per request (the test makes two).
     expect($report['roles'])->toBeLessThanOrEqual(3)
-        ->and($report['total'])->toBeLessThanOrEqual(21);
+        ->and($report['total'])->toBeLessThanOrEqual(23);
 });
 
 test('memoized visibility follows membership, role, group, project and module changes in the same request', function () {
