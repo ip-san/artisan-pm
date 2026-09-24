@@ -83,17 +83,28 @@ final class AssigneeChoice
      * users, then the users in no listed group). Without groups the users
      * are listed plainly (a single unlabelled section).
      *
+     * When $involved is given (editing a single issue — Redmine's
+     * principals_options_for_select), an "作成者 / 直前担当者" section comes
+     * first; an involved principal that is not otherwise offered is shown
+     * disabled.
+     *
      * @param  Collection<int, User>  $users
      * @param  Collection<int, Group>  $groups
-     * @return list<array{label: ?string, options: list<array{value: string, name: string}>}>
+     * @param  Collection<int, User|Group>|null  $involved
+     * @return list<array{label: ?string, options: list<array{value: string, name: string, disabled?: bool}>}>
      */
-    public static function optionGroups(Collection $users, Collection $groups): array
+    public static function optionGroups(Collection $users, Collection $groups, ?Collection $involved = null): array
     {
         $userOptions = fn (Collection $list) => $list->map(fn (User $user) => ['value' => (string) $user->id, 'name' => $user->displayName()])->values()->all();
         $groupOptions = $groups->map(fn (Group $group) => ['value' => self::forGroup($group), 'name' => $group->name])->values()->all();
+        $involvedSection = self::involvedSection($users, $groups, $involved ?? collect());
+
+        if ($groups->isEmpty() && $involvedSection === null) {
+            return [['label' => null, 'options' => $userOptions($users)]];
+        }
 
         if ($groups->isEmpty()) {
-            return [['label' => null, 'options' => $userOptions($users)]];
+            return array_values(array_filter([$involvedSection, ['label' => __('ユーザー'), 'options' => $userOptions($users)]], fn (array $section) => $section['options'] !== []));
         }
 
         $sections = match (self::displayFormat()) {
@@ -108,7 +119,62 @@ final class AssigneeChoice
             ],
         };
 
+        if ($involvedSection !== null) {
+            array_unshift($sections, $involvedSection);
+        }
+
         return array_values(array_filter($sections, fn (array $section) => $section['options'] !== []));
+    }
+
+    /**
+     * Redmine's "involved principals" of an issue being edited: its author
+     * and its prior assignee (the old value of the latest assignee change,
+     * a user or a group — Issue#prior_assigned_to).
+     *
+     * @return Collection<int, User|Group>
+     */
+    public static function involvedPrincipals(Issue $issue): Collection
+    {
+        $principals = collect([$issue->author]);
+
+        $prior = DB::table('journal_details')
+            ->join('journals', 'journals.id', '=', 'journal_details.journal_id')
+            ->where('journals.issue_id', $issue->id)
+            ->where('journal_details.property', 'attr')
+            ->whereIn('journal_details.prop_key', ['assigned_to_id', 'assigned_to_group_id'])
+            ->whereNotNull('journal_details.old_value')
+            ->where('journal_details.old_value', '<>', '')
+            ->orderByDesc('journals.id')
+            ->orderByDesc('journal_details.id')
+            ->first(['journal_details.prop_key', 'journal_details.old_value']);
+
+        if ($prior !== null && ctype_digit((string) $prior->old_value)) {
+            $principals->push($prior->prop_key === 'assigned_to_group_id'
+                ? Group::query()->find((int) $prior->old_value)
+                : User::query()->find((int) $prior->old_value));
+        }
+
+        return $principals->filter()->unique(fn (User|Group $principal) => $principal::class.':'.$principal->id)->values();
+    }
+
+    /**
+     * @param  Collection<int, User>  $users
+     * @param  Collection<int, Group>  $groups
+     * @param  Collection<int, User|Group>  $involved
+     * @return array{label: string, options: list<array{value: string, name: string, disabled: bool}>}|null
+     */
+    private static function involvedSection(Collection $users, Collection $groups, Collection $involved): ?array
+    {
+        if ($involved->isEmpty()) {
+            return null;
+        }
+
+        $options = $involved->map(fn (User|Group $principal) => $principal instanceof Group
+            ? ['value' => self::forGroup($principal), 'name' => $principal->name, 'disabled' => ! $groups->contains('id', $principal->id)]
+            : ['value' => (string) $principal->id, 'name' => $principal->displayName(), 'disabled' => ! $users->contains('id', $principal->id)]
+        )->values()->all();
+
+        return ['label' => __('作成者 / 直前担当者'), 'options' => $options];
     }
 
     /**

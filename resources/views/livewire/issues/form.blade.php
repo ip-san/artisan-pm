@@ -459,17 +459,42 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * The assignable users, plus the issue's current assignee — Redmine's
-     * Issue#assignable_users keeps them selectable, e.g. after a move to a
-     * project where they are not a member.
+     * The assignable users, plus the issue's current assignee and its active
+     * author — Redmine's Issue#assignable_users keeps them selectable, e.g.
+     * after a move to a project where they are not a member.
      */
     #[Computed]
     public function projectMembers(): Collection
     {
         $users = $this->project->assignableUsers();
-        $current = $this->issue?->assignedTo;
+        $extra = collect([$this->issue?->assignedTo, $this->activeIssueAuthor()])
+            ->filter()
+            ->reject(fn (User $user) => $users->contains('id', $user->id))
+            ->unique('id');
 
-        return $current === null || $users->contains('id', $current->id) ? $users : User::sortByFormat($users->push($current));
+        return $extra->isEmpty() ? $users : User::sortByFormat($users->concat($extra));
+    }
+
+    /**
+     * The edited issue's author while active (Redmine adds them to
+     * Issue#assignable_users).
+     */
+    private function activeIssueAuthor(): ?User
+    {
+        $author = $this->issue?->author;
+
+        return $author !== null && $author->isActive() ? $author : null;
+    }
+
+    /**
+     * The "作成者 / 直前担当者" optgroup, shown only when editing an issue.
+     *
+     * @return Collection<int, User|\App\Models\Group>
+     */
+    #[Computed]
+    public function involvedPrincipals(): Collection
+    {
+        return $this->issue?->exists ? AssigneeChoice::involvedPrincipals($this->issue) : collect();
     }
 
     /**
@@ -738,9 +763,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'category_id' => ['nullable', Rule::exists('issue_categories', 'id')->where('project_id', $this->project->id)],
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            // The issue's current assignee stays valid even when no longer
-            // a member (Redmine's Issue#assignable_users).
-            'assigned_to_id' => ['nullable', ...($this->assigned_to_id !== null && $this->assigned_to_id === $this->issue?->assigned_to_id
+            // The issue's current assignee and active author stay valid even
+            // when not a member (Redmine's Issue#assignable_users).
+            'assigned_to_id' => ['nullable', ...($this->assigned_to_id !== null && ($this->assigned_to_id === $this->issue?->assigned_to_id || $this->assigned_to_id === $this->activeIssueAuthor()?->id)
                 ? []
                 : [Rule::exists('members', 'user_id')->where('project_id', $this->project->id)])],
             // Redmine's assignable_users with issue_group_assignment: a member
@@ -1040,7 +1065,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <select wire:model="assigneeChoice" @disabled($this->isReadOnly('assigned_to_id'))
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">{{ __('未割当') }}</option>
-                        <x-assignee-options :users="$this->projectMembers" :groups="$this->assignableGroups" />
+                        <x-assignee-options :users="$this->projectMembers" :groups="$this->assignableGroups" :involved="$this->involvedPrincipals" />
                     </select>
                     @error('assigned_to_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                     @error('assigned_to_group_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror

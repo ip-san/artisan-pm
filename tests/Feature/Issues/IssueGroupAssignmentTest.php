@@ -1,9 +1,11 @@
 <?php
 
+use App\Enums\UserStatus;
 use App\Models\Enumeration;
 use App\Models\Group;
 use App\Models\Issue;
 use App\Models\IssueStatus;
+use App\Models\Journal;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
@@ -310,4 +312,69 @@ test('the display format is saved from the settings page and must be a known one
         ->assertHasNoErrors();
 
     expect(Setting::get('assignee_dropdown_display_format'))->toBe('users_by_group');
+});
+
+test('editing an issue lists its author and prior assignee first, like Redmine\'s involved principals', function () {
+    $project = Project::factory()->create();
+    $editor = groupAssignMember($project);
+    $formerAssignee = groupAssignMember($project);
+    $issue = groupAssignIssue($project, ['assigned_to_id' => $editor->id]);
+    $journal = Journal::create(['issue_id' => $issue->id, 'user_id' => $editor->id]);
+    $journal->details()->create(['property' => 'attr', 'prop_key' => 'assigned_to_id', 'old_value' => (string) $formerAssignee->id, 'new_value' => (string) $editor->id]);
+
+    $sections = AssigneeChoice::optionGroups(collect([$editor, $formerAssignee]), collect(), AssigneeChoice::involvedPrincipals($issue));
+
+    expect($sections[0]['label'])->toBe('作成者 / 直前担当者')
+        ->and(array_column($sections[0]['options'], 'value'))->toBe([(string) $issue->author_id, (string) $formerAssignee->id])
+        ->and(array_column($sections[0]['options'], 'disabled'))->toBe([true, false])
+        ->and($sections[1]['label'])->toBe('ユーザー');
+
+    Livewire::actingAs($editor)->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->assertSeeHtmlInOrder(['<optgroup label="作成者 / 直前担当者">', $issue->author->name, $formerAssignee->name, '<optgroup label="ユーザー">']);
+});
+
+test('the involved principals are not shown on the new issue form', function () {
+    $project = Project::factory()->create();
+    $editor = groupAssignMember($project);
+    groupAssignIssue($project);
+
+    Livewire::actingAs($editor)->test('issues.form', ['project' => $project])
+        ->assertDontSeeHtml('作成者 / 直前担当者');
+});
+
+test('a prior group assignee is involved and disabled once group assignment is off', function () {
+    $project = Project::factory()->create();
+    $editor = groupAssignMember($project);
+    $group = groupAssignMemberGroup($project);
+    $issue = groupAssignIssue($project, ['assigned_to_id' => $editor->id]);
+    $journal = Journal::create(['issue_id' => $issue->id, 'user_id' => $editor->id]);
+    $journal->details()->create(['property' => 'attr', 'prop_key' => 'assigned_to_group_id', 'old_value' => (string) $group->id, 'new_value' => null]);
+
+    Livewire::actingAs($editor)->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->assertSeeHtml('<option value="'.AssigneeChoice::forGroup($group).'" disabled>'.$group->name.'</option>')
+        ->set('assigneeChoice', AssigneeChoice::forGroup($group))
+        ->call('save')
+        ->assertHasErrors('assigned_to_group_id');
+});
+
+test('an active author who is not a member can be assigned, an inactive one cannot', function () {
+    $project = Project::factory()->create();
+    $editor = groupAssignMember($project);
+    $issue = groupAssignIssue($project);
+
+    Livewire::actingAs($editor)->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->set('assigneeChoice', (string) $issue->author_id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($issue->fresh()->assigned_to_id)->toBe($issue->author_id);
+
+    $locked = groupAssignIssue($project);
+    $locked->author->update(['status' => UserStatus::Locked]);
+
+    Livewire::actingAs($editor)->test('issues.form', ['project' => $project, 'issue' => $locked->fresh()])
+        ->assertSeeHtml('<option value="'.$locked->author_id.'" disabled>')
+        ->set('assigneeChoice', (string) $locked->author_id)
+        ->call('save')
+        ->assertHasErrors('assigned_to_id');
 });
