@@ -177,12 +177,20 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $query = TimeEntry::query()
             ->visibleToAcrossProjects(auth()->user(), $this->scopeProjects)
-            ->with(['project', 'user', 'author', 'activity', 'issue.project', 'customFieldValues', ...TimeEntryColumns::relations($this->columns)]);
+            ->with(['project', 'user', 'author', 'activity', 'issue.project', 'customFieldValues', ...TimeEntryColumns::relations([...$this->columns, ...($this->groupBy !== null ? [$this->groupBy] : [])])]);
 
         $query = $this->engine->applyFilters($query, $this->builtFilters());
 
+        // The issue and custom field columns sort through TimeEntryColumns,
+        // which sees only what the viewer may see; the rest through the engine.
         if ($this->sortKey !== null) {
-            $query = $this->engine->applySort($query, [[$this->sortKey, $this->sortDirection]]);
+            $sortedByExtraColumn = TimeEntryColumns::handles($this->sortKey)
+                && array_key_exists($this->sortKey, $this->availableColumns)
+                && $this->extraColumns->applySort($query, $this->sortKey, $this->sortDirection);
+
+            if (! $sortedByExtraColumn) {
+                $query = $this->engine->applySort($query, [[$this->sortKey, $this->sortDirection]]);
+            }
         } else {
             $query->orderByDesc('spent_on');
         }
@@ -854,6 +862,9 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="user_id">{{ __('ユーザー') }}</option>
                     <option value="activity_id">{{ __('作業分類') }}</option>
                     <option value="spent_on">{{ __('日付') }}</option>
+                    @foreach ($this->extraColumns->groupableLabels() as $groupKey => $groupLabel)
+                        <option value="{{ $groupKey }}" wire:key="group-by-{{ $groupKey }}">{{ $groupLabel }}</option>
+                    @endforeach
                 </select>
             </label>
 

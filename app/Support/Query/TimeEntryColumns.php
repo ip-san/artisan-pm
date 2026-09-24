@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Query;
 
+use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
@@ -11,7 +12,10 @@ use App\Models\Issue;
 use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -26,7 +30,9 @@ use Illuminate\Support\Facades\Gate;
  * listed projects; each row then shows a value only where the viewer may
  * see it: an issue column only for an issue the viewer can see, a custom
  * field only in a project where its roles let the viewer see it
- * (CustomFieldVisibility, as the issue list does since A1-37).
+ * (CustomFieldVisibility, as the issue list does since A1-37). Sorting and
+ * grouping by these columns follow the same rule: a value the viewer may
+ * not see sorts and groups as blank.
  */
 final class TimeEntryColumns
 {
@@ -71,6 +77,108 @@ final class TimeEntryColumns
         }
 
         return $labels;
+    }
+
+    /**
+     * The columns the list can be grouped by (Redmine's groupable
+     * association and custom field columns): the issue's tracker, status,
+     * category and target version, and single-value custom fields other
+     * than long text and files.
+     *
+     * @return array<string, string> column key => heading
+     */
+    public function groupableLabels(): array
+    {
+        $groupable = ['issue_tracker', 'issue_status', 'issue_category', 'issue_fixed_version'];
+
+        foreach ($this->fields() as $field) {
+            if (! $field->multiple && ! in_array($field->field_format, [CustomFieldFormat::Text, CustomFieldFormat::Attachment], true)) {
+                $groupable[] = $this->keyFor($field);
+            }
+        }
+
+        return array_intersect_key($this->labels(), array_flip($groupable));
+    }
+
+    /**
+     * Orders $query by one of these columns, through a correlated subquery
+     * that sees only issues the viewer may see and custom field values in
+     * projects where the viewer may see the field. Blank sorts first
+     * ascending, last descending, as the custom field columns of the issue
+     * list do. Returns false for a key it does not sort (a multi-value
+     * field, a field not offered).
+     *
+     * @param  Builder<TimeEntry>  $query
+     */
+    public function applySort(Builder $query, string $key, string $direction): bool
+    {
+        $value = $this->sortValue($key);
+
+        if ($value === null) {
+            return false;
+        }
+
+        $order = $direction === 'desc' ? 'DESC' : 'ASC';
+        $sql = '('.$value->toSql().')';
+
+        $query->orderByRaw("{$sql} IS NOT NULL {$order}, {$sql} {$order}", [...$value->getBindings(), ...$value->getBindings()]);
+
+        return true;
+    }
+
+    private function sortValue(string $key): ?QueryBuilder
+    {
+        $visibleIssueIds = Issue::query()->select('issues.id')->visible($this->viewer)->toBase();
+        $issue = fn () => DB::table('issues as sort_issue')
+            ->whereColumn('sort_issue.id', 'time_entries.issue_id')
+            ->whereIn('sort_issue.id', $visibleIssueIds);
+
+        if (preg_match('/^(cf|issue_cf|project_cf)_(\d+)$/', $key, $match) === 1) {
+            $field = $this->fields()->firstWhere('id', (int) $match[2]);
+
+            if ($field === null || $field->multiple || $this->keyFor($field) !== $key) {
+                return null;
+            }
+
+            $visibleProjectIds = $this->visibility->visibleProjectIds($field, $this->projects);
+            $values = DB::table('custom_field_values as sort_cfv')
+                ->where('sort_cfv.customized_type', $field->customized_type->value)
+                ->where('sort_cfv.custom_field_id', $field->id)
+                ->orderByDesc('sort_cfv.id')
+                ->limit(1)
+                ->select('sort_cfv.'.$field->format()->storageColumn());
+
+            match ($match[1]) {
+                'cf' => $values->whereColumn('sort_cfv.customized_id', 'time_entries.id')
+                    ->when($visibleProjectIds !== null, fn (QueryBuilder $q) => $q->whereIn('time_entries.project_id', $visibleProjectIds)),
+                'issue_cf' => $values->join('issues as sort_issue', 'sort_issue.id', '=', 'sort_cfv.customized_id')
+                    ->whereColumn('sort_issue.id', 'time_entries.issue_id')
+                    ->whereIn('sort_issue.id', $visibleIssueIds)
+                    ->when($visibleProjectIds !== null, fn (QueryBuilder $q) => $q->whereIn('sort_issue.project_id', $visibleProjectIds)),
+                default => $values->whereColumn('sort_cfv.customized_id', 'time_entries.project_id')
+                    ->when($visibleProjectIds !== null, fn (QueryBuilder $q) => $q->whereIn('time_entries.project_id', $visibleProjectIds)),
+            };
+
+            return $values;
+        }
+
+        return match ($key) {
+            'issue_tracker' => $issue()->join('trackers as sort_tracker', 'sort_tracker.id', '=', 'sort_issue.tracker_id')->select('sort_tracker.position'),
+            'issue_status' => $issue()->join('issue_statuses as sort_status', 'sort_status.id', '=', 'sort_issue.status_id')->select('sort_status.position'),
+            'issue_category' => $issue()->join('issue_categories as sort_category', 'sort_category.id', '=', 'sort_issue.category_id')->select('sort_category.name'),
+            'issue_fixed_version' => $issue()->join('versions as sort_version', 'sort_version.id', '=', 'sort_issue.fixed_version_id')->select('sort_version.name'),
+            'issue_parent' => $issue()->whereIn('sort_issue.parent_id', $visibleIssueIds)->select('sort_issue.parent_id'),
+            default => null,
+        };
+    }
+
+    private function keyFor(CustomField $field): string
+    {
+        return match ($field->customized_type) {
+            CustomizableType::TimeEntry => "cf_{$field->id}",
+            CustomizableType::Issue => "issue_cf_{$field->id}",
+            default => "project_cf_{$field->id}",
+        };
     }
 
     /**
