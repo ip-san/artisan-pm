@@ -12,6 +12,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\SubprojectScope;
+use App\Support\Query\SqlDialect;
 use Illuminate\Support\Collection;
 
 /**
@@ -133,7 +134,7 @@ final class IssueReport
         // A group assignee is keyed `group:<id>` (AssigneeChoice), apart
         // from the user ids.
         $column = $dimension === 'assigned_to'
-            ? "CASE WHEN assigned_to_group_id IS NOT NULL THEN CONCAT('".AssigneeChoice::GROUP_PREFIX."', assigned_to_group_id) ELSE CAST(assigned_to_id AS VARCHAR) END"
+            ? "CASE WHEN assigned_to_group_id IS NOT NULL THEN CONCAT('".AssigneeChoice::GROUP_PREFIX."', assigned_to_group_id) ELSE ".SqlDialect::castAsText(Issue::query(), 'assigned_to_id').' END'
             : self::column($dimension);
 
         $rows = Issue::query()

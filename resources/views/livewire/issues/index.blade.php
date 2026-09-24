@@ -35,6 +35,7 @@ use App\Support\Query\CustomFieldVisibility;
 use App\Support\Query\DefaultIssueQuery;
 use App\Support\Query\ListDefaults;
 use App\Support\Query\QueryFilterEngine;
+use App\Support\Query\SqlDialect;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -448,7 +449,7 @@ new #[Layout('components.layouts.app')] class extends Component
         // The assignee is a user or a group: group by one key that tells
         // them apart (AssigneeChoice's `group:<id>`).
         $keyExpression = fn (string $table) => $column === 'assigned_to_id'
-            ? "CASE WHEN {$table}assigned_to_group_id IS NOT NULL THEN CONCAT('".AssigneeChoice::GROUP_PREFIX."', {$table}assigned_to_group_id) ELSE CAST({$table}assigned_to_id AS VARCHAR) END"
+            ? "CASE WHEN {$table}assigned_to_group_id IS NOT NULL THEN CONCAT('".AssigneeChoice::GROUP_PREFIX."', {$table}assigned_to_group_id) ELSE ".SqlDialect::castAsText(Issue::query(), "{$table}assigned_to_id").' END'
             : "{$table}{$column}";
         $groupNames = $column === 'assigned_to_id'
             ? \App\Models\Group::query()->whereIn('id', $this->filteredIssuesQuery()->reorder()->whereNotNull('assigned_to_group_id')->select('assigned_to_group_id'))->pluck('name', 'id')

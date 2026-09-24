@@ -102,8 +102,15 @@ final class AssigneeFilter implements FilterableField
         $userColumn = $query->qualifyColumn('assigned_to_id');
         $groupColumn = $query->qualifyColumn('assigned_to_group_id');
 
+        // `groups` is a reserved word on MySQL 8 / MariaDB, so the names
+        // are quoted by the connection's grammar.
+        $grammar = $query->getQuery()->getGrammar();
+        $users = $grammar->wrapTable('users');
+        $groups = $grammar->wrapTable('groups');
+
         return $query->orderByRaw(
-            "COALESCE((SELECT users.name FROM users WHERE users.id = {$userColumn}), (SELECT groups.name FROM groups WHERE groups.id = {$groupColumn})) {$direction}"
+            "COALESCE((SELECT {$users}.{$grammar->wrap('name')} FROM {$users} WHERE {$users}.{$grammar->wrap('id')} = {$userColumn}),"
+            ." (SELECT {$groups}.{$grammar->wrap('name')} FROM {$groups} WHERE {$groups}.{$grammar->wrap('id')} = {$groupColumn})) {$direction}"
         );
     }
 
