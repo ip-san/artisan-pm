@@ -88,7 +88,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function canManage(): bool
     {
-        return app(AuthorizationService::class)->can(auth()->user(), 'manage_files', $this->project);
+        return auth()->check() && app(AuthorizationService::class)->can(auth()->user(), 'manage_files', $this->project);
     }
 
     public function upload(): void

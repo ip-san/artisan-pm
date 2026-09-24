@@ -13,6 +13,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Redmine's top-level IssuesController#calendar (no project_id) — the same
@@ -46,7 +47,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         return Project::query()
             ->get()
-            ->filter(fn (Project $project) => auth()->user()?->can('viewCalendar', $project))
+            ->filter(fn (Project $project) => Gate::allows('viewCalendar', $project))
             ->values();
     }
 

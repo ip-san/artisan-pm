@@ -47,8 +47,10 @@ Route::get('/account/activate/{user}', AccountActivationController::class)
 // (ProjectPolicy/IssuePolicy/WikiPagePolicy) decides whether the specific
 // project/model is visible to a guest — matching Redmine, where the
 // Anonymous role's permissions on public projects decide (issues, wiki,
-// and since A1-41 the project calendar, Gantt, search, activity and
-// roadmap; the Atom feeds let guests in through 'atom.key' the same way).
+// since A1-41 the project calendar, Gantt, search, activity and roadmap,
+// and since A1-44 the project list and overview, the global issue list/
+// calendar/Gantt/search/activity and the boards, news, documents and files
+// pages; the Atom feeds let guests in through 'atom.key' the same way).
 Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->group(function () {
     Route::get('/attachments/{media}', AttachmentController::class)->name('attachments.show')
         ->withoutMiddleware('auth')->middleware('login.required');
@@ -65,19 +67,26 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Volt::route('/profile', 'profile.index')->name('profile.index');
     Volt::route('/my/webhooks', 'my-webhooks.index')->name('my-webhooks.index');
     Volt::route('/news', 'news.global-index')->name('news.global-index');
-    Volt::route('/issues', 'issues.global-index')->name('issues.global-index');
+    Volt::route('/issues', 'issues.global-index')->name('issues.global-index')
+        ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/time_entries', 'time-entries.global-index')->name('time-entries.global-index');
     Volt::route('/time_entries/report', 'time-entries.report')->name('time-entries.global-report');
-    Volt::route('/search', 'search.global-index')->name('search.global-index');
-    Volt::route('/issues/calendar', 'calendar.global-index')->name('calendar.global-index');
-    Volt::route('/issues/gantt', 'gantt.global-index')->name('gantt.global-index');
-    Volt::route('/activity', 'activity.global-index')->name('activity.global-index');
+    Volt::route('/search', 'search.global-index')->name('search.global-index')
+        ->withoutMiddleware('auth')->middleware('login.required');
+    Volt::route('/issues/calendar', 'calendar.global-index')->name('calendar.global-index')
+        ->withoutMiddleware('auth')->middleware('login.required');
+    Volt::route('/issues/gantt', 'gantt.global-index')->name('gantt.global-index')
+        ->withoutMiddleware('auth')->middleware('login.required');
+    Volt::route('/activity', 'activity.global-index')->name('activity.global-index')
+        ->withoutMiddleware('auth')->middleware('login.required');
     Route::get('/activity.atom', GlobalActivityFeedController::class)->name('activity.global-atom')
         ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
 
-    Volt::route('/projects', 'projects.index')->name('projects.index');
+    Volt::route('/projects', 'projects.index')->name('projects.index')
+        ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/projects/create', 'projects.form')->name('projects.create');
-    Volt::route('/projects/{project:identifier}', 'projects.show')->name('projects.show');
+    Volt::route('/projects/{project:identifier}', 'projects.show')->name('projects.show')
+        ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/projects/{project:identifier}/edit', 'projects.form')->name('projects.edit');
     Volt::route('/projects/{project:identifier}/members', 'projects.members')->name('projects.members');
     Volt::route('/projects/{project:identifier}/activities', 'projects.activities')->name('projects.activities');
@@ -164,7 +173,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/diff/{from}/{to}', 'wiki.diff')->name('wiki.diff');
     Volt::route('/projects/{project:identifier}/wiki/{wikiPage}/annotate/{version}', 'wiki.annotate')->name('wiki.annotate');
 
-    Volt::route('/projects/{project:identifier}/boards', 'boards.index')->name('boards.index');
+    Volt::route('/projects/{project:identifier}/boards', 'boards.index')->name('boards.index')
+        ->withoutMiddleware('auth')->middleware('login.required');
     // Registered before the {board} routes below so "new" isn't matched
     // as a board-id route-model-binding segment.
     Volt::route('/projects/{project:identifier}/boards/new', 'boards.form')->name('boards.create');
@@ -175,23 +185,30 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     // board id before this route ever got a chance to match it.
     Route::get('/projects/{project:identifier}/boards/{board}.atom', BoardAtomController::class)->whereNumber('board')->name('boards.atom')->scopeBindings()
         ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
-    Volt::route('/projects/{project:identifier}/boards/{board}', 'boards.show')->name('boards.show')->scopeBindings();
-    Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}', 'messages.show')->name('messages.show')->scopeBindings();
+    Volt::route('/projects/{project:identifier}/boards/{board}', 'boards.show')->name('boards.show')->scopeBindings()
+        ->withoutMiddleware('auth')->middleware('login.required');
+    Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}', 'messages.show')->name('messages.show')->scopeBindings()
+        ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/projects/{project:identifier}/boards/{board}/topics/{message}/edit', 'messages.form')->name('messages.edit')->scopeBindings();
 
     Route::get('/projects/{project:identifier}/news.atom', NewsAtomController::class)->name('news.atom')
         ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
-    Volt::route('/projects/{project:identifier}/news', 'news.index')->name('news.index');
+    Volt::route('/projects/{project:identifier}/news', 'news.index')->name('news.index')
+        ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/projects/{project:identifier}/news/new', 'news.form')->name('news.create');
     Volt::route('/projects/{project:identifier}/news/{news}/edit', 'news.form')->name('news.edit')->scopeBindings();
-    Volt::route('/projects/{project:identifier}/news/{news}', 'news.show')->name('news.show')->scopeBindings();
+    Volt::route('/projects/{project:identifier}/news/{news}', 'news.show')->name('news.show')->scopeBindings()
+        ->withoutMiddleware('auth')->middleware('login.required');
 
-    Volt::route('/projects/{project:identifier}/documents', 'documents.index')->name('documents.index');
+    Volt::route('/projects/{project:identifier}/documents', 'documents.index')->name('documents.index')
+        ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/projects/{project:identifier}/documents/new', 'documents.form')->name('documents.create');
     Volt::route('/projects/{project:identifier}/documents/{document}/edit', 'documents.form')->name('documents.edit')->scopeBindings();
-    Volt::route('/projects/{project:identifier}/documents/{document}', 'documents.show')->name('documents.show')->scopeBindings();
+    Volt::route('/projects/{project:identifier}/documents/{document}', 'documents.show')->name('documents.show')->scopeBindings()
+        ->withoutMiddleware('auth')->middleware('login.required');
 
-    Volt::route('/projects/{project:identifier}/files', 'files.index')->name('files.index');
+    Volt::route('/projects/{project:identifier}/files', 'files.index')->name('files.index')
+        ->withoutMiddleware('auth')->middleware('login.required');
 
     // Laravel route parameters are only genuinely optional when they're
     // the LAST segment of the URI. A mid-path `{repositoryParam?}` (e.g.

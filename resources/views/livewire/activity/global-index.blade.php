@@ -11,6 +11,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Matches Redmine's ActivitiesController#index with no bound project — the
@@ -83,7 +84,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         return Project::query()
             ->get()
-            ->filter(fn (Project $project) => auth()->user()?->can('view', $project))
+            ->filter(fn (Project $project) => Gate::allows('view', $project))
             ->values();
     }
 

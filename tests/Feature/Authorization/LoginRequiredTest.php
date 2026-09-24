@@ -176,8 +176,10 @@ test('routes outside the guest-eligible list still require login regardless of l
     $project = Project::factory()->create();
     grantAnonymousAccess(['view_project', 'view_issues', 'view_wiki_pages']);
 
-    $this->get(route('projects.index'))->assertRedirect(route('login'));
-    $this->get(route('projects.show', $project))->assertRedirect(route('login'));
+    // The project list and overview joined the guest-eligible list in A1-44.
+    $this->get(route('projects.create'))->assertRedirect(route('login'));
+    $this->get(route('projects.members', $project))->assertRedirect(route('login'));
+    $this->get(route('time-entries.global-index'))->assertRedirect(route('login'));
     $this->get(route('my-page.index'))->assertRedirect(route('login'));
 });
 

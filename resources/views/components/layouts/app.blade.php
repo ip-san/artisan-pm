@@ -75,6 +75,16 @@
                             @foreach (app(\App\Support\Plugins\PluginManager::class)->menuItems('nav') as $item)
                                 <a href="{{ $item->url }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ $item->label }}</a>
                             @endforeach
+                        @else
+                            {{-- With login_required off a guest gets the menu of the pages open to them (A1-44); each page shows what the Anonymous role allows. --}}
+                            @unless (\App\Models\Setting::get('login_required', true))
+                                <a href="{{ route('projects.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('プロジェクト') }}</a>
+                                <a href="{{ route('issues.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('課題') }}</a>
+                                <a href="{{ route('calendar.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('カレンダー') }}</a>
+                                <a href="{{ route('gantt.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('ガントチャート') }}</a>
+                                <a href="{{ route('activity.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('活動') }}</a>
+                                <a href="{{ route('search.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('検索') }}</a>
+                            @endunless
                         @endauth
                     </div>
                     <div class="flex shrink-0 items-center gap-4 text-sm whitespace-nowrap">

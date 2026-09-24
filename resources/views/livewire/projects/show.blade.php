@@ -4,6 +4,8 @@ use App\Models\Project;
 use App\Models\TimeEntry;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Auth\RequiresPasswordConfirmation;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Number;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -37,9 +39,24 @@ new #[Layout('components.layouts.app')] class extends Component
         return (float) TimeEntry::query()->whereIn('project_id', $projects->pluck('id'))->sum('hours');
     }
 
+    /**
+     * Redmine's overview lists @project.children.visible: a subproject the
+     * viewer may not see (a private one, for a guest or a non-member) is
+     * left out.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function visibleSubprojects(): Collection
+    {
+        return $this->project->children->filter(fn (Project $child) => Gate::allows('view', $child))->values();
+    }
+
     public function toggleBookmark(): void
     {
         $user = auth()->user();
+
+        abort_if($user === null, 403);
 
         if ($this->project->isBookmarkedBy($user)) {
             $user->bookmarkedProjects()->detach($this->project->id);
@@ -126,9 +143,11 @@ new #[Layout('components.layouts.app')] class extends Component
             @error('archive') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
         <div class="flex gap-2">
-            <button wire:click="toggleBookmark" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                {{ $project->isBookmarkedBy(auth()->user()) ? __('★ ブックマーク解除') : __('☆ ブックマーク') }}
-            </button>
+            @auth
+                <button wire:click="toggleBookmark" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    {{ $project->isBookmarkedBy(auth()->user()) ? __('★ ブックマーク解除') : __('☆ ブックマーク') }}
+                </button>
+            @endauth
             <a href="{{ route('activity.index', $project) }}"
                 class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 {{ __('活動') }}
@@ -327,11 +346,11 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
-    @if ($project->children->isNotEmpty())
+    @if ($this->visibleSubprojects->isNotEmpty())
         <div class="mt-6">
             <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('サブプロジェクト') }}</h2>
             <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
-                @foreach ($project->children as $child)
+                @foreach ($this->visibleSubprojects as $child)
                     <li class="px-4 py-2">
                         <a href="{{ route('projects.show', $child) }}" class="text-brand-bold hover:underline">{{ $child->name }}</a>
                     </li>

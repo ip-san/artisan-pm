@@ -19,6 +19,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Redmine's top-level IssuesController#gantt (/issues/gantt, no project):
@@ -61,7 +62,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return Project::query()
             ->orderBy('_lft')
             ->get()
-            ->filter(fn (Project $project) => auth()->user()?->can('viewGantt', $project))
+            ->filter(fn (Project $project) => Gate::allows('viewGantt', $project))
             ->values();
     }
 
@@ -273,7 +274,7 @@ new #[Layout('components.layouts.app')] class extends Component
             })
             ->orderBy('_lft')
             ->get()
-            ->filter(fn (Project $project) => $projectIds->contains($project->id) || auth()->user()?->can('view', $project));
+            ->filter(fn (Project $project) => $projectIds->contains($project->id) || Gate::allows('view', $project));
 
         $tree = [];
         $openRights = [];

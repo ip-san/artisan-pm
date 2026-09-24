@@ -23,6 +23,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Redmine's top-level IssuesController#index (no project_id) — every
@@ -138,7 +139,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return Project::query()
             ->with(['trackers', 'issueCategories', 'users', 'versions'])
             ->get()
-            ->filter(fn (Project $project) => auth()->user()?->can('viewAny', [Issue::class, $project]))
+            ->filter(fn (Project $project) => Gate::allows('viewAny', [Issue::class, $project]))
             ->values();
     }
 

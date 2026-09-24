@@ -580,6 +580,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $user = auth()->user();
 
+        abort_if($user === null, 403);
+
         if ($user->bookmarkedProjects()->where('projects.id', $projectId)->exists()) {
             $user->bookmarkedProjects()->detach($projectId);
         } else {
@@ -624,10 +626,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endif
             </select>
         </div>
-        <label class="flex items-center gap-2 pb-2 text-sm text-neutral-700">
-            <input type="checkbox" wire:model.live="bookmarkedOnly" class="rounded border-neutral-300">
-            {{ __('ブックマークしたプロジェクトのみ表示') }}
-        </label>
+        @auth
+            <label class="flex items-center gap-2 pb-2 text-sm text-neutral-700">
+                <input type="checkbox" wire:model.live="bookmarkedOnly" class="rounded border-neutral-300">
+                {{ __('ブックマークしたプロジェクトのみ表示') }}
+            </label>
+        @endauth
     </div>
 
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
@@ -714,11 +718,13 @@ new #[Layout('components.layouts.app')] class extends Component
                             </dl>
                         @endif
                     </div>
-                    <button wire:click="toggleBookmark({{ $project->id }})" wire:key="bookmark-{{ $project->id }}"
-                        class="shrink-0 text-lg leading-none {{ $this->bookmarkedProjectIds->contains($project->id) ? 'text-warning' : 'text-neutral-300 hover:text-neutral-400' }}"
-                        title="{{ __('ブックマーク') }}">
-                        ★
-                    </button>
+                    @auth
+                        <button wire:click="toggleBookmark({{ $project->id }})" wire:key="bookmark-{{ $project->id }}"
+                            class="shrink-0 text-lg leading-none {{ $this->bookmarkedProjectIds->contains($project->id) ? 'text-warning' : 'text-neutral-300 hover:text-neutral-400' }}"
+                            title="{{ __('ブックマーク') }}">
+                            ★
+                        </button>
+                    @endauth
                 </li>
             @empty
                 <li class="px-4 py-6 text-sm text-neutral-500">{{ __('プロジェクトがありません。') }}</li>
@@ -767,11 +773,13 @@ new #[Layout('components.layouts.app')] class extends Component
                                 </td>
                             @endforeach
                             <td class="px-4 py-2 text-right">
-                                <button wire:click="toggleBookmark({{ $project->id }})" wire:key="bookmark-{{ $project->id }}"
-                                    class="shrink-0 text-lg leading-none {{ $this->bookmarkedProjectIds->contains($project->id) ? 'text-warning' : 'text-neutral-300 hover:text-neutral-400' }}"
-                                    title="{{ __('ブックマーク') }}">
-                                    ★
-                                </button>
+                                @auth
+                                    <button wire:click="toggleBookmark({{ $project->id }})" wire:key="bookmark-{{ $project->id }}"
+                                        class="shrink-0 text-lg leading-none {{ $this->bookmarkedProjectIds->contains($project->id) ? 'text-warning' : 'text-neutral-300 hover:text-neutral-400' }}"
+                                        title="{{ __('ブックマーク') }}">
+                                        ★
+                                    </button>
+                                @endauth
                             </td>
                         </tr>
                     @empty
