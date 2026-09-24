@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\CustomFields\Formats\AttachmentFormat;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\AttachmentResource;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Version;
 use App\Services\IssueService;
+use App\Support\Attachments\AttachmentFieldValue;
 use App\Support\Attachments\AttachmentValidationRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -104,6 +106,17 @@ final class AttachmentController extends Controller
         $owner = $media->model;
 
         abort_if($owner === null, 404);
+
+        // An attachment custom field's file is read under the field's
+        // visibility too, and changed or removed only through the field's
+        // value (B'-02).
+        if ($media->collection_name === AttachmentFormat::COLLECTION) {
+            abort_unless($ability === 'view', 403);
+
+            AttachmentFieldValue::authorizeView($media, request()->user());
+
+            return;
+        }
 
         // A Files-module file hangs on a project or one of its versions, but
         // is governed by view_files / manage_files rather than by the

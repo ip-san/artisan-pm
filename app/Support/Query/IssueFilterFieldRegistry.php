@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Query;
 
+use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Enums\EnumerationType;
 use App\Enums\FilterFieldType;
@@ -72,6 +73,7 @@ final class IssueFilterFieldRegistry
             CustomField::query()
                 ->where('customized_type', CustomizableType::Issue)
                 ->where('is_filter', true)
+                ->where('field_format', '!=', CustomFieldFormat::Attachment)
                 ->whereHas('trackers', fn ($query) => $query->whereIn('trackers.id', $project->trackers->pluck('id')))
                 ->with(['trackers', 'projects', 'roles'])
                 ->orderBy('position')
@@ -136,6 +138,7 @@ final class IssueFilterFieldRegistry
             CustomField::query()
                 ->where('customized_type', CustomizableType::Issue)
                 ->where('is_filter', true)
+                ->where('field_format', '!=', CustomFieldFormat::Attachment)
                 ->whereHas('trackers', fn ($query) => $query->whereIn('trackers.id', $trackers->pluck('id')))
                 ->with(['trackers', 'projects', 'roles'])
                 ->orderBy('position')

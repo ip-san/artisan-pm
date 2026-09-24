@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Concerns;
 
+use App\CustomFields\Formats\AttachmentFormat;
 use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
+use App\Support\Attachments\AttachmentFieldValue;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
+use Spatie\MediaLibrary\HasMedia;
 
 /**
  * Gives a model dynamic, admin-configurable custom fields backed by the
@@ -86,7 +89,7 @@ trait HasCustomFields
      */
     private function formValueOf(CustomField $field, CustomFieldValue $value): mixed
     {
-        if (in_array($field->field_format, [CustomFieldFormat::Enumeration, CustomFieldFormat::User, CustomFieldFormat::Version], true)) {
+        if (in_array($field->field_format, [CustomFieldFormat::Enumeration, CustomFieldFormat::User, CustomFieldFormat::Version, CustomFieldFormat::Attachment], true)) {
             $stored = $value->{$field->format()->storageColumn()};
 
             return $stored === null ? null : (string) $stored;
@@ -130,6 +133,14 @@ trait HasCustomFields
 
     private function setSingleCustomFieldValue(CustomField $field, mixed $raw): void
     {
+        if ($field->format() instanceof AttachmentFormat) {
+            if ($this instanceof HasMedia) {
+                AttachmentFieldValue::assign($this, $field, $raw);
+            }
+
+            return;
+        }
+
         $value = $this->customFieldValues()->firstOrNew(['custom_field_id' => $field->id]);
         $value->{$field->format()->storageColumn()} = $field->format()->prepareValue($raw);
         $value->save();

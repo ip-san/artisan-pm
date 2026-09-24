@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Support\Attachments\AttachmentFieldValue;
 use App\Support\Attachments\AttachmentPreview;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\Gate;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
@@ -22,9 +22,9 @@ final class AttachmentPreviewController extends Controller
 
         abort_if($model === null, 404);
 
-        Gate::authorize('view', $model);
+        AttachmentFieldValue::authorizeView($media, request()->user());
 
-        $siblings = $model->getMedia($media->collection_name)->values();
+        $siblings = $model->getMedia($media->collection_name)->filter(fn (Media $sibling) => AttachmentFieldValue::visibleTo($sibling, request()->user()))->values();
         $position = $siblings->search(fn (Media $sibling) => $sibling->is($media));
         $kind = AttachmentPreview::kind($media);
 

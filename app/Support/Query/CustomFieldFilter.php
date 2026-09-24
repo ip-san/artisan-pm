@@ -50,6 +50,8 @@ final class CustomFieldFilter implements FilterableField
             CustomFieldFormat::Bool => FilterFieldType::Boolean,
             CustomFieldFormat::List, CustomFieldFormat::Enumeration, CustomFieldFormat::User, CustomFieldFormat::Version => FilterFieldType::Select,
             CustomFieldFormat::String, CustomFieldFormat::Text, CustomFieldFormat::Link => FilterFieldType::Text,
+            // Never offered (the registries skip it, Redmine: is_filter_supported = false).
+            CustomFieldFormat::Attachment => FilterFieldType::Text,
         };
     }
 

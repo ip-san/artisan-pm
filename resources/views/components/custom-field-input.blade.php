@@ -1,4 +1,4 @@
-@props(['field', 'wireModel', 'required' => false, 'disabled' => false, 'project' => null])
+@props(['field', 'wireModel', 'required' => false, 'disabled' => false, 'project' => null, 'record' => null, 'current' => null])
 @php $path = "{$wireModel}.{$field->id}"; @endphp
 
 <div>
@@ -29,6 +29,34 @@
                 @endforeach
             </select>
         @endif
+    @elseif ($field->field_format === \App\Enums\CustomFieldFormat::Attachment)
+        @php
+            $attachmentInput = $current;
+            $currentFile = is_scalar($attachmentInput) && ctype_digit((string) $attachmentInput) && $record !== null
+                ? $record->customDisplayValue($field)
+                : null;
+            $currentFile = $currentFile instanceof \App\Support\Attachments\AttachmentFieldFile && $currentFile->mediaId === (int) $attachmentInput ? $currentFile : null;
+            $allowedExtensions = \App\CustomFields\Formats\AttachmentFormat::allowedExtensions($field);
+        @endphp
+        <div class="mt-1 space-y-1" data-custom-field-attachment-input>
+            @if ($currentFile !== null)
+                <div class="flex items-center gap-3 text-sm">
+                    <a href="{{ $currentFile->url() }}" class="text-brand-bold hover:underline">{{ $currentFile->fileName }}</a>
+                    @unless ($disabled)
+                        <button type="button" wire:click="$set('{{ $path }}', '')" class="text-danger-bold hover:underline">{{ __('削除') }}</button>
+                    @endunless
+                </div>
+            @elseif ($attachmentInput instanceof \Illuminate\Http\UploadedFile)
+                <div class="text-sm text-neutral-700">{{ $attachmentInput->getClientOriginalName() }}</div>
+            @endif
+            @unless ($disabled)
+                <input type="file" wire:model="{{ $path }}" @if ($allowedExtensions !== []) accept="{{ collect($allowedExtensions)->map(fn ($extension) => '.'.$extension)->implode(',') }}" @endif
+                    class="block w-full text-sm text-neutral-700">
+                @if ($allowedExtensions !== [])
+                    <p class="text-xs text-neutral-500">{{ __('許可する拡張子: :extensions', ['extensions' => implode(', ', $allowedExtensions)]) }}</p>
+                @endif
+            @endunless
+        </div>
     @elseif ($field->field_format === \App\Enums\CustomFieldFormat::Text)
         <textarea wire:model="{{ $path }}" rows="3" @disabled($disabled)
             class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>

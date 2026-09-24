@@ -18,4 +18,5 @@ enum CustomFieldFormat: string
     case Progressbar = 'progressbar';
     case User = 'user';
     case Version = 'version';
+    case Attachment = 'attachment';
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\CustomFields\FormatRegistry;
+use App\CustomFields\Formats\AttachmentFormat;
 use App\CustomFields\Formats\BoolFormat;
 use App\CustomFields\Formats\DateFormat;
 use App\CustomFields\Formats\EnumerationFormat;
@@ -14,9 +15,9 @@ use App\CustomFields\Formats\LinkFormat;
 use App\CustomFields\Formats\ListFormat;
 use App\CustomFields\Formats\ProgressbarFormat;
 use App\CustomFields\Formats\StringFormat;
+use App\CustomFields\Formats\TextFormat;
 use App\CustomFields\Formats\UserFormat;
 use App\CustomFields\Formats\VersionFormat;
-use App\CustomFields\Formats\TextFormat;
 use Illuminate\Support\ServiceProvider;
 
 final class CustomFieldServiceProvider extends ServiceProvider
@@ -42,5 +43,6 @@ final class CustomFieldServiceProvider extends ServiceProvider
         $registry->register(new ProgressbarFormat);
         $registry->register(new UserFormat);
         $registry->register(new VersionFormat);
+        $registry->register(new AttachmentFormat);
     }
 }

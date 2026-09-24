@@ -45,7 +45,7 @@ interface FormatContract
     public function castValue(mixed $stored, CustomField $field): mixed;
 
     /**
-     * @return array<int, string|Rule|In|Exists>
+     * @return array<int, string|Rule|In|Exists|\Closure>
      */
     public function validationRules(CustomField $field): array;
 

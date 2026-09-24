@@ -54,6 +54,9 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int, int|string> roles a `user` field may pick members from (none = any) */
     public array $userRoleIds = [];
 
+    /** Redmine's extensions_allowed for an `attachment` field (blank = the site settings only) */
+    public string $extensionsAllowed = '';
+
     /** @var array<int, string> version statuses a `version` field offers (none = any) */
     public array $versionStatuses = [];
 
@@ -93,6 +96,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->possibleValuesText = implode("\n", $customField->possible_values ?? []);
             $this->userRoleIds = $customField->format_options['user_role'] ?? [];
             $this->versionStatuses = $customField->format_options['version_status'] ?? [];
+            $this->extensionsAllowed = (string) ($customField->format_options['extensions_allowed'] ?? '');
             $this->enumerationOptions = $customField->enumerationOptions
                 ->map(fn (CustomFieldEnumeration $option) => [
                     'id' => $option->id,
@@ -257,10 +261,13 @@ new #[Layout('components.layouts.app')] class extends Component
         $customizedType = $this->customField?->customized_type->value ?? $this->customized_type;
         $fieldFormat = $this->customField?->field_format->value ?? $this->field_format;
         $isForIssues = $customizedType === CustomizableType::Issue->value;
+        $isAttachment = $fieldFormat === CustomFieldFormat::Attachment->value;
 
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            ...($this->customField ? [] : ['field_format' => ['required', Rule::enum(CustomFieldFormat::class)]]),
+            // An attachment field is offered for issues only (B'-02).
+            ...($this->customField ? [] : ['field_format' => ['required', Rule::enum(CustomFieldFormat::class), Rule::when(! $isForIssues, Rule::notIn([CustomFieldFormat::Attachment->value]))]]),
+            'extensionsAllowed' => ['nullable', 'string', 'max:255'],
             'is_required' => ['boolean'],
             'multiple' => ['boolean'],
             'min_length' => ['nullable', 'integer', 'min:0'],
@@ -314,7 +321,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'field_format' => $fieldFormat,
             'customized_type' => $customizedType,
             'is_required' => $data['is_required'],
-            'multiple' => $data['multiple'],
+            // Redmine's AttachmentFormat supports none of these.
+            'multiple' => $isAttachment ? false : $data['multiple'],
             'min_length' => $data['min_length'],
             // Only a progressbar field has a step; blank means the site default.
             'ratio_interval' => $fieldFormat === CustomFieldFormat::Progressbar->value ? ($data['ratio_interval'] ?? DoneRatioSteps::interval()) : null,
@@ -328,14 +336,15 @@ new #[Layout('components.layouts.app')] class extends Component
             // values from lingering if a field's format could ever change
             // (it can't today, but this avoids relying on that).
             'default_value_mode' => $fieldFormat === CustomFieldFormat::Date->value ? $data['default_value_mode'] : null,
-            'searchable' => $data['searchable'],
-            'is_filter' => $data['is_filter'],
+            'searchable' => $isAttachment ? false : $data['searchable'],
+            'is_filter' => $isAttachment ? false : $data['is_filter'],
             'description' => ($data['description'] ?? '') !== '' ? $data['description'] : null,
             'editable' => $data['editable'],
             'possible_values' => $possibleValues,
             'format_options' => match ($fieldFormat) {
                 CustomFieldFormat::User->value => $data['userRoleIds'] !== [] ? ['user_role' => array_map('intval', $data['userRoleIds'])] : null,
                 CustomFieldFormat::Version->value => $data['versionStatuses'] !== [] ? ['version_status' => array_values($data['versionStatuses'])] : null,
+                CustomFieldFormat::Attachment->value => trim((string) $data['extensionsAllowed']) !== '' ? ['extensions_allowed' => trim((string) $data['extensionsAllowed'])] : null,
                 default => null,
             },
         ];
@@ -404,6 +413,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <select wire:model.live="field_format" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('選択してください') }}</option>
                     @foreach (\App\Enums\CustomFieldFormat::cases() as $format)
+                        @continue($format === \App\Enums\CustomFieldFormat::Attachment && ! $this->isForIssues())
                         <option value="{{ $format->value }}">{{ app(\App\CustomFields\FormatRegistry::class)->get($format)->label() }}</option>
                     @endforeach
                 </select>
@@ -444,6 +454,16 @@ new #[Layout('components.layouts.app')] class extends Component
                         </label>
                     @endforeach
                 </div>
+            </div>
+        @endif
+
+        @if ($field_format === \App\Enums\CustomFieldFormat::Attachment->value)
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('許可する拡張子') }}</label>
+                <input type="text" wire:model="extensionsAllowed" placeholder="pdf, png, jpg" data-extensions-allowed
+                    class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-neutral-500">{{ __('空欄なら添付ファイルの設定だけで判定します。') }}</p>
+                @error('extensionsAllowed') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         @endif
 

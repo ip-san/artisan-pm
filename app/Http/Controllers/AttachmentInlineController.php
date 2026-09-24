@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Support\Attachments\AttachmentFieldValue;
 use App\Support\Attachments\AttachmentPreview;
-use Illuminate\Support\Facades\Gate;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -23,7 +23,7 @@ final class AttachmentInlineController extends Controller
 
         abort_if($model === null, 404);
 
-        Gate::authorize('view', $model);
+        AttachmentFieldValue::authorizeView($media, request()->user());
 
         abort_unless(AttachmentPreview::isServedInline($media), 404);
 

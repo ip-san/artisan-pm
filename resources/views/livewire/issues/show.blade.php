@@ -343,6 +343,24 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * @return Collection<int, int>
+     */
+    #[Computed]
+    public function attachmentCustomFieldIds(): Collection
+    {
+        return CustomField::query()->where('field_format', CustomFieldFormat::Attachment)->pluck('id');
+    }
+
+    /**
+     * An attachment custom field's change is shown without its values, as
+     * in Redmine (change_no_details): they are file ids.
+     */
+    public function isAttachmentCustomFieldDetail(JournalDetail $detail): bool
+    {
+        return $detail->property === 'cf' && $this->attachmentCustomFieldIds->contains((int) $detail->prop_key);
+    }
+
+    /**
      * Whether this journal detail is a long-text custom field change —
      * the "cf" counterpart to the description diff, matching Redmine's
      * own change_as_diff? being limited to the "text" field format.
@@ -1221,6 +1239,8 @@ new #[Layout('components.layouts.app')] class extends Component
                             @elseif ($this->isLongTextCustomFieldDetail($detail))
                                 {{ __(':labelが更新されました', ['label' => $this->journalDetailLabel($detail)]) }}
                                 <a href="{{ route('issues.journal-detail-diff', [$project, $issue, $detail]) }}" class="text-brand-bold hover:underline">{{ __('(差分)') }}</a>
+                            @elseif ($this->isAttachmentCustomFieldDetail($detail))
+                                {{ __(':labelが更新されました', ['label' => $this->journalDetailLabel($detail)]) }}
                             @elseif ($detail->property === 'attachment')
                                 {{ $detail->new_value !== null ? __('添付ファイル「:name」が追加されました', ['name' => $detail->new_value]) : __('添付ファイル「:name」が削除されました', ['name' => $detail->old_value]) }}
                             @elseif ($detail->property === 'relation')

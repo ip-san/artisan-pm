@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Query;
 
+use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
@@ -62,7 +63,7 @@ final class ProjectFilterFieldRegistry
         ];
 
         $customFields = self::customFields($viewer)
-            ->filter(fn (CustomField $field) => $field->is_filter)
+            ->filter(fn (CustomField $field) => $field->is_filter && $field->field_format !== CustomFieldFormat::Attachment)
             ->map(fn (CustomField $field): FilterableField => new CustomFieldFilter($field));
 
         return collect($nativeFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key());

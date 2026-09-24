@@ -10,6 +10,7 @@ use App\CustomFields\Formats\ProjectScopedFormat;
 use App\Enums\CustomFieldDefaultValueMode;
 use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
+use App\Support\Attachments\AttachmentFieldValue;
 use App\Support\Format\DateTimes;
 use Database\Factories\CustomFieldFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -72,6 +73,14 @@ final class CustomField extends Model implements Sortable
      */
     protected static function booted(): void
     {
+        // An attachment field's files hang on the records, not on the
+        // values, so they are removed with the field (B'-02).
+        self::deleting(function (CustomField $field) {
+            if ($field->field_format === CustomFieldFormat::Attachment) {
+                AttachmentFieldValue::deleteFilesOf($field);
+            }
+        });
+
         self::updating(function (CustomField $field) {
             if ($field->isDirty('field_format')) {
                 $field->field_format = $field->getOriginal('field_format');

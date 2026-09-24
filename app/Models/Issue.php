@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Concerns\HasCustomFields;
 use App\Concerns\HasReactions;
 use App\Concerns\HasThumbnails;
+use App\CustomFields\Formats\AttachmentFormat;
 use App\Enums\CustomizableType;
 use App\Enums\IssueRelationType;
 use App\Enums\IssueVisibility;
@@ -338,6 +339,9 @@ final class Issue extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('attachments');
+        // Files of attachment custom fields (B'-02), kept apart from the
+        // issue's own attachments list.
+        $this->addMediaCollection(AttachmentFormat::COLLECTION);
     }
 
     /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Gate;
+use App\Support\Attachments\AttachmentFieldValue;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -22,7 +22,7 @@ final class AttachmentController extends Controller
 
         abort_if($model === null, 404);
 
-        Gate::authorize('view', $model);
+        AttachmentFieldValue::authorizeView($media, request()->user());
 
         $media->setCustomProperty('download_count', ((int) $media->getCustomProperty('download_count', 0)) + 1);
         $media->save();

@@ -384,7 +384,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->start_date = $source->start_date?->toDateString();
         $this->due_date = $source->due_date?->toDateString();
 
-        $this->customFieldValues = $source->customFieldFormValues($source->relevantCustomFields());
+        // An attachment field's file belongs to the source issue, so, as in
+        // Redmine, it is not copied.
+        $this->customFieldValues = $source->customFieldFormValues($source->relevantCustomFields()->reject(fn (CustomField $field) => $field->field_format === \App\Enums\CustomFieldFormat::Attachment));
     }
 
     /**
@@ -1103,7 +1105,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->customFields->isNotEmpty())
             <div class="space-y-4 border-t border-neutral-200 pt-4">
                 @foreach ($this->customFields as $field)
-                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :project="$this->project"
+                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :project="$this->project" :record="$issue" :current="$customFieldValues[$field->id] ?? null"
                         :required="$field->is_required || $this->isRequired('cf_'.$field->id)"
                         :disabled="$this->isReadOnly('cf_'.$field->id) || ! $field->editableBy(auth()->user())" />
                 @endforeach
