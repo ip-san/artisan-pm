@@ -41,7 +41,8 @@ final class RepositoryRawController extends Controller
         abort_if($repository === null, 404);
 
         $path = trim((string) $request->route('path'), '/');
-        $content = $repository->adapter()->fileContentAt('HEAD', $path);
+        // A branch or tag the repository lists (Redmine's `rev`), else HEAD.
+        $content = $repository->adapter()->fileContentAt($repository->revisionFor($request->string('rev')->value() ?: null), $path);
 
         $mimeType = (new finfo(FILEINFO_MIME_TYPE))->buffer($content) ?: 'application/octet-stream';
 

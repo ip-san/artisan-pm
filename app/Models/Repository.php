@@ -10,6 +10,7 @@ use App\Support\Scm\BazaarAdapter;
 use App\Support\Scm\CvsAdapter;
 use App\Support\Scm\FilesystemAdapter;
 use App\Support\Scm\GitAdapter;
+use App\Support\Scm\HasBranchesAndTags;
 use App\Support\Scm\MercurialAdapter;
 use App\Support\Scm\ScmAdapter;
 use App\Support\Scm\SvnAdapter;
@@ -153,6 +154,45 @@ final class Repository extends Model
     public function location(): string
     {
         return $this->isRemote() ? (string) $this->url : (string) $this->path;
+    }
+
+    /**
+     * The repository's branches and tags when its SCM has them (Redmine's
+     * branch and tag selectors on the repository browser).
+     *
+     * @return array{branches: list<string>, tags: list<string>}
+     */
+    public function refs(): array
+    {
+        $adapter = $this->adapter();
+
+        return $adapter instanceof HasBranchesAndTags
+            ? ['branches' => $adapter->branches(), 'tags' => $adapter->tags()]
+            : ['branches' => [], 'tags' => []];
+    }
+
+    /**
+     * The revision to browse for a requested branch or tag name: the name
+     * itself when it is one of refs() (a Bazaar tag as `tag:<name>`),
+     * otherwise HEAD — so nothing else from the URL reaches the SCM.
+     */
+    public function revisionFor(?string $ref): string
+    {
+        if ($ref === null || $ref === '') {
+            return 'HEAD';
+        }
+
+        $refs = $this->refs();
+
+        if (in_array($ref, $refs['branches'], true)) {
+            return $ref;
+        }
+
+        if (in_array($ref, $refs['tags'], true)) {
+            return $this->type === RepositoryType::Bazaar ? "tag:{$ref}" : $ref;
+        }
+
+        return 'HEAD';
     }
 
     public function adapter(): ScmAdapter

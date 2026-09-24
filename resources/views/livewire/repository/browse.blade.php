@@ -6,6 +6,7 @@ use App\Models\Repository;
 use App\Support\Scm\ScmTreeEntry;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
@@ -15,6 +16,13 @@ new #[Layout('components.layouts.app')] class extends Component
     public Repository $repository;
 
     public string $path = '';
+
+    /**
+     * The branch or tag browsed (Redmine's `rev`), or null for HEAD. Only a
+     * name the repository lists is used (Repository::revisionFor()).
+     */
+    #[Url]
+    public ?string $rev = null;
 
     /**
      * Browsing always reflects HEAD, not a specific historical revision —
@@ -50,7 +58,38 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function entries(): array
     {
-        return $this->repository->adapter()->tree('HEAD', $this->path);
+        return $this->repository->adapter()->tree($this->revision, $this->path);
+    }
+
+    /**
+     * @return array{branches: list<string>, tags: list<string>}
+     */
+    #[Computed]
+    public function refs(): array
+    {
+        return $this->repository->refs();
+    }
+
+    #[Computed]
+    public function revision(): string
+    {
+        return $this->repository->revisionFor($this->rev);
+    }
+
+    /**
+     * The `rev` to carry on links, when a known branch or tag is browsed.
+     *
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function revParameter(): array
+    {
+        return $this->revision === 'HEAD' ? [] : ['rev' => (string) $this->rev];
+    }
+
+    public function updatedRev(): void
+    {
+        unset($this->entries, $this->revision, $this->revParameter);
     }
 
     /**
@@ -80,14 +119,41 @@ new #[Layout('components.layouts.app')] class extends Component
         <p class="text-sm text-neutral-500">
             <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">{{ __('リポジトリ') }}</a>
         </p>
-        <h1 class="text-xl font-semibold text-neutral-900">{{ __('ファイル一覧') }} (HEAD)</h1>
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __('ファイル一覧') }} ({{ $this->revParameter === [] ? 'HEAD' : $rev }})</h1>
     </div>
 
+    @if ($this->refs['branches'] !== [] || $this->refs['tags'] !== [])
+        <div class="mb-4 flex flex-wrap items-center gap-3 text-sm text-neutral-700" data-repository-refs>
+            @if ($this->refs['branches'] !== [])
+                <label class="flex items-center gap-1">
+                    {{ __('ブランチ') }}
+                    <select wire:model.live="rev" class="rounded-md border-neutral-300 text-sm">
+                        <option value="">HEAD</option>
+                        @foreach ($this->refs['branches'] as $branch)
+                            <option value="{{ $branch }}">{{ $branch }}</option>
+                        @endforeach
+                    </select>
+                </label>
+            @endif
+            @if ($this->refs['tags'] !== [])
+                <label class="flex items-center gap-1">
+                    {{ __('タグ') }}
+                    <select wire:model.live="rev" class="rounded-md border-neutral-300 text-sm">
+                        <option value="">HEAD</option>
+                        @foreach ($this->refs['tags'] as $tag)
+                            <option value="{{ $tag }}">{{ $tag }}</option>
+                        @endforeach
+                    </select>
+                </label>
+            @endif
+        </div>
+    @endif
+
     <nav class="mb-4 text-sm text-neutral-600">
-        <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">root</a>
+        <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters($this->revParameter)) }}" class="text-brand-bold hover:underline">root</a>
         @foreach ($this->breadcrumbs as $crumb)
             /
-            <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $crumb['path']])) }}" class="text-brand-bold hover:underline">
+            <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $crumb['path'], ...$this->revParameter])) }}" class="text-brand-bold hover:underline">
                 {{ $crumb['name'] }}
             </a>
         @endforeach
@@ -97,11 +163,11 @@ new #[Layout('components.layouts.app')] class extends Component
         @forelse ($this->entries as $entry)
             <li wire:key="tree-{{ $entry->path }}" class="flex items-center justify-between px-4 py-2 text-sm">
                 @if ($entry->isDirectory)
-                    <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-brand-bold hover:underline">
+                    <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $entry->path, ...$this->revParameter])) }}" class="text-brand-bold hover:underline">
                         📁 {{ $entry->name }}/
                     </a>
                 @else
-                    <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-brand-bold hover:underline">
+                    <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $entry->path, ...$this->revParameter])) }}" class="text-brand-bold hover:underline">
                         📄 {{ $entry->name }}
                     </a>
                     @if ($this->supportsHistory)

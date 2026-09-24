@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Process;
  * --no-aliases, against a user alias rewriting a command) keeps the
  * commands read-only; BRZ_LOG keeps it from needing a writable home.
  */
-final readonly class BazaarAdapter implements ScmAdapter
+final readonly class BazaarAdapter implements HasBranchesAndTags, ScmAdapter
 {
     /**
      * @var array<int, string>
@@ -144,6 +144,38 @@ final readonly class BazaarAdapter implements ScmAdapter
     private function target(string $path): string
     {
         return $this->path.'/'.ltrim($path, '/');
+    }
+
+    /**
+     * A Bazaar repository here is a single branch.
+     */
+    public function branches(): array
+    {
+        return [];
+    }
+
+    public function tags(): array
+    {
+        $result = $this->brz(['tags', '-d', $this->path], 15);
+
+        if (! $result->successful()) {
+            return [];
+        }
+
+        $names = [];
+
+        // "name   revno" per line; a tag whose revision is missing shows "?".
+        foreach (explode("\n", CodesetConverter::toUtf8($result->output())) as $line) {
+            $name = preg_replace('/\s+\S+$/', '', trim($line));
+
+            if (is_string($name) && $name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        sort($names);
+
+        return $names;
     }
 
     /**

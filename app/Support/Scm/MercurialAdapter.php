@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Process;
  * counterpart of GitAdapter's SAFETY_FLAGS, and HGPLAIN keeps the output
  * format independent of user settings.
  */
-final readonly class MercurialAdapter implements ScmAdapter
+final readonly class MercurialAdapter implements HasBranchesAndTags, ScmAdapter
 {
     private const string FIELD_SEP = "\x1f";
 
@@ -156,6 +156,37 @@ final readonly class MercurialAdapter implements ScmAdapter
     private function revision(string $revision): string
     {
         return $revision === 'HEAD' ? 'tip' : $revision;
+    }
+
+    public function branches(): array
+    {
+        return $this->names(['branches', '-T', '{branch}\n']);
+    }
+
+    /**
+     * The tags other than Mercurial's moving "tip".
+     */
+    public function tags(): array
+    {
+        return array_values(array_filter($this->names(['tags', '-T', '{tag}\n']), fn (string $tag) => $tag !== 'tip'));
+    }
+
+    /**
+     * @param  array<int, string>  $args
+     * @return list<string>
+     */
+    private function names(array $args): array
+    {
+        $result = $this->hg($args, 15);
+
+        if (! $result->successful()) {
+            return [];
+        }
+
+        $names = array_values(array_filter(explode("\n", CodesetConverter::toUtf8($result->output())), fn (string $name) => $name !== ''));
+        sort($names);
+
+        return $names;
     }
 
     /**

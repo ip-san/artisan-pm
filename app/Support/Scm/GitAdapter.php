@@ -9,7 +9,7 @@ use DateTimeImmutable;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Support\Facades\Process;
 
-final readonly class GitAdapter implements ScmAdapter
+final readonly class GitAdapter implements HasBranchesAndTags, ScmAdapter
 {
     /**
      * Field separator (US) between header parts, and record markers (STX/
@@ -141,6 +141,33 @@ final readonly class GitAdapter implements ScmAdapter
         }
 
         return $this->parseBlame(CodesetConverter::toUtf8($result->output()));
+    }
+
+    public function branches(): array
+    {
+        return $this->refNames('refs/heads');
+    }
+
+    public function tags(): array
+    {
+        return $this->refNames('refs/tags');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function refNames(string $namespace): array
+    {
+        $result = $this->git(['for-each-ref', '--format=%(refname:short)', $namespace], 15);
+
+        if (! $result->successful()) {
+            return [];
+        }
+
+        $names = array_values(array_filter(explode("\n", trim(CodesetConverter::toUtf8($result->output()))), fn (string $name) => $name !== ''));
+        sort($names);
+
+        return $names;
     }
 
     /**

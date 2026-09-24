@@ -7,6 +7,7 @@ use App\Support\Scm\CodesetConverter;
 use App\Support\Scm\DisplayLimits;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
@@ -16,6 +17,13 @@ new #[Layout('components.layouts.app')] class extends Component
     public Repository $repository;
 
     public string $path;
+
+    /**
+     * The branch or tag the file is read at (see repository.browse), or
+     * null for HEAD.
+     */
+    #[Url]
+    public ?string $rev = null;
 
     public function mount(Project $project, string $path, ?string $repositoryParam = null): void
     {
@@ -32,7 +40,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function content(): string
     {
-        $raw = $this->repository->adapter()->fileContentAt('HEAD', $this->path);
+        $raw = $this->repository->adapter()->fileContentAt($this->repository->revisionFor($this->rev), $this->path);
 
         // A file in a legacy encoding listed in repositories_encodings shows
         // as text; anything else that is not UTF-8 stays raw and reads as binary.
@@ -55,6 +63,17 @@ new #[Layout('components.layouts.app')] class extends Component
         return ! mb_check_encoding($this->content, 'UTF-8');
     }
 
+    /**
+     * The `rev` to carry on links, when a known branch or tag is read.
+     *
+     * @return array<string, string>
+     */
+    #[Computed]
+    public function revParameter(): array
+    {
+        return $this->repository->revisionFor($this->rev) === 'HEAD' ? [] : ['rev' => (string) $this->rev];
+    }
+
     #[Computed]
     public function directoryPath(): string
     {
@@ -70,7 +89,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <p class="text-sm text-neutral-500">
             <a href="{{ route($repository->routeName('repository.index'), $repository->routeParameters()) }}" class="text-brand-bold hover:underline">{{ __('リポジトリ') }}</a>
             /
-            <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $this->directoryPath])) }}" class="text-brand-bold hover:underline">
+            <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters(['path' => $this->directoryPath, ...$this->revParameter])) }}" class="text-brand-bold hover:underline">
                 {{ __('ファイル一覧') }}
             </a>
         </p>
@@ -89,7 +108,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         {{ __('履歴') }}
                     </a>
                 @endif
-                <a href="{{ route($repository->routeName('repository.raw'), $repository->routeParameters(['path' => $path])) }}"
+                <a href="{{ route($repository->routeName('repository.raw'), $repository->routeParameters(['path' => $path, ...$this->revParameter])) }}"
                     class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     {{ __('ダウンロード') }}
                 </a>
