@@ -8,10 +8,12 @@ use App\Concerns\HasCustomFields;
 use App\Concerns\HasThumbnails;
 use App\Enums\CustomizableType;
 use App\Enums\EnumerationType;
+use App\Enums\IssueTimeEntryDisposition;
 use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
 use App\Enums\VersionSharing;
 use App\Enums\VersionStatus;
+use App\Services\IssueService;
 use App\Services\MemberInheritance;
 use App\Services\VersionService;
 use App\Support\Authorization\AuthorizationService;
@@ -25,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Kalnoy\Nestedset\NodeTrait;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -76,6 +79,40 @@ final class Project extends Model implements HasMedia
                 app(MemberInheritance::class)->sync($project);
             }
         });
+
+        // Redmine's Project#destroy destroys every issue of the project and
+        // of its subprojects (has_many :issues, :dependent => :destroy, and
+        // the nested set destroying the subprojects), and each issue takes
+        // its subtasks with it wherever they live (A1-42) along with their
+        // time entries. Going through IssueService instead of the
+        // project_id cascade also removes their attachments, search index
+        // entries and fires issue.deleted, as deleting the issues one by one
+        // does; a subtask in another project no longer survives as a
+        // top-level issue, and a parent there is recalculated.
+        self::deleting(function (Project $project): void {
+            $bounds = self::query()->whereKey($project->getKey())->first(['_lft', '_rgt']);
+
+            if ($bounds === null) {
+                return;
+            }
+
+            $projectIds = self::query()->where('_lft', '>=', $bounds->_lft)->where('_rgt', '<=', $bounds->_rgt)->pluck('id');
+
+            app(IssueService::class)->deleteMany(
+                Issue::query()->whereIn('project_id', $projectIds)->get(),
+                IssueTimeEntryDisposition::Destroy,
+            );
+        });
+    }
+
+    /**
+     * Deletes the project, its subprojects and everything the deleting
+     * hook in booted() removes in one transaction, so a failure part-way
+     * never leaves the issues deleted with the project still there.
+     */
+    public function delete(): ?bool
+    {
+        return DB::transaction(fn () => parent::delete());
     }
 
     /**

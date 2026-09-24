@@ -4,9 +4,14 @@ use App\Models\Issue;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
+use App\Models\TimeEntry;
 use App\Models\User;
 use App\Models\Version;
+use Illuminate\Http\UploadedFile;
+use Laravel\Passport\Passport;
 use Livewire\Livewire;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 function withRecentlyConfirmedPasswordForProjectDeletionTest(): void
 {
@@ -176,4 +181,61 @@ test('the delete button is not shown to a non-admin member without delete_projec
     Livewire::actingAs($user)
         ->test('projects.show', ['project' => $project])
         ->assertDontSee('プロジェクトの削除');
+});
+
+test('deleting a project deletes the subtasks of its issues that live in other projects, with their time (A1-42)', function () {
+    $project = Project::factory()->create(['identifier' => 'doomed-project']);
+    $other = Project::factory()->create();
+    $parent = Issue::factory()->for($project)->create();
+    $foreignChild = Issue::factory()->for($other)->create(['parent_id' => $parent->id]);
+    $foreignGrandchild = Issue::factory()->for($other)->create(['parent_id' => $foreignChild->id]);
+    $unrelated = Issue::factory()->for($other)->create();
+    $entry = TimeEntry::factory()->for($other)->create(['issue_id' => $foreignChild->id]);
+    $parent->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
+    $admin = User::factory()->admin()->create();
+    withRecentlyConfirmedPasswordForProjectDeletionTest();
+
+    Livewire::actingAs($admin)
+        ->test('projects.show', ['project' => $project])
+        ->set('deleteConfirmationInput', 'doomed-project')
+        ->call('deleteProject');
+
+    expect(Project::find($project->id))->toBeNull()
+        ->and(Issue::find($parent->id))->toBeNull()
+        ->and(Issue::find($foreignChild->id))->toBeNull()
+        ->and(Issue::find($foreignGrandchild->id))->toBeNull()
+        ->and(TimeEntry::find($entry->id))->toBeNull()
+        ->and(Media::query()->where('model_type', 'issue')->where('model_id', $parent->id)->exists())->toBeFalse()
+        ->and(Issue::find($unrelated->id))->not->toBeNull()
+        ->and(Project::find($other->id))->not->toBeNull();
+});
+
+test('deleting a subproject tree deletes the subtasks elsewhere of every subproject\'s issues and recalculates a surviving parent (A1-42)', function () {
+    $root = Project::factory()->create();
+    $child = Project::factory()->create(['parent_id' => $root->id]);
+    $other = Project::factory()->create();
+    $survivingParent = Issue::factory()->for($other)->create(['done_ratio' => 0]);
+    $subIssue = Issue::factory()->for($child)->create(['parent_id' => $survivingParent->id]);
+    $keptSibling = Issue::factory()->for($other)->create(['parent_id' => $survivingParent->id]);
+    $foreignChild = Issue::factory()->for($other)->create(['parent_id' => $subIssue->id]);
+
+    Project::query()->find($root->id)->delete();
+
+    expect(Project::find($child->id))->toBeNull()
+        ->and(Issue::find($subIssue->id))->toBeNull()
+        ->and(Issue::find($foreignChild->id))->toBeNull()
+        ->and(Issue::find($survivingParent->id))->not->toBeNull()
+        ->and(Issue::find($keptSibling->id)->parent_id)->toBe($survivingParent->id);
+});
+
+test('the REST API project delete removes the subtasks in other projects too (A1-42)', function () {
+    $project = Project::factory()->create();
+    $parent = Issue::factory()->for($project)->create();
+    $foreignChild = Issue::factory()->for(Project::factory())->create(['parent_id' => $parent->id]);
+    Setting::set('rest_api_enabled', true);
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $this->deleteJson("/api/v1/projects/{$project->id}")->assertSuccessful();
+
+    expect(Issue::find($foreignChild->id))->toBeNull();
 });
