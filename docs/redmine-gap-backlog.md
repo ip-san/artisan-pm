@@ -264,9 +264,9 @@
 | 130 | A11-10 | — | M | done(2026-09-20、include=attachments の共通化は対象外) |
 | 131 | A12-02 / A13-07 | — | M | done(2026-09-20、ユーザー自身の管理画面は A12-02b) |
 | 131b | A12-02b | A12-02 | S〜M | done(2026-09-20) |
-| 132 | A12-03 | — | M | wip(2026-09-24、承認: 設計メモの推奨案。A12-03a/b の 2 コミット) |
+| 132 | A12-03 | — | M | done(2026-09-24、承認: 設計メモの推奨案。A12-03a/b) |
 | 132a | A12-03a | — | S | done(2026-09-24、マニフェスト検証・autoload・有効なものだけ読み込み・壊れたものはログして読み飛ばし。ルートキャッシュ・Octane は対象外) |
-| 132b | A12-03b | A12-03a | S | todo |
+| 132b | A12-03b | A12-03a | S | done(2026-09-24、一覧・有効/無効・読み込み失敗の理由・読めないフォルダの表示) |
 | 133 | A12-05 | — | M | done(2026-09-20、保存前フックは対象外) |
 | 134 | A12-06 / A5-10 | — | M | done(2026-09-20、キーワード許可リスト等は A12-06b) |
 | 134b | A12-06b | A12-06 | M | done(2026-09-20) |
@@ -563,7 +563,7 @@
 | A12-01 | Webhook イベント `news.*`(Redmine 7.0 は Issue/News/TimeEntry/Version/WikiPage の 5 モデルが `acts_as_webhookable`) | `app/Enums/WebhookEvent.php` は issue/wiki_page/time_entry/version の 12 種。`news.*` なし | `NewsCreated`/`NewsCommentCreated` イベントは既存なので `DispatchWebhooksForNewsEvent` リスナーと Enum 値を追加 | — | S | 拡張性 節(Webhook は「本アプリ独自機能」と記載されていたが Redmine 7.0 でコア化、C-09) |
 | A12-02 | Webhook の所有ユーザーと可視性判定(`Webhook#user`、`object.visible?(hook.user) && allowed_to?(:use_webhooks)`)、`webhooks_enabled` 設定、権限 `use_webhooks` | Webhook は管理者が登録するグローバル設定、ユーザー紐付けなし | `webhooks.user_id` 列を追加し配信時に可視性を判定、`use_webhooks` 権限(A13)、有効/無効設定 | 現行 Webhook の配信対象(全課題)からの後方互換に注意 | M | 同上 |
 | A12-02b | ユーザー自身が自分の Webhook を管理する画面(`/my/webhooks`、`use_webhooks` 権限者のみ) | 管理者画面のみ | マイアカウントに Webhook 一覧/登録を追加(所有者は自分に固定) | A12-02 で分離 | S〜M | 「Webhook」 |
-| A12-03 | プラグインのランタイム検出(`plugins/*/init.rb` 自動読込) | ~~`bootstrap/providers.php` への手動登録(`PluginManager` docblock)~~ → A12-03a(2026-09-24): `PluginLoader`・`PluginManifest`、`plugins/<id>/plugin.json`、設定 `plugins_enabled` | `plugins/` ディレクトリ走査+Composer オートロード登録、有効/無効フラグ | 旧: 意図的(第一段階) | M | 拡張性「ランタイムでのプラグイン検出」 |
+| A12-03 | プラグインのランタイム検出(`plugins/*/init.rb` 自動読込) | ~~`bootstrap/providers.php` への手動登録(`PluginManager` docblock)~~ → A12-03a(2026-09-24): `PluginLoader`・`PluginManifest`、`plugins/<id>/plugin.json`、設定 `plugins_enabled`。A12-03b: `/plugins` で有効/無効 | `plugins/` ディレクトリ走査+Composer オートロード登録、有効/無効フラグ | 旧: 意図的(第一段階) | M | 拡張性「ランタイムでのプラグイン検出」 |
 | A12-04 | プラグイン独自の設定パーシャル(`settings :partial => '...'`) | 型推定の汎用エディタのみ | プラグイン定義に Blade ビュー名を渡せるようにし、あれば汎用エディタの代わりに描画 | — | S | 「プラグイン設定UI・永続化」 |
 | A12-05 | モデル/コントローラのライフサイクルフック(`controller_issues_edit_before_save` 等) | ビュー描画フック(`<x-hook>`)のみ | 主要サービス(`IssueService::create/update/delete`、`TimeEntry`、`WikiPage`)の前後に Laravel イベント(既に `IssueCreated` 等はある)を整理し、プラグインが購読できるフック名一覧をドキュメント化 | 既存イベントの流用で大半は賄える | M | 「コントローラ/モデルのライフサイクルフック」 |
 | A12-06 | 受信メール: API キー経由の受信(`mail_handler_api_*`)、`allow_override` によるキーワード上書き許可リスト、カスタムフィールドキーワード、`project_from_subaddress`、`default_group`、`no_account_notice`/`no_notification` | IMAP/POP ポーリング、11 キーワード固定、CF 非対応 | `POST /mail_handler`(A5-10)、キーワード許可リスト設定、CF 名一致でのキーワード、`+project` サブアドレス解釈 | `unknown_user`/`no_permission_check` は B-05 | M | 「メール本文のキーワードコマンド」 |
