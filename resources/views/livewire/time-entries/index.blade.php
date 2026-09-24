@@ -547,7 +547,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function contextMenuCustomFields(): Collection
     {
-        return ContextMenuCustomFields::optionsFor($this->bulkCustomFields);
+        return ContextMenuCustomFields::optionsFor($this->bulkCustomFields, collect([$this->bulkTargetProject]));
     }
 
     /**
@@ -582,7 +582,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function bulkCustomFields(): Collection
     {
         return (new TimeEntry)->forceFill(['project_id' => $this->bulkTargetProject->id])->relevantCustomFields()
-            ->filter(fn (\App\Models\CustomField $field) => ! $field->multiple && ! $field->format() instanceof \App\CustomFields\Formats\ProjectScopedFormat && ! $field->format() instanceof \App\CustomFields\Formats\AttachmentFormat && $field->editableBy(auth()->user()))
+            ->filter(fn (\App\Models\CustomField $field) => ! $field->multiple && ! $field->format() instanceof \App\CustomFields\Formats\AttachmentFormat && $field->editableBy(auth()->user()))
             ->values();
     }
 
@@ -625,7 +625,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         // Only the fields given a value are validated and set.
         $customFieldInput = collect($this->bulkCustomFieldValues)->filter(fn ($value) => filled($value))->only($this->bulkCustomFields->pluck('id')->all())->all();
-        $customFieldRules = collect(\App\Models\CustomField::formValidationRules($this->bulkCustomFields->whereIn('id', array_keys($customFieldInput))))
+        // A user or version field is checked against the target project's values.
+        $customFieldRules = collect(\App\Models\CustomField::formValidationRules($this->bulkCustomFields->whereIn('id', array_keys($customFieldInput)), project: $this->bulkTargetProject))
             ->mapWithKeys(fn ($rules, $key) => [str_replace('customFieldValues.', 'bulkCustomFieldValues.', $key) => $rules])->all();
         if ($customFieldRules !== []) {
             $this->validate($customFieldRules);
@@ -958,7 +959,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     @foreach ($this->bulkCustomFields as $field)
                         <div wire:key="bulk-cf-{{ $field->id }}">
                             <label class="block text-xs font-medium text-neutral-700">{{ $field->name }}</label>
-                            @if (in_array($field->field_format, [\App\Enums\CustomFieldFormat::List, \App\Enums\CustomFieldFormat::Enumeration, \App\Enums\CustomFieldFormat::Bool], true))
+                            @if ($field->format() instanceof \App\CustomFields\Formats\ProjectScopedFormat)
+                                <select wire:model="bulkCustomFieldValues.{{ $field->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                                    <option value="">{{ __('変更なし') }}</option>
+                                    @foreach ($field->optionsFor($this->bulkTargetProject) as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            @elseif (in_array($field->field_format, [\App\Enums\CustomFieldFormat::List, \App\Enums\CustomFieldFormat::Enumeration, \App\Enums\CustomFieldFormat::Bool], true))
                                 <select wire:model="bulkCustomFieldValues.{{ $field->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                                     <option value="">{{ __('変更なし') }}</option>
                                     @if ($field->field_format === \App\Enums\CustomFieldFormat::Bool)

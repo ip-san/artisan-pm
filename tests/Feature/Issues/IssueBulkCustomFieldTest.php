@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use Livewire\Livewire;
 
 /**
@@ -172,4 +173,52 @@ test('a member without edit_issues cannot use the custom field menu', function (
         ->assertForbidden();
 
     expect($issue->fresh()->customValue($list))->toBeNull();
+});
+
+test('a user field is offered with the members every selected issue\'s project shares, in the form and the menu', function () {
+    $alpha = Project::factory()->create();
+    $beta = Project::factory()->create();
+    $editor = User::factory()->create();
+    $shared = User::factory()->create(['name' => 'Shared Member']);
+    $alphaOnly = User::factory()->create(['name' => 'Alpha Only']);
+    $role = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    foreach ([[$alpha, $editor], [$beta, $editor], [$alpha, $shared], [$beta, $shared], [$alpha, $alphaOnly]] as [$project, $member]) {
+        Member::factory()->for($project)->for($member)->create()->roles()->attach($role);
+    }
+    $tracker = Tracker::factory()->create();
+    $reviewer = bulkCfField($tracker, ['name' => 'Reviewer', 'field_format' => CustomFieldFormat::User->value]);
+    $a = bulkCfIssue($alpha, $tracker);
+    $b = bulkCfIssue($beta, $tracker);
+
+    $list = Livewire::actingAs($editor)->test('issues.index')->set('selected', [(string) $a->id, (string) $b->id]);
+    $options = $list->instance()->bulkScopedOptions($reviewer);
+    $menu = $list->get('contextMenuCustomFields')->first(fn (array $entry) => $entry['field']->id === $reviewer->id);
+
+    expect($options)->toHaveKey((string) $shared->id)->not->toHaveKey((string) $alphaOnly->id)
+        ->and($menu['options'])->toHaveKey((string) $shared->id)->not->toHaveKey((string) $alphaOnly->id);
+
+    $list->set("bulkCustomFieldValues.{$reviewer->id}", (string) $alphaOnly->id)->call('applyBulkEdit')->assertHasErrors(["bulkCustomFieldValues.{$reviewer->id}"]);
+    expect($a->fresh()->customValue($reviewer))->toBeNull();
+
+    $list->set("bulkCustomFieldValues.{$reviewer->id}", (string) $shared->id)->call('applyBulkEdit')->assertHasNoErrors();
+
+    expect($a->fresh()->customValue($reviewer))->toBe('Shared Member')
+        ->and($b->fresh()->customValue($reviewer))->toBe('Shared Member');
+});
+
+test('a version field can be set from the context menu with a version both projects share', function () {
+    $alpha = Project::factory()->create();
+    $editor = User::factory()->create();
+    Member::factory()->for($alpha)->for($editor)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]));
+    $tracker = Tracker::factory()->create();
+    $release = bulkCfField($tracker, ['name' => 'Found in', 'field_format' => CustomFieldFormat::Version->value]);
+    $version = Version::factory()->for($alpha)->create(['name' => 'v2.0']);
+    $a = bulkCfIssue($alpha, $tracker);
+
+    Livewire::actingAs($editor)->test('issues.index', ['project' => $alpha])
+        ->set('selected', [(string) $a->id])
+        ->call('contextUpdateCustomField', $release->id, (string) $version->id)
+        ->assertHasNoErrors();
+
+    expect($a->fresh()->customValue($release))->toBe('v2.0');
 });

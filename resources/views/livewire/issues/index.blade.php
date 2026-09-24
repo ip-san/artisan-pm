@@ -1403,8 +1403,19 @@ new #[Layout('components.layouts.app')] class extends Component
         $common = $perIssue->map(fn (Collection $fields) => $fields->keys())->reduce(fn (?Collection $carry, Collection $ids) => $carry === null ? $ids : $carry->intersect($ids));
 
         return $perIssue->first()->only($common->all())
-            ->filter(fn (CustomField $field) => ! $field->multiple && ! $field->format() instanceof \App\CustomFields\Formats\ProjectScopedFormat && ! $field->format() instanceof \App\CustomFields\Formats\AttachmentFormat && $field->editableBy(auth()->user()))
+            ->filter(fn (CustomField $field) => ! $field->multiple && ! $field->format() instanceof \App\CustomFields\Formats\AttachmentFormat && $field->editableBy(auth()->user()))
             ->values();
+    }
+
+    /**
+     * The values a bulk edit offers for a user or version field: those
+     * every selected issue's project offers (A1-06c).
+     *
+     * @return array<string, string>
+     */
+    public function bulkScopedOptions(CustomField $field): array
+    {
+        return ContextMenuCustomFields::commonScopedOptions($field, $this->selectedIssues->pluck('project')->unique('id')->values());
     }
 
     /**
@@ -1417,7 +1428,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function contextMenuCustomFields(): Collection
     {
-        return ContextMenuCustomFields::optionsFor($this->bulkCustomFields);
+        return ContextMenuCustomFields::optionsFor($this->bulkCustomFields, $this->selectedIssues->pluck('project')->unique('id')->values());
     }
 
     #[Computed]
@@ -1523,6 +1534,14 @@ new #[Layout('components.layouts.app')] class extends Component
         $customFieldInput = collect($this->bulkCustomFieldValues)->filter(fn ($value) => filled($value))->only($this->bulkCustomFields->pluck('id')->all())->all();
         $customFieldRules = collect(CustomField::formValidationRules($this->bulkCustomFields->whereIn('id', array_keys($customFieldInput))))
             ->mapWithKeys(fn ($rules, $key) => [str_replace('customFieldValues.', 'bulkCustomFieldValues.', $key) => $rules])->all();
+
+        // A user or version value must be one every selected issue's
+        // project offers.
+        foreach ($this->bulkCustomFields->whereIn('id', array_keys($customFieldInput)) as $field) {
+            if ($field->format() instanceof \App\CustomFields\Formats\ProjectScopedFormat) {
+                $customFieldRules["bulkCustomFieldValues.{$field->id}"] = ['nullable', Rule::in(array_keys($this->bulkScopedOptions($field)))];
+            }
+        }
 
         if ($customFieldRules !== []) {
             $this->validate($customFieldRules);
@@ -2326,7 +2345,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     @foreach ($this->bulkCustomFields as $field)
                         <div wire:key="bulk-cf-{{ $field->id }}">
                             <label class="block text-xs font-medium text-neutral-700">{{ $field->name }}</label>
-                            @if (in_array($field->field_format, [\App\Enums\CustomFieldFormat::List, \App\Enums\CustomFieldFormat::Enumeration, \App\Enums\CustomFieldFormat::Bool], true))
+                            @if ($field->format() instanceof \App\CustomFields\Formats\ProjectScopedFormat)
+                                <select wire:model="bulkCustomFieldValues.{{ $field->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                                    <option value="">{{ __('変更なし') }}</option>
+                                    @foreach ($this->bulkScopedOptions($field) as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            @elseif (in_array($field->field_format, [\App\Enums\CustomFieldFormat::List, \App\Enums\CustomFieldFormat::Enumeration, \App\Enums\CustomFieldFormat::Bool], true))
                                 <select wire:model="bulkCustomFieldValues.{{ $field->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                                     <option value="">{{ __('変更なし') }}</option>
                                     @if ($field->field_format === \App\Enums\CustomFieldFormat::Bool)
