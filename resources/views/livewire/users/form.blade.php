@@ -1,5 +1,7 @@
 <?php
 
+use App\Notifications\AccountInformation;
+use App\Support\Auth\RandomPassword;
 use App\Enums\UserStatus;
 use App\Models\AuthSource;
 use App\Models\CustomField;
@@ -52,6 +54,17 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $password = '';
 
     public string $password_confirmation = '';
+
+    /**
+     * Redmine's "Generate password": a random password is set instead of
+     * the one typed (local accounts only).
+     */
+    public bool $generate_password = false;
+
+    /**
+     * Redmine's "Send account information to the user".
+     */
+    public bool $send_information = false;
 
     /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
     public array $customFieldValues = [];
@@ -125,7 +138,9 @@ new #[Layout('components.layouts.app')] class extends Component
         ];
 
         if (! $isLdapLinked) {
-            $rules['password'] = [$this->user ? 'nullable' : 'required', 'string', PasswordRule::default(), 'confirmed'];
+            $rules['password'] = $this->generate_password
+                ? ['nullable']
+                : [$this->user ? 'nullable' : 'required', 'string', PasswordRule::default(), 'confirmed'];
         }
 
         $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
@@ -154,13 +169,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 $data['password'] = Hash::make(Str::random(40));
             }
         } else {
-            $password = $data['password'] ?? '';
+            $password = $this->generate_password ? RandomPassword::generate() : ($data['password'] ?? '');
             unset($data['password']);
 
             if ($password !== '') {
                 $data['password'] = Hash::make($password);
+                $plainPassword = $password;
             }
         }
+
+        $isNew = $this->user === null;
 
         if ($this->user) {
             $this->user->update($data);
@@ -178,6 +196,12 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->user->save();
 
         $this->user->setCustomFieldValues($customFieldData);
+
+        // Redmine's send_information: on creation always, on an update only
+        // to an active user other than the administrator saving the form.
+        if ($this->send_information && ($isNew || ($this->user->isActive() && ! $this->user->is(auth()->user())))) {
+            $this->user->notify(new AccountInformation($plainPassword ?? null));
+        }
 
         $this->redirect(route('users.index'), navigate: true);
     }
@@ -293,8 +317,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 <label class="block text-sm font-medium text-neutral-700">
                     {{ $user ? __('パスワード(変更する場合のみ入力)') : __('パスワード') }}
                 </label>
-                <input type="password" wire:model="password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <input type="password" wire:model="password" @disabled($generate_password) class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm disabled:bg-neutral-100">
                 @error('password') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+                <label class="mt-2 flex items-center gap-2 text-sm text-neutral-700">
+                    <input type="checkbox" wire:model.live="generate_password" class="rounded border-neutral-300">
+                    {{ __('パスワードを自動生成') }}
+                </label>
             </div>
 
             <div>
@@ -339,6 +367,11 @@ new #[Layout('components.layouts.app')] class extends Component
         @if (session('status'))
             <div class="rounded-md bg-success-subtlest p-3 text-sm text-success-bold">{{ session('status') }}</div>
         @endif
+
+        <label class="flex items-center gap-2 text-sm text-neutral-700">
+            <input type="checkbox" wire:model="send_information" class="rounded border-neutral-300">
+            {{ __('アカウント情報をユーザーに送信') }}
+        </label>
 
         <div class="flex gap-3">
             <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
