@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Scm;
 
+use App\Enums\ScmCapability;
 use DateTimeImmutable;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Support\Facades\Process;
@@ -55,6 +56,11 @@ final readonly class GitAdapter implements ScmAdapter
     public function isAvailable(): bool
     {
         return $this->git(['rev-parse', '--is-inside-work-tree'], 10)->successful();
+    }
+
+    public function supports(ScmCapability $capability): bool
+    {
+        return true;
     }
 
     public function log(?string $sinceRevision = null): array

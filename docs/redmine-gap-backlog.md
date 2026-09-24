@@ -290,7 +290,7 @@
 | 138h | A14-01b7 | A14-01b | S〜M | done(2026-09-23) |
 | 138i | A14-01b8 | A14-01b | M | done(2026-09-23、メール関連の `app/Mail`・`app/Notifications`・通知リスナーは A14-01b6 へ) |
 | 139 | B'-02 | 承認 | M | todo(2026-09-24 承認: 依存・設計の追加を承認) |
-| 140 | B'-03 | 承認 | S〜M | todo(2026-09-24 承認: 依存・設計の追加を承認) |
+| 140 | B'-03 | 承認 | S〜M | done(2026-09-24、`ScmCapability`+`ScmAdapter::supports()`、`FilesystemAdapter`(entries/cat のみ)。ファイル名の `path_encoding` 変換は対象外) |
 | 141 | B'-01 | 承認 | M×3 | todo(2026-09-24 承認: 依存・設計の追加を承認) |
 
 ### 0.4 起動方法
@@ -523,7 +523,7 @@
 | A10-03 | `/sys` WS(`sys/projects`、`sys/fetch_changesets`、`sys_api_key`)と `reposman.rb` 連携 | なし(grep 0件) | API キー認証の `GET /sys/projects.json`、`GET /sys/fetch_changesets?id=` を追加(post-receive フックからの同期トリガー用) | 既存 `RepositorySyncService` を呼ぶだけ | S | 設定「リポジトリ」 |
 | A10-04 | Annotate の同一リビジョン連続行の色分けブロック | 全行に個別表示 | 連続する同一 revision をグループ化し交互に背景色 | 旧: 意図的対象外 | S | 「Annotate/Blame」 |
 | A10-05 | `repository_log_display_limit`、`diff_max_lines_displayed`、`file_max_size_displayed` | 定数または無制限 | 設定化し `repository/*.blade.php` で参照 | — | S | 設定「リポジトリ」 |
-| A10-06 | Filesystem アダプタ | 保留 | B'-03 参照 | — | — | — |
+| A10-06 | Filesystem アダプタ | **done(2026-09-24、B'-03)** | B'-03 参照 | — | — | — |
 
 ### A-11. REST API(Redmine `config/routes.rb` との差分)
 
@@ -620,7 +620,7 @@
 |---|---|---|---|---|
 | B'-01 | Mercurial / CVS / Bazaar アダプタ | Sail コンテナに `hg`/`cvs`/`bzr` バイナリなし。導入は CLAUDE.md の依存追加承認ゲート対象 | `docker/` の Dockerfile にバイナリ追加→`ScmAdapter` 実装(Git/SVN と同じ実バイナリ E2E テスト) | M ×3 |
 | B'-02 | カスタムフィールド形式 `attachment` | Spatie MediaLibrary の `model_type/model_id` 非 null 制約により「CF 値としての添付」の所有者モデル設計が必要 | `CustomFieldValue` を HasMedia にするか、専用の中間モデルを作る設計メモを先に書く | M |
-| B'-03 | Filesystem アダプタ | Redmine 側は `entries`/`cat` のみでリビジョン概念なし。`ScmAdapter` の `log`/`diff`/`blame` をどう表現するかの設計判断待ち | `ScmAdapter` に `supports(Capability)` を追加し、非対応タブを UI で非表示にする方式が候補 | S〜M |
+| B'-03 | Filesystem アダプタ | **done(2026-09-24)**: `RepositoryType::Filesystem`+`FilesystemAdapter`(`repositories_root` 配下のディレクトリ、`..` と外部へのシンボリックリンクを拒否)。`ScmAdapter::supports(ScmCapability)` を追加し、非対応の変更履歴/統計/コミッター/同期/比較/注釈/ファイル履歴は非表示かつ 404 | `ScmAdapter` に `supports(Capability)` を追加し、非対応タブを UI で非表示にする方式が候補 | S〜M |
 | B'-04 | A1-20(グループ割当)・A4-10b(姓名分離)・A14-01(i18n) | いずれもスキーマ/全画面に波及する。着手前に設計メモをユーザーに提示して承認を得る | — | L |
 
 **2026-09-24 承認**: B'-01(`docker/` への hg/cvs/bzr バイナリ追加を含む)、B'-02、B'-03 と、A1-17・A1-20・A1-27・A1-28・A1-34・A2-03・A3-03・A4-10b・A4-12・A5-06・A9-01・A10-01b・A12-03 を設計メモの推奨案で承認。A1-34 は子孫の再帰削除に変更する(既存テスト 'orphans its children' の期待値を反転)。 A1-34 は、削除する人が見えない・削除できないサブタスクも親と一緒に削除する Redmine の挙動を維持すると決定(2026-09-24)。

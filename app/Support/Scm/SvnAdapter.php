@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Scm;
 
+use App\Enums\ScmCapability;
 use DateTimeImmutable;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\FakeProcessResult;
@@ -46,6 +47,11 @@ final readonly class SvnAdapter implements ScmAdapter
     public function isAvailable(): bool
     {
         return $this->svn(['info', $this->url()], 10)->successful();
+    }
+
+    public function supports(ScmCapability $capability): bool
+    {
+        return true;
     }
 
     public function log(?string $sinceRevision = null): array

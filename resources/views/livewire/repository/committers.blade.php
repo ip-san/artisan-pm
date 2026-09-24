@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ScmCapability;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Models\RepositoryCommitter;
@@ -25,6 +26,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $repository = $project->resolveRepository($repositoryParam);
         abort_if($repository === null, 404);
+        // B'-03: a Filesystem repository has no log — the page doesn't apply.
+        abort_unless($repository->supports(ScmCapability::Log), 404);
 
         $this->project = $project;
         $this->repository = $repository;

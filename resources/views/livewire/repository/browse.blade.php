@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ScmCapability;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Support\Scm\ScmTreeEntry;
@@ -37,6 +38,15 @@ new #[Layout('components.layouts.app')] class extends Component
     /**
      * @return array<int, ScmTreeEntry>
      */
+    /**
+     * B'-03: a Filesystem repository has no per-file history to link to.
+     */
+    #[Computed]
+    public function supportsHistory(): bool
+    {
+        return $this->repository->supports(ScmCapability::Log);
+    }
+
     #[Computed]
     public function entries(): array
     {
@@ -94,9 +104,11 @@ new #[Layout('components.layouts.app')] class extends Component
                     <a href="{{ route($repository->routeName('repository.entry'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-brand-bold hover:underline">
                         📄 {{ $entry->name }}
                     </a>
-                    <a href="{{ route($repository->routeName('repository.file-history'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-xs text-neutral-500 hover:underline">
-                        {{ __('履歴') }}
-                    </a>
+                    @if ($this->supportsHistory)
+                        <a href="{{ route($repository->routeName('repository.file-history'), $repository->routeParameters(['path' => $entry->path])) }}" class="text-xs text-neutral-500 hover:underline">
+                            {{ __('履歴') }}
+                        </a>
+                    @endif
                 @endif
             </li>
         @empty

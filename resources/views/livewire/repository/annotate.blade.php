@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ScmCapability;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Support\Scm\BlameBlocks;
@@ -22,6 +23,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $repository = $project->resolveRepository($repositoryParam);
         abort_if($repository === null, 404);
+        // B'-03: a Filesystem repository has no blame — the page doesn't apply.
+        abort_unless($repository->supports(ScmCapability::Blame), 404);
 
         $this->project = $project;
         $this->repository = $repository;

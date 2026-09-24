@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\Scm;
 
+use App\Enums\ScmCapability;
+
 /**
  * Boundary between the app and a specific version-control tool. Every
  * implementation shells out to the underlying VCS binary via Laravel's
@@ -13,6 +15,13 @@ namespace App\Support\Scm;
 interface ScmAdapter
 {
     public function isAvailable(): bool;
+
+    /**
+     * Whether log()/diff()/blame() mean anything for this adapter — tree()
+     * and fileContentAt() are always supported. An unsupported operation
+     * still returns an empty result rather than throwing.
+     */
+    public function supports(ScmCapability $capability): bool;
 
     /**
      * Commits after $sinceRevision (exclusive), oldest first. Pass null to

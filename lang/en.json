@@ -285,6 +285,7 @@
     "この時間操作が無かったセッションは無効になり、再ログインが必要になります。": "Sessions idle for this long expire and the user has to log in again.",
     "この期間の活動はありません。": "No activity in this period.",
     "この添付ファイルを削除しますか?": "Are you sure you want to delete this file?",
+    "この種別のリポジトリには履歴がありません。「ファイル一覧」から現在の内容を参照できます。": "This type of repository has no history. Use \"Files\" to view its current contents.",
     "この認証ソースを削除しますか?紐づくユーザーはログインできなくなります。": "Are you sure you want to delete this authentication mode? The users linked to it will no longer be able to sign in.",
     "この課題との関連付けを解除しますか?": "Are you sure you want to remove the association with this issue?",
     "この課題とサブタスクには :hours 時間の作業時間が記録されています。削除する課題の作業時間をどうしますか?": ":hours hours were reported on the issue and the subtasks you are about to delete. What do you want to do?",

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ScmCapability;
 use App\Jobs\RepositorySyncJob;
 use App\Models\Project;
 use App\Models\Repository;
@@ -110,7 +111,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('manage', [Repository::class, $this->project]);
 
-        abort_if($this->repository === null, 404);
+        abort_if($this->repository === null || ! $this->repository->supports(ScmCapability::Log), 404);
 
         RepositorySyncJob::dispatch($this->repository);
 
@@ -133,7 +134,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ __('ファイル一覧') }}
                 </a>
             @endif
-            @if ($repository)
+            @if ($repository?->supports(ScmCapability::Log))
                 <a href="{{ route($repository->routeName('repository.stats'), $repository->routeParameters()) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     {{ __('統計') }}
@@ -144,7 +145,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     {{ __('設定') }}
                 </a>
-                @if ($repository)
+                @if ($repository?->supports(ScmCapability::Log))
                     <a href="{{ route($repository->routeName('repository.committers'), $repository->routeParameters()) }}"
                         class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                         {{ __('コミッター設定') }}
@@ -220,6 +221,11 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
         </p>
 
+        @if (! $repository->supports(ScmCapability::Log))
+            <p class="text-sm text-neutral-500" data-testid="repository-no-history">
+                {{ __('この種別のリポジトリには履歴がありません。「ファイル一覧」から現在の内容を参照できます。') }}
+            </p>
+        @else
         <div class="overflow-x-auto rounded-md border border-neutral-200 bg-white">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
@@ -266,6 +272,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ __('選択したリビジョンを比較') }}
                 </button>
             </div>
+        @endif
         @endif
     @endif
 </div>

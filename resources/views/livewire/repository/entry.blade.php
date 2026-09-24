@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ScmCapability;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Support\Scm\CodesetConverter;
@@ -76,16 +77,18 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="flex items-center justify-between">
             <h1 class="text-xl font-semibold text-neutral-900 font-mono">{{ $path }}</h1>
             <div class="flex gap-2">
-                @unless ($this->isBinary)
+                @if (! $this->isBinary && $repository->supports(ScmCapability::Blame))
                     <a href="{{ route($repository->routeName('repository.annotate'), $repository->routeParameters(['path' => $path])) }}"
                         class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                         {{ __('注釈') }}
                     </a>
-                @endunless
-                <a href="{{ route($repository->routeName('repository.file-history'), $repository->routeParameters(['path' => $path])) }}"
-                    class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                    {{ __('履歴') }}
-                </a>
+                @endif
+                @if ($repository->supports(ScmCapability::Log))
+                    <a href="{{ route($repository->routeName('repository.file-history'), $repository->routeParameters(['path' => $path])) }}"
+                        class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                        {{ __('履歴') }}
+                    </a>
+                @endif
                 <a href="{{ route($repository->routeName('repository.raw'), $repository->routeParameters(['path' => $path])) }}"
                     class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     {{ __('ダウンロード') }}

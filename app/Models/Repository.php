@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\RepositoryType;
+use App\Enums\ScmCapability;
+use App\Support\Scm\FilesystemAdapter;
 use App\Support\Scm\GitAdapter;
 use App\Support\Scm\ScmAdapter;
 use App\Support\Scm\SvnAdapter;
@@ -156,7 +158,17 @@ final class Repository extends Model
             RepositoryType::Svn => $this->isRemote()
                 ? new SvnAdapter(url: $this->url, login: $this->login, password: $this->password)
                 : new SvnAdapter((string) $this->path),
+            RepositoryType::Filesystem => new FilesystemAdapter((string) $this->path),
         };
+    }
+
+    /**
+     * B'-03: whether pages built on $capability (history, diffs, annotate)
+     * apply to this repository — a Filesystem repository has none of them.
+     */
+    public function supports(ScmCapability $capability): bool
+    {
+        return $this->adapter()->supports($capability);
     }
 
     /**
