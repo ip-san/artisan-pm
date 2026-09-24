@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Casts\OrderPreservingJson;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
 use App\Support\Authorization\AuthorizationService;
@@ -24,7 +25,7 @@ final class Query extends Model
         return [
             'type' => QueryType::class,
             'visibility' => QueryVisibility::class,
-            'filters' => 'array',
+            'filters' => OrderPreservingJson::class,
             'column_names' => 'array',
             'sort_criteria' => 'array',
             'options' => 'array',

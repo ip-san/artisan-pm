@@ -670,7 +670,7 @@
 - **設定の既定値を Redmine に合わせる**: 挙動変更ログで「既定は従来どおり」とした設定(`activity_days_default`、`mail_handler_allow_override`、日付/時刻の形式が空なら言語に合わせる、1 ページの件数の既定など)の既定値を Redmine の既定にする。保存済みの設定値は変えない。
 - **REST の課題一覧**: `status_id` を省略したときはオープンな課題だけを返す(Redmine と同じ。`status_id=*` で全件)。
 - 監査で見つかった承認不要の Redmine との差(約 20 件)も進める。
-- 実施状況: PHP 8.3 対応 done(2026-09-25。確認: php:8.3 で app/config/routes/database/bootstrap/lang/tests/plugins と Blade の生ファイル・コンパイル済みビューを `php -l`、PHP 8.4/8.5 専用の関数・構文の grep(`array_find` など。polyfill-php84/85 も入っている)、php:8.3+拡張のコンテナで Api/Gantt/Settings/Query/Admin/Activity/Wiki/Issues/News の 1733 テスト)。
+- 実施状況: PHP 8.3 対応 done(2026-09-25。確認: php:8.3 で app/config/routes/database/bootstrap/lang/tests/plugins と Blade の生ファイル・コンパイル済みビューを `php -l`、PHP 8.4/8.5 専用の関数・構文の grep(`array_find` など。polyfill-php84/85 も入っている)、php:8.3+拡張のコンテナで Api/Gantt/Settings/Query/Admin/Activity/Wiki/Issues/News の 1733 テスト)。MySQL の JSON 列で保存クエリのフィルタの順序が変わる問題 done(2026-09-25、`App\Casts\OrderPreservingJson`)。
 
 ---
 
@@ -929,6 +929,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A11-21 | **セキュリティ修正**: ワークフローで読み取り専用の項目・トラッカーで無効にした標準項目は、REST・課題フォーム(細工した要求)・一括編集/右クリック・CSV インポート・受信メールのどれで送っても無視される(従来は REST とフォームへの細工で変更できた)。必須の項目が空になる作成/更新は拒否される(REST は 422、一括編集はその課題だけ保存せず、インポートは行エラー、受信メールは不受理)。規則は変更後のステータス・トラッカーで判定し、**新規課題(フォーム・REST・インポート・メール)にも開始ステータスの規則が適用される**(従来はフォームの編集時のみ、変更前のステータスで判定) | ワークフローの項目規則を設定している環境。必須項目を送っていなかった API クライアント・インポート手順・メール運用 |
 | PHP 8.3 | PHP 8.3 以上で動く(`composer.json` の `config.platform.php` を 8.3.0 にして `composer.lock` を解決し直した: Symfony 8.1 → 7.4 LTS。あわせて Livewire 4.3 → 4.4、league/commonmark 2.8 → 2.10 など)。`require` に `ext-dom`/`ext-fileinfo`/`ext-gd`/`ext-intl`/`ext-mbstring`/`ext-pdo`/`ext-simplexml`/`ext-zip` を明記。Atom フィードのテンプレートが `short_open_tag=On` の PHP でも壊れない | **intl・gd などが無い PHP では `composer install` が止まる**(従来は実行時に失敗)。Livewire 4.4 はアクション内の `ModelNotFoundException` を 404 応答にする(画面の挙動は従来どおり 404) |
 | A1-49 | ワークフローの項目の規則(必須/読み取り専用)を複数ロールで合成するとき、**ワークフロー対象のすべてのロールに規則がある項目だけ**に規則が付く(従来はどれか 1 つのロールにあれば付いた)。規則が食い違えば必須。追加/編集の権限が無いロールの規則は数えない。**管理者にも規則が付く**(全ロールのうち追加/編集権限のあるロールすべてに規則がある項目。従来は管理者には規則なし)。規則のある状態では、閲覧ロールを限定したカスタムフィールドは、それを見られないロールでは読み取り専用として数える | 複数ロールの利用者は読み取り専用が外れる項目がある(Redmine と同じ)。全ロールで同じ規則を設定した項目は管理者も読み取り専用/必須になる |
+| MySQL JSON | 保存クエリの `queries.filters` を「エンコードした JSON を JSON 文字列として」保存する(`App\Casts\OrderPreservingJson`)。MySQL/MariaDB の JSON 型がオブジェクトのキーを並べ替えるため、保存したフィルタの順序(と各フィルタ内のキーの順序)が読み込み時に変わっていた。従来の形式(JSON オブジェクト)の行もそのまま読める | DB を直接読む運用・外部ツールから見ると `filters` が JSON 文字列になる。MySQL で既に保存されたクエリの順序は戻らない(次に保存したときから保たれる) |
 
 **フロントエンドの再ビルドが必要**: A10-04・A9-02・A1-21・A1-13 などが新しい Tailwind クラスを使う。`public/build` は gitignore 対象のため、デプロイ時に `npm run build` を実行すること。
 
