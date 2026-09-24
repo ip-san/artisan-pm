@@ -4,8 +4,12 @@ use App\Models\Issue;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\TimeEntry;
+use App\Models\Tracker;
 use App\Models\User;
 use App\Support\Export\CsvCell;
+use Illuminate\Support\Facades\File;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
 test('text a spreadsheet would run as a formula is prefixed with an apostrophe', function () {
@@ -51,7 +55,7 @@ test('the time report CSV neutralizes a formula in a row label', function () {
     $project = Project::factory()->create();
     $user = User::factory()->create(['name' => '=1+1']);
     Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_time_entries', 'log_time']]));
-    App\Models\TimeEntry::factory()->for($project)->create(['user_id' => $user->id, 'hours' => 1, 'spent_on' => '2026-03-10']);
+    TimeEntry::factory()->for($project)->create(['user_id' => $user->id, 'hours' => 1, 'spent_on' => '2026-03-10']);
 
     $component = Livewire::actingAs($user)->test('time-entries.report', ['project' => $project])->set('criteria', ['user'])->call('exportCsv');
 
@@ -69,7 +73,7 @@ function csvInjectionMember(Project $project, array $permissions): User
     return $user;
 }
 
-function downloadedCsv(\Livewire\Features\SupportTesting\Testable $component): string
+function downloadedCsv(Testable $component): string
 {
     return base64_decode($component->effects['download']['content']);
 }
@@ -95,7 +99,7 @@ test('the project list CSV neutralizes a formula in a name', function () {
 test('the time entry list CSVs neutralize a formula in a comment', function (bool $crossProject) {
     $project = Project::factory()->create();
     $user = csvInjectionMember($project, ['view_time_entries']);
-    App\Models\TimeEntry::factory()->for($project)->create(['user_id' => $user->id, 'hours' => 1, 'comments' => '-2+3+cmd']);
+    TimeEntry::factory()->for($project)->create(['user_id' => $user->id, 'hours' => 1, 'comments' => '-2+3+cmd']);
 
     $component = $crossProject
         ? Livewire::actingAs($user)->test('time-entries.global-index')->set('columns', ['comments'])->call('exportCsv')
@@ -107,7 +111,7 @@ test('the time entry list CSVs neutralize a formula in a comment', function (boo
 test('the issue report details CSV neutralizes a formula in a row label', function () {
     $project = Project::factory()->create();
     $user = csvInjectionMember($project, ['view_issues']);
-    $tracker = App\Models\Tracker::factory()->create(['name' => '@SUM(9)']);
+    $tracker = Tracker::factory()->create(['name' => '@SUM(9)']);
     $project->trackers()->attach($tracker);
     Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
 
@@ -118,8 +122,8 @@ test('the issue report details CSV neutralizes a formula in a row label', functi
 
 test('every CSV writer in the application goes through CsvCell', function () {
     $files = collect([
-        ...Illuminate\Support\Facades\File::allFiles(app_path()),
-        ...Illuminate\Support\Facades\File::allFiles(resource_path('views')),
+        ...File::allFiles(app_path()),
+        ...File::allFiles(resource_path('views')),
     ])->filter(fn (SplFileInfo $file) => str_contains((string) file_get_contents($file->getPathname()), 'fputcsv('));
 
     expect($files)->not->toBeEmpty();
