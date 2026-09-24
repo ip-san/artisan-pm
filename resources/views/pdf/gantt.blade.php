@@ -27,7 +27,8 @@
         .band { position: absolute; top: 0; height: 16px; line-height: 16px; padding-left: 2px; border-left: 1px solid #d1d5db; color: #6b7280; }
         .bar { position: absolute; top: 2px; height: 12px; border-radius: 2px; background: #818cf8; }
         .bar.closed { background: #9ca3af; }
-        .bar-done { height: 100%; border-radius: 2px; background: #4f46e5; }
+        .bar-done { position: relative; height: 100%; border-radius: 2px; background: #4f46e5; }
+        .bar-late { position: absolute; top: 0; left: 0; height: 100%; border-radius: 2px; background: #f87171; }
         .label.project { font-weight: bold; }
         .timeline-row.project { background: #f9fafb; }
         .relations { position: absolute; left: 220px; right: 0; }
@@ -38,18 +39,31 @@
 <body>
     <h1>{{ $heading }}</h1>
 
-    @php $rowHeight = 16; @endphp
+    @php
+        $rowHeight = 16;
+        $showWeeks = ($zoom ?? 1) >= 2;
+        $headerRows = $showWeeks ? 2 : 1;
+        $today = \App\Support\Format\DateTimes::today();
+    @endphp
 
-    <div class="chart" style="height: {{ $rowHeight * (count($lines) + 1) }}px">
+    <div class="chart" style="height: {{ $rowHeight * (count($lines) + $headerRows) }}px">
         <div class="label header" style="top: 0"></div>
         <div class="timeline-row header" style="top: 0">
             @foreach ($chart->monthBands() as $band)
                 <div class="band" style="left: {{ $band['leftPercent'] }}%; width: {{ $band['widthPercent'] }}%">{{ $band['label'] }}</div>
             @endforeach
         </div>
+        @if ($showWeeks)
+            <div class="label header" style="top: {{ $rowHeight }}px"></div>
+            <div class="timeline-row header" style="top: {{ $rowHeight }}px">
+                @foreach ($chart->weekBands() as $band)
+                    <div class="band" style="left: {{ $band['leftPercent'] }}%; width: {{ $band['widthPercent'] }}%">{{ $band['label'] }}</div>
+                @endforeach
+            </div>
+        @endif
 
         @foreach ($lines as $line)
-            @php $top = $rowHeight * ($loop->index + 1); @endphp
+            @php $top = $rowHeight * ($loop->index + $headerRows); @endphp
             <div class="label {{ $line->kind === 'project' ? 'project' : '' }}" style="top: {{ $top }}px; padding-left: {{ 4 + $line->depth * 10 }}px">
                 {{ $line->kind === 'version' ? '◆ ' : '' }}{{ $line->label }}
             </div>
@@ -57,6 +71,10 @@
                 @if ($line->kind === 'issue' && $line->row->hasDateRange())
                     <div class="bar {{ $line->row->isClosed ? 'closed' : '' }}"
                         style="left: {{ $chart->barLeftPercent($line->row) }}%; width: {{ $chart->barWidthPercent($line->row) }}%">
+                        @php $late = $chart->lateWidthPercent($line->row, $today); $barWidth = $chart->barWidthPercent($line->row); @endphp
+                        @if ($late > 0 && $barWidth > 0)
+                            <div class="bar-late" style="width: {{ min(100, $late / $barWidth * 100) }}%"></div>
+                        @endif
                         <div class="bar-done" style="width: {{ $line->row->doneRatio }}%"></div>
                     </div>
                 @elseif ($line->kind === 'version')
@@ -66,7 +84,7 @@
         @endforeach
 
         @if ($relationSegments !== [])
-            <div class="relations" style="top: {{ $rowHeight }}px; height: {{ $rowHeight * count($lines) }}px">
+            <div class="relations" style="top: {{ $rowHeight * $headerRows }}px; height: {{ $rowHeight * count($lines) }}px">
                 @foreach ($relationSegments as $segment)
                     <div class="relation-segment" style="left: {{ $segment['left'] }}; width: {{ $segment['width'] }}; top: {{ $segment['top'] }}; height: {{ $segment['height'] }}; background: {{ $segment['color'] }}"></div>
                 @endforeach

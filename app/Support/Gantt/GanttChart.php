@@ -7,6 +7,7 @@ namespace App\Support\Gantt;
 use App\Enums\IssueRelationType;
 use App\Models\IssueRelation;
 use App\Models\Version;
+use App\Support\Calendar\WorkingDays;
 use App\Support\Format\DateTimes;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -100,6 +101,86 @@ final class GanttChart
         }
 
         return $bands;
+    }
+
+    /**
+     * ISO week bands (Redmine's week-number header, shown from zoom 2):
+     * the first and last may be partial weeks.
+     *
+     * @return array<int, array{label: string, leftPercent: float, widthPercent: float}>
+     */
+    public function weekBands(): array
+    {
+        if ($this->isEmpty()) {
+            return [];
+        }
+
+        $bands = [];
+        $cursor = $this->rangeStart->copy();
+
+        while ($cursor->lte($this->rangeEnd)) {
+            $weekEnd = $cursor->copy()->endOfWeek(CarbonInterface::SUNDAY)->startOfDay()->min($this->rangeEnd);
+
+            $bands[] = [
+                'label' => (string) $cursor->isoWeek(),
+                'leftPercent' => $this->percentFromStart($cursor),
+                'widthPercent' => $this->percentWidth($cursor, $weekEnd),
+            ];
+
+            $cursor = $weekEnd->copy()->addDay();
+        }
+
+        return $bands;
+    }
+
+    /**
+     * One band per day (Redmine's day header, shown from zoom 3; zoom 4
+     * adds the weekday). Non-working days are flagged so they can be
+     * shaded, as Redmine greys the weekend.
+     *
+     * @return array<int, array{label: string, weekday: string, nonWorking: bool, leftPercent: float, widthPercent: float}>
+     */
+    public function dayBands(): array
+    {
+        if ($this->isEmpty()) {
+            return [];
+        }
+
+        $nonWorking = WorkingDays::nonWorkingWeekDays();
+        $bands = [];
+
+        for ($day = $this->rangeStart->copy(); $day->lte($this->rangeEnd); $day->addDay()) {
+            $bands[] = [
+                'label' => (string) $day->day,
+                'weekday' => mb_substr($day->locale(app()->getLocale())->minDayName, 0, 1),
+                'nonWorking' => in_array($day->isoWeekday(), $nonWorking, true),
+                'leftPercent' => $this->percentFromStart($day),
+                'widthPercent' => $this->percentWidth($day, $day),
+            ];
+        }
+
+        return $bands;
+    }
+
+    /**
+     * The width of the bar's late part (Redmine's Gantt#coordinates
+     * `bar_late_end`): when the work done so far is due by $today, the part
+     * of the bar from its start up to $today (or its due date) is drawn red.
+     */
+    public function lateWidthPercent(GanttRow $row, CarbonInterface $today): float
+    {
+        if (! $row->hasDateRange()) {
+            return 0.0;
+        }
+
+        $days = $row->startDate->diffInDays($row->dueDate) + 1;
+        $progressDate = $row->startDate->copy()->addDays((int) floor($days * min(100, $row->doneRatio) / 100));
+
+        if ($progressDate->gt($today) || $today->lt($row->startDate)) {
+            return 0.0;
+        }
+
+        return $this->percentWidth($row->startDate, $row->dueDate->copy()->min($today));
     }
 
     public function barLeftPercent(GanttRow $row): float

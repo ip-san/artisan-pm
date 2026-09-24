@@ -81,8 +81,34 @@ test('a member with view_gantt downloads the project chart as a PNG of the expec
 
     $image = ganttPngDecode($component);
 
-    expect(imagesx($image))->toBe(GanttImageRenderer::width(31))
-        ->and(imagesy($image))->toBe(GanttImageRenderer::height(3));
+    // The default zoom (2) adds the week-number header.
+    expect(imagesx($image))->toBe(GanttImageRenderer::width(31, 2))
+        ->and(imagesy($image))->toBe(GanttImageRenderer::height(3, 2))
+        ->and(GanttImageRenderer::height(3, 2))->toBe(GanttImageRenderer::height(3) + GanttImageRenderer::HEADER_HEIGHT);
+});
+
+test('zoom 1 exports the months header only, as Redmine does', function () {
+    $project = Project::factory()->create();
+    ganttPngIssue($project);
+
+    $image = ganttPngDecode(Livewire::actingAs(ganttPngMember($project))->test('gantt.index', ['project' => $project])->set('zoom', 1)->call('exportPng'));
+
+    expect(imagesy($image))->toBe(GanttImageRenderer::height(1));
+});
+
+test('the late part of an overdue bar is drawn red in the PNG', function () {
+    $project = Project::factory()->create();
+    ganttPngIssue($project, ['start_date' => now()->subDays(20)->toDateString(), 'due_date' => now()->subDays(2)->toDateString(), 'done_ratio' => 0]);
+
+    $image = ganttPngDecode(Livewire::actingAs(ganttPngMember($project))->test('gantt.index', ['project' => $project])->call('exportPng'));
+    $middle = GanttImageRenderer::headersHeight(2) + intdiv(GanttImageRenderer::ROW_HEIGHT, 2);
+    $late = 0;
+
+    for ($x = GanttImageRenderer::SUBJECT_WIDTH; $x < imagesx($image); $x++) {
+        $late += imagecolorat($image, $x, $middle) === 0xFF6666 ? 1 : 0;
+    }
+
+    expect($late)->toBeGreaterThan(10);
 });
 
 test('exporting a PNG of a chart with no dated issues 404s', function () {
@@ -162,7 +188,7 @@ test('the cross-project PNG decodes with one row per visible line', function () 
 
     $image = ganttPngDecode(Livewire::actingAs($user)->test('gantt.global-index')->call('exportPng'));
 
-    expect(imagesy($image))->toBe(GanttImageRenderer::height(2));
+    expect(imagesy($image))->toBe(GanttImageRenderer::height(2, 2));
 });
 
 test('the cross-project chart also exports a PDF', function () {

@@ -10,9 +10,10 @@ use RuntimeException;
 
 /**
  * Redmine's Gantt#to_image (lib/redmine/helpers/gantt.rb), drawn with GD
- * instead of MiniMagick: a subject column on the left, month headers, one
- * 20px row per line with the issue's bar (grey, with its done ratio in
- * green) or the milestone's diamond, and today's date as a red line.
+ * instead of MiniMagick: a subject column on the left, month headers (and
+ * week numbers from zoom 2, non-working days greyed from zoom 3), one 20px
+ * row per line with the issue's bar (grey, its late part red, its done
+ * ratio green) or the milestone's diamond, and today's date as a red line.
  * Labels are drawn with the bundled IPAGothic TrueType font (the same file
  * the PDF export uses) so Japanese subjects render.
  */
@@ -55,28 +56,46 @@ class GanttImageRenderer
         return resource_path('fonts/ipag.ttf');
     }
 
-    public static function dayWidth(int $totalDays): int
+    /**
+     * Pixels per day: at least Redmine's `zoom * 2`, and enough for the
+     * timeline's minimum width.
+     */
+    public static function dayWidth(int $totalDays, int $zoom = 1): int
     {
-        return max(self::MIN_DAY_WIDTH, (int) ceil(self::MIN_TIMELINE_WIDTH / max(1, $totalDays)));
+        return max(self::MIN_DAY_WIDTH, self::zoom($zoom) * 2, (int) ceil(self::MIN_TIMELINE_WIDTH / max(1, $totalDays)));
     }
 
-    public static function width(int $totalDays): int
+    public static function width(int $totalDays, int $zoom = 1): int
     {
-        return self::SUBJECT_WIDTH + self::dayWidth($totalDays) * max(1, $totalDays) + 1;
+        return self::SUBJECT_WIDTH + self::dayWidth($totalDays, $zoom) * max(1, $totalDays) + 1;
     }
 
-    public static function height(int $lineCount): int
+    /**
+     * The header: months, plus the week numbers from zoom 2 (Redmine's
+     * `show_weeks`).
+     */
+    public static function headersHeight(int $zoom = 1): int
     {
-        return self::HEADER_HEIGHT + self::ROW_HEIGHT * $lineCount + self::BOTTOM_MARGIN;
+        return self::HEADER_HEIGHT * (self::zoom($zoom) >= 2 ? 2 : 1);
+    }
+
+    public static function height(int $lineCount, int $zoom = 1): int
+    {
+        return self::headersHeight($zoom) + self::ROW_HEIGHT * $lineCount + self::BOTTOM_MARGIN;
+    }
+
+    private static function zoom(int $zoom): int
+    {
+        return max(1, min(4, $zoom));
     }
 
     /**
      * Whether an image of this many days and lines can be drawn: at most
      * gantt.png_max_pixels, and within what is left of PHP's memory_limit.
      */
-    public static function fits(int $totalDays, int $lineCount): bool
+    public static function fits(int $totalDays, int $lineCount, int $zoom = 1): bool
     {
-        $pixels = self::width($totalDays) * self::height($lineCount);
+        $pixels = self::width($totalDays, $zoom) * self::height($lineCount, $zoom);
         $maxPixels = (int) config('gantt.png_max_pixels', self::MAX_PIXELS);
 
         return $pixels <= min($maxPixels, self::pixelsLeftInMemoryLimit());
@@ -119,16 +138,18 @@ class GanttImageRenderer
      * @param  array<int, GanttLine>  $lines
      * @return string the PNG bytes
      */
-    public function render(GanttChart $chart, array $lines): string
+    public function render(GanttChart $chart, array $lines, int $zoom = 1): string
     {
         if ($chart->isEmpty()) {
             throw new RuntimeException('An empty Gantt chart has nothing to draw.');
         }
 
+        $zoom = self::zoom($zoom);
+        $headersHeight = self::headersHeight($zoom);
         $totalDays = $chart->totalDays();
-        $dayWidth = self::dayWidth($totalDays);
-        $width = self::width($totalDays);
-        $height = self::height(count($lines));
+        $dayWidth = self::dayWidth($totalDays, $zoom);
+        $width = self::width($totalDays, $zoom);
+        $height = self::height(count($lines), $zoom);
         $timelineWidth = $width - self::SUBJECT_WIDTH - 1;
 
         $image = imagecreatetruecolor($width, $height);
@@ -142,11 +163,23 @@ class GanttImageRenderer
         // Subjects first: the timeline's background is painted over any
         // label running past the subject column, which clips it.
         foreach ($lines as $index => $line) {
-            $top = self::HEADER_HEIGHT + $index * self::ROW_HEIGHT;
+            $top = $headersHeight + $index * self::ROW_HEIGHT;
             $this->text($image, 4 + $line->depth * self::INDENT, $top + 14, $this->subjectFor($line), $black);
         }
 
         imagefilledrectangle($image, self::SUBJECT_WIDTH, 0, $width - 1, $height - 1, $white);
+
+        // Redmine greys the non-working days from zoom 3.
+        if ($zoom >= 3) {
+            $shade = $this->color($image, '#eeeeee');
+
+            foreach ($chart->dayBands() as $day) {
+                if ($day['nonWorking']) {
+                    $left = self::SUBJECT_WIDTH + (int) round($day['leftPercent'] / 100 * $timelineWidth);
+                    imagefilledrectangle($image, $left, $headersHeight, $left + $dayWidth - 1, $height - 1, $shade);
+                }
+            }
+        }
 
         foreach ($chart->monthBands() as $band) {
             $left = self::SUBJECT_WIDTH + (int) round($band['leftPercent'] / 100 * $timelineWidth);
@@ -155,8 +188,17 @@ class GanttImageRenderer
             $this->text($image, $left + 4, 13, $band['label'], $black);
         }
 
+        if ($zoom >= 2) {
+            foreach ($chart->weekBands() as $band) {
+                $left = self::SUBJECT_WIDTH + (int) round($band['leftPercent'] / 100 * $timelineWidth);
+                $right = self::SUBJECT_WIDTH + (int) round(($band['leftPercent'] + $band['widthPercent']) / 100 * $timelineWidth);
+                imagerectangle($image, $left, self::HEADER_HEIGHT, $right, $height - 1, $grey);
+                $this->text($image, $left + 2, self::HEADER_HEIGHT + 13, $band['label'], $black);
+            }
+        }
+
         foreach ($lines as $index => $line) {
-            $top = self::HEADER_HEIGHT + $index * self::ROW_HEIGHT;
+            $top = $headersHeight + $index * self::ROW_HEIGHT;
             $middle = $top + intdiv(self::ROW_HEIGHT, 2);
 
             if ($line->kind === GanttLine::PROJECT) {
@@ -174,10 +216,10 @@ class GanttImageRenderer
 
         if ($today->between($chart->rangeStart, $chart->rangeEnd)) {
             $x = self::SUBJECT_WIDTH + (int) round($chart->percentFromStart($today) / 100 * $timelineWidth) + intdiv($dayWidth, 2);
-            imageline($image, $x, self::HEADER_HEIGHT, $x, $height - 1, $this->color($image, '#ff0000'));
+            imageline($image, $x, $headersHeight, $x, $height - 1, $this->color($image, '#ff0000'));
         }
 
-        imageline($image, 0, self::HEADER_HEIGHT, $width - 1, self::HEADER_HEIGHT, $grey);
+        imageline($image, 0, $headersHeight, $width - 1, $headersHeight, $grey);
         imagerectangle($image, 0, 0, $width - 1, $height - 1, $black);
 
         ob_start();
@@ -197,6 +239,14 @@ class GanttImageRenderer
         $barWidth = max(1, (int) round($chart->barWidthPercent($row) / 100 * $timelineWidth));
 
         imagefilledrectangle($image, $left, $middle - 4, $left + $barWidth - 1, $middle + 3, $this->color($image, $row->isClosed ? '#cccccc' : '#aaaaaa'));
+
+        // Redmine's task_late: the part that should be done by today, red.
+        $late = $chart->lateWidthPercent($row, DateTimes::today());
+
+        if ($late > 0) {
+            $lateWidth = min($barWidth, max(1, (int) round($late / 100 * $timelineWidth)));
+            imagefilledrectangle($image, $left, $middle - 4, $left + $lateWidth - 1, $middle + 3, $this->color($image, '#ff6666'));
+        }
 
         if ($row->doneRatio > 0) {
             $done = max(1, (int) round($barWidth * min(100, $row->doneRatio) / 100));

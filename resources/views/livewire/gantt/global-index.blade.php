@@ -17,6 +17,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Facades\Gate;
@@ -40,6 +41,23 @@ use Illuminate\Support\Facades\Gate;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
+
+    /**
+     * Redmine's gantt zoom (1-4, default 2): months, then week numbers, days
+     * and weekdays in the header, each level drawing the days wider.
+     */
+    #[Url]
+    public int $zoom = 2;
+
+    public function zoomIn(): void
+    {
+        $this->zoom = min(4, max(1, $this->zoom) + 1);
+    }
+
+    public function zoomOut(): void
+    {
+        $this->zoom = max(1, min(4, $this->zoom) - 1);
+    }
 
     /**
      * Every issue row is a fixed 32px tall (Tailwind's h-8).
@@ -214,6 +232,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'documentTitle' => 'gantt',
             'heading' => __(':project - ガントチャート (:date時点)', ['project' => __('全プロジェクト'), 'date' => DateTimes::date(DateTimes::today())]),
             'chart' => $this->chart,
+            'zoom' => $this->zoom,
             'lines' => $this->exportLines(),
             'relationSegments' => GanttChart::relationSegments($this->relationLinesFor(self::PDF_ROW_HEIGHT_PX)),
         ])->render();
@@ -246,7 +265,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $lines = $this->exportLines();
 
-        if (! GanttImageRenderer::fits($this->chart->totalDays(), count($lines))) {
+        if (! GanttImageRenderer::fits($this->chart->totalDays(), count($lines), $this->zoom)) {
             $this->addError('png', __('ガントチャートが大きすぎるため画像にできません(:rows 行 × :months か月)。期間を短くするか、絞り込みで課題を減らしてください。', [
                 'rows' => count($lines),
                 'months' => count($this->chart->monthBands()),
@@ -255,7 +274,7 @@ new #[Layout('components.layouts.app')] class extends Component
             return null;
         }
 
-        $png = app(GanttImageRenderer::class)->render($this->chart, $lines);
+        $png = app(GanttImageRenderer::class)->render($this->chart, $lines, $this->zoom);
 
         return response()->streamDownload(fn () => print ($png), 'gantt.png', ['Content-Type' => 'image/png']);
     }
@@ -332,6 +351,12 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     </div>
 
+    <div class="mb-2 flex items-center gap-2 text-sm text-neutral-700" data-gantt-zoom-controls>
+        <span>{{ __('ズーム') }}</span>
+        <button type="button" wire:click="zoomOut" @disabled($zoom <= 1) class="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50 disabled:opacity-40" title="{{ __('縮小') }}">−</button>
+        <button type="button" wire:click="zoomIn" @disabled($zoom >= 4) class="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50 disabled:opacity-40" title="{{ __('拡大') }}">+</button>
+    </div>
+
     @if ($this->chart->isEmpty())
         <p class="text-sm text-neutral-500">{{ __('開始日・期日が設定された課題がありません。') }}</p>
     @else
@@ -341,73 +366,6 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->chart->monthsTruncated)
             <p class="mb-2 text-sm text-warning-bold">{{ __('期間が長いため、開始から:monthsか月分だけを表示しています。', ['months' => GanttSettings::monthsLimit()]) }}</p>
         @endif
-        <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
-            <div class="flex min-w-[900px]">
-                <div class="w-80 shrink-0 border-r border-neutral-200">
-                    <div class="h-8 border-b border-neutral-200 bg-neutral-50"></div>
-                    @foreach ($this->lines as $line)
-                        <div wire:key="label-{{ $line['kind'] }}-{{ $line['project']->id }}-{{ $line['row']->id ?? $line['version']->id ?? 0 }}"
-                            class="flex h-8 items-center border-b border-neutral-100 px-2 text-sm"
-                            style="padding-left: {{ 8 + $line['depth'] * 16 }}px">
-                            @if ($line['kind'] === 'project')
-                                <a href="{{ route('projects.show', $line['project']) }}" class="truncate font-semibold text-neutral-900 hover:underline" data-gantt-project="{{ $line['project']->id }}">
-                                    {{ $line['project']->name }}
-                                </a>
-                            @elseif ($line['kind'] === 'issue')
-                                <a href="{{ route('issues.show', [$line['project'], $line['row']->id]) }}" class="truncate text-brand-bold hover:underline">
-                                    {{ $line['row']->trackerName }} #{{ $line['row']->id }}: {{ $line['row']->subject }}
-                                </a>
-                            @else
-                                <span class="truncate text-neutral-700">◆ {{ $line['version']->name }}</span>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-
-                <div class="relative flex-1">
-                    <div class="relative h-8 border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-500">
-                        @foreach ($this->chart->monthBands() as $band)
-                            <div class="absolute top-0 flex h-8 items-center border-l border-neutral-200 pl-1"
-                                style="left: {{ $band['leftPercent'] }}%; width: {{ $band['widthPercent'] }}%">
-                                {{ $band['label'] }}
-                            </div>
-                        @endforeach
-                    </div>
-
-                    @foreach ($this->lines as $line)
-                        <div wire:key="timeline-{{ $line['kind'] }}-{{ $line['project']->id }}-{{ $line['row']->id ?? $line['version']->id ?? 0 }}"
-                            class="relative h-8 border-b border-neutral-100 {{ $line['kind'] === 'project' ? 'bg-neutral-50' : '' }}">
-                            @if ($line['kind'] === 'issue' && $line['row']->hasDateRange())
-                                @php $row = $line['row']; @endphp
-                                <div class="absolute top-1.5 h-5 rounded {{ $row->isClosed ? 'bg-neutral-400' : 'bg-brand' }}"
-                                    style="left: {{ $this->chart->barLeftPercent($row) }}%; width: {{ $this->chart->barWidthPercent($row) }}%"
-                                    title="{{ $row->subject }} ({{ \App\Support\Format\DateTimes::date($row->startDate) }} 〜 {{ \App\Support\Format\DateTimes::date($row->dueDate) }}, {{ $row->doneRatio }}%)">
-                                    <div class="h-full rounded bg-brand-bold" style="width: {{ $row->doneRatio }}%"></div>
-                                </div>
-                            @elseif ($line['kind'] === 'version')
-                                @php $version = $line['version']; $percent = round($version->asSeenBy(auth()->user())->completedPercent()); @endphp
-                                <div class="absolute top-1 flex h-6 -translate-x-1/2 items-center gap-1 text-warning"
-                                    style="left: {{ $this->chart->versionMarkerLeftPercent($version) }}%"
-                                    title="{{ $version->name }} ({{ \App\Support\Format\DateTimes::date($version->due_date) }}, {{ $percent }}%)">
-                                    <span class="text-lg leading-none">◆</span>
-                                    <span class="text-xs text-neutral-500">{{ $percent }}%</span>
-                                </div>
-                            @endif
-                        </div>
-                    @endforeach
-
-                    @if ($this->relationLines !== [])
-                        <svg class="pointer-events-none absolute left-0" style="top: 32px; width: 100%; height: {{ count($this->lines) * 32 }}px">
-                            @foreach ($this->relationLines as $line)
-                                <line wire:key="relation-line-{{ $loop->index }}"
-                                    x1="{{ $line['x1'] }}%" y1="{{ $line['y1'] }}"
-                                    x2="{{ $line['x2'] }}%" y2="{{ $line['y2'] }}"
-                                    stroke="{{ $line['color'] }}" stroke-width="1.5" />
-                            @endforeach
-                        </svg>
-                    @endif
-                </div>
-            </div>
-        </div>
+        <x-gantt.chart :chart="$this->chart" :lines="$this->lines" :relation-lines="$this->relationLines" :zoom="$zoom" />
     @endif
 </div>

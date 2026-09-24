@@ -297,6 +297,7 @@
 | 126 | A9-01 | — | M | done(2026-09-24、A9-01a〜c) |
 | 126a | A9-01a | — | M | done(2026-09-24、行数上限はプロジェクト見出し・マイルストーンも数える。祖先プロジェクトは閲覧できるものだけ見出しに出す) |
 | 126b | A9-01b | A9-01a | M | done(2026-09-24、GD+同梱 IPAGothic。週/日の見出し(zoom)と遅延部分の赤は対象外。横断ガントの PDF も追加) |
+| 126d | A9-01d | A9-01b | S | done(2026-09-25、画面のズーム 1〜4(月/週番号/日/曜日)、遅延部分の赤を画面・PDF・PNG に、PDF/PNG の週番号見出し。Redmine の年月・月数の指定(`year`/`month`/`months`)は対象外=期間は課題の日付から) |
 | 126c | A9-01c | A9-01a | S | done(2026-09-24、L 字の 2 本の div で近似。矢印なし) |
 | 127 | A9-03 | — | M | done(2026-09-20、max_occurs とブロック設定は A9-03b) |
 | 127b | A9-03b | A9-03 | M | done(2026-09-20、カレンダー等の設定は対象外) |
@@ -581,6 +582,7 @@
 | ID | Redmine 側の機能 | 本アプリの現状 | 残作業 | 前提・設計上の注意 | 規模 | checklist 行 |
 |---|---|---|---|---|---|---|
 | A9-01 | プロジェクト横断ガント(`/issues/gantt`)、PNG エクスポート、共有バージョンのマイルストーン、PDF 内の関連線、`gantt_items_limit`/`gantt_months_limit` | ~~ガントは `/projects/{project}/gantt` のみ~~ → A9-01a(2026-09-24): `gantt.global-index`(`/issues/gantt`)と共有バージョンのマイルストーンを追加。A9-01b(2026-09-24): PNG(GD)。A9-01c(2026-09-24): PDF の関連線(div の L 字) | `gantt.global-index` を他の global-index 群と同じ構成で追加。PNG は `Imagick`/`gd` で SVG→PNG。共有バージョン(`Version::sharing`)をマイルストーン候補に含める | 関連線の PDF は dompdf の SVG 対応が不安定なため要検証 | M | ダッシュボード「ガント」 |
+| A9-01d | ガントのズーム(`zoom` 1〜4: 週番号・日・曜日の見出し)と遅延部分の赤(`task_late`、画面・PDF・PNG) | **done(2026-09-25)**。`GanttChart::weekBands()`/`dayBands()`/`lateWidthPercent()`、`x-gantt.chart`、`GanttImageRenderer`(`zoom` 引数、週番号の見出し、非稼働日の灰色、遅延の赤)、PDF テンプレート。テスト: `GanttZoomTest.php` | 月の見出しのみ、遅延の表示なし | 表示期間の年月・月数の指定(Redmine の `year`/`month`/`months`)は無い(課題の日付から自動) | S | 「ガント」 |
 | A9-02 | カレンダーへのバージョン期日表示 | `calendar/index.blade.php` に version の記述なし | プロジェクト(および共有)バージョンの `due_date` を◆で表示 | ガントのマイルストーン実装(`versions.roadmap`)を流用 | S | ダッシュボード「カレンダー」 |
 | A9-03 | マイページのブロック: `issuesupdatedbyme`(自分が更新した課題)、`calendar`、同一クエリの最大3回配置(`max_occurs`)、ブロックごとの設定(`my_page_settings`: 列/ソート) | `app/Support/Dashboard/Blocks/` は Activity/AssignedIssues/Documents/LatestNews/ReportedIssues/TimeEntries/WatchedIssues + SavedIssueQuery。同一クエリは1つまで | `UpdatedByMeBlock`(Journal の user_id 基準)、`CalendarBlock`(週表示)、ブロック設定 UI | calendar ブロックは「一覧形式に馴染まない」として見送られていた | M | ダッシュボード「マイページ」 |
 | A9-03b | マイページ: 同一の保存クエリを最大3回まで配置(`max_occurs`)、ブロックごとの設定(`my_page_settings`: 列/ソート) | 同一クエリは1つまで、ブロック設定なし | `user_dashboard_blocks` に設定 JSON 列を追加し、設定 UI とブロック側の反映を実装 | A9-03 で分離 | M | 「マイページ」 |
@@ -991,6 +993,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A6-09 | HTML メールのヘッダー/フッター(設定「メールのヘッダー」「メールのフッター」)が Markdown として整形される(太字・リンクなど)。HTML タグはサニタイズされる | テキストメールは従来どおり |
 | A6-06b | フォーラム・ニュース・Wiki の通知メールに `Message-ID`/`References` が付く。フォーラムの投稿通知の件名が `[プロジェクト - フォーラム #ID]` から Redmine と同じ `[プロジェクト - フォーラム - msgID]` になる。これらのメールへの返信(受信メール)がフォーラムのトピックへの返信・ニュースへのコメントとして記録される(従来は無視、件名の `#ID` で同じ番号の課題へのコメントになることもあった) | 件名でメールを振り分けている場合は条件の見直しが必要 |
 | A6-04c | 課題の編集(フォーム・REST の更新)と同時にファイルを追加すると、通知メールが 1 通(変更・コメント・添付ファイルを 1 つの履歴に記録)になる(従来は編集と添付で 2 通・2 つの履歴) | ファイルだけの追加は従来どおり |
+| A9-01d | ガントに拡大/縮小(既定は週番号の見出し付き)と、予定より遅れている棒の赤い部分が出る。PNG/PDF も既定で週番号の見出しが付くため画像の高さが 1 行ぶん増える | 月だけの見出しにするにはズームを 1 にしてから出力する |
 
 **フロントエンドの再ビルドが必要**: A10-04・A9-02・A1-21・A1-13 などが新しい Tailwind クラスを使う。`public/build` は gitignore 対象のため、デプロイ時に `npm run build` を実行すること。
 
