@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
 use Closure;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -154,6 +155,24 @@ final class AssigneeChoice
         $sections[] = ['label' => __('ユーザー'), 'options' => $userOptions($users->reject(fn (User $user) => $grouped->contains($user->id)))];
 
         return $sections;
+    }
+
+    /**
+     * A saving hook for a user/group assignee column pair (a project's
+     * default assignee, a category's): setting one clears the other, as
+     * Issue does for its own assignee.
+     */
+    public static function keepSingle(Model $model, string $userColumn, string $groupColumn): void
+    {
+        if ($model->getAttribute($userColumn) === null || $model->getAttribute($groupColumn) === null) {
+            return;
+        }
+
+        if ($model->isDirty($groupColumn) && ! $model->isDirty($userColumn)) {
+            $model->setAttribute($userColumn, null);
+        } else {
+            $model->setAttribute($groupColumn, null);
+        }
     }
 
     /**

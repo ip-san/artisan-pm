@@ -8,6 +8,8 @@ use App\Enums\ProjectModuleKey;
 use App\Enums\VersionStatus;
 use App\Models\Project;
 use App\Models\Version;
+use App\Support\Issues\AssigneeChoice;
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -94,6 +96,13 @@ final class UpdateProjectRequest extends FormRequest
                 ...$project->assignableUsers()->pluck('id')->all(),
                 $project->default_assigned_to_id,
             ]))],
+            // A group default assignee (issue_group_assignment), exclusive
+            // with default_assigned_to_id.
+            'default_assigned_to_group_id' => ['nullable', 'integer', 'prohibits:default_assigned_to_id', function (string $attribute, mixed $value, Closure $fail) use ($project): void {
+                if (! AssigneeChoice::allowsGroup($project, (int) $value, $project->default_assigned_to_group_id)) {
+                    $fail(__('選択した担当者は無効です。'));
+                }
+            }],
         ];
     }
 }

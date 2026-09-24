@@ -381,7 +381,7 @@ test('the project payload includes the default version and default assignee', fu
     $this->getJson("/api/v1/projects/{$project->id}")
         ->assertOk()
         ->assertJsonPath('data.default_version', ['id' => $version->id, 'name' => '1.0'])
-        ->assertJsonPath('data.default_assignee', ['id' => $user->id, 'name' => $user->name]);
+        ->assertJsonPath('data.default_assignee', ['id' => $user->id, 'name' => $user->name, 'type' => 'user']);
 });
 
 test('the project payload has null defaults when none are set', function () {

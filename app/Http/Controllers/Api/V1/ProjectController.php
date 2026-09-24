@@ -45,7 +45,7 @@ final class ProjectController extends Controller
         $engine = new QueryFilterEngine(ProjectFilterFieldRegistry::forViewer($user, $visibleProjectIds));
 
         $query = $engine->applyFilters(
-            Project::query()->whereIn('id', $visibleProjectIds)->with(['defaultVersion', 'defaultAssignedTo']),
+            Project::query()->whereIn('id', $visibleProjectIds)->with(['defaultVersion', 'defaultAssignedTo', 'defaultAssignedToGroup']),
             RedmineIssueListParams::filters($input, $engine, $user),
         )->orderBy('name')->orderBy('id');
 
@@ -132,6 +132,11 @@ final class ProjectController extends Controller
         $trackerIds = $data['tracker_ids'] ?? null;
         $modules = $data['modules'] ?? null;
         unset($data['tracker_ids'], $data['modules']);
+
+        // `default_assigned_to_id: null` clears a group default too.
+        if (array_key_exists('default_assigned_to_id', $data) && $data['default_assigned_to_id'] === null && ! array_key_exists('default_assigned_to_group_id', $data)) {
+            $data['default_assigned_to_group_id'] = null;
+        }
 
         if ($trackerIds !== null) {
             $this->guardTrackersInUse($project, $trackerIds);

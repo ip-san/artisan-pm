@@ -23,7 +23,7 @@ final class ProjectResource extends JsonResource
 
         // Single-project responses (show/store/update) load these here; the
         // index eager-loads them so the list stays free of N+1 queries.
-        $project->loadMissing(['defaultVersion', 'defaultAssignedTo']);
+        $project->loadMissing(['defaultVersion', 'defaultAssignedTo', 'defaultAssignedToGroup']);
 
         return [
             'id' => $project->id,
@@ -38,9 +38,11 @@ final class ProjectResource extends JsonResource
             'default_version' => $project->defaultVersion !== null
                 ? ['id' => $project->defaultVersion->id, 'name' => $project->defaultVersion->name]
                 : null,
-            'default_assignee' => $project->defaultAssignedTo !== null
-                ? ['id' => $project->defaultAssignedTo->id, 'name' => $project->defaultAssignedTo->displayName()]
-                : null,
+            'default_assignee' => match (true) {
+                $project->defaultAssignedTo !== null => ['id' => $project->defaultAssignedTo->id, 'name' => $project->defaultAssignedTo->displayName(), 'type' => 'user'],
+                $project->defaultAssignedToGroup !== null => ['id' => $project->defaultAssignedToGroup->id, 'name' => $project->defaultAssignedToGroup->name, 'type' => 'group'],
+                default => null,
+            },
             'custom_fields' => CustomFieldPayload::read($project),
             'created_at' => $project->created_at->toIso8601String(),
             'updated_at' => $project->updated_at->toIso8601String(),

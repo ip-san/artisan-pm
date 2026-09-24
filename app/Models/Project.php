@@ -17,6 +17,7 @@ use App\Services\IssueService;
 use App\Services\MemberInheritance;
 use App\Services\VersionService;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Issues\AssigneeChoice;
 use Database\Factories\ProjectFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,7 +35,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Collections\MediaCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-#[Fillable(['name', 'identifier', 'description', 'homepage', 'is_public', 'inherit_members', 'parent_id', 'default_version_id', 'default_assigned_to_id', 'default_issue_query_id'])]
+#[Fillable(['name', 'identifier', 'description', 'homepage', 'is_public', 'inherit_members', 'parent_id', 'default_version_id', 'default_assigned_to_id', 'default_assigned_to_group_id', 'default_issue_query_id'])]
 final class Project extends Model implements HasMedia
 {
     /** @use HasFactory<ProjectFactory> */
@@ -69,6 +70,8 @@ final class Project extends Model implements HasMedia
 
     protected static function booted(): void
     {
+        self::saving(fn (Project $project) => AssigneeChoice::keepSingle($project, 'default_assigned_to_id', 'default_assigned_to_group_id'));
+
         // Redmine's Project#update_inherited_members and its after_save on
         // parent_id: turning inherit_members on (or creating a subproject
         // with it) copies the parent's members, turning it off removes the
@@ -282,6 +285,17 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * The default group assignee (Redmine's default_assigned_to may be a
+     * group), set instead of default_assigned_to_id.
+     *
+     * @return BelongsTo<Group, $this>
+     */
+    public function defaultAssignedToGroup(): BelongsTo
+    {
+        return $this->belongsTo(Group::class, 'default_assigned_to_group_id');
+    }
+
+    /**
      * The default assignee's id when they can still be assigned issues in
      * this project (a member holding an assignable role).
      */
@@ -293,6 +307,21 @@ final class Project extends Model implements HasMedia
 
         return $this->assignableUsers()->contains('id', $this->default_assigned_to_id)
             ? $this->default_assigned_to_id
+            : null;
+    }
+
+    /**
+     * The default group assignee's id while it can still be assigned issues
+     * here: group assignment is on and the group holds an assignable role.
+     */
+    public function usableDefaultAssigneeGroupId(): ?int
+    {
+        if ($this->default_assigned_to_group_id === null) {
+            return null;
+        }
+
+        return AssigneeChoice::allowsGroup($this, $this->default_assigned_to_group_id)
+            ? $this->default_assigned_to_group_id
             : null;
     }
 

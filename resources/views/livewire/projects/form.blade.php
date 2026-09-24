@@ -10,6 +10,7 @@ use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
+use App\Support\Issues\AssigneeChoice;
 use App\Enums\VersionStatus;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -40,6 +41,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $default_assigned_to_id = null;
 
+    /** A group default assignee (issue_group_assignment), set instead of default_assigned_to_id. */
+    public ?int $default_assigned_to_group_id = null;
+
+    /** The default assignee select's value: a user id or `group:<id>` (AssigneeChoice). */
+    public string $defaultAssigneeChoice = '';
+
     public ?int $default_issue_query_id = null;
 
     /** @var array<string> */
@@ -66,6 +73,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->inherit_members = $project->inherit_members;
             $this->default_version_id = $project->default_version_id;
             $this->default_assigned_to_id = $project->default_assigned_to_id;
+            $this->default_assigned_to_group_id = $project->default_assigned_to_group_id;
             $this->default_issue_query_id = $project->default_issue_query_id;
             $this->modules = $project->moduleAssignments->pluck('module.value')->all();
             $this->trackerIds = $project->trackers->pluck('id')->all();
@@ -183,12 +191,6 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Assignable members, plus the current default assignee even if they
-     * have since lost that role (Redmine's project_default_assigned_to_options).
-     *
-     * @return Collection<int, User>
-     */
-    /**
      * Public issue queries the project's list can open on: site-wide ones and
      * the project's own (Redmine requires public so every member can use it).
      *
@@ -205,6 +207,12 @@ new #[Layout('components.layouts.app')] class extends Component
             ->get();
     }
 
+    /**
+     * Assignable members, plus the current default assignee even if they
+     * have since lost that role (Redmine's project_default_assigned_to_options).
+     *
+     * @return Collection<int, User>
+     */
     #[Computed]
     public function defaultAssigneeOptions(): Collection
     {
@@ -220,6 +228,46 @@ new #[Layout('components.layouts.app')] class extends Component
             ->unique('id')
             ->sortBy('name')
             ->values();
+    }
+
+    /**
+     * Groups offered as the default assignee: the assignable groups while
+     * group assignment is on, plus the current default group.
+     *
+     * @return Collection<int, \App\Models\Group>
+     */
+    #[Computed]
+    public function defaultAssigneeGroupOptions(): Collection
+    {
+        if ($this->project === null) {
+            return collect();
+        }
+
+        return AssigneeChoice::groupOptions($this->project, $this->project->default_assigned_to_group_id);
+    }
+
+    public function updatedDefaultAssigneeChoice(string $value): void
+    {
+        ['assigned_to_id' => $this->default_assigned_to_id, 'assigned_to_group_id' => $this->default_assigned_to_group_id] = AssigneeChoice::decode($value);
+    }
+
+    public function updatedDefaultAssignedToId(?int $value): void
+    {
+        if ($value !== null) {
+            $this->default_assigned_to_group_id = null;
+        }
+    }
+
+    public function updatedDefaultAssignedToGroupId(?int $value): void
+    {
+        if ($value !== null) {
+            $this->default_assigned_to_id = null;
+        }
+    }
+
+    public function dehydrate(): void
+    {
+        $this->defaultAssigneeChoice = AssigneeChoice::encode($this->default_assigned_to_id, $this->default_assigned_to_group_id);
     }
 
     /**
@@ -299,6 +347,7 @@ new #[Layout('components.layouts.app')] class extends Component
             // exposes both on the settings page only).
             $rules['default_version_id'] = ['nullable', Rule::in($this->defaultVersionOptions->pluck('id')->all())];
             $rules['default_assigned_to_id'] = ['nullable', Rule::in($this->defaultAssigneeOptions->pluck('id')->all())];
+            $rules['default_assigned_to_group_id'] = ['nullable', Rule::in($this->defaultAssigneeGroupOptions->pluck('id')->all())];
             $rules['default_issue_query_id'] = ['nullable', Rule::in($this->defaultQueryOptions->pluck('id')->all())];
         }
 
@@ -487,13 +536,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-neutral-700">{{ __('既定の担当者') }}</label>
-                    <select wire:model="default_assigned_to_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <select wire:model="defaultAssigneeChoice" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">{{ __('なし') }}</option>
-                        @foreach ($this->defaultAssigneeOptions as $assignee)
-                            <option value="{{ $assignee->id }}">{{ $assignee->displayName() }}</option>
-                        @endforeach
+                        <x-assignee-options :users="$this->defaultAssigneeOptions" :groups="$this->defaultAssigneeGroupOptions" />
                     </select>
                     @error('default_assigned_to_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+                    @error('default_assigned_to_group_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
             </div>
         @endif

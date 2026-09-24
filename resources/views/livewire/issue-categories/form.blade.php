@@ -2,6 +2,7 @@
 
 use App\Models\IssueCategory;
 use App\Models\Project;
+use App\Support\Issues\AssigneeChoice;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -18,6 +19,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public ?int $assigned_to_id = null;
 
+    /** A group default assignee (issue_group_assignment), set instead of assigned_to_id. */
+    public ?int $assigned_to_group_id = null;
+
+    /** The assignee select's value: a user id or `group:<id>` (AssigneeChoice). */
+    public string $assigneeChoice = '';
+
     public function mount(Project $project, ?IssueCategory $issueCategory = null): void
     {
         $this->project = $project;
@@ -32,6 +39,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->category = $issueCategory;
             $this->name = $issueCategory->name;
             $this->assigned_to_id = $issueCategory->assigned_to_id;
+            $this->assigned_to_group_id = $issueCategory->assigned_to_group_id;
         } else {
             $this->authorize('create', [IssueCategory::class, $project]);
         }
@@ -43,6 +51,28 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->project->assignableUsers();
     }
 
+    /**
+     * Redmine offers the project's assignable principals: groups too while
+     * group assignment is on, plus the category's current group.
+     *
+     * @return Collection<int, \App\Models\Group>
+     */
+    #[Computed]
+    public function groups(): Collection
+    {
+        return AssigneeChoice::groupOptions($this->project, $this->category?->assigned_to_group_id);
+    }
+
+    public function updatedAssigneeChoice(string $value): void
+    {
+        ['assigned_to_id' => $this->assigned_to_id, 'assigned_to_group_id' => $this->assigned_to_group_id] = AssigneeChoice::decode($value);
+    }
+
+    public function dehydrate(): void
+    {
+        $this->assigneeChoice = AssigneeChoice::encode($this->assigned_to_id, $this->assigned_to_group_id);
+    }
+
     public function save(): void
     {
         $data = $this->validate([
@@ -51,7 +81,12 @@ new #[Layout('components.layouts.app')] class extends Component
                 Rule::unique('issue_categories', 'name')->where('project_id', $this->project->id)->ignore($this->category?->id),
             ],
             'assigned_to_id' => ['nullable', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
+            'assigned_to_group_id' => ['nullable', Rule::in($this->groups->pluck('id')->all())],
         ]);
+
+        if ($data['assigned_to_group_id'] !== null) {
+            $data['assigned_to_id'] = null;
+        }
 
         $data['project_id'] = $this->project->id;
 
@@ -79,13 +114,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div>
             <label class="block text-sm font-medium text-neutral-700">{{ __('既定の担当者(任意)') }}</label>
-            <select wire:model="assigned_to_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <select wire:model="assigneeChoice" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">{{ __('なし') }}</option>
-                @foreach ($this->members as $member)
-                    <option value="{{ $member->id }}">{{ $member->displayName() }}</option>
-                @endforeach
+                <x-assignee-options :users="$this->members" :groups="$this->groups" />
             </select>
             @error('assigned_to_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            @error('assigned_to_group_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div class="flex gap-3">

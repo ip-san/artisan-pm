@@ -196,10 +196,9 @@ new #[Layout('components.layouts.app')] class extends Component
             // while they are still usable (open shared version / member with
             // an assignable role).
             $this->fixed_version_id ??= $project->usableDefaultVersionId();
-            if ($this->assigned_to_group_id === null) {
-                $this->assigned_to_id ??= ($this->category_id !== null
-                    ? IssueCategory::query()->whereKey($this->category_id)->value('assigned_to_id')
-                    : null) ?? $project->usableDefaultAssigneeId();
+            if ($this->assigned_to_id === null && $this->assigned_to_group_id === null) {
+                ['assigned_to_id' => $this->assigned_to_id, 'assigned_to_group_id' => $this->assigned_to_group_id] = $this->categoryDefaultAssignee()
+                    ?? ['assigned_to_id' => $project->usableDefaultAssigneeId(), 'assigned_to_group_id' => $project->usableDefaultAssigneeGroupId()];
             }
 
             // Matches Redmine's build_new_issue_from_params, which applies
@@ -527,7 +526,23 @@ new #[Layout('components.layouts.app')] class extends Component
             return;
         }
 
-        $this->assigned_to_id = IssueCategory::query()->whereKey($this->category_id)->value('assigned_to_id');
+        ['assigned_to_id' => $this->assigned_to_id, 'assigned_to_group_id' => $this->assigned_to_group_id] = $this->categoryDefaultAssignee()
+            ?? ['assigned_to_id' => null, 'assigned_to_group_id' => null];
+    }
+
+    /**
+     * The selected category's default assignee (a user, or a group while
+     * group assignment is on), if it has a usable one.
+     *
+     * @return array{assigned_to_id: ?int, assigned_to_group_id: ?int}|null
+     */
+    private function categoryDefaultAssignee(): ?array
+    {
+        if ($this->category_id === null) {
+            return null;
+        }
+
+        return IssueCategory::query()->where('project_id', $this->project->id)->find($this->category_id)?->usableDefaultAssignee();
     }
 
     /**

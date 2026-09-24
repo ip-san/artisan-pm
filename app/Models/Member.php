@@ -30,14 +30,21 @@ final class Member extends Model
 
     protected static function booted(): void
     {
-        // Redmine's Member#remove_from_project_default_assigned_to: a user who
-        // leaves the project can no longer be its default assignee.
+        // Redmine's Member#remove_from_project_default_assigned_to: a user or
+        // group who leaves the project can no longer be its default assignee.
         self::deleted(function (Member $member) {
             if ($member->user_id !== null) {
                 Project::query()
                     ->whereKey($member->project_id)
                     ->where('default_assigned_to_id', $member->user_id)
                     ->update(['default_assigned_to_id' => null]);
+            }
+
+            if ($member->group_id !== null) {
+                Project::query()
+                    ->whereKey($member->project_id)
+                    ->where('default_assigned_to_group_id', $member->group_id)
+                    ->update(['default_assigned_to_group_id' => null]);
             }
         });
 

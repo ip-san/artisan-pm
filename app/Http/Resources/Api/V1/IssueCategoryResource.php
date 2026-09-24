@@ -25,6 +25,7 @@ final class IssueCategoryResource extends JsonResource
             'project_id' => $category->project_id,
             'name' => $category->name,
             'assigned_to_id' => $category->assigned_to_id,
+            'assigned_to_group_id' => $category->assigned_to_group_id,
             'created_at' => $category->created_at->toIso8601String(),
             'updated_at' => $category->updated_at->toIso8601String(),
         ];

@@ -21,7 +21,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function categories(): Collection
     {
-        return $this->project->issueCategories()->with('assignedTo')->orderBy('name')->get();
+        return $this->project->issueCategories()->with(['assignedTo', 'assignedToGroup'])->orderBy('name')->get();
     }
 
     public function delete(int $categoryId): void
@@ -59,8 +59,8 @@ new #[Layout('components.layouts.app')] class extends Component
             <li class="flex items-center justify-between px-4 py-3">
                 <div>
                     <span class="font-medium text-neutral-900">{{ $category->name }}</span>
-                    @if ($category->assignedTo)
-                        <span class="ml-2 text-xs text-neutral-500">{{ __('既定の担当者: :name', ['name' => $category->assignedTo->displayName()]) }}</span>
+                    @if ($category->assignedTo || $category->assignedToGroup)
+                        <span class="ml-2 text-xs text-neutral-500">{{ __('既定の担当者: :name', ['name' => $category->assignedTo?->displayName() ?? $category->assignedToGroup->name]) }}</span>
                     @endif
                 </div>
                 <div class="flex gap-3">

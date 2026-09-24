@@ -43,7 +43,14 @@ final class IssueCategoryController extends Controller
 
     public function update(UpdateIssueCategoryRequest $request, IssueCategory $issueCategory): IssueCategoryResource
     {
-        $issueCategory->update($request->validated());
+        $data = $request->validated();
+
+        // `assigned_to_id: null` clears a group default too.
+        if (array_key_exists('assigned_to_id', $data) && $data['assigned_to_id'] === null && ! array_key_exists('assigned_to_group_id', $data)) {
+            $data['assigned_to_group_id'] = null;
+        }
+
+        $issueCategory->update($data);
 
         return new IssueCategoryResource($issueCategory);
     }
