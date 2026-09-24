@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use LogicException;
 
 #[Fillable(['project_id', 'type', 'path', 'url', 'login', 'password', 'last_synced_revision', 'is_default', 'identifier', 'log_encoding', 'path_encoding'])]
 #[Hidden(['password'])]
@@ -156,15 +157,23 @@ final class Repository extends Model
 
     public function adapter(): ScmAdapter
     {
+        if ($this->type === RepositoryType::Svn && $this->isRemote()) {
+            return new SvnAdapter(url: $this->url, login: $this->login, password: $this->password);
+        }
+
+        // A local adapter given an empty path would run its VCS in the
+        // process's working directory — the application's own checkout.
+        $path = filled($this->path)
+            ? (string) $this->path
+            : throw new LogicException("Repository {$this->id} has no local path.");
+
         return match ($this->type) {
-            RepositoryType::Git => new GitAdapter((string) $this->path, $this->log_encoding, $this->path_encoding),
-            RepositoryType::Svn => $this->isRemote()
-                ? new SvnAdapter(url: $this->url, login: $this->login, password: $this->password)
-                : new SvnAdapter((string) $this->path),
-            RepositoryType::Filesystem => new FilesystemAdapter((string) $this->path),
-            RepositoryType::Mercurial => new MercurialAdapter((string) $this->path, $this->log_encoding),
-            RepositoryType::Bazaar => new BazaarAdapter((string) $this->path, $this->log_encoding),
-            RepositoryType::Cvs => new CvsAdapter((string) $this->path, $this->log_encoding),
+            RepositoryType::Git => new GitAdapter($path, $this->log_encoding, $this->path_encoding),
+            RepositoryType::Svn => new SvnAdapter($path),
+            RepositoryType::Filesystem => new FilesystemAdapter($path),
+            RepositoryType::Mercurial => new MercurialAdapter($path, $this->log_encoding),
+            RepositoryType::Bazaar => new BazaarAdapter($path, $this->log_encoding),
+            RepositoryType::Cvs => new CvsAdapter($path, $this->log_encoding),
         };
     }
 

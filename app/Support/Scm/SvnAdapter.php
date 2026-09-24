@@ -171,6 +171,10 @@ final readonly class SvnAdapter implements ScmAdapter
             if ($problem !== null) {
                 Log::warning('Refused to contact a remote Subversion repository.', ['url' => $this->url, 'reason' => $problem]);
 
+                // FakeProcessResult is used here outside tests on purpose: it
+                // is the one ProcessResult that can be built without
+                // spawning a process, and callers already treat a failed
+                // result as "nothing to show".
                 return new FakeProcessResult(command: 'svn', exitCode: 1, errorOutput: $problem);
             }
 

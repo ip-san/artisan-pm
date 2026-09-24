@@ -155,7 +155,10 @@ new #[Layout('components.layouts.app')] class extends Component
         ];
 
         if ($locationLocked) {
-            // Nothing: path/url/login/password are neither validated nor written.
+            // path/url/login/password are neither validated nor written, and
+            // the type is part of the location: switching a remote SVN
+            // repository to a local type would leave it with no path.
+            $rules['type'] = ['required', Rule::in([$this->repository->type->value])];
         } elseif ($wantsRemote) {
             // Same bail discipline as the path rules below: the final
             // closure makes svn open a network connection, which must

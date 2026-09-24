@@ -258,6 +258,23 @@ test('a member without manage_remote_repositories can edit a remote repository w
         ->assertForbidden();
 });
 
+test('a member without manage_remote_repositories cannot change a remote repository\'s type', function () {
+    config()->set('scm.allowed_hosts', ['127.0.0.1']);
+    Process::fake();
+    $project = Project::factory()->create();
+    $repository = Repository::factory()->for($project)->remote('svn://127.0.0.1/repo')->create();
+    $user = remoteRepositoryMember($project, ['view_changesets', 'manage_repository']);
+
+    Livewire::actingAs($user)
+        ->test('repository.form', ['project' => $project])
+        ->set('type', RepositoryType::Git->value)
+        ->call('save')
+        ->assertHasErrors(['type']);
+
+    expect($repository->fresh()->type)->toBe(RepositoryType::Svn);
+    Process::assertNothingRan();
+});
+
 test('a remote repository served by svnserve syncs with the right password and is refused with a wrong one', function () {
     config()->set('scm.allowed_hosts', ['127.0.0.1']);
     $repositoryPath = createTestSvnRepo(['Initial commit', 'Second commit'], 'remote-svn-');
