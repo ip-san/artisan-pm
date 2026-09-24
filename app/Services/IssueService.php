@@ -33,6 +33,7 @@ use App\Support\Calendar\WorkingDays;
 use App\Support\Issues\IssueFieldRules;
 use App\Support\Mail\MentionParser;
 use Carbon\CarbonInterface;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -276,9 +277,9 @@ final class IssueService
     /**
      * Several attachments in one journal — and so one notification — like
      * the single journal Redmine writes for an edit that adds files. Mailed
-     * through IssueJournalRecorded (mail only, no webhook); an issue edit's
-     * own mail (from update()) is separate, so an edit that also uploads
-     * files sends two mails here where Redmine sends one.
+     * through IssueJournalRecorded (mail only, no webhook). Files uploaded
+     * together with an edit go through update()'s $attachFiles instead, so
+     * they share the edit's journal and mail.
      *
      * @param  iterable<int, Media>  $medias
      */
@@ -360,12 +361,17 @@ final class IssueService
      * @param  bool  $applyFieldRules  input from a user: drop the fields the workflow makes read-only or
      *                                 the tracker disables, and require the workflow's required fields
      *                                 (see create())
+     * @param  (Closure(Issue): iterable<int, Media>)|null  $attachFiles  adds the files uploaded with this
+     *                                                                    edit once the checks have passed;
+     *                                                                    they are journaled in the edit's own
+     *                                                                    journal, so one mail covers both
+     *                                                                    (Redmine's single journal per save)
      *
      * @throws StaleIssueUpdateException if $expectedLockVersion is given and no longer matches — someone
      *                                   else saved a change since the caller loaded this issue
      * @throws ValidationException when $applyFieldRules and a required field would be left blank
      */
-    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null, array $customFieldData = [], ?int $expectedLockVersion = null, bool $commentIsPrivate = false, array $rescheduledIssueIds = [], bool $applyFieldRules = false): Issue
+    public function update(Issue $issue, array $attributes, User $actor, ?string $comment = null, array $customFieldData = [], ?int $expectedLockVersion = null, bool $commentIsPrivate = false, array $rescheduledIssueIds = [], bool $applyFieldRules = false, ?Closure $attachFiles = null): Issue
     {
         if (in_array($issue->id, $rescheduledIssueIds, true) || count($rescheduledIssueIds) >= self::MAX_RESCHEDULE_CHAIN_LENGTH) {
             return $issue;
@@ -445,11 +451,20 @@ final class IssueService
 
         $changes = $this->diff($original, $issue->only(self::JOURNALED_ATTRIBUTES));
         $customFieldChanges = $this->diffCustomFieldSnapshots($originalCustomValues, $this->customFieldSnapshot($issue, $actor));
+        $attachedMedia = $attachFiles === null ? [] : [...$attachFiles($issue)];
 
-        $hasDetails = $changes !== [] || $customFieldChanges !== [];
+        // Files alone keep their own mail-only journal (no issue.updated
+        // webhook), as journalizeAttachments() records them.
+        $attachmentsOnly = $changes === [] && $customFieldChanges === [] && ! filled($comment) && $attachedMedia !== [];
+
+        if ($attachmentsOnly) {
+            $this->journalizeAttachments($issue, $attachedMedia, added: true, actor: $actor);
+        }
+
+        $hasDetails = $changes !== [] || $customFieldChanges !== [] || $attachedMedia !== [];
         $detailsJournal = null;
 
-        if ($hasDetails || filled($comment)) {
+        if (! $attachmentsOnly && ($hasDetails || filled($comment))) {
             $this->autoWatch($issue, $actor->id, 'issue_contributed_to');
 
             // Matches Redmine's Journal#split_private_notes: a private note
@@ -482,6 +497,15 @@ final class IssueService
                     'prop_key' => (string) $fieldId,
                     'old_value' => $old,
                     'new_value' => $new,
+                ]);
+            }
+
+            foreach ($attachedMedia as $media) {
+                $detailsJournal->details()->create([
+                    'property' => 'attachment',
+                    'prop_key' => (string) $media->id,
+                    'old_value' => null,
+                    'new_value' => $media->file_name,
                 ]);
             }
 

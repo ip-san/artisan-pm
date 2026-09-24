@@ -18,7 +18,6 @@ use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Tracker;
-use App\Models\User;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Api\CustomFieldPayload;
@@ -40,6 +39,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 final class IssueController extends Controller
 {
@@ -461,7 +461,7 @@ final class IssueController extends Controller
         // Not journaled — an issue's creation itself isn't journaled
         // either, matching the web form's own reasoning for uploads
         // attached while creating vs. editing an issue.
-        $this->attachUploads($issue, $uploads, journalize: false, actor: $user);
+        $this->attachUploads($issue, $uploads);
 
         return (new IssueResource($issue->refresh()))->response()->setStatusCode(201);
     }
@@ -533,7 +533,8 @@ final class IssueController extends Controller
             // Like the issue form: read-only and disabled fields are ignored and
             // the required ones must stay filled — for a caller who edits; a
             // notes-only update is a comment, as on the issue page.
-            $issue = app(IssueService::class)->update($issue, $data, $user, $notes, $customFieldData, $expectedLockVersion, $notesArePrivate, applyFieldRules: $canEdit);
+            $issue = app(IssueService::class)->update($issue, $data, $user, $notes, $customFieldData, $expectedLockVersion, $notesArePrivate, applyFieldRules: $canEdit,
+                attachFiles: fn (Issue $saved) => $this->attachUploads($saved, $uploads));
         } catch (StaleIssueUpdateException $exception) {
             return response()->json([
                 'message' => __('課題が他のユーザーによって更新されています。最新の内容を取得して、もう一度やり直してください。'),
@@ -541,8 +542,6 @@ final class IssueController extends Controller
                 'lock_version' => $exception->issue->lock_version,
             ], 409);
         }
-
-        $this->attachUploads($issue, $uploads, journalize: true, actor: $user);
 
         return new IssueResource($issue);
     }
@@ -581,8 +580,10 @@ final class IssueController extends Controller
      * same as Redmine's own tolerant handling there.
      *
      * @param  array<int, array{token?: string, filename?: string, description?: string}>  $uploads
+     * @return array<int, Media> the attached files — on an update, update()
+     *                           journals them with the edit (one mail)
      */
-    private function attachUploads(Issue $issue, array $uploads, bool $journalize, User $actor): void
+    private function attachUploads(Issue $issue, array $uploads): array
     {
         $attached = [];
 
@@ -594,10 +595,7 @@ final class IssueController extends Controller
             }
         }
 
-        // One journal — and one mail — for every file attached in this call.
-        if ($journalize && $attached !== []) {
-            app(IssueService::class)->journalizeAttachments($issue, $attached, added: true, actor: $actor);
-        }
+        return $attached;
     }
 
     /**

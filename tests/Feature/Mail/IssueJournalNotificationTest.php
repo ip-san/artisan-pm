@@ -22,6 +22,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Passport\Passport;
 use Livewire\Livewire;
 
 function journalMailMember(Project $project, MailNotificationOption $preference, array $permissions = ['view_issues', 'edit_issues', 'manage_issue_relations']): User
@@ -127,6 +128,54 @@ test('editing an issue and uploading files through the form mails the attachment
 
     expect($attachmentMails)->toHaveCount(1)
         ->and($attachmentMails->first()->journal->details->where('property', 'attachment'))->toHaveCount(2);
+});
+
+test('an edit that also uploads files sends one mail whose journal has the changes and the files', function () {
+    Notification::fake();
+    Storage::fake('local');
+    $project = Project::factory()->create();
+    $editor = journalMailMember($project, MailNotificationOption::OnlyMyEvents);
+    $watcher = journalMailMember($project, MailNotificationOption::All);
+    $issue = journalMailIssue($project);
+    $project->trackers()->attach($issue->tracker_id);
+
+    Livewire::actingAs($editor)->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->set('subject', 'Renamed with files')
+        ->set('comment', 'See the attached spec')
+        ->set('newAttachments', [UploadedFile::fake()->create('spec.pdf', 10)])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $mails = Notification::sent($watcher, IssueNotification::class);
+    $details = $mails->first()?->journal?->details;
+
+    expect($mails)->toHaveCount(1)
+        ->and($details->where('property', 'attr')->pluck('prop_key')->all())->toContain('subject')
+        ->and($details->where('property', 'attachment')->pluck('new_value')->all())->toBe(['spec.pdf'])
+        ->and($issue->journals()->count())->toBe(1);
+});
+
+test('the REST API journals files uploaded with an update in the update\'s journal', function () {
+    Notification::fake();
+    Storage::fake('local');
+    $project = Project::factory()->create();
+    $editor = journalMailMember($project, MailNotificationOption::OnlyMyEvents);
+    $watcher = journalMailMember($project, MailNotificationOption::All);
+    $issue = journalMailIssue($project);
+    Passport::actingAs($editor);
+
+    $token = $this->call('POST', '/api/v1/uploads?filename=log.txt', [], [], [], [
+        'HTTP_ACCEPT' => 'application/json',
+        'CONTENT_TYPE' => 'application/octet-stream',
+    ], 'log line')->json('upload.token');
+
+    $this->putJson("/api/v1/issues/{$issue->id}", ['notes' => 'Log attached', 'uploads' => [['token' => $token, 'filename' => 'log.txt']]])->assertOk();
+
+    $mails = Notification::sent($watcher, IssueNotification::class);
+
+    expect($mails)->toHaveCount(1)
+        ->and($mails->first()->journal->notes)->toBe('Log attached')
+        ->and($mails->first()->journal->details->where('property', 'attachment')->pluck('new_value')->all())->toBe(['log.txt']);
 });
 
 test('the notifications for attachments and relations never fire the issue.updated webhook', function () {

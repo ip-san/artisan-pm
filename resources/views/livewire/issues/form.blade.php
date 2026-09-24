@@ -751,6 +751,24 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->project->activities(includeInactive: true);
     }
 
+    /**
+     * Stores the files picked in the form on $issue.
+     *
+     * @return array<int, \Spatie\MediaLibrary\MediaCollections\Models\Media>
+     */
+    private function storeNewAttachments(Issue $issue): array
+    {
+        $addedMedia = [];
+
+        foreach ($this->newAttachments as $file) {
+            $addedMedia[] = $issue->addMedia($file->getRealPath())
+                ->usingFileName($file->getClientOriginalName())
+                ->toMediaCollection('attachments');
+        }
+
+        return $addedMedia;
+    }
+
     public function save(): void
     {
         $this->estimated_hours = \App\Support\Format\Hours::normalizeInput($this->estimated_hours);
@@ -890,6 +908,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     // issues/show.blade.php's addComment() for the same check.
                     $this->commentIsPrivate && auth()->user()->can('setNotesPrivate', $this->issue),
                     applyFieldRules: true,
+                    attachFiles: fn (Issue $saved) => $this->storeNewAttachments($saved),
                 );
             } catch (StaleIssueUpdateException) {
                 $this->addError('lockVersion', __('この課題は他のユーザーによって更新されています。ページを再読み込みして最新の内容を確認してから、再度保存してください。'));
@@ -927,20 +946,11 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         }
 
-        $addedMedia = [];
-
-        foreach ($this->newAttachments as $file) {
-            $addedMedia[] = $issue->addMedia($file->getRealPath())
-                ->usingFileName($file->getClientOriginalName())
-                ->toMediaCollection('attachments');
-        }
-
-        // Only journaled when editing — attachments uploaded while creating
-        // the issue have no journal to belong to (Redmine behaves the same;
-        // creation itself is not journaled). One journal, and one mail, for
-        // all the files added in this save.
-        if ($this->issue !== null && $addedMedia !== []) {
-            app(IssueService::class)->journalizeAttachments($issue, $addedMedia, added: true, actor: auth()->user());
+        // Files uploaded while creating the issue are not journaled (Redmine
+        // does not journal creation); an edit's files were stored by
+        // update() in the edit's own journal, so one mail covers both.
+        if ($this->issue === null) {
+            $this->storeNewAttachments($issue);
         }
 
         if (filled($logTimeHours)) {
