@@ -327,3 +327,83 @@ test('the REST API delete removes the subtasks too', function () {
 
     expect(Issue::query()->whereKey([$parent->id, $child->id, $grandchild->id])->exists())->toBeFalse();
 });
+
+test('when time entries require an issue, detaching them is neither offered nor accepted and the default deletes them (A1-40)', function () {
+    Setting::set('timelog_required_fields', ['issue_id']);
+    $project = Project::factory()->create();
+    $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
+    $issue = deletableIssue($project);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 2]);
+
+    $component = Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->assertSet('timeEntryTodo', 'destroy')
+        ->set('confirmingDelete', true)
+        ->assertDontSee('課題との紐付けを外してプロジェクトに残す')
+        ->assertSee('作業時間も一緒に削除する');
+
+    $component->set('timeEntryTodo', 'nullify')
+        ->call('deleteIssue')
+        ->assertHasErrors('timeEntryTodo');
+
+    expect(Issue::find($issue->id))->not->toBeNull()
+        ->and($entry->fresh()->issue_id)->toBe($issue->id);
+
+    $component->set('timeEntryTodo', 'destroy')
+        ->call('deleteIssue')
+        ->assertRedirect(route('issues.index', $project));
+
+    expect(Issue::find($issue->id))->toBeNull()
+        ->and(TimeEntry::find($entry->id))->toBeNull();
+});
+
+test('when time entries require an issue, the time can still be reassigned (A1-40)', function () {
+    Setting::set('timelog_required_fields', ['issue_id']);
+    $project = Project::factory()->create();
+    $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
+    $issue = deletableIssue($project);
+    $target = deletableIssue($project);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 2]);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->set('timeEntryTodo', 'reassign')
+        ->set('reassignToId', (string) $target->id)
+        ->call('deleteIssue')
+        ->assertHasNoErrors();
+
+    expect($entry->fresh()->issue_id)->toBe($target->id);
+});
+
+test('when time entries require an issue, zero-hour entries are deleted with the issue instead of detached (A1-40)', function () {
+    Setting::set('timelog_required_fields', ['issue_id']);
+    $project = Project::factory()->create();
+    $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
+    $issue = deletableIssue($project);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 0]);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->call('deleteIssue')
+        ->assertHasNoErrors();
+
+    expect(Issue::find($issue->id))->toBeNull()
+        ->and(TimeEntry::find($entry->id))->toBeNull();
+});
+
+test('requiring only comments on time entries still keeps the detach option (A1-40)', function () {
+    Setting::set('timelog_required_fields', ['comments']);
+    $project = Project::factory()->create();
+    $user = deletionProjectMember($project, ['view_issues', 'delete_issues']);
+    $issue = deletableIssue($project);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id, 'hours' => 1, 'comments' => 'x']);
+
+    Livewire::actingAs($user)
+        ->test('issues.show', ['project' => $project, 'issue' => $issue])
+        ->assertSet('timeEntryTodo', 'nullify')
+        ->set('confirmingDelete', true)
+        ->assertSee('課題との紐付けを外してプロジェクトに残す')
+        ->call('deleteIssue');
+
+    expect($entry->fresh()->issue_id)->toBeNull();
+});

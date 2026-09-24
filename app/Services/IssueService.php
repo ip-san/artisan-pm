@@ -96,11 +96,11 @@ final class IssueService
      * Deletes the issue together with all its subtasks — deleteMany() for
      * a single issue.
      *
-     * @throws ValidationException when reassigning to a missing/foreign issue or one being deleted
+     * @throws ValidationException when reassigning to a missing/foreign issue or one being deleted, or detaching time that requires an issue
      */
     public function delete(
         Issue $issue,
-        IssueTimeEntryDisposition $timeEntries = IssueTimeEntryDisposition::Nullify,
+        ?IssueTimeEntryDisposition $timeEntries = null,
         ?int $reassignToIssueId = null,
     ): void {
         $this->deleteMany(collect([$issue]), $timeEntries, $reassignToIssueId);
@@ -118,22 +118,29 @@ final class IssueService
      * all of those issues (Issue.self_and_descendants). Redmine defaults
      * its confirmation form to deleting the entries; this app has always
      * kept them (detached), so Nullify stays the default for every caller
-     * that doesn't ask — a deliberate, data-safe difference. Reassign moves
+     * that doesn't ask — a deliberate, data-safe difference — except when
+     * `timelog_required_fields` names the issue: then, as in Redmine,
+     * Nullify is refused and the default is Destroy (A1-40). Reassign moves
      * them to $reassignToIssueId, which must be an issue of the selection's
      * one project (Redmine looks it up through `@project.issues`) that is
      * not about to be deleted.
      *
      * @param  Collection<int, Issue>  $issues
      *
-     * @throws ValidationException when reassigning to a missing/foreign issue or one being deleted
+     * @throws ValidationException when reassigning to a missing/foreign issue or one being deleted, or detaching time that requires an issue
      */
     public function deleteMany(
         Collection $issues,
-        IssueTimeEntryDisposition $timeEntries = IssueTimeEntryDisposition::Nullify,
+        ?IssueTimeEntryDisposition $timeEntries = null,
         ?int $reassignToIssueId = null,
     ): void {
+        $timeEntries ??= IssueTimeEntryDisposition::defaultForIssueDeletion();
         $doomedIds = Issue::selfAndDescendantIds($issues->pluck('id'));
         $reassignTo = null;
+
+        if (! $timeEntries->isAllowedForIssueDeletion() && TimeEntry::query()->whereIn('issue_id', $doomedIds)->exists()) {
+            throw ValidationException::withMessages(['todo' => __('作業時間には課題が必須のため、課題との紐付けを外して残すことはできません。')]);
+        }
 
         if ($timeEntries === IssueTimeEntryDisposition::Reassign) {
             $projectIds = $issues->pluck('project_id')->unique();

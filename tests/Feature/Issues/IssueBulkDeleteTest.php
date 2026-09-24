@@ -6,6 +6,7 @@ use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
@@ -233,4 +234,31 @@ test('the plain bulk delete confirm mentions the subtasks of the selection', fun
     Livewire::actingAs($user)->test('issues.index', ['project' => $project])
         ->set('selected', [$parent->id])
         ->assertSee('選択した1件の課題を削除します。この操作は取り消せません。よろしいですか? 1件のサブタスクも削除されます。');
+});
+
+test('when time entries require an issue, the bulk delete and context menu refuse detaching and default to deleting the time (A1-40)', function () {
+    Setting::set('timelog_required_fields', ['issue_id']);
+    $project = Project::factory()->create();
+    $user = bulkDeleteMember($project, ['view_issues', 'delete_issues']);
+    $a = bulkDeleteIssue($project);
+    $b = bulkDeleteIssue($project);
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $a->id, 'hours' => 1]);
+
+    $component = Livewire::actingAs($user)->test('issues.index', ['project' => $project])
+        ->assertSet('bulkTimeEntryTodo', 'destroy')
+        ->set('selected', [$a->id, $b->id])
+        ->call('$set', 'confirmingBulkDelete', true)
+        ->assertDontSee('課題との紐付けを外してプロジェクトに残す')
+        ->set('bulkTimeEntryTodo', 'nullify')
+        ->call('applyBulkDelete')
+        ->assertHasErrors('bulkTimeEntryTodo');
+
+    expect(Issue::query()->whereKey([$a->id, $b->id])->count())->toBe(2)
+        ->and($entry->fresh()->issue_id)->toBe($a->id);
+
+    $component->set('bulkTimeEntryTodo', 'destroy')
+        ->call('applyBulkDelete');
+
+    expect(Issue::query()->whereKey([$a->id, $b->id])->exists())->toBeFalse()
+        ->and(TimeEntry::find($entry->id))->toBeNull();
 });

@@ -126,6 +126,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $issue);
 
         $this->project = $project;
+        $this->timeEntryTodo = IssueTimeEntryDisposition::defaultForIssueDeletion()->value;
         $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'assignedToGroup', 'fixedVersion', ...self::JOURNAL_RELATIONS, 'reactions', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user', 'changesets.repository.project']);
 
         foreach ($this->issue->attachments() as $media) {
@@ -752,14 +753,14 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('delete', $this->issue);
 
-        $disposition = IssueTimeEntryDisposition::Nullify;
+        $disposition = null;
 
         if ($this->loggedHoursForDeletion > 0) {
             $requested = IssueTimeEntryDisposition::tryFrom($this->timeEntryTodo);
 
             // A value the panel never offers can only be a tampered request:
             // refuse it rather than guessing (nothing has been deleted yet).
-            if ($requested === null) {
+            if ($requested === null || ! $requested->isAllowedForIssueDeletion()) {
                 $this->addError('timeEntryTodo', __('作業時間の扱いが不正です。'));
 
                 return;
@@ -902,10 +903,12 @@ new #[Layout('components.layouts.app')] class extends Component
                         {{ __('この課題には :hours 時間の作業時間が記録されています。削除する課題の作業時間をどうしますか?', ['hours' => rtrim(rtrim(number_format($this->loggedHoursForDeletion, 2), '0'), '.')]) }}
                     </p>
                 @endif
-                <label class="flex items-center gap-2 text-sm text-neutral-700">
-                    <input type="radio" wire:model.live="timeEntryTodo" value="nullify">
-                    {{ __('課題との紐付けを外してプロジェクトに残す') }}
-                </label>
+                @if (\App\Enums\IssueTimeEntryDisposition::Nullify->isAllowedForIssueDeletion())
+                    <label class="flex items-center gap-2 text-sm text-neutral-700">
+                        <input type="radio" wire:model.live="timeEntryTodo" value="nullify">
+                        {{ __('課題との紐付けを外してプロジェクトに残す') }}
+                    </label>
+                @endif
                 <label class="flex items-center gap-2 text-sm text-neutral-700">
                     <input type="radio" wire:model.live="timeEntryTodo" value="destroy">
                     {{ __('作業時間も一緒に削除する') }}
@@ -916,6 +919,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input type="number" min="1" wire:model="reassignToId" wire:focus="$set('timeEntryTodo', 'reassign')"
                         class="w-24 rounded-md border-neutral-300 text-sm">
                 </label>
+                @error('timeEntryTodo') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
+                @error('todo') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 @error('reassign_to_id') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <div class="flex gap-2">
                     <button type="submit" class="rounded-md bg-danger-bolder px-3 py-2 text-sm font-medium text-white hover:bg-danger-subtle">

@@ -249,6 +249,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('viewAny', [Issue::class, $project]);
 
         $this->project = $project;
+        $this->bulkTimeEntryTodo = IssueTimeEntryDisposition::defaultForIssueDeletion()->value;
 
         $this->applyDefaultQuery();
 
@@ -1434,13 +1435,13 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->authorize('delete', $issue);
         }
 
-        $disposition = IssueTimeEntryDisposition::Nullify;
+        $disposition = null;
         $reassignToId = null;
 
         if ($this->bulkDeleteHours > 0) {
             $disposition = IssueTimeEntryDisposition::tryFrom($this->bulkTimeEntryTodo);
 
-            if ($disposition === null) {
+            if ($disposition === null || ! $disposition->isAllowedForIssueDeletion()) {
                 $this->addError('bulkTimeEntryTodo', __('作業時間の扱いが不正です。'));
 
                 return;
@@ -1465,12 +1466,13 @@ new #[Layout('components.layouts.app')] class extends Component
         try {
             app(IssueService::class)->deleteMany($issues, $disposition, $reassignToId);
         } catch (ValidationException $exception) {
-            $this->addError('bulkReassignToId', collect($exception->errors())->flatten()->first());
+            $this->addError(array_key_exists('todo', $exception->errors()) ? 'bulkTimeEntryTodo' : 'bulkReassignToId', collect($exception->errors())->flatten()->first());
 
             return;
         }
 
-        $this->reset('selected', 'confirmingBulkDelete', 'bulkTimeEntryTodo', 'bulkReassignToId');
+        $this->reset('selected', 'confirmingBulkDelete', 'bulkReassignToId');
+        $this->bulkTimeEntryTodo = IssueTimeEntryDisposition::defaultForIssueDeletion()->value;
         $this->resetPage();
         unset($this->issues, $this->selectedIssues, $this->bulkStatusOptions, $this->groupedIssues, $this->groupTotals, $this->bulkDeleteIssueIds);
 
@@ -2008,10 +2010,12 @@ new #[Layout('components.layouts.app')] class extends Component
                                 {{ __('選択した課題には合計 :hours 時間の作業時間が記録されています。作業時間をどうしますか?', ['hours' => rtrim(rtrim(number_format($this->bulkDeleteHours, 2), '0'), '.')]) }}
                             </p>
                         @endif
-                        <label class="flex items-center gap-2 text-sm text-neutral-700">
-                            <input type="radio" wire:model.live="bulkTimeEntryTodo" value="nullify">
-                            {{ __('課題との紐付けを外してプロジェクトに残す') }}
-                        </label>
+                        @if (\App\Enums\IssueTimeEntryDisposition::Nullify->isAllowedForIssueDeletion())
+                            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                                <input type="radio" wire:model.live="bulkTimeEntryTodo" value="nullify">
+                                {{ __('課題との紐付けを外してプロジェクトに残す') }}
+                            </label>
+                        @endif
                         <label class="flex items-center gap-2 text-sm text-neutral-700">
                             <input type="radio" wire:model.live="bulkTimeEntryTodo" value="destroy">
                             {{ __('作業時間も一緒に削除する') }}

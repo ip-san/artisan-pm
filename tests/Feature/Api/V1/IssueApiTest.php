@@ -149,6 +149,27 @@ test('deleting an issue via the api keeps its time entries detached unless told 
     expect($entry->fresh()->issue_id)->toBeNull();
 });
 
+test('when time entries require an issue, the api delete refuses todo=nullify and deletes the time by default (A1-40)', function () {
+    Setting::set('timelog_required_fields', ['issue_id']);
+    $project = Project::factory()->create();
+    $user = apiIssueMember($project, ['view_issues', 'delete_issues']);
+    $issue = Issue::factory()->for($project)->create(apiIssueDefaults());
+    $entry = TimeEntry::factory()->for($project)->create(['issue_id' => $issue->id]);
+
+    Passport::actingAs($user);
+
+    $this->deleteJson("/api/v1/issues/{$issue->id}?todo=nullify")
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('todo');
+    expect(Issue::find($issue->id))->not->toBeNull()
+        ->and($entry->fresh()->issue_id)->toBe($issue->id);
+
+    $this->deleteJson("/api/v1/issues/{$issue->id}")->assertNoContent();
+
+    expect(Issue::find($issue->id))->toBeNull()
+        ->and(TimeEntry::find($entry->id))->toBeNull();
+});
+
 test('the api delete accepts todo=destroy to remove the time entries too', function () {
     $project = Project::factory()->create();
     $user = apiIssueMember($project, ['view_issues', 'delete_issues']);
@@ -397,7 +418,7 @@ test('an API-created issue only gets a start date when the API and mail switch i
 
     $create()->assertJsonPath('data.start_date', null);
 
-    App\Models\Setting::set('default_issue_start_date_for_api_and_mail', true);
+    Setting::set('default_issue_start_date_for_api_and_mail', true);
     $create()->assertJsonPath('data.start_date', today()->toDateString());
     $create(['start_date' => '2026-02-03'])->assertJsonPath('data.start_date', '2026-02-03');
 });

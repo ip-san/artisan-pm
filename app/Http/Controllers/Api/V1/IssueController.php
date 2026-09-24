@@ -346,7 +346,9 @@ final class IssueController extends Controller
      * Redmine's `todo` / `reassign_to_id` parameters choose what happens to
      * the issue's logged time. Omitting `todo` keeps the entries detached
      * from any issue (see IssueService::delete() for why that differs from
-     * Redmine's delete-them default).
+     * Redmine's delete-them default) — or deletes them when
+     * `timelog_required_fields` names the issue, where `todo=nullify` is a
+     * 422 as in Redmine (A1-40).
      */
     public function destroy(Request $request, Issue $issue): JsonResponse
     {
@@ -359,7 +361,7 @@ final class IssueController extends Controller
 
         app(IssueService::class)->delete(
             $issue,
-            IssueTimeEntryDisposition::tryFrom($data['todo'] ?? '') ?? IssueTimeEntryDisposition::Nullify,
+            IssueTimeEntryDisposition::tryFrom($data['todo'] ?? ''),
             isset($data['reassign_to_id']) ? (int) $data['reassign_to_id'] : null,
         );
 

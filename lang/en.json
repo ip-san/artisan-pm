@@ -706,6 +706,7 @@
     "作業分類(名前)": "Activity (name)",
     "作業分類を特定できません。": "Could not determine the activity.",
     "作業時間": "Spent time",
+    "作業時間には課題が必須のため、課題との紐付けを外して残すことはできません。": "Time entries require an issue, so they cannot be kept detached from the issue.",
     "作業時間の扱いが不正です。": "Invalid choice for the spent time.",
     "作業時間の活動": "Activities (time tracking)",
     "作業時間も一緒に削除する": "Delete the reported hours",
