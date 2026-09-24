@@ -190,7 +190,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 @endif
                             </td>
                             <td class="px-4 py-2 text-neutral-500">{{ $candidate->type->value }}</td>
-                            <td class="px-4 py-2 text-neutral-500">{{ $candidate->path }}</td>
+                            <td class="px-4 py-2 text-neutral-500">{{ $candidate->location() }}</td>
                             <td class="px-4 py-2 text-right">
                                 @if ($this->canManage && ! $candidate->is_default)
                                     <button wire:click="setDefault({{ $candidate->id }})" class="text-xs text-brand-bold hover:underline">
@@ -214,7 +214,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </p>
     @else
         <p class="mb-4 text-xs text-neutral-500">
-            {{ __('種別: :type — パス: :path', ['type' => $repository->type->value, 'path' => $repository->path]) }}
+            {{ __('種別: :type — パス: :path', ['type' => $repository->type->value, 'path' => $repository->location()]) }}
             @if ($repository->last_synced_revision)
                 {{ __('— 最終同期リビジョン: :revision', ['revision' => substr($repository->last_synced_revision, 0, 8)]) }}
             @endif

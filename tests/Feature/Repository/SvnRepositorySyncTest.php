@@ -22,28 +22,6 @@ function svnRepositoryMember(Project $project, array $permissions): User
     return $user;
 }
 
-/**
- * @param  array<int, string>  $commitMessages
- */
-function createTestSvnRepo(array $commitMessages): string
-{
-    $repoPath = sys_get_temp_dir().'/svn-test-repo-'.uniqid();
-    $wcPath = sys_get_temp_dir().'/svn-test-wc-'.uniqid();
-
-    $run = fn (array $command, ?string $cwd = null) => Process::path($cwd ?? sys_get_temp_dir())->timeout(15)->run($command)->throw();
-
-    $run(['svnadmin', 'create', $repoPath]);
-    $run(['svn', 'checkout', "file://{$repoPath}", $wcPath, '-q']);
-
-    foreach ($commitMessages as $i => $message) {
-        file_put_contents("{$wcPath}/file{$i}.txt", "content {$i}\n");
-        $run(['svn', 'add', "file{$i}.txt"], $wcPath);
-        $run(['svn', 'commit', '-m', $message, '-q', '--username', 'tester'], $wcPath);
-    }
-
-    return $repoPath;
-}
-
 afterEach(function () {
     Process::path(sys_get_temp_dir())->run(['find', '.', '-maxdepth', '1', '-name', 'svn-test-*', '-exec', 'rm', '-rf', '{}', ';']);
 });

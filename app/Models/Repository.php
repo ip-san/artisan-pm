@@ -10,13 +10,15 @@ use App\Support\Scm\ScmAdapter;
 use App\Support\Scm\SvnAdapter;
 use Database\Factories\RepositoryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['project_id', 'type', 'path', 'last_synced_revision', 'is_default', 'identifier', 'log_encoding', 'path_encoding'])]
+#[Fillable(['project_id', 'type', 'path', 'url', 'login', 'password', 'last_synced_revision', 'is_default', 'identifier', 'log_encoding', 'path_encoding'])]
+#[Hidden(['password'])]
 final class Repository extends Model
 {
     /** @use HasFactory<RepositoryFactory> */
@@ -27,6 +29,7 @@ final class Repository extends Model
         return [
             'type' => RepositoryType::class,
             'is_default' => 'boolean',
+            'password' => 'encrypted',
         ];
     }
 
@@ -129,11 +132,30 @@ final class Repository extends Model
         return $this->hasMany(RepositoryCommitter::class);
     }
 
+    /**
+     * A10-01b: a Subversion repository on a remote, allow-listed server
+     * (url) rather than a local path under scm.repositories_root.
+     */
+    public function isRemote(): bool
+    {
+        return $this->url !== null && $this->url !== '';
+    }
+
+    /**
+     * Where the repository lives, for display: its remote URL or local path.
+     */
+    public function location(): string
+    {
+        return $this->isRemote() ? (string) $this->url : (string) $this->path;
+    }
+
     public function adapter(): ScmAdapter
     {
         return match ($this->type) {
-            RepositoryType::Git => new GitAdapter($this->path, $this->log_encoding, $this->path_encoding),
-            RepositoryType::Svn => new SvnAdapter($this->path),
+            RepositoryType::Git => new GitAdapter((string) $this->path, $this->log_encoding, $this->path_encoding),
+            RepositoryType::Svn => $this->isRemote()
+                ? new SvnAdapter(url: $this->url, login: $this->login, password: $this->password)
+                : new SvnAdapter((string) $this->path),
         };
     }
 

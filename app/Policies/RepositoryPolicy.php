@@ -30,6 +30,16 @@ final class RepositoryPolicy
         return $this->authorization->can($user, 'manage_repository', $project);
     }
 
+    /**
+     * A10-01b: registering or changing a remote (URL) repository and its
+     * credentials — on top of manage, never instead of it.
+     */
+    public function manageRemote(User $user, Project $project): bool
+    {
+        return $this->manage($user, $project)
+            && $this->authorization->can($user, 'manage_remote_repositories', $project);
+    }
+
     public function browse(?User $user, Project $project): bool
     {
         return $this->authorization->can($user, 'browse_repository', $project);

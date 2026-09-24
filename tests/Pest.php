@@ -108,3 +108,38 @@ function createTestGitRepoWithCommitter(string $committerName, string $committer
 
     return $path;
 }
+
+/**
+ * A Subversion repository (svnadmin create) with one committed file per
+ * message — shared by SvnRepositorySyncTest and RemoteRepositoryTest, so
+ * defined here for the same --parallel reason as createTestGitRepo().
+ * SvnRepositorySyncTest sweeps "svn-test-*" after each of its tests; any
+ * other caller passes its own $prefix so that sweep can't delete its
+ * repository mid-use in another worker, and gets it removed by the
+ * tracked-path cleanup above instead.
+ *
+ * @param  array<int, string>  $commitMessages
+ */
+function createTestSvnRepo(array $commitMessages, string $prefix = 'svn-test-'): string
+{
+    $repoPath = sys_get_temp_dir().'/'.$prefix.'repo-'.uniqid();
+    $wcPath = sys_get_temp_dir().'/'.$prefix.'wc-'.uniqid();
+
+    if ($prefix !== 'svn-test-') {
+        $GLOBALS['__testGitRepoPaths'][] = $repoPath;
+        $GLOBALS['__testGitRepoPaths'][] = $wcPath;
+    }
+
+    $run = fn (array $command, ?string $cwd = null) => Process::path($cwd ?? sys_get_temp_dir())->timeout(15)->run($command)->throw();
+
+    $run(['svnadmin', 'create', $repoPath]);
+    $run(['svn', 'checkout', "file://{$repoPath}", $wcPath, '-q']);
+
+    foreach ($commitMessages as $i => $message) {
+        file_put_contents("{$wcPath}/file{$i}.txt", "content {$i}\n");
+        $run(['svn', 'add', "file{$i}.txt"], $wcPath);
+        $run(['svn', 'commit', '-m', $message, '-q', '--username', 'tester'], $wcPath);
+    }
+
+    return $repoPath;
+}

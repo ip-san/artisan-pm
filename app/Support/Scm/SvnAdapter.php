@@ -6,7 +6,10 @@ namespace App\Support\Scm;
 
 use DateTimeImmutable;
 use Illuminate\Contracts\Process\ProcessResult;
+use Illuminate\Process\FakeProcessResult;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
+use SensitiveParameter;
 
 /**
  * $path is a local filesystem path (same convention as GitAdapter, and
@@ -20,11 +23,24 @@ use Illuminate\Support\Facades\Process;
  * execution) only run for repository-modifying operations, not the
  * read-only log/cat/list/diff commands used here, so there's no known
  * read-path attack surface to neutralize the way there is for git.
+ *
+ * A10-01b: alternatively $url names a remote svn://, http(s):// repository
+ * on an allow-listed host (config('scm.allowed_hosts')), with optional
+ * credentials. The host is re-checked by RemoteRepositoryUrlGuard before
+ * every svn call, the password reaches svn over stdin
+ * (--password-from-stdin) so it never appears in the process list, and
+ * --no-auth-cache keeps svn from writing it to ~/.subversion.
+ * --trust-server-cert is no longer passed: accepting an unknown CA would
+ * hand the credentials to anyone able to intercept the connection.
  */
 final readonly class SvnAdapter implements ScmAdapter
 {
     public function __construct(
-        private string $path,
+        private string $path = '',
+        private ?string $url = null,
+        private ?string $login = null,
+        #[SensitiveParameter]
+        private ?string $password = null,
     ) {}
 
     public function isAvailable(): bool
@@ -44,7 +60,26 @@ final readonly class SvnAdapter implements ScmAdapter
             return [];
         }
 
-        return $this->parseLog($result->output());
+        return $this->parseLog($result->output(), $this->relativeUrlPrefix());
+    }
+
+    /**
+     * `svn log` reports changed paths relative to the repository root, not
+     * to the URL — a remote URL may point below the root (".../trunk"), so,
+     * as Redmine's Repository::Subversion#relative_path does, that prefix
+     * is stripped to match the paths tree()/fileContentAt() use. A local
+     * repository is always addressed at its root, so this is remote-only.
+     */
+    private function relativeUrlPrefix(): string
+    {
+        if ($this->url === null) {
+            return '';
+        }
+
+        $result = $this->svn(['info', '--show-item', 'relative-url', $this->url()], 15);
+        $relative = $result->successful() ? trim(ltrim(trim($result->output()), '^'), '/') : '';
+
+        return $relative === '' ? '' : rawurldecode($relative).'/';
     }
 
     public function diff(string $revision, ?string $fromRevision = null, ?string $path = null): string
@@ -113,7 +148,7 @@ final readonly class SvnAdapter implements ScmAdapter
 
     private function url(): string
     {
-        return 'file://'.$this->path;
+        return $this->url !== null ? rtrim($this->url, '/') : 'file://'.$this->path;
     }
 
     /**
@@ -121,14 +156,38 @@ final readonly class SvnAdapter implements ScmAdapter
      */
     private function svn(array $args, int $timeout): ProcessResult
     {
-        return Process::timeout($timeout)->run(['svn', '--non-interactive', '--trust-server-cert', ...$args]);
+        $command = ['svn', '--non-interactive', '--no-auth-cache'];
+        $process = Process::timeout($timeout);
+
+        if ($this->url !== null) {
+            $problem = RemoteRepositoryUrlGuard::problem($this->url);
+
+            if ($problem !== null) {
+                Log::warning('Refused to contact a remote Subversion repository.', ['url' => $this->url, 'reason' => $problem]);
+
+                return new FakeProcessResult(command: 'svn', exitCode: 1, errorOutput: $problem);
+            }
+
+            if (filled($this->login)) {
+                $command = [...$command, '--username', (string) $this->login];
+
+                if (filled($this->password)) {
+                    $command[] = '--password-from-stdin';
+                    $process = $process->input((string) $this->password);
+                }
+            }
+        }
+
+        return $process->run([...$command, ...$args]);
     }
 
     /**
      * @return array<int, ScmLogEntry>
      */
-    private function parseLog(string $xml): array
+    private function parseLog(string $xml, string $prefix = ''): array
     {
+        $relative = fn (string $path): string => $prefix !== '' && str_starts_with($path, $prefix) ? substr($path, strlen($prefix)) : $path;
+
         $document = @simplexml_load_string($xml);
 
         if ($document === false) {
@@ -147,9 +206,9 @@ final readonly class SvnAdapter implements ScmAdapter
                 $copyFromPath = (string) ($path['copyfrom-path'] ?? '');
 
                 $files[] = new ScmFileChange(
-                    path: ltrim((string) $path, '/'),
+                    path: $relative(ltrim((string) $path, '/')),
                     action: (string) $path['action'],
-                    fromPath: $copyFromPath !== '' ? ltrim($copyFromPath, '/') : null,
+                    fromPath: $copyFromPath !== '' ? $relative(ltrim($copyFromPath, '/')) : null,
                 );
             }
 

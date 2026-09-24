@@ -22,4 +22,18 @@ class RepositoryFactory extends Factory
             'path' => sys_get_temp_dir().'/'.fake()->unique()->uuid(),
         ];
     }
+
+    /**
+     * A10-01b: a Subversion repository on a remote server, with credentials.
+     */
+    public function remote(string $url = 'https://svn.example.com/repos/project', ?string $login = 'svnuser', ?string $password = 'svn-secret'): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => RepositoryType::Svn->value,
+            'path' => null,
+            'url' => $url,
+            'login' => $login,
+            'password' => $password,
+        ]);
+    }
 }

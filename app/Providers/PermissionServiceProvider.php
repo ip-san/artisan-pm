@@ -124,6 +124,11 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('view_changesets', module: ProjectModuleKey::Repository, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('browse_repository', module: ProjectModuleKey::Repository, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('manage_repository', module: ProjectModuleKey::Repository);
+        // A10-01b: pointing a repository at a remote URL makes the server
+        // open network connections, so it is kept apart from the
+        // Member-tier manage_repository — no default role has it; an
+        // administrator has it implicitly or grants it to a role explicitly.
+        $registry->register('manage_remote_repositories', module: ProjectModuleKey::Repository);
         $registry->register('manage_related_issues', module: ProjectModuleKey::Repository);
         $registry->register('commit_access', module: ProjectModuleKey::Repository);
 

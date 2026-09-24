@@ -11,6 +11,7 @@ use App\Models\Project;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 
 /**
  * Redmine's repository management web service (`/sys/*`), the hook point for
@@ -23,7 +24,7 @@ final class SysController extends Controller
 {
     /**
      * Active projects with the repository module, each with its default
-     * repository (`url` is the repository's path on this server).
+     * repository (`url` is its path on this server, or its remote URL — never its credentials).
      */
     public function projects(): JsonResponse
     {
@@ -37,7 +38,7 @@ final class SysController extends Controller
             'status' => $project->status->value,
             'repository' => ($repository = $project->repositories->firstWhere('is_default', true) ?? $project->repositories->first()) === null
                 ? null
-                : ['id' => $repository->id, 'url' => $repository->path],
+                : ['id' => $repository->id, 'url' => $repository->location()],
         ])->all());
     }
 
@@ -68,9 +69,9 @@ final class SysController extends Controller
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, Project>
+     * @return Collection<int, Project>
      */
-    private function repositoryProjects(): \Illuminate\Support\Collection
+    private function repositoryProjects(): Collection
     {
         return Project::query()
             ->where('status', ProjectStatus::Active)

@@ -130,7 +130,7 @@
 | 55 | A5-12 / A10-02 | — | S〜M | done(2026-09-20、エンコーディング/表示件数は A5-12b) |
 | 55b | A5-12b | A5-12 | S | done(2026-09-20、エンコーディングは全体設定のみ) |
 | 56 | A10-01 | — | S〜M | done(2026-09-20、エンコーディングのみ。URL/資格情報は A10-01b) |
-| 56b | A10-01b | A10-01 | M | todo(2026-09-24 承認: 設計メモの推奨案) |
+| 56b | A10-01b | A10-01 | M | done(2026-09-24、設計メモ案B: SVNのみ URL+ログイン/パスワード(暗号化)、`scm.allowed_hosts`、権限`manage_remote_repositories`。Git のリモート(案C)・`root_url`/`extra_info` は対象外) |
 | 57 | A10-05 / A5-07 | — | S | done(2026-09-20、bulk_download_max_size は A7-10 と同時) |
 | 58 | A10-03 / A13-06 | — | S | done(2026-09-20、リポジトリ作成 API は対象外) |
 | 59 | A7-10 | — | S | done(2026-09-20、フォーラム投稿の画面リンクなし) |
@@ -518,7 +518,7 @@
 | ID | Redmine 側の機能 | 本アプリの現状 | 残作業 | 前提・設計上の注意 | 規模 | checklist 行 |
 |---|---|---|---|---|---|---|
 | A10-01 | リポジトリ接続情報(`repositories.url`/`root_url`/`login`/`password`/`log_encoding`/`path_encoding`/`extra_info`) | `Repository` の fillable は project_id/type/path/last_synced_revision/is_default/identifier。認証情報・エンコーディングなし | SVN の URL+ユーザー/パスワード(暗号化 cast)、ログ/パスのエンコーディング指定を追加し `SvnAdapter`/`GitAdapter` に渡す | 認証情報は `encrypted` cast | S〜M | リポジトリ連携「対応SCM種別」 |
-| A10-01b | リポジトリのリモート URL(`url`/`root_url`)とログイン/パスワード(`login`/`password`)、`extra_info` | `Repository` は `repositories_root` 配下のローカルパスだけを受け付ける(`WithinRepositoriesRoot`)。資格情報の列なし | SVN の URL+資格情報(暗号化 cast)を許可する。**セキュリティ境界の変更のため要承認** | 設計メモ: `docs/design/gap-A10-01b.md`。A10-01 で分離 | M | リポジトリ連携「対応SCM種別」 |
+| A10-01b | リポジトリのリモート URL(`url`/`root_url`)とログイン/パスワード(`login`/`password`)、`extra_info` | **done(2026-09-24)**: `repositories.url`/`login`/`password`(`encrypted` cast、`#[Hidden]`)を追加し、SVN のみ `svn://`/`http(s)://` を登録可(`RemoteRepositoryUrl`/`RemoteRepositoryUrlGuard`、許可リスト `config('scm.allowed_hosts')`=`SCM_ALLOWED_HOSTS`、空なら無効。非公開/ループバック/リンクローカルのアドレスは IP/CIDR で明示した場合のみ。検証時と svn 実行ごとに DNS 再解決)。権限 `manage_remote_repositories`(既定ロールなし)。パスワードは `--password-from-stdin`、`--no-auth-cache`。`root_url`/`extra_info`・Git のリモートは対象外 | SVN の URL+資格情報(暗号化 cast)を許可する。**セキュリティ境界の変更のため要承認** | 設計メモ: `docs/design/gap-A10-01b.md`。A10-01 で分離 | M | リポジトリ連携「対応SCM種別」 |
 | A10-02 | コミットキーワード設定の拡張(A5-12)、`commit_cross_project_ref` | `{keywords, status_id}` のみ、他プロジェクト参照は常に許可 | 参照キーワード設定化、更新ルールに `done_ratio`/`if_tracker_id`、他プロジェクト参照の許可トグル | — | S | 「コミットメッセージのキーワード連動」 |
 | A10-03 | `/sys` WS(`sys/projects`、`sys/fetch_changesets`、`sys_api_key`)と `reposman.rb` 連携 | なし(grep 0件) | API キー認証の `GET /sys/projects.json`、`GET /sys/fetch_changesets?id=` を追加(post-receive フックからの同期トリガー用) | 既存 `RepositorySyncService` を呼ぶだけ | S | 設定「リポジトリ」 |
 | A10-04 | Annotate の同一リビジョン連続行の色分けブロック | 全行に個別表示 | 連続する同一 revision をグループ化し交互に背景色 | 旧: 意図的対象外 | S | 「Annotate/Blame」 |
