@@ -612,7 +612,7 @@ final class Issue extends Model implements HasMedia
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->where(fn (Builder $outer) => self::applyVisibilityRules($outer, $rules, $user?->id));
+        return $query->where(fn (Builder $outer) => self::applyVisibilityRules($outer, $rules, $user));
     }
 
     /**
@@ -647,9 +647,7 @@ final class Issue extends Model implements HasMedia
             return $query->whereRaw('1 = 0');
         }
 
-        $userId = $user?->id;
-
-        return $query->where(function (Builder $outer) use ($buckets, $userId): void {
+        return $query->where(function (Builder $outer) use ($buckets, $user): void {
             foreach ($buckets as $bucket) {
                 if ($bucket['rules'] === [IssueVisibility::All->value => null]) {
                     $outer->orWhereIn($outer->qualifyColumn('project_id'), $bucket['projectIds']);
@@ -659,7 +657,7 @@ final class Issue extends Model implements HasMedia
 
                 $outer->orWhere(fn (Builder $inBucket) => $inBucket
                     ->whereIn($inBucket->qualifyColumn('project_id'), $bucket['projectIds'])
-                    ->where(fn (Builder $matching) => self::applyVisibilityRules($matching, $bucket['rules'], $userId)));
+                    ->where(fn (Builder $matching) => self::applyVisibilityRules($matching, $bucket['rules'], $user)));
             }
         });
     }
@@ -737,23 +735,29 @@ final class Issue extends Model implements HasMedia
      * @param  Builder<Issue>  $query
      * @param  array<string, list<int>|null>  $rules
      */
-    private static function applyVisibilityRules(Builder $query, array $rules, ?int $userId): void
+    private static function applyVisibilityRules(Builder $query, array $rules, ?User $user): void
     {
+        // Redmine's visible_condition: the author, or the assignee — the
+        // user or one of their groups (`assigned_to_id IN (user + groups)`),
+        // whatever issue_group_assignment currently says.
+        $userId = $user?->id;
+        $groupIds = $user === null ? [] : app(AuthorizationService::class)->groupIdsFor($user)->all();
+        $involves = fn (Builder $q, Builder $rule) => $q->orWhere($rule->qualifyColumn('author_id'), $userId)
+            ->orWhere($rule->qualifyColumn('assigned_to_id'), $userId)
+            ->when($groupIds !== [], fn (Builder $assigned) => $assigned->orWhereIn($rule->qualifyColumn('assigned_to_group_id'), $groupIds));
+
         foreach ($rules as $tier => $trackerIds) {
-            $query->orWhere(function (Builder $rule) use ($tier, $trackerIds, $userId): void {
+            $query->orWhere(function (Builder $rule) use ($tier, $trackerIds, $userId, $involves): void {
                 // Without a user there is no author/assignee match: comparing
                 // to null would become "IS NULL" and match unassigned issues.
                 match (IssueVisibility::from($tier)) {
                     IssueVisibility::All => null,
                     IssueVisibility::Default => $userId === null
                         ? $rule->where($rule->qualifyColumn('is_private'), false)
-                        : $rule->where(fn ($q) => $q->where($rule->qualifyColumn('is_private'), false)
-                            ->orWhere($rule->qualifyColumn('author_id'), $userId)
-                            ->orWhere($rule->qualifyColumn('assigned_to_id'), $userId)),
+                        : $rule->where(fn ($q) => $involves($q->where($rule->qualifyColumn('is_private'), false), $rule)),
                     IssueVisibility::Own => $userId === null
                         ? $rule->whereRaw('1 = 0')
-                        : $rule->where(fn ($q) => $q->where($rule->qualifyColumn('author_id'), $userId)
-                            ->orWhere($rule->qualifyColumn('assigned_to_id'), $userId)),
+                        : $rule->where(fn ($q) => $involves($q, $rule)),
                 };
 
                 if ($trackerIds !== null) {
@@ -782,7 +786,7 @@ final class Issue extends Model implements HasMedia
      */
     private function matchesVisibilityRules(array $rules, ?User $user): bool
     {
-        $isAuthorOrAssignee = $user !== null && ($this->author_id === $user->id || $this->assigned_to_id === $user->id);
+        $isAuthorOrAssignee = $user !== null && ($this->author_id === $user->id || $this->isAssignedTo($user));
 
         foreach ($rules as $tier => $trackerIds) {
             if ($trackerIds !== null && ! in_array((int) $this->tracker_id, $trackerIds, true)) {
