@@ -140,6 +140,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $timespan_format = 'decimal';
 
+    public string $date_format = '';
+
+    public string $time_format = '';
+
     /** @var array<int, string> */
     public array $issue_list_default_totals = [];
 
@@ -400,6 +404,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->default_users_time_zone = \App\Support\Locale\TimeZones::isSupported(Setting::get('default_users_time_zone')) ? Setting::get('default_users_time_zone') : '';
         $this->default_users_auto_watch_on = UserPreferences::defaults()['auto_watch_on'];
         $this->timespan_format = Hours::timespanFormat();
+        $this->date_format = array_key_exists((string) Setting::get('date_format', ''), \App\Support\Format\DateTimes::DATE_FORMATS) ? Setting::get('date_format') : '';
+        $this->time_format = array_key_exists((string) Setting::get('time_format', ''), \App\Support\Format\DateTimes::TIME_FORMATS) ? Setting::get('time_format') : '';
         $this->issue_list_default_totals = ListDefaults::issueTotals();
         $this->time_entry_list_default_columns = ListDefaults::timeEntryColumns();
         $this->time_entry_list_show_total = ListDefaults::timeEntriesShowHoursTotal();
@@ -603,6 +609,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'default_users_auto_watch_on' => ['array'],
             'default_users_auto_watch_on.*' => [Rule::in(array_keys(UserPreferences::AUTO_WATCH_ON))],
             'timespan_format' => ['required', Rule::in(array_keys(Hours::FORMATS))],
+            'date_format' => ['nullable', Rule::in(array_keys(\App\Support\Format\DateTimes::DATE_FORMATS))],
+            'time_format' => ['nullable', Rule::in(array_keys(\App\Support\Format\DateTimes::TIME_FORMATS))],
             'issue_list_default_totals' => ['array'],
             'issue_list_default_totals.*' => [Rule::in(array_keys(ListDefaults::ISSUE_TOTALS))],
             'time_entry_list_default_columns' => ['array', 'min:1'],
@@ -742,6 +750,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $data['host_name'] = trim((string) ($data['host_name'] ?? ''), " \t\n\r\0\x0B/");
         $data['gravatar_default'] = (string) ($data['gravatar_default'] ?? '');
         $data['default_users_time_zone'] = (string) ($data['default_users_time_zone'] ?? '');
+        $data['date_format'] = (string) ($data['date_format'] ?? '');
+        $data['time_format'] = (string) ($data['time_format'] ?? '');
         $data['sys_api_key'] = trim((string) ($data['sys_api_key'] ?? ''));
         $data['mail_handler_api_key'] = trim((string) ($data['mail_handler_api_key'] ?? ''));
         $data['repositories_encodings'] = trim((string) ($data['repositories_encodings'] ?? ''));
@@ -1120,6 +1130,27 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endforeach
                 </select>
                 @error('timespan_format') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('日付の形式') }}</label>
+                <select wire:model="date_format" data-date-format class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Support\Format\DateTimes::dateFormatOptions() as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('date_format') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('時刻の形式') }}</label>
+                <select wire:model="time_format" data-time-format class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    @foreach (\App\Support\Format\DateTimes::timeFormatOptions() as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('time_format') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-neutral-500">{{ __('画面・CSV・PDF・メールの日付と時刻に使います。REST API は常に ISO 8601 です。') }}</p>
             </div>
 
             <div>

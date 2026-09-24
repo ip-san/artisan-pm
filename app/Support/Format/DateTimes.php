@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Format;
 
+use App\Models\Setting;
 use App\Models\User;
 use App\Support\Locale\TimeZones;
 use Carbon\CarbonImmutable;
@@ -22,6 +23,43 @@ use DateTimeInterface;
  */
 final class DateTimes
 {
+    /**
+     * Redmine's Setting::DATE_FORMATS (stored as Redmine stores them) and the
+     * PHP format each means. Month names follow the display language.
+     *
+     * @var array<string, string>
+     */
+    public const array DATE_FORMATS = [
+        '%Y-%m-%d' => 'Y-m-d',
+        '%d/%m/%Y' => 'd/m/Y',
+        '%d.%m.%Y' => 'd.m.Y',
+        '%d-%m-%Y' => 'd-m-Y',
+        '%m/%d/%Y' => 'm/d/Y',
+        '%d %b %Y' => 'd M Y',
+        '%d %B %Y' => 'd F Y',
+        '%b %d, %Y' => 'M d, Y',
+        '%B %d, %Y' => 'F d, Y',
+    ];
+
+    /**
+     * Redmine's Setting::TIME_FORMATS.
+     *
+     * @var array<string, string>
+     */
+    public const array TIME_FORMATS = [
+        '%H:%M' => 'H:i',
+        '%I:%M %p' => 'h:i A',
+    ];
+
+    /**
+     * What an empty `date_format` / `time_format` means here: ISO dates and a
+     * 24-hour clock, as this app has always shown (Redmine's empty setting
+     * follows the language instead).
+     */
+    public const string DEFAULT_DATE_FORMAT = 'Y-m-d';
+
+    public const string DEFAULT_TIME_FORMAT = 'H:i';
+
     private static ?User $viewerOverride = null;
 
     private static bool $viewerOverridden = false;
@@ -94,7 +132,7 @@ final class DateTimes
 
         $date = $value instanceof DateTimeInterface ? CarbonImmutable::instance($value) : CarbonImmutable::parse($value);
 
-        return $date->translatedFormat(self::dateFormat());
+        return self::localized($date)->translatedFormat(self::dateFormat());
     }
 
     /**
@@ -102,7 +140,7 @@ final class DateTimes
      */
     public static function dateOf(?DateTimeInterface $value, ?User $viewer = null): ?string
     {
-        return self::local($value, $viewer)?->translatedFormat(self::dateFormat());
+        return self::localized(self::local($value, $viewer))?->translatedFormat(self::dateFormat());
     }
 
     /**
@@ -110,7 +148,7 @@ final class DateTimes
      */
     public static function dateTime(?DateTimeInterface $value, ?User $viewer = null): ?string
     {
-        return self::local($value, $viewer)?->translatedFormat(self::dateFormat().' '.self::timeFormat());
+        return self::localized(self::local($value, $viewer))?->translatedFormat(self::dateFormat().' '.self::timeFormat());
     }
 
     /**
@@ -118,7 +156,7 @@ final class DateTimes
      */
     public static function time(?DateTimeInterface $value, ?User $viewer = null): ?string
     {
-        return self::local($value, $viewer)?->translatedFormat(self::timeFormat());
+        return self::localized(self::local($value, $viewer))?->translatedFormat(self::timeFormat());
     }
 
     /**
@@ -146,13 +184,62 @@ final class DateTimes
         return [$start->utc(), $start->endOfDay()->utc()];
     }
 
+    /**
+     * The `date_format` setting as a PHP format.
+     */
     public static function dateFormat(): string
     {
-        return 'Y-m-d';
+        return self::DATE_FORMATS[(string) Setting::get('date_format', '')] ?? self::DEFAULT_DATE_FORMAT;
     }
 
+    /**
+     * The `time_format` setting as a PHP format.
+     */
     public static function timeFormat(): string
     {
-        return 'H:i';
+        return self::TIME_FORMATS[(string) Setting::get('time_format', '')] ?? self::DEFAULT_TIME_FORMAT;
+    }
+
+    /**
+     * The settings' choices, each shown as today (or now) looks in it, then
+     * its pattern — Redmine's date_format_setting_options.
+     *
+     * @return array<string, string> stored value => label
+     */
+    public static function dateFormatOptions(): array
+    {
+        $today = self::localized(self::today());
+        $options = ['' => __('既定(:example)', ['example' => $today->translatedFormat(self::DEFAULT_DATE_FORMAT)])];
+
+        foreach (self::DATE_FORMATS as $stored => $format) {
+            $pattern = strtr(str_replace('%', '', $stored), ['d' => 'dd', 'm' => 'mm', 'Y' => 'yyyy']);
+            $options[$stored] = $today->translatedFormat($format)." ({$pattern})";
+        }
+
+        return $options;
+    }
+
+    /**
+     * @return array<string, string> stored value => label
+     */
+    public static function timeFormatOptions(): array
+    {
+        $now = self::localized(self::local(CarbonImmutable::now()));
+        $options = ['' => __('既定(:example)', ['example' => $now->translatedFormat(self::DEFAULT_TIME_FORMAT)])];
+
+        foreach (self::TIME_FORMATS as $stored => $format) {
+            $options[$stored] = $now->translatedFormat($format);
+        }
+
+        return $options;
+    }
+
+    /**
+     * Month names and AM/PM in the display language (a mail is rendered in
+     * its recipient's).
+     */
+    private static function localized(?CarbonImmutable $value): ?CarbonImmutable
+    {
+        return $value?->locale(app()->getLocale());
     }
 }

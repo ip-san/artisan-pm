@@ -1226,7 +1226,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             @elseif ($detail->property === 'relation')
                                 {{ $detail->new_value !== null ? __('関連「:relation #:id」が追加されました', ['relation' => $this->relationJournalLabel($detail->prop_key), 'id' => $detail->new_value]) : __('関連「:relation #:id」が削除されました', ['relation' => $this->relationJournalLabel($detail->prop_key), 'id' => $detail->old_value]) }}
                             @else
-                                {{ $this->journalDetailLabel($detail) }}: {{ $detail->old_value ?? __('(未設定)') }} → {{ $detail->new_value ?? __('(未設定)') }}
+                                {{ $this->journalDetailLabel($detail) }}: {{ $detail->displayValue($detail->old_value) ?? __('(未設定)') }} → {{ $detail->displayValue($detail->new_value) ?? __('(未設定)') }}
                             @endif
                         </div>
                     @endforeach

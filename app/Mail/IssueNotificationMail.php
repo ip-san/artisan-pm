@@ -187,8 +187,8 @@ final class IssueNotificationMail extends Mailable
                     'relation' => $relationLabels[$detail->prop_key] ?? $detail->prop_key,
                     default => $attributeLabels[$detail->prop_key] ?? $detail->prop_key,
                 },
-                'old' => $detail->property === 'relation' && $detail->old_value !== null ? "#{$detail->old_value}" : $detail->old_value,
-                'new' => $detail->property === 'relation' && $detail->new_value !== null ? "#{$detail->new_value}" : $detail->new_value,
+                'old' => $detail->property === 'relation' && $detail->old_value !== null ? "#{$detail->old_value}" : $detail->displayValue($detail->old_value),
+                'new' => $detail->property === 'relation' && $detail->new_value !== null ? "#{$detail->new_value}" : $detail->displayValue($detail->new_value),
             ])
             ->values()
             ->all();

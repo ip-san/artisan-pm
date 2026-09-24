@@ -114,8 +114,8 @@ final class IssueChangesAtomController extends Controller
                     default => IssueNotificationMail::attributeLabels()[$detail->prop_key] ?? $detail->prop_key,
                 };
 
-                $old = $detail->old_value;
-                $new = $detail->new_value;
+                $old = $detail->displayValue($detail->old_value);
+                $new = $detail->displayValue($detail->new_value);
 
                 return match (true) {
                     $old !== null && $new !== null => "{$label}: {$old} → {$new}",
