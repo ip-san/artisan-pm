@@ -30,13 +30,26 @@ use Illuminate\Support\Facades\DB;
 final class GanttService
 {
     /**
+     * @param  Project|Collection<int, Project>  $projects  the chart's project, or it and the subprojects it takes in (display_subprojects_issues)
      * @param  Collection<int, int>|null  $onlyIssueIds  restrict the tree to these issues (plus their ancestors, kept so depth and grouping stay coherent); null returns the full tree
      * @param  Collection<int, int>|null  $visibleIssueIds  the issues the viewer may see (Issue::scopeVisibleTo()); the others are left out entirely, and an issue whose parent is left out is drawn as a root — null draws every issue
      * @return Collection<int, GanttRow>
      */
-    public function issueTree(Project $project, ?Collection $onlyIssueIds = null, ?Collection $visibleIssueIds = null): Collection
+    public function issueTree(Project|Collection $projects, ?Collection $onlyIssueIds = null, ?Collection $visibleIssueIds = null): Collection
     {
-        $rows = $this->baseQuery()->where('i.project_id', $project->id)->get();
+        $projectIds = $projects instanceof Project ? [$projects->id] : $projects->pluck('id')->all();
+        $rows = $this->baseQuery()->whereIn('i.project_id', $projectIds)->get();
+
+        // With subprojects in scope, each project's issues follow its
+        // parent's (in the order given, the project tree's), as Redmine
+        // draws a project's issues before its subprojects'.
+        if (count($projectIds) > 1) {
+            $position = array_flip($projectIds);
+            $rows = $rows->sortBy([
+                fn (object $a, object $b) => $position[(int) $a->project_id] <=> $position[(int) $b->project_id],
+                fn (object $a, object $b) => (int) $a->id <=> (int) $b->id,
+            ])->values();
+        }
 
         if ($visibleIssueIds !== null) {
             $visible = array_flip($visibleIssueIds->map(fn ($id) => (int) $id)->all());
@@ -177,17 +190,19 @@ final class GanttService
      * Gantt#project_versions, which lists the versions of the project's
      * issues wherever they're defined.
      *
+     * @param  Project|Collection<int, Project>  $projects  the chart's project, or it and its subprojects in scope
      * @param  Collection<int, GanttRow>  $rows  the issue rows drawn for $project
      * @return Collection<int, Version>
      */
-    public function milestones(Project $project, Collection $rows): Collection
+    public function milestones(Project|Collection $projects, Collection $rows): Collection
     {
         $targeted = $rows->pluck('fixedVersionId')->filter()->unique()->values();
+        $projectIds = $projects instanceof Project ? [$projects->id] : $projects->pluck('id')->all();
 
         return Version::query()
             ->whereNotNull('due_date')
             ->where(fn (Builder $query) => $query
-                ->where('project_id', $project->id)
+                ->whereIn('project_id', $projectIds)
                 ->orWhere(fn (Builder $shared) => $shared
                     ->whereIn('id', $targeted)
                     ->where('sharing', '!=', VersionSharing::None->value)))

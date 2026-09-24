@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Issues;
 
+use App\Enums\ProjectStatus;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Setting;
@@ -54,6 +55,7 @@ final class SubprojectScope
         return Project::query()
             ->where('_lft', '>=', $project->_lft)
             ->where('_rgt', '<=', $project->_rgt)
+            ->where('status', '!=', ProjectStatus::Archived->value)
             ->orderBy('_lft')
             ->get()
             ->filter(fn (Project $candidate) => $candidate->is($project) || $mayLook($candidate))

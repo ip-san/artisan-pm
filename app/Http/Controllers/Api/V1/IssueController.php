@@ -21,6 +21,7 @@ use App\Support\Api\CustomFieldPayload;
 use App\Support\Api\RedmineIssueListParams;
 use App\Support\Attachments\PendingUploadAttacher;
 use App\Support\Issues\StartDateDefault;
+use App\Support\Issues\SubprojectScope;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Illuminate\Database\Eloquent\Builder;
@@ -73,7 +74,7 @@ final class IssueController extends Controller
 
         return $this->listIssues(
             $request,
-            Issue::query()->where('project_id', $project->id)->visibleTo($request->user(), $project),
+            Issue::query()->visibleToAcrossProjects($request->user(), SubprojectScope::projectsForIssues($project, $request->user())),
             new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, $request->user())),
         );
     }

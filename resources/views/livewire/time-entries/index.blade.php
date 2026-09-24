@@ -5,7 +5,6 @@ use App\Concerns\SelectsPageSize;
 use App\Concerns\ReordersColumns;
 use App\Enums\QueryType;
 use App\Enums\QueryVisibility;
-use App\Enums\TimeEntryVisibility;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Role;
@@ -14,6 +13,7 @@ use App\Services\TimeEntryService;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\ListDefaults;
 use App\Support\Query\QueryFilterEngine;
+use App\Support\Issues\SubprojectScope;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -143,7 +143,22 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function engine(): QueryFilterEngine
     {
-        return new QueryFilterEngine(TimeEntryFilterFieldRegistry::forProject($this->project));
+        return new QueryFilterEngine(TimeEntryFilterFieldRegistry::forProject($this->project, scopeProjects: $this->scopeProjects));
+    }
+
+    /**
+     * The project plus, with display_subprojects_issues on, the subprojects
+     * whose entries the list also shows (Redmine's TimeEntryQuery goes
+     * through project_statement). Entries of a subproject are listed and
+     * linked, but the selection, context menu and inline delete here act
+     * only on this project's own entries.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function scopeProjects(): Collection
+    {
+        return SubprojectScope::projectsForTimeEntries($this->project, auth()->user());
     }
 
     /**
@@ -152,12 +167,8 @@ new #[Layout('components.layouts.app')] class extends Component
     private function filteredTimeEntriesQuery(): Builder
     {
         $query = TimeEntry::query()
-            ->where('project_id', $this->project->id)
-            ->with(['project', 'user', 'author', 'activity', 'issue', 'customFieldValues']);
-
-        if (app(AuthorizationService::class)->timeEntryVisibilityFor(auth()->user(), $this->project) === TimeEntryVisibility::Own) {
-            $query->where('user_id', auth()->id());
-        }
+            ->visibleToAcrossProjects(auth()->user(), $this->scopeProjects)
+            ->with(['project', 'user', 'author', 'activity', 'issue.project', 'customFieldValues']);
 
         $query = $this->engine->applyFilters($query, $this->builtFilters());
 
@@ -957,19 +968,22 @@ new #[Layout('components.layouts.app')] class extends Component
                 </thead>
                 <tbody class="divide-y divide-neutral-100">
                     @forelse ($groupEntries as $entry)
-                        <tr wire:key="time-entry-{{ $entry->id }}" @can('update', $entry) x-on:contextmenu.prevent="showMenu($event, {{ $entry->id }})" @endcan class="{{ in_array((string) $entry->id, array_map('strval', $selected), true) ? 'bg-brand-subtlest' : '' }}">
+                        @php($ownEntry = $entry->project_id === $project->id)
+                        <tr wire:key="time-entry-{{ $entry->id }}" @if ($ownEntry) @can('update', $entry) x-on:contextmenu.prevent="showMenu($event, {{ $entry->id }})" @endcan @endif class="{{ in_array((string) $entry->id, array_map('strval', $selected), true) ? 'bg-brand-subtlest' : '' }}">
                             @if ($this->canManage)
                                 <td class="px-4 py-2">
-                                    @can('update', $entry)
-                                        <input type="checkbox" wire:model="selected" value="{{ $entry->id }}" class="rounded border-neutral-300">
-                                    @endcan
+                                    @if ($ownEntry)
+                                        @can('update', $entry)
+                                            <input type="checkbox" wire:model="selected" value="{{ $entry->id }}" class="rounded border-neutral-300">
+                                        @endcan
+                                    @endif
                                 </td>
                             @endif
                             @foreach ($columns as $columnKey)
                                 <td wire:key="time-entry-{{ $entry->id }}-column-{{ $columnKey }}" class="px-4 py-2">
                                     @if ($columnKey === 'issue_id')
                                         @if ($entry->issue && $this->issueIsVisible($entry))
-                                            <a href="{{ route('issues.show', [$project, $entry->issue]) }}" class="text-brand-bold hover:underline">
+                                            <a href="{{ route('issues.show', [$entry->issue->project, $entry->issue]) }}" class="text-brand-bold hover:underline">
                                                 #{{ $entry->issue->id }} {{ $entry->issue->subject }}
                                             </a>
                                         @elseif ($entry->issue)
@@ -985,8 +999,10 @@ new #[Layout('components.layouts.app')] class extends Component
                             @if ($this->canManage)
                                 <td class="px-4 py-2 whitespace-nowrap">
                                     @can('update', $entry)
-                                        <a href="{{ route('time-entries.edit', [$project, $entry]) }}" class="text-brand-bold hover:underline">{{ __('編集') }}</a>
-                                        <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="{{ __('この工数記録を削除しますか?') }}" class="ml-2 text-danger-bolder hover:underline">{{ __('削除') }}</button>
+                                        <a href="{{ route('time-entries.edit', [$entry->project, $entry]) }}" class="text-brand-bold hover:underline">{{ __('編集') }}</a>
+                                        @if ($ownEntry)
+                                            <button wire:click="deleteEntry({{ $entry->id }})" wire:confirm="{{ __('この工数記録を削除しますか?') }}" class="ml-2 text-danger-bolder hover:underline">{{ __('削除') }}</button>
+                                        @endif
                                     @endcan
                                 </td>
                             @endif

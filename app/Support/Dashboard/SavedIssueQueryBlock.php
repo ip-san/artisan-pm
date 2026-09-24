@@ -9,6 +9,7 @@ use App\Models\Query;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Format\DateTimes;
+use App\Support\Issues\SubprojectScope;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Illuminate\Support\Collection;
@@ -135,8 +136,7 @@ final class SavedIssueQueryBlock
         }
 
         $builder = Issue::query()
-            ->where('project_id', $project->id)
-            ->visibleTo($user, $project)
+            ->visibleToAcrossProjects($user, SubprojectScope::projectsForIssues($project, $user))
             ->with(['project', 'tracker', 'status', 'priority', 'assignedTo', 'assignedToGroup', 'author']);
 
         $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project, $user));

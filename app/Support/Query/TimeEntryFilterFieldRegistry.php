@@ -6,6 +6,7 @@ namespace App\Support\Query;
 
 use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
+use App\Models\Member;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
@@ -21,26 +22,31 @@ use Illuminate\Support\Collection;
 final class TimeEntryFilterFieldRegistry
 {
     /**
+     * @param  ?Collection<int, Project>  $scopeProjects  the project and the subprojects the list takes in (SubprojectScope); just the project when null
      * @return Collection<string, FilterableField>
      */
-    public static function forProject(Project $project, ?User $viewer = null): Collection
+    public static function forProject(Project $project, ?User $viewer = null, ?Collection $scopeProjects = null): Collection
     {
         $viewer ??= auth()->user();
+        $scopeProjects ??= collect([$project]);
+        $users = fn () => $scopeProjects->count() > 1
+            ? User::query()->whereIn('id', Member::query()->select('user_id')->whereIn('project_id', $scopeProjects->pluck('id')))->get()
+            : $project->users;
         $selectOperators = self::selectOperators();
         $dateOperators = self::dateOperators();
         $integerOperators = self::integerOperators();
 
         /** @var array<int, FilterableField> $fields */
         $fields = [
-            new NativeColumnFilter('user_id', __('ユーザー'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($project->users)),
-            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($project->users)),
+            new NativeColumnFilter('user_id', __('ユーザー'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users())),
+            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users())),
             new NativeColumnFilter('activity_id', __('作業分類'), 'activity_id', FilterFieldType::Select, $selectOperators, fn () => $project->activities(includeInactive: true)->pluck('name', 'id')->all()),
             new NativeColumnFilter('spent_on', __('日付'), 'spent_on', FilterFieldType::Date, $dateOperators),
             new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
             new NativeColumnFilter('hours', __('時間'), 'hours', FilterFieldType::Integer, $integerOperators),
         ];
 
-        $extraFields = (new TimeEntryExtraFilterFields(fn () => collect([$project]), $viewer, app(AuthorizationService::class), $project))->fields();
+        $extraFields = (new TimeEntryExtraFilterFields(fn () => $scopeProjects, $viewer, app(AuthorizationService::class), $project))->fields();
 
         return collect($fields)->concat($extraFields)->keyBy(fn (FilterableField $field) => $field->key());
     }

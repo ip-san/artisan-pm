@@ -138,13 +138,16 @@ final class TimeEntry extends Model
         $allIds = $byTier->get(TimeEntryVisibility::All->value, collect())->pluck('id');
         $ownIds = $byTier->get(TimeEntryVisibility::Own->value, collect())->pluck('id');
 
-        return $query->where(function (Builder $outer) use ($allIds, $ownIds, $userId): void {
+        $projectColumn = $query->qualifyColumn('project_id');
+        $userColumn = $query->qualifyColumn('user_id');
+
+        return $query->where(function (Builder $outer) use ($allIds, $ownIds, $userId, $projectColumn, $userColumn): void {
             if ($allIds->isNotEmpty()) {
-                $outer->orWhereIn('project_id', $allIds);
+                $outer->orWhereIn($projectColumn, $allIds);
             }
 
             if ($ownIds->isNotEmpty()) {
-                $outer->orWhere(fn ($q) => $q->whereIn('project_id', $ownIds)->where('user_id', $userId));
+                $outer->orWhere(fn ($q) => $q->whereIn($projectColumn, $ownIds)->where($userColumn, $userId));
             }
         });
     }

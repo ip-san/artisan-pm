@@ -10,6 +10,7 @@ use App\Support\Gantt\GanttImageRenderer;
 use App\Support\Gantt\GanttLine;
 use App\Support\Gantt\GanttRow;
 use App\Support\Gantt\GanttSettings;
+use App\Support\Issues\SubprojectScope;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -72,12 +73,33 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $filters = $this->builtFilters();
 
-        $visibleIssues = Issue::query()->where('project_id', $this->project->id)->visibleTo(auth()->user(), $this->project);
+        $visibleIssues = Issue::query()->visibleToAcrossProjects(auth()->user(), $this->scopeProjects);
         $matchedIds = $filters === []
             ? null
-            : $this->engine->applyFilters($visibleIssues->clone(), $filters)->pluck('id');
+            : $this->engine->applyFilters($visibleIssues->clone(), $filters)->pluck('issues.id');
 
-        return app(GanttService::class)->issueTree($this->project, $matchedIds, $visibleIssues->pluck('id'));
+        return app(GanttService::class)->issueTree($this->scopeProjects, $matchedIds, $visibleIssues->pluck('issues.id'));
+    }
+
+    /**
+     * The project plus, with display_subprojects_issues on, the subprojects
+     * whose issues the chart also draws (Redmine's gantt goes through the
+     * issue query's project_statement).
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function scopeProjects(): Collection
+    {
+        return SubprojectScope::projectsForIssues($this->project, auth()->user());
+    }
+
+    /**
+     * The project an issue row belongs to, for its link.
+     */
+    public function rowProject(GanttRow $row): Project
+    {
+        return $this->scopeProjects->firstWhere('id', $row->projectId) ?? $this->project;
     }
 
     /**
@@ -113,7 +135,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function versions(): Collection
     {
-        return app(GanttService::class)->milestones($this->project, $this->rows);
+        return app(GanttService::class)->milestones($this->scopeProjects, $this->rows);
     }
 
     #[Computed]
@@ -329,7 +351,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @foreach ($this->rows as $row)
                         <div wire:key="label-{{ $row->id }}" class="flex h-8 items-center border-b border-neutral-100 px-2 text-sm"
                             style="padding-left: {{ 8 + $row->depth * 16 }}px">
-                            <a href="{{ route('issues.show', [$project, $row->id]) }}" class="truncate text-brand-bold hover:underline">
+                            <a href="{{ route('issues.show', [$this->rowProject($row), $row->id]) }}" class="truncate text-brand-bold hover:underline">
                                 {{ $row->trackerName }} #{{ $row->id }}: {{ $row->subject }}
                             </a>
                         </div>

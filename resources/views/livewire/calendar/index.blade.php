@@ -5,6 +5,7 @@ use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\Version;
+use App\Support\Issues\SubprojectScope;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Illuminate\Support\Carbon;
@@ -118,12 +119,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $range = [$from->toDateString(), $to->toDateString()];
 
         $query = Issue::query()
-            ->where('project_id', $this->project->id)
-            ->visibleTo(auth()->user(), $this->project)
+            ->visibleToAcrossProjects(auth()->user(), $this->scopeProjects)
             ->where(fn ($query) => $query
                 ->whereBetween('start_date', $range)
                 ->orWhereBetween('due_date', $range))
-            ->with(['tracker', 'status']);
+            ->with(['project', 'tracker', 'status']);
 
         $issues = $this->engine->applyFilters($query, $this->builtFilters())->get();
 
@@ -143,11 +143,24 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         }
 
-        foreach (Version::query()->where('project_id', $this->project->id)->whereBetween('due_date', $range)->orderBy('name')->get() as $version) {
+        foreach (Version::query()->with('project')->whereIn('project_id', $this->scopeProjects->pluck('id'))->whereBetween('due_date', $range)->orderBy('name')->get() as $version) {
             $entries->push(['date' => $version->due_date->toDateString(), 'issue' => null, 'version' => $version, 'marker' => 'version']);
         }
 
         return $entries->groupBy('date');
+    }
+
+    /**
+     * The project plus, with display_subprojects_issues on, the subprojects
+     * whose issues and versions the calendar also shows (Redmine's calendar
+     * goes through the issue query's project_statement).
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function scopeProjects(): Collection
+    {
+        return SubprojectScope::projectsForIssues($this->project, auth()->user());
     }
 
     public function previousMonth(): void
@@ -215,7 +228,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                         @if ($entry['marker'] === 'version')
                                             <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-version-{{ $entry['version']->id }}">
                                                 <span class="text-xs text-neutral-400" title="{{ __('バージョンの期日') }}">📦</span>
-                                                <a href="{{ route('versions.roadmap', $project) }}#roadmap-version-{{ $entry['version']->id }}"
+                                                <a href="{{ route('versions.roadmap', $entry['version']->project) }}#roadmap-version-{{ $entry['version']->id }}"
                                                     class="text-xs text-brand-bold hover:underline"
                                                     title="{{ __('バージョン: :name', ['name' => $entry['version']->name]) }}">
                                                     {{ $entry['version']->name }}
@@ -227,7 +240,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                         <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-{{ $issue->id }}-{{ $entry['marker'] }}">
                                             @php [$markerLabel, $markerSymbol] = match ($entry['marker']) { 'start' => [__('開始日'), '▶'], 'due' => [__('期日'), '◀'], default => [__('開始日=期日'), '◆'] }; @endphp
                                             <span class="text-xs text-neutral-400" title="{{ $markerLabel }}">{{ $markerSymbol }}</span>
-                                            <a href="{{ route('issues.show', [$project, $issue]) }}"
+                                            <a href="{{ route('issues.show', [$issue->project, $issue]) }}"
                                                 class="text-xs text-brand-bold hover:underline"
                                                 title="{{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}">
                                                 #{{ $issue->id }} {{ $issue->subject }}

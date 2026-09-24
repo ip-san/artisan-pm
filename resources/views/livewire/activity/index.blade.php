@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Project;
+use App\Support\Issues\SubprojectScope;
 use App\Models\Setting;
 use App\Support\Activity\ActivityProviderRegistry;
 use Illuminate\Support\Carbon;
@@ -26,10 +27,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public array $activeTypes = [];
 
-    // Matches Redmine's with_subprojects param on ActivitiesController#index
-    // (its default there is Setting.display_subprojects_issues?, a setting
-    // this app doesn't have — see §4「プロジェクト横断の課題一覧」row — so
-    // this simply defaults to off).
+    // Matches Redmine's with_subprojects param on ActivitiesController#index:
+    // without the parameter it follows display_subprojects_issues (set in
+    // mount()).
     #[Url]
     public bool $withSubprojects = false;
 
@@ -38,6 +38,10 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('view', $project);
 
         $this->project = $project;
+
+        if (! request()->has('withSubprojects')) {
+            $this->withSubprojects = SubprojectScope::enabled();
+        }
 
         if ($this->from === '') {
             $this->from = \App\Support\Format\DateTimes::today()->subDays(Setting::get('activity_days_default', 7))->toDateString();

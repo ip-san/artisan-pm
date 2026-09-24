@@ -1,10 +1,9 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
-use App\Enums\TimeEntryVisibility;
 use App\Models\Project;
 use App\Models\TimeEntry;
-use App\Support\Authorization\AuthorizationService;
+use App\Support\Issues\SubprojectScope;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
 use App\Support\TimeReport\TimeReportAxes;
@@ -50,8 +49,9 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * The projects this report covers: the one, or on the cross-project
-     * report every project the viewer may see time entries of.
+     * The projects this report covers: the one (with display_subprojects_issues
+     * on, and the subprojects it takes in), or on the cross-project report
+     * every project the viewer may see time entries of.
      *
      * @return Collection<int, Project>
      */
@@ -59,7 +59,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function scopeProjects(): Collection
     {
         if ($this->project !== null) {
-            return collect([$this->project]);
+            return SubprojectScope::projectsForTimeEntries($this->project, auth()->user());
         }
 
         return Project::query()->with('users')->get()
@@ -71,7 +71,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function engine(): QueryFilterEngine
     {
         return new QueryFilterEngine($this->project !== null
-            ? TimeEntryFilterFieldRegistry::forProject($this->project)
+            ? TimeEntryFilterFieldRegistry::forProject($this->project, scopeProjects: $this->scopeProjects)
             : TimeEntryFilterFieldRegistry::forProjects($this->scopeProjects));
     }
 
@@ -83,7 +83,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function availableAxes(): array
     {
-        return TimeReportAxes::available(auth()->user(), $this->scopeProjects, includeProject: $this->project === null);
+        return TimeReportAxes::available(auth()->user(), $this->scopeProjects, includeProject: $this->project === null || $this->scopeProjects->count() > 1);
     }
 
     /**
@@ -106,17 +106,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private function filteredTimeEntriesQuery(): Builder
     {
-        if ($this->project === null) {
-            $query = TimeEntry::query()->visibleToAcrossProjects(auth()->user(), $this->scopeProjects);
-
-            return $this->engine->applyFilters($query, $this->builtFilters());
-        }
-
-        $query = TimeEntry::query()->where('time_entries.project_id', $this->project->id);
-
-        if (app(AuthorizationService::class)->timeEntryVisibilityFor(auth()->user(), $this->project) === TimeEntryVisibility::Own) {
-            $query->where('time_entries.user_id', auth()->id());
-        }
+        $query = TimeEntry::query()->visibleToAcrossProjects(auth()->user(), $this->scopeProjects);
 
         return $this->engine->applyFilters($query, $this->builtFilters());
     }

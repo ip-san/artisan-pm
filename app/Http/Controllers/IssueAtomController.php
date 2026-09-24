@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Support\Activity\ActivityEntry;
+use App\Support\Issues\SubprojectScope;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\ListQueryString;
 use App\Support\Query\QueryFilterEngine;
@@ -38,9 +39,8 @@ final class IssueAtomController extends Controller
         $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project));
 
         $query = Issue::query()
-            ->where('project_id', $project->id)
-            ->visibleTo(auth()->user(), $project)
-            ->with('author');
+            ->visibleToAcrossProjects(auth()->user(), SubprojectScope::projectsForIssues($project, auth()->user()))
+            ->with(['author', 'project']);
 
         if (in_array($statusFilter, ['open', 'closed'], true)) {
             $isClosed = $statusFilter === 'closed';
@@ -58,7 +58,7 @@ final class IssueAtomController extends Controller
             ->map(fn (Issue $issue) => new ActivityEntry(
                 type: 'issue',
                 title: "#{$issue->id} {$issue->subject}",
-                url: route('issues.show', [$project, $issue]),
+                url: route('issues.show', [$issue->project, $issue]),
                 authorName: $issue->author->displayName(),
                 occurredAt: $issue->updated_at ?? throw new LogicException('Issue is missing updated_at.'),
             ));
