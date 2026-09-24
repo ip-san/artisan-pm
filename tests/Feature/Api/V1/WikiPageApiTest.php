@@ -260,3 +260,18 @@ test('a member without delete_wiki_pages cannot delete a page', function () {
 
     expect(WikiPage::find($page->id))->not->toBeNull();
 });
+
+test('include=attachments lists the page\'s attachments', function () {
+    Illuminate\Support\Facades\Storage::fake('local');
+    $project = Project::factory()->create();
+    $user = apiWikiPageMember($project, ['view_wiki_pages']);
+    $page = WikiPage::factory()->for($project)->create(['title' => 'Home']);
+    $page->addMediaFromString('diagram')->usingFileName('diagram.txt')->toMediaCollection('attachments');
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/wiki/{$page->id}")->assertOk()->assertJsonMissingPath('data.attachments');
+    $this->getJson("/api/v1/wiki/{$page->id}?include=attachments")
+        ->assertOk()
+        ->assertJsonPath('data.attachments.0.filename', 'diagram.txt');
+});

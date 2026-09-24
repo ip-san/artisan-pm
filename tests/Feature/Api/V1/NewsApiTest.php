@@ -326,3 +326,23 @@ test('comment endpoints need authentication', function () {
     $this->postJson("/api/v1/news/{$news->id}/comments", ['content' => 'x'])->assertUnauthorized();
     $this->deleteJson("/api/v1/news/{$news->id}/comments/1")->assertUnauthorized();
 });
+
+test('include=attachments,comments adds the news item\'s files and comments on show only', function () {
+    Illuminate\Support\Facades\Storage::fake('local');
+    $project = Project::factory()->create();
+    $user = apiNewsMember($project, ['view_news']);
+    $news = News::factory()->for($project)->create();
+    $news->addMediaFromString('flyer')->usingFileName('flyer.txt')->toMediaCollection('attachments');
+    App\Models\NewsComment::create(['news_id' => $news->id, 'author_id' => $user->id, 'content' => 'Great news']);
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/news/{$news->id}?include=attachments,comments")
+        ->assertOk()
+        ->assertJsonPath('data.attachments.0.filename', 'flyer.txt')
+        ->assertJsonPath('data.comments.0.content', 'Great news')
+        ->assertJsonPath('data.comments.0.author.id', $user->id);
+
+    $this->getJson("/api/v1/news/{$news->id}")->assertOk()->assertJsonMissingPath('data.attachments')->assertJsonMissingPath('data.comments');
+    $this->getJson("/api/v1/projects/{$project->id}/news?include=attachments")->assertOk()->assertJsonMissingPath('data.0.attachments');
+});

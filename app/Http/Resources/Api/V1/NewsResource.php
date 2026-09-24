@@ -24,6 +24,7 @@ final class NewsResource extends JsonResource
     public function toArray(Request $request): array
     {
         $news = $this->resource;
+        $isShow = $request->route()?->getName() === 'api.news.show';
 
         return [
             'id' => $news->id,
@@ -33,6 +34,14 @@ final class NewsResource extends JsonResource
             'summary' => $news->summary,
             'description' => $news->description,
             'comments_count' => $news->comments_count,
+            // Redmine's news/show.api.rsb (not the list): ?include=attachments,comments.
+            ...($isShow && AttachmentResource::included($request, 'attachments') ? ['attachments' => AttachmentResource::listFor($news->attachments(), $request)] : []),
+            ...($isShow && AttachmentResource::included($request, 'comments') ? ['comments' => $news->comments()->with('author')->oldest()->get()->map(fn ($comment) => [
+                'id' => $comment->id,
+                'author' => $comment->author !== null ? ['id' => $comment->author->id, 'name' => $comment->author->displayName()] : null,
+                'content' => $comment->content,
+                'created_at' => $comment->created_at->toIso8601String(),
+            ])->all()] : []),
             'created_at' => $news->created_at->toIso8601String(),
             'updated_at' => $news->updated_at->toIso8601String(),
         ];

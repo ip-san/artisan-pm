@@ -309,7 +309,8 @@
 | 129 | A11-07 | — | M | done(2026-09-20、send_information/generate_password は A11-07b) |
 | 129b | A11-07b | A11-07 | S | done(2026-09-25、`GET /users/current`、`POST`/`PUT /users` の `generate_password`・`send_information`(アカウント情報メール)。管理画面は A4-17) |
 | 129c | A4-17 | A11-07b | S | done(2026-09-25、管理画面のユーザー作成/編集に「パスワードを自動生成」「アカウント情報をユーザーに送信」) |
-| 130 | A11-10 | — | M | done(2026-09-20、include=attachments の共通化は対象外) |
+| 130 | A11-10 | — | M | done(2026-09-20、include=attachments の共通化は A11-10b) |
+| 130b | A11-10b | A11-10 | S | done(2026-09-25、`GET /news/{id}` の `include=attachments,comments`、`GET /wiki/{id}` の `include=attachments`。Redmine で include を受けるのはこの 2 つと課題・ファイル一覧だけ) |
 | 131 | A12-02 / A13-07 | — | M | done(2026-09-20、ユーザー自身の管理画面は A12-02b) |
 | 131b | A12-02b | A12-02 | S〜M | done(2026-09-20) |
 | 132 | A12-03 | — | M | done(2026-09-24、承認: 設計メモの推奨案。A12-03a/b) |
@@ -630,6 +631,7 @@
 | A11-09 | `GET /issues/{id}?include=allowed_statuses,changesets`、`include=children` の再帰、`journals` の `details` 完全形 | `include` は journals/relations/attachments/children(1階層)/watchers | `allowed_statuses` は `WorkflowService` で算出、`changesets` は `Changeset` 関連、`children` を再帰化 | — | S | REST API「Issues」 |
 | A11-09b | `include=changesets` の `user`(Redmine の `issues/show.api.rsb` は `changeset.user` があれば `user: {id, name}`) | **done(2026-09-25)**。`App\Support\Scm\CommitterResolver`(`RepositorySyncService` のコミッター解決を抽出: 管理画面の対応表 → メール/ログイン)で解決して `user` を付ける(解決できなければ省く、`committer` はそのまま)。テスト: `IssueApiIncludeTest.php` | `committer` の文字列のみ | Redmine はフェッチ時に `changesets.user_id` を保存するが、本アプリは表示時に解決(列を増やさない) | S | REST API「Issues」 |
 | A11-10 | 各リソースのカスタムフィールド値の読み書き(`custom_fields` 配列)、Wiki/News/Version/Project の `?include=attachments` | `app/Http/Resources/Api`・`app/Http/Requests/Api`・`app/Http/Controllers/Api` に `custom_field` の記述なし(grep 0件)。**Issue API を含む全リソースで CF の読み書き不可** | `custom_fields: [{id, name, value}]` を Issue/Project/Version/Group/User/TimeEntry の Resource と Store/Update Request に追加(ロール可視性は `Issue::relevantCustomFields()` を再利用)。`AttachmentResource` を共通化して `include=attachments` 対応 | Redmine API クライアントの多くは Issue の `custom_fields` を前提にする。優先度高 | M | REST API 各行 |
+| A11-10b | `include=attachments` の残り(Redmine の `news/show.api.rsb` は attachments と comments、`wiki/show.api.rsb` は attachments) | **done(2026-09-25)**。`AttachmentResource::listFor()`/`included()`、`NewsResource`(詳細のみ)、`WikiPageDetailResource`。テスト: `NewsApiTest.php`・`WikiPageApiTest.php` | 課題とファイル一覧だけ | Version/Project の attachments は Redmine の API にも無い | S | REST API「News」「Wiki pages」 |
 | A11-11 | `GET /custom_fields.json` の `description`/`is_for_all`/`is_filter`/`visible`/`default_value_mode`/`trackers`/`roles` | 該当カラムが無いものは省略 | `is_filter`(A11-13)追加後に露出。`trackers`/`roles` は既存関連から出せる | — | S | REST API「Custom fields」 |
 | A11-12 | `GET /roles/{id}.json` の `users_visibility` | `RoleResource` に `users_visibility` なし(grep 0件)。機能自体は 2026-07-30 実装済み | Resource に追加 | チェックリスト記載は古い(C-04) | S | REST API「Roles」 |
 | A11-13 | カスタムフィールドの `is_filter` フラグ(フィルタとして使えるかを CF ごとに制御) | `custom_fields` に列なし(migration grep 0件)。全 CF がフィルタ対象 | 列+フォーム+`IssueFilterFieldRegistry` で判定 | Web 側の機能でもある | S | カスタムフィールド 節 |

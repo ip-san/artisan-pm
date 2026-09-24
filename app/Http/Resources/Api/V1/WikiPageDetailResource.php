@@ -46,6 +46,8 @@ final class WikiPageDetailResource extends JsonResource
             'comments' => $version?->comments,
             'created_at' => $wikiPage->created_at->toIso8601String(),
             'updated_at' => $wikiPage->updated_at->toIso8601String(),
+            // Redmine's wiki/show.api.rsb: ?include=attachments.
+            ...(AttachmentResource::included($request, 'attachments') ? ['attachments' => AttachmentResource::listFor($wikiPage->attachments(), $request)] : []),
         ];
     }
 }
