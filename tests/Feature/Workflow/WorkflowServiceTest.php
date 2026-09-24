@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\IssueRelation;
 use App\Models\IssueStatus;
@@ -82,30 +83,98 @@ test('a transition restricted to the author is only available to the issue autho
         ->and(workflowService()->allowedTransitions($issue, $otherMember)->pluck('id')->all())->toBe([]);
 });
 
-test('field rules combine required-over-read_only across multiple roles', function () {
+/**
+ * @param  array<int, Role>  $roles
+ */
+function workflowServiceRuleUser(Project $project, array $roles): User
+{
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(collect($roles)->pluck('id')->all());
+
+    return $user;
+}
+
+function workflowServiceFieldRule(Tracker $tracker, IssueStatus $status, Role $role, string $field, string $rule): void
+{
+    WorkflowFieldRule::create([
+        'tracker_id' => $tracker->id, 'role_id' => $role->id, 'status_id' => $status->id,
+        'field_name' => $field, 'rule' => $rule,
+    ]);
+}
+
+test('field rules that disagree across roles make the field required', function () {
     $tracker = Tracker::factory()->create();
     $status = IssueStatus::factory()->create();
-
     $project = Project::factory()->create();
-    $roleA = Role::factory()->create(['permissions' => ['view_issues']]);
-    $roleB = Role::factory()->create(['permissions' => ['view_issues']]);
+    $roleA = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    $roleB = Role::factory()->create(['permissions' => ['view_issues', 'add_issues']]);
+    $user = workflowServiceRuleUser($project, [$roleA, $roleB]);
 
-    $user = User::factory()->create();
-    $member = Member::factory()->for($project)->for($user)->create();
-    $member->roles()->attach([$roleA->id, $roleB->id]);
-
-    WorkflowFieldRule::create([
-        'tracker_id' => $tracker->id, 'role_id' => $roleA->id, 'status_id' => $status->id,
-        'field_name' => 'due_date', 'rule' => 'read_only',
-    ]);
-    WorkflowFieldRule::create([
-        'tracker_id' => $tracker->id, 'role_id' => $roleB->id, 'status_id' => $status->id,
-        'field_name' => 'due_date', 'rule' => 'required',
-    ]);
+    workflowServiceFieldRule($tracker, $status, $roleA, 'due_date', 'read_only');
+    workflowServiceFieldRule($tracker, $status, $roleB, 'due_date', 'required');
+    workflowServiceFieldRule($tracker, $status, $roleA, 'start_date', 'read_only');
+    workflowServiceFieldRule($tracker, $status, $roleB, 'start_date', 'read_only');
 
     $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id]);
 
-    expect(workflowService()->fieldRules($issue, $user))->toBe(['due_date' => 'required']);
+    expect(workflowService()->fieldRules($issue, $user))->toBe(['due_date' => 'required', 'start_date' => 'read_only']);
+});
+
+test('a field rule applies only when every workflow role of the user has one (Redmine)', function () {
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $project = Project::factory()->create();
+    $restricted = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    $free = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    $viewer = Role::factory()->create(['permissions' => ['view_issues']]);
+
+    workflowServiceFieldRule($tracker, $status, $restricted, 'due_date', 'read_only');
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id]);
+
+    // The second role has no rule for the field, so it stays writable.
+    expect(workflowService()->fieldRules($issue, workflowServiceRuleUser($project, [$restricted, $free])))->toBe([])
+        // A role that can neither add nor edit issues is not part of the workflow.
+        ->and(workflowService()->fieldRules($issue, workflowServiceRuleUser($project, [$restricted, $viewer])))->toBe(['due_date' => 'read_only']);
+});
+
+test('administrators get the rules every add/edit role shares (Redmine roles_for_workflow)', function () {
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $project = Project::factory()->create();
+    Role::query()->get()->each(fn (Role $role) => $role->update(['permissions' => ['view_issues']]));
+    $roleA = Role::factory()->create(['permissions' => ['edit_issues']]);
+    $roleB = Role::factory()->create(['permissions' => ['add_issues']]);
+    Role::factory()->create(['permissions' => ['view_issues']]);
+    $admin = User::factory()->admin()->create();
+
+    workflowServiceFieldRule($tracker, $status, $roleA, 'due_date', 'read_only');
+    workflowServiceFieldRule($tracker, $status, $roleB, 'due_date', 'read_only');
+    workflowServiceFieldRule($tracker, $status, $roleA, 'start_date', 'required');
+
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id]);
+
+    expect(workflowService()->fieldRules($issue, $admin))->toBe(['due_date' => 'read_only']);
+});
+
+test('a custom field limited to other roles counts as read-only for the roles that cannot see it', function () {
+    $tracker = Tracker::factory()->create();
+    $status = IssueStatus::factory()->create();
+    $project = Project::factory()->create();
+    $seer = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    $blind = Role::factory()->create(['permissions' => ['view_issues', 'edit_issues']]);
+    $field = CustomField::factory()->create(['customized_type' => 'issue']);
+    $field->roles()->attach($seer);
+
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id]);
+
+    // No workflow rule at all: Redmine skips the custom field step too.
+    expect(workflowService()->fieldRules($issue, workflowServiceRuleUser($project, [$blind])))->toBe([]);
+
+    workflowServiceFieldRule($tracker, $status, $blind, 'due_date', 'read_only');
+    workflowServiceFieldRule($tracker, $status, $seer, "cf_{$field->id}", 'required');
+
+    expect(workflowService()->fieldRules($issue, workflowServiceRuleUser($project, [$blind])))->toBe(['due_date' => 'read_only', "cf_{$field->id}" => 'read_only'])
+        ->and(workflowService()->fieldRules($issue, workflowServiceRuleUser($project, [$seer, $blind])))->toBe(["cf_{$field->id}" => 'required']);
 });
 
 test('a user with no role in the project has no allowed transitions or field rules', function () {

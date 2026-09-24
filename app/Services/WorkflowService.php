@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CustomizableType;
 use App\Enums\WorkflowFieldRuleType;
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\WorkflowFieldRule;
@@ -15,6 +17,7 @@ use App\Models\WorkflowTransition;
 use App\Support\Authorization\AuthorizationService;
 use Closure;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Resolves the workflow matrix: which status transitions and field
@@ -152,15 +155,19 @@ final class WorkflowService
     }
 
     /**
+     * Redmine's Issue#workflow_rule_by_attribute: the rules of every role
+     * the user's workflow follows (roles_for_workflow — an administrator
+     * gets all roles) are combined, and a field gets a rule only when every
+     * one of those roles has one for it; roles that disagree make it
+     * required. When any rule applies, an issue custom field limited to
+     * some roles counts as read-only for each of the user's roles that may
+     * not see it.
+     *
      * @return array<string, 'required'|'read_only'>
      */
     public function fieldRules(Issue $issue, User $user): array
     {
-        if ($user->is_admin) {
-            return [];
-        }
-
-        $roleIds = $this->roleIdsFor($issue, $user);
+        $roleIds = $this->roleIdsForWorkflow($issue, $user);
 
         if ($roleIds->isEmpty()) {
             return [];
@@ -173,20 +180,78 @@ final class WorkflowService
             ->where($this->authorRelationScope($issue, $user))
             ->get();
 
-        $resolved = [];
+        if ($rules->isEmpty()) {
+            return [];
+        }
+
+        /** @var array<string, array<int, string>> $rulesByField field => role id => rule */
+        $rulesByField = [];
 
         foreach ($rules as $rule) {
-            $existing = $resolved[$rule->field_name] ?? null;
+            $existing = $rulesByField[$rule->field_name][$rule->role_id] ?? null;
 
-            // required beats read_only when multiple roles disagree.
-            if ($existing === WorkflowFieldRuleType::Required->value) {
+            // Within one role, a general rule and an author/assignee rule
+            // for the same field: required wins.
+            if ($existing !== WorkflowFieldRuleType::Required->value) {
+                $rulesByField[$rule->field_name][$rule->role_id] = $rule->rule->value;
+            }
+        }
+
+        foreach ($this->roleLimitedIssueCustomFieldRoleIds() as $fieldId => $visibleRoleIds) {
+            foreach ($roleIds->diff($visibleRoleIds) as $roleId) {
+                $rulesByField["cf_{$fieldId}"][$roleId] = WorkflowFieldRuleType::ReadOnly->value;
+            }
+        }
+
+        $resolved = [];
+
+        foreach ($rulesByField as $field => $ruleByRole) {
+            if (count($ruleByRole) < $roleIds->count()) {
                 continue;
             }
 
-            $resolved[$rule->field_name] = $rule->rule->value;
+            $distinct = array_values(array_unique($ruleByRole));
+
+            $resolved[$field] = count($distinct) === 1 ? $distinct[0] : WorkflowFieldRuleType::Required->value;
         }
 
         return $resolved;
+    }
+
+    /**
+     * Redmine's Issue#roles_for_workflow: the user's roles in the project
+     * (every role for an administrator) that may add or edit issues
+     * (Role#consider_workflow?).
+     *
+     * @return Collection<int, int>
+     */
+    private function roleIdsForWorkflow(Issue $issue, User $user): Collection
+    {
+        $roles = $user->is_admin
+            ? Role::query()->get()
+            : $this->authorization->rolesFor($user, $issue->loadMissing('project')->project);
+
+        return $roles
+            ->filter(fn (Role $role): bool => $role->hasPermission('add_issues') || $role->hasPermission('edit_issues'))
+            ->pluck('id')
+            ->values();
+    }
+
+    /**
+     * Issue custom fields visible only to some roles (Redmine's
+     * `visible => false` fields and their roles).
+     *
+     * @return array<int, Collection<int, int>> custom field id => the role ids that may see it
+     */
+    private function roleLimitedIssueCustomFieldRoleIds(): array
+    {
+        return DB::table('custom_field_role')
+            ->join('custom_fields', 'custom_fields.id', '=', 'custom_field_role.custom_field_id')
+            ->where('custom_fields.customized_type', CustomizableType::Issue->value)
+            ->get(['custom_field_role.custom_field_id', 'custom_field_role.role_id'])
+            ->groupBy('custom_field_id')
+            ->map(fn (Collection $rows): Collection => $rows->pluck('role_id')->map(fn (mixed $id): int => (int) $id))
+            ->all();
     }
 
     /**
