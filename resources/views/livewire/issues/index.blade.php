@@ -422,6 +422,22 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * The issue changes feed (Redmine's journals Atom) for the list's current
+     * status choice and filters.
+     */
+    #[Computed]
+    public function changesAtomUrl(): string
+    {
+        $feed = $this->project !== null ? route('issues.changes-atom', $this->project) : route('issues.global-changes-atom');
+
+        return $feed.'?'.http_build_query([
+            'key' => auth()->user()?->atomKey(),
+            'statusFilter' => $this->statusFilter,
+            ...ListQueryString::toQueryParameters($this->activeFilterKeys, $this->filterOperators, $this->filterValues),
+        ]);
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Issue>
      */
     #[Computed]
@@ -1964,7 +1980,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
-            <a href="{{ $project !== null ? route('issues.changes-atom', [$project, 'key' => auth()->user()?->atomKey()]) : route('issues.global-changes-atom', ['key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">{{ __('変更履歴(Atom)') }}</a>
+            <a href="{{ $this->changesAtomUrl }}" class="text-xs text-warning hover:underline">{{ __('変更履歴(Atom)') }}</a>
             <select wire:model="csvEncoding" title="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
                 <option value="SJIS-win">Shift_JIS</option>

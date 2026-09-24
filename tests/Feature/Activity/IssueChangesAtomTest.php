@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\IssueVisibility;
+use App\Enums\QueryType;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -8,6 +8,7 @@ use App\Models\Journal;
 use App\Models\JournalDetail;
 use App\Models\Member;
 use App\Models\Project;
+use App\Models\Query;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
@@ -128,4 +129,61 @@ test('the issue list links to the change feed with the reader\'s key', function 
     $html = Livewire::actingAs($reader)->test('issues.index', ['project' => $project])->html();
 
     expect($html)->toContain('issues/changes.atom?key='.$reader->fresh()->atom_key);
+});
+
+test('the changes feed honours the list filters and status choice, and covers open issues by default', function () {
+    $project = Project::factory()->create();
+    $reader = changesMember($project);
+    $alpha = changesIssue($project, 'Alpha issue');
+    $beta = changesIssue($project, 'Beta issue');
+    $closed = changesIssue($project, 'Closed issue', ['status_id' => IssueStatus::factory()->create(['is_closed' => true])->id]);
+    foreach ([$alpha, $beta, $closed] as $issue) {
+        Journal::create(['issue_id' => $issue->id, 'user_id' => $reader->id, 'notes' => "Note on {$issue->subject}"]);
+    }
+
+    $this->actingAs($reader)->get(route('issues.changes-atom', $project))
+        ->assertOk()->assertSee('Note on Alpha issue')->assertSee('Note on Beta issue')->assertDontSee('Note on Closed issue');
+
+    $this->actingAs($reader)->get(route('issues.changes-atom', [$project, 'statusFilter' => 'all']))
+        ->assertSee('Note on Closed issue');
+
+    $this->actingAs($reader)->get(route('issues.changes-atom', [$project, 'statusFilter' => 'all', 'activeFilterKeys' => ['subject'], 'filterOperators' => ['subject' => '~'], 'filterValues' => ['subject' => ['Alpha']]]))
+        ->assertSee('Note on Alpha issue')->assertDontSee('Note on Beta issue')->assertDontSee('Note on Closed issue');
+
+    Livewire::actingAs($reader)->test('issues.index', ['project' => $project])
+        ->set('activeFilterKeys', ['subject'])->set('filterOperators', ['subject' => '~'])->set('filterValues', ['subject' => ['Alpha']])
+        ->assertSeeHtml('filterValues%5Bsubject%5D%5B0%5D=Alpha');
+});
+
+test('the changes feed applies a saved query the reader may see and refuses one they may not', function () {
+    $project = Project::factory()->create();
+    $reader = changesMember($project);
+    $owner = changesMember($project);
+    $alpha = changesIssue($project, 'Alpha issue');
+    $beta = changesIssue($project, 'Beta issue');
+    Journal::create(['issue_id' => $alpha->id, 'user_id' => $reader->id, 'notes' => 'Alpha note']);
+    Journal::create(['issue_id' => $beta->id, 'user_id' => $reader->id, 'notes' => 'Beta note']);
+    $make = fn (string $visibility) => Query::create([
+        'name' => "Query {$visibility}", 'type' => QueryType::Issue->value, 'user_id' => $owner->id, 'project_id' => $project->id,
+        'visibility' => $visibility, 'filters' => ['subject' => ['operator' => '~', 'values' => ['Beta']]], 'column_names' => ['subject'], 'sort_criteria' => [],
+    ]);
+    $public = $make('public');
+    $private = $make('private');
+
+    $this->actingAs($reader)->get(route('issues.changes-atom', [$project, 'query_id' => $public->id]))
+        ->assertOk()->assertSee('Beta note')->assertDontSee('Alpha note');
+    $this->actingAs($reader)->get(route('issues.changes-atom', [$project, 'query_id' => $private->id]))->assertForbidden();
+    $this->actingAs($reader)->get(route('issues.changes-atom', [$project, 'query_id' => 999999]))->assertNotFound();
+});
+
+test('filters on the changes feed cannot reveal journals of issues the reader may not see', function () {
+    $project = Project::factory()->create();
+    $reader = changesMember($project, visibility: 'own');
+    $mine = changesIssue($project, 'Mine issue', ['author_id' => $reader->id]);
+    $theirs = changesIssue($project, 'Their issue');
+    Journal::create(['issue_id' => $mine->id, 'user_id' => $reader->id, 'notes' => 'Mine note']);
+    Journal::create(['issue_id' => $theirs->id, 'user_id' => $reader->id, 'notes' => 'Their note']);
+
+    $this->actingAs($reader)->get(route('issues.global-changes-atom', ['statusFilter' => 'all', 'activeFilterKeys' => ['subject'], 'filterOperators' => ['subject' => '~'], 'filterValues' => ['subject' => ['issue']]]))
+        ->assertOk()->assertSee('Mine note')->assertDontSee('Their note');
 });

@@ -146,7 +146,8 @@
 | 69 | A5-01 | — | S | done(2026-09-20) |
 | 70 | A6-06 | A5-01 | S | done(2026-09-20、対象は課題通知のみ) |
 | 71 | A4-09 | — | S〜M | done(2026-09-20) |
-| 72 | A1-31 | A4-09 | S | done(2026-09-20、query_id 指定は未対応) |
+| 72 | A1-31 | A4-09 | S | done(2026-09-20、query_id 指定は A1-31b) |
+| 72b | A1-31b | A1-31, A2-11 | S | done(2026-09-25、一覧の URL 状態(statusFilter と絞り込み)と `query_id`。指定がなければ未完了の課題(Redmine の既定)。Redmine の `f[]`/`op[]`/`v[]` 形式は対象外) |
 | A1-32 | バージョンフォームの「既定バージョンにする」チェックボックス(`versions/_form.html.erb:14`、`Version#default_project_version`)と、バージョン一覧・設定画面での既定バージョン表示 | A1-23 で `projects.default_version_id` は実装済み。`versions/form.blade.php` にチェックボックスなし | チェックで `projects.default_version_id` を更新、外すと(自分が既定なら)NULL。一覧に既定マークを表示 | A1-23 完了が前提 | S | Versions「Wikiページ紐付け・既定バージョン設定」 |
 | 73 | A4-11 | — | S | done(2026-09-20、アップロード式アバターは対象外) |
 | 74 | A14-04 | — | S | done(2026-09-20、スケジューラ稼働状況は未対応) |
@@ -405,6 +406,7 @@
 | A1-29 | 課題一覧の PDF エクスポート(`issues/index` の `format=pdf`)と `issues_export_limit` 設定 | PDF は課題単体(`routes/web.php:96` `issues.pdf`)・Wiki・ガントのみ | 現在のフィルタ/列を反映した一覧 PDF を dompdf で生成。CSV/PDF とも `issues_export_limit` で件数を打ち切り | `resources/views/pdf/issue.blade.php` のスタイルを流用 | S〜M | 「PDFエクスポート・Atomフィード」 |
 | A1-30 | Atom フィードへの現在のフィルタ/ソート反映 | `IssueAtomController` は「未クローズ・最近更新」固定 | 一覧画面の Atom リンクに現在のクエリ文字列を付与し、`QueryFilterEngine` で同条件を適用 | 旧: 意図的簡略化 | S | Issues本体「Atom フィード」 |
 | A1-31 | 課題の Journal 全体 Atom(`/issues/changes`) | なし | 全プロジェクト/プロジェクト単位の「最近の変更」フィード | A9-06(Atom key)が前提 | S | — (checklist 未掲載) |
+| A1-31b | 課題の変更履歴 Atom(`/issues/changes.atom`・プロジェクト版)が課題クエリに従う(Redmine の `JournalsController#index` は `retrieve_query` で絞り込み・`query_id` を使い、既定は「ステータス: 未完了」) | **done(2026-09-25)**。`IssueChangesAtomController` が一覧と同じ URL 状態(`statusFilter`、`activeFilterKeys`/`filterOperators`/`filterValues`)または `query_id`(課題クエリ、見えなければ 403、無ければ 404)で課題を絞り、その Journal だけを出す。どちらも無ければ未完了の課題だけ。プロジェクト版はサブプロジェクトも一覧と同じく含む(`SubprojectScope`)。課題一覧の「変更履歴(Atom)」リンクが現在のステータスと絞り込みを運ぶ(`changesAtomUrl`)。**対象外**: Redmine の `f[]`/`op[]`/`v[]` 形式。テスト: `IssueChangesAtomTest.php` | 閲覧できる全課題の Journal(絞り込みなし) | — | A1-31 の残り | S | — |
 
 ### A-2. クエリ / 一覧 / レポート
 
@@ -960,6 +962,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 | A2-11a | 横断の課題一覧(`/issues`)がプロジェクトの課題一覧と同じ画面になる: 列の選択(全列)・3 段の並べ替え・グループ化・合計・CSV/PDF・変更履歴 Atom が使える。題名のセルに `#番号` が付かなくなり(番号は `#` 列)、個人設定またはサイト設定の既定の課題クエリ(グローバルのもの)が横断でも最初に適用される | 既定クエリを設定していなければ従来どおりの既定列 |
 | A2-11c | 横断の課題一覧(`/issues`)で、どこかのプロジェクトで課題の編集権限を持つ利用者には選択欄と右クリックメニュー・一括編集/移動/コピー/削除が出る | 権限の無い課題を含む選択は従来どおり 403 |
 | A2-04b | 管理画面のユーザー一覧がページ分割される(既定の件数ずつ、表示件数を選べる)。保存クエリとユーザーカスタムフィールドの列・フィルタが増える | CSV は従来どおり絞り込み後の全件 |
+| A1-31b | 課題の変更履歴 Atom は、絞り込みやステータスの指定がないと**未完了の課題の変更だけ**になる(従来は完了した課題も含む全課題。Redmine と同じ既定)。課題一覧のリンクは一覧の絞り込みを引き継ぐ。プロジェクト版はサブプロジェクトの課題も含む(一覧と同じ) | `statusFilter=all` を付ければ従来どおり全課題 |
 
 **フロントエンドの再ビルドが必要**: A10-04・A9-02・A1-21・A1-13 などが新しい Tailwind クラスを使う。`public/build` は gitignore 対象のため、デプロイ時に `npm run build` を実行すること。
 
