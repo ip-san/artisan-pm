@@ -6,8 +6,13 @@
     visibility downgrade for users without manage_public_queries is
     enforced server-side in Query::resolveVisibility() — hiding the
     selector here is presentation only.
+
+    showIsForAll/editing are optional (default off) so a caller that
+    hasn't wired newQueryIsForAll/editingQueryId/cancelEditQuery (not
+    every saved-query screen has editing wired up yet) keeps working
+    unchanged.
 --}}
-@props(['canManagePublicQueries', 'visibility', 'roles'])
+@props(['canManagePublicQueries', 'visibility', 'roles', 'showIsForAll' => false, 'editing' => false])
 <form wire:submit="saveQuery" class="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3">
     <input type="text" wire:model="newQueryName" placeholder="{{ __('クエリ名') }}" class="rounded-md border-neutral-300 text-sm">
 
@@ -33,6 +38,16 @@
         <span class="text-xs text-neutral-500">{{ __('(非公開クエリとして保存されます)') }}</span>
     @endif
 
-    <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
+    @if ($showIsForAll)
+        <label class="flex items-center gap-1 text-xs text-neutral-600">
+            <input type="checkbox" wire:model="newQueryIsForAll" data-testid="query-is-for-all" class="rounded border-neutral-300">
+            {{ __('全プロジェクト向け') }}
+        </label>
+    @endif
+
+    <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">{{ $editing ? __('更新') : __('保存') }}</button>
+    @if ($editing)
+        <button type="button" wire:click="cancelEditQuery" class="text-sm text-neutral-500 hover:underline">{{ __('キャンセル') }}</button>
+    @endif
     @error('newQueryName') <span class="text-sm text-danger-bolder">{{ $message }}</span> @enderror
 </form>

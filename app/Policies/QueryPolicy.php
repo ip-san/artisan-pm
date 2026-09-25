@@ -16,11 +16,11 @@ final class QueryPolicy
 
     public function update(User $user, Query $query): bool
     {
-        return $query->user_id === $user->id;
+        return $query->editableBy($user);
     }
 
     public function delete(User $user, Query $query): bool
     {
-        return $query->user_id === $user->id;
+        return $query->editableBy($user);
     }
 }

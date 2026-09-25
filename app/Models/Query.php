@@ -167,6 +167,31 @@ final class Query extends Model
     }
 
     /**
+     * Matches Redmine's Query#editable_by? (queries_controller.rb's
+     * find_query before_action gates edit/update/destroy with this same
+     * check): an admin may edit any query; the owner may edit their own
+     * private one; a public or roles-visible query tied to a project may
+     * be edited by anyone holding manage_public_queries there — but a
+     * project-less (is_for_all) public/roles query is admin-only, since
+     * there is no single project to hold that permission against
+     * (resolveVisibility() applies the same rule when saving one).
+     */
+    public function editableBy(?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        if ($user->is_admin || ($this->visibility === QueryVisibility::Private && $this->user_id === $user->id)) {
+            return true;
+        }
+
+        return $this->visibility !== QueryVisibility::Private
+            && $this->project_id !== null
+            && app(AuthorizationService::class)->can($user, 'manage_public_queries', $this->project);
+    }
+
+    /**
      * The visibility to actually persist for a save request — only a
      * manage_public_queries holder can make a query anything but
      * private. Matches Redmine's QueriesController#new/#create, which

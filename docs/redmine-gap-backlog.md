@@ -365,7 +365,7 @@
 | 145d | A15-04 | — | S | done(2026-09-25) |
 | 145e | A15-05 | — | S | done(2026-09-25) |
 | 145f | A15-06 | — | S | done(2026-09-25) |
-| 145g | A15-07 | — | M | todo |
+| 145g | A15-07 | — | M | done(2026-09-25、課題一覧のみ。残りは A15-07b として新規追加、未着手) |
 | 145h | A15-08 | 145g | S | todo |
 | 145i | A15-09 | — | S | todo |
 | 145j | A15-10 | 145h | M | todo |
@@ -731,7 +731,8 @@
 | A15-04 | 課題の検索とフィルタ「検索可能な項目」で注記(journals.notes)も検索(非公開注記は `view_private_notes`) | **done(2026-09-25)**: `SearchService::issueIdsMatchingJournalNotes()` を追加し、モジュール横断検索と課題一覧の `any_searchable` フィルタの両方に配線。テスト: `SearchTest.php`、`TextOperatorFiltersTest.php` | S | 検索(モジュール横断) |
 | A15-05 | 課題一覧のグループ化の選択肢: 作成者・カテゴリ・対象バージョン・日付・進捗率・非公開 | **done(2026-09-25)**: 全て追加。日付3列(作成日/更新日/終了日)は `SqlDialect::dateOnly()` で日付に切り詰め(UTC基準、閲覧者TZは未対応)。テスト: `IssueListGroupingTest.php` | S | グルーピング |
 | A15-06 | 課題一覧の「親課題の題名」列 | **done(2026-09-25)**: `parent_subject` 列を追加(親が存在しかつ閲覧可能な場合のみ表示、並べ替え不可)。テスト: `ParentSubjectColumnTest.php` | S | 列選択 |
-| A15-07 | 保存クエリの編集・削除(`QueriesController#edit/update/destroy`)と「全プロジェクト向け」(`query_is_for_all`) | 作成と読込のみ | M | プロジェクト横断クエリ |
+| A15-07 | 保存クエリの編集・削除(`QueriesController#edit/update/destroy`)と「全プロジェクト向け」(`query_is_for_all`) | **done(2026-09-25、課題一覧のみ)**: `Query::editableBy()`+`QueryPolicy`、一覧の「編集」「削除」、`query_is_for_all`。工数一覧・ガント・プロジェクト一覧・ユーザー一覧は同型の未配線のまま(A15-07b)。テスト: `SavedQueryEditDeleteTest.php` | M | プロジェクト横断クエリ |
+| A15-07b | A15-07 の編集・削除 UI を工数一覧・ガント・プロジェクト一覧・ユーザー一覧の保存クエリにも配線(仕組みは共通、画面ごとの機械的な複製) | 課題一覧のみ配線済み(A15-07) | S〜M | プロジェクト横断クエリ |
 | A15-08 | カレンダーの保存クエリ(`query_id`) | なし | S | カレンダー |
 | A15-09 | 活動の利用者での絞り込み(`user_id`、Atom も) | なし | S | グローバルアクティビティフィード |
 | A15-10 | マイページの 3 領域(top/left/right)と週カレンダー表示のカレンダーブロック | 1 列、一覧形式 | M | マイページ |

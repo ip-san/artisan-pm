@@ -202,6 +202,19 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int, int> */
     public array $newQueryRoleIds = [];
 
+    /**
+     * Redmine's query_is_for_all: saves the query with no project (visible
+     * on every project's list, plus the global one), even when starting
+     * from a project's issue list.
+     */
+    public bool $newQueryIsForAll = false;
+
+    /**
+     * Set while editing an existing saved query (Redmine's
+     * QueriesController#edit/#update) rather than creating a new one.
+     */
+    public ?int $editingQueryId = null;
+
     public bool $showSaveForm = false;
 
     /** @var array<int, int> */
@@ -904,7 +917,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function saveQuery(): void
     {
+        // Redmine's save_queries permission gates new/create/edit/update/
+        // destroy together (lib/redmine/preparation.rb); editable_by?
+        // (via the update policy) narrows further to this particular query.
         abort_unless($this->canSaveQueries, 403);
+
+        $editing = $this->editingQueryId !== null ? SavedQuery::findOrFail($this->editingQueryId) : null;
+
+        if ($editing !== null) {
+            $this->authorize('update', $editing);
+        }
 
         $data = $this->validate([
             'newQueryName' => ['required', 'string', 'max:255'],
@@ -913,13 +935,16 @@ new #[Layout('components.layouts.app')] class extends Component
             'newQueryRoleIds.*' => ['exists:roles,id'],
         ]);
 
-        $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], $this->project);
+        // Redmine's query_is_for_all forces the query's project to nil —
+        // resolveVisibility() already restricts a project-less (global)
+        // query's public/roles visibility to admins only, the same as a
+        // query saved directly from the global issue list.
+        $targetProject = $this->newQueryIsForAll ? null : $this->project;
+        $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], $targetProject);
 
-        $query = SavedQuery::create([
+        $attributes = [
             'name' => $data['newQueryName'],
-            'type' => QueryType::Issue->value,
-            'user_id' => auth()->id(),
-            'project_id' => $this->project?->id,
+            'project_id' => $targetProject?->id,
             'visibility' => $visibility,
             'filters' => $this->builtFilters(),
             'column_names' => $this->columns,
@@ -927,15 +952,63 @@ new #[Layout('components.layouts.app')] class extends Component
             'group_by' => $this->groupBy,
             // Redmine's totalable_names.
             'options' => ['totalable_names' => $this->totalNames],
-        ]);
+        ];
 
-        if ($visibility === QueryVisibility::Roles->value) {
-            $query->roles()->sync($data['newQueryRoleIds']);
+        if ($editing !== null) {
+            $editing->update($attributes);
+            $query = $editing;
+        } else {
+            $query = SavedQuery::create([...$attributes, 'type' => QueryType::Issue->value, 'user_id' => auth()->id()]);
         }
 
-        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'showSaveForm']);
+        $query->roles()->sync($visibility === QueryVisibility::Roles->value ? $data['newQueryRoleIds'] : []);
+
+        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'newQueryIsForAll', 'editingQueryId', 'showSaveForm']);
         unset($this->savedQueries);
-        session()->flash('status', __('クエリを保存しました。'));
+        session()->flash('status', $editing !== null ? __('クエリを更新しました。') : __('クエリを保存しました。'));
+    }
+
+    /**
+     * Opens the save form pre-filled with an existing saved query's
+     * settings, for saveQuery() to update in place — Redmine's
+     * QueriesController#edit.
+     */
+    public function editQuery(int $queryId): void
+    {
+        abort_unless($this->canSaveQueries, 403);
+
+        $query = SavedQuery::findOrFail($queryId);
+        $this->authorize('update', $query);
+
+        $this->loadQuery($queryId);
+        $this->editingQueryId = $query->id;
+        $this->newQueryName = $query->name;
+        $this->newQueryVisibility = $query->visibility->value;
+        $this->newQueryRoleIds = $query->roles->pluck('id')->all();
+        $this->newQueryIsForAll = $query->project_id === null;
+        $this->showSaveForm = true;
+    }
+
+    public function cancelEditQuery(): void
+    {
+        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'newQueryIsForAll', 'editingQueryId', 'showSaveForm']);
+    }
+
+    public function deleteQuery(int $queryId): void
+    {
+        abort_unless($this->canSaveQueries, 403);
+
+        $query = SavedQuery::findOrFail($queryId);
+        $this->authorize('delete', $query);
+
+        $query->delete();
+
+        if ($this->editingQueryId === $queryId) {
+            $this->cancelEditQuery();
+        }
+
+        unset($this->savedQueries);
+        session()->flash('status', __('クエリを削除しました。'));
     }
 
     /**
@@ -2220,9 +2293,13 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
         @forelse ($this->savedQueries as $savedQuery)
-            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
-                {{ $savedQuery->name }}
-            </button>
+            <span wire:key="saved-query-{{ $savedQuery->id }}" class="inline-flex items-center gap-1 rounded-full border border-neutral-300 py-1 pl-3 pr-1 text-neutral-700">
+                <button wire:click="loadQuery({{ $savedQuery->id }})" class="hover:underline">{{ $savedQuery->name }}</button>
+                @if ($savedQuery->editableBy(auth()->user()))
+                    <button type="button" wire:click="editQuery({{ $savedQuery->id }})" class="rounded px-1 text-xs text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700" title="{{ __('編集') }}">{{ __('編集') }}</button>
+                    <button type="button" wire:click="deleteQuery({{ $savedQuery->id }})" wire:confirm="{{ __('このクエリを削除しますか?') }}" class="rounded px-1 text-xs text-neutral-400 hover:bg-danger-subtlest hover:text-danger-bolder" title="{{ __('削除') }}">{{ __('削除') }}</button>
+                @endif
+            </span>
         @empty
             <span class="text-neutral-400">{{ __('なし') }}</span>
         @endforelse
@@ -2306,7 +2383,9 @@ new #[Layout('components.layouts.app')] class extends Component
             <x-saved-query-save-form
                 :can-manage-public-queries="$this->canManagePublicQueries"
                 :visibility="$newQueryVisibility"
-                :roles="$this->availableRoles" />
+                :roles="$this->availableRoles"
+                :show-is-for-all="$project !== null"
+                :editing="$editingQueryId !== null" />
         @endif
     </div>
 
