@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Project;
+use App\Models\User;
 use App\Support\Issues\SubprojectScope;
 use App\Models\Setting;
 use App\Support\Activity\ActivityProviderRegistry;
@@ -33,6 +34,16 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public bool $withSubprojects = false;
 
+    /**
+     * Redmine's user_id param (ActivitiesController#index): narrows the
+     * feed to one author's events. `@author = User.visible.active.find(...)`
+     * — an unknown, inactive, or invisible id 404s (User::visible() isn't
+     * used since this app has no distinct user-visibility model beyond
+     * being active; matching the "unknown id 404s" behavior is what matters).
+     */
+    #[Url]
+    public ?int $userId = null;
+
     public function mount(Project $project): void
     {
         $this->authorize('view', $project);
@@ -51,7 +62,18 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->to = \App\Support\Format\DateTimes::today()->toDateString();
         }
 
-        if ($this->activeTypes === []) {
+        // A resolved author 404s here (mount time) rather than lazily in
+        // the entries() computed, matching Redmine finding @author before
+        // building the event scope.
+        $this->author;
+
+        if ($this->activeTypes === [] && $this->userId !== null) {
+            // An author filter (user_id) shows every event type — Redmine's
+            // `@author.nil? ? ... : @activity.scope = :all` (:all means
+            // every registered type, unlike the default scope, which
+            // excludes off-by-default ones).
+            $this->activeTypes = $this->providers->map->type()->values()->all();
+        } elseif ($this->activeTypes === []) {
             // The types the user last applied (Redmine's activity_scope), if
             // any of them still exist; otherwise everything not off by default.
             $remembered = array_values(array_intersect((array) auth()->user()?->preference('activity_scope'), $this->providers->map->type()->all()));
@@ -66,6 +88,38 @@ new #[Layout('components.layouts.app')] class extends Component
     public function providers(): Collection
     {
         return app(ActivityProviderRegistry::class)->all();
+    }
+
+    /**
+     * Redmine's User.visible.active.find(params[:user_id]) — an unknown or
+     * inactive id 404s rather than silently showing an unfiltered feed.
+     */
+    #[Computed]
+    public function author(): ?User
+    {
+        if ($this->userId === null) {
+            return null;
+        }
+
+        return User::query()->where('status', \App\Enums\UserStatus::Active)->findOrFail($this->userId);
+    }
+
+    /**
+     * Redmine's activity_authors_options_for_select: "<< me >>" plus the
+     * project's active members, sorted by name.
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function authorOptions(): array
+    {
+        $options = [];
+
+        if (auth()->user() !== null) {
+            $options[auth()->id()] = __('<< 自分 >>');
+        }
+
+        return $options + User::nameOptions($this->project->users()->where('status', \App\Enums\UserStatus::Active)->get());
     }
 
     /**
@@ -113,11 +167,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $activeProviders = $this->providers->filter(fn ($provider) => in_array($provider->type(), $this->activeTypes, true));
 
-        return $this->scopedProjects
+        $entries = $this->scopedProjects
             ->flatMap(fn (Project $project) => $activeProviders
-                ->flatMap(fn ($provider) => $provider->entries($project, auth()->user(), $from, $to)))
-            ->sortByDesc('occurredAt')
-            ->values();
+                ->flatMap(fn ($provider) => $provider->entries($project, auth()->user(), $from, $to)));
+
+        if ($this->author !== null) {
+            $entries = $entries->filter(fn ($entry) => $entry->authorId === $this->author->id);
+        }
+
+        return $entries->sortByDesc('occurredAt')->values();
     }
 
     /**
@@ -141,8 +199,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — 活動', ['project' => $project->name]) }}</h1>
-        <a href="{{ route('activity.atom', [$project, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
+        <h1 class="text-xl font-semibold text-neutral-900">
+            {{ $this->author !== null ? __(':project — :user の活動', ['project' => $project->name, 'user' => $this->author->displayName()]) : __(':project — 活動', ['project' => $project->name]) }}
+        </h1>
+        <a href="{{ route('activity.atom', [$project, 'key' => auth()->user()?->atomKey(), 'userId' => $userId]) }}" class="text-xs text-warning hover:underline">Atom</a>
     </div>
 
     <div class="mb-6 flex flex-wrap items-end gap-4 rounded-md border border-neutral-200 bg-surface p-4">
@@ -153,6 +213,15 @@ new #[Layout('components.layouts.app')] class extends Component
         <div>
             <label class="block text-sm font-medium text-neutral-700">{{ __('終了') }}</label>
             <input type="date" wire:model="to" class="mt-1 block rounded-md border-neutral-300 text-sm">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('ユーザー') }}</label>
+            <select wire:model="userId" class="mt-1 block rounded-md border-neutral-300 text-sm">
+                <option value="">{{ __('すべて') }}</option>
+                @foreach ($this->authorOptions as $id => $name)
+                    <option value="{{ $id }}">{{ $name }}</option>
+                @endforeach
+            </select>
         </div>
         <div class="flex flex-wrap gap-3">
             @foreach ($this->providers as $provider)

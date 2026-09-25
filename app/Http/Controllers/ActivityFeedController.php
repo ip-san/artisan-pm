@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserStatus;
 use App\Models\Project;
 use App\Models\Setting;
+use App\Models\User;
 use App\Support\Activity\ActivityProviderRegistry;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
@@ -41,18 +43,25 @@ final class ActivityFeedController extends Controller
     {
         Gate::authorize('view', $project);
 
+        // Redmine's User.visible.active.find(params[:user_id]) — an
+        // unknown or inactive id 404s.
+        $author = request()->filled('userId')
+            ? User::query()->where('status', UserStatus::Active)->findOrFail(request()->integer('userId'))
+            : null;
+
         $from = now()->subDays(Setting::get('activity_days_default', 10))->startOfDay();
         $to = now()->endOfDay();
 
         $entries = app(ActivityProviderRegistry::class)->all()
             ->flatMap(fn ($provider) => $provider->entries($project, auth()->user(), $from, $to))
+            ->when($author !== null, fn ($entries) => $entries->filter(fn ($entry) => $entry->authorId === $author->id))
             ->sortByDesc('occurredAt')
             ->take(self::limit())
             ->values();
 
         $xml = view('feeds.atom', [
             'entries' => $entries,
-            'title' => "{$project->name} - ".config('app.name'),
+            'title' => $author !== null ? $author->displayName() : "{$project->name} - ".config('app.name'),
             'alternateUrl' => route('activity.index', $project),
         ])->render();
 

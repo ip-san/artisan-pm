@@ -2,6 +2,7 @@
 
 use App\Models\Project;
 use App\Models\Setting;
+use App\Models\User;
 use App\Support\Activity\ActivityProviderRegistry;
 use App\Support\Activity\CrossProjectEntries;
 use Illuminate\Support\Carbon;
@@ -34,6 +35,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public array $activeTypes = [];
 
+    #[Url]
+    public ?int $userId = null;
+
     public function mount(): void
     {
         if ($this->from === '') {
@@ -44,7 +48,15 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->to = \App\Support\Format\DateTimes::today()->toDateString();
         }
 
-        if ($this->activeTypes === []) {
+        // A resolved author 404s here, matching Redmine finding @author
+        // before building the event scope.
+        $this->author;
+
+        if ($this->activeTypes === [] && $this->userId !== null) {
+            // An author filter (user_id) shows every event type — Redmine's
+            // `@author.nil? ? ... : @activity.scope = :all`.
+            $this->activeTypes = $this->providers->map->type()->values()->all();
+        } elseif ($this->activeTypes === []) {
             // The types the user last applied (Redmine's activity_scope), if
             // any of them still exist; otherwise everything not off by default.
             $remembered = array_values(array_intersect((array) auth()->user()?->preference('activity_scope'), $this->providers->map->type()->all()));
@@ -53,6 +65,43 @@ new #[Layout('components.layouts.app')] class extends Component
                 ? $remembered
                 : $this->providers->reject(fn ($provider) => $provider instanceof OffByDefault)->map->type()->values()->all();
         }
+    }
+
+    /**
+     * Redmine's User.visible.active.find(params[:user_id]).
+     */
+    #[Computed]
+    public function author(): ?User
+    {
+        if ($this->userId === null) {
+            return null;
+        }
+
+        return User::query()->where('status', \App\Enums\UserStatus::Active)->findOrFail($this->userId);
+    }
+
+    /**
+     * "<< me >>" plus every active user with a membership on at least one
+     * project the viewer can see (Redmine's Query.new(project: nil).users
+     * for the cross-project case).
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function authorOptions(): array
+    {
+        $options = [];
+
+        if (auth()->user() !== null) {
+            $options[auth()->id()] = __('<< 自分 >>');
+        }
+
+        $users = User::query()
+            ->where('status', \App\Enums\UserStatus::Active)
+            ->whereHas('memberships', fn ($q) => $q->whereIn('project_id', $this->visibleProjects->pluck('id')))
+            ->get();
+
+        return $options + User::nameOptions($users);
     }
 
     #[Computed]
@@ -101,7 +150,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $activeProviders = $this->providers->filter(fn ($provider) => in_array($provider->type(), $this->activeTypes, true));
 
-        return CrossProjectEntries::collect($activeProviders, $this->visibleProjects, auth()->user(), $from, $to);
+        $entries = CrossProjectEntries::collect($activeProviders, $this->visibleProjects, auth()->user(), $from, $to);
+
+        if ($this->author !== null) {
+            $entries = $entries->filter(fn ($entry) => $entry->authorId === $this->author->id)->values();
+        }
+
+        return $entries;
     }
 
     /**
@@ -149,7 +204,9 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="mb-6 text-xl font-semibold text-neutral-900">{{ __('活動') }}</h1>
+    <h1 class="mb-6 text-xl font-semibold text-neutral-900">
+        {{ $this->author !== null ? __(':user の活動', ['user' => $this->author->displayName()]) : __('活動') }}
+    </h1>
 
     <div class="mb-6 flex flex-wrap items-end gap-4 rounded-md border border-neutral-200 bg-surface p-4">
         <div>
@@ -159,6 +216,15 @@ new #[Layout('components.layouts.app')] class extends Component
         <div>
             <label class="block text-sm font-medium text-neutral-700">{{ __('終了') }}</label>
             <input type="date" wire:model="to" class="mt-1 block rounded-md border-neutral-300 text-sm">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-neutral-700">{{ __('ユーザー') }}</label>
+            <select wire:model="userId" class="mt-1 block rounded-md border-neutral-300 text-sm">
+                <option value="">{{ __('すべて') }}</option>
+                @foreach ($this->authorOptions as $id => $name)
+                    <option value="{{ $id }}">{{ $name }}</option>
+                @endforeach
+            </select>
         </div>
         <div class="flex flex-wrap gap-3">
             @foreach ($this->providers as $provider)
@@ -171,7 +237,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
             {{ __('適用') }}
         </button>
-        <a href="{{ route('activity.global-atom', ['key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
+        <a href="{{ route('activity.global-atom', ['key' => auth()->user()?->atomKey(), 'userId' => $userId]) }}" class="text-xs text-warning hover:underline">Atom</a>
     </div>
 
     @forelse ($this->groupedEntries as $date => $dayEntries)
