@@ -5,6 +5,7 @@ use App\Models\CustomField;
 use App\Models\CustomFieldEnumeration;
 use App\Models\Enumeration;
 use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
@@ -12,6 +13,8 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
+use App\Support\Format\DateTimes;
 use Livewire\Livewire;
 
 test('group totals reflect the full filtered set, not just the current page', function () {
@@ -196,4 +199,110 @@ test('a multiple-value custom field is not offered as a groupBy option and yield
         ->set('groupBy', "cf_{$field->id}");
 
     expect($component->instance()->groupTotals->isEmpty())->toBeTrue();
+});
+
+test('A15-05: category can be grouped, with a friendly placeholder for issues without one', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $status = IssueStatus::factory()->create();
+    $priority = Enumeration::factory()->create();
+    $category = IssueCategory::factory()->for($project)->create(['name' => 'Backend']);
+
+    Issue::factory(2)->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => $priority->id, 'category_id' => $category->id]);
+    Issue::factory(1)->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => $priority->id, 'category_id' => null]);
+
+    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    $component = Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('groupBy', 'category_id');
+
+    expect($component->instance()->groupTotals['Backend']['count'])->toBe(2)
+        ->and($component->instance()->groupTotals[__('なし')]['count'])->toBe(1)
+        ->and($component->instance()->groupedIssues->keys()->all())->toEqualCanonicalizing(['Backend', __('なし')]);
+});
+
+test('A15-05: fixed version, author, and done_ratio can be grouped', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $status = IssueStatus::factory()->create();
+    $priority = Enumeration::factory()->create();
+    $version = Version::factory()->for($project)->create(['name' => 'v2.0']);
+    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    $author = User::factory()->create();
+    Member::factory()->for($project)->for($author)->create()->roles()->attach($role);
+
+    Issue::factory(2)->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => $priority->id, 'fixed_version_id' => $version->id, 'author_id' => $author->id, 'done_ratio' => 50]);
+
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    $byVersion = Livewire::actingAs($user)->test('issues.index', ['project' => $project])->set('groupBy', 'fixed_version_id');
+    $byAuthor = Livewire::actingAs($user)->test('issues.index', ['project' => $project])->set('groupBy', 'author_id');
+    $byDoneRatio = Livewire::actingAs($user)->test('issues.index', ['project' => $project])->set('groupBy', 'done_ratio');
+
+    expect($byVersion->instance()->groupTotals['v2.0']['count'])->toBe(2)
+        ->and($byAuthor->instance()->groupTotals[$author->displayName()]['count'])->toBe(2)
+        ->and($byDoneRatio->instance()->groupTotals['50%']['count'])->toBe(2)
+        ->and($byDoneRatio->instance()->groupedIssues->keys()->all())->toBe(['50%']);
+});
+
+test('A15-05: is_private can be grouped with Yes/No labels matching the visible page rows', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $status = IssueStatus::factory()->create();
+    $priority = Enumeration::factory()->create();
+
+    Issue::factory(2)->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => $priority->id, 'is_private' => true]);
+    Issue::factory(3)->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => $priority->id, 'is_private' => false]);
+
+    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    $component = Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('groupBy', 'is_private');
+
+    expect($component->instance()->groupTotals[__('はい')]['count'])->toBe(2)
+        ->and($component->instance()->groupTotals[__('いいえ')]['count'])->toBe(3)
+        ->and($component->instance()->groupedIssues->keys()->all())->toEqualCanonicalizing([__('はい'), __('いいえ')]);
+});
+
+test('A15-05: updated_at groups by date, matching between the SQL totals and the page rows', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $status = IssueStatus::factory()->create();
+    $priority = Enumeration::factory()->create();
+
+    $morning = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => $priority->id]);
+    $morning->timestamps = false;
+    $morning->forceFill(['updated_at' => '2026-09-24 03:00:00'])->saveQuietly();
+    $evening = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => $priority->id]);
+    $evening->timestamps = false;
+    $evening->forceFill(['updated_at' => '2026-09-24 21:00:00'])->saveQuietly();
+    $otherDay = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id, 'priority_id' => $priority->id]);
+    $otherDay->timestamps = false;
+    $otherDay->forceFill(['updated_at' => '2026-09-25 09:00:00'])->saveQuietly();
+
+    $role = Role::factory()->create(['permissions' => ['view_issues']]);
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    $component = Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('groupBy', 'updated_at');
+
+    $day1 = DateTimes::date('2026-09-24');
+    $day2 = DateTimes::date('2026-09-25');
+
+    expect($component->instance()->groupTotals[$day1]['count'])->toBe(2)
+        ->and($component->instance()->groupTotals[$day2]['count'])->toBe(1)
+        ->and($component->instance()->groupedIssues->keys()->all())->toEqualCanonicalizing([$day1, $day2]);
 });

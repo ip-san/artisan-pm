@@ -474,7 +474,24 @@ new #[Layout('components.layouts.app')] class extends Component
             return collect(['' => $pageIssues]);
         }
 
-        return $pageIssues->groupBy(fn (Issue $issue) => $this->columnValue($issue, $this->groupBy));
+        return $pageIssues->groupBy(fn (Issue $issue) => $this->groupKeyValue($issue, $this->groupBy));
+    }
+
+    /**
+     * Like columnValue(), but for the grouping key itself rather than the
+     * column's normal cell display: updated_at/closed_on show a full
+     * date-time in their own column, but Redmine groups issues by their
+     * date part only (see the groupTotals() comment on TimestampQueryColumn),
+     * so grouping needs its own, coarser value for those two columns —
+     * matching the SQL-side DATE() truncation groupTotals() applies.
+     */
+    private function groupKeyValue(Issue $issue, string $key): string
+    {
+        return match ($key) {
+            'updated_at' => \App\Support\Format\DateTimes::dateOf($issue->updated_at) ?? '',
+            'closed_on' => \App\Support\Format\DateTimes::dateOf($issue->closed_on) ?? '',
+            default => $this->columnValue($issue, $key),
+        };
     }
 
     /**
@@ -507,18 +524,58 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $column = $this->groupBy;
         $options = $this->engine->field($column)?->options() ?? [];
-        $nullLabel = $column === 'assigned_to_id' ? __('未割当') : '';
+        // Redmine's TimestampQueryColumn#group_by_statement truncates
+        // created_on/updated_on/closed_on to a date before grouping (a raw
+        // timestamp GROUP BY would put almost every issue in its own
+        // group); start_date/due_date are already date-only columns, so
+        // truncating them is a no-op. This truncates in the database's own
+        // (UTC) time, while the per-page label below formats in the
+        // viewer's time zone (App\Support\Format\DateTimes) — a narrow
+        // mismatch is possible for issues whose stored instant falls
+        // inside the viewer's UTC offset from midnight, accepted here
+        // rather than building per-viewer-timezone SQL truncation.
+        $dateColumns = ['start_date', 'due_date', 'created_at', 'updated_at', 'closed_on'];
+        $nullLabel = match ($column) {
+            'assigned_to_id' => __('未割当'),
+            'category_id', 'fixed_version_id' => __('なし'),
+            default => '',
+        };
         // The assignee is a user or a group: group by one key that tells
         // them apart (AssigneeChoice's `group:<id>`).
-        $keyExpression = fn (string $table) => $column === 'assigned_to_id'
-            ? "CASE WHEN {$table}assigned_to_group_id IS NOT NULL THEN CONCAT('".AssigneeChoice::GROUP_PREFIX."', {$table}assigned_to_group_id) ELSE ".SqlDialect::castAsText(Issue::query(), "{$table}assigned_to_id").' END'
-            : "{$table}{$column}";
+        $keyExpression = function (string $table) use ($column, $dateColumns): string {
+            if ($column === 'assigned_to_id') {
+                return "CASE WHEN {$table}assigned_to_group_id IS NOT NULL THEN CONCAT('".AssigneeChoice::GROUP_PREFIX."', {$table}assigned_to_group_id) ELSE ".SqlDialect::castAsText(Issue::query(), "{$table}assigned_to_id").' END';
+            }
+
+            if (in_array($column, $dateColumns, true)) {
+                return SqlDialect::dateOnly("{$table}{$column}");
+            }
+
+            return "{$table}{$column}";
+        };
         $groupNames = $column === 'assigned_to_id'
             ? \App\Models\Group::query()->whereIn('id', $this->filteredIssuesQuery()->reorder()->whereNotNull('assigned_to_group_id')->select('assigned_to_group_id'))->pluck('name', 'id')
             : collect();
-        $resolveLabel = function (mixed $rawKey) use ($nullLabel, $options, $groupNames): string {
+        $resolveLabel = function (mixed $rawKey) use ($nullLabel, $options, $groupNames, $column, $dateColumns): string {
             if ($rawKey === null || $rawKey === '') {
                 return $nullLabel;
+            }
+
+            if ($column === 'done_ratio') {
+                return "{$rawKey}%";
+            }
+
+            // Resolved directly rather than through the filter engine's
+            // options(): that field is only offered to a viewer who holds
+            // set_issues_private/set_own_issues_private (Redmine gates the
+            // filter that way), but is_private is offered as a groupBy
+            // (and display column) regardless of that permission.
+            if ($column === 'is_private') {
+                return in_array($rawKey, [1, '1', true], true) ? __('はい') : __('いいえ');
+            }
+
+            if (in_array($column, $dateColumns, true)) {
+                return \App\Support\Format\DateTimes::date((string) $rawKey) ?? (string) $rawKey;
             }
 
             $groupId = AssigneeChoice::decode((string) $rawKey)['assigned_to_group_id'];
@@ -2177,7 +2234,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <option value="">{{ __('なし') }}</option>
                     <option value="status_id">{{ __('ステータス') }}</option>
                     <option value="tracker_id">{{ __('トラッカー') }}</option>
-                    @foreach (['priority_id', 'assigned_to_id', 'project_id'] as $groupKey)
+                    @foreach (['priority_id', 'assigned_to_id', 'author_id', 'category_id', 'fixed_version_id', 'project_id', 'start_date', 'due_date', 'created_at', 'updated_at', 'closed_on', 'done_ratio', 'is_private'] as $groupKey)
                         @if (array_key_exists($groupKey, $this->nativeColumns) && ($groupKey !== 'project_id' || $this->engine->field('project_id') !== null))
                             <option value="{{ $groupKey }}" wire:key="group-by-{{ $groupKey }}">{{ $this->nativeColumns[$groupKey] }}</option>
                         @endif

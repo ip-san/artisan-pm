@@ -30,6 +30,17 @@ final class SqlDialect
     }
 
     /**
+     * `$expression` truncated to its date part. `DATE(...)` is a portable
+     * function on both MySQL/MariaDB and PostgreSQL (unlike `::date` or
+     * `CAST(... AS DATE)`, which read the same but aren't needed here —
+     * `DATE()` alone already works on every database this app targets).
+     */
+    public static function dateOnly(string $expression): string
+    {
+        return "DATE({$expression})";
+    }
+
+    /**
      * @param  Builder<*>|QueryBuilder|Connection  $source
      */
     public static function isMysqlFamily(Builder|QueryBuilder|Connection $source): bool
