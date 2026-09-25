@@ -211,9 +211,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm" data-calendar-saved-queries>
         <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
         @forelse ($this->savedQueries as $savedQuery)
-            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
-                {{ $savedQuery->name }}
-            </button>
+            <x-saved-query-pill :query="$savedQuery" />
         @empty
             <span class="text-neutral-400">{{ __('なし') }}</span>
         @endforelse
@@ -226,7 +224,8 @@ new #[Layout('components.layouts.app')] class extends Component
             <x-saved-query-save-form
                 :can-manage-public-queries="$this->canManagePublicQueries"
                 :visibility="$newQueryVisibility"
-                :roles="$this->availableRoles" />
+                :roles="$this->availableRoles"
+                :editing="$editingQueryId !== null" />
         </div>
     @endif
 

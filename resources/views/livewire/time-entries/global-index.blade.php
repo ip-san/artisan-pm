@@ -101,6 +101,14 @@ new #[Layout('components.layouts.app')] class extends Component
     public bool $showSaveForm = false;
 
     /**
+     * Set by editQuery() while the save form is prefilled with an
+     * existing query's settings, for saveQuery() to update in place
+     * instead of creating a new one (A15-07b, mirroring the issue
+     * list's own editQuery()).
+     */
+    public ?int $editingQueryId = null;
+
+    /**
      * @return Collection<int, Project>
      */
     #[Computed]
@@ -380,6 +388,12 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         abort_unless($this->canSaveQueries, 403);
 
+        $editing = $this->editingQueryId !== null ? SavedQuery::findOrFail($this->editingQueryId) : null;
+
+        if ($editing !== null) {
+            $this->authorize('update', $editing);
+        }
+
         $data = $this->validate([
             'newQueryName' => ['required', 'string', 'max:255'],
             'newQueryVisibility' => ['required', Rule::enum(QueryVisibility::class)],
@@ -389,25 +403,71 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], null);
 
-        $query = SavedQuery::create([
+        $attributes = [
             'name' => $data['newQueryName'],
-            'type' => QueryType::TimeEntry->value,
-            'user_id' => auth()->id(),
             'project_id' => null,
             'visibility' => $visibility,
             'filters' => $this->builtFilters(),
             'column_names' => $this->columns,
             'sort_criteria' => $this->sortKey ? [[$this->sortKey, $this->sortDirection]] : [],
             'group_by' => $this->groupBy,
-        ]);
+        ];
 
-        if ($visibility === QueryVisibility::Roles->value) {
-            $query->roles()->sync($data['newQueryRoleIds']);
+        if ($editing !== null) {
+            $editing->update($attributes);
+            $query = $editing;
+        } else {
+            $query = SavedQuery::create([...$attributes, 'type' => QueryType::TimeEntry->value, 'user_id' => auth()->id()]);
         }
 
-        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'showSaveForm']);
+        $query->roles()->sync($visibility === QueryVisibility::Roles->value ? $data['newQueryRoleIds'] : []);
+
+        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'editingQueryId', 'showSaveForm']);
         unset($this->savedQueries);
-        session()->flash('status', __('クエリを保存しました。'));
+        session()->flash('status', $editing !== null ? __('クエリを更新しました。') : __('クエリを保存しました。'));
+    }
+
+    /**
+     * Opens the save form prefilled with an existing saved query's
+     * settings, for saveQuery() to update in place — Redmine's
+     * QueriesController#edit, mirrored from the issue list's own
+     * editQuery() (A15-07b).
+     */
+    public function editQuery(int $queryId): void
+    {
+        abort_unless($this->canSaveQueries, 403);
+
+        $query = SavedQuery::findOrFail($queryId);
+        $this->authorize('update', $query);
+
+        $this->loadQuery($queryId);
+        $this->editingQueryId = $query->id;
+        $this->newQueryName = $query->name;
+        $this->newQueryVisibility = $query->visibility->value;
+        $this->newQueryRoleIds = $query->roles->pluck('id')->all();
+        $this->showSaveForm = true;
+    }
+
+    public function cancelEditQuery(): void
+    {
+        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'editingQueryId', 'showSaveForm']);
+    }
+
+    public function deleteQuery(int $queryId): void
+    {
+        abort_unless($this->canSaveQueries, 403);
+
+        $query = SavedQuery::findOrFail($queryId);
+        $this->authorize('delete', $query);
+
+        $query->delete();
+
+        if ($this->editingQueryId === $queryId) {
+            $this->cancelEditQuery();
+        }
+
+        unset($this->savedQueries);
+        session()->flash('status', __('クエリを削除しました。'));
     }
 
     public function loadQuery(int $queryId): void
@@ -448,9 +508,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
         @forelse ($this->savedQueries as $savedQuery)
-            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
-                {{ $savedQuery->name }}
-            </button>
+            <x-saved-query-pill :query="$savedQuery" />
         @empty
             <span class="text-neutral-400">{{ __('なし') }}</span>
         @endforelse
@@ -511,7 +569,8 @@ new #[Layout('components.layouts.app')] class extends Component
             <x-saved-query-save-form
                 :can-manage-public-queries="$this->canManagePublicQueries"
                 :visibility="$newQueryVisibility"
-                :roles="$this->availableRoles" />
+                :roles="$this->availableRoles"
+                :editing="$editingQueryId !== null" />
         @endif
     </div>
 

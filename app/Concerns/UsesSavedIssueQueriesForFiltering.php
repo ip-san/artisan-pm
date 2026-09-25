@@ -36,6 +36,14 @@ trait UsesSavedIssueQueriesForFiltering
 
     public bool $showSaveForm = false;
 
+    /**
+     * Set by editQuery() while the save form is prefilled with an
+     * existing query's settings, for saveQuery() to update in place
+     * instead of creating a new one — Redmine's QueriesController#edit
+     * (A15-07b, the issue list's own edit/delete UI wired in here too).
+     */
+    public ?int $editingQueryId = null;
+
     abstract protected function queryScopeProject(): ?Project;
 
     /**
@@ -104,11 +112,26 @@ trait UsesSavedIssueQueriesForFiltering
 
     /**
      * Saves the chart's filters as an issue query (with the site's default
-     * list columns), as Redmine's Gantt "Save" does.
+     * list columns), as Redmine's Gantt "Save" does — or, with
+     * editingQueryId set (editQuery()), updates that query in place
+     * instead of creating a new one.
+     *
+     * editing keeps the query's *existing* project scope rather than
+     * recomputing it from queryScopeProject(): this trait has no
+     * query_is_for_all-style toggle (unlike the issue list's own
+     * saveQuery()), so editing a global query from inside a specific
+     * project's Gantt (or vice versa) must not silently move it between
+     * scopes just because of where the edit happened to be opened from.
      */
     public function saveQuery(): void
     {
         abort_unless($this->canSaveQueries, 403);
+
+        $editing = $this->editingQueryId !== null ? SavedQuery::findOrFail($this->editingQueryId) : null;
+
+        if ($editing !== null) {
+            $this->authorize('update', $editing);
+        }
 
         $data = $this->validate([
             'newQueryName' => ['required', 'string', 'max:255'],
@@ -117,27 +140,75 @@ trait UsesSavedIssueQueriesForFiltering
             'newQueryRoleIds.*' => ['exists:roles,id'],
         ]);
 
-        $project = $this->queryScopeProject();
+        $project = $editing !== null
+            ? ($editing->project_id !== null ? Project::find($editing->project_id) : null)
+            : $this->queryScopeProject();
         $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], $project);
 
-        $query = SavedQuery::create([
+        $attributes = [
             'name' => $data['newQueryName'],
-            'type' => QueryType::Issue->value,
-            'user_id' => auth()->id(),
             'project_id' => $project?->id,
             'visibility' => $visibility,
             'filters' => $this->builtFilters(),
             'column_names' => Setting::get('issue_list_default_columns', ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']),
             'sort_criteria' => [],
             'group_by' => null,
-        ]);
+        ];
 
-        if ($visibility === QueryVisibility::Roles->value) {
-            $query->roles()->sync($data['newQueryRoleIds']);
+        if ($editing !== null) {
+            $editing->update($attributes);
+            $query = $editing;
+        } else {
+            $query = SavedQuery::create([...$attributes, 'type' => QueryType::Issue->value, 'user_id' => auth()->id()]);
         }
 
-        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'showSaveForm']);
+        $query->roles()->sync($visibility === QueryVisibility::Roles->value ? $data['newQueryRoleIds'] : []);
+
+        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'editingQueryId', 'showSaveForm']);
         unset($this->savedQueries);
-        session()->flash('status', __('クエリを保存しました。'));
+        session()->flash('status', $editing !== null ? __('クエリを更新しました。') : __('クエリを保存しました。'));
+    }
+
+    /**
+     * Opens the save form prefilled with an existing saved query's
+     * settings, for saveQuery() to update in place — Redmine's
+     * QueriesController#edit, mirrored from the issue list's own
+     * editQuery().
+     */
+    public function editQuery(int $queryId): void
+    {
+        abort_unless($this->canSaveQueries, 403);
+
+        $query = SavedQuery::findOrFail($queryId);
+        $this->authorize('update', $query);
+
+        $this->loadQuery($queryId);
+        $this->editingQueryId = $query->id;
+        $this->newQueryName = $query->name;
+        $this->newQueryVisibility = $query->visibility->value;
+        $this->newQueryRoleIds = $query->roles->pluck('id')->all();
+        $this->showSaveForm = true;
+    }
+
+    public function cancelEditQuery(): void
+    {
+        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'editingQueryId', 'showSaveForm']);
+    }
+
+    public function deleteQuery(int $queryId): void
+    {
+        abort_unless($this->canSaveQueries, 403);
+
+        $query = SavedQuery::findOrFail($queryId);
+        $this->authorize('delete', $query);
+
+        $query->delete();
+
+        if ($this->editingQueryId === $queryId) {
+            $this->cancelEditQuery();
+        }
+
+        unset($this->savedQueries);
+        session()->flash('status', __('クエリを削除しました。'));
     }
 }

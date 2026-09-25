@@ -366,7 +366,7 @@
 | 145e | A15-05 | — | S | done(2026-09-25) |
 | 145f | A15-06 | — | S | done(2026-09-25) |
 | 145g | A15-07 | — | M | done(2026-09-25、課題一覧のみ。残りは A15-07b として新規追加、未着手) |
-| 145g2 | A15-07b | A15-07 | S〜M | todo(2026-09-25 承認) |
+| 145g2 | A15-07b | A15-07 | S〜M | done(2026-09-25) |
 | 145h | A15-08 | 145g | S | done(2026-09-25) |
 | 145i | A15-09 | — | S | done(2026-09-25) |
 | 145j | A15-10 | 145h | M | done(2026-09-25) |
@@ -736,7 +736,7 @@
 | A15-05 | 課題一覧のグループ化の選択肢: 作成者・カテゴリ・対象バージョン・日付・進捗率・非公開 | **done(2026-09-25)**: 全て追加。日付3列(作成日/更新日/終了日)は `SqlDialect::dateOnly()` で日付に切り詰め(UTC基準、閲覧者TZは未対応)。テスト: `IssueListGroupingTest.php` | S | グルーピング |
 | A15-06 | 課題一覧の「親課題の題名」列 | **done(2026-09-25)**: `parent_subject` 列を追加(親が存在しかつ閲覧可能な場合のみ表示、並べ替え不可)。テスト: `ParentSubjectColumnTest.php` | S | 列選択 |
 | A15-07 | 保存クエリの編集・削除(`QueriesController#edit/update/destroy`)と「全プロジェクト向け」(`query_is_for_all`) | **done(2026-09-25、課題一覧のみ)**: `Query::editableBy()`+`QueryPolicy`、一覧の「編集」「削除」、`query_is_for_all`。工数一覧・ガント・プロジェクト一覧・ユーザー一覧は同型の未配線のまま(A15-07b)。テスト: `SavedQueryEditDeleteTest.php` | M | プロジェクト横断クエリ |
-| A15-07b | A15-07 の編集・削除 UI を工数一覧・ガント・プロジェクト一覧・ユーザー一覧の保存クエリにも配線(仕組みは共通、画面ごとの機械的な複製) | 課題一覧のみ配線済み(A15-07) | S〜M | プロジェクト横断クエリ |
+| A15-07b | A15-07 の編集・削除 UI を工数一覧・ガント・プロジェクト一覧・ユーザー一覧の保存クエリにも配線(仕組みは共通、画面ごとの機械的な複製) | **done(2026-09-25)**: 工数一覧(プロジェクト内・全体)・プロジェクト一覧・ユーザー一覧の`saveQuery()`を`editingQueryId`があれば更新、無ければ新規作成の形に拡張し、`editQuery()`/`cancelEditQuery()`/`deleteQuery()`を追加(`Query::editableBy()`/`QueryPolicy`のまま)。ガント(プロジェクト内・全体)はカレンダーと共有する`UsesSavedIssueQueriesForFiltering`トレイトに同じ4メソッドを追加したため、カレンダー(プロジェクト内・全体)にも同時に編集・削除が付いた(トレイト共有の直接の帰結)。保存クエリバーのピルを新規共有コンポーネント`<x-saved-query-pill>`に統一(課題一覧自身のインライン実装は変更なし)。**判断**: ガント/カレンダーのトレイトには課題一覧の`query_is_for_all`に相当するプロジェクト所属切替UIが無いため、編集時の`saveQuery()`は対象クエリの既存`project_id`をそのまま使う(表示中プロジェクトへ暗黙に付け替えない)。ユーザー一覧の保存クエリは常に非公開(`UserQuery`は管理者専用)なので可視性/ロール欄は追加していない。テスト: `SavedQueryEditDeleteWiringTest.php` | S〜M | プロジェクト横断クエリ |
 | A15-08 | カレンダーの保存クエリ(`query_id`) | **done(2026-09-25)**: ガント用トレイトを `UsesSavedIssueQueriesForFiltering` に改称してカレンダー(プロジェクト内・全体)にも適用。`?query_id=`対応。テスト: `CalendarSavedQueryTest.php` | S | カレンダー |
 | A15-09 | 活動の利用者での絞り込み(`user_id`、Atom も) | **done(2026-09-25)**: `userId`(プロジェクト内・全体、両方のAtom)。`ActivityEntry::$authorId`をポストフィルタで再利用。テスト: `ActivityUserFilterTest.php` | S | グローバルアクティビティフィード |
 | A15-10 | マイページの 3 領域(top/left/right)と週カレンダー表示のカレンダーブロック | **done(2026-09-25)**: `user_dashboard_blocks.area`+`App\Enums\DashboardArea`、上段+左右2列。領域間移動はボタン(領域をまたぐドラッグは対象外、判断済み)。`CalendarBlock::weekDays()`+`<x-my-page-week-calendar>` で週グリッド描画。テスト: `MyPageAreasTest.php` | M | マイページ |

@@ -34,6 +34,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $showSaveForm = false;
 
+    /**
+     * Set by editQuery() while the save form is prefilled with an
+     * existing query's settings, for saveQuery() to update in place
+     * instead of creating a new one (A15-07b, mirroring the issue
+     * list's own editQuery()).
+     */
+    public ?int $editingQueryId = null;
+
     /** @var array<int, string> */
     public array $selected = [];
 
@@ -85,23 +93,76 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('viewAny', User::class);
 
+        $editing = $this->editingQueryId !== null ? SavedQuery::findOrFail($this->editingQueryId) : null;
+
+        if ($editing !== null) {
+            $this->authorize('update', $editing);
+        }
+
         $data = $this->validate(['newQueryName' => ['required', 'string', 'max:255']]);
 
-        SavedQuery::create([
+        $attributes = [
             'name' => $data['newQueryName'],
-            'type' => QueryType::User->value,
-            'user_id' => auth()->id(),
             'project_id' => null,
             'visibility' => QueryVisibility::Private->value,
             'filters' => $this->builtFilters(),
             'column_names' => $this->visibleColumns,
             'sort_criteria' => $this->sortKey !== null ? [[$this->sortKey, $this->sortDirection]] : [],
             'group_by' => null,
-        ]);
+        ];
 
-        $this->reset(['newQueryName', 'showSaveForm']);
+        if ($editing !== null) {
+            $editing->update($attributes);
+        } else {
+            SavedQuery::create([...$attributes, 'type' => QueryType::User->value, 'user_id' => auth()->id()]);
+        }
+
+        $this->reset(['newQueryName', 'editingQueryId', 'showSaveForm']);
         unset($this->savedQueries);
-        session()->flash('status', __('クエリを保存しました。'));
+        session()->flash('status', $editing !== null ? __('クエリを更新しました。') : __('クエリを保存しました。'));
+    }
+
+    /**
+     * Opens the save form prefilled with an existing saved query's
+     * settings, for saveQuery() to update in place — Redmine's
+     * QueriesController#edit, mirrored from the issue list's own
+     * editQuery() (A15-07b). Every saved user query is private
+     * (Redmine's UserQuery, admin-only), so there is no visibility/roles
+     * state to restore here, unlike the issue/time-entry/project lists.
+     */
+    public function editQuery(int $queryId): void
+    {
+        $this->authorize('viewAny', User::class);
+
+        $query = SavedQuery::findOrFail($queryId);
+        $this->authorize('update', $query);
+
+        $this->loadQuery($queryId);
+        $this->editingQueryId = $query->id;
+        $this->newQueryName = $query->name;
+        $this->showSaveForm = true;
+    }
+
+    public function cancelEditQuery(): void
+    {
+        $this->reset(['newQueryName', 'editingQueryId', 'showSaveForm']);
+    }
+
+    public function deleteQuery(int $queryId): void
+    {
+        $this->authorize('viewAny', User::class);
+
+        $query = SavedQuery::findOrFail($queryId);
+        $this->authorize('delete', $query);
+
+        $query->delete();
+
+        if ($this->editingQueryId === $queryId) {
+            $this->cancelEditQuery();
+        }
+
+        unset($this->savedQueries);
+        session()->flash('status', __('クエリを削除しました。'));
     }
 
     public function loadQuery(int $queryId): void
@@ -430,9 +491,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
         @forelse ($this->savedQueries as $savedQuery)
-            <button wire:key="user-saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
-                {{ $savedQuery->name }}
-            </button>
+            <x-saved-query-pill :query="$savedQuery" />
         @empty
             <span class="text-neutral-400">{{ __('なし') }}</span>
         @endforelse
@@ -460,7 +519,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <form wire:submit="saveQuery" class="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3">
                 <input type="text" wire:model="newQueryName" placeholder="{{ __('クエリ名') }}" class="rounded-md border-neutral-300 text-sm">
                 <span class="text-xs text-neutral-500">{{ __('(すべての管理者に表示されます)') }}</span>
-                <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
+                <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">{{ $editingQueryId !== null ? __('更新') : __('保存') }}</button>
+                @if ($editingQueryId !== null)
+                    <button type="button" wire:click="cancelEditQuery" class="text-sm text-neutral-500 hover:underline">{{ __('キャンセル') }}</button>
+                @endif
                 @error('newQueryName') <span class="text-sm text-danger-bolder">{{ $message }}</span> @enderror
             </form>
         @endif
