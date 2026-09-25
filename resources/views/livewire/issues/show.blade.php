@@ -922,6 +922,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 PDF
             </a>
+            <a href="{{ route('issues.show-atom', [$project, $issue, 'key' => auth()->user()?->atomKey()]) }}" class="self-center text-xs text-warning hover:underline">Atom</a>
             @can('create', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.create', $project) }}?copy_from={{ $issue->id }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">

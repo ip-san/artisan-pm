@@ -138,6 +138,9 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — リポジトリ', ['project' => $project->name]) }}</h1>
         <div class="flex gap-2">
+            @if ($repository && auth()->user()?->can('viewAny', [Repository::class, $project]))
+                <a href="{{ route($repository->routeName('repository.revisions-atom'), [...$repository->routeParameters(), 'key' => auth()->user()?->atomKey()]) }}" class="self-center text-xs text-warning hover:underline">Atom</a>
+            @endif
             @if ($repository && auth()->user()?->can('browse', [Repository::class, $project]))
                 <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters()) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">

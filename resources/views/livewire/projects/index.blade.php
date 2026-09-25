@@ -601,12 +601,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-neutral-900">{{ __('プロジェクト') }}</h1>
+        <div class="flex items-center gap-2">
+        <a href="{{ route('projects.atom', ['key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
         @can('create', \App\Models\Project::class)
             <a href="{{ route('projects.create') }}"
                 class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
                 {{ __('新規プロジェクト') }}
             </a>
         @endcan
+        </div>
     </div>
 
     <div class="mb-4 flex flex-wrap items-end gap-3">

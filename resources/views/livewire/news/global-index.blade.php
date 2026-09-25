@@ -45,7 +45,10 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('お知らせ') }}</h1>
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-neutral-900">{{ __('お知らせ') }}</h1>
+        <a href="{{ route('news.global-atom', ['key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
+    </div>
 
     <ul class="divide-y divide-neutral-200 rounded-md border border-neutral-200 bg-surface">
         @forelse ($this->newsItems as $item)

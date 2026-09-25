@@ -11,10 +11,13 @@ use App\Http\Controllers\BoardAtomController;
 use App\Http\Controllers\GlobalActivityFeedController;
 use App\Http\Controllers\IssueAtomController;
 use App\Http\Controllers\IssueChangesAtomController;
+use App\Http\Controllers\IssueJournalAtomController;
 use App\Http\Controllers\IssuePdfController;
 use App\Http\Controllers\MailHandlerController;
 use App\Http\Controllers\NewsAtomController;
+use App\Http\Controllers\ProjectAtomController;
 use App\Http\Controllers\RepositoryRawController;
+use App\Http\Controllers\RepositoryRevisionsAtomController;
 use App\Http\Controllers\SysController;
 use App\Http\Controllers\TimeEntryAtomController;
 use Illuminate\Support\Facades\Route;
@@ -69,6 +72,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Volt::route('/my/webhooks', 'my-webhooks.index')->name('my-webhooks.index');
     Volt::route('/news', 'news.global-index')->name('news.global-index')
         ->withoutMiddleware('auth')->middleware('login.required');
+    Route::get('/news.atom', NewsAtomController::class)->name('news.global-atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
     Volt::route('/issues', 'issues.index')->name('issues.global-index')
         ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/time_entries', 'time-entries.global-index')->name('time-entries.global-index');
@@ -88,6 +93,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
 
     Volt::route('/projects', 'projects.index')->name('projects.index')
         ->withoutMiddleware('auth')->middleware('login.required');
+    Route::get('/projects.atom', ProjectAtomController::class)->name('projects.atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
     Volt::route('/projects/create', 'projects.form')->name('projects.create');
     Volt::route('/projects/{project:identifier}', 'projects.show')->name('projects.show')
         ->withoutMiddleware('auth')->middleware('login.required');
@@ -138,6 +145,12 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Volt::route('/projects/{project:identifier}/issues/imports/{import}', 'issues.import-status')->name('issues.import-status');
     Volt::route('/projects/{project:identifier}/issues/report', 'issues.report')->name('issues.report');
     Volt::route('/projects/{project:identifier}/issues/report/{detail}', 'issues.report-details')->name('issues.report-details');
+    // Registered before the plain {issue} route below — otherwise its
+    // unconstrained parameter would swallow "5.atom" as a literal issue
+    // id before this route ever got a chance to match it (same reasoning
+    // as boards.atom above).
+    Route::get('/projects/{project:identifier}/issues/{issue}.atom', IssueJournalAtomController::class)->whereNumber('issue')->name('issues.show-atom')->scopeBindings()
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
     Volt::route('/projects/{project:identifier}/issues/{issue}', 'issues.show')->name('issues.show')->scopeBindings()
         ->withoutMiddleware('auth')->middleware('login.required');
     // Gated by the exact same IssuePolicy::view Gate::authorize() call as
@@ -230,6 +243,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     // Volt component (each mount() already accepts an optional
     // `?string $repositoryParam` and resolves it via
     // `Project::resolveRepository()`).
+    Route::get('/projects/{project:identifier}/repository/revisions.atom', RepositoryRevisionsAtomController::class)->name('repository.revisions-atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
     Volt::route('/projects/{project:identifier}/repository', 'repository.index')->name('repository.index');
     Volt::route('/projects/{project:identifier}/repository/new', 'repository.form')->name('repository.create')->defaults('isNew', true);
     Volt::route('/projects/{project:identifier}/repository/edit', 'repository.form')->name('repository.edit');
@@ -261,6 +276,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     // collide with that route's identifier-less sibling. Adding a segment
     // here without updating that list would silently reopen the gap the
     // reserved-word validation exists to close.
+    Route::get('/projects/{project:identifier}/repository/{repositoryParam}/revisions.atom', RepositoryRevisionsAtomController::class)->name('repository.revisions-atom.repo')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
     Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/edit', 'repository.form')->name('repository.edit.repo');
     Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/committers', 'repository.committers')->name('repository.committers.repo');
     Volt::route('/projects/{project:identifier}/repository/{repositoryParam}/stats', 'repository.stats')->name('repository.stats.repo');
