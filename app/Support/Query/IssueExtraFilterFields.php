@@ -5,17 +5,21 @@ declare(strict_types=1);
 namespace App\Support\Query;
 
 use App\Concerns\BuildsQueryFilterConditions;
+use App\Enums\CustomFieldFormat;
+use App\Enums\CustomizableType;
 use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
 use App\Enums\IssueRelationType;
 use App\Enums\ProjectStatus;
 use App\Enums\VersionStatus;
+use App\Models\CustomField;
 use App\Models\Group;
 use App\Models\Issue;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Version;
 use App\Services\SearchService;
 use App\Support\Authorization\AuthorizationService;
 use Closure;
@@ -88,6 +92,7 @@ final class IssueExtraFilterFields
             $this->projectStatus(),
             $this->spentTime(),
             $this->anySearchable(),
+            ...$this->relatedCustomFieldFilters(),
         ]));
     }
 
@@ -871,6 +876,238 @@ final class IssueExtraFilterFields
 
                 return $negated ? $query->whereNotIn($key, $ids) : $query->whereIn($key, $ids);
             },
+        );
+    }
+
+    /**
+     * Redmine's project.cf_N, author.cf_N, assigned_to.cf_N and
+     * fixed_version.cf_N (Query#add_associations_custom_fields_filters): a
+     * condition on the issue's project, author, assignee or target
+     * version's own custom field, offered alongside the issue's own cf_N
+     * filters (IssueFilterFieldRegistry::customFieldFilters()). Keyed with
+     * an underscore rather than Redmine's dot, like every association
+     * filter here — a dot would be read as a nested path by the lists'
+     * Livewire/URL state.
+     *
+     * Project fields follow the same appliesToProject() / CustomFieldVisibility
+     * (A1-37) gating, scoped to the projects the list covers, as the
+     * issue's own custom fields — the issue's own project is always one of
+     * them. Version fields cannot be scoped that way: version sharing
+     * (VersionSharing) lets an issue target a version owned by another
+     * project (an ancestor's "tree"/"hierarchy"/"system" version, for
+     * instance), so their candidate/visible projects are worked out
+     * site-wide instead (visibleVersionProjectIds()). A group assignee
+     * (A1-20) has no custom fields of its own, so assigned_to_cf_N simply
+     * never matches a group-assigned issue rather than erroring.
+     *
+     * User fields (author/assigned_to) are offered to administrators only,
+     * the same judgment call A2-08b made for the time entry list's
+     * user.cf_N: this app only shows a user's own custom field values to
+     * that user and to administrators (UserResource), so offering them as
+     * a filter to anyone else would let them probe values they otherwise
+     * cannot see.
+     *
+     * @return array<int, FilterableField>
+     */
+    private function relatedCustomFieldFilters(): array
+    {
+        $fields = CustomField::query()
+            ->whereIn('customized_type', [CustomizableType::Project, CustomizableType::User, CustomizableType::Version])
+            ->where('is_filter', true)
+            ->where('field_format', '!=', CustomFieldFormat::Attachment)
+            ->with(['projects', 'roles'])
+            ->orderBy('position')
+            ->get();
+
+        if ($fields->isEmpty()) {
+            return [];
+        }
+
+        $visibility = CustomFieldVisibility::for($this->viewer);
+        $projects = $this->scopeProjects();
+        $filters = [];
+
+        foreach ($fields as $field) {
+            if ($field->customized_type === CustomizableType::User) {
+                if ($this->viewer?->is_admin) {
+                    $filters[] = $this->authorCustomField($field);
+                    $filters[] = $this->assignedToCustomField($field);
+                }
+
+                continue;
+            }
+
+            if ($field->customized_type === CustomizableType::Version) {
+                $visibleIds = $this->visibleVersionProjectIds($field, $visibility);
+
+                if ($visibleIds !== []) {
+                    $filters[] = $this->fixedVersionCustomField($field, $visibleIds);
+                }
+
+                continue;
+            }
+
+            $applicable = $projects->filter(fn (Project $project) => $field->appliesToProject($project))->values();
+            $visibleIds = $visibility->visibleProjectIds($field, $applicable) ?? $applicable->pluck('id')->all();
+
+            if ($visibleIds !== []) {
+                $filters[] = $this->projectCustomField($field, $visibleIds);
+            }
+        }
+
+        return $filters;
+    }
+
+    /**
+     * The ids of the projects where a version custom field's value counts
+     * as visible: every project the viewer may see at all (not just the
+     * list's scope projects — a version's own project can be outside the
+     * list's scope through sharing), narrowed to the field's own project
+     * pivot (appliesToProject()) and then to the viewer's role
+     * (CustomFieldVisibility, A1-37).
+     *
+     * @return array<int, int>
+     */
+    private function visibleVersionProjectIds(CustomField $field, CustomFieldVisibility $visibility): array
+    {
+        $siteVisibleIds = array_keys($this->visibleProjectOptions());
+
+        if ($field->projects->isNotEmpty()) {
+            $siteVisibleIds = array_values(array_intersect($siteVisibleIds, $field->projects->pluck('id')->all()));
+        }
+
+        if ($siteVisibleIds === []) {
+            return [];
+        }
+
+        $projects = Project::query()->whereIn('id', $siteVisibleIds)->get();
+
+        return $visibility->visibleProjectIds($field, $projects) ?? $siteVisibleIds;
+    }
+
+    /**
+     * Redmine's project.cf_N: the issue's project has a matching value.
+     *
+     * @param  array<int, int>  $visibleProjectIds
+     */
+    private function projectCustomField(CustomField $field, array $visibleProjectIds): FilterableField
+    {
+        $condition = new CustomFieldFilter($field);
+
+        return new CallbackFilter(
+            "project_cf_{$field->id}",
+            __('プロジェクトの:name', ['name' => $field->name]),
+            $condition->type(),
+            $condition->operators(),
+            function (Builder $query, FilterOperator $operator, array $values) use ($condition, $visibleProjectIds): Builder {
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                [$positive, $negated] = self::positiveOf($operator);
+                $matching = $condition->apply(Project::query()->select('projects.id')->whereIn('projects.id', $visibleProjectIds), $positive, $values);
+                $column = $query->qualifyColumn('project_id');
+
+                return $negated
+                    ? $query->whereIn($column, $visibleProjectIds)->whereNotIn($column, $matching)
+                    : $query->whereIn($column, $matching);
+            },
+            fn () => $condition->options(),
+        );
+    }
+
+    /**
+     * Redmine's fixed_version.cf_N: the issue's target version has a
+     * matching value. As with fixed_version.due_date/status, an issue
+     * without a target version never matches the positive form and always
+     * matches the negated one.
+     *
+     * @param  array<int, int>  $visibleProjectIds  the projects where the field is visible; only their versions are candidates
+     */
+    private function fixedVersionCustomField(CustomField $field, array $visibleProjectIds): FilterableField
+    {
+        $condition = new CustomFieldFilter($field);
+
+        return new CallbackFilter(
+            "fixed_version_cf_{$field->id}",
+            __('対象バージョンの:name', ['name' => $field->name]),
+            $condition->type(),
+            $condition->operators(),
+            function (Builder $query, FilterOperator $operator, array $values) use ($condition, $visibleProjectIds): Builder {
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                [$positive, $negated] = self::positiveOf($operator);
+                $matching = $condition->apply(Version::query()->select('versions.id')->whereIn('versions.project_id', $visibleProjectIds), $positive, $values);
+                $column = $query->qualifyColumn('fixed_version_id');
+
+                return $negated
+                    ? $query->where(fn (Builder $other) => $other->whereNull($column)->orWhereNotIn($column, $matching))
+                    : $query->whereIn($column, $matching);
+            },
+            fn () => $condition->options(),
+        );
+    }
+
+    /**
+     * Redmine's author.cf_N: the issue's author has a matching value.
+     * Offered to administrators only (see relatedCustomFieldFilters()).
+     */
+    private function authorCustomField(CustomField $field): FilterableField
+    {
+        $condition = new CustomFieldFilter($field);
+
+        return new CallbackFilter(
+            "author_cf_{$field->id}",
+            __('作成者の:name', ['name' => $field->name]),
+            $condition->type(),
+            $condition->operators(),
+            function (Builder $query, FilterOperator $operator, array $values) use ($condition): Builder {
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                [$positive, $negated] = self::positiveOf($operator);
+                $matching = $condition->apply(User::query()->select('users.id'), $positive, $values);
+                $column = $query->qualifyColumn('author_id');
+
+                return $negated ? $query->whereNotIn($column, $matching) : $query->whereIn($column, $matching);
+            },
+            fn () => $condition->options(),
+        );
+    }
+
+    /**
+     * Redmine's assigned_to.cf_N: the issue's assignee has a matching
+     * value. A group assignee (A1-20) has no custom fields of its own, so
+     * it simply never matches the positive form and always matches the
+     * negated one, exactly like an unassigned issue. Offered to
+     * administrators only (see relatedCustomFieldFilters()).
+     */
+    private function assignedToCustomField(CustomField $field): FilterableField
+    {
+        $condition = new CustomFieldFilter($field);
+
+        return new CallbackFilter(
+            "assigned_to_cf_{$field->id}",
+            __('担当者の:name', ['name' => $field->name]),
+            $condition->type(),
+            $condition->operators(),
+            function (Builder $query, FilterOperator $operator, array $values) use ($condition): Builder {
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                [$positive, $negated] = self::positiveOf($operator);
+                $matching = $condition->apply(User::query()->select('users.id'), $positive, $values);
+                $column = $query->qualifyColumn('assigned_to_id');
+
+                return $negated
+                    ? $query->where(fn (Builder $other) => $other->whereNull($column)->orWhereNotIn($column, $matching))
+                    : $query->whereIn($column, $matching);
+            },
+            fn () => $condition->options(),
         );
     }
 

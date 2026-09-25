@@ -91,9 +91,26 @@ final class FilterSelectOptions
         return ['ungrouped' => $ungrouped, 'groups' => $groups];
     }
 
+    /**
+     * The associations whose custom fields are offered as
+     * "<association>_cf_N" filters (project.cf_N, author.cf_N,
+     * assigned_to.cf_N, fixed_version.cf_N in Redmine — see
+     * IssueExtraFilterFields::relatedCustomFieldFilters() and
+     * TimeEntryExtraFilterFields' project_cf_N/user_cf_N). Unlike
+     * DOTTED_KEYS, these keys carry a variable custom_field_id, so they are
+     * matched by prefix rather than listed one by one.
+     */
+    private const RELATED_CUSTOM_FIELD_PREFIXES = ['project_cf_', 'author_cf_', 'assigned_to_cf_', 'fixed_version_cf_', 'user_cf_'];
+
     private static function groupOf(FilterableField $field): ?string
     {
         $key = $field->key();
+
+        foreach (self::RELATED_CUSTOM_FIELD_PREFIXES as $prefix) {
+            if (str_starts_with($key, $prefix) && ctype_digit(substr($key, strlen($prefix)))) {
+                return 'association:'.substr($prefix, 0, -strlen('_cf_'));
+            }
+        }
 
         return match (true) {
             isset(self::DOTTED_KEYS[$key]) => 'association:'.strstr(self::DOTTED_KEYS[$key], '.', true),

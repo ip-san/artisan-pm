@@ -235,22 +235,6 @@ final class TimeEntryExtraFilterFields
     }
 
     /**
-     * The positive form of a negated operator, as Redmine's
-     * sql_for_custom_field puts NOT in front of the associated subquery.
-     *
-     * @return array{0: FilterOperator, 1: bool}
-     */
-    private static function positiveOf(FilterOperator $operator): array
-    {
-        return match ($operator) {
-            FilterOperator::NotEquals => [FilterOperator::Equals, true],
-            FilterOperator::NotIn => [FilterOperator::In, true],
-            FilterOperator::IsEmpty => [FilterOperator::IsNotEmpty, true],
-            default => [$operator, false],
-        };
-    }
-
-    /**
      * Redmine's sql_for_issue_id_field (a :tree filter): "is" the given
      * issues, "contains" them and every issue below them, none/any: no
      * issue / some issue.

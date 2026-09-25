@@ -150,6 +150,27 @@ trait BuildsQueryFilterConditions
     }
 
     /**
+     * The positive form of a negated operator, as Redmine's
+     * sql_for_custom_field puts NOT in front of the associated subquery —
+     * used by the one-hop "association.cf_N" filters (TimeEntryExtraFilterFields,
+     * IssueExtraFilterFields) to turn "the related object's field is not X"
+     * into "the related object is not among those where the field is X",
+     * which, unlike CustomFieldFilter's own negation, also counts a related
+     * object with no value at all as matching.
+     *
+     * @return array{0: FilterOperator, 1: bool}
+     */
+    private static function positiveOf(FilterOperator $operator): array
+    {
+        return match ($operator) {
+            FilterOperator::NotEquals => [FilterOperator::Equals, true],
+            FilterOperator::NotIn => [FilterOperator::In, true],
+            FilterOperator::IsEmpty => [FilterOperator::IsNotEmpty, true],
+            default => [$operator, false],
+        };
+    }
+
+    /**
      * Text matching as Redmine's :text filters: "none" and "any" treat an
      * empty string like a missing value.
      *
