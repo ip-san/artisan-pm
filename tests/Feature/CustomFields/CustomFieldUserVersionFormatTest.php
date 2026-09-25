@@ -2,9 +2,11 @@
 
 use App\Enums\CustomFieldFormat;
 use App\Enums\EnumerationType;
+use App\Enums\UserStatus;
 use App\Enums\VersionSharing;
 use App\Enums\VersionStatus;
 use App\Models\CustomField;
+use App\Models\CustomFieldEnumeration;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -14,6 +16,9 @@ use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
+use App\Services\IssueService;
+use App\Support\Query\IssueFilterFieldRegistry;
+use App\Support\Query\QueryFilterEngine;
 use Laravel\Passport\Passport;
 use Livewire\Livewire;
 
@@ -60,7 +65,7 @@ test('a user field offers the project\'s members and stores the id', function ()
     expect($issue->fresh()->customValue($field))->toBe('Mia Member')
         ->and($issue->customFieldValues()->where('custom_field_id', $field->id)->value('value_int'))->toBe($member->id);
 
-    $outsider->update(['status' => App\Enums\UserStatus::Locked]);
+    $outsider->update(['status' => UserStatus::Locked]);
     expect(array_values($field->optionsFor(null)))->not->toContain('Olga Outsider');
 });
 
@@ -124,7 +129,7 @@ test('the API rejects a user outside the project and accepts a member', function
     expect(Issue::query()->where('subject', 'Reviewed')->sole()->customValue($field))->toBe('Mia Member');
 });
 
-test('the bulk edit does not offer project-dependent fields', function () {
+test('the bulk edit offers project-dependent fields too (A1-06c, Redmine\'s possible_values_options(@projects))', function () {
     ['project' => $project, 'tracker' => $tracker, 'editor' => $editor] = recordListSetup();
     $userField = recordListField($tracker, CustomFieldFormat::User);
     $textField = recordListField($tracker, CustomFieldFormat::String);
@@ -134,7 +139,7 @@ test('the bulk edit does not offer project-dependent fields', function () {
         ->set('selected', [(string) $issue->id])
         ->get('bulkCustomFields')->pluck('id');
 
-    expect($ids)->toContain($textField->id)->not->toContain($userField->id);
+    expect($ids)->toContain($textField->id)->toContain($userField->id);
 });
 
 test('the admin form saves the role and status options', function () {
@@ -178,7 +183,7 @@ test('an issue list filter picks issues by the chosen user, and "me" means the v
     $forMember->setCustomFieldValues([$field->id => (string) $member->id]);
     $forEditor->setCustomFieldValues([$field->id => (string) $editor->id]);
 
-    $engine = new App\Support\Query\QueryFilterEngine(App\Support\Query\IssueFilterFieldRegistry::forProject($project));
+    $engine = new QueryFilterEngine(IssueFilterFieldRegistry::forProject($project));
     $subjects = fn (string $value) => $engine->applyFilters(Issue::query(), ["cf_{$field->id}" => ['operator' => '=', 'values' => [$value]]])->pluck('subject')->all();
 
     expect($subjects((string) $member->id))->toBe(['For member']);
@@ -208,7 +213,7 @@ test('a change to the value is journaled with the names', function () {
     $field = recordListField($tracker, CustomFieldFormat::User, ['name' => 'Reviewer']);
     $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'author_id' => $editor->id]);
 
-    app(App\Services\IssueService::class)->update($issue, [], $editor, null, [$field->id => (string) $member->id]);
+    app(IssueService::class)->update($issue, [], $editor, null, [$field->id => (string) $member->id]);
 
     $detail = $issue->journals()->with('details')->get()->flatMap->details->firstWhere('property', 'cf');
     expect($detail->new_value)->toBe('Mia Member');
@@ -217,7 +222,7 @@ test('a change to the value is journaled with the names', function () {
 test('an enumeration field is prefilled with the option id too', function () {
     ['project' => $project, 'tracker' => $tracker, 'editor' => $editor] = recordListSetup();
     $field = recordListField($tracker, CustomFieldFormat::Enumeration);
-    $option = App\Models\CustomFieldEnumeration::factory()->create(['custom_field_id' => $field->id, 'name' => 'Gold', 'active' => true]);
+    $option = CustomFieldEnumeration::factory()->create(['custom_field_id' => $field->id, 'name' => 'Gold', 'active' => true]);
     $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'author_id' => $editor->id]);
     $issue->setCustomFieldValues([$field->id => (string) $option->id]);
 
