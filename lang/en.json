@@ -1197,6 +1197,7 @@
     "添付ファイル「:filename」が見つかりません。": "Attachment \":filename\" not found.",
     "添付ファイル「:name」が削除されました": "File :name deleted",
     "添付ファイル「:name」が追加されました": "File :name added",
+    "添付ファイルの一覧・Wikiなどにサムネイルを表示する": "Show thumbnails in attachment lists, wiki pages, etc.",
     "添付ファイルの合計サイズが上限(:sizeKB)を超えているため、まとめてダウンロードできません。": "The files cannot be downloaded together because their total size exceeds the limit (:sizeKB).",
     "添付ファイルの編集": "Edit attachments",
     "添付ファイルの説明": "File description",

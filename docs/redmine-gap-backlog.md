@@ -358,8 +358,24 @@
 | 141b | B'-01b | B'-01 | S | done(2026-09-25、Git・Mercurial のブランチとタグ、Bazaar のタグ。ファイル一覧・ファイル表示・ダウンロードを選んだブランチ/タグで。SVN は Redmine と同じくパスで、CVS のブランチリビジョンは対象外のまま) |
 | 142 | A12-07 | — | S | done(2026-09-25、送信直前の再解決・全アドレスの確認・確認したアドレスへの固定・リダイレクトを追わない。管理者の Webhook もループバック等と禁止ポートは拒否。`webhook_blocklist` は対象外) |
 | 143 | A14-08 | — | S | done(既存+テスト追加, 2026-09-25、8 箇所すべて `CsvCell` 経由。未テストの 5 つにテストとガードテスト) |
-| 145 | A15-01〜A15-17 | — | S〜M | todo(2026-09-25 承認: 全17項目を実装) |
 | 144 | A6-09 | — | S | done(2026-09-25、HTML メールのヘッダー/フッターを Markdown で描画) |
+| 145a | A15-01 | — | S | done(2026-09-25) |
+| 145b | A15-02 | — | S | todo |
+| 145c | A15-03 | — | S〜M | todo |
+| 145d | A15-04 | — | S | todo |
+| 145e | A15-05 | — | S | todo |
+| 145f | A15-06 | — | S | todo |
+| 145g | A15-07 | — | M | todo |
+| 145h | A15-08 | 145g | S | todo |
+| 145i | A15-09 | — | S | todo |
+| 145j | A15-10 | 145h | M | todo |
+| 145k | A15-11 | — | M | todo |
+| 145l | A15-12 | — | S | todo |
+| 145m | A15-13 | — | M | todo |
+| 145n | A15-14 | — | S | todo |
+| 145o | A15-15 | — | S | todo |
+| 145p | A15-16 | — | S | todo |
+| 145q | A15-17 | — | M | todo |
 
 ### 0.4 起動方法
 
@@ -709,7 +725,7 @@
 
 | ID | Redmine 側の機能 | 本アプリの現状 | 規模 | checklist 行 |
 |---|---|---|---|---|
-| A15-01 | 設定 `thumbnails_enabled`(サムネイル表示の有効/無効) | 設定なし(A5-07 の「Redmine に未定義」は誤り。`config/settings.yml` に定義あり) | S | 設定「表示」 |
+| A15-01 | 設定 `thumbnails_enabled`(サムネイル表示の有効/無効) | **done(2026-09-25)**: 設定「表示」に追加(既定オン)。`<x-attachment-thumbnail>` コンポーネント(課題・Wiki・お知らせ・フォーラム・文書・ファイル一覧すべてがこの1箇所経由)で `Setting::get('thumbnails_enabled', true)` を確認。`{{thumbnail}}` マクロは Redmine 本家と同じく対象外(条件なし)。テスト: `ThumbnailsEnabledSettingTest.php` | S | 設定「表示」 |
 | A15-02 | `autologin` の保持日数(1/7/30/365 日) | オン/オフのみ | S | 設定「認証」 |
 | A15-03 | `notified_events` の課題の細分イベント(`issue_status_updated`/`issue_assigned_to_updated`/`issue_priority_updated`/`issue_fixed_version_updated`/`issue_attachment_added`) | 課題の追加/更新のみ | S〜M | 設定「メール通知」 |
 | A15-04 | 課題の検索とフィルタ「検索可能な項目」で注記(journals.notes)も検索(非公開注記は `view_private_notes`) | 題名・説明・CF・添付のみ | S | 検索(モジュール横断) |

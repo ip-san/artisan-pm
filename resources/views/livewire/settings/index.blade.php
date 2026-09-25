@@ -260,6 +260,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public int $file_max_size_displayed = 512;
 
+    public bool $thumbnails_enabled = true;
+
     public int $thumbnails_size = 100;
 
     public string $repositories_encodings = '';
@@ -514,6 +516,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->sys_api_key = Setting::get('sys_api_key', '');
         $this->diff_max_lines_displayed = DisplayLimits::maxDiffLines();
         $this->file_max_size_displayed = DisplayLimits::maxFileSizeKb();
+        $this->thumbnails_enabled = (bool) Setting::get('thumbnails_enabled', true);
         $this->thumbnails_size = Setting::get('thumbnails_size', 100);
         $this->repositories_encodings = Setting::get('repositories_encodings', '');
         $this->commit_logs_encoding = Setting::get('commit_logs_encoding', 'UTF-8');
@@ -700,6 +703,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'sys_api_key' => ['nullable', 'string', 'max:255'],
             'diff_max_lines_displayed' => ['required', 'integer', 'min:0', 'max:100000'],
             'file_max_size_displayed' => ['required', 'integer', 'min:0', 'max:102400'],
+            'thumbnails_enabled' => ['boolean'],
             'thumbnails_size' => ['required', 'integer', 'min:16', 'max:2000'],
             'repositories_encodings' => ['nullable', 'string', 'max:255', $encodingList],
             'commit_logs_encoding' => ['required', 'string', 'max:50', $encodingName],
@@ -1868,6 +1872,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input type="number" min="0" max="102400" wire:model="file_max_size_displayed" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('file_max_size_displayed') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 text-sm text-neutral-700">
+                    <input type="checkbox" wire:model="thumbnails_enabled" data-testid="thumbnails-enabled" class="rounded border-neutral-300">
+                    {{ __('添付ファイルの一覧・Wikiなどにサムネイルを表示する') }}
+                </label>
+                @error('thumbnails_enabled') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
