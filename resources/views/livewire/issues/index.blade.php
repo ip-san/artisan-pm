@@ -96,6 +96,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'total_spent_hours' => __('合計作業時間'),
             'project_id' => __('プロジェクト'),
             'parent_id' => __('親課題'),
+            'parent_subject' => __('親課題の題名'),
             'updated_at' => __('更新日'),
             'closed_on' => __('終了日'),
             'last_updated_by' => __('最終更新者'),
@@ -120,7 +121,7 @@ new #[Layout('components.layouts.app')] class extends Component
      *
      * @var array<int, string>
      */
-    public const array COMPUTED_HOUR_COLUMNS = ['total_estimated_hours', 'estimated_remaining_hours', 'spent_hours', 'total_spent_hours', 'parent_id', 'last_updated_by', 'is_private', 'description', 'last_notes'];
+    public const array COMPUTED_HOUR_COLUMNS = ['total_estimated_hours', 'estimated_remaining_hours', 'spent_hours', 'total_spent_hours', 'parent_id', 'parent_subject', 'last_updated_by', 'is_private', 'description', 'last_notes'];
 
     /**
      * Matches issues/show.blade.php's RELATION_LABELS wording exactly —
@@ -344,6 +345,11 @@ new #[Layout('components.layouts.app')] class extends Component
             ->when(in_array('relations', $this->columns, true), fn (Builder $q) => $q->with([
                 'relationsFrom' => fn ($relations) => $relations->whereIn('issue_to_id', Issue::query()->select('issues.id')->visible(auth()->user())),
                 'relationsTo' => fn ($relations) => $relations->whereIn('issue_from_id', Issue::query()->select('issues.id')->visible(auth()->user())),
+            ]))
+            // Redmine's QueryAssociationColumn#value_object only shows the
+            // parent's subject when the parent is visible to the viewer.
+            ->when(in_array('parent_subject', $this->columns, true), fn (Builder $q) => $q->with([
+                'parent' => fn ($parent) => $parent->visible(auth()->user()),
             ]))
             ->when(in_array('attachments', $this->columns, true), fn (Builder $q) => $q->with('media'))
             ->when(in_array('watchers', $this->columns, true), fn (Builder $q) => $q->with('watchers.user'))
@@ -1177,6 +1183,9 @@ new #[Layout('components.layouts.app')] class extends Component
             'watchers' => $issue->watchers->map(fn (Watcher $watcher) => $watcher->user->displayName())->join("\n"),
             'project_id' => $issue->project->name,
             'parent_id' => $issue->parent_id !== null ? "#{$issue->parent_id}" : '',
+            // Redmine's QueryAssociationColumn#value_object: blank unless
+            // the parent both exists and is visible to the viewer.
+            'parent_subject' => $issue->relationLoaded('parent') ? ($issue->parent?->subject ?? '') : ($issue->parent()->visible(auth()->user())->first()?->subject ?? ''),
             'updated_at' => \App\Support\Format\DateTimes::dateTime($issue->updated_at) ?? '',
             'closed_on' => \App\Support\Format\DateTimes::dateTime($issue->closed_on) ?? '',
             'last_updated_by' => ($issue->lastJournal?->user ?? $issue->author)->name,

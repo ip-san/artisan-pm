@@ -364,7 +364,7 @@
 | 145c | A15-03 | — | S〜M | done(2026-09-25) |
 | 145d | A15-04 | — | S | done(2026-09-25) |
 | 145e | A15-05 | — | S | done(2026-09-25) |
-| 145f | A15-06 | — | S | todo |
+| 145f | A15-06 | — | S | done(2026-09-25) |
 | 145g | A15-07 | — | M | todo |
 | 145h | A15-08 | 145g | S | todo |
 | 145i | A15-09 | — | S | todo |
@@ -730,7 +730,7 @@
 | A15-03 | `notified_events` の課題の細分イベント(`issue_status_updated`/`issue_assigned_to_updated`/`issue_priority_updated`/`issue_fixed_version_updated`/`issue_attachment_added`) | **done(2026-09-25)**: 設定「メール通知」に追加。`SendIssueMailNotifications::updateEventKeys()` が Journal の詳細から該当する候補イベントキー配列を作り、`NotificationRecipients::forIssue()` が `notified_events` との `array_intersect` で判定(Redmine の OR 条件と同義)。添付は追加のみ対象。`issue_note_added` は A6-01 で実装済みだった。テスト: `IssueGranularNotificationEventsTest.php` | S〜M | 設定「メール通知」 |
 | A15-04 | 課題の検索とフィルタ「検索可能な項目」で注記(journals.notes)も検索(非公開注記は `view_private_notes`) | **done(2026-09-25)**: `SearchService::issueIdsMatchingJournalNotes()` を追加し、モジュール横断検索と課題一覧の `any_searchable` フィルタの両方に配線。テスト: `SearchTest.php`、`TextOperatorFiltersTest.php` | S | 検索(モジュール横断) |
 | A15-05 | 課題一覧のグループ化の選択肢: 作成者・カテゴリ・対象バージョン・日付・進捗率・非公開 | **done(2026-09-25)**: 全て追加。日付3列(作成日/更新日/終了日)は `SqlDialect::dateOnly()` で日付に切り詰め(UTC基準、閲覧者TZは未対応)。テスト: `IssueListGroupingTest.php` | S | グルーピング |
-| A15-06 | 課題一覧の「親課題の題名」列 | なし | S | 列選択 |
+| A15-06 | 課題一覧の「親課題の題名」列 | **done(2026-09-25)**: `parent_subject` 列を追加(親が存在しかつ閲覧可能な場合のみ表示、並べ替え不可)。テスト: `ParentSubjectColumnTest.php` | S | 列選択 |
 | A15-07 | 保存クエリの編集・削除(`QueriesController#edit/update/destroy`)と「全プロジェクト向け」(`query_is_for_all`) | 作成と読込のみ | M | プロジェクト横断クエリ |
 | A15-08 | カレンダーの保存クエリ(`query_id`) | なし | S | カレンダー |
 | A15-09 | 活動の利用者での絞り込み(`user_id`、Atom も) | なし | S | グローバルアクティビティフィード |

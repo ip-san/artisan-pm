@@ -1324,6 +1324,7 @@
     "親課題の行(:row行目)を取り込めなかったため、この行も取り込みません。": "The parent's row (row :row) was not imported, so this row is not imported either.",
     "親課題の進捗率を子課題から算出する(予定工数で重み付けした平均)": "Calculate parent task % Done from subtasks (average weighted by estimated time)",
     "親課題の開始日/期日を子課題から算出する(最も早い開始日〜最も遅い期日)": "Calculate parent task start/due dates from subtasks (earliest start date to latest due date)",
+    "親課題の題名": "Parent task subject",
     "解除": "Remove",
     "言語": "Language",
     "記号(!, $, % など)": "special characters (!, $, %, ...)",
