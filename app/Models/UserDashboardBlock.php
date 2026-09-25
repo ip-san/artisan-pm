@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\DashboardArea;
 use Database\Factories\UserDashboardBlockFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['user_id', 'block_key', 'position', 'settings'])]
+#[Fillable(['user_id', 'block_key', 'area', 'position', 'settings'])]
 final class UserDashboardBlock extends Model
 {
     /** @use HasFactory<UserDashboardBlockFactory> */
@@ -18,7 +19,7 @@ final class UserDashboardBlock extends Model
 
     protected function casts(): array
     {
-        return ['settings' => 'array'];
+        return ['settings' => 'array', 'area' => DashboardArea::class];
     }
 
     /**

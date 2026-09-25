@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DashboardArea;
 use App\Enums\QueryType;
 use App\Models\Query as SavedQuery;
 use App\Models\UserDashboardBlock;
@@ -23,7 +24,19 @@ new #[Layout('components.layouts.app')] class extends Component
      *
      * @var array<int, string>
      */
-    private const array DEFAULT_BLOCK_KEYS = ['assigned_issues', 'reported_issues', 'latest_news'];
+    /**
+     * Redmine's Redmine::MyPage.default_layout: left => issuesassignedtome,
+     * right => issuesreportedbyme. This app's own extra starter block
+     * (latest_news) goes to 'top', matching where a newly added block
+     * lands (UserPreference#add_block unshifts into my_page_groups.first).
+     *
+     * @var array<string, DashboardArea>
+     */
+    private const array DEFAULT_BLOCK_KEYS = [
+        'assigned_issues' => DashboardArea::Left,
+        'reported_issues' => DashboardArea::Right,
+        'latest_news' => DashboardArea::Top,
+    ];
 
     /** Redmine's max_occurs for the issue query block: one saved query may be placed this often. */
     private const int MAX_QUERY_BLOCK_OCCURRENCES = 3;
@@ -37,8 +50,10 @@ new #[Layout('components.layouts.app')] class extends Component
     public function mount(): void
     {
         if (UserDashboardBlock::where('user_id', auth()->id())->doesntExist()) {
-            foreach (self::DEFAULT_BLOCK_KEYS as $position => $key) {
-                UserDashboardBlock::create(['user_id' => auth()->id(), 'block_key' => $key, 'position' => $position]);
+            $position = 0;
+
+            foreach (self::DEFAULT_BLOCK_KEYS as $key => $area) {
+                UserDashboardBlock::create(['user_id' => auth()->id(), 'block_key' => $key, 'area' => $area, 'position' => $position++]);
             }
         }
     }
@@ -50,6 +65,14 @@ new #[Layout('components.layouts.app')] class extends Component
     public function activeBlocks(): Collection
     {
         return UserDashboardBlock::where('user_id', auth()->id())->orderBy('position')->get();
+    }
+
+    /**
+     * @return Collection<int, UserDashboardBlock>
+     */
+    public function blocksInArea(DashboardArea $area): Collection
+    {
+        return $this->activeBlocks->filter(fn (UserDashboardBlock $block) => $block->area === $area)->values();
     }
 
     /**
@@ -141,7 +164,16 @@ new #[Layout('components.layouts.app')] class extends Component
         $maxOccurrences = $queryId !== null ? self::MAX_QUERY_BLOCK_OCCURRENCES : 1;
 
         if ($occurrences < $maxOccurrences) {
-            UserDashboardBlock::create(['user_id' => auth()->id(), 'block_key' => $key, 'position' => $this->activeBlocks->count()]);
+            // Redmine's UserPreference#add_block: unshifts into
+            // my_page_groups.first ('top') — this app appends within
+            // 'top' instead of unshifting, so an existing top block isn't
+            // visually bumped down by every addition.
+            UserDashboardBlock::create([
+                'user_id' => auth()->id(),
+                'block_key' => $key,
+                'area' => DashboardArea::Top,
+                'position' => $this->blocksInArea(DashboardArea::Top)->count(),
+            ]);
         }
 
         unset($this->activeBlocks, $this->availableBlocks, $this->availableSavedQueries, $this->savedQueriesByBlockKey);
@@ -160,26 +192,49 @@ new #[Layout('components.layouts.app')] class extends Component
 
     /**
      * wire:sort only reports the moved item's id and its new zero-based
-     * position, not the full resulting order — so the new order is
-     * reconstructed by removing the moved block from its old spot and
-     * reinserting it at the reported position among the rest, then
-     * renumbering everyone sequentially.
+     * position within the list it was dropped in, not the full resulting
+     * order — so the new order is reconstructed by removing the moved
+     * block from its old spot and reinserting it at the reported position
+     * among the rest of the SAME area, then renumbering that area's
+     * blocks sequentially. Each area has its own <ul wire:sort>, so a
+     * given call is always reordering within one area — moving a block to
+     * a different area is a separate action (moveToArea()) rather than a
+     * cross-list drag, unlike Redmine's own connected-sortable columns.
      */
     public function reorder(int $id, int $position): void
     {
-        $blocks = $this->activeBlocks;
-        $moved = $blocks->firstWhere('id', $id);
+        $moved = $this->activeBlocks->firstWhere('id', $id);
 
         if ($moved === null) {
             return;
         }
 
-        $reordered = $blocks->reject(fn (UserDashboardBlock $block) => $block->id === $moved->id)->values();
+        $areaBlocks = $this->blocksInArea($moved->area);
+        $reordered = $areaBlocks->reject(fn (UserDashboardBlock $block) => $block->id === $moved->id)->values();
         $reordered->splice($position, 0, [$moved]);
 
         foreach ($reordered->values() as $index => $block) {
             $block->update(['position' => $index]);
         }
+
+        unset($this->activeBlocks);
+    }
+
+    /**
+     * Moves a block to a different area, appended at the end (Redmine's
+     * own drag between the three columns both reorders and re-areas in
+     * one gesture; here that's this explicit action instead).
+     */
+    public function moveToArea(int $id, string $area): void
+    {
+        $areaEnum = DashboardArea::from($area);
+        $block = $this->activeBlocks->firstWhere('id', $id);
+
+        if ($block === null || $block->area === $areaEnum) {
+            return;
+        }
+
+        $block->update(['area' => $areaEnum, 'position' => $this->blocksInArea($areaEnum)->count()]);
 
         unset($this->activeBlocks);
     }
@@ -271,76 +326,70 @@ new #[Layout('components.layouts.app')] class extends Component
 
         return app(DashboardBlockRegistry::class)->find($key)?->label() ?? $key;
     }
+
+    public function areaLabel(DashboardArea $area): string
+    {
+        return match ($area) {
+            DashboardArea::Top => __('上'),
+            DashboardArea::Left => __('左'),
+            DashboardArea::Right => __('右'),
+        };
+    }
+
+    public function areaShortLabel(DashboardArea $area): string
+    {
+        return match ($area) {
+            DashboardArea::Top => '▲',
+            DashboardArea::Left => '◀',
+            DashboardArea::Right => '▶',
+        };
+    }
+
+    /**
+     * The current week (Redmine's calendar block: Helpers::Calendar.new
+     * with :week — the week containing "today", per Setting.start_of_week),
+     * across every active project the viewer holds view_issues in.
+     * Separate from the plain-row DashboardBlock interface (CalendarBlock
+     * still implements rows() for API/fallback use) since a day grid
+     * doesn't fit that shape.
+     *
+     * @return array<int, array{date: \Illuminate\Support\Carbon, entries: Collection<int, array{issue: \App\Models\Issue, marker: string}>}>
+     */
+    #[Computed]
+    public function calendarWeek(): array
+    {
+        return app(\App\Support\Dashboard\Blocks\CalendarBlock::class)->weekDays(auth()->user());
+    }
 }; ?>
 
 <div>
     <h1 class="text-xl font-semibold text-neutral-900 mb-6">{{ __('マイページ') }}</h1>
 
-    <ul wire:sort="reorder" class="space-y-4">
-        @foreach ($this->activeBlocks as $block)
-            <li wire:key="block-{{ $block->id }}" wire:sort:item="{{ $block->id }}"
-                class="cursor-move rounded-md border border-neutral-200 bg-surface">
-                <div class="flex items-center justify-between border-b border-neutral-100 px-4 py-2">
-                    <span class="text-sm font-semibold text-neutral-900">{{ $this->blockLabel($block->block_key) }}</span>
-                    <div wire:sort:ignore class="flex items-center gap-3">
-                        @if ($this->settingFieldsFor($block->block_key) !== [])
-                            <button wire:click="openSettings({{ $block->id }})" data-block-settings class="text-xs text-neutral-600 hover:underline">
-                                {{ __('設定') }}
-                            </button>
-                        @endif
-                        <button wire:click="removeBlock({{ $block->id }})" class="text-xs text-danger-bolder hover:underline">
-                            {{ __('削除') }}
-                        </button>
-                    </div>
-                </div>
-                @if ($settingsBlockId === $block->id)
-                    <form wire:submit="saveSettings" wire:sort:ignore data-block-settings-form class="space-y-3 border-b border-neutral-100 bg-neutral-50 px-4 py-3">
-                        @foreach ($this->settingFieldsFor($block->block_key) as $name => $field)
-                            <div wire:key="setting-{{ $block->id }}-{{ $name }}">
-                                <span class="block text-xs font-medium text-neutral-700">{{ $field['label'] }}</span>
-                                @if ($field['type'] === 'number')
-                                    <input type="number" min="1" wire:model="settingsForm.{{ $name }}" placeholder="{{ $field['placeholder'] ?? '' }}"
-                                        class="mt-1 w-32 rounded-md border-neutral-300 text-sm">
-                                @elseif ($field['type'] === 'select')
-                                    <select wire:model="settingsForm.{{ $name }}" class="mt-1 rounded-md border-neutral-300 text-sm">
-                                        <option value=""></option>
-                                        @foreach ($field['options'] as $value => $label)
-                                            <option value="{{ $value }}">{{ $label }}</option>
-                                        @endforeach
-                                    </select>
-                                @else
-                                    <div class="mt-1 flex flex-wrap gap-3">
-                                        @foreach ($field['options'] as $value => $label)
-                                            <label class="flex items-center gap-1 text-xs text-neutral-700">
-                                                <input type="checkbox" wire:model="settingsForm.{{ $name }}" value="{{ $value }}" class="rounded border-neutral-300">
-                                                {{ $label }}
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                @endif
-                            </div>
-                        @endforeach
-                        <div class="flex gap-3">
-                            <button type="submit" class="rounded-md bg-brand-bold px-3 py-1 text-xs font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
-                            <button type="button" wire:click="closeSettings" class="text-xs text-neutral-600 hover:underline">{{ __('キャンセル') }}</button>
-                        </div>
-                    </form>
-                @endif
-                <ul class="divide-y divide-neutral-100">
-                    @forelse ($this->blockRows($block->block_key, $block->settings ?? []) as $row)
-                        <li class="px-4 py-2 text-sm">
-                            <a href="{{ $row->url }}" class="text-brand-bold hover:underline">{{ $row->title }}</a>
-                            @if ($row->meta)
-                                <span class="text-neutral-400">— {{ $row->meta }}</span>
-                            @endif
-                        </li>
-                    @empty
-                        <li class="px-4 py-3 text-center text-sm text-neutral-500">{{ __('項目がありません。') }}</li>
-                    @endforelse
-                </ul>
-            </li>
-        @endforeach
-    </ul>
+    {{-- Redmine's three My Page columns (top spans the full width, left/right sit side by side). --}}
+    <div class="mb-4" data-my-page-area="top">
+        <ul wire:sort="reorder" class="space-y-4">
+            @foreach ($this->blocksInArea(\App\Enums\DashboardArea::Top) as $block)
+                @include('livewire.my-page._block', ['block' => $block])
+            @endforeach
+        </ul>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div data-my-page-area="left">
+            <ul wire:sort="reorder" class="space-y-4">
+                @foreach ($this->blocksInArea(\App\Enums\DashboardArea::Left) as $block)
+                    @include('livewire.my-page._block', ['block' => $block])
+                @endforeach
+            </ul>
+        </div>
+        <div data-my-page-area="right">
+            <ul wire:sort="reorder" class="space-y-4">
+                @foreach ($this->blocksInArea(\App\Enums\DashboardArea::Right) as $block)
+                    @include('livewire.my-page._block', ['block' => $block])
+                @endforeach
+            </ul>
+        </div>
+    </div>
 
     @if ($this->availableBlocks->isNotEmpty() || $this->availableSavedQueries->isNotEmpty())
         <div class="mt-6">

@@ -6,6 +6,7 @@ namespace App\Support\Dashboard\Blocks;
 
 use App\Models\Issue;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\User;
 use App\Support\Dashboard\DashboardBlock;
 use App\Support\Dashboard\DashboardBlockRow;
@@ -15,9 +16,11 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * The week ahead as a list (Redmine's calendar block): open issues in the
- * user's projects that start or are due in the next seven days, soonest first.
- * A list rather than a month grid, like the other blocks.
+ * Redmine's calendar My Page block: Redmine::Helpers::Calendar.new(today,
+ * lang, :week) — the calendar week (Setting.start_of_week) containing
+ * today, across the user's projects. weekDays() builds that grid; rows()
+ * (the plain DashboardBlock interface every other block implements) stays
+ * as a flat fallback list for callers that can't render a grid.
  */
 final class CalendarBlock implements DashboardBlock
 {
@@ -33,6 +36,54 @@ final class CalendarBlock implements DashboardBlock
     public function label(): string
     {
         return __('今週のカレンダー');
+    }
+
+    /**
+     * @return array<int, array{date: Carbon, entries: Collection<int, array{issue: Issue, marker: string}>}>
+     */
+    public function weekDays(User $user): array
+    {
+        $startOfWeek = Setting::get('start_of_week', Carbon::SUNDAY);
+        $today = Carbon::parse(DateTimes::today($user)->toDateString());
+        $from = $today->copy()->startOfWeek($startOfWeek);
+        $to = $from->copy()->addDays(6);
+
+        $projects = $user->projects()->get()->filter(fn (Project $project) => $user->can('viewAny', [Issue::class, $project]))->values();
+        $range = [$from->toDateString(), $to->toDateString()];
+
+        $issues = Issue::query()
+            ->visibleToAcrossProjects($user, $projects)
+            ->where(fn ($query) => $query->whereBetween('start_date', $range)->orWhereBetween('due_date', $range))
+            ->with(['project', 'tracker'])
+            ->get();
+
+        $entriesByDate = collect();
+        $inRange = fn (?string $date) => $date !== null && $date >= $range[0] && $date <= $range[1];
+
+        foreach ($issues as $issue) {
+            $start = $issue->start_date?->toDateString();
+            $due = $issue->due_date?->toDateString();
+
+            if ($inRange($start)) {
+                $entriesByDate->push(['date' => $start, 'issue' => $issue, 'marker' => $start === $due ? 'both' : 'start']);
+            }
+
+            if ($inRange($due) && $due !== $start) {
+                $entriesByDate->push(['date' => $due, 'issue' => $issue, 'marker' => 'due']);
+            }
+        }
+
+        $entriesByDate = $entriesByDate->groupBy('date');
+
+        $days = [];
+        $cursor = $from->copy();
+
+        for ($i = 0; $i < 7; $i++) {
+            $days[] = ['date' => $cursor->copy(), 'entries' => $entriesByDate->get($cursor->toDateString(), collect())];
+            $cursor->addDay();
+        }
+
+        return $days;
     }
 
     public function rows(User $user): Collection

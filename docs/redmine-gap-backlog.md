@@ -368,7 +368,7 @@
 | 145g | A15-07 | — | M | done(2026-09-25、課題一覧のみ。残りは A15-07b として新規追加、未着手) |
 | 145h | A15-08 | 145g | S | done(2026-09-25) |
 | 145i | A15-09 | — | S | done(2026-09-25) |
-| 145j | A15-10 | 145h | M | todo |
+| 145j | A15-10 | 145h | M | done(2026-09-25) |
 | 145k | A15-11 | — | M | todo |
 | 145l | A15-12 | — | S | todo |
 | 145m | A15-13 | — | M | todo |
@@ -735,7 +735,7 @@
 | A15-07b | A15-07 の編集・削除 UI を工数一覧・ガント・プロジェクト一覧・ユーザー一覧の保存クエリにも配線(仕組みは共通、画面ごとの機械的な複製) | 課題一覧のみ配線済み(A15-07) | S〜M | プロジェクト横断クエリ |
 | A15-08 | カレンダーの保存クエリ(`query_id`) | **done(2026-09-25)**: ガント用トレイトを `UsesSavedIssueQueriesForFiltering` に改称してカレンダー(プロジェクト内・全体)にも適用。`?query_id=`対応。テスト: `CalendarSavedQueryTest.php` | S | カレンダー |
 | A15-09 | 活動の利用者での絞り込み(`user_id`、Atom も) | **done(2026-09-25)**: `userId`(プロジェクト内・全体、両方のAtom)。`ActivityEntry::$authorId`をポストフィルタで再利用。テスト: `ActivityUserFilterTest.php` | S | グローバルアクティビティフィード |
-| A15-10 | マイページの 3 領域(top/left/right)と週カレンダー表示のカレンダーブロック | 1 列、一覧形式 | M | マイページ |
+| A15-10 | マイページの 3 領域(top/left/right)と週カレンダー表示のカレンダーブロック | **done(2026-09-25)**: `user_dashboard_blocks.area`+`App\Enums\DashboardArea`、上段+左右2列。領域間移動はボタン(領域をまたぐドラッグは対象外、判断済み)。`CalendarBlock::weekDays()`+`<x-my-page-week-calendar>` で週グリッド描画。テスト: `MyPageAreasTest.php` | M | マイページ |
 | A15-11 | ガントの表示期間指定(`month_from`/`year_from`/`months`)・進捗線・関連線の表示切替・選択列の表示 | 期間は課題の日付から自動、オプションなし | M | ガント |
 | A15-12 | CSV 出力の「すべての列」と説明・最新のコメントを含めるオプション、工数一覧の Atom | 表示中の列のみ | S | CSVエクスポート |
 | A15-13 | REST: journals の `details`/`updated_on`/`updated_by`(A11-09 の範囲だったが未実装のまま done になっていた)、課題の `closed_on`、プロジェクトの `include=trackers,...` と `issue_custom_field_ids`/`enabled_module_names`、ユーザーの `include=groups,memberships`/`group_id` 絞り込み、`PUT /my/account` の `custom_fields`/`language`/`pref[]` | A15 見直しで確認(checklist の Issues/Projects/Users/My account 行) | M | REST API 各行 |
