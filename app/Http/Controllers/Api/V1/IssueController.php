@@ -640,7 +640,7 @@ final class IssueController extends Controller
     private function relationsToLoad(array $includes): array
     {
         return collect($includes)->flatMap(fn (string $include) => match ($include) {
-            'journals' => ['journals.user'],
+            'journals' => ['journals.user', 'journals.updatedBy', 'journals.details'],
             'relations' => ['relationsFrom.to', 'relationsTo.from'],
             'attachments' => ['media'],
             'children' => ['children'],

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Resources\Api\V1;
 
+use App\Models\Group;
+use App\Models\Member;
 use App\Models\User;
 use App\Support\Api\CustomFieldPayload;
 use Illuminate\Http\Request;
@@ -60,6 +62,21 @@ final class UserResource extends JsonResource
             ...($isSelf ? ['api_key' => $user->api_key] : []),
             'created_at' => $user->created_at->toIso8601String(),
             'updated_at' => $user->updated_at->toIso8601String(),
+            // Present only when the controller loaded them for
+            // ?include=groups,memberships (Redmine's users/show.api.rsb) —
+            // groups admin/self only, like the rest of this resource.
+            'groups' => $this->when(
+                $user->relationLoaded('groups') && ($isAdmin || $isSelf),
+                fn () => $user->groups->map(fn (Group $group) => ['id' => $group->id, 'name' => $group->name])->values()->all(),
+            ),
+            'memberships' => $this->when(
+                $user->relationLoaded('memberships'),
+                fn () => $user->memberships->map(fn (Member $member) => [
+                    'id' => $member->id,
+                    'project' => ['id' => $member->project->id, 'name' => $member->project->name],
+                    'roles' => $member->roles->map(fn ($role) => ['id' => $role->id, 'name' => $role->name])->values()->all(),
+                ])->values()->all(),
+            ),
         ];
     }
 }

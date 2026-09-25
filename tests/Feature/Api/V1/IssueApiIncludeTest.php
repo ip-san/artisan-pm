@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\CustomizableType;
 use App\Enums\IssueRelationType;
 use App\Models\Changeset;
+use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueRelation;
@@ -100,6 +102,63 @@ test('a private journal note is visible to a user with view_private_notes', func
     $this->getJson("/api/v1/issues/{$issue->id}?include=journals")
         ->assertOk()
         ->assertJsonPath('data.journals.0.notes', 'Secret note');
+});
+
+test('?include=journals includes each journal\'s updated_at/updated_by and its attribute-change details', function () {
+    $project = Project::factory()->create();
+    $user = includeTestMember($project);
+    $editor = includeTestMember($project);
+    $issue = Issue::factory()->for($project)->create(includeTestIssueDefaults());
+    $journal = $issue->journals()->create(['user_id' => $user->id, 'notes' => 'Original note']);
+    $journal->details()->create(['property' => 'attr', 'prop_key' => 'status_id', 'old_value' => '1', 'new_value' => '2']);
+    $journal->update(['notes' => 'Edited note', 'updated_by_id' => $editor->id]);
+
+    Passport::actingAs($user);
+
+    $response = $this->getJson("/api/v1/issues/{$issue->id}?include=journals")->assertOk();
+
+    $response->assertJsonPath('data.journals.0.notes', 'Edited note')
+        ->assertJsonPath('data.journals.0.updated_by.id', $editor->id)
+        ->assertJsonPath('data.journals.0.details.0.property', 'attr')
+        ->assertJsonPath('data.journals.0.details.0.name', 'status_id')
+        ->assertJsonPath('data.journals.0.details.0.old_value', '1')
+        ->assertJsonPath('data.journals.0.details.0.new_value', '2');
+    expect($response->json('data.journals.0.updated_at'))->not->toBeNull();
+});
+
+test('a journal detail for a custom field the caller cannot see is left out, and a relation detail to a hidden issue is left out', function () {
+    $project = Project::factory()->create();
+    $user = includeTestMember($project);
+    $issue = Issue::factory()->for($project)->create(includeTestIssueDefaults());
+    $role = Role::factory()->create(['permissions' => []]);
+    $field = CustomField::factory()->create(['customized_type' => CustomizableType::Issue]);
+    $field->roles()->attach($role);
+    $hiddenProject = Project::factory()->private()->create();
+    $hiddenIssue = Issue::factory()->for($hiddenProject)->create(includeTestIssueDefaults());
+
+    $journal = $issue->journals()->create(['user_id' => $user->id]);
+    $journal->details()->create(['property' => 'cf', 'prop_key' => (string) $field->id, 'old_value' => null, 'new_value' => 'x']);
+    $journal->details()->create(['property' => 'relation', 'prop_key' => 'blocks', 'old_value' => null, 'new_value' => (string) $hiddenIssue->id]);
+    $journal->details()->create(['property' => 'attr', 'prop_key' => 'subject', 'old_value' => 'Old', 'new_value' => 'New']);
+
+    Passport::actingAs($user);
+
+    $details = $this->getJson("/api/v1/issues/{$issue->id}?include=journals")->assertOk()->json('data.journals.0.details');
+
+    expect(collect($details)->pluck('property')->all())->toBe(['attr']);
+});
+
+test('closed_on is present on a closed issue and null on an open one', function () {
+    $project = Project::factory()->create();
+    $user = includeTestMember($project);
+    $closedStatus = IssueStatus::factory()->create(['is_closed' => true]);
+    $issue = Issue::factory()->for($project)->create([...includeTestIssueDefaults(), 'status_id' => $closedStatus->id, 'closed_on' => now()]);
+    $openIssue = Issue::factory()->for($project)->create(includeTestIssueDefaults());
+
+    Passport::actingAs($user);
+
+    $this->getJson("/api/v1/issues/{$issue->id}")->assertOk()->assertJsonPath('data.closed_on', fn ($value) => $value !== null);
+    $this->getJson("/api/v1/issues/{$openIssue->id}")->assertOk()->assertJsonPath('data.closed_on', null);
 });
 
 test('?include=relations returns both directions, excluding a relation to an issue the caller cannot view', function () {

@@ -25,6 +25,7 @@ final class IndexUserRequest extends FormRequest
         return [
             'status' => ['sometimes', Rule::in(array_map(fn (UserStatus $status) => $status->value, UserStatus::cases()))],
             'name' => ['sometimes', 'string'],
+            'group_id' => ['sometimes', 'integer', 'exists:groups,id'],
         ];
     }
 }

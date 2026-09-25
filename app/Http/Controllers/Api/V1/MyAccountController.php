@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\UpdateMyAccountRequest;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Models\User;
+use App\Support\Api\CustomFieldPayload;
+use App\Support\Preferences\UserPreferences;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -33,9 +35,21 @@ final class MyAccountController extends Controller
 
     public function update(UpdateMyAccountRequest $request): UserResource
     {
-        $request->user()->update(User::normalizeNameInput($request->validated()));
+        $user = $request->user();
+        $data = $request->validated();
+        $pref = $data['pref'] ?? null;
+        unset($data['pref']);
 
-        return new UserResource($request->user());
+        $customFieldData = CustomFieldPayload::extract($request, $user->relevantCustomFields(), $user);
+
+        $user->update(User::normalizeNameInput($data));
+        $user->setCustomFieldValues($customFieldData);
+
+        if ($pref !== null) {
+            UserPreferences::save($user, $pref);
+        }
+
+        return new UserResource($user);
     }
 
     /**

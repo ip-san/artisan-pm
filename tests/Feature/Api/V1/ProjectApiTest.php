@@ -1,7 +1,12 @@
 <?php
 
+use App\Enums\CustomizableType;
+use App\Enums\EnumerationType;
+use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
 use App\Enums\VersionStatus;
+use App\Models\CustomField;
+use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\Member;
 use App\Models\Project;
@@ -495,4 +500,52 @@ test('inherit_members is ignored for a requester who cannot see the parent', fun
         ->assertJsonPath('data.inherit_members', false);
 
     expect($child->members()->count())->toBe(1);
+});
+
+test('without ?include=, none of the optional keys appear in the project response', function () {
+    $project = Project::factory()->create();
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $this->getJson("/api/v1/projects/{$project->id}")
+        ->assertOk()
+        ->assertJsonMissingPath('data.trackers')
+        ->assertJsonMissingPath('data.issue_categories')
+        ->assertJsonMissingPath('data.enabled_modules')
+        ->assertJsonMissingPath('data.time_entry_activities')
+        ->assertJsonMissingPath('data.issue_custom_fields');
+});
+
+test('?include=trackers,issue_categories,enabled_modules,time_entry_activities,issue_custom_fields returns each', function () {
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create(['name' => 'Bug']);
+    $project->trackers()->sync([$tracker->id]);
+    $project->syncModules([ProjectModuleKey::IssueTracking, ProjectModuleKey::Wiki]);
+    $project->issueCategories()->create(['name' => 'Frontend']);
+    Enumeration::factory()->create(['type' => EnumerationType::TimeEntryActivity->value, 'name' => 'Design']);
+    $cf = CustomField::factory()->create(['customized_type' => CustomizableType::Issue, 'name' => 'Severity']);
+
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $response = $this->getJson("/api/v1/projects/{$project->id}?include=trackers,issue_categories,enabled_modules,time_entry_activities,issue_custom_fields")
+        ->assertOk();
+
+    expect(collect($response->json('data.trackers'))->pluck('name'))->toContain('Bug')
+        ->and(collect($response->json('data.issue_categories'))->pluck('name'))->toContain('Frontend')
+        ->and(collect($response->json('data.enabled_modules'))->pluck('name'))->toContain('issue_tracking', 'wiki')
+        ->and(collect($response->json('data.time_entry_activities'))->pluck('name'))->toContain('Design')
+        ->and(collect($response->json('data.issue_custom_fields'))->pluck('name'))->toContain('Severity');
+});
+
+test('issue_custom_fields via include only lists fields that apply to the project', function () {
+    $project = Project::factory()->create();
+    $other = Project::factory()->create();
+    $global = CustomField::factory()->create(['customized_type' => CustomizableType::Issue, 'name' => 'Global field']);
+    $scoped = CustomField::factory()->create(['customized_type' => CustomizableType::Issue, 'name' => 'Scoped field']);
+    $scoped->projects()->attach($other);
+
+    Passport::actingAs(User::factory()->admin()->create());
+
+    $names = collect($this->getJson("/api/v1/projects/{$project->id}?include=issue_custom_fields")->json('data.issue_custom_fields'))->pluck('name');
+
+    expect($names)->toContain('Global field')->not->toContain('Scoped field');
 });

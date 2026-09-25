@@ -371,7 +371,8 @@
 | 145j | A15-10 | 145h | M | done(2026-09-25) |
 | 145k | A15-11 | — | M | done(2026-09-25、選択列の表示は A15-11b へ分離、未着手) |
 | 145l | A15-12 | — | S | done(2026-09-25) |
-| 145m | A15-13 | — | M | todo |
+| 145m | A15-13 | — | M | done(2026-09-25) |
+| 145m2 | A15-18 | — | S〜M | todo |
 | 145n | A15-14 | — | S | todo |
 | 145o | A15-15 | — | S | todo |
 | 145p | A15-16 | — | S | todo |
@@ -739,11 +740,13 @@
 | A15-11 | ガントの表示期間指定(`month_from`/`year_from`/`months`)・進捗線・関連線の表示切替・選択列の表示 | **done(2026-09-25、選択列の表示を除く)**: 表示期間・`draw_progress_line`(既定オフに変更)・`draw_relations`を追加。選択列の表示は A15-11b へ分離。テスト: `GanttPeriodAndTogglesTest.php` | M | ガント |
 | A15-11b | ガントに選択した列(課題一覧の列を並べて表示、Redmine の `draw_selected_columns`) | 未着手 | S〜M | ガント |
 | A15-12 | CSV 出力の「すべての列」と説明・最新のコメントを含めるオプション、工数一覧の Atom | **done(2026-09-25)**: 課題一覧の CSV エクスポートに列選択パネル(「選択した列」/「すべての列」ラジオ + 説明・最新のコメントのチェックボックス、Redmine の `c[]`/`available_block_columns` 相当)を追加。工数一覧(プロジェクト単位・横断)に一覧のフィルタを引き継いだ Atom フィード(`TimeEntryAtomController`)を追加(ルート配線・一覧の Atom リンクは前イテレーションで未コミットのまま残っていたものを完了)。テスト: `IssueCsvExportOptionsTest.php`、`TimeEntryAtomFeedTest.php` | S | CSVエクスポート |
-| A15-13 | REST: journals の `details`/`updated_on`/`updated_by`(A11-09 の範囲だったが未実装のまま done になっていた)、課題の `closed_on`、プロジェクトの `include=trackers,...` と `issue_custom_field_ids`/`enabled_module_names`、ユーザーの `include=groups,memberships`/`group_id` 絞り込み、`PUT /my/account` の `custom_fields`/`language`/`pref[]` | A15 見直しで確認(checklist の Issues/Projects/Users/My account 行) | M | REST API 各行 |
+| A15-13 | REST: journals の `details`/`updated_on`/`updated_by`(A11-09 の範囲だったが未実装のまま done になっていた)、課題の `closed_on`、プロジェクトの `include=trackers,...` と `issue_custom_field_ids`/`enabled_module_names`、ユーザーの `include=groups,memberships`/`group_id` 絞り込み、`PUT /my/account` の `custom_fields`/`language`/`pref[]` | **done(2026-09-25)**: `IssueResource::visibleJournals()`に`updated_at`(Redmineの`updated_on`相当、既存の命名規約に合わせた)・`updated_by`・`details`(`property=cf`/`relation`を`Journal#visible_details`と同じ規則で絞り込み)。課題に`closed_on`。`ProjectResource`に`?include=trackers,issue_categories,time_entry_activities,enabled_modules,issue_custom_fields`(5種、`ProjectsHelper#render_api_includes`と同じ集合)。`UserController`/`UserResource`に`?include=groups,memberships`(`groups`は管理者/本人のみ、`memberships`は閲覧者が見えるプロジェクトのみ)と`GET /users?group_id=`。`PUT /my/account`に`language`・`custom_fields`・`pref`(`UserPreferences::save()`を再利用)。**書かなかった部分(判断、新規行A15-18)**: プロジェクトの`issue_custom_field_ids`/`default_issue_query_id`の書き込み受け付け(プロジェクト側でどの課題カスタムフィールドを使うか選ぶ機能自体がWeb UIにまだ無く、RESTだけ先行させるとWeb/APIの整合が崩れるため)。モジュールのキー名は`enabled_module_names`に変えず、本アプリの既存`modules`のまま(他のRESTリソースもRedmineの安全属性名をそのまま使う場所と、本アプリ独自の名前を使う場所が混在しており、今回は書き込み経路に触れていないため現状維持)。ユーザーの`include=auth_source`・応答の`twofa_scheme`/`avatar_url`は未対応。テスト: `IssueApiIncludeTest.php`、`ProjectApiTest.php`、`UserApiTest.php` | A15 見直しで確認(checklist の Issues/Projects/Users/My account 行) | M | REST API 各行 |
+| A15-18 | プロジェクトの `issue_custom_field_ids`(このプロジェクトで使う課題カスタムフィールドを選ぶ)を Web UI(プロジェクト設定)と REST `PUT/POST /projects` の両方に追加 | A15-13 で判断・据え置き。現状は `CustomField` 側(管理画面のカスタムフィールド編集)でしか対象プロジェクトを選べない(Redmine は両方向から設定可能) | S〜M | REST API「Projects」 |
 | A15-14 | 受信メールのキーワードを利用者の言語の項目名でも受け付ける、`POST /mail_handler` のリクエストごとの `issue[...]`/`allow_override` | 英語のキーワードのみ、`email` のみ | S | メール本文のキーワードコマンド |
 | A15-15 | 課題インポート: 予定工数の列、`relation_copied_to/from` の列、担当者をログインID/氏名でも解決 | なし/メールかグループ名のみ | S | マッピング可能な列 |
 | A15-16 | Atom: 課題単体・プロジェクト一覧・リポジトリのリビジョン・全体のお知らせ | なし | S | Atom フィード |
 | A15-17 | 保存前のライフサイクルフック(値の変更や保存の中止ができる `*_before_save`) | 保存後/削除直前の通知のみ | M | ライフサイクルフック |
+| A15-18 | プロジェクトの `issue_custom_field_ids`(このプロジェクトで使う課題カスタムフィールドを選ぶ、Redmine の `project.issue_custom_field_ids=`) | 未着手(A15-13 で発見・据え置き)。`CustomField`側(管理画面)でしか対象プロジェクトを選べない | S〜M | REST API「Projects」 |
 
 ---
 

@@ -1,12 +1,17 @@
 <?php
 
+use App\Enums\CustomizableType;
 use App\Enums\UserStatus;
 use App\Models\AuthSource;
+use App\Models\CustomField;
 use App\Models\EmailAddress;
+use App\Models\Group;
 use App\Models\Member;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\User;
 use App\Notifications\AccountInformation;
+use App\Support\Api\CustomFieldPayload;
 use App\Support\Preferences\UserPreferences;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -272,6 +277,32 @@ test('a user updates their own first and last names through my/account', functio
     expect($user->fresh()->only(['firstname', 'lastname']))->toBe(['firstname' => 'Jane', 'lastname' => 'Roe']);
 });
 
+test('a user sets their own language, preferences, and custom field values through my/account', function () {
+    $field = CustomField::factory()->create(['customized_type' => CustomizableType::User, 'name' => 'Nickname']);
+    $user = User::factory()->create();
+    Passport::actingAs($user);
+
+    $response = $this->putJson('/api/v1/my/account', [
+        'language' => 'ja',
+        'pref' => ['comments_sorting' => 'desc', 'hide_mail' => true],
+        'custom_fields' => [['id' => $field->id, 'value' => 'Redmine fan']],
+    ]);
+
+    $response->assertOk()->assertJsonPath('data.language', 'ja');
+    $fresh = $user->fresh();
+    expect($fresh->language)->toBe('ja')
+        ->and(UserPreferences::get($fresh, 'comments_sorting'))->toBe('desc')
+        ->and(UserPreferences::get($fresh, 'hide_mail'))->toBeTrue();
+    expect(collect(CustomFieldPayload::read($fresh))->firstWhere('id', $field->id)['value'])->toBe('Redmine fan');
+});
+
+test('an unrecognized pref key is ignored rather than rejected', function () {
+    $user = User::factory()->create();
+    Passport::actingAs($user);
+
+    $this->putJson('/api/v1/my/account', ['pref' => ['not_a_real_preference' => 'x']])->assertOk();
+});
+
 test('the name filter also matches login, first and last name and additional emails like Redmine', function () {
     $admin = User::factory()->admin()->create();
     $byLogin = User::factory()->create(['name' => 'Alpha', 'login' => 'qx-login']);
@@ -305,6 +336,62 @@ test('users/current returns the caller\'s own account with their API key', funct
 
 test('users/current needs an authenticated caller', function () {
     $this->getJson('/api/v1/users/current')->assertUnauthorized();
+});
+
+test('an admin can filter users by group_id', function () {
+    $admin = User::factory()->admin()->create();
+    $group = Group::factory()->create();
+    $inGroup = User::factory()->create();
+    $group->users()->attach($inGroup);
+    $notInGroup = User::factory()->create();
+
+    Passport::actingAs($admin);
+
+    $ids = collect($this->getJson("/api/v1/users?group_id={$group->id}")->json('data'))->pluck('id');
+
+    expect($ids)->toContain($inGroup->id)->not->toContain($notInGroup->id);
+});
+
+test('?include=groups on a user shows their groups, only to an admin or the user themselves', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_project']]);
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+    $group = Group::factory()->create(['name' => 'Developers']);
+    $group->users()->attach($user);
+
+    Passport::actingAs($admin);
+    $this->getJson("/api/v1/users/{$user->id}?include=groups")
+        ->assertOk()
+        ->assertJsonPath('data.groups.0.name', 'Developers');
+
+    // A fellow member of the same project can see the user's profile at
+    // all, but not their groups (admin/self only).
+    $colleague = User::factory()->create();
+    Member::factory()->for($project)->for($colleague)->create()->roles()->attach($role);
+    Passport::actingAs($colleague);
+    $this->getJson("/api/v1/users/{$user->id}?include=groups")
+        ->assertOk()
+        ->assertJsonMissingPath('data.groups.0');
+});
+
+test('?include=memberships on a user shows their project roles, narrowed to projects the viewer may see', function () {
+    $viewer = User::factory()->create();
+    $user = User::factory()->create();
+    $visible = Project::factory()->create(['name' => 'Visible project']);
+    $hidden = Project::factory()->private()->create(['name' => 'Hidden project']);
+    $role = Role::factory()->create(['name' => 'Developer', 'permissions' => ['view_project']]);
+    Member::factory()->for($visible)->for($user)->create()->roles()->attach($role);
+    Member::factory()->for($hidden)->for($user)->create()->roles()->attach($role);
+    Member::factory()->for($visible)->for($viewer)->create()->roles()->attach($role);
+
+    Passport::actingAs($viewer);
+
+    $response = $this->getJson("/api/v1/users/{$user->id}?include=memberships")->assertOk();
+    $projectNames = collect($response->json('data.memberships'))->pluck('project.name');
+
+    expect($projectNames)->toContain('Visible project')->not->toContain('Hidden project');
 });
 
 test('an admin can create a user with a generated password and mail the account information', function () {

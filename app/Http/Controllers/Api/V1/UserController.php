@@ -16,6 +16,7 @@ use App\Notifications\AccountInformation;
 use App\Services\AccountDeletionService;
 use App\Support\Api\CustomFieldPayload;
 use App\Support\Auth\RandomPassword;
+use App\Support\Authorization\AuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -42,6 +43,9 @@ final class UserController extends Controller
             // Redmine's Principal.like: name, login, any email address, or
             // first/last name matching every word.
             ->when(isset($data['name']), fn ($query) => $query->matchingName((string) $data['name']))
+            // Redmine's users_controller#index: ?group_id= shortcuts the
+            // UserQuery "member of group" filter (UserGroupFilter).
+            ->when($data['group_id'] ?? null, fn ($query, $groupId) => $query->whereHas('groups', fn ($groups) => $groups->whereKey($groupId)))
             ->orderBy('name')
             ->paginate();
 
@@ -53,6 +57,8 @@ final class UserController extends Controller
      */
     public function current(Request $request): UserResource
     {
+        $this->loadIncludes($request, $request->user());
+
         return new UserResource($request->user());
     }
 
@@ -60,7 +66,30 @@ final class UserController extends Controller
     {
         abort_unless($user->isVisibleTo($request->user()), 404);
 
+        $this->loadIncludes($request, $user);
+
         return new UserResource($user);
+    }
+
+    /**
+     * Redmine's users/show.api.rsb ?include=groups,memberships: groups is
+     * eager loaded unconditionally (UserResource itself gates it to an
+     * admin or the user's own request); memberships are narrowed here to
+     * projects the viewer may see, like Redmine's
+     * `@user.memberships.where(Project.visible_condition(User.current))`.
+     */
+    private function loadIncludes(Request $request, User $user): void
+    {
+        $requested = collect(explode(',', (string) $request->query('include', '')))->map(fn (string $key) => trim($key))->filter();
+
+        if ($requested->contains('groups')) {
+            $user->load('groups');
+        }
+
+        if ($requested->contains('memberships')) {
+            $visibleProjectIds = app(AuthorizationService::class)->visibleProjectIds($request->user(), 'view_project');
+            $user->load(['memberships' => fn ($query) => $query->whereIn('project_id', $visibleProjectIds)->with(['project', 'roles'])]);
+        }
     }
 
     public function store(StoreUserRequest $request): JsonResponse

@@ -5,17 +5,20 @@ declare(strict_types=1);
 namespace App\Http\Resources\Api\V1;
 
 use App\Models\Changeset;
+use App\Models\CustomField;
 use App\Models\Group;
 use App\Models\Issue;
 use App\Models\IssueRelation;
 use App\Models\IssueStatus;
 use App\Models\Journal;
+use App\Models\JournalDetail;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Models\Watcher;
 use App\Services\WorkflowService;
 use App\Support\Api\CustomFieldPayload;
 use App\Support\Attachments\AttachmentUploader;
+use App\Support\Query\CustomFieldVisibility;
 use App\Support\Scm\CommitterResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -89,6 +92,7 @@ final class IssueResource extends JsonResource
             'lock_version' => $issue->lock_version,
             'created_at' => $issue->created_at->toIso8601String(),
             'updated_at' => $issue->updated_at->toIso8601String(),
+            'closed_on' => $issue->closed_on?->toIso8601String(),
 
             // Each of these is only present when the caller asked for it
             // via ?include=journals,relations,attachments,children,watchers
@@ -142,7 +146,51 @@ final class IssueResource extends JsonResource
             'notes' => $journal->notes,
             'private_notes' => $journal->private_notes,
             'created_at' => $journal->created_at->toIso8601String(),
+            'updated_at' => $journal->updated_at->toIso8601String(),
+            'updated_by' => $journal->updated_by_id !== null
+                ? ['id' => $journal->updated_by_id, 'name' => $journal->updatedBy->displayName()]
+                : null,
+            'details' => $this->visibleJournalDetails($journal, $issue, $request),
         ])->all();
+    }
+
+    /**
+     * A journal's field-change details, filtered the way Redmine's
+     * Journal#visible_details does: a custom-field change only when that
+     * field is visible to the caller in this issue's project, a relation
+     * change only when the *other* issue is visible to the caller, and any
+     * other attribute change always shown.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function visibleJournalDetails(Journal $journal, Issue $issue, Request $request): array
+    {
+        $user = $request->user();
+
+        return $journal->details
+            ->filter(function (JournalDetail $detail) use ($issue, $user) {
+                if ($detail->property === 'cf') {
+                    $field = CustomField::find((int) $detail->prop_key);
+
+                    return $field !== null && CustomFieldVisibility::for($user)->isVisibleIn($field, $issue->project);
+                }
+
+                if ($detail->property === 'relation') {
+                    $other = Issue::find($detail->new_value ?? $detail->old_value);
+
+                    return $other !== null && $user?->can('view', $other);
+                }
+
+                return true;
+            })
+            ->values()
+            ->map(fn (JournalDetail $detail) => [
+                'property' => $detail->property,
+                'name' => $detail->prop_key,
+                'old_value' => $detail->old_value,
+                'new_value' => $detail->new_value,
+            ])
+            ->all();
     }
 
     /**
