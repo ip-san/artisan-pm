@@ -32,6 +32,8 @@ use App\Rules\IssueRelationTarget;
 use App\Support\Calendar\WorkingDays;
 use App\Support\Issues\IssueFieldRules;
 use App\Support\Mail\MentionParser;
+use App\Support\Plugins\BeforeSaveContext;
+use App\Support\Plugins\PluginManager;
 use Carbon\CarbonInterface;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -102,6 +104,7 @@ final class IssueService
         $this->applyCreationDefaults($issue, versionGiven: array_key_exists('fixed_version_id', $attributes));
         $this->applyStatusDoneRatio($issue);
         $fieldRules?->assertRequiredFilled($issue, $customFieldData);
+        $this->runBeforeSaveHooks($issue, isNew: true);
         $issue->save();
 
         // The fields the author may set, not whoever is signed in: a queued
@@ -149,6 +152,23 @@ final class IssueService
 
         ['assigned_to_id' => $issue->assigned_to_id, 'assigned_to_group_id' => $issue->assigned_to_group_id] = $category?->usableDefaultAssignee()
             ?? ['assigned_to_id' => $project->usableDefaultAssigneeId(), 'assigned_to_group_id' => $project->usableDefaultAssigneeGroupId()];
+    }
+
+    /**
+     * A15-17: runs every plugin listener subscribed to 'issue.before_save'
+     * against $issue — not yet persisted at this point — and raises a
+     * ValidationException if any of them vetoed the save (BeforeSaveContext
+     * ::fail()), matching Redmine's controller_issues_*_before_save hooks
+     * adding to issue.errors and the subsequent save failing validation.
+     */
+    private function runBeforeSaveHooks(Issue $issue, bool $isNew): void
+    {
+        $context = new BeforeSaveContext($issue, $isNew);
+        app(PluginManager::class)->runBeforeSave('issue.before_save', $context);
+
+        if ($context->failed()) {
+            throw ValidationException::withMessages(['issue' => $context->errors()]);
+        }
     }
 
     /**
@@ -432,6 +452,7 @@ final class IssueService
         }
 
         $this->applyStatusDoneRatio($issue);
+        $this->runBeforeSaveHooks($issue, isNew: false);
 
         $issue->save();
 

@@ -376,7 +376,7 @@
 | 145n | A15-14 | — | S | done(2026-09-25) |
 | 145o | A15-15 | — | S | done(2026-09-25) |
 | 145p | A15-16 | — | S | done(2026-09-25) |
-| 145q | A15-17 | — | M | todo |
+| 145q | A15-17 | — | M | done(2026-09-25) |
 
 ### 0.4 起動方法
 
@@ -745,7 +745,7 @@
 | A15-14 | 受信メールのキーワードを利用者の言語の項目名でも受け付ける、`POST /mail_handler` のリクエストごとの `issue[...]`/`allow_override` | **done(2026-09-25)**: `IncomingMailService`にキーワードの日本語ラベル(`KEYWORD_LABELS_JA`、送信者の`language`または設定`default_language`が`ja`のとき英語ラベルと同時に受理)、`MailHandlerController`/`processRawMessage()`にリクエストごとの`allow_override`(設定より優先)と`issue[...]`既定値(本文にキーワード行が無いときのフォールバック、`project`は対象外)。テスト: `MailHandlerKeywordOptionsTest.php`、`MailHandlerApiTest.php` | S | メール本文のキーワードコマンド |
 | A15-15 | 課題インポート: 予定工数の列、`relation_copied_to/from` の列、担当者をログインID/氏名でも解決 | **done(2026-09-25)**: `ImportIssuesJob`に`estimated_hours`列、`relation_copied_to`/`relation_copied_from`列(`IssueService::addRelation()`の許容関連タイプに`copied_to`を追加、CSVインポート専用の経路)、担当者解決を`Principal.detect_by_keyword`と同じ優先順位(ログインID→メール→氏名→表示名)に拡張。テスト: `IssueImportTest.php` | なし/メールかグループ名のみ | S | マッピング可能な列 |
 | A15-16 | Atom: 課題単体・プロジェクト一覧・リポジトリのリビジョン・全体のお知らせ | **done(2026-09-25)**: `IssueJournalAtomController`(`issues/{issue}.atom`、課題変更履歴Atomと可視性/説明ロジックを`App\Support\Feeds\JournalFeedEntries`として共有化)、`ProjectAtomController`(`/projects.atom`)、`RepositoryRevisionsAtomController`(`/projects/{p}/repository/revisions.atom`、複数リポジトリの`.repo`版も)、`NewsAtomController`を`?Project $project = null`に拡張して`/news.atom`(横断)に対応。テスト: `AdditionalAtomFeedsTest.php` | なし | S | Atom フィード |
-| A15-17 | 保存前のライフサイクルフック(値の変更や保存の中止ができる `*_before_save`) | 保存後/削除直前の通知のみ | M | ライフサイクルフック |
+| A15-17 | 保存前のライフサイクルフック(値の変更や保存の中止ができる `*_before_save`) | **done(2026-09-25)**: `App\Support\Plugins\BeforeSaveHooks`(`issue.before_save`/`time_entry.before_save`、Redmine実機に存在する`*_before_save`フックがこの2種のみのため意図的にこの範囲)、`PluginManager::onBeforeSave()`/`runBeforeSave()`、`BeforeSaveContext`(モデル直接書き換え・`fail()`での中止)。`IssueService`/`TimeEntryService`の`create()`/`update()`に配線。テスト: `BeforeSaveHooksTest.php` | M | ライフサイクルフック |
 | A15-18 | プロジェクトの `issue_custom_field_ids`(このプロジェクトで使う課題カスタムフィールドを選ぶ、Redmine の `project.issue_custom_field_ids=`) | 未着手(A15-13 で発見・据え置き)。`CustomField`側(管理画面)でしか対象プロジェクトを選べない | S〜M | REST API「Projects」 |
 
 ---

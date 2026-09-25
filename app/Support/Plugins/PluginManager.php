@@ -14,6 +14,7 @@ use App\Support\Activity\ActivityProviderRegistry;
 use App\Support\Dashboard\DashboardBlock;
 use App\Support\Dashboard\DashboardBlockRegistry;
 use App\Support\Permissions\PermissionRegistry;
+use Illuminate\Support\Facades\Event;
 
 /**
  * The single entry point a plugin's ServiceProvider registers against,
@@ -40,6 +41,9 @@ final class PluginManager
 
     /** @var array<string, array<int, callable>> */
     private array $viewHooks = [];
+
+    /** @var array<string, array<int, callable>> */
+    private array $beforeSaveListeners = [];
 
     /** @var array<string, Plugin> keyed by Plugin::$id */
     private array $plugins = [];
@@ -73,7 +77,42 @@ final class PluginManager
         $event = LifecycleHooks::eventFor($hook)
             ?? throw new \InvalidArgumentException("Unknown lifecycle hook [{$hook}]. Known hooks: ".implode(', ', array_keys(LifecycleHooks::catalog())));
 
-        \Illuminate\Support\Facades\Event::listen($event, $listener);
+        Event::listen($event, $listener);
+    }
+
+    /**
+     * Subscribes $listener to a before-save hook (see BeforeSaveHooks::
+     * catalog() for the names) — unlike onLifecycle(), this runs
+     * synchronously before the model is persisted and can both change
+     * what gets saved and veto the save (see BeforeSaveContext).
+     *
+     * @param  callable(BeforeSaveContext): void  $listener
+     *
+     * @throws \InvalidArgumentException for an unknown hook name
+     */
+    public function onBeforeSave(string $hook, callable $listener): void
+    {
+        if (! BeforeSaveHooks::isKnown($hook)) {
+            throw new \InvalidArgumentException("Unknown before-save hook [{$hook}]. Known hooks: ".implode(', ', array_keys(BeforeSaveHooks::catalog())));
+        }
+
+        $this->beforeSaveListeners[$hook][] = $listener;
+    }
+
+    /**
+     * Called by the service right before it actually persists the model —
+     * runs every listener subscribed to $hook, in registration order,
+     * against $context. A listener may mutate $context->model's
+     * attributes directly, or call $context->fail() to veto the save; a
+     * later listener still runs even after an earlier one already
+     * failed, but the caller (the service) must not save once anything
+     * has.
+     */
+    public function runBeforeSave(string $hook, BeforeSaveContext $context): void
+    {
+        foreach ($this->beforeSaveListeners[$hook] ?? [] as $listener) {
+            $listener($context);
+        }
     }
 
     public function registerActivityProvider(ActivityProvider $provider): void

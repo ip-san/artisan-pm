@@ -8,7 +8,10 @@ use App\Events\TimeEntryCreated;
 use App\Events\TimeEntryDeleted;
 use App\Events\TimeEntryUpdated;
 use App\Models\TimeEntry;
+use App\Support\Plugins\BeforeSaveContext;
+use App\Support\Plugins\PluginManager;
 use App\Support\TimeLog\TimeLogConstraints;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Thin wrapper around TimeEntry mutations whose only job is dispatching
@@ -33,7 +36,9 @@ final class TimeEntryService
 
         TimeLogConstraints::assertSatisfied($attributes);
 
-        $timeEntry = TimeEntry::create($attributes);
+        $timeEntry = new TimeEntry($attributes);
+        $this->runBeforeSaveHooks($timeEntry, isNew: true);
+        $timeEntry->save();
 
         TimeEntryCreated::dispatch($timeEntry);
 
@@ -47,11 +52,31 @@ final class TimeEntryService
     {
         TimeLogConstraints::assertSatisfied($attributes, $timeEntry);
 
-        $timeEntry->update($attributes);
+        $timeEntry->fill($attributes);
+        $this->runBeforeSaveHooks($timeEntry, isNew: false);
+        $timeEntry->save();
 
         TimeEntryUpdated::dispatch($timeEntry);
 
         return $timeEntry;
+    }
+
+    /**
+     * A15-17: runs every plugin listener subscribed to
+     * 'time_entry.before_save' against $timeEntry — not yet persisted at
+     * this point — and raises a ValidationException if any of them
+     * vetoed the save, matching Redmine's controller_timelog_edit_before_save
+     * /controller_time_entries_bulk_edit_before_save hooks adding to
+     * time_entry.errors and the subsequent save failing validation.
+     */
+    private function runBeforeSaveHooks(TimeEntry $timeEntry, bool $isNew): void
+    {
+        $context = new BeforeSaveContext($timeEntry, $isNew);
+        app(PluginManager::class)->runBeforeSave('time_entry.before_save', $context);
+
+        if ($context->failed()) {
+            throw ValidationException::withMessages(['time_entry' => $context->errors()]);
+        }
     }
 
     /**

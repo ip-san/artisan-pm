@@ -30,8 +30,12 @@ use App\Events\WikiPageUpdated;
  * `controller_*` / `model_*` hooks. They are ordinary Laravel events fired by
  * the services after the change is saved (so a hook sees the finished issue,
  * not a half-built one); `PluginManager::onLifecycle()` subscribes to one by
- * its key. Redmine's *before_save* hooks, which can veto or alter a save, have
- * no equivalent: the events are notifications only.
+ * its key — these are notifications only, run after the save already
+ * succeeded. A plugin that needs to change what gets saved, or veto the
+ * save outright, subscribes to a *before-save* hook instead
+ * (BeforeSaveHooks::catalog(), PluginManager::onBeforeSave() — A15-17,
+ * matching Redmine's own narrower `*_before_save` hook set, issues and
+ * time entries only).
  *
  * Adding an event class under app/Events means adding it here (a test checks).
  */
