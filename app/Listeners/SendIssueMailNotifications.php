@@ -8,6 +8,7 @@ use App\Events\IssueCreated;
 use App\Events\IssueJournalRecorded;
 use App\Events\IssueUpdated;
 use App\Models\Journal;
+use App\Models\JournalDetail;
 use App\Notifications\IssueNotification;
 use App\Support\Mail\MailSuppression;
 use App\Support\Mail\NotificationRecipients;
@@ -25,10 +26,10 @@ final class SendIssueMailNotifications
 
         $actor = $isCreated ? $event->issue->author : $event->actor;
         $journal = $isCreated ? null : $event->journal;
-        $eventKey = $isCreated ? 'issue_added' : self::updateEventKey($journal);
+        $eventKeys = $isCreated ? ['issue_added'] : self::updateEventKeys($journal);
         $mentionedLogins = $event instanceof IssueJournalRecorded ? [] : $event->mentionedLogins;
 
-        $recipients = NotificationRecipients::forIssue($event->issue, $eventKey, $actor, $mentionedLogins, $journal);
+        $recipients = NotificationRecipients::forIssue($event->issue, $eventKeys, $actor, $mentionedLogins, $journal);
 
         if ($recipients->isEmpty()) {
             return;
@@ -42,17 +43,51 @@ final class SendIssueMailNotifications
 
     /**
      * Redmine's Journal#send_notification: an update mails when
-     * `issue_updated` is on, or — for one that carries a comment — when only
-     * `issue_note_added` is on.
+     * `issue_updated` is on, OR any of the finer-grained events this
+     * particular journal matches is on — a comment (`issue_note_added`), a
+     * status/assignee/priority/fixed-version change recorded as a detail
+     * (`issue_*_updated`), or an added attachment (`issue_attachment_added`).
+     * NotificationRecipients::forIssue() checks this whole candidate set
+     * against Setting.notified_events with an OR (array_intersect), so every
+     * key that legitimately applies to the journal is returned here — not
+     * just the first match.
+     *
+     * @return array<int, string>
      */
-    private static function updateEventKey(?Journal $journal): string
+    private static function updateEventKeys(?Journal $journal): array
     {
-        $events = NotificationRecipients::notifiedEventKeys();
+        $keys = ['issue_updated'];
 
-        if (filled($journal?->notes) && ! in_array('issue_updated', $events, true) && in_array('issue_note_added', $events, true)) {
-            return 'issue_note_added';
+        if ($journal === null) {
+            return $keys;
         }
 
-        return 'issue_updated';
+        if (filled($journal->notes)) {
+            $keys[] = 'issue_note_added';
+        }
+
+        $details = $journal->details;
+
+        if ($details->contains(fn (JournalDetail $d) => $d->property === 'attr' && $d->prop_key === 'status_id')) {
+            $keys[] = 'issue_status_updated';
+        }
+
+        if ($details->contains(fn (JournalDetail $d) => $d->property === 'attr' && $d->prop_key === 'assigned_to_id')) {
+            $keys[] = 'issue_assigned_to_updated';
+        }
+
+        if ($details->contains(fn (JournalDetail $d) => $d->property === 'attr' && $d->prop_key === 'priority_id')) {
+            $keys[] = 'issue_priority_updated';
+        }
+
+        if ($details->contains(fn (JournalDetail $d) => $d->property === 'attr' && $d->prop_key === 'fixed_version_id')) {
+            $keys[] = 'issue_fixed_version_updated';
+        }
+
+        if ($details->contains(fn (JournalDetail $d) => $d->property === 'attachment' && filled($d->new_value))) {
+            $keys[] = 'issue_attachment_added';
+        }
+
+        return $keys;
     }
 }

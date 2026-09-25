@@ -41,14 +41,6 @@ final class NotificationRecipients
     /**
      * @return array<int, string>
      */
-    public static function notifiedEventKeys(): array
-    {
-        return self::notifiedEvents();
-    }
-
-    /**
-     * @return array<int, string>
-     */
     private static function notifiedEvents(): array
     {
         return Setting::get('notified_events', self::defaultNotifiedEvents());
@@ -70,9 +62,19 @@ final class NotificationRecipients
      *                             involved too (Redmine's previous_assignee)
      * @return Collection<int, User>
      */
-    public static function forIssue(Issue $issue, string $eventKey, User $actor, array $mentionedLogins = [], ?Journal $journal = null): Collection
+    /**
+     * @param  array<int, string>|string  $eventKey  one or more candidate event
+     *                                               keys this journal matches (Redmine's Journal#send_notification
+     *                                               ORs several conditions together — e.g. an update that only
+     *                                               changed the status matches both 'issue_updated' and
+     *                                               'issue_status_updated'; either being enabled is enough).
+     *                                               A bare string is accepted for the simple 'issue_added' case.
+     */
+    public static function forIssue(Issue $issue, array|string $eventKey, User $actor, array $mentionedLogins = [], ?Journal $journal = null): Collection
     {
-        if (! in_array($eventKey, self::notifiedEvents(), true)) {
+        $eventKeys = is_array($eventKey) ? $eventKey : [$eventKey];
+
+        if (array_intersect($eventKeys, self::notifiedEvents()) === []) {
             return collect();
         }
 
