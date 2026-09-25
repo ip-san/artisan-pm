@@ -16,14 +16,16 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 
 /**
- * Redmine's Gantt is drawn from an IssueQuery: the issue list's saved
- * queries are offered on the chart (loading one applies its filters) and
- * the chart's filters can be saved as an issue query, gated by
- * save_queries. The consuming Gantt component (with InteractsWithQueryFilters)
- * supplies ganttProject() (null for the cross-project chart) and
- * applyFilters().
+ * Redmine draws both the Gantt chart and the calendar from an IssueQuery:
+ * the issue list's saved queries are offered there too (loading one
+ * applies its filters) and the current filters can be saved as an issue
+ * query, gated by save_queries. Only filters apply — unlike the issue
+ * list's own saveQuery()/loadQuery(), columns/sort/group_by are not read
+ * or written, since neither view has any of those. The consuming
+ * component (with InteractsWithQueryFilters) supplies
+ * queryScopeProject() (null for a cross-project view) and applyFilters().
  */
-trait UsesSavedIssueQueriesOnGantt
+trait UsesSavedIssueQueriesForFiltering
 {
     public string $newQueryName = '';
 
@@ -34,7 +36,7 @@ trait UsesSavedIssueQueriesOnGantt
 
     public bool $showSaveForm = false;
 
-    abstract protected function ganttProject(): ?Project;
+    abstract protected function queryScopeProject(): ?Project;
 
     /**
      * @return Collection<int, SavedQuery>
@@ -42,7 +44,7 @@ trait UsesSavedIssueQueriesOnGantt
     #[Computed]
     public function savedQueries(): Collection
     {
-        $project = $this->ganttProject();
+        $project = $this->queryScopeProject();
 
         return $project === null
             ? SavedQuery::visibleGlobally(QueryType::Issue, auth()->user())
@@ -52,7 +54,7 @@ trait UsesSavedIssueQueriesOnGantt
     #[Computed]
     public function canSaveQueries(): bool
     {
-        $project = $this->ganttProject();
+        $project = $this->queryScopeProject();
 
         return $project === null
             ? app(AuthorizationService::class)->canGlobally(auth()->user(), 'save_queries')
@@ -62,7 +64,7 @@ trait UsesSavedIssueQueriesOnGantt
     #[Computed]
     public function canManagePublicQueries(): bool
     {
-        $project = $this->ganttProject();
+        $project = $this->queryScopeProject();
 
         return $project === null
             ? auth()->user()?->is_admin === true
@@ -115,7 +117,7 @@ trait UsesSavedIssueQueriesOnGantt
             'newQueryRoleIds.*' => ['exists:roles,id'],
         ]);
 
-        $project = $this->ganttProject();
+        $project = $this->queryScopeProject();
         $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], $project);
 
         $query = SavedQuery::create([

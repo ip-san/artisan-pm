@@ -1,7 +1,7 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
-use App\Concerns\UsesSavedIssueQueriesOnGantt;
+use App\Concerns\UsesSavedIssueQueriesForFiltering;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Version;
@@ -42,7 +42,7 @@ use Illuminate\Support\Facades\Gate;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
-    use UsesSavedIssueQueriesOnGantt;
+    use UsesSavedIssueQueriesForFiltering;
 
     /**
      * Redmine's gantt zoom (1-4, default 2): months, then week numbers, days
@@ -51,7 +51,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public int $zoom = 2;
 
-    protected function ganttProject(): ?Project
+    protected function queryScopeProject(): ?Project
     {
         return null;
     }

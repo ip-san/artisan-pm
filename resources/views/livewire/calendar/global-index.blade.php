@@ -1,6 +1,7 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
+use App\Concerns\UsesSavedIssueQueriesForFiltering;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Setting;
@@ -26,6 +27,7 @@ use Illuminate\Support\Facades\Gate;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
+    use UsesSavedIssueQueriesForFiltering;
 
     #[Url]
     public int $year = 0;
@@ -33,10 +35,20 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public int $month = 0;
 
+    protected function queryScopeProject(): ?Project
+    {
+        return null;
+    }
+
     public function mount(): void
     {
         $this->year = $this->year ?: \App\Support\Format\DateTimes::today()->year;
         $this->month = $this->month ?: \App\Support\Format\DateTimes::today()->month;
+
+        // Redmine's calendar?query_id=: opens on a saved issue query.
+        if (request()->filled('query_id')) {
+            $this->loadQuery(request()->integer('query_id'));
+        }
     }
 
     /**
@@ -195,6 +207,28 @@ new #[Layout('components.layouts.app')] class extends Component
             <button wire:click="nextMonth" class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">›</button>
         </div>
     </div>
+
+    <div class="mb-4 flex flex-wrap items-center gap-2 text-sm" data-calendar-saved-queries>
+        <span class="text-neutral-500">{{ __('保存済みクエリ:') }}</span>
+        @forelse ($this->savedQueries as $savedQuery)
+            <button wire:key="saved-query-{{ $savedQuery->id }}" wire:click="loadQuery({{ $savedQuery->id }})" class="rounded-full border border-neutral-300 px-3 py-1 text-neutral-700 hover:bg-neutral-50">
+                {{ $savedQuery->name }}
+            </button>
+        @empty
+            <span class="text-neutral-400">{{ __('なし') }}</span>
+        @endforelse
+        @if ($this->canSaveQueries)
+            <button wire:click="$toggle('showSaveForm')" class="ml-2 text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
+        @endif
+    </div>
+    @if ($showSaveForm)
+        <div class="mb-4">
+            <x-saved-query-save-form
+                :can-manage-public-queries="$this->canManagePublicQueries"
+                :visibility="$newQueryVisibility"
+                :roles="$this->availableRoles" />
+        </div>
+    @endif
 
     <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
