@@ -33,9 +33,22 @@ final class GanttChart
      * @param  Collection<int, GanttRow>  $rows  the issue rows drawn
      * @param  Collection<int, Version>  $versions  the milestones drawn
      * @param  int  $monthsLimit  Redmine's gantt_months_limit (0 = unlimited)
+     * @param  ?Carbon  $periodStart  an explicit period (Redmine's
+     *                                month_from/year_from/months), overriding the default of fitting the
+     *                                range to the drawn issues/milestones. Given, the chart always spans
+     *                                exactly this period — even with no dated rows to draw — matching
+     *                                Redmine's own date_from/date_to, which never depend on issue dates.
      */
-    public function __construct(Collection $rows, Collection $versions, int $monthsLimit)
+    public function __construct(Collection $rows, Collection $versions, int $monthsLimit, ?Carbon $periodStart = null, ?Carbon $periodEnd = null)
     {
+        if ($periodStart !== null && $periodEnd !== null) {
+            $this->rangeStart = $periodStart;
+            $this->rangeEnd = $periodEnd;
+            $this->monthsTruncated = false;
+
+            return;
+        }
+
         $this->rangeStart = $rows->pluck('startDate')->filter()->min();
         $issuesEnd = $rows->pluck('dueDate')->filter()->max();
 

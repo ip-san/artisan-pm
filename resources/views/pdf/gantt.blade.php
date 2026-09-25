@@ -75,7 +75,9 @@
                         @if ($late > 0 && $barWidth > 0)
                             <div class="bar-late" style="width: {{ min(100, $late / $barWidth * 100) }}%"></div>
                         @endif
-                        <div class="bar-done" style="width: {{ $line->row->doneRatio }}%"></div>
+                        @if ($drawProgress ?? false)
+                            <div class="bar-done" style="width: {{ $line->row->doneRatio }}%"></div>
+                        @endif
                     </div>
                 @elseif ($line->kind === 'version')
                     <div class="milestone" style="left: {{ $chart->versionMarkerLeftPercent($line->version) }}%">◆ {{ $line->versionPercent }}%</div>

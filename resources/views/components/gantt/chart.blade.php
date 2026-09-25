@@ -5,7 +5,7 @@
     — and each bar's late part in red (Redmine's task_late), under the done
     part. Rows are 32px (h-8); relation lines are drawn below the headers.
 --}}
-@props(['chart', 'lines', 'relationLines' => [], 'zoom' => 2])
+@props(['chart', 'lines', 'relationLines' => [], 'zoom' => 2, 'drawProgress' => false])
 @php
     $zoom = max(1, min(4, (int) $zoom));
     $headerRows = 1 + ($zoom >= 2 ? 1 : 0) + ($zoom >= 3 ? 1 : 0);
@@ -81,7 +81,9 @@
                             @if ($late > 0)
                                 <div class="absolute inset-y-0 left-0 bg-danger-subtle" data-gantt-late style="width: {{ $barWidth > 0 ? min(100, $late / $barWidth * 100) : 0 }}%"></div>
                             @endif
-                            <div class="relative h-full rounded bg-brand-bold" style="width: {{ $row->doneRatio }}%"></div>
+                            @if ($drawProgress)
+                                <div class="relative h-full rounded bg-brand-bold" style="width: {{ $row->doneRatio }}%"></div>
+                            @endif
                         </div>
                     @elseif ($line['kind'] === 'version')
                         @php $version = $line['version']; $percent = round($version->asSeenBy(auth()->user())->completedPercent()); @endphp

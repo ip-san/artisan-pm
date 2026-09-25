@@ -35,9 +35,55 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public int $zoom = 2;
 
+    /**
+     * Redmine's Helpers::Gantt month_from/year_from/months: an explicit
+     * period, overriding the default of fitting the chart to the drawn
+     * issues. Redmine clamps months to 1..gantt_months_limit (falling back
+     * to 6 outside that range); this app's monthsLimit() is 0 (unlimited)
+     * by default, so the fallback ceiling is 24 in that case, matching
+     * Redmine's own further clamp of a limit-less months value.
+     */
+    #[Url]
+    public ?int $yearFrom = null;
+
+    #[Url]
+    public ?int $monthFrom = null;
+
+    #[Url]
+    public ?int $months = null;
+
+    /**
+     * Redmine's IssueQuery#draw_relations / #draw_progress_line: both
+     * persisted per query (options), defaulting to relations shown and
+     * the progress overlay hidden.
+     */
+    #[Url]
+    public bool $drawRelations = true;
+
+    #[Url]
+    public bool $drawProgress = false;
+
     protected function queryScopeProject(): ?Project
     {
         return $this->project;
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon}|array{0: null, 1: null}
+     */
+    private function explicitPeriod(): array
+    {
+        if ($this->yearFrom === null) {
+            return [null, null];
+        }
+
+        $month = ($this->monthFrom !== null && $this->monthFrom >= 1 && $this->monthFrom <= 12) ? $this->monthFrom : 1;
+        $ceiling = self::monthsLimit() > 0 ? self::monthsLimit() : 24;
+        $months = ($this->months !== null && $this->months >= 1 && $this->months <= $ceiling) ? $this->months : 6;
+
+        $start = Carbon::create($this->yearFrom, $month, 1);
+
+        return [$start, $start->copy()->addMonthsNoOverflow($months)->subDay()];
     }
 
     public function zoomIn(): void
@@ -254,7 +300,9 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function chart(): GanttChart
     {
-        return new GanttChart($this->rows, $this->versions, self::monthsLimit());
+        [$periodStart, $periodEnd] = $this->explicitPeriod();
+
+        return new GanttChart($this->rows, $this->versions, self::monthsLimit(), $periodStart, $periodEnd);
     }
 
     #[Computed]
@@ -332,7 +380,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function relationLines(): array
     {
-        return $this->relationLinesFor(self::ROW_HEIGHT_PX);
+        return $this->drawRelations ? $this->relationLinesFor(self::ROW_HEIGHT_PX) : [];
     }
 
     /**
@@ -381,7 +429,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'chart' => $this->chart,
             'zoom' => $this->zoom,
             'lines' => $this->exportLines(),
-            'relationSegments' => GanttChart::relationSegments($this->relationLinesFor(self::PDF_ROW_HEIGHT_PX)),
+            'relationSegments' => $this->drawRelations ? GanttChart::relationSegments($this->relationLinesFor(self::PDF_ROW_HEIGHT_PX)) : [],
+            'drawProgress' => $this->drawProgress,
         ])->render();
     }
 
@@ -494,10 +543,25 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     @endif
 
-    <div class="mb-2 flex items-center gap-2 text-sm text-neutral-700" data-gantt-zoom-controls>
+    <div class="mb-2 flex flex-wrap items-center gap-2 text-sm text-neutral-700" data-gantt-zoom-controls>
         <span>{{ __('ズーム') }}</span>
         <button type="button" wire:click="zoomOut" @disabled($zoom <= 1) class="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50 disabled:opacity-40" title="{{ __('縮小') }}">−</button>
         <button type="button" wire:click="zoomIn" @disabled($zoom >= 4) class="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50 disabled:opacity-40" title="{{ __('拡大') }}">+</button>
+
+        <span class="ml-4">{{ __('表示期間:') }}</span>
+        <input type="number" wire:model="yearFrom" placeholder="{{ __('年') }}" class="w-20 rounded-md border-neutral-300 text-sm" data-gantt-year-from>
+        <input type="number" min="1" max="12" wire:model="monthFrom" placeholder="{{ __('月') }}" class="w-16 rounded-md border-neutral-300 text-sm" data-gantt-month-from>
+        <input type="number" min="1" max="{{ self::monthsLimit() > 0 ? self::monthsLimit() : 24 }}" wire:model="months" placeholder="{{ __('か月数') }}" class="w-20 rounded-md border-neutral-300 text-sm" data-gantt-months>
+        <button type="button" wire:click="applyFilters" class="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50">{{ __('適用') }}</button>
+
+        <label class="ml-4 flex items-center gap-1">
+            <input type="checkbox" wire:model.live="drawRelations" class="rounded border-neutral-300" data-gantt-draw-relations>
+            {{ __('関連課題の線') }}
+        </label>
+        <label class="flex items-center gap-1">
+            <input type="checkbox" wire:model.live="drawProgress" class="rounded border-neutral-300" data-gantt-draw-progress>
+            {{ __('進捗率の表示') }}
+        </label>
     </div>
 
     @if ($this->rangeStart === null)
@@ -509,6 +573,6 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->monthsTruncated)
             <p class="mb-2 text-sm text-warning-bold">{{ __('期間が長いため、開始から:monthsか月分だけを表示しています。', ['months' => self::monthsLimit()]) }}</p>
         @endif
-        <x-gantt.chart :chart="$this->chart" :lines="$this->lines" :relation-lines="$this->relationLines" :zoom="$zoom" />
+        <x-gantt.chart :chart="$this->chart" :lines="$this->lines" :relation-lines="$this->relationLines" :zoom="$zoom" :draw-progress="$drawProgress" />
     @endif
 </div>
