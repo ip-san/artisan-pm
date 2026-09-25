@@ -358,6 +358,7 @@
 | 141b | B'-01b | B'-01 | S | done(2026-09-25、Git・Mercurial のブランチとタグ、Bazaar のタグ。ファイル一覧・ファイル表示・ダウンロードを選んだブランチ/タグで。SVN は Redmine と同じくパスで、CVS のブランチリビジョンは対象外のまま) |
 | 142 | A12-07 | — | S | done(2026-09-25、送信直前の再解決・全アドレスの確認・確認したアドレスへの固定・リダイレクトを追わない。管理者の Webhook もループバック等と禁止ポートは拒否。`webhook_blocklist` は対象外) |
 | 143 | A14-08 | — | S | done(既存+テスト追加, 2026-09-25、8 箇所すべて `CsvCell` 経由。未テストの 5 つにテストとガードテスト) |
+| 145 | A15-01〜A15-17 | — | S〜M | todo(2026-09-25 の見直しで記録。未承認のため未着手) |
 | 144 | A6-09 | — | S | done(2026-09-25、HTML メールのヘッダー/フッターを Markdown で描画) |
 
 ### 0.4 起動方法
@@ -700,6 +701,31 @@
 | A14-06 | 新規作成メニュー「+」(`new_item_menu_tab`) | A5-04 | — | — | S |
 | A14-07 | プロジェクトジャンプボックス | A9-07 | — | — | S |
 | A14-08 | (セキュリティ)CSV の数式インジェクション対策(C-29)がすべての CSV 書き出しに入っているかの確認 | **done(既存+テスト追加, 2026-09-25)**。`fputcsv(` を含むのは課題一覧(プロジェクト/横断、同じコンポーネント)・課題レポート詳細・工数一覧(プロジェクト/横断)・工数レポート・プロジェクト一覧・ユーザー一覧の 8 箇所で、すべて `CsvCell::row()` を文字コード変換の前に通していた(`app/`・`routes/` に CSV の書き出しは無い)。テストの無かった横断の課題一覧・プロジェクト一覧・工数一覧 2 つ・課題レポート詳細に数式セルのテストを追加し、`app/`・`resources/views` で `fputcsv(` を使うファイルが `CsvCell::row()` を通すことを確かめるガードテストを追加(`CsvFormulaInjectionTest.php`) | 新しい CSV 書き出しを足すときはガードテストが検出する | — | S |
+
+
+### A-15. 2026-09-25 のチェックリスト見直しで残った差
+
+`parity-checklist.md` の `partial` 行を 2026-09-25 にコードと Redmine 7.0 で照合して残った差。各行は checklist の該当行の「見直し」注記に対応する。
+
+| ID | Redmine 側の機能 | 本アプリの現状 | 規模 | checklist 行 |
+|---|---|---|---|---|
+| A15-01 | 設定 `thumbnails_enabled`(サムネイル表示の有効/無効) | 設定なし(A5-07 の「Redmine に未定義」は誤り。`config/settings.yml` に定義あり) | S | 設定「表示」 |
+| A15-02 | `autologin` の保持日数(1/7/30/365 日) | オン/オフのみ | S | 設定「認証」 |
+| A15-03 | `notified_events` の課題の細分イベント(`issue_status_updated`/`issue_assigned_to_updated`/`issue_priority_updated`/`issue_fixed_version_updated`/`issue_attachment_added`) | 課題の追加/更新のみ | S〜M | 設定「メール通知」 |
+| A15-04 | 課題の検索とフィルタ「検索可能な項目」で注記(journals.notes)も検索(非公開注記は `view_private_notes`) | 題名・説明・CF・添付のみ | S | 検索(モジュール横断) |
+| A15-05 | 課題一覧のグループ化の選択肢: 作成者・カテゴリ・対象バージョン・日付・進捗率・非公開 | ステータス/トラッカー/優先度/担当者/プロジェクト/単一値 CF | S | グルーピング |
+| A15-06 | 課題一覧の「親課題の題名」列 | なし | S | 列選択 |
+| A15-07 | 保存クエリの編集・削除(`QueriesController#edit/update/destroy`)と「全プロジェクト向け」(`query_is_for_all`) | 作成と読込のみ | M | プロジェクト横断クエリ |
+| A15-08 | カレンダーの保存クエリ(`query_id`) | なし | S | カレンダー |
+| A15-09 | 活動の利用者での絞り込み(`user_id`、Atom も) | なし | S | グローバルアクティビティフィード |
+| A15-10 | マイページの 3 領域(top/left/right)と週カレンダー表示のカレンダーブロック | 1 列、一覧形式 | M | マイページ |
+| A15-11 | ガントの表示期間指定(`month_from`/`year_from`/`months`)・進捗線・関連線の表示切替・選択列の表示 | 期間は課題の日付から自動、オプションなし | M | ガント |
+| A15-12 | CSV 出力の「すべての列」と説明・最新のコメントを含めるオプション、工数一覧の Atom | 表示中の列のみ | S | CSVエクスポート |
+| A15-13 | REST: journals の `details`/`updated_on`/`updated_by`、課題の `closed_on`、プロジェクトの `include=trackers,...` と `issue_custom_field_ids`/`enabled_module_names`、ユーザーの `include=groups,memberships`/`group_id` 絞り込み、`PUT /my/account` の `custom_fields`/`language`/`pref[]` | A15 見直しで確認(checklist の Issues/Projects/Users/My account 行) | M | REST API 各行 |
+| A15-14 | 受信メールのキーワードを利用者の言語の項目名でも受け付ける、`POST /mail_handler` のリクエストごとの `issue[...]`/`allow_override` | 英語のキーワードのみ、`email` のみ | S | メール本文のキーワードコマンド |
+| A15-15 | 課題インポート: 予定工数の列、`relation_copied_to/from` の列、担当者をログインID/氏名でも解決 | なし/メールかグループ名のみ | S | マッピング可能な列 |
+| A15-16 | Atom: 課題単体・プロジェクト一覧・リポジトリのリビジョン・全体のお知らせ | なし | S | Atom フィード |
+| A15-17 | 保存前のライフサイクルフック(値の変更や保存の中止ができる `*_before_save`) | 保存後/削除直前の通知のみ | M | ライフサイクルフック |
 
 ---
 
