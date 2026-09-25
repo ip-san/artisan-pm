@@ -76,6 +76,46 @@ test('submitting a for-all field id from the project form does not narrow it to 
         ->appliesToProject($otherProject)->toBeTrue();
 });
 
+test('unchecking a field that is only linked to this project is refused, since it would become for-all everywhere', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $soleLink = CustomField::factory()->create(['name' => 'Sole link field', 'customized_type' => CustomizableType::Issue->value]);
+    $soleLink->projects()->attach($project);
+
+    Livewire::actingAs($admin)
+        ->test('projects.form', ['project' => $project])
+        ->assertSet('issueCustomFieldIds', [$soleLink->id])
+        ->set('issueCustomFieldIds', [])
+        ->call('save')
+        ->assertHasErrors(['issueCustomFieldIds']);
+
+    expect($soleLink->fresh())
+        ->isForAll()->toBeFalse()
+        ->appliesToProject($project)->toBeTrue();
+});
+
+test('unchecking a field that is still linked to another project is allowed', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $multiLink = CustomField::factory()->create(['name' => 'Multi link field', 'customized_type' => CustomizableType::Issue->value]);
+    $multiLink->projects()->attach([$project->id, $otherProject->id]);
+
+    Livewire::actingAs($admin)
+        ->test('projects.form', ['project' => $project])
+        ->set('issueCustomFieldIds', [])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($multiLink->fresh())
+        ->appliesToProject($project)->toBeFalse()
+        ->appliesToProject($otherProject)->toBeTrue();
+});
+
 test('a project custom field never appears in the issue custom field picker', function () {
     $admin = User::factory()->admin()->create();
     $project = Project::factory()->create();

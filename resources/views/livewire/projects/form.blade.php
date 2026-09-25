@@ -441,6 +441,19 @@ new #[Layout('components.layouts.app')] class extends Component
                 }
             }
 
+            // Unchecking a field that is only explicitly linked to this
+            // project would make its pivot globally empty — flipping it to
+            // CustomField::isForAll() (applies to every OTHER project too),
+            // not just stopping it from applying here. That scope change
+            // can only be made from the custom field admin screen.
+            $fieldsLosingTheirLastLink = $this->project->issueCustomFieldsLosingTheirLastLink($issueCustomFieldIds);
+
+            if ($fieldsLosingTheirLastLink->isNotEmpty()) {
+                $this->addError('issueCustomFieldIds', __('この項目は他のどのプロジェクトにも紐付いていないため、ここで外すと全プロジェクト共通になってしまいます。外すにはカスタムフィールドの管理画面から対象プロジェクトを変更してください: :fields', ['fields' => $fieldsLosingTheirLastLink->pluck('name')->join(', ')]));
+
+                return;
+            }
+
             $this->project->update($data);
         } else {
             $this->project = Project::create($data);

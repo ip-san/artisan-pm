@@ -315,6 +315,7 @@
     "この選択肢を削除しますか?": "Are you sure you want to delete this value?",
     "この関連は既に登録されています。": "This relation already exists.",
     "この関連を削除しますか?": "Are you sure you want to delete this relation?",
+    "この項目は他のどのプロジェクトにも紐付いていないため、ここで外すと全プロジェクト共通になってしまいます。外すにはカスタムフィールドの管理画面から対象プロジェクトを変更してください: :fields": "This field is not linked to any other project, so removing it here would make it apply to every project. To remove it, change its projects from the custom field admin screen instead: :fields",
     "これが最後のバージョンです。削除するとページ自体が削除されます。よろしいですか?": "This is the last version. Deleting it deletes the page itself. Are you sure?",
     "これは v:version の過去バージョンです (:author — :date)。": "This is an old version v:version (:author — :date).",
     "これは重要な操作です。続行する前にパスワードを確認してください。": "This is a sensitive action. Please confirm your password before continuing.",

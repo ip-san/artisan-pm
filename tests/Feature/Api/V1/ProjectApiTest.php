@@ -624,6 +624,43 @@ test('submitting a for-all field id via issue_custom_field_ids does not narrow i
         ->appliesToProject($otherProject)->toBeTrue();
 });
 
+test('the api refuses to unlink a field that is only linked to this project, since it would become for-all everywhere', function () {
+    $project = Project::factory()->create();
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_project', 'edit_project']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+    $soleLink = CustomField::factory()->create(['customized_type' => CustomizableType::Issue, 'name' => 'Sole link field']);
+    $soleLink->projects()->attach($project);
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['issue_custom_field_ids' => []])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('issue_custom_field_ids');
+
+    expect($soleLink->fresh())
+        ->isForAll()->toBeFalse()
+        ->appliesToProject($project)->toBeTrue();
+});
+
+test('the api allows unlinking a field that is still linked to another project', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_project', 'edit_project']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+    $multiLink = CustomField::factory()->create(['customized_type' => CustomizableType::Issue, 'name' => 'Multi link field']);
+    $multiLink->projects()->attach([$project->id, $otherProject->id]);
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['issue_custom_field_ids' => []])->assertOk();
+
+    expect($multiLink->fresh())
+        ->appliesToProject($project)->toBeFalse()
+        ->appliesToProject($otherProject)->toBeTrue();
+});
+
 test('issue_custom_field_ids rejects a project-type custom field id', function () {
     $project = Project::factory()->create();
     $admin = User::factory()->admin()->create();

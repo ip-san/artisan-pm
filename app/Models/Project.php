@@ -250,6 +250,17 @@ final class Project extends Model implements HasMedia
      * so never submitted. Ids that aren't Issue-type custom fields (or
      * don't exist) are ignored the same way.
      *
+     * Callers must guard the mirror-image hazard themselves before
+     * calling this: removing the last remaining project link of an
+     * otherwise explicitly-scoped field (see
+     * issueCustomFieldsLosingTheirLastLink() below) would make that
+     * field's pivot globally empty, flipping it to CustomField::
+     * isForAll() — applying to every OTHER project too, not just
+     * ceasing to apply to this one. That would silently widen who sees
+     * the field elsewhere, so both the project form and REST refuse the
+     * whole update rather than ever call this with such ids (matching
+     * how they already guard removing a tracker still in use).
+     *
      * @param  array<int, int>  $ids
      */
     public function syncIssueCustomFieldIds(array $ids): void
@@ -266,6 +277,35 @@ final class Project extends Model implements HasMedia
             ->pluck('id');
 
         $this->issueCustomFields()->sync($allowedIds);
+    }
+
+    /**
+     * Among this project's currently explicitly-linked issue custom
+     * fields, the ones that would lose their only remaining project
+     * link if $keptIds were synced — i.e. this project is the field's
+     * sole explicit link, so dropping it here would make the field's
+     * pivot globally empty and flip it to CustomField::isForAll() for
+     * every project, not just stop applying it to this one. Neither the
+     * project settings form nor REST may do that; the field's scope can
+     * only be widened back to "every project" from the custom field
+     * admin screen. Empty for a project that hasn't been persisted yet,
+     * since a brand-new project can't already be anyone's sole link.
+     *
+     * @param  array<int, int>  $keptIds
+     * @return Collection<int, CustomField>
+     */
+    public function issueCustomFieldsLosingTheirLastLink(array $keptIds): Collection
+    {
+        if (! $this->exists) {
+            return collect();
+        }
+
+        return $this->issueCustomFields()
+            ->withCount('projects')
+            ->get()
+            ->reject(fn (CustomField $field) => in_array($field->id, $keptIds, true))
+            ->filter(fn (CustomField $field) => $field->projects_count === 1)
+            ->values();
     }
 
     /**

@@ -145,6 +145,10 @@ final class ProjectController extends Controller
             $this->guardTrackersInUse($project, $trackerIds);
         }
 
+        if ($issueCustomFieldIds !== null) {
+            $this->guardIssueCustomFieldLastLink($project, $issueCustomFieldIds);
+        }
+
         if (! Project::mayChoosePublicity($request->user(), $project)) {
             unset($data['is_public']);
         }
@@ -195,6 +199,25 @@ final class ProjectController extends Controller
         if ($blockedTrackerNames->isNotEmpty()) {
             throw ValidationException::withMessages([
                 'tracker_ids' => __('このプロジェクトの課題で使用中のため外せません: :trackers', ['trackers' => $blockedTrackerNames->join(', ')]),
+            ]);
+        }
+    }
+
+    /**
+     * Matches projects/form.blade.php's save(): dropping a field that is
+     * only explicitly linked to this project would flip its pivot
+     * globally empty (CustomField::isForAll()), applying it to every
+     * OTHER project too — see Project::issueCustomFieldsLosingTheirLastLink().
+     *
+     * @param  array<int, int>  $issueCustomFieldIds
+     */
+    private function guardIssueCustomFieldLastLink(Project $project, array $issueCustomFieldIds): void
+    {
+        $fieldsLosingTheirLastLink = $project->issueCustomFieldsLosingTheirLastLink($issueCustomFieldIds);
+
+        if ($fieldsLosingTheirLastLink->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'issue_custom_field_ids' => __('この項目は他のどのプロジェクトにも紐付いていないため、ここで外すと全プロジェクト共通になってしまいます。外すにはカスタムフィールドの管理画面から対象プロジェクトを変更してください: :fields', ['fields' => $fieldsLosingTheirLastLink->pluck('name')->join(', ')]),
             ]);
         }
     }
