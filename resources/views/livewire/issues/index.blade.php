@@ -167,6 +167,22 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public string $csvSeparator = ',';
 
+    /**
+     * The CSV export's column radio (Redmine's `c[]` field): 'selected'
+     * exports the list's own shownColumns, 'all' every available inline
+     * column (excluding the block columns below, added separately).
+     */
+    public string $csvColumns = 'selected';
+
+    /**
+     * The CSV export's block-column checkboxes (Redmine's
+     * `@query.available_block_columns`): always offered regardless of the
+     * radio above, independently of whether they're in shownColumns.
+     */
+    public bool $csvIncludeDescription = false;
+
+    public bool $csvIncludeLastNotes = false;
+
     #[Url]
     public ?string $sortKey = null;
 
@@ -1280,7 +1296,23 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->authorize('viewAny', [Issue::class, $this->project]);
         }
 
-        $columns = $this->shownColumns;
+        // Redmine's csv-export-options form: 'selected columns' (the list's
+        // own shownColumns) or 'all columns' (every available inline
+        // column), with the block columns (description/last_notes) offered
+        // as separate checkboxes on top of either choice.
+        $columns = $this->csvColumns === 'all'
+            ? array_diff(array_keys($this->availableColumns), self::BLOCK_COLUMNS)
+            : array_diff($this->shownColumns, self::BLOCK_COLUMNS);
+
+        if ($this->csvIncludeDescription) {
+            $columns[] = 'description';
+        }
+
+        if ($this->csvIncludeLastNotes) {
+            $columns[] = 'last_notes';
+        }
+
+        $columns = array_values(array_unique($columns));
         $issues = $this->exportedIssues();
         // Re-validated against the allowlist here rather than trusted from
         // the live property, since these drive raw file-writing behavior.
@@ -2260,9 +2292,23 @@ new #[Layout('components.layouts.app')] class extends Component
                 <option value=";">{{ __('セミコロン') }}</option>
                 <option value="{{ "\t" }}">{{ __('タブ') }}</option>
             </select>
-            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                {{ __('CSVエクスポート') }}
-            </button>
+            <div class="relative" x-data="{ csvOptionsOpen: false }">
+                <button type="button" x-on:click="csvOptionsOpen = !csvOptionsOpen" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    {{ __('CSVエクスポート') }}
+                </button>
+                <div x-show="csvOptionsOpen" x-cloak x-on:click.outside="csvOptionsOpen = false" class="absolute right-0 z-20 mt-2 w-64 rounded-md border border-neutral-200 bg-surface p-3 text-sm shadow-lg" data-csv-export-options>
+                    <p class="mb-2 font-medium text-neutral-700">{{ __('エクスポートする列') }}</p>
+                    <label class="flex items-center gap-2 py-0.5"><input type="radio" wire:model="csvColumns" value="selected"> {{ __('選択した列') }}</label>
+                    <label class="flex items-center gap-2 py-0.5"><input type="radio" wire:model="csvColumns" value="all"> {{ __('すべての列') }}</label>
+                    <div class="mt-2 border-t border-neutral-100 pt-2">
+                        <label class="flex items-center gap-2 py-0.5"><input type="checkbox" wire:model="csvIncludeDescription"> {{ $this->availableColumns['description'] }}</label>
+                        <label class="flex items-center gap-2 py-0.5"><input type="checkbox" wire:model="csvIncludeLastNotes"> {{ $this->availableColumns['last_notes'] }}</label>
+                    </div>
+                    <button type="button" wire:click="exportCsv" x-on:click="csvOptionsOpen = false" class="mt-3 w-full rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">
+                        {{ __('エクスポート') }}
+                    </button>
+                </div>
+            </div>
             <button wire:click="exportPdf" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 {{ __('PDFエクスポート') }}
             </button>

@@ -12,6 +12,7 @@ use App\Models\TimeEntry;
 use App\Services\TimeEntryService;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Query\ListDefaults;
+use App\Support\Query\ListQueryString;
 use App\Support\Query\TimeEntryColumns;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Issues\ContextMenuCustomFields;
@@ -715,6 +716,20 @@ new #[Layout('components.layouts.app')] class extends Component
         session()->flash('status', __(':count件の工数記録を削除しました。', ['count' => $count]));
     }
 
+    /**
+     * The Atom feed link carries the list's current filters, so the feed
+     * shows the same entries (matching how the issue list's own Atom link
+     * behaves).
+     */
+    #[Computed]
+    public function atomUrl(): string
+    {
+        return route('time-entries.atom', $this->project).'?'.http_build_query([
+            'key' => auth()->user()?->atomKey(),
+            ...ListQueryString::toQueryParameters($this->activeFilterKeys, $this->filterOperators, $this->filterValues),
+        ]);
+    }
+
     public function exportCsv(): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         $this->authorize('viewAny', [TimeEntry::class, $this->project]);
@@ -822,6 +837,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <a href="{{ route('time-entries.report', $project) }}" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                 {{ __('レポート') }}
             </a>
+            <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
             @can('import', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.import', $project) }}"
                     class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">

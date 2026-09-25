@@ -9,6 +9,7 @@ use App\Models\Query as SavedQuery;
 use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Services\TimeEntryService;
+use App\Support\Query\ListQueryString;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\TimeEntryColumns;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
@@ -235,6 +236,19 @@ new #[Layout('components.layouts.app')] class extends Component
 
     #[Url]
     public string $csvSeparator = ',';
+
+    /**
+     * The Atom feed link carries the list's current filters, so the feed
+     * shows the same entries.
+     */
+    #[Computed]
+    public function atomUrl(): string
+    {
+        return route('time-entries.global-atom').'?'.http_build_query([
+            'key' => auth()->user()?->atomKey(),
+            ...ListQueryString::toQueryParameters($this->activeFilterKeys, $this->filterOperators, $this->filterValues),
+        ]);
+    }
 
     /**
      * The filtered list, in the chosen columns, as CSV (UTF-8 with a byte-order
@@ -490,6 +504,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </select>
             <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('CSVエクスポート') }}</button>
             <a href="{{ route('time-entries.global-report') }}" class="text-sm text-brand-bold hover:underline">{{ __('レポート') }}</a>
+            <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
         </div>
 
         @if ($showSaveForm)

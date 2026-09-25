@@ -16,6 +16,7 @@ use App\Http\Controllers\MailHandlerController;
 use App\Http\Controllers\NewsAtomController;
 use App\Http\Controllers\RepositoryRawController;
 use App\Http\Controllers\SysController;
+use App\Http\Controllers\TimeEntryAtomController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -71,6 +72,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Volt::route('/issues', 'issues.index')->name('issues.global-index')
         ->withoutMiddleware('auth')->middleware('login.required');
     Volt::route('/time_entries', 'time-entries.global-index')->name('time-entries.global-index');
+    Route::get('/time_entries.atom', TimeEntryAtomController::class)->name('time-entries.global-atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
     Volt::route('/time_entries/report', 'time-entries.report')->name('time-entries.global-report');
     Volt::route('/search', 'search.global-index')->name('search.global-index')
         ->withoutMiddleware('auth')->middleware('login.required');
@@ -146,6 +149,8 @@ Route::middleware(['auth', 'session.timeout', 'twofa.required', 'password.change
     Volt::route('/projects/{project:identifier}/issues/{issue}/edit', 'issues.form')->name('issues.edit')->scopeBindings();
     Volt::route('/projects/{project:identifier}/issues/{issue}/journal-details/{journalDetail}/diff', 'issues.journal-detail-diff')->name('issues.journal-detail-diff');
 
+    Route::get('/projects/{project:identifier}/time_entries.atom', TimeEntryAtomController::class)->name('time-entries.atom')
+        ->withoutMiddleware(['auth', 'session.timeout', 'twofa.required', 'password.change'])->middleware('atom.key');
     Volt::route('/projects/{project:identifier}/time_entries', 'time-entries.index')->name('time-entries.index');
     Volt::route('/projects/{project:identifier}/time_entries/create', 'time-entries.form')->name('time-entries.create');
     // Registered before the {timeEntry} routes below so "import"/"report"

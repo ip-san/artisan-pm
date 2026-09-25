@@ -168,6 +168,78 @@ test('the watchers column lists watcher names one per line', function () {
         );
 });
 
+test('csvColumns=all exports every available inline column, ignoring the shown-column set', function () {
+    $project = Project::factory()->create();
+    $user = csvExportMember($project);
+    Issue::factory()->for($project)->create(['subject' => 'All columns issue']);
+
+    $response = Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('statusFilter', 'all')
+        ->set('columns', ['subject'])
+        ->set('csvColumns', 'all')
+        ->call('exportCsv');
+
+    $content = base64_decode(data_get($response->effects, 'download.content'));
+
+    // 'subject' was the only shown column, but 'all' pulls in inline
+    // columns like 'tracker_id' that were never added to the list.
+    expect($content)->toContain('トラッカー')->toContain('題名');
+});
+
+test('csvColumns=all excludes the block columns unless their checkboxes are also on', function () {
+    $project = Project::factory()->create();
+    $user = csvExportMember($project);
+    Issue::factory()->for($project)->create(['subject' => 'Row', 'description' => 'Secret description']);
+
+    $response = Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('statusFilter', 'all')
+        ->set('columns', ['subject'])
+        ->set('csvColumns', 'all')
+        ->call('exportCsv');
+
+    $content = base64_decode(data_get($response->effects, 'download.content'));
+
+    expect($content)->not->toContain('Secret description');
+});
+
+test('the description checkbox appends the description column regardless of the columns radio', function () {
+    $project = Project::factory()->create();
+    $user = csvExportMember($project);
+    Issue::factory()->for($project)->create(['subject' => 'Row', 'description' => 'The full description']);
+
+    Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('statusFilter', 'all')
+        ->set('columns', ['subject'])
+        ->set('csvIncludeDescription', true)
+        ->call('exportCsv')
+        ->assertFileDownloaded(
+            "{$project->identifier}-issues.csv",
+            "\xEF\xBB\xBF".csvRow(['題名', '説明']).csvRow(['Row', 'The full description'])
+        );
+});
+
+test('the last-notes checkbox appends the most recent notes journal as its own column', function () {
+    $project = Project::factory()->create();
+    $user = csvExportMember($project);
+    $issue = Issue::factory()->for($project)->create(['subject' => 'Row']);
+    $issue->journals()->create(['user_id' => $user->id, 'notes' => 'Older note', 'created_at' => now()->subDay()]);
+    $issue->journals()->create(['user_id' => $user->id, 'notes' => 'Latest note', 'created_at' => now()]);
+
+    Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('statusFilter', 'all')
+        ->set('columns', ['subject'])
+        ->set('csvIncludeLastNotes', true)
+        ->call('exportCsv')
+        ->assertFileDownloaded(
+            "{$project->identifier}-issues.csv",
+            "\xEF\xBB\xBF".csvRow(['題名', '最新のコメント']).csvRow(['Row', 'Latest note'])
+        );
+});
+
 test('relations, attachments, and watchers columns are empty when there are none', function () {
     $project = Project::factory()->create();
     $user = csvExportMember($project);
