@@ -17,6 +17,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
 use App\Services\IssueService;
+use App\Support\Format\Hours;
 use App\Support\Import\CsvReader;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -67,6 +68,8 @@ final class ImportIssuesJob implements ShouldQueue
         'relation_duplicated' => ['duplicates', true],
         'relation_precedes' => ['precedes', false],
         'relation_follows' => ['follows', false],
+        'relation_copied_to' => ['copied_to', false],
+        'relation_copied_from' => ['copied_to', true],
     ];
 
     /** @var array<int, Collection<int, CustomField>> tracker id => the custom fields a row of that tracker may set */
@@ -153,6 +156,10 @@ final class ImportIssuesJob implements ShouldQueue
                 && $this->import->user->can('create', [IssueCategory::class, $this->import->project]),
             'createVersions' => ($this->import->column_mapping['create_versions'] ?? false)
                 && $this->import->user->can('create', [Version::class, $this->import->project]),
+            // For the assigned_to column's keyword resolution (Redmine's
+            // Principal.detect_by_keyword over issue.assignable_users) —
+            // computed once, not per row.
+            'projectMembers' => User::query()->whereHas('memberships', fn ($query) => $query->where('project_id', $this->import->project_id))->get(),
         ];
 
         $this->header = $header;
@@ -428,21 +435,19 @@ final class ImportIssuesJob implements ShouldQueue
             throw new RuntimeException(__('トラッカー・ステータス・優先度のいずれかを特定できません。'));
         }
 
-        // Scoped to project members — an email matching some other user in
-        // the system (unrelated to this project) should not be able to
-        // receive an assignment via a crafted CSV row.
-        $assigneeEmail = $this->mapped($record, $mapping, 'assigned_to');
-        $assignee = $assigneeEmail !== null
-            ? User::query()
-                ->whereHas('memberships', fn ($query) => $query->where('project_id', $this->import->project_id))
-                ->where('email', $assigneeEmail)
-                ->first()
-            : null;
+        // Scoped to project members — a login/name/email matching some
+        // other user in the system (unrelated to this project) should not
+        // be able to receive an assignment via a crafted CSV row. Matches
+        // Redmine's Principal.detect_by_keyword precedence: login, then
+        // email, then (a two-word value) firstname+lastname, then the
+        // full display name.
+        $assigneeKeyword = $this->mapped($record, $mapping, 'assigned_to');
+        $assignee = $assigneeKeyword !== null ? $this->resolveAssignee($assigneeKeyword, $defaults['projectMembers']) : null;
 
         // Redmine matches the column against the assignable principals, so
         // with issue_group_assignment on it may name an assignable group.
-        $assigneeGroup = $assigneeEmail !== null && $assignee === null && Issue::groupAssignmentEnabled()
-            ? $this->import->project->assignableGroups()->first(fn (Group $group) => strcasecmp($group->name, trim($assigneeEmail)) === 0)
+        $assigneeGroup = $assigneeKeyword !== null && $assignee === null && Issue::groupAssignmentEnabled()
+            ? $this->import->project->assignableGroups()->first(fn (Group $group) => strcasecmp($group->name, trim($assigneeKeyword)) === 0)
             : null;
 
         // A category/version name that matches nothing is auto-created
@@ -509,7 +514,49 @@ final class ImportIssuesJob implements ShouldQueue
             'start_date' => $this->mapped($record, $mapping, 'start_date') ?: null,
             'due_date' => $this->mapped($record, $mapping, 'due_date') ?: null,
             'done_ratio' => (int) ($this->mapped($record, $mapping, 'done_ratio') ?: 0),
+            'estimated_hours' => Hours::parse($this->mapped($record, $mapping, 'estimated_hours')),
         ];
+    }
+
+    /**
+     * Matches a CSV "assigned_to" cell against this project's members,
+     * Redmine's Principal.detect_by_keyword: the login, then the email
+     * address (both case-insensitive), then — for a value with a space —
+     * firstname+lastname, then the full display name. The first candidate
+     * to match wins, same order as Redmine tries them.
+     *
+     * @param  Collection<int, User>  $members
+     */
+    private function resolveAssignee(string $keyword, Collection $members): ?User
+    {
+        $keyword = trim($keyword);
+
+        if ($keyword === '') {
+            return null;
+        }
+
+        $byLogin = $members->first(fn (User $user) => strcasecmp($user->login, $keyword) === 0);
+
+        if ($byLogin !== null) {
+            return $byLogin;
+        }
+
+        $byEmail = $members->first(fn (User $user) => strcasecmp($user->email, $keyword) === 0);
+
+        if ($byEmail !== null) {
+            return $byEmail;
+        }
+
+        if (str_contains($keyword, ' ')) {
+            [$firstname, $lastname] = explode(' ', $keyword, 2);
+            $byFullName = $members->first(fn (User $user) => strcasecmp((string) $user->firstname, $firstname) === 0 && strcasecmp((string) $user->lastname, $lastname) === 0);
+
+            if ($byFullName !== null) {
+                return $byFullName;
+            }
+        }
+
+        return $members->first(fn (User $user) => strcasecmp($user->displayName(), $keyword) === 0);
     }
 
     /**

@@ -993,6 +993,7 @@
     "担当者": "Assignee",
     "担当者(グループ)": "Assignee (group)",
     "担当者(メールアドレス)": "Assignee (email address)",
+    "担当者(ログインID・氏名・メールアドレス)": "Assignee (login ID, name, or email address)",
     "担当者:": "Assignee:",
     "担当者のグループ": "Assignee's group",
     "担当者のロール": "Assignee's role",

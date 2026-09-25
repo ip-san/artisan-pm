@@ -31,7 +31,7 @@ new #[Layout('components.layouts.app')] class extends Component
         'tracker' => 'トラッカー(名前)',
         'status' => 'ステータス(名前)',
         'priority' => '優先度(名前)',
-        'assigned_to' => '担当者(メールアドレス)',
+        'assigned_to' => '担当者(ログインID・氏名・メールアドレス)',
         'category' => 'カテゴリ(名前)',
         'fixed_version' => '対象バージョン(名前)',
         'parent' => '親課題(#番号)',
@@ -39,6 +39,7 @@ new #[Layout('components.layouts.app')] class extends Component
         'start_date' => '開始日',
         'due_date' => '期日',
         'done_ratio' => '進捗率',
+        'estimated_hours' => '予定工数',
         'unique_id' => '一意なID',
         'relation_relates' => '関連',
         'relation_blocks' => 'ブロックする',
@@ -47,6 +48,8 @@ new #[Layout('components.layouts.app')] class extends Component
         'relation_duplicated' => '重複されている',
         'relation_precedes' => '先行',
         'relation_follows' => '後続',
+        'relation_copied_to' => 'コピー先',
+        'relation_copied_from' => 'コピー元',
     ];
 
     /**
@@ -62,7 +65,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'tracker' => __('トラッカー(名前)'),
             'status' => __('ステータス(名前)'),
             'priority' => __('優先度(名前)'),
-            'assigned_to' => __('担当者(メールアドレス)'),
+            'assigned_to' => __('担当者(ログインID・氏名・メールアドレス)'),
             'category' => __('カテゴリ(名前)'),
             'fixed_version' => __('対象バージョン(名前)'),
             'parent' => __('親課題(#番号)'),
@@ -70,6 +73,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'start_date' => __('開始日'),
             'due_date' => __('期日'),
             'done_ratio' => __('進捗率'),
+            'estimated_hours' => __('予定工数'),
             'unique_id' => __('一意なID'),
             'relation_relates' => __('関連'),
             'relation_blocks' => __('ブロックする'),
@@ -78,6 +82,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'relation_duplicated' => __('重複されている'),
             'relation_precedes' => __('先行'),
             'relation_follows' => __('後続'),
+            'relation_copied_to' => __('コピー先'),
+            'relation_copied_from' => __('コピー元'),
         ];
     }
 

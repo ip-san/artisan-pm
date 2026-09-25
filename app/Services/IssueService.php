@@ -576,7 +576,13 @@ final class IssueService
                         ->where('relation_type', $relationType),
                     new IssueRelationTarget($from, $relationType, $actor),
                 ],
-                'relation_type' => ['required', Rule::in(['relates', 'blocks', 'duplicates', 'precedes', 'follows'])],
+                // 'copied_to' is here only for the CSV importer's
+                // relation_copied_to/relation_copied_from columns
+                // (A15-15) — the manual "add relation" form and the REST
+                // API create a copied_to relation through their own
+                // direct IssueRelation::create() path, not through this
+                // method.
+                'relation_type' => ['required', Rule::in(['relates', 'blocks', 'duplicates', 'precedes', 'follows', 'copied_to'])],
                 'delay' => ['nullable', 'integer', 'min:0'],
             ],
         )->validate();

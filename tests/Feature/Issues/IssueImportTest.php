@@ -653,3 +653,64 @@ test('without a unique id column the parent column still names an existing issue
     expect(Issue::where('subject', '子')->value('parent_id'))->toBe($existing->id)
         ->and(Issue::where('subject', '空欄の親')->exists())->toBeTrue();
 });
+
+// --- A15-15: estimated_hours, relation_copied_to/from, assignee by login/full name ---
+
+test('an estimated_hours column sets the field, accepting both decimal and h:mm forms', function () {
+    ['project' => $project, 'user' => $user] = customFieldImportScenario();
+
+    runQueuedImport($project, $user, "subject,hours\nDecimal,3.5\nColon,1:30\nBlank,\n", ['subject' => 'subject', 'estimated_hours' => 'hours']);
+
+    expect((float) Issue::where('subject', 'Decimal')->value('estimated_hours'))->toBe(3.5)
+        ->and((float) Issue::where('subject', 'Colon')->value('estimated_hours'))->toBe(1.5)
+        ->and(Issue::where('subject', 'Blank')->value('estimated_hours'))->toBeNull();
+});
+
+test('relation_copied_to and relation_copied_from columns create copied_to relations in the right direction', function () {
+    ['project' => $project, 'tracker' => $tracker, 'user' => $user] = customFieldImportScenario();
+    $original = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+    $copy = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id]);
+
+    $import = runQueuedImport(
+        $project, $user,
+        "subject,copied_to,copied_from\nCopy of original,,{$original->id}\nAnother copy,{$copy->id},\n",
+        ['subject' => 'subject', 'relation_copied_from' => 'copied_from', 'relation_copied_to' => 'copied_to'],
+    );
+
+    $copyOfOriginal = Issue::where('subject', 'Copy of original')->firstOrFail();
+    $anotherCopy = Issue::where('subject', 'Another copy')->firstOrFail();
+
+    expect($import->failed_count)->toBe(0)
+        // relation_copied_from names the source: the relation is stored
+        // source -> this row.
+        ->and(IssueRelation::where(['issue_from_id' => $original->id, 'issue_to_id' => $copyOfOriginal->id, 'relation_type' => 'copied_to'])->exists())->toBeTrue()
+        // relation_copied_to names the target: this row -> target.
+        ->and(IssueRelation::where(['issue_from_id' => $anotherCopy->id, 'issue_to_id' => $copy->id, 'relation_type' => 'copied_to'])->exists())->toBeTrue();
+});
+
+test('assigned_to resolves a project member by login ID or full name, not only by email', function () {
+    ['project' => $project, 'user' => $user] = customFieldImportScenario();
+    $byLogin = User::factory()->create(['login' => 'jdoe', 'email' => 'jdoe@example.com']);
+    Member::factory()->for($project)->for($byLogin)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+    $byName = User::factory()->create(['firstname' => 'Jane', 'lastname' => 'Roe', 'name' => 'Jane Roe']);
+    Member::factory()->for($project)->for($byName)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+
+    runQueuedImport(
+        $project, $user,
+        "subject,assignee\nByLogin,jdoe\nByName,Jane Roe\n",
+        ['subject' => 'subject', 'assigned_to' => 'assignee'],
+    );
+
+    expect(Issue::where('subject', 'ByLogin')->value('assigned_to_id'))->toBe($byLogin->id)
+        ->and(Issue::where('subject', 'ByName')->value('assigned_to_id'))->toBe($byName->id);
+});
+
+test('assigned_to still resolves by email as before', function () {
+    ['project' => $project, 'user' => $user] = customFieldImportScenario();
+    $byEmail = User::factory()->create(['email' => 'assignee@example.com']);
+    Member::factory()->for($project)->for($byEmail)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+
+    runQueuedImport($project, $user, "subject,assignee\nByEmail,assignee@example.com\n", ['subject' => 'subject', 'assigned_to' => 'assignee']);
+
+    expect(Issue::where('subject', 'ByEmail')->value('assigned_to_id'))->toBe($byEmail->id);
+});

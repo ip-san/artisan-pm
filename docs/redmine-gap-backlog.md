@@ -374,7 +374,7 @@
 | 145m | A15-13 | — | M | done(2026-09-25) |
 | 145m2 | A15-18 | — | S〜M | todo |
 | 145n | A15-14 | — | S | done(2026-09-25) |
-| 145o | A15-15 | — | S | todo |
+| 145o | A15-15 | — | S | done(2026-09-25) |
 | 145p | A15-16 | — | S | todo |
 | 145q | A15-17 | — | M | todo |
 
@@ -743,7 +743,7 @@
 | A15-13 | REST: journals の `details`/`updated_on`/`updated_by`(A11-09 の範囲だったが未実装のまま done になっていた)、課題の `closed_on`、プロジェクトの `include=trackers,...` と `issue_custom_field_ids`/`enabled_module_names`、ユーザーの `include=groups,memberships`/`group_id` 絞り込み、`PUT /my/account` の `custom_fields`/`language`/`pref[]` | **done(2026-09-25)**: `IssueResource::visibleJournals()`に`updated_at`(Redmineの`updated_on`相当、既存の命名規約に合わせた)・`updated_by`・`details`(`property=cf`/`relation`を`Journal#visible_details`と同じ規則で絞り込み)。課題に`closed_on`。`ProjectResource`に`?include=trackers,issue_categories,time_entry_activities,enabled_modules,issue_custom_fields`(5種、`ProjectsHelper#render_api_includes`と同じ集合)。`UserController`/`UserResource`に`?include=groups,memberships`(`groups`は管理者/本人のみ、`memberships`は閲覧者が見えるプロジェクトのみ)と`GET /users?group_id=`。`PUT /my/account`に`language`・`custom_fields`・`pref`(`UserPreferences::save()`を再利用)。**書かなかった部分(判断、新規行A15-18)**: プロジェクトの`issue_custom_field_ids`/`default_issue_query_id`の書き込み受け付け(プロジェクト側でどの課題カスタムフィールドを使うか選ぶ機能自体がWeb UIにまだ無く、RESTだけ先行させるとWeb/APIの整合が崩れるため)。モジュールのキー名は`enabled_module_names`に変えず、本アプリの既存`modules`のまま(他のRESTリソースもRedmineの安全属性名をそのまま使う場所と、本アプリ独自の名前を使う場所が混在しており、今回は書き込み経路に触れていないため現状維持)。ユーザーの`include=auth_source`・応答の`twofa_scheme`/`avatar_url`は未対応。テスト: `IssueApiIncludeTest.php`、`ProjectApiTest.php`、`UserApiTest.php` | A15 見直しで確認(checklist の Issues/Projects/Users/My account 行) | M | REST API 各行 |
 | A15-18 | プロジェクトの `issue_custom_field_ids`(このプロジェクトで使う課題カスタムフィールドを選ぶ)を Web UI(プロジェクト設定)と REST `PUT/POST /projects` の両方に追加 | A15-13 で判断・据え置き。現状は `CustomField` 側(管理画面のカスタムフィールド編集)でしか対象プロジェクトを選べない(Redmine は両方向から設定可能) | S〜M | REST API「Projects」 |
 | A15-14 | 受信メールのキーワードを利用者の言語の項目名でも受け付ける、`POST /mail_handler` のリクエストごとの `issue[...]`/`allow_override` | **done(2026-09-25)**: `IncomingMailService`にキーワードの日本語ラベル(`KEYWORD_LABELS_JA`、送信者の`language`または設定`default_language`が`ja`のとき英語ラベルと同時に受理)、`MailHandlerController`/`processRawMessage()`にリクエストごとの`allow_override`(設定より優先)と`issue[...]`既定値(本文にキーワード行が無いときのフォールバック、`project`は対象外)。テスト: `MailHandlerKeywordOptionsTest.php`、`MailHandlerApiTest.php` | S | メール本文のキーワードコマンド |
-| A15-15 | 課題インポート: 予定工数の列、`relation_copied_to/from` の列、担当者をログインID/氏名でも解決 | なし/メールかグループ名のみ | S | マッピング可能な列 |
+| A15-15 | 課題インポート: 予定工数の列、`relation_copied_to/from` の列、担当者をログインID/氏名でも解決 | **done(2026-09-25)**: `ImportIssuesJob`に`estimated_hours`列、`relation_copied_to`/`relation_copied_from`列(`IssueService::addRelation()`の許容関連タイプに`copied_to`を追加、CSVインポート専用の経路)、担当者解決を`Principal.detect_by_keyword`と同じ優先順位(ログインID→メール→氏名→表示名)に拡張。テスト: `IssueImportTest.php` | なし/メールかグループ名のみ | S | マッピング可能な列 |
 | A15-16 | Atom: 課題単体・プロジェクト一覧・リポジトリのリビジョン・全体のお知らせ | なし | S | Atom フィード |
 | A15-17 | 保存前のライフサイクルフック(値の変更や保存の中止ができる `*_before_save`) | 保存後/削除直前の通知のみ | M | ライフサイクルフック |
 | A15-18 | プロジェクトの `issue_custom_field_ids`(このプロジェクトで使う課題カスタムフィールドを選ぶ、Redmine の `project.issue_custom_field_ids=`) | 未着手(A15-13 で発見・据え置き)。`CustomField`側(管理画面)でしか対象プロジェクトを選べない | S〜M | REST API「Projects」 |
