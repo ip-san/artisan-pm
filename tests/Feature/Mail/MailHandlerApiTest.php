@@ -105,6 +105,80 @@ test('excluded file names can be regular expressions when enabled, and a bad pat
         ->and($service->filenameExcluded('report.pdf'))->toBeFalse();
 });
 
+// --- A15-14: per-request allow_override and issue[...] defaults ---
+
+test('a per-request allow_override honors a keyword line even though the site setting is empty', function () {
+    mailApiSetup();
+    $feedback = IssueStatus::factory()->create(['name' => 'Feedback']);
+    expect(Setting::get('mail_handler_allow_override', ''))->toBe('');
+
+    $this->post('/mail_handler', [
+        'key' => 'secret-key-123',
+        'email' => mailApiRaw(body: "Status: Feedback\nbody"),
+        'allow_override' => 'status',
+    ])->assertCreated();
+
+    $issue = Issue::query()->where('subject', 'Via web service')->firstOrFail();
+    expect($issue->status_id)->toBe($feedback->id);
+});
+
+test('a per-request allow_override of empty string turns off a keyword the site setting would have allowed', function () {
+    mailApiSetup();
+    Setting::set('mail_handler_allow_override', 'all');
+    IssueStatus::factory()->create(['name' => 'Feedback']);
+
+    $this->post('/mail_handler', [
+        'key' => 'secret-key-123',
+        'email' => mailApiRaw(body: "Status: Feedback\nbody"),
+        'allow_override' => '',
+    ])->assertCreated();
+
+    $issue = Issue::query()->where('subject', 'Via web service')->firstOrFail();
+    expect($issue->status->name)->not->toBe('Feedback');
+});
+
+test('issue[status] supplies a default attribute when the body has no matching keyword line', function () {
+    mailApiSetup();
+    $feedback = IssueStatus::factory()->create(['name' => 'Feedback']);
+
+    $this->post('/mail_handler', [
+        'key' => 'secret-key-123',
+        'email' => mailApiRaw(),
+        'issue' => ['status' => 'Feedback'],
+    ])->assertCreated();
+
+    $issue = Issue::query()->where('subject', 'Via web service')->firstOrFail();
+    expect($issue->status_id)->toBe($feedback->id);
+});
+
+test('a body keyword line takes priority over the issue[...] default for the same attribute', function () {
+    mailApiSetup();
+    Setting::set('mail_handler_allow_override', 'status');
+    $feedback = IssueStatus::factory()->create(['name' => 'Feedback']);
+    $inProgress = IssueStatus::factory()->create(['name' => 'In Progress']);
+
+    $this->post('/mail_handler', [
+        'key' => 'secret-key-123',
+        'email' => mailApiRaw(body: "Status: In Progress\nbody"),
+        'issue' => ['status' => 'Feedback'],
+    ])->assertCreated();
+
+    $issue = Issue::query()->where('subject', 'Via web service')->firstOrFail();
+    expect($issue->status_id)->toBe($inProgress->id);
+});
+
+test('an unrecognized issue[...] key is ignored', function () {
+    mailApiSetup();
+
+    $this->post('/mail_handler', [
+        'key' => 'secret-key-123',
+        'email' => mailApiRaw(),
+        'issue' => ['project' => 'ignored', 'not_a_real_attribute' => 'x'],
+    ])->assertCreated();
+
+    expect(Issue::query()->where('subject', 'Via web service')->exists())->toBeTrue();
+});
+
 test('the settings page saves the web service switch, key and regex options, and can generate a key', function () {
     $admin = User::factory()->admin()->create();
 

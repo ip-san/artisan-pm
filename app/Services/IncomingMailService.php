@@ -26,6 +26,7 @@ use App\Support\Authorization\AuthorizationService;
 use App\Support\Format\Hours;
 use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\StartDateDefault;
+use App\Support\Locale\SupportedLocales;
 use App\Support\Mail\MailSuppression;
 use App\Support\Mail\MessageIdentity;
 use App\Support\Mail\ParsedIncomingMail;
@@ -57,16 +58,21 @@ use Webklex\PHPIMAP\Message;
  * attribute on the created/replied-to issue, matching Redmine's
  * MailHandler#issue_attributes_from_keywords — narrowed to
  * status/priority/assigned_to/done_ratio/tracker/category/fixed_version/
- * start_date/due_date/estimated_hours/is_private/parent_issue (this app
- * has no i18n, so unlike Redmine the keyword label itself is a fixed
- * English string rather than translated per Setting.default_language —
- * "parent issue" is chosen to match this app's own attribute name rather
- * than Redmine's own English UI label "Parent task", which none of this
- * app's other keyword labels track literally either, e.g. "done ratio"
- * vs Redmine's "% Done"). Custom-field keywords are intentionally not
- * recognized — a deliberately narrower grammar than Redmine's, same
- * scope-cut RepositorySyncService's commit-keyword parsing already takes
- * for `@Nh` time logging.
+ * start_date/due_date/estimated_hours/is_private/parent_issue. The label
+ * itself is always accepted in fixed English (this app's own attribute
+ * vocabulary — "parent issue" for example is chosen to match this app's
+ * own attribute name rather than Redmine's English UI label "Parent
+ * task", which none of this app's other keyword labels track literally
+ * either, e.g. "done ratio" vs Redmine's "% Done") and, since A15-14,
+ * additionally in Japanese (this app's own field labels, the same text
+ * `issues/index.blade.php`'s `displayColumns()` uses) whenever the
+ * sender's own `language` or the site's `default_language` is `ja` —
+ * matching Redmine's `extract_keyword!`, which tries the English
+ * `humanize`d name, the target user's own language, and
+ * `Setting.default_language`, all at once. Custom-field keywords are
+ * intentionally not translated — a custom field's name is free text set
+ * by an administrator, not a translated label, so Redmine itself matches
+ * it verbatim regardless of language.
  */
 final class IncomingMailService
 {
@@ -88,6 +94,48 @@ final class IncomingMailService
         'estimated hours' => 'estimated_hours',
         'private' => 'is_private',
         'parent issue' => 'parent_id',
+    ];
+
+    /**
+     * KEYWORD_ATTRIBUTES's keyword => this app's own Japanese field label
+     * for it (the same text `issues/index.blade.php::displayColumns()`
+     * uses), accepted alongside the English keyword when the sender's or
+     * site's language is Japanese (A15-14).
+     *
+     * @var array<string, string>
+     */
+    private const array KEYWORD_LABELS_JA = [
+        'status' => 'ステータス',
+        'priority' => '優先度',
+        'assigned to' => '担当者',
+        'done ratio' => '進捗率',
+        'tracker' => 'トラッカー',
+        'category' => 'カテゴリ',
+        'fixed version' => '対象バージョン',
+        'start date' => '開始日',
+        'due date' => '期日',
+        'estimated hours' => '予定工数',
+        'private' => '非公開',
+        'parent issue' => '親課題',
+    ];
+
+    /**
+     * Redmine's `POST /mail_handler` `issue[...]` param names (matching
+     * MailHandlerController's permitted params, minus `project` — this
+     * app resolves the target project from the subject/recipient before
+     * any keyword handling runs, not through this same fallback
+     * mechanism) => this service's own internal keyword string.
+     *
+     * @var array<string, string>
+     */
+    private const array ISSUE_PARAM_TO_KEYWORD = [
+        'status' => 'status',
+        'tracker' => 'tracker',
+        'category' => 'category',
+        'priority' => 'priority',
+        'assigned_to' => 'assigned to',
+        'fixed_version' => 'fixed version',
+        'is_private' => 'private',
     ];
 
     public function __construct(
@@ -135,10 +183,15 @@ final class IncomingMailService
     /**
      * Handles one raw RFC 822 message (what the mail_handler web service
      * receives) exactly as a mail fetched from the mailbox would be.
+     * $options carries the request's own `allow_override`/`issue[...]`
+     * (Redmine's MailHandlerController#index permitted params, minus the
+     * ones this app doesn't support — see MailHandlerController).
+     *
+     * @param  array{allow_override?: string, issue?: array<string, string>}  $options
      */
-    public function processRawMessage(string $raw): Issue|ForumMessage|NewsComment|null
+    public function processRawMessage(string $raw, array $options = []): Issue|ForumMessage|NewsComment|null
     {
-        return $this->createIssueFromMail($this->parse(Message::fromString($raw)));
+        return $this->createIssueFromMail($this->parse(Message::fromString($raw)), $options);
     }
 
     private function parse(Message $message): ParsedIncomingMail
@@ -239,16 +292,16 @@ final class IncomingMailService
      * Handles one parsed mail: a new issue, or a reply to an issue, a forum
      * topic or a news item. Null when nothing was recorded.
      */
-    public function createIssueFromMail(ParsedIncomingMail $mail): Issue|ForumMessage|NewsComment|null
+    public function createIssueFromMail(ParsedIncomingMail $mail, array $options = []): Issue|ForumMessage|NewsComment|null
     {
         // Redmine's no_notification: what a received mail creates or changes
         // is not announced by mail.
         return Setting::get('mail_handler_no_notification', false)
-            ? MailSuppression::during(fn () => $this->handleMail($mail))
-            : $this->handleMail($mail);
+            ? MailSuppression::during(fn () => $this->handleMail($mail, $options))
+            : $this->handleMail($mail, $options);
     }
 
-    private function handleMail(ParsedIncomingMail $mail): Issue|ForumMessage|NewsComment|null
+    private function handleMail(ParsedIncomingMail $mail, array $options = []): Issue|ForumMessage|NewsComment|null
     {
         // The sender may write from the primary address or an additional one.
         $author = User::query()->where('email', $mail->fromEmail)->first()
@@ -282,11 +335,11 @@ final class IncomingMailService
                 default => null,
             };
 
-            return $issueId === null ? null : $this->receiveIssueReply((int) $issueId, $mail, $author);
+            return $issueId === null ? null : $this->receiveIssueReply((int) $issueId, $mail, $author, $options);
         }
 
         if (preg_match('/\[(?:[^\]]*\s+)?#(\d+)\]/', $mail->subject, $matches) === 1) {
-            return $this->receiveIssueReply((int) $matches[1], $mail, $author);
+            return $this->receiveIssueReply((int) $matches[1], $mail, $author, $options);
         }
 
         // Redmine's MESSAGE_REPLY_SUBJECT_RE: "[Project - Board - msg12]".
@@ -316,9 +369,9 @@ final class IncomingMailService
         }
 
         $subject = mb_substr($this->stripProjectPrefix($mail->subject), 0, 255);
-        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $project, $author);
+        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $project, $author, null, $options);
 
-        ['values' => $customFieldData, 'body' => $body] = $this->extractCustomFieldKeywords($body, $project, (int) ($keywordAttributes['tracker_id'] ?? $trackerId), $author);
+        ['values' => $customFieldData, 'body' => $body] = $this->extractCustomFieldKeywords($body, $project, (int) ($keywordAttributes['tracker_id'] ?? $trackerId), $author, $options);
 
         // Redmine's receive_issue: the keyword attributes and custom fields
         // go through the sender's workflow (read-only fields and those the
@@ -377,7 +430,7 @@ final class IncomingMailService
      * its tracker (edit_issues on it still works too, as before); keyword
      * attribute changes need the edit permission.
      */
-    private function receiveIssueReply(int $issueId, ParsedIncomingMail $mail, User $author): ?Issue
+    private function receiveIssueReply(int $issueId, ParsedIncomingMail $mail, User $author, array $options = []): ?Issue
     {
         $issue = Issue::query()->find($issueId);
 
@@ -390,8 +443,8 @@ final class IncomingMailService
             return null;
         }
 
-        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $issue->project, $author, $issue);
-        ['values' => $customFieldData, 'body' => $body] = $this->extractCustomFieldKeywords($body, $issue->project, (int) ($keywordAttributes['tracker_id'] ?? $issue->tracker_id), $author);
+        ['attributes' => $keywordAttributes, 'body' => $body] = $this->extractKeywordAttributes($mail->body, $issue->project, $author, $issue, $options);
+        ['values' => $customFieldData, 'body' => $body] = $this->extractCustomFieldKeywords($body, $issue->project, (int) ($keywordAttributes['tracker_id'] ?? $issue->tracker_id), $author, $options);
 
         if (! Gate::forUser($author)->allows('update', $issue)) {
             $keywordAttributes = [];
@@ -602,29 +655,20 @@ final class IncomingMailService
      *
      * @return array{attributes: array<string, int|string|float|bool>, body: string}
      */
-    private function extractKeywordAttributes(string $body, Project $project, User $author, ?Issue $issue = null): array
+    private function extractKeywordAttributes(string $body, Project $project, User $author, ?Issue $issue = null, array $options = []): array
     {
         $attributes = [];
         $kept = [];
 
-        $allowed = $this->overridableKeywords();
+        $allowed = $this->overridableKeywords($options);
+        [$pattern, $labelToKeyword] = $this->keywordPattern($author);
 
         foreach (explode("\n", $body) as $line) {
-            if (preg_match('/^(status|priority|assigned to|done ratio|tracker|category|fixed version|start date|due date|estimated hours|private|parent issue)\s*:\s*(.+?)\s*$/i', $line, $matches) === 1
-                && $this->keywordAllowed(mb_strtolower($matches[1]), $allowed)) {
-                $keyword = mb_strtolower($matches[1]);
-                $value = $this->resolveKeywordValue($keyword, trim($matches[2]), $project, $author, $issue);
+            if (preg_match('/^('.$pattern.')\s*:\s*(.+?)\s*$/iu', $line, $matches) === 1) {
+                $keyword = $labelToKeyword[mb_strtolower($matches[1])] ?? null;
 
-                if ($value !== null && $keyword === 'assigned to') {
-                    // A user id, or `group:<id>` for a group assignee.
-                    $attributes = [...$attributes, ...AssigneeChoice::decode((string) $value)];
-
-                    continue;
-                }
-
-                if ($value !== null) {
-                    $attributes[self::KEYWORD_ATTRIBUTES[$keyword]] = $value;
-
+                if ($keyword !== null && $this->keywordAllowed($keyword, $allowed)
+                    && $this->assignKeywordValue($attributes, $keyword, trim($matches[2]), $project, $author, $issue)) {
                     continue;
                 }
             }
@@ -632,7 +676,93 @@ final class IncomingMailService
             $kept[] = $line;
         }
 
+        // Redmine's get_keyword: a request-supplied issue[...] default fills
+        // an attribute the body didn't (whether because no line matched, or
+        // because that keyword isn't in allow_override) — applied
+        // regardless of override permission, same as Redmine.
+        foreach (self::ISSUE_PARAM_TO_KEYWORD as $param => $keyword) {
+            $raw = $options['issue'][$param] ?? null;
+
+            if (! is_string($raw) || $raw === '' || array_key_exists(self::KEYWORD_ATTRIBUTES[$keyword], $attributes)) {
+                continue;
+            }
+
+            if ($keyword === 'assigned to' && array_key_exists('assigned_to_id', $attributes)) {
+                continue;
+            }
+
+            $this->assignKeywordValue($attributes, $keyword, $raw, $project, $author, $issue);
+        }
+
         return ['attributes' => $attributes, 'body' => trim(implode("\n", $kept))];
+    }
+
+    /**
+     * Resolves one keyword's raw text and, if it resolves to something,
+     * merges it into $attributes (an assignee resolves to one or more
+     * Issue attributes via AssigneeChoice::decode(), everything else to a
+     * single one via KEYWORD_ATTRIBUTES). Returns whether a value was set.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function assignKeywordValue(array &$attributes, string $keyword, string $rawValue, Project $project, User $author, ?Issue $issue): bool
+    {
+        $value = $this->resolveKeywordValue($keyword, $rawValue, $project, $author, $issue);
+
+        if ($value === null) {
+            return false;
+        }
+
+        if ($keyword === 'assigned to') {
+            // A user id, or `group:<id>` for a group assignee.
+            $attributes = [...$attributes, ...AssigneeChoice::decode((string) $value)];
+
+            return true;
+        }
+
+        $attributes[self::KEYWORD_ATTRIBUTES[$keyword]] = $value;
+
+        return true;
+    }
+
+    /**
+     * The keyword-line regex alternation and its label => keyword lookup
+     * (lowercased, so a plain array lookup on mb_strtolower($match) works
+     * uniformly for the case-insensitive English labels and the
+     * case-less Japanese ones): the English label always, plus the
+     * Japanese one for every keyword whose sender/site language is
+     * Japanese (A15-14, matching Redmine's extract_keyword!).
+     *
+     * @return array{0: string, 1: array<string, string>}
+     */
+    private function keywordPattern(User $author): array
+    {
+        $labelToKeyword = [];
+
+        foreach (array_keys(self::KEYWORD_ATTRIBUTES) as $keyword) {
+            $labelToKeyword[$keyword] = $keyword;
+        }
+
+        if ($this->acceptsJapaneseKeywords($author)) {
+            foreach (self::KEYWORD_LABELS_JA as $keyword => $label) {
+                $labelToKeyword[$label] = $keyword;
+            }
+        }
+
+        $pattern = implode('|', array_map(fn (string $label) => preg_quote($label, '/'), array_keys($labelToKeyword)));
+
+        return [$pattern, $labelToKeyword];
+    }
+
+    /**
+     * Whether Japanese keyword labels should also be accepted: the
+     * sender's own language is Japanese, or (Redmine always also tries
+     * Setting.default_language, regardless of the sender's own) the
+     * site's default language is.
+     */
+    private function acceptsJapaneseKeywords(User $author): bool
+    {
+        return $author->language === 'ja' || SupportedLocales::default() === 'ja';
     }
 
     /**
@@ -646,9 +776,9 @@ final class IncomingMailService
      *
      * @return array{values: array<int, mixed>, body: string}
      */
-    private function extractCustomFieldKeywords(string $body, Project $project, int $trackerId, User $author): array
+    private function extractCustomFieldKeywords(string $body, Project $project, int $trackerId, User $author, array $options = []): array
     {
-        $allowed = $this->overridableKeywords();
+        $allowed = $this->overridableKeywords($options);
         $fields = $this->keywordCustomFields($project, $trackerId, $author)
             ->filter(fn (CustomField $field) => in_array('all', $allowed, true)
                 || in_array(preg_replace('/\s+/', '_', mb_strtolower(trim($field->name))), $allowed, true))
@@ -743,11 +873,26 @@ final class IncomingMailService
      * or a comma-separated list such as "status, priority, assigned_to";
      * matching ignores case and treats spaces as underscores.
      *
+     * In real Redmine this is never a persisted site setting — it's a
+     * per-invocation parameter only (the fetchmail rake task's own
+     * `allow_override=` argument, or `POST /mail_handler`'s own
+     * `allow_override` param; MailHandler#get_keyword reads only
+     * handler_options[:allow_override], never Setting). This app instead
+     * persists a site-wide `mail_handler_allow_override` setting, since
+     * the scheduled mailbox fetch (fetchAndProcess()) has no per-request
+     * value to draw one from. `POST /mail_handler`'s own
+     * `allow_override` param, when given, is used for that request
+     * instead of the site setting (A15-14) — matching Redmine for the one
+     * path that actually has a per-request value to offer.
+     *
+     * @param  array{allow_override?: string}  $options
      * @return array<int, string>
      */
-    private function overridableKeywords(): array
+    private function overridableKeywords(array $options = []): array
     {
-        return collect(explode(',', (string) Setting::get('mail_handler_allow_override', '')))
+        $raw = array_key_exists('allow_override', $options) ? (string) $options['allow_override'] : (string) Setting::get('mail_handler_allow_override', '');
+
+        return collect(explode(',', $raw))
             ->map(fn (string $name) => preg_replace('/\s+/', '_', mb_strtolower(trim($name))))
             ->filter()
             ->values()

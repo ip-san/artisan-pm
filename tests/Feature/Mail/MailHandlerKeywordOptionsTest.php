@@ -250,3 +250,65 @@ test('a mail issue gets the creation date as its start date only while both swit
     Setting::set('default_issue_start_date_to_creation_date', false);
     expect(app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('body', 'Base off'))->start_date)->toBeNull();
 });
+
+// --- A15-14: keyword labels in the sender's/site's Japanese, and per-request issue[...]/allow_override ---
+
+test('a Japanese keyword label is honored when the sender\'s own language is Japanese', function () {
+    [, , $author] = keywordOptionsSetup();
+    $author->update(['language' => 'ja']);
+    $feedback = IssueStatus::factory()->create(['name' => 'Feedback']);
+    Setting::set('mail_handler_allow_override', 'all');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail("ステータス: Feedback\n進捗率: 40\n本文"));
+
+    expect($issue->status_id)->toBe($feedback->id)
+        ->and($issue->done_ratio)->toBe(40)
+        ->and($issue->description)->toBe('本文');
+});
+
+test('a Japanese keyword label is honored via the site default_language even when the sender has none set', function () {
+    [, , $author] = keywordOptionsSetup();
+    expect($author->language)->toBeNull();
+    Setting::set('default_language', 'ja');
+    $feedback = IssueStatus::factory()->create(['name' => 'Feedback']);
+    Setting::set('mail_handler_allow_override', 'all');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('ステータス: Feedback'));
+
+    expect($issue->status_id)->toBe($feedback->id);
+});
+
+test('the English keyword label still works when the site default_language is Japanese', function () {
+    [, , $author] = keywordOptionsSetup();
+    Setting::set('default_language', 'ja');
+    $feedback = IssueStatus::factory()->create(['name' => 'Feedback']);
+    Setting::set('mail_handler_allow_override', 'all');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail('Status: Feedback'));
+
+    expect($issue->status_id)->toBe($feedback->id);
+});
+
+test('a Japanese keyword label is not honored when neither the sender nor the site is Japanese', function () {
+    keywordOptionsSetup();
+    Setting::set('default_language', 'en');
+    IssueStatus::factory()->create(['name' => 'Feedback']);
+    Setting::set('mail_handler_allow_override', 'all');
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail("ステータス: Feedback\n本文"));
+
+    expect($issue->status->name)->not->toBe('Feedback')->and($issue->description)->toContain('ステータス: Feedback');
+});
+
+test('a Japanese keyword label is still gated by allow_override, same as the English one', function () {
+    // Sanity check that recognizing the Japanese label did not loosen
+    // allow_override's own gating: off by default even for a Japanese
+    // sender.
+    [, , $author] = keywordOptionsSetup();
+    $author->update(['language' => 'ja']);
+    IssueStatus::factory()->create(['name' => 'Feedback']);
+
+    $issue = app(IncomingMailService::class)->createIssueFromMail(keywordOptionsMail("ステータス: Feedback\n本文"));
+
+    expect($issue->status->name)->not->toBe('Feedback')->and($issue->description)->toContain('ステータス: Feedback');
+});
