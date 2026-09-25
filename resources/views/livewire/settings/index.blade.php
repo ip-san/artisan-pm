@@ -369,7 +369,7 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int, string> */
     public array $password_required_char_classes = [];
 
-    public bool $autologin = false;
+    public int $autologin = 0;
 
     public bool $lost_password = true;
 
@@ -433,7 +433,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->max_additional_emails = (int) Setting::get('max_additional_emails', 5);
         $this->password_min_length = Setting::get('password_min_length', 8);
         $this->password_required_char_classes = RequiredPasswordCharacterClasses::required();
-        $this->autologin = Setting::get('autologin', false);
+        $this->autologin = (int) Setting::get('autologin', 0);
         $this->lost_password = Setting::get('lost_password', true);
         $this->rest_api_enabled = Setting::get('rest_api_enabled', false);
         $this->jsonp_enabled = Setting::get('jsonp_enabled', false);
@@ -754,7 +754,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'password_min_length' => ['required', 'integer', 'min:1', 'max:255'],
             'password_required_char_classes' => ['array'],
             'password_required_char_classes.*' => [Rule::in(array_keys(RequiredPasswordCharacterClasses::CLASSES))],
-            'autologin' => ['boolean'],
+            'autologin' => ['required', 'integer', Rule::in([0, 1, 7, 30, 365])],
             'lost_password' => ['boolean'],
             'rest_api_enabled' => ['boolean'],
             'jsonp_enabled' => ['boolean'],
@@ -1499,11 +1499,16 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="flex items-center gap-2 text-sm text-neutral-700">
-                    <input type="checkbox" wire:model="autologin" class="rounded border-neutral-300">
-                    {{ __('ログインページに「ログイン状態を保持」チェックボックスを表示する') }}
-                </label>
-                <p class="mt-1 text-xs text-neutral-500">{{ __('無効の場合、チェックボックス自体が表示されず、ログインは常にセッションクッキー(ブラウザを閉じると失効)のみになります。') }}</p>
+                <label class="block text-sm font-medium text-neutral-700">{{ __('ログイン状態の保持') }}</label>
+                <select wire:model="autologin" data-testid="autologin" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <option value="0">{{ __('無効') }}</option>
+                    <option value="1">{{ __(':days日', ['days' => 1]) }}</option>
+                    <option value="7">{{ __(':days日', ['days' => 7]) }}</option>
+                    <option value="30">{{ __(':days日', ['days' => 30]) }}</option>
+                    <option value="365">{{ __(':days日', ['days' => 365]) }}</option>
+                </select>
+                @error('autologin') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+                <p class="mt-1 text-xs text-neutral-500">{{ __('無効の場合、ログインページに「ログイン状態を保持」チェックボックス自体が表示されず、ログインは常にセッションクッキー(ブラウザを閉じると失効)のみになります。有効の場合、保持したログインは選んだ日数が経つと失効します。') }}</p>
             </div>
 
             <div>

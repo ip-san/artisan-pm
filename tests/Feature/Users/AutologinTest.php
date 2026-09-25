@@ -13,7 +13,7 @@ test('the remember-me checkbox is hidden on the login page by default', function
 });
 
 test('the remember-me checkbox appears once the autologin setting is enabled', function () {
-    Setting::set('autologin', true);
+    Setting::set('autologin', 30);
 
     $this->get(route('login'))
         ->assertOk()
@@ -35,7 +35,7 @@ test('posting remember=1 while autologin is disabled does not set a recaller coo
 });
 
 test('posting remember=1 while autologin is enabled sets a recaller cookie', function () {
-    Setting::set('autologin', true);
+    Setting::set('autologin', 30);
     $user = User::factory()->create(['password' => 'correct-password']);
 
     $response = $this->post(route('login'), [
@@ -47,6 +47,51 @@ test('posting remember=1 while autologin is enabled sets a recaller cookie', fun
     $response->assertRedirect();
     expect(auth()->check())->toBeTrue();
     $response->assertCookie(auth()->guard('web')->getRecallerName());
+});
+
+test('the recaller cookie expiry follows the chosen autologin retention', function () {
+    Setting::set('autologin', 7);
+    $user = User::factory()->create(['password' => 'correct-password']);
+
+    $response = $this->post(route('login'), [
+        'email' => $user->email,
+        'password' => 'correct-password',
+        'remember' => '1',
+    ]);
+
+    $response->assertRedirect();
+    $cookie = null;
+
+    foreach ($response->headers->getCookies() as $candidate) {
+        if ($candidate->getName() === auth()->guard('web')->getRecallerName()) {
+            $cookie = $candidate;
+        }
+    }
+
+    $expiresInDays = ($cookie->getExpiresTime() - now()->getTimestamp()) / 86400;
+    expect($expiresInDays)->toBeGreaterThan(6.9)->toBeLessThan(7.1);
+});
+
+test('a longer stored autologin retention is not reused for a fresh 1-day setting', function () {
+    Setting::set('autologin', 365);
+    Setting::set('autologin', 1);
+    $user = User::factory()->create(['password' => 'correct-password']);
+
+    $response = $this->post(route('login'), [
+        'email' => $user->email,
+        'password' => 'correct-password',
+        'remember' => '1',
+    ]);
+
+    $cookie = null;
+    foreach ($response->headers->getCookies() as $candidate) {
+        if ($candidate->getName() === auth()->guard('web')->getRecallerName()) {
+            $cookie = $candidate;
+        }
+    }
+
+    $expiresInDays = ($cookie->getExpiresTime() - now()->getTimestamp()) / 86400;
+    expect($expiresInDays)->toBeGreaterThan(0.9)->toBeLessThan(1.1);
 });
 
 test('remember=1 does not survive the 2FA challenge when autologin is disabled', function () {

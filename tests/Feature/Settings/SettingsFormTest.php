@@ -449,16 +449,26 @@ test('an admin can configure the self-registration email domain allow/deny lists
         ->and(Setting::get('email_domains_denied'))->toBe('blocked.example.com');
 });
 
-test('an admin can enable autologin', function () {
+test('an admin can set the autologin retention in days', function () {
     $admin = User::factory()->admin()->create();
 
     Livewire::actingAs($admin)
         ->test('settings.index')
-        ->set('autologin', true)
+        ->set('autologin', 30)
         ->call('save')
         ->assertHasNoErrors();
 
-    expect(Setting::get('autologin'))->toBeTrue();
+    expect(Setting::get('autologin'))->toBe(30);
+});
+
+test('the autologin retention rejects a value outside Redmine\'s day list', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->set('autologin', 14)
+        ->call('save')
+        ->assertHasErrors(['autologin']);
 });
 
 test('an admin can toggle rest_api_enabled', function () {

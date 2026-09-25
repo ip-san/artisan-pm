@@ -360,7 +360,7 @@
 | 143 | A14-08 | — | S | done(既存+テスト追加, 2026-09-25、8 箇所すべて `CsvCell` 経由。未テストの 5 つにテストとガードテスト) |
 | 144 | A6-09 | — | S | done(2026-09-25、HTML メールのヘッダー/フッターを Markdown で描画) |
 | 145a | A15-01 | — | S | done(2026-09-25) |
-| 145b | A15-02 | — | S | todo |
+| 145b | A15-02 | — | S | done(2026-09-25) |
 | 145c | A15-03 | — | S〜M | todo |
 | 145d | A15-04 | — | S | todo |
 | 145e | A15-05 | — | S | todo |
@@ -726,7 +726,7 @@
 | ID | Redmine 側の機能 | 本アプリの現状 | 規模 | checklist 行 |
 |---|---|---|---|---|
 | A15-01 | 設定 `thumbnails_enabled`(サムネイル表示の有効/無効) | **done(2026-09-25)**: 設定「表示」に追加(既定オン)。`<x-attachment-thumbnail>` コンポーネント(課題・Wiki・お知らせ・フォーラム・文書・ファイル一覧すべてがこの1箇所経由)で `Setting::get('thumbnails_enabled', true)` を確認。`{{thumbnail}}` マクロは Redmine 本家と同じく対象外(条件なし)。テスト: `ThumbnailsEnabledSettingTest.php` | S | 設定「表示」 |
-| A15-02 | `autologin` の保持日数(1/7/30/365 日) | オン/オフのみ | S | 設定「認証」 |
+| A15-02 | `autologin` の保持日数(1/7/30/365 日) | **done(2026-09-25)**: 設定「認証」を選択式(無効/1/7/30/365日)に変更。`EnforceAutologinSetting` が `login.store`/`two-factor.login.store` で `SessionGuard::setRememberDuration()` を設定。Redmineはサーバー側でトークン生成日時を検査する方式だが、本アプリはLaravel標準のクッキー有効期限方式のため、クッキー有効期限を保持日数に合わせるのが実現可能な最も近い等価(判断済み)。テスト: `AutologinTest.php`、`SettingsFormTest.php` | S | 設定「認証」 |
 | A15-03 | `notified_events` の課題の細分イベント(`issue_status_updated`/`issue_assigned_to_updated`/`issue_priority_updated`/`issue_fixed_version_updated`/`issue_attachment_added`) | 課題の追加/更新のみ | S〜M | 設定「メール通知」 |
 | A15-04 | 課題の検索とフィルタ「検索可能な項目」で注記(journals.notes)も検索(非公開注記は `view_private_notes`) | 題名・説明・CF・添付のみ | S | 検索(モジュール横断) |
 | A15-05 | 課題一覧のグループ化の選択肢: 作成者・カテゴリ・対象バージョン・日付・進捗率・非公開 | ステータス/トラッカー/優先度/担当者/プロジェクト/単一値 CF | S | グルーピング |
