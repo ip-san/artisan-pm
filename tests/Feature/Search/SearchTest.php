@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
+use App\Models\Journal;
 use App\Models\Member;
 use App\Models\Message;
 use App\Models\News;
@@ -65,6 +66,36 @@ test('a matching issue subject and description are found', function () {
 
     expect($results)->toHaveCount(1)
         ->and($results->first()->type)->toBe('issue')
+        ->and($results->first()->title)->toContain((string) $issue->id);
+});
+
+test('A15-04: a matching journal note is found, respecting view_private_notes', function () {
+    $project = Project::factory()->create();
+    $user = searchMember($project, ['view_project', 'search_project', 'view_issues']);
+    $issue = Issue::factory()->for($project)->create([
+        'tracker_id' => Tracker::factory(),
+        'status_id' => IssueStatus::factory(),
+        'priority_id' => Enumeration::factory(),
+        'author_id' => User::factory(),
+        'subject' => 'Unrelated subject',
+    ]);
+    Journal::create(['issue_id' => $issue->id, 'user_id' => User::factory()->create()->id, 'notes' => 'The bespoke workaround is documented below', 'private_notes' => false]);
+    $privateIssue = Issue::factory()->for($project)->create([
+        'tracker_id' => Tracker::factory(),
+        'status_id' => IssueStatus::factory(),
+        'priority_id' => Enumeration::factory(),
+        'author_id' => User::factory(),
+        'subject' => 'Also unrelated',
+    ]);
+    Journal::create(['issue_id' => $privateIssue->id, 'user_id' => User::factory()->create()->id, 'notes' => 'A secret bespoke fix', 'private_notes' => true]);
+
+    $results = Livewire::actingAs($user)
+        ->test('search.index', ['project' => $project])
+        ->set('query', 'bespoke')
+        ->call('search')
+        ->get('results');
+
+    expect($results)->toHaveCount(1)
         ->and($results->first()->title)->toContain((string) $issue->id);
 });
 

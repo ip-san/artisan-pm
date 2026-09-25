@@ -106,6 +106,19 @@ test('the any searchable filter supports contains any and stays inside visible p
         ->and(textOperatorFilter($project, $viewer, 'any_searchable', '~', 'LOGIN export'))->toBe([]);
 });
 
+test('A15-04: the any searchable filter also matches journal notes, respecting view_private_notes', function () {
+    $project = Project::factory()->create();
+    $viewer = textOperatorMember($project);
+    $privileged = textOperatorMember($project, ['view_issues', 'view_private_notes']);
+    $publicNoteIssue = Issue::factory()->for($project)->create(['subject' => 'Unrelated subject']);
+    Journal::create(['issue_id' => $publicNoteIssue->id, 'user_id' => User::factory()->create()->id, 'notes' => 'Workaround documented here', 'private_notes' => false]);
+    $privateNoteIssue = Issue::factory()->for($project)->create(['subject' => 'Also unrelated']);
+    Journal::create(['issue_id' => $privateNoteIssue->id, 'user_id' => User::factory()->create()->id, 'notes' => 'Secret workaround details', 'private_notes' => true]);
+
+    expect(textOperatorFilter($project, $viewer, 'any_searchable', '*~', 'workaround'))->toBe([$publicNoteIssue->id])
+        ->and(textOperatorFilter($project, $privileged, 'any_searchable', '*~', 'workaround'))->toBe([$publicNoteIssue->id, $privateNoteIssue->id]);
+});
+
 test('the search ignores case', function () {
     $project = Project::factory()->create();
     $viewer = textOperatorMember($project, ['view_project', 'search_project', 'view_issues']);

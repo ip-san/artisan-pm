@@ -11,6 +11,7 @@ use App\Models\CustomField;
 use App\Models\CustomFieldValue;
 use App\Models\Document;
 use App\Models\Issue;
+use App\Models\Journal;
 use App\Models\Message;
 use App\Models\News;
 use App\Models\Project;
@@ -121,6 +122,7 @@ final class SearchService
         return $this->whereWordsMatch(Issue::query()->whereIn('project_id', $projectIds), ['subject', 'description'], $words, $allWords)
             ->pluck('id')
             ->merge($this->issueIdsMatchingSearchableCustomFields($projects->whereIn('id', $projectIds)->values(), $viewer, $words, $allWords))
+            ->merge($this->issueIdsMatchingJournalNotes($projects->whereIn('id', $projectIds)->values(), $viewer, $words, $allWords))
             ->unique()
             ->values();
     }
@@ -235,7 +237,10 @@ final class SearchService
             )->limit(self::RESULTS_PER_TYPE)->pluck('id');
 
             if (! $titlesOnly) {
-                $matchedIds = $matchedIds->merge($this->issueIdsMatchingSearchableCustomFields($projects->whereIn('id', $projectIds)->values(), $viewer, $words, $allWords))->unique();
+                $matchedIds = $matchedIds
+                    ->merge($this->issueIdsMatchingSearchableCustomFields($projects->whereIn('id', $projectIds)->values(), $viewer, $words, $allWords))
+                    ->merge($this->issueIdsMatchingJournalNotes($projects->whereIn('id', $projectIds)->values(), $viewer, $words, $allWords))
+                    ->unique();
             }
         }
 
@@ -311,6 +316,42 @@ final class SearchService
             $words,
             $allWords,
         )->pluck('customized_id');
+    }
+
+    /**
+     * Issues whose journal notes match — Redmine's acts_as_searchable
+     * search_journals (Issue#journals), scoped to non-private notes plus
+     * private ones in projects where the viewer holds view_private_notes
+     * (the same condition Journal.visible_notes_condition applies
+     * elsewhere: the note's own author gets no special access here,
+     * matching Redmine's SQL, which checks only the permission).
+     *
+     * @param  Collection<int, Project>  $projects
+     * @param  array<int, string>  $words
+     * @return Collection<int, int>
+     */
+    private function issueIdsMatchingJournalNotes(Collection $projects, ?User $viewer, array $words, bool $allWords): Collection
+    {
+        $privateNotesProjectIds = $projects
+            ->filter(fn (Project $project) => $this->authorization->can($viewer, 'view_private_notes', $project))
+            ->pluck('id');
+
+        return $this->whereWordsMatch(
+            Journal::query()
+                ->whereNotNull('notes')
+                ->where('notes', '!=', '')
+                ->whereIn('issue_id', fn ($q) => $q->select('id')->from('issues')->whereIn('project_id', $projects->pluck('id')))
+                ->where(function (Builder $visible) use ($privateNotesProjectIds) {
+                    $visible->where('private_notes', false)
+                        ->when($privateNotesProjectIds->isNotEmpty(), fn (Builder $q) => $q->orWhereIn(
+                            'issue_id',
+                            fn ($sub) => $sub->select('id')->from('issues')->whereIn('project_id', $privateNotesProjectIds),
+                        ));
+                }),
+            ['notes'],
+            $words,
+            $allWords,
+        )->pluck('issue_id');
     }
 
     /**
