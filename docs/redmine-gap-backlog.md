@@ -107,7 +107,7 @@
 | 30 | A11-03 | — | S | done(2026-09-20) |
 | 31 | A11-04 | — | S | done(2026-09-20) |
 | 32 | A11-08 | — | S | done(2026-09-20) |
-| 33 | A11-09 | — | S | done(2026-09-20) |
+| 33 | A11-09 | — | S | done(2026-09-20、**2026-09-25 訂正**: 範囲にあった `journals` の `details` 完全形は未実装だった(`IssueResource::visibleJournals()` は id/user/notes/private_notes/created_at のみ)。残りは A15-13) |
 | 33b | A11-09b | A11-09 | S | done(2026-09-25、`include=changesets` の各リビジョンに `user`(コミッターから解決したユーザー)) |
 | 34 | A11-14 | — | S | done(2026-09-20) |
 | 35 | A6-02 | (取り下げ)@mention の News コメント・フォーラム投稿への拡張 | — | Redmine 7.0.0 で `acts_as_mentionable` を持つのは Issue(`description`)・Journal(`notes`)・WikiContent(`text`) のみ(`app/models/{issue,journal,wiki_content}.rb`)。News コメントとフォーラム投稿は対象外 | 作業不要(チェックリストが「次点・未着手」と誤って書いていた) | — | Watchers「作成者/担当者の自動Watch・@mention」(C-22) |
@@ -232,7 +232,7 @@
 | 105u | A1-52 | A1-44 | S | done(2026-09-25、`/news` を `login.required` に、閲覧可否を `Gate::allows`(ゲストは Anonymous ロール)に、ゲストのヘッダーに「お知らせ」) |
 | 105v | A12-06e | A12-06d | S | done(2026-09-25、カスタムフィールドの行も allow_override のフィールド名か all のときだけ。設定画面の説明も) |
 | A12-07 | Webhook の送信時の宛先確認(Redmine の `Webhook::Executor#call` は送信のたびに `WebhookEndpointValidator.ips_for_uri` で解決し直し、確認した IP に `ipaddr:` で接続。ループバック/リンクローカル/0.0.0.0/マルチキャストと禁止ポートは常に拒否、`webhook_blocklist` で追加) | **done(2026-09-25)**。`App\Jobs\DeliverWebhookJob`(Spatie の `CallWebhookJob` の派生、`webhook-server.webhook_job`)が送信直前に `WebhookEndpoint::safeAddresses()` で A/AAAA を解決し直して全アドレスを確認、`CURLOPT_RESOLVE` で確認したアドレスに固定し `allow_redirects=false`。拒否時は送らず再試行しない(ログに警告)。ユーザー所有(`meta.public_only`)はプライベート/予約範囲も拒否。保存時の `PublicWebhookUrl` も同じクラスを使い AAAA と禁止ポートを確認。配信 5 リスナーは `Webhook::deliver()` に集約。テスト: `WebhookDeliveryTargetTest.php` | 保存時(ユーザー所有のみ)に 1 回解決して確認するだけ、配信は Guzzle が改めて解決(DNS リバインディングで内部へ届く)、リダイレクトを追う、AAAA を見ない | `webhook_blocklist`(設定ファイルでの追加の拒否リスト)は未対応(本アプリはユーザー所有の Webhook でプライベート範囲を常に拒否) | S | 拡張性「Webhook」 |
-| 105w | A5-17 | — | S | todo(要承認: 自己登録の既定が承認制になる) |
+| 105w | A5-17 | — | S | blocked(権限: 2026-09-25 にコーディネーター経由でオーナーの承認(`login_required` の既定をオフ、`self_registration` の既定を `manual`=Redmine の '2')が伝えられたが、実装エージェントの環境で既定値の変更が権限により拒否されたため未適用。オーナーの直接の許可で再開) |
 | A1-45 | 全トラッカーが無効にした標準項目を課題一覧の列の候補からも外す(`issue_query.rb` の `available_columns` で `disabled_core_fields` の列を除外。予定工数なら合計予定工数・残工数も) | **done(2026-09-24)**。`IssueFilterFieldRegistry::coreColumnsDisabledByEveryTracker()`(フィルタと同じ `Tracker.disabled_core_fields(trackers)` の判定。`estimated_hours` なら `total_estimated_hours`/`estimated_remaining_hours` も。親課題は Redmine の `parent_issue_id` が列名 `parent` と一致しないため残る)と `rolledUpTrackers()`(サブプロジェクト込みのトラッカー)。プロジェクトの課題一覧は `nativeColumns`/`availableColumns`/`sortableColumns` から除き、選んだ列は `shownColumns`(利用できる列だけ、順序維持 = Redmine の `inline_columns`)で表・CSV・PDF に出す。グループ化の「優先度」「担当者」も無効なら出さず、保存済みのグループ化は無視。横断一覧は閲覧できるプロジェクトのトラッカーで同じ判定。保存クエリの `column_names` はそのまま(トラッカー設定を戻せば再表示)。テスト: `TrackerDisabledCoreFieldsTest` | `IssueFilterFieldRegistry` の除外と同じ判定を列の候補に適用 | A1-36 の後 | S | クエリ「列選択」 |
 | 105h | A1-42 | A1-34 | S | done(2026-09-24、`Project` の deleting で自プロジェクトとサブプロジェクトの課題を `deleteMany(Destroy)`。別プロジェクトの子孫・工数・添付も削除、`Project::delete()` をトランザクション化) |
 | 105i | A1-43 | A1-20 | S | done(2026-09-24、`projects.default_assigned_to_group_id`/`issue_categories.assigned_to_group_id`。プロジェクト設定・カテゴリのフォームと REST。新規課題フォームの既定担当に反映(グループ割当オフ・割り当て不可のグループは適用しない)。REST/CSV/メールでの課題作成に既定担当を適用しないのは既存どおり) |
@@ -721,7 +721,7 @@
 | A15-10 | マイページの 3 領域(top/left/right)と週カレンダー表示のカレンダーブロック | 1 列、一覧形式 | M | マイページ |
 | A15-11 | ガントの表示期間指定(`month_from`/`year_from`/`months`)・進捗線・関連線の表示切替・選択列の表示 | 期間は課題の日付から自動、オプションなし | M | ガント |
 | A15-12 | CSV 出力の「すべての列」と説明・最新のコメントを含めるオプション、工数一覧の Atom | 表示中の列のみ | S | CSVエクスポート |
-| A15-13 | REST: journals の `details`/`updated_on`/`updated_by`、課題の `closed_on`、プロジェクトの `include=trackers,...` と `issue_custom_field_ids`/`enabled_module_names`、ユーザーの `include=groups,memberships`/`group_id` 絞り込み、`PUT /my/account` の `custom_fields`/`language`/`pref[]` | A15 見直しで確認(checklist の Issues/Projects/Users/My account 行) | M | REST API 各行 |
+| A15-13 | REST: journals の `details`/`updated_on`/`updated_by`(A11-09 の範囲だったが未実装のまま done になっていた)、課題の `closed_on`、プロジェクトの `include=trackers,...` と `issue_custom_field_ids`/`enabled_module_names`、ユーザーの `include=groups,memberships`/`group_id` 絞り込み、`PUT /my/account` の `custom_fields`/`language`/`pref[]` | A15 見直しで確認(checklist の Issues/Projects/Users/My account 行) | M | REST API 各行 |
 | A15-14 | 受信メールのキーワードを利用者の言語の項目名でも受け付ける、`POST /mail_handler` のリクエストごとの `issue[...]`/`allow_override` | 英語のキーワードのみ、`email` のみ | S | メール本文のキーワードコマンド |
 | A15-15 | 課題インポート: 予定工数の列、`relation_copied_to/from` の列、担当者をログインID/氏名でも解決 | なし/メールかグループ名のみ | S | マッピング可能な列 |
 | A15-16 | Atom: 課題単体・プロジェクト一覧・リポジトリのリビジョン・全体のお知らせ | なし | S | Atom フィード |
@@ -1097,7 +1097,7 @@ Redmine にあり本アプリに無い: `GET /issues`、`GET /time_entries`、`G
 - Wiki 表の並べ替え JS はビルドが通ることだけを確認した。ブラウザでの動作は未確認。
 - PDF・PNG の見た目は目視していない(テストは生成の成否と内容の文字列まで)。
 - ~~CSV の数式対策(`CsvCell`)は主要な書き出しに入れたが、すべての書き出し箇所での網羅は未確認。~~ → A14-08(2026-09-25)で全 8 箇所を確認し、ガードテストで固定。
-- ~~新しい設定の既定は、Redmine の既定ではなく既存の挙動を保つ値にしてある(例: `mail_handler_allow_override` は `all`、`webhooks_enabled` はオン、`user_format` は名前)。Redmine と完全に同じ既定ではない。~~ → 2026-09-24 のオーナー決定で未保存の設定の既定を Redmine に合わせた(挙動変更ログ「設定の既定値」)。残る差は `login_required`(本アプリはオン)と `self_registration`(本アプリは自動有効化)で、A5-17 としてオーナー判断待ち。
+- ~~新しい設定の既定は、Redmine の既定ではなく既存の挙動を保つ値にしてある(例: `mail_handler_allow_override` は `all`、`webhooks_enabled` はオン、`user_format` は名前)。Redmine と完全に同じ既定ではない。~~ → 2026-09-24 のオーナー決定で未保存の設定の既定を Redmine に合わせた(挙動変更ログ「設定の既定値」)。残る差は `login_required`(本アプリはオン)と `self_registration`(本アプリは自動有効化)で、A5-17(2026-09-25 にオーナー承認が伝えられたが、権限拒否のため未適用)。
 - 活動フィードの権限確認はプロジェクト数に比例してクエリが増える(データ取得は 1 プロバイダ 1 クエリに改善済み)。
 - ~~`/my/webhooks` の URL 検証は保存時のみ。配信時に再確認しないため、DNS リバインディングは防げない。~~ → A12-07(2026-09-25)で配信時に再解決・確認したアドレスへ接続を固定。
 
