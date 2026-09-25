@@ -1486,6 +1486,7 @@
     "選択したプロジェクトは無効です。": "Project is invalid.",
     "選択したリビジョンを比較": "View differences",
     "選択した列": "Selected columns",
+    "選択した列を表示": "Show selected columns",
     "選択した担当者は無効です。": "The selected assignee is invalid.",
     "選択した課題とサブタスクには合計 :hours 時間の作業時間が記録されています。作業時間をどうしますか?": "The selected issues and their subtasks have :hours hours of spent time logged in total. What do you want to do with it?",
     "選択した課題には合計 :hours 時間の作業時間が記録されています。作業時間をどうしますか?": "The selected issues have :hours hours of spent time logged in total. What do you want to do with it?",

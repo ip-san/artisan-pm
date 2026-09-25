@@ -4,6 +4,7 @@ use App\Concerns\InteractsWithQueryFilters;
 use App\Concerns\UsesSavedIssueQueriesForFiltering;
 use App\Models\Issue;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\Version;
 use App\Services\GanttService;
 use App\Support\Format\DateTimes;
@@ -12,6 +13,7 @@ use App\Support\Gantt\GanttImageRenderer;
 use App\Support\Gantt\GanttLine;
 use App\Support\Gantt\GanttRow;
 use App\Support\Gantt\GanttSettings;
+use App\Support\Issues\RelatedIssueColumns;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -43,7 +45,9 @@ use Illuminate\Support\Facades\Gate;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
-    use UsesSavedIssueQueriesForFiltering;
+    use UsesSavedIssueQueriesForFiltering {
+        loadQuery as private loadIssueQuery;
+    }
 
     /**
      * Redmine's gantt zoom (1-4, default 2): months, then week numbers, days
@@ -71,9 +75,51 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public bool $drawProgress = false;
 
+    /**
+     * Redmine's IssueQuery#draw_selected_columns (A15-11b) — see
+     * gantt/index.blade.php's own copy of this for the full explanation.
+     */
+    #[Url]
+    public bool $drawSelectedColumns = false;
+
+    /**
+     * See gantt/index.blade.php's own copy of this for the full
+     * explanation. Not #[Url]-bound, so it's client-settable;
+     * selectedColumnTexts() re-filters it before use.
+     *
+     * @var array<int, string>
+     */
+    public array $columns = [];
+
     protected function queryScopeProject(): ?Project
     {
         return null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function issueListDefaultColumns(): array
+    {
+        return Setting::get('issue_list_default_columns', ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']);
+    }
+
+    /**
+     * @param  array<mixed>  $keys
+     * @return array<int, string>
+     */
+    private function selectableColumns(array $keys): array
+    {
+        return array_values(array_intersect(array_filter($keys, 'is_string'), array_keys(RelatedIssueColumns::available())));
+    }
+
+    public function loadQuery(int $queryId): void
+    {
+        $this->loadIssueQuery($queryId);
+
+        $query = $this->savedQueries->firstWhere('id', $queryId);
+        $columnNames = $query !== null && ($query->column_names ?? []) !== [] ? $query->column_names : self::issueListDefaultColumns();
+        $this->columns = $this->selectableColumns($columnNames);
     }
 
     /**
@@ -96,6 +142,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount(): void
     {
+        $this->columns = $this->selectableColumns(self::issueListDefaultColumns());
+
         // Redmine's gantt?query_id=: opens on a saved issue query.
         if (request()->filled('query_id')) {
             $this->loadQuery(request()->integer('query_id'));
@@ -238,9 +286,45 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->drawRelations ? $this->relationLinesFor(self::ROW_HEIGHT_PX) : [];
     }
 
+    /**
+     * A15-11b: draw_selected_columns' text per drawn issue row — see
+     * gantt/index.blade.php's own copy of this for the full explanation.
+     *
+     * @return array<int, string> issue id => joined column text
+     */
+    #[Computed]
+    public function selectedColumnTexts(): array
+    {
+        $columns = $this->selectableColumns($this->columns);
+
+        if (! $this->drawSelectedColumns || $columns === []) {
+            return [];
+        }
+
+        $issueIds = $this->rows->pluck('id');
+
+        if ($issueIds->isEmpty()) {
+            return [];
+        }
+
+        $issues = Issue::query()
+            ->whereIn('id', $issueIds)
+            ->with(['project', ...RelatedIssueColumns::relationsFor($columns)])
+            ->get();
+
+        $visibleCustomFieldIds = RelatedIssueColumns::visibleCustomFieldIds($issues, auth()->user());
+
+        return $issues->mapWithKeys(fn (Issue $issue) => [
+            $issue->id => collect($columns)
+                ->map(fn (string $key) => RelatedIssueColumns::value($issue, $key, $visibleCustomFieldIds[$issue->id] ?? []))
+                ->filter(fn (string $text) => $text !== '')
+                ->join(' / '),
+        ])->all();
+    }
+
     public function applyFilters(): void
     {
-        unset($this->allLines, $this->lines, $this->rows, $this->versions, $this->chart, $this->relationLines);
+        unset($this->allLines, $this->lines, $this->rows, $this->versions, $this->chart, $this->relationLines, $this->selectedColumnTexts);
     }
 
     /**
@@ -447,6 +531,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <input type="checkbox" wire:model.live="drawProgress" class="rounded border-neutral-300" data-gantt-draw-progress>
             {{ __('進捗率の表示') }}
         </label>
+        <label class="flex items-center gap-1">
+            <input type="checkbox" wire:model.live="drawSelectedColumns" class="rounded border-neutral-300" data-gantt-draw-selected-columns>
+            {{ __('選択した列を表示') }}
+        </label>
     </div>
 
     @if ($this->chart->isEmpty())
@@ -458,6 +546,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->chart->monthsTruncated)
             <p class="mb-2 text-sm text-warning-bold">{{ __('期間が長いため、開始から:monthsか月分だけを表示しています。', ['months' => GanttSettings::monthsLimit()]) }}</p>
         @endif
-        <x-gantt.chart :chart="$this->chart" :lines="$this->lines" :relation-lines="$this->relationLines" :zoom="$zoom" :draw-progress="$drawProgress" />
+        <x-gantt.chart :chart="$this->chart" :lines="$this->lines" :relation-lines="$this->relationLines" :zoom="$zoom" :draw-progress="$drawProgress"
+            :draw-selected-columns="$drawSelectedColumns" :selected-column-texts="$this->selectedColumnTexts" />
     @endif
 </div>

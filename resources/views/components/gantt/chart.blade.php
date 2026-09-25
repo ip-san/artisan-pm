@@ -5,7 +5,7 @@
     — and each bar's late part in red (Redmine's task_late), under the done
     part. Rows are 32px (h-8); relation lines are drawn below the headers.
 --}}
-@props(['chart', 'lines', 'relationLines' => [], 'zoom' => 2, 'drawProgress' => false])
+@props(['chart', 'lines', 'relationLines' => [], 'zoom' => 2, 'drawProgress' => false, 'drawSelectedColumns' => false, 'selectedColumnTexts' => []])
 @php
     $zoom = max(1, min(4, (int) $zoom));
     $headerRows = 1 + ($zoom >= 2 ? 1 : 0) + ($zoom >= 3 ? 1 : 0);
@@ -30,6 +30,11 @@
                         <a href="{{ route('issues.show', [$line['project'], $line['row']->id]) }}" class="truncate text-brand-bold hover:underline">
                             {{ $line['row']->trackerName }} #{{ $line['row']->id }}: {{ $line['row']->subject }}
                         </a>
+                        @if ($drawSelectedColumns && ($selectedColumnTexts[$line['row']->id] ?? '') !== '')
+                            <span class="ml-1 min-w-0 truncate text-xs text-neutral-400" data-gantt-selected-columns>
+                                {{ $selectedColumnTexts[$line['row']->id] }}
+                            </span>
+                        @endif
                     @else
                         <span class="truncate text-neutral-700">◆ {{ $line['version']->name }}</span>
                     @endif

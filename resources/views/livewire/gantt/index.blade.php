@@ -4,6 +4,7 @@ use App\Concerns\InteractsWithQueryFilters;
 use App\Concerns\UsesSavedIssueQueriesForFiltering;
 use App\Models\Issue;
 use App\Models\Project;
+use App\Models\Setting;
 use App\Models\Version;
 use App\Services\GanttService;
 use App\Support\Gantt\GanttChart;
@@ -11,6 +12,7 @@ use App\Support\Gantt\GanttImageRenderer;
 use App\Support\Gantt\GanttLine;
 use App\Support\Gantt\GanttRow;
 use App\Support\Gantt\GanttSettings;
+use App\Support\Issues\RelatedIssueColumns;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
@@ -26,7 +28,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
-    use UsesSavedIssueQueriesForFiltering;
+    use UsesSavedIssueQueriesForFiltering {
+        loadQuery as private loadIssueQuery;
+    }
 
     /**
      * Redmine's gantt zoom (1-4, default 2): months, then week numbers, days
@@ -63,9 +67,81 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public bool $drawProgress = false;
 
+    /**
+     * Redmine's IssueQuery#draw_selected_columns (A15-11b): the chosen
+     * columns of a loaded issue query, shown as compact extra text next
+     * to each issue row — off by default, like Redmine's own
+     * draw_selected_columns (false unless explicitly turned on).
+     */
+    #[Url]
+    public bool $drawSelectedColumns = false;
+
+    /**
+     * The columns to show when drawSelectedColumns is on — reuses
+     * RelatedIssueColumns (the same compact, visibility-aware inline
+     * column set/renderer the issue detail page's related-issues table
+     * uses) rather than the full issue list column machinery, since a
+     * Gantt row has room for short text only and RelatedIssueColumns
+     * already excludes subject/tracker (shown separately here too) and
+     * anything too long for a single line (description, relations,
+     * attachments, watchers). loadQuery() below fills this from a loaded
+     * issue query's column_names, defaulting to the site's
+     * issue_list_default_columns like a column-less query does on the
+     * issue list itself (Query#columns' has_default_columns? branch).
+     * Never written back to a query — read-side only, see loadQuery().
+     * Not #[Url]-bound, so it's client-settable; selectedColumnTexts()
+     * re-filters it before use rather than trusting it's still one of
+     * RelatedIssueColumns' own keys.
+     *
+     * @var array<int, string>
+     */
+    public array $columns = [];
+
     protected function queryScopeProject(): ?Project
     {
         return $this->project;
+    }
+
+    /**
+     * The site's issue_list_default_columns (the same fallback
+     * saveQuery() on the issue list itself, and this trait's own
+     * saveQuery(), use for a brand-new query).
+     *
+     * @return array<int, string>
+     */
+    private static function issueListDefaultColumns(): array
+    {
+        return Setting::get('issue_list_default_columns', ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']);
+    }
+
+    /**
+     * $keys narrowed to strings RelatedIssueColumns actually knows how to
+     * render — the guard both loadQuery() and selectedColumnTexts() apply
+     * before doing anything with a column key, since $columns isn't
+     * #[Url]-validated and is otherwise client-settable.
+     *
+     * @param  array<mixed>  $keys
+     * @return array<int, string>
+     */
+    private function selectableColumns(array $keys): array
+    {
+        return array_values(array_intersect(array_filter($keys, 'is_string'), array_keys(RelatedIssueColumns::available())));
+    }
+
+    /**
+     * Applies a saved issue query's filters (UsesSavedIssueQueriesForFiltering's
+     * own loadQuery()) and, in addition, its column_names as the
+     * draw_selected_columns column set — falling back to the site's
+     * issue_list_default_columns when the query has none of its own,
+     * same as the issue list would for a column-less query.
+     */
+    public function loadQuery(int $queryId): void
+    {
+        $this->loadIssueQuery($queryId);
+
+        $query = $this->savedQueries->firstWhere('id', $queryId);
+        $columnNames = $query !== null && ($query->column_names ?? []) !== [] ? $query->column_names : self::issueListDefaultColumns();
+        $this->columns = $this->selectableColumns($columnNames);
     }
 
     /**
@@ -103,6 +179,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->authorize('viewGantt', $project);
 
         $this->project = $project;
+        $this->columns = $this->selectableColumns(self::issueListDefaultColumns());
 
         // Redmine's gantt?query_id=: opens on a saved issue query.
         if (request()->filled('query_id')) {
@@ -279,9 +356,56 @@ new #[Layout('components.layouts.app')] class extends Component
         return $limit > 0 && $this->allLines->count() > $limit;
     }
 
+    /**
+     * A15-11b: draw_selected_columns' text per drawn issue row — only
+     * fetched when the toggle is on, since it means loading full Issue
+     * models (with the relations RelatedIssueColumns needs) for every
+     * drawn row rather than the lean GanttRow projection the chart
+     * otherwise draws from. A field the viewer's role can't see in that
+     * issue's project renders as blank, matching every other custom
+     * field cell in this app (RelatedIssueColumns::visibleCustomFieldIds()
+     * defers to Issue::relevantCustomFields(), the same per-role check
+     * the issue list and detail page use).
+     *
+     * @return array<int, string> issue id => joined column text
+     */
+    #[Computed]
+    public function selectedColumnTexts(): array
+    {
+        // $columns isn't #[Url]-validated (it's only ever set from this
+        // component's own loadQuery()/mount(), but is still a public
+        // Livewire property and so client-settable) — re-filter it here
+        // rather than trust it still holds only RelatedIssueColumns keys.
+        $columns = $this->selectableColumns($this->columns);
+
+        if (! $this->drawSelectedColumns || $columns === []) {
+            return [];
+        }
+
+        $issueIds = $this->rows->pluck('id');
+
+        if ($issueIds->isEmpty()) {
+            return [];
+        }
+
+        $issues = Issue::query()
+            ->whereIn('id', $issueIds)
+            ->with(['project', ...RelatedIssueColumns::relationsFor($columns)])
+            ->get();
+
+        $visibleCustomFieldIds = RelatedIssueColumns::visibleCustomFieldIds($issues, auth()->user());
+
+        return $issues->mapWithKeys(fn (Issue $issue) => [
+            $issue->id => collect($columns)
+                ->map(fn (string $key) => RelatedIssueColumns::value($issue, $key, $visibleCustomFieldIds[$issue->id] ?? []))
+                ->filter(fn (string $text) => $text !== '')
+                ->join(' / '),
+        ])->all();
+    }
+
     public function applyFilters(): void
     {
-        unset($this->allLines, $this->lines, $this->rows, $this->versions, $this->chart, $this->relationLines, $this->scopeProjects, $this->withSubprojectHeadings, $this->engine);
+        unset($this->allLines, $this->lines, $this->rows, $this->versions, $this->chart, $this->relationLines, $this->scopeProjects, $this->withSubprojectHeadings, $this->engine, $this->selectedColumnTexts);
     }
 
     /**
@@ -561,6 +685,10 @@ new #[Layout('components.layouts.app')] class extends Component
             <input type="checkbox" wire:model.live="drawProgress" class="rounded border-neutral-300" data-gantt-draw-progress>
             {{ __('進捗率の表示') }}
         </label>
+        <label class="flex items-center gap-1">
+            <input type="checkbox" wire:model.live="drawSelectedColumns" class="rounded border-neutral-300" data-gantt-draw-selected-columns>
+            {{ __('選択した列を表示') }}
+        </label>
     </div>
 
     @if ($this->rangeStart === null)
@@ -572,6 +700,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->monthsTruncated)
             <p class="mb-2 text-sm text-warning-bold">{{ __('期間が長いため、開始から:monthsか月分だけを表示しています。', ['months' => self::monthsLimit()]) }}</p>
         @endif
-        <x-gantt.chart :chart="$this->chart" :lines="$this->lines" :relation-lines="$this->relationLines" :zoom="$zoom" :draw-progress="$drawProgress" />
+        <x-gantt.chart :chart="$this->chart" :lines="$this->lines" :relation-lines="$this->relationLines" :zoom="$zoom" :draw-progress="$drawProgress"
+            :draw-selected-columns="$drawSelectedColumns" :selected-column-texts="$this->selectedColumnTexts" />
     @endif
 </div>
