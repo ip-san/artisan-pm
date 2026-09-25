@@ -72,10 +72,10 @@ final class UserController extends Controller
     }
 
     /**
-     * Redmine's users/show.api.rsb ?include=groups,memberships: groups is
-     * eager loaded unconditionally (UserResource itself gates it to an
-     * admin or the user's own request); memberships are narrowed here to
-     * projects the viewer may see, like Redmine's
+     * Redmine's users/show.api.rsb ?include=groups,memberships,auth_source:
+     * groups and auth_source are eager loaded unconditionally (UserResource
+     * itself gates both to an admin request); memberships are narrowed here
+     * to projects the viewer may see, like Redmine's
      * `@user.memberships.where(Project.visible_condition(User.current))`.
      */
     private function loadIncludes(Request $request, User $user): void
@@ -84,6 +84,10 @@ final class UserController extends Controller
 
         if ($requested->contains('groups')) {
             $user->load('groups');
+        }
+
+        if ($requested->contains('auth_source')) {
+            $user->load('authSource');
         }
 
         if ($requested->contains('memberships')) {

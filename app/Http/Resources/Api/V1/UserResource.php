@@ -8,17 +8,20 @@ use App\Models\Group;
 use App\Models\Member;
 use App\Models\User;
 use App\Support\Api\CustomFieldPayload;
+use App\Support\Avatar\UserAvatar;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * The fields the viewer is entitled to, as in Redmine's show.api.rsb:
- * everyone gets the public ones (the email address unless the user hides it);
- * administrators and the user themselves also see the admin flag, language and
- * notification settings; only administrators see status and the authentication
- * source; only the user sees their own API key. `name` is this app's stored
- * name; `firstname`/`lastname` are Redmine's (null when not entered). Custom
- * field values are omitted, like every other API resource here.
+ * everyone gets the public ones (the email address unless the user hides it,
+ * and a Gravatar avatar_url when the site has one enabled); administrators
+ * and the user themselves also see the admin flag, language, notification
+ * settings and their 2FA scheme; only administrators see status and the
+ * authentication source; only the user sees their own API key. `name` is
+ * this app's stored name; `firstname`/`lastname` are Redmine's (null when
+ * not entered). Custom field values are omitted, like every other API
+ * resource here.
  *
  * @property User $resource
  */
@@ -48,6 +51,10 @@ final class UserResource extends JsonResource
                 'language' => $user->language,
                 'mail_notification' => $user->mail_notification->value,
                 'no_self_notified' => $user->no_self_notified,
+                // Redmine's users/show.api.rsb: admin or the user themselves,
+                // whatever scheme is active (only 'totp' here — this app has
+                // no WebAuthn-style second scheme), null when 2FA is off.
+                'twofa_scheme' => $user->hasEnabledTwoFactorAuthentication() ? 'totp' : null,
             ] : []),
             ...($isAdmin ? [
                 'status' => $user->status->value,
@@ -55,6 +62,11 @@ final class UserResource extends JsonResource
                 'must_change_passwd' => $user->must_change_passwd,
                 'passwd_changed_on' => $user->passwd_changed_on?->toIso8601String(),
             ] : []),
+            // Redmine's users/show.api.rsb: shown to anyone, only present
+            // when Gravatar is on and the user has an address — there is no
+            // fetchable image for the initials-circle fallback this app
+            // otherwise renders inline (see <x-avatar>).
+            ...(UserAvatar::gravatarEnabled() && $user->email !== null ? ['avatar_url' => UserAvatar::gravatarUrl($user->email, 64)] : []),
             ...($isAdmin || $isSelf ? ['custom_fields' => CustomFieldPayload::read($user)] : []),
             'last_login_at' => $user->last_login_at?->toIso8601String(),
             // A user's own key only — Redmine also shows it to administrators,
@@ -63,11 +75,16 @@ final class UserResource extends JsonResource
             'created_at' => $user->created_at->toIso8601String(),
             'updated_at' => $user->updated_at->toIso8601String(),
             // Present only when the controller loaded them for
-            // ?include=groups,memberships (Redmine's users/show.api.rsb) —
-            // groups admin/self only, like the rest of this resource.
+            // ?include=groups,memberships,auth_source (Redmine's
+            // users/show.api.rsb) — groups and auth_source are admin only,
+            // like the rest of this resource.
             'groups' => $this->when(
                 $user->relationLoaded('groups') && ($isAdmin || $isSelf),
                 fn () => $user->groups->map(fn (Group $group) => ['id' => $group->id, 'name' => $group->name])->values()->all(),
+            ),
+            'auth_source' => $this->when(
+                $user->relationLoaded('authSource') && $isAdmin && $user->authSource !== null,
+                fn () => ['id' => $user->authSource->id, 'name' => $user->authSource->name],
             ),
             'memberships' => $this->when(
                 $user->relationLoaded('memberships'),

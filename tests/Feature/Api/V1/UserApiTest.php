@@ -9,13 +9,16 @@ use App\Models\Group;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\AccountInformation;
 use App\Support\Api\CustomFieldPayload;
 use App\Support\Preferences\UserPreferences;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Laravel\Fortify\Fortify;
 use Laravel\Passport\Passport;
+use PragmaRX\Google2FA\Google2FA;
 
 test('unauthenticated requests are rejected', function () {
     $this->getJson('/api/v1/users')->assertUnauthorized();
@@ -392,6 +395,82 @@ test('?include=memberships on a user shows their project roles, narrowed to proj
     $projectNames = collect($response->json('data.memberships'))->pluck('project.name');
 
     expect($projectNames)->toContain('Visible project')->not->toContain('Hidden project');
+});
+
+test('?include=auth_source on a user shows their authentication source, admin only', function () {
+    $admin = User::factory()->admin()->create();
+    $source = AuthSource::factory()->create(['name' => 'Corp LDAP']);
+    $user = User::factory()->create(['auth_source_id' => $source->id]);
+
+    Passport::actingAs($admin);
+    $this->getJson("/api/v1/users/{$user->id}?include=auth_source")
+        ->assertOk()
+        ->assertJsonPath('data.auth_source', ['id' => $source->id, 'name' => 'Corp LDAP']);
+
+    Passport::actingAs($user);
+    $this->getJson("/api/v1/users/{$user->id}?include=auth_source")
+        ->assertOk()
+        ->assertJsonMissingPath('data.auth_source');
+});
+
+test('?include=auth_source is absent for a local account and without the include', function () {
+    $admin = User::factory()->admin()->create();
+    $local = User::factory()->create();
+
+    Passport::actingAs($admin);
+    $this->getJson("/api/v1/users/{$local->id}?include=auth_source")
+        ->assertOk()
+        ->assertJsonMissingPath('data.auth_source');
+
+    $ldapUser = User::factory()->create(['auth_source_id' => AuthSource::factory()->create()->id]);
+    $this->getJson("/api/v1/users/{$ldapUser->id}")
+        ->assertOk()
+        ->assertJsonMissingPath('data.auth_source');
+});
+
+test('the 2FA scheme shows to an admin or the user themselves, not to others', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_project']]);
+    $user = User::factory()->create([
+        'two_factor_secret' => Fortify::currentEncrypter()->encrypt(app(Google2FA::class)->generateSecretKey()),
+        'two_factor_confirmed_at' => now(),
+    ]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+
+    Passport::actingAs($admin);
+    $this->getJson("/api/v1/users/{$user->id}")->assertOk()->assertJsonPath('data.twofa_scheme', 'totp');
+
+    Passport::actingAs($user);
+    $this->getJson("/api/v1/users/{$user->id}")->assertOk()->assertJsonPath('data.twofa_scheme', 'totp');
+
+    $colleague = User::factory()->create();
+    Member::factory()->for($project)->for($colleague)->create()->roles()->attach($role);
+    Passport::actingAs($colleague);
+    $this->getJson("/api/v1/users/{$user->id}")->assertOk()->assertJsonMissingPath('data.twofa_scheme');
+});
+
+test('the 2FA scheme is null for a user who has not enabled it', function () {
+    $admin = User::factory()->admin()->create();
+
+    Passport::actingAs($admin);
+
+    $this->getJson("/api/v1/users/{$admin->id}")->assertOk()->assertJsonPath('data.twofa_scheme', null);
+});
+
+test('avatar_url is a Gravatar link when enabled, and absent otherwise', function () {
+    $viewer = User::factory()->admin()->create();
+    $user = User::factory()->create(['email' => 'grace@example.com']);
+
+    Passport::actingAs($viewer);
+
+    $this->getJson("/api/v1/users/{$user->id}")->assertOk()->assertJsonMissingPath('data.avatar_url');
+
+    Setting::set('gravatar_enabled', true);
+
+    $this->getJson("/api/v1/users/{$user->id}")
+        ->assertOk()
+        ->assertJsonPath('data.avatar_url', fn (string $url) => str_contains($url, md5('grace@example.com')));
 });
 
 test('an admin can create a user with a generated password and mail the account information', function () {
