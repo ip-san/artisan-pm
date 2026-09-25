@@ -362,6 +362,19 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * The saved issue query this project's list opens on by default
+     * (Redmine's Project#default_issue_query, safe_attributes
+     * default_issue_query_id). Only ever a public query, site-wide or the
+     * project's own — see the project form's defaultQueryOptions().
+     *
+     * @return BelongsTo<Query, $this>
+     */
+    public function defaultIssueQuery(): BelongsTo
+    {
+        return $this->belongsTo(Query::class, 'default_issue_query_id');
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function defaultAssignedTo(): BelongsTo

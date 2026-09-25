@@ -4,12 +4,15 @@ use App\Enums\CustomizableType;
 use App\Enums\EnumerationType;
 use App\Enums\ProjectModuleKey;
 use App\Enums\ProjectStatus;
+use App\Enums\QueryType;
+use App\Enums\QueryVisibility;
 use App\Enums\VersionStatus;
 use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\Member;
 use App\Models\Project;
+use App\Models\Query;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Tracker;
@@ -426,6 +429,63 @@ test('the API can set and clear the default version and assignee', function () {
         ->assertOk()
         ->assertJsonPath('data.default_version', null)
         ->assertJsonPath('data.default_assignee', null);
+});
+
+test('the API can set and clear the default issue query, site-wide or the project\'s own', function () {
+    [$project, $admin] = projectDefaultsSetup();
+    $siteWide = Query::query()->create([
+        'name' => 'Everything', 'type' => QueryType::Issue->value, 'user_id' => $admin->id,
+        'project_id' => null, 'visibility' => QueryVisibility::Public->value,
+        'filters' => [], 'column_names' => [], 'sort_criteria' => [], 'group_by' => null,
+    ]);
+    $ownQuery = Query::query()->create([
+        'name' => 'This project only', 'type' => QueryType::Issue->value, 'user_id' => $admin->id,
+        'project_id' => $project->id, 'visibility' => QueryVisibility::Public->value,
+        'filters' => [], 'column_names' => [], 'sort_criteria' => [], 'group_by' => null,
+    ]);
+
+    Passport::actingAs($admin);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['default_issue_query_id' => $siteWide->id])
+        ->assertOk()
+        ->assertJsonPath('data.default_issue_query', ['id' => $siteWide->id, 'name' => 'Everything']);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['default_issue_query_id' => $ownQuery->id])
+        ->assertOk()
+        ->assertJsonPath('data.default_issue_query', ['id' => $ownQuery->id, 'name' => 'This project only']);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['default_issue_query_id' => null])
+        ->assertOk()
+        ->assertJsonPath('data.default_issue_query', null);
+});
+
+test('the API refuses a default issue query that is private or belongs to another project', function () {
+    [$project, $admin, $member] = projectDefaultsSetup();
+    $otherProject = Project::factory()->create();
+    $private = Query::query()->create([
+        'name' => 'Private', 'type' => QueryType::Issue->value, 'user_id' => $admin->id,
+        'project_id' => null, 'visibility' => QueryVisibility::Private->value,
+        'filters' => [], 'column_names' => [], 'sort_criteria' => [], 'group_by' => null,
+    ]);
+    $foreign = Query::query()->create([
+        'name' => 'Elsewhere', 'type' => QueryType::Issue->value, 'user_id' => $admin->id,
+        'project_id' => $otherProject->id, 'visibility' => QueryVisibility::Public->value,
+        'filters' => [], 'column_names' => [], 'sort_criteria' => [], 'group_by' => null,
+    ]);
+    $projectQuery = Query::query()->create([
+        'name' => 'Project scoped', 'type' => QueryType::Project->value, 'user_id' => $admin->id,
+        'project_id' => null, 'visibility' => QueryVisibility::Public->value,
+        'filters' => [], 'column_names' => [], 'sort_criteria' => [], 'group_by' => null,
+    ]);
+
+    Passport::actingAs($admin);
+
+    foreach ([$private->id, $foreign->id, $projectQuery->id] as $invalidId) {
+        $this->putJson("/api/v1/projects/{$project->id}", ['default_issue_query_id' => $invalidId])
+            ->assertUnprocessable();
+    }
+
+    expect($project->fresh()->default_issue_query_id)->toBeNull();
 });
 
 test('the API refuses a closed or foreign version and a non-assignable user', function () {

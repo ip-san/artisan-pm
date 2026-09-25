@@ -28,7 +28,7 @@ final class ProjectResource extends JsonResource
 
         // Single-project responses (show/store/update) load these here; the
         // index eager-loads them so the list stays free of N+1 queries.
-        $project->loadMissing(['defaultVersion', 'defaultAssignedTo', 'defaultAssignedToGroup']);
+        $project->loadMissing(['defaultVersion', 'defaultAssignedTo', 'defaultAssignedToGroup', 'defaultIssueQuery']);
 
         $includes = $this->includes($request);
 
@@ -44,6 +44,9 @@ final class ProjectResource extends JsonResource
             'parent_id' => $project->parent_id,
             'default_version' => $project->defaultVersion !== null
                 ? ['id' => $project->defaultVersion->id, 'name' => $project->defaultVersion->name]
+                : null,
+            'default_issue_query' => $project->defaultIssueQuery !== null
+                ? ['id' => $project->defaultIssueQuery->id, 'name' => $project->defaultIssueQuery->name]
                 : null,
             'default_assignee' => match (true) {
                 $project->defaultAssignedTo !== null => ['id' => $project->defaultAssignedTo->id, 'name' => $project->defaultAssignedTo->displayName(), 'type' => 'user'],

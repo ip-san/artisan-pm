@@ -45,7 +45,7 @@ final class ProjectController extends Controller
         $engine = new QueryFilterEngine(ProjectFilterFieldRegistry::forViewer($user, $visibleProjectIds));
 
         $query = $engine->applyFilters(
-            Project::query()->whereIn('id', $visibleProjectIds)->with(['defaultVersion', 'defaultAssignedTo', 'defaultAssignedToGroup']),
+            Project::query()->whereIn('id', $visibleProjectIds)->with(['defaultVersion', 'defaultAssignedTo', 'defaultAssignedToGroup', 'defaultIssueQuery']),
             RedmineIssueListParams::filters($input, $engine, $user),
         )->orderBy('name')->orderBy('id');
 

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api\V1;
 
 use App\Enums\ProjectModuleKey;
+use App\Enums\QueryType;
+use App\Enums\QueryVisibility;
 use App\Enums\VersionStatus;
 use App\Models\Project;
+use App\Models\Query;
 use App\Models\Version;
 use App\Support\Issues\AssigneeChoice;
 use Closure;
@@ -106,6 +109,16 @@ final class UpdateProjectRequest extends FormRequest
                     $fail(__('選択した担当者は無効です。'));
                 }
             }],
+            // A15-19: same choices as the project form's
+            // defaultQueryOptions() — a public issue query, site-wide or
+            // this project's own.
+            'default_issue_query_id' => ['nullable', 'integer', Rule::in(
+                Query::query()
+                    ->where('type', QueryType::Issue->value)
+                    ->where('visibility', QueryVisibility::Public->value)
+                    ->where(fn ($q) => $q->whereNull('project_id')->orWhere('project_id', $project->id))
+                    ->pluck('id')->all()
+            )],
         ];
     }
 }
