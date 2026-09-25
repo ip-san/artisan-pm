@@ -215,6 +215,60 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * The issue custom fields explicitly linked to this project (the
+     * inverse of CustomField::projects()). A field with no rows here at
+     * all — for any project — still applies to this one via
+     * CustomField::appliesToProject()'s "empty pivot means every
+     * project" branch (Redmine's is_for_all, A15-18); this relation only
+     * reflects explicit links.
+     *
+     * @return BelongsToMany<CustomField, $this>
+     */
+    public function issueCustomFields(): BelongsToMany
+    {
+        return $this->belongsToMany(CustomField::class, 'custom_field_project')
+            ->where('custom_fields.customized_type', CustomizableType::Issue);
+    }
+
+    /**
+     * Applies this project's own issue_custom_field_ids selection
+     * (Redmine's project.issue_custom_field_ids=, A15-18) — offered on
+     * the project settings form and REST PUT/POST /projects, alongside
+     * the existing custom-field admin screen's own "for which projects"
+     * picker (CustomField's projects() pivot). Both write the same
+     * custom_field_project pivot, so the two stay in sync automatically.
+     *
+     * A field with an empty project pivot already applies to every
+     * project (CustomField::appliesToProject()'s "empty means all"
+     * branch — this app's stand-in for Redmine's is_for_all flag, since
+     * there is no separate is_for_all column). Writing a pivot row for
+     * such a field from here would flip it from "applies everywhere" to
+     * "applies only where explicitly linked" for every OTHER project
+     * too, so ids for a field that currently applies to every project
+     * are silently ignored — matching Redmine's project settings form,
+     * where an is_for_all field's checkbox is checked but disabled and
+     * so never submitted. Ids that aren't Issue-type custom fields (or
+     * don't exist) are ignored the same way.
+     *
+     * @param  array<int, int>  $ids
+     */
+    public function syncIssueCustomFieldIds(array $ids): void
+    {
+        $forAllIds = CustomField::query()
+            ->where('customized_type', CustomizableType::Issue)
+            ->whereDoesntHave('projects')
+            ->pluck('id');
+
+        $allowedIds = CustomField::query()
+            ->where('customized_type', CustomizableType::Issue)
+            ->whereIn('id', $ids)
+            ->whereNotIn('id', $forAllIds)
+            ->pluck('id');
+
+        $this->issueCustomFields()->sync($allowedIds);
+    }
+
+    /**
      * @return HasMany<Issue, $this>
      */
     public function issues(): HasMany

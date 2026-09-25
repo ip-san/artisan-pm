@@ -83,6 +83,9 @@ final class UpdateProjectRequest extends FormRequest
             'tracker_ids.*' => ['exists:trackers,id'],
             'modules' => ['sometimes', 'array'],
             'modules.*' => [Rule::in(array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::cases()))],
+            // A15-18: see StoreProjectRequest.
+            'issue_custom_field_ids' => ['sometimes', 'array'],
+            'issue_custom_field_ids.*' => ['integer', 'exists:custom_fields,id'],
             // The same choices the project form offers (Redmine's
             // safe_attributes): an open shared version, or a member who can be
             // assigned issues — or the value the project already has, so an

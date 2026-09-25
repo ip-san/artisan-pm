@@ -49,6 +49,13 @@ final class StoreProjectRequest extends FormRequest
             'tracker_ids.*' => ['exists:trackers,id'],
             'modules' => ['sometimes', 'array'],
             'modules.*' => [Rule::in(array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::cases()))],
+            // A15-18: which issue custom fields apply to this project
+            // (Redmine's project.issue_custom_field_ids=), same as the
+            // project settings form. A field that already applies to
+            // every project is unaffected either way — see
+            // Project::syncIssueCustomFieldIds().
+            'issue_custom_field_ids' => ['sometimes', 'array'],
+            'issue_custom_field_ids.*' => ['integer', 'exists:custom_fields,id'],
         ];
     }
 }

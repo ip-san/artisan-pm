@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CustomizableType;
 use App\Enums\ProjectModuleKey;
 use App\Models\CustomField;
 use App\Enums\QueryType;
@@ -58,6 +59,18 @@ new #[Layout('components.layouts.app')] class extends Component
     /** @var array<int> */
     public array $trackerIds = [];
 
+    /**
+     * Issue custom fields selected for this project (Redmine's
+     * project.issue_custom_field_ids=, A15-18) — includes both fields
+     * explicitly linked to this project and fields that apply to every
+     * project (CustomField::isForAll()), since the latter render
+     * checked-but-disabled in the form below and are never actually
+     * synced (Project::syncIssueCustomFieldIds()).
+     *
+     * @var array<int>
+     */
+    public array $issueCustomFieldIds = [];
+
     /** @var array<int|string, mixed> custom_field_id => raw input (or array for multi-value) */
     public array $customFieldValues = [];
 
@@ -80,6 +93,10 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->default_issue_query_id = $project->default_issue_query_id;
             $this->modules = $project->moduleAssignments->pluck('module.value')->all();
             $this->trackerIds = $project->trackers->pluck('id')->all();
+            $this->issueCustomFieldIds = $this->issueCustomFieldOptions
+                ->filter(fn (CustomField $field) => $field->appliesToProject($project))
+                ->pluck('id')
+                ->all();
 
             $this->customFieldValues = $project->customFieldFormValues($project->relevantCustomFields());
         } else {
@@ -111,6 +128,14 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->trackerIds = $defaultTrackerIds !== []
                 ? $defaultTrackerIds
                 : Tracker::query()->pluck('id')->all();
+
+            // A brand-new project has no pivot rows of its own yet, so the
+            // only fields that already apply to it are the ones that apply
+            // to every project.
+            $this->issueCustomFieldIds = $this->issueCustomFieldOptions
+                ->filter(fn (CustomField $field) => $field->isForAll())
+                ->pluck('id')
+                ->all();
         }
     }
 
@@ -144,6 +169,23 @@ new #[Layout('components.layouts.app')] class extends Component
     public function trackers(): Collection
     {
         return Tracker::query()->orderBy('position')->get();
+    }
+
+    /**
+     * Every issue custom field, for the issue_custom_field_ids picker
+     * (A15-18) — with its projects eager-loaded so appliesToProject()/
+     * isForAll() don't each re-query.
+     *
+     * @return Collection<int, CustomField>
+     */
+    #[Computed]
+    public function issueCustomFieldOptions(): Collection
+    {
+        return CustomField::query()
+            ->where('customized_type', CustomizableType::Issue)
+            ->with('projects')
+            ->orderBy('position')
+            ->get();
     }
 
     /**
@@ -341,6 +383,8 @@ new #[Layout('components.layouts.app')] class extends Component
             'parent_id' => ['nullable', Rule::in([...$this->availableParents->pluck('id')->all(), $this->project?->parent_id])],
             'trackerIds' => ['required', 'array', 'min:1'],
             'trackerIds.*' => ['exists:trackers,id'],
+            'issueCustomFieldIds' => ['array'],
+            'issueCustomFieldIds.*' => ['exists:custom_fields,id'],
         ];
 
         if ($this->project !== null) {
@@ -358,7 +402,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $data = $this->validate($rules);
         $customFieldData = CustomField::filterEditableValues($this->customFields, $data['customFieldValues'] ?? [], auth()->user());
         $trackerIds = $data['trackerIds'];
-        unset($data['customFieldValues'], $data['trackerIds']);
+        $issueCustomFieldIds = $data['issueCustomFieldIds'] ?? [];
+        unset($data['customFieldValues'], $data['trackerIds'], $data['issueCustomFieldIds']);
 
         // Without select_project_publicity the posted value is ignored: an
         // existing project keeps what it has, a new one takes the site default.
@@ -415,6 +460,7 @@ new #[Layout('components.layouts.app')] class extends Component
         );
 
         $this->project->trackers()->sync($trackerIds);
+        $this->project->syncIssueCustomFieldIds($issueCustomFieldIds);
 
         $this->project->setCustomFieldValues($customFieldData);
 
@@ -513,6 +559,25 @@ new #[Layout('components.layouts.app')] class extends Component
                 </p>
             @endif
         </div>
+
+        @if ($this->issueCustomFieldOptions->isNotEmpty())
+            <div>
+                <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('課題のカスタムフィールド') }}</span>
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach ($this->issueCustomFieldOptions as $field)
+                        <label class="flex items-center gap-2 text-sm text-neutral-700">
+                            <input type="checkbox" wire:model="issueCustomFieldIds" value="{{ $field->id }}"
+                                @disabled($field->isForAll()) class="rounded border-neutral-300">
+                            {{ $field->name }}
+                            @if ($field->isForAll())
+                                <span class="text-xs text-neutral-400">{{ __('(全プロジェクト共通)') }}</span>
+                            @endif
+                        </label>
+                    @endforeach
+                </div>
+                @error('issueCustomFieldIds') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+        @endif
 
         @if ($project)
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">

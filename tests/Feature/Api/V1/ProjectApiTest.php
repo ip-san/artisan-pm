@@ -549,3 +549,93 @@ test('issue_custom_fields via include only lists fields that apply to the projec
 
     expect($names)->toContain('Global field')->not->toContain('Scoped field');
 });
+
+test('creating a project via the api can select which issue custom fields apply to it', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create();
+    $scoped = CustomField::factory()->create(['customized_type' => CustomizableType::Issue, 'name' => 'Scoped field']);
+    // Explicitly linking it to some other project first makes its pivot
+    // non-empty, i.e. no longer for-all (CustomField::isForAll()) — a
+    // for-all field's id would otherwise be silently ignored below.
+    $scoped->projects()->attach(Project::factory()->create());
+
+    Passport::actingAs($admin);
+
+    $this->postJson('/api/v1/projects', [
+        'name' => 'New Project',
+        'identifier' => 'new-project',
+        'tracker_ids' => [$tracker->id],
+        'issue_custom_field_ids' => [$scoped->id],
+    ])->assertCreated();
+
+    $project = Project::where('identifier', 'new-project')->firstOrFail();
+
+    expect($project->issueCustomFields()->pluck('custom_fields.id')->all())->toBe([$scoped->id]);
+});
+
+test('the api can link and later unlink an issue custom field via issue_custom_field_ids', function () {
+    $project = Project::factory()->create();
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_project', 'edit_project']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+    $scoped = CustomField::factory()->create(['customized_type' => CustomizableType::Issue, 'name' => 'Scoped field']);
+    $scoped->projects()->attach(Project::factory()->create());
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['issue_custom_field_ids' => [$scoped->id]])->assertOk();
+
+    expect($project->issueCustomFields()->pluck('custom_fields.id')->all())->toBe([$scoped->id]);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['issue_custom_field_ids' => []])->assertOk();
+
+    expect($project->issueCustomFields()->pluck('custom_fields.id')->all())->toBe([]);
+});
+
+test('omitting issue_custom_field_ids on update leaves the project custom field selection untouched', function () {
+    $project = Project::factory()->create(['name' => 'Old Name']);
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_project', 'edit_project']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+    $scoped = CustomField::factory()->create(['customized_type' => CustomizableType::Issue, 'name' => 'Scoped field']);
+    $project->issueCustomFields()->attach($scoped);
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['name' => 'New Name'])->assertOk();
+
+    expect($project->issueCustomFields()->pluck('custom_fields.id')->all())->toBe([$scoped->id]);
+});
+
+test('submitting a for-all field id via issue_custom_field_ids does not narrow it to only that project', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $user = User::factory()->create();
+    $role = Role::factory()->create(['permissions' => ['view_project', 'edit_project']]);
+    Member::factory()->for($project)->for($user)->create()->roles()->attach($role);
+    $global = CustomField::factory()->create(['customized_type' => CustomizableType::Issue, 'name' => 'Global field']);
+
+    Passport::actingAs($user);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['issue_custom_field_ids' => [$global->id]])->assertOk();
+
+    expect($global->fresh())
+        ->isForAll()->toBeTrue()
+        ->appliesToProject($otherProject)->toBeTrue();
+});
+
+test('issue_custom_field_ids rejects a project-type custom field id', function () {
+    $project = Project::factory()->create();
+    $admin = User::factory()->admin()->create();
+    $projectField = CustomField::factory()->create(['customized_type' => CustomizableType::Project, 'name' => 'Project field']);
+
+    Passport::actingAs($admin);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['issue_custom_field_ids' => [$projectField->id]])
+        ->assertOk();
+
+    // A project-type field id is a valid custom_fields row, so the request
+    // itself passes validation; the sync helper is what excludes it since
+    // it only ever writes to the Issue-scoped issueCustomFields() relation.
+    expect($project->issueCustomFields()->pluck('custom_fields.id')->all())->toBe([]);
+});

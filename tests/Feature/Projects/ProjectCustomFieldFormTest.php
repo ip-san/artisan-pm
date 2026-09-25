@@ -83,7 +83,12 @@ test('a non-editable custom field renders disabled for a non-admin but enabled f
         ->assertDontSeeHtml("wire:model=\"customFieldValues.{$field->id}\" disabled");
 });
 
-test('an issue custom field is neither rendered nor saved on a project form', function () {
+test('an issue custom field gets no value input and no custom field value on a project form', function () {
+    // Since A15-18 an issue custom field does render on the project
+    // form — as an issue_custom_field_ids picker checkbox (which
+    // projects it applies to, not a value) — but it must still never
+    // get a *value* input or a saved customFieldValues row, which are
+    // for Project-type fields only.
     $admin = User::factory()->admin()->create();
     $issueField = CustomField::factory()->create(['name' => 'Issue-only field', 'customized_type' => CustomizableType::Issue->value]);
     $tracker = Tracker::factory()->create();
@@ -93,7 +98,7 @@ test('an issue custom field is neither rendered nor saved on a project form', fu
         ->set('name', 'Plain Project')
         ->set('identifier', 'plain-project')
         ->set('trackerIds', [$tracker->id])
-        ->assertDontSee('Issue-only field')
+        ->assertDontSeeHtml("wire:model=\"customFieldValues.{$issueField->id}\"")
         ->call('save')
         ->assertRedirect();
 

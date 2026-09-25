@@ -78,11 +78,12 @@ final class ProjectController extends Controller
     {
         $data = $request->validated();
         $trackerIds = $data['tracker_ids'];
+        $issueCustomFieldIds = $data['issue_custom_field_ids'] ?? [];
         $modules = $data['modules'] ?? Setting::get(
             'default_projects_modules',
             array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults())
         );
-        unset($data['tracker_ids'], $data['modules']);
+        unset($data['tracker_ids'], $data['modules'], $data['issue_custom_field_ids']);
 
         // Matches projects/form.blade.php's mount(): is_public isn't
         // required, so an omitted field should fall back to the
@@ -122,6 +123,7 @@ final class ProjectController extends Controller
 
         $project->syncModules(array_map(fn (string $m) => ProjectModuleKey::from($m), $modules));
         $project->trackers()->sync($trackerIds);
+        $project->syncIssueCustomFieldIds($issueCustomFieldIds);
 
         return (new ProjectResource($project))->response()->setStatusCode(201);
     }
@@ -131,7 +133,8 @@ final class ProjectController extends Controller
         $data = $request->validated();
         $trackerIds = $data['tracker_ids'] ?? null;
         $modules = $data['modules'] ?? null;
-        unset($data['tracker_ids'], $data['modules']);
+        $issueCustomFieldIds = $data['issue_custom_field_ids'] ?? null;
+        unset($data['tracker_ids'], $data['modules'], $data['issue_custom_field_ids']);
 
         // `default_assigned_to_id: null` clears a group default too.
         if (array_key_exists('default_assigned_to_id', $data) && $data['default_assigned_to_id'] === null && ! array_key_exists('default_assigned_to_group_id', $data)) {
@@ -161,6 +164,10 @@ final class ProjectController extends Controller
 
         if ($trackerIds !== null) {
             $project->trackers()->sync($trackerIds);
+        }
+
+        if ($issueCustomFieldIds !== null) {
+            $project->syncIssueCustomFieldIds($issueCustomFieldIds);
         }
 
         return new ProjectResource($project);

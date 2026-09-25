@@ -315,6 +315,20 @@ final class CustomField extends Model implements Sortable
     }
 
     /**
+     * True when this field has no explicit project links at all —
+     * Redmine's is_for_all, mirrored here (A15-18) as appliesToProject()'s
+     * "empty pivot" branch rather than a separate stored flag. Applies to
+     * every project regardless of any particular one's pivot rows, which
+     * is why a project's own issue_custom_field_ids selection must never
+     * add a pivot row for a field this returns true for (Project::
+     * syncIssueCustomFieldIds()).
+     */
+    public function isForAll(): bool
+    {
+        return $this->relationLoaded('projects') ? $this->projects->isEmpty() : $this->projects()->doesntExist();
+    }
+
+    /**
      * Empty pivot means "visible regardless of role", matching Redmine.
      *
      * @param  Collection<int, Role>  $userRoles

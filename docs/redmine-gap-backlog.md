@@ -374,7 +374,8 @@
 | 145k2 | A15-11b | A15-11 | S〜M | todo(2026-09-25 承認) |
 | 145l | A15-12 | — | S | done(2026-09-25) |
 | 145m | A15-13 | — | M | done(2026-09-25) |
-| 145m2 | A15-18 | — | S〜M | todo(2026-09-25 承認) |
+| 145m2 | A15-18 | — | S〜M | done(2026-09-25) |
+| 145m3 | A15-19 | A15-18 | S | blocked(要承認: A15-18 実装中に新規発見、オーナー未承認) |
 | 145n | A15-14 | — | S | done(2026-09-25) |
 | 145o | A15-15 | — | S | done(2026-09-25) |
 | 145p | A15-16 | — | S | done(2026-09-25) |
@@ -747,7 +748,8 @@
 | A15-15 | 課題インポート: 予定工数の列、`relation_copied_to/from` の列、担当者をログインID/氏名でも解決 | **done(2026-09-25)**: `ImportIssuesJob`に`estimated_hours`列、`relation_copied_to`/`relation_copied_from`列(`IssueService::addRelation()`の許容関連タイプに`copied_to`を追加、CSVインポート専用の経路)、担当者解決を`Principal.detect_by_keyword`と同じ優先順位(ログインID→メール→氏名→表示名)に拡張。テスト: `IssueImportTest.php` | なし/メールかグループ名のみ | S | マッピング可能な列 |
 | A15-16 | Atom: 課題単体・プロジェクト一覧・リポジトリのリビジョン・全体のお知らせ | **done(2026-09-25)**: `IssueJournalAtomController`(`issues/{issue}.atom`、課題変更履歴Atomと可視性/説明ロジックを`App\Support\Feeds\JournalFeedEntries`として共有化)、`ProjectAtomController`(`/projects.atom`)、`RepositoryRevisionsAtomController`(`/projects/{p}/repository/revisions.atom`、複数リポジトリの`.repo`版も)、`NewsAtomController`を`?Project $project = null`に拡張して`/news.atom`(横断)に対応。テスト: `AdditionalAtomFeedsTest.php` | なし | S | Atom フィード |
 | A15-17 | 保存前のライフサイクルフック(値の変更や保存の中止ができる `*_before_save`) | **done(2026-09-25)**: `App\Support\Plugins\BeforeSaveHooks`(`issue.before_save`/`time_entry.before_save`、Redmine実機に存在する`*_before_save`フックがこの2種のみのため意図的にこの範囲)、`PluginManager::onBeforeSave()`/`runBeforeSave()`、`BeforeSaveContext`(モデル直接書き換え・`fail()`での中止)。`IssueService`/`TimeEntryService`の`create()`/`update()`に配線。テスト: `BeforeSaveHooksTest.php` | M | ライフサイクルフック |
-| A15-18 | プロジェクトの `issue_custom_field_ids`(このプロジェクトで使う課題カスタムフィールドを選ぶ、Redmine の `project.issue_custom_field_ids=`) | 未着手(A15-13 で発見・据え置き)。`CustomField`側(管理画面)でしか対象プロジェクトを選べない | S〜M | REST API「Projects」 |
+| A15-18 | プロジェクトの `issue_custom_field_ids`(このプロジェクトで使う課題カスタムフィールドを選ぶ、Redmine の `project.issue_custom_field_ids=`) | **done(2026-09-25)**: `projects/form.blade.php`(トラッカー選択と同型のチェックボックス群、`issueCustomFieldIds`)と `PUT/POST /projects` の `issue_custom_field_ids` の両方から、このプロジェクトで使う課題カスタムフィールドを選べるようにした(`Project::issueCustomFields()`/`syncIssueCustomFieldIds()`、`CustomField`側の「対象プロジェクト」ピッカーと同じ `custom_field_project` ピボットを共有、どちらから編集しても同期)。全プロジェクト共通のフィールド(`CustomField::isForAll()`。本アプリには Redmine の `is_for_all` 列がなく「ピボットが空」がその代役)はチェック済み・選択不可で表示し、そのIDを含めて送信してもピボット行は書き込まない(Redmine の無効化チェックボックスが送信されないのと同じ結果を、フォーム/REST 双方でサーバー側ガードとして実装。書き込んでしまうと他の**全**プロジェクトから見た「全プロジェクト共通」が壊れるため)。テスト: `ProjectIssueCustomFieldSelectionTest.php`(フォーム)、`ProjectApiTest.php`(REST、全プロジェクト共通フィールドを送っても波及しないケースを含む)。**書かなかった部分(判断、新規行A15-19)**: `default_issue_query_id` の REST 書き込み(Web フォームには既にあるが、REST の safe attributes には未追加のまま — 今回のスコープはオーナー承認どおり `issue_custom_field_ids` のみ) | S〜M | REST API「Projects」 |
+| A15-19 | REST `PUT/POST /projects` の `default_issue_query_id`(Web フォームにはある既定クエリ選択が REST に無い、Redmine の `safe_attributes` には含まれる) | A15-18 実装中に発見。`projects/form.blade.php` の `default_issue_query_id`(既存)に対応する REST 側の受け付けがない(`StoreProjectRequest`/`UpdateProjectRequest` に規則なし) | S | REST API「Projects」 |
 
 ---
 
