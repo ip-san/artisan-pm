@@ -72,6 +72,55 @@ test('the time entry list can edit and delete a saved query in place, owner only
     expect(SavedQuery::count())->toBe(0);
 });
 
+test('editing a global time entry query from a project\'s time entry list does not narrow it to that project', function () {
+    $project = Project::factory()->create();
+    $owner = User::factory()->admin()->create();
+    Member::factory()->for($project)->for($owner)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_time_entries', 'log_time', 'save_queries']]));
+
+    $globalQuery = SavedQuery::create([
+        'name' => 'Global time entry query', 'type' => 'time_entry', 'user_id' => $owner->id,
+        'project_id' => null, 'visibility' => 'public',
+        'filters' => [], 'column_names' => ['hours'], 'sort_criteria' => [], 'group_by' => null,
+    ]);
+
+    // time-entries.index's loadQuery()/savedQueries() both offer global
+    // queries alongside the project's own, so editing one from here must
+    // not silently pin it to $this->project — the same hazard the gantt
+    // trait guards against.
+    Livewire::actingAs($owner)
+        ->test('time-entries.index', ['project' => $project])
+        ->call('editQuery', $globalQuery->id)
+        ->set('newQueryName', 'Still global time entry query')
+        ->call('saveQuery')
+        ->assertHasNoErrors();
+
+    expect($globalQuery->fresh())
+        ->project_id->toBeNull()
+        ->name->toBe('Still global time entry query');
+});
+
+test('an issue query cannot be loaded, edited or deleted through the time entry list', function () {
+    $project = Project::factory()->create();
+    $owner = wiringMember($project, ['view_time_entries', 'view_issues', 'log_time', 'save_queries']);
+    $issueQuery = SavedQuery::create([
+        'name' => 'Issue query', 'type' => 'issue', 'user_id' => $owner->id,
+        'project_id' => $project->id, 'visibility' => 'private',
+        'filters' => [], 'column_names' => ['subject'], 'sort_criteria' => [], 'group_by' => null,
+    ]);
+
+    Livewire::actingAs($owner)
+        ->test('time-entries.index', ['project' => $project])
+        ->call('loadQuery', $issueQuery->id)
+        ->assertNotFound();
+
+    Livewire::actingAs($owner)
+        ->test('time-entries.index', ['project' => $project])
+        ->call('deleteQuery', $issueQuery->id)
+        ->assertNotFound();
+
+    expect(SavedQuery::count())->toBe(1);
+});
+
 // --- Time entry list (global) -----------------------------------------
 
 test('the global time entry list can edit and delete a saved query in place, owner only', function () {
@@ -161,6 +210,36 @@ test('editing a gantt query keeps its original project scope rather than the vie
     expect($globalQuery->fresh())
         ->project_id->toBeNull()
         ->name->toBe('Still global');
+});
+
+test('editing a gantt query does not touch its columns, sort or grouping', function () {
+    $project = Project::factory()->create();
+    $owner = wiringMember($project, ['view_gantt', 'view_issues', 'save_queries']);
+
+    // Neither the Gantt nor the Calendar ever reads or writes
+    // columns/sort/group_by — only filters — so editing (renaming) a
+    // query from there must leave whatever the issue list originally set
+    // completely untouched, not overwrite it with the create-time
+    // defaults.
+    $query = SavedQuery::create([
+        'name' => 'Has real columns', 'type' => 'issue', 'user_id' => $owner->id,
+        'project_id' => $project->id, 'visibility' => 'private',
+        'filters' => [], 'column_names' => ['tracker_id', 'subject', 'due_date'],
+        'sort_criteria' => [['due_date', 'desc']], 'group_by' => 'tracker_id',
+    ]);
+
+    Livewire::actingAs($owner)
+        ->test('gantt.index', ['project' => $project])
+        ->call('editQuery', $query->id)
+        ->set('newQueryName', 'Renamed, columns kept')
+        ->call('saveQuery')
+        ->assertHasNoErrors();
+
+    expect($query->fresh())
+        ->name->toBe('Renamed, columns kept')
+        ->column_names->toBe(['tracker_id', 'subject', 'due_date'])
+        ->sort_criteria->toBe([['due_date', 'desc']])
+        ->group_by->toBe('tracker_id');
 });
 
 // --- Project list (global) --------------------------------------------

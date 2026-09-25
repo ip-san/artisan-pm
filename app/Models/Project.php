@@ -300,6 +300,13 @@ final class Project extends Model implements HasMedia
             return collect();
         }
 
+        // Livewire hydrates a checkbox-array's values from the DOM as
+        // strings (["5", "7"]), so a strict in_array() against raw
+        // $keptIds would treat every kept field as "removed" the moment
+        // a real form actually submits — cast once, here, rather than
+        // trusting every caller to have already done so.
+        $keptIds = array_map('intval', $keptIds);
+
         return $this->issueCustomFields()
             ->withCount('projects')
             ->get()

@@ -388,7 +388,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         abort_unless($this->canSaveQueries, 403);
 
-        $editing = $this->editingQueryId !== null ? SavedQuery::findOrFail($this->editingQueryId) : null;
+        $editing = $this->editingQueryId !== null ? SavedQuery::where('type', QueryType::TimeEntry->value)->findOrFail($this->editingQueryId) : null;
 
         if ($editing !== null) {
             $this->authorize('update', $editing);
@@ -437,7 +437,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         abort_unless($this->canSaveQueries, 403);
 
-        $query = SavedQuery::findOrFail($queryId);
+        $query = SavedQuery::where('type', QueryType::TimeEntry->value)->findOrFail($queryId);
         $this->authorize('update', $query);
 
         $this->loadQuery($queryId);
@@ -457,7 +457,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         abort_unless($this->canSaveQueries, 403);
 
-        $query = SavedQuery::findOrFail($queryId);
+        $query = SavedQuery::where('type', QueryType::TimeEntry->value)->findOrFail($queryId);
         $this->authorize('delete', $query);
 
         $query->delete();
@@ -472,7 +472,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function loadQuery(int $queryId): void
     {
-        $query = SavedQuery::query()->whereNull('project_id')->findOrFail($queryId);
+        $query = SavedQuery::query()->where('type', QueryType::TimeEntry->value)->whereNull('project_id')->findOrFail($queryId);
 
         abort_unless($query->visibleTo(auth()->user()), 403);
 
@@ -487,6 +487,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->columns = $query->column_names !== [] ? $query->column_names : ['project_id', ...\App\Support\Query\ListDefaults::DEFAULT_TIME_ENTRY_COLUMNS];
         $this->groupBy = $query->group_by;
+
+        $this->sortKey = null;
+        $this->sortDirection = 'asc';
 
         if ($query->sort_criteria !== [] && $query->sort_criteria !== null) {
             [$this->sortKey, $this->sortDirection] = $query->sort_criteria[0];

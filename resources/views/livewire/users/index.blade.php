@@ -93,7 +93,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('viewAny', User::class);
 
-        $editing = $this->editingQueryId !== null ? SavedQuery::findOrFail($this->editingQueryId) : null;
+        $editing = $this->editingQueryId !== null ? SavedQuery::where('type', QueryType::User->value)->findOrFail($this->editingQueryId) : null;
 
         if ($editing !== null) {
             $this->authorize('update', $editing);
@@ -134,7 +134,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('viewAny', User::class);
 
-        $query = SavedQuery::findOrFail($queryId);
+        $query = SavedQuery::where('type', QueryType::User->value)->findOrFail($queryId);
         $this->authorize('update', $query);
 
         $this->loadQuery($queryId);
@@ -152,7 +152,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('viewAny', User::class);
 
-        $query = SavedQuery::findOrFail($queryId);
+        $query = SavedQuery::where('type', QueryType::User->value)->findOrFail($queryId);
         $this->authorize('delete', $query);
 
         $query->delete();

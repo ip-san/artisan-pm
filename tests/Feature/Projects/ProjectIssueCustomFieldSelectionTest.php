@@ -96,6 +96,27 @@ test('unchecking a field that is only linked to this project is refused, since i
         ->appliesToProject($project)->toBeTrue();
 });
 
+test('keeping a sole-link field checked is accepted even though Livewire hydrates checkbox values as strings', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    $soleLink = CustomField::factory()->create(['name' => 'Sole link field', 'customized_type' => CustomizableType::Issue->value]);
+    $soleLink->projects()->attach($project);
+
+    // A checkbox array bound with wire:model comes back from the browser
+    // as strings ("5"), not ints — issueCustomFieldsLosingTheirLastLink()
+    // must still recognize the kept id as the same field, not treat it as
+    // removed just because "5" !== 5.
+    Livewire::actingAs($admin)
+        ->test('projects.form', ['project' => $project])
+        ->set('issueCustomFieldIds', [(string) $soleLink->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($soleLink->fresh())->appliesToProject($project)->toBeTrue();
+});
+
 test('unchecking a field that is still linked to another project is allowed', function () {
     $admin = User::factory()->admin()->create();
     $project = Project::factory()->create();

@@ -294,11 +294,21 @@ new #[Layout('components.layouts.app')] class extends Component
         return app(\App\Support\Authorization\AuthorizationService::class)->can(auth()->user(), 'save_queries', $this->project);
     }
 
+    /**
+     * project_id on a create is always $this->project->id — but on an
+     * edit it stays whatever the query already had (possibly a global,
+     * project-less query, or in principle another project's, since
+     * editableBy() doesn't require it be this project's own): this
+     * screen has no query_is_for_all-style toggle to let the viewer
+     * choose otherwise, so editing a query from this project's time
+     * entry list must never silently move it into this project just
+     * because of where the edit happened to be opened from.
+     */
     public function saveQuery(): void
     {
         abort_unless($this->canSaveQueries, 403);
 
-        $editing = $this->editingQueryId !== null ? SavedQuery::findOrFail($this->editingQueryId) : null;
+        $editing = $this->editingQueryId !== null ? SavedQuery::where('type', QueryType::TimeEntry->value)->findOrFail($this->editingQueryId) : null;
 
         if ($editing !== null) {
             $this->authorize('update', $editing);
@@ -311,11 +321,14 @@ new #[Layout('components.layouts.app')] class extends Component
             'newQueryRoleIds.*' => ['exists:roles,id'],
         ]);
 
-        $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], $this->project);
+        $project = $editing !== null
+            ? ($editing->project_id !== null ? Project::find($editing->project_id) : null)
+            : $this->project;
+        $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], $project);
 
         $attributes = [
             'name' => $data['newQueryName'],
-            'project_id' => $this->project->id,
+            'project_id' => $project?->id,
             'visibility' => $visibility,
             'filters' => $this->builtFilters(),
             'column_names' => $this->columns,
@@ -347,7 +360,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         abort_unless($this->canSaveQueries, 403);
 
-        $query = SavedQuery::findOrFail($queryId);
+        $query = SavedQuery::where('type', QueryType::TimeEntry->value)->findOrFail($queryId);
         $this->authorize('update', $query);
 
         $this->loadQuery($queryId);
@@ -367,7 +380,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         abort_unless($this->canSaveQueries, 403);
 
-        $query = SavedQuery::findOrFail($queryId);
+        $query = SavedQuery::where('type', QueryType::TimeEntry->value)->findOrFail($queryId);
         $this->authorize('delete', $query);
 
         $query->delete();
@@ -383,6 +396,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function loadQuery(int $queryId): void
     {
         $query = SavedQuery::query()
+            ->where('type', QueryType::TimeEntry->value)
             ->where(fn ($q) => $q->where('project_id', $this->project->id)->orWhereNull('project_id'))
             ->findOrFail($queryId);
 
@@ -399,6 +413,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->columns = $query->column_names !== [] ? $query->column_names : ListDefaults::DEFAULT_TIME_ENTRY_COLUMNS;
         $this->groupBy = $query->group_by;
+
+        $this->sortKey = null;
+        $this->sortDirection = 'asc';
 
         if ($query->sort_criteria !== [] && $query->sort_criteria !== null) {
             [$this->sortKey, $this->sortDirection] = $query->sort_criteria[0];

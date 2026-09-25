@@ -116,18 +116,27 @@ trait UsesSavedIssueQueriesForFiltering
      * editingQueryId set (editQuery()), updates that query in place
      * instead of creating a new one.
      *
-     * editing keeps the query's *existing* project scope rather than
-     * recomputing it from queryScopeProject(): this trait has no
-     * query_is_for_all-style toggle (unlike the issue list's own
-     * saveQuery()), so editing a global query from inside a specific
-     * project's Gantt (or vice versa) must not silently move it between
-     * scopes just because of where the edit happened to be opened from.
+     * Two things editing deliberately does *not* touch, both because this
+     * trait has no query_is_for_all-style toggle (unlike the issue list's
+     * own saveQuery()) to let the viewer choose otherwise:
+     *
+     * - project scope: kept at the query's *existing* project_id rather
+     *   than recomputed from queryScopeProject(), so editing a global
+     *   query from inside one project's Gantt/Calendar (or vice versa)
+     *   never silently moves it between scopes just because of where the
+     *   edit happened to be opened from;
+     * - column_names/sort_criteria/group_by: left exactly as they already
+     *   are on the query being edited, since neither the Gantt nor the
+     *   Calendar ever reads or offers to change them (only filters do) —
+     *   always overwriting them with the create-time defaults would
+     *   silently blow away whatever the issue list had set on a query
+     *   simply because it was renamed from here.
      */
     public function saveQuery(): void
     {
         abort_unless($this->canSaveQueries, 403);
 
-        $editing = $this->editingQueryId !== null ? SavedQuery::findOrFail($this->editingQueryId) : null;
+        $editing = $this->editingQueryId !== null ? SavedQuery::where('type', QueryType::Issue->value)->findOrFail($this->editingQueryId) : null;
 
         if ($editing !== null) {
             $this->authorize('update', $editing);
@@ -150,16 +159,20 @@ trait UsesSavedIssueQueriesForFiltering
             'project_id' => $project?->id,
             'visibility' => $visibility,
             'filters' => $this->builtFilters(),
-            'column_names' => Setting::get('issue_list_default_columns', ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']),
-            'sort_criteria' => [],
-            'group_by' => null,
         ];
 
         if ($editing !== null) {
             $editing->update($attributes);
             $query = $editing;
         } else {
-            $query = SavedQuery::create([...$attributes, 'type' => QueryType::Issue->value, 'user_id' => auth()->id()]);
+            $query = SavedQuery::create([
+                ...$attributes,
+                'type' => QueryType::Issue->value,
+                'user_id' => auth()->id(),
+                'column_names' => Setting::get('issue_list_default_columns', ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']),
+                'sort_criteria' => [],
+                'group_by' => null,
+            ]);
         }
 
         $query->roles()->sync($visibility === QueryVisibility::Roles->value ? $data['newQueryRoleIds'] : []);
@@ -179,7 +192,7 @@ trait UsesSavedIssueQueriesForFiltering
     {
         abort_unless($this->canSaveQueries, 403);
 
-        $query = SavedQuery::findOrFail($queryId);
+        $query = SavedQuery::where('type', QueryType::Issue->value)->findOrFail($queryId);
         $this->authorize('update', $query);
 
         $this->loadQuery($queryId);
@@ -199,7 +212,7 @@ trait UsesSavedIssueQueriesForFiltering
     {
         abort_unless($this->canSaveQueries, 403);
 
-        $query = SavedQuery::findOrFail($queryId);
+        $query = SavedQuery::where('type', QueryType::Issue->value)->findOrFail($queryId);
         $this->authorize('delete', $query);
 
         $query->delete();
