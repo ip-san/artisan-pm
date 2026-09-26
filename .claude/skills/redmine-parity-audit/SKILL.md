@@ -23,6 +23,17 @@ closed-project permission check that was backwards) — plus several places wher
 and contradicted the actual (already-correct) code. Neither direction of error is rare: docs can overclaim OR
 underclaim, and only reading the source settles which.
 
+**This is not a one-off lesson — it's this project's recurring pattern.** `docs/parity-checklist.md` was itself
+originally built (commit `725db50`) from five parallel audits comparing this app against Redmine controller-by-
+controller. The very next audit pass after that (`f8e30ba`, "C-01..C-16: Apply checklist corrections found by the
+source comparison") found over a dozen stale statements in the checklist it had just produced. A later pass
+(`2730c47`) found that Tracker/IssueStatus admin screens had been marked `done` because the underlying *model*
+existed, with nobody having actually checked that an admin route or view existed to use it — and that fix commit
+says explicitly: **"a stale `done` is worse than a `missing` for a document whose whole purpose is tracking real
+gaps."** Treat every `done` mark in this project's docs, however recent or however many prior audits it survived,
+as a claim to verify, not a fact to build on — the project's own history shows this isn't paranoia, it's the
+observed base rate.
+
 ## The one failure mode to avoid: nested delegation
 
 The first attempt at a large audit used a single coordinator agent that itself spawned five more agents and waited
@@ -90,6 +101,47 @@ into more flat workers up front, not to let one worker sub-delegate.
   formatting across workers is what lets you compile a master report afterward without re-reading everything.
 - End with a tally (✅n/⚠️n/❌n/未検証n) and a short list of anything worth a NEW backlog row, with enough detail
   (file:line, concrete failing scenario) to act on directly.
+
+## Known traps when the evidence is a grep, not a read
+
+Mechanical cross-referencing (grepping Redmine for a setting key, permission name, or column, then grepping this
+app for the same string) is a fast way to find candidates, but this project's history has hit the same two traps
+more than once. Warn workers about both explicitly:
+
+- **A grep hit for "added" doesn't mean it's still there.** A schema column or Redmine feature found via one
+  migration/commit can be removed by a *later* one. `A1-24`/`C-18` in the backlog records exactly this: a "missing
+  column" finding turned out to be a column Redmine had dropped years earlier — the audit had only grepped the
+  `add_column` migration and never checked for a subsequent `drop_column`. When a "Redmine has X, this app
+  doesn't" claim rests on a migration or a single commit, check the *current* state of Redmine's schema/source,
+  not just the first hit.
+- **A grep for one call convention misses indirect wiring.** The original settings-key cross-reference flagged
+  `default_projects_modules` and `issue_list_default_columns` as unimplemented because neither appeared in a
+  `Setting::get('...')` call — but both were actually wired through a Livewire component property instead, which
+  the grep pattern didn't match. Before concluding something is missing because a direct call/reference isn't
+  found, check whether it's reached through an intermediate layer (a computed property, a cached value, a service
+  class, a differently-named alias) — read the feature's actual UI/behavior, don't stop at one grep pattern coming
+  back empty.
+- **A model/column existing is not a feature existing.** `2730c47`'s finding (above) generalizes: checking that
+  the *backend* concept exists (a model, a table column, a service class) is not the same as checking that a user
+  can actually reach and use it (a route, a view, a nav link, an admin menu entry). When a claim is "X is
+  implemented," trace the whole path a user would take, not just the data layer underneath it.
+
+These traps mean a bare `grep -c` count (rows matching a pattern) is a *lead*, never a verdict — the file:line
+evidence requirement above exists partly to force actually opening the file the grep pointed at, rather than
+trusting the hit count.
+
+### A complementary, different-shaped technique: bulk canonical-list diffing
+
+Everything above is about verifying rows someone already wrote down (are these `done` claims true?). The
+checklist's original construction used a different, complementary technique worth reaching for when the question
+is instead "is anything *entirely* unbuilt that nobody has written a row for yet": diff whole canonical lists
+between Redmine and this app at once — every key in `config/settings.yml`, every permission in
+`lib/redmine/preparation.rb`, every route in `config/routes.rb`, every queryable filter/column in `*_query.rb`,
+every schema column, every Wiki macro, every My Page block type, every Webhook event — and see which names have no
+counterpart at all. This surfaces wholesale gaps fast, but produces exactly the two false-negative traps above at
+a higher rate (bulk diffing is even more grep-shaped than row-by-row auditing), so any "Redmine has this key/route/
+permission and the app has nothing" finding from this technique still needs the same file:line confirmation before
+it goes in a report.
 
 ## Cross-checking pays off
 
