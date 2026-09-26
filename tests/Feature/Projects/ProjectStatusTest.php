@@ -85,9 +85,9 @@ test('a closed project keeps the read-only administration permissions Redmine fl
     [$project, $user] = closedProjectMember([$permission]);
 
     expect(app(AuthorizationService::class)->can($user, $permission, $project))->toBeTrue();
-})->with(['edit_project', 'close_project', 'delete_project', 'select_project_modules']);
+})->with(['close_project', 'delete_project']);
 
-test('a closed project blocks manage_members, add_subprojects and manage_public_queries', function (string $permission) {
+test('a closed project blocks manage_members, add_subprojects, manage_public_queries, edit_project and select_project_modules', function (string $permission) {
     [$project, $user] = closedProjectMember([$permission]);
 
     expect(app(AuthorizationService::class)->can($user, $permission, $project))->toBeFalse();
@@ -96,7 +96,7 @@ test('a closed project blocks manage_members, add_subprojects and manage_public_
     $project->save();
 
     expect(app(AuthorizationService::class)->can($user, $permission, $project->fresh()))->toBeTrue();
-})->with(['manage_members', 'add_subprojects', 'manage_public_queries']);
+})->with(['manage_members', 'add_subprojects', 'manage_public_queries', 'edit_project', 'select_project_modules']);
 
 test('a closed project still lets its members read and reopen it but not manage members', function () {
     [$project, $user] = closedProjectMember(['view_project', 'close_project', 'manage_members']);
@@ -109,10 +109,10 @@ test('a closed project still lets its members read and reopen it but not manage 
     Livewire::actingAs($user)->test('projects.members', ['project' => $project->fresh()])->assertOk();
 });
 
-test('a closed project lets a member still edit and delete their own notes and messages', function (string $permission) {
+test('a closed project blocks a member from editing or deleting their own notes and messages', function (string $permission) {
     [$project, $user] = closedProjectMember([$permission]);
 
-    expect(app(AuthorizationService::class)->can($user, $permission, $project))->toBeTrue();
+    expect(app(AuthorizationService::class)->can($user, $permission, $project))->toBeFalse();
 })->with(['edit_own_issue_notes', 'delete_own_messages']);
 
 test('a closed project still blocks the write permissions of its modules', function (string $permission) {

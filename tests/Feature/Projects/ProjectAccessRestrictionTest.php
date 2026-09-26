@@ -68,12 +68,12 @@ test('a member can still view issues in a closed project', function () {
     expect($user->can('viewAny', [Issue::class, $project]))->toBeTrue();
 });
 
-test('project management permissions still work on a closed project', function () {
+test('close_project still works on a closed project but edit_project is blocked', function () {
     $project = Project::factory()->closed()->create();
     $user = restrictionMember($project, ['close_project', 'edit_project']);
 
     expect($user->can('close', $project))->toBeTrue()
-        ->and($user->can('update', $project))->toBeTrue();
+        ->and($user->can('update', $project))->toBeFalse();
 });
 
 test('no action is allowed on an archived project even for a project manager', function () {

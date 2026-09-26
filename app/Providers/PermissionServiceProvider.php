@@ -35,10 +35,10 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry = $this->app->make(PermissionRegistry::class);
 
         $registry->register('view_project', requirement: PermissionRequirement::None, readOnly: true);
-        $registry->register('edit_project', readOnly: true);
+        $registry->register('edit_project');
         $registry->register('close_project', readOnly: true);
         $registry->register('delete_project', readOnly: true);
-        $registry->register('select_project_modules', readOnly: true);
+        $registry->register('select_project_modules');
         $registry->register('manage_members');
         $registry->register('add_subprojects');
         $registry->register('select_project_publicity');
@@ -75,7 +75,7 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('view_private_notes', module: ProjectModuleKey::IssueTracking, readOnly: true);
         $registry->register('set_notes_private', module: ProjectModuleKey::IssueTracking);
         $registry->register('edit_issue_notes', module: ProjectModuleKey::IssueTracking);
-        $registry->register('edit_own_issue_notes', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::LoggedIn, readOnly: true);
+        $registry->register('edit_own_issue_notes', module: ProjectModuleKey::IssueTracking, requirement: PermissionRequirement::LoggedIn);
 
         $registry->register('log_time', module: ProjectModuleKey::TimeTracking, requirement: PermissionRequirement::LoggedIn);
         $registry->register('view_time_entries', module: ProjectModuleKey::TimeTracking, requirement: PermissionRequirement::None, readOnly: true);
@@ -102,7 +102,7 @@ final class PermissionServiceProvider extends ServiceProvider
         $registry->register('edit_messages', module: ProjectModuleKey::Boards);
         $registry->register('edit_own_messages', module: ProjectModuleKey::Boards, requirement: PermissionRequirement::LoggedIn);
         $registry->register('delete_messages', module: ProjectModuleKey::Boards);
-        $registry->register('delete_own_messages', module: ProjectModuleKey::Boards, requirement: PermissionRequirement::LoggedIn, readOnly: true);
+        $registry->register('delete_own_messages', module: ProjectModuleKey::Boards, requirement: PermissionRequirement::LoggedIn);
         $registry->register('manage_boards', module: ProjectModuleKey::Boards);
         $registry->register('view_message_watchers', module: ProjectModuleKey::Boards, requirement: PermissionRequirement::None, readOnly: true);
         $registry->register('add_message_watchers', module: ProjectModuleKey::Boards);
