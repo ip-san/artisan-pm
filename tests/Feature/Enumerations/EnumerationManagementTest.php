@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\EnumerationType;
+use App\Models\Document;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -97,6 +98,19 @@ test('a time entry activity in use cannot be deleted', function () {
         ->call('delete', $activity->id);
 
     expect(Enumeration::find($activity->id))->not->toBeNull();
+});
+
+test('a document category in use cannot be deleted', function () {
+    $admin = User::factory()->admin()->create();
+    $category = Enumeration::factory()->create(['type' => EnumerationType::DocumentCategory->value]);
+    $project = Project::factory()->create();
+    Document::factory()->for($project)->create(['category_id' => $category->id]);
+
+    Livewire::actingAs($admin)
+        ->test('enumerations.index', ['type' => EnumerationType::DocumentCategory])
+        ->call('delete', $category->id);
+
+    expect(Enumeration::find($category->id))->not->toBeNull();
 });
 
 test('an unused enumeration can be deleted', function () {

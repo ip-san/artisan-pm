@@ -56,6 +56,12 @@ new #[Layout('components.layouts.app')] class extends Component
             return;
         }
 
+        if ($this->type === EnumerationType::DocumentCategory && $enumeration->documents()->exists()) {
+            session()->flash('error', __('このカテゴリを使用している文書があるため削除できません。'));
+
+            return;
+        }
+
         $enumeration->delete();
 
         unset($this->enumerations);

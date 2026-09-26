@@ -103,6 +103,16 @@ final class Enumeration extends Model implements HasMedia, Sortable
     }
 
     /**
+     * Only meaningful when type is DocumentCategory.
+     *
+     * @return HasMany<Document, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class, 'category_id');
+    }
+
+    /**
      * Setting is_default clears every other enumeration of the same type,
      * matching Redmine's own "only one default per type" behavior — a
      * plain boolean column can't enforce this at the schema level.
