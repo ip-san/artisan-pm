@@ -75,7 +75,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'newAttachments.*' => AttachmentValidationRules::rules(),
         ];
 
-        $rules = [...$rules, ...CustomField::formValidationRules($this->customFields)];
+        $rules = [...$rules, ...CustomField::formValidationRules($this->customFields, null, $this->project)];
 
         $data = $this->validate($rules);
         $customFieldData = CustomField::filterEditableValues($this->customFields, $data['customFieldValues'] ?? [], auth()->user());
@@ -139,7 +139,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->customFields->isNotEmpty())
             <div class="space-y-4 border-t border-neutral-200 pt-4">
                 @foreach ($this->customFields as $field)
-                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :record="$document" :current="$customFieldValues[$field->id] ?? null" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" />
+                    <x-custom-field-input :field="$field" wire-model="customFieldValues" :project="$this->project" :record="$document" :current="$customFieldValues[$field->id] ?? null" :required="$field->is_required" :disabled="! $field->editableBy(auth()->user())" />
                 @endforeach
             </div>
         @endif

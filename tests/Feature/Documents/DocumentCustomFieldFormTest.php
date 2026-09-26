@@ -1,12 +1,15 @@
 <?php
 
+use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
+use App\Enums\VersionSharing;
 use App\Models\CustomField;
 use App\Models\Document;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Version;
 use Livewire\Livewire;
 
 function documentCustomFieldMember(Project $project, array $permissions = ['view_documents', 'add_documents', 'edit_documents']): User
@@ -85,6 +88,36 @@ test('an issue custom field is neither rendered nor saved on a document form', f
 
     expect($document->customFieldValues()->count())->toBe(0)
         ->and($issueField->exists)->toBeTrue();
+});
+
+test('the document form rejects a user or version outside the project', function () {
+    $project = Project::factory()->create();
+    $user = documentCustomFieldMember($project);
+    $outsider = User::factory()->create(['name' => 'Olga Outsider']);
+    $userField = CustomField::factory()->create(['field_format' => CustomFieldFormat::User->value, 'customized_type' => CustomizableType::Document->value, 'name' => 'Reviewer']);
+    $versionField = CustomField::factory()->create(['field_format' => CustomFieldFormat::Version->value, 'customized_type' => CustomizableType::Document->value, 'name' => 'Target version']);
+    $foreignVersion = Version::factory()->for(Project::factory()->create())->create(['sharing' => VersionSharing::None]);
+    $ownVersion = Version::factory()->for($project)->create();
+
+    Livewire::actingAs($user)
+        ->test('documents.form', ['project' => $project])
+        ->set('title', 'Cross-project attempt')
+        ->set("customFieldValues.{$userField->id}", (string) $outsider->id)
+        ->set("customFieldValues.{$versionField->id}", (string) $foreignVersion->id)
+        ->call('save')
+        ->assertHasErrors(["customFieldValues.{$userField->id}", "customFieldValues.{$versionField->id}"]);
+
+    Livewire::actingAs($user)
+        ->test('documents.form', ['project' => $project])
+        ->set('title', 'Same-project values')
+        ->set("customFieldValues.{$userField->id}", (string) $user->id)
+        ->set("customFieldValues.{$versionField->id}", (string) $ownVersion->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $document = Document::where('title', 'Same-project values')->firstOrFail();
+    expect($document->customValue($userField))->toBe($user->displayName())
+        ->and($document->customValue($versionField))->toBe($ownVersion->name);
 });
 
 test('a document custom field is only visible to roles it is scoped to', function () {
