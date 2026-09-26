@@ -288,6 +288,11 @@ final class NotificationRecipients
      */
     private static function resolve(Project $project, User $actor, Collection $watcherIds, callable $eventSpecificAllows, bool $assignedAndOwnerTiersRequireWatcher = false, bool $allTiersRequireMembershipOrWatch = false, ?Collection $involvedIds = null): Collection
     {
+        // Redmine's `only_my_watches` (User#notify_about?'s object.watched_by?(self))
+        // checks actual Watcher rows only — unlike OnlyMyEvents it must NOT
+        // also count $involvedIds (e.g. an assigned group's members who
+        // haven't explicitly watched), so this is captured before the merge.
+        $actualWatcherIds = $watcherIds;
         $watcherIds = $watcherIds->merge($involvedIds ?? collect())->unique()->values();
 
         // Direct members plus the users of member groups, like Redmine's
@@ -312,7 +317,7 @@ final class NotificationRecipients
             // (UserPreference#no_self_notified) that decides whether they
             // see their own changes, not a site-wide admin toggle.
             ->reject(fn (User $user) => $user->id === $actor->id && $actor->no_self_notified)
-            ->filter(function (User $user) use ($watcherIds, $memberIds, $selectedMemberIds, $eventSpecificAllows, $assignedAndOwnerTiersRequireWatcher, $allTiersRequireMembershipOrWatch) {
+            ->filter(function (User $user) use ($watcherIds, $actualWatcherIds, $memberIds, $selectedMemberIds, $eventSpecificAllows, $assignedAndOwnerTiersRequireWatcher, $allTiersRequireMembershipOrWatch) {
                 $isWatcher = $watcherIds->contains($user->id);
                 $isMember = $memberIds->contains($user->id);
 
@@ -325,6 +330,10 @@ final class NotificationRecipients
                     // watch their issue, so watching covers that).
                     $user->mail_notification === MailNotificationOption::Selected => $isWatcher || $selectedMemberIds->contains($user->id),
                     $user->mail_notification === MailNotificationOption::OnlyMyEvents => $isWatcher,
+                    // Redmine's `only_my_watches`: notified only when actually
+                    // watching the object, regardless of membership or
+                    // involvement otherwise (see $actualWatcherIds above).
+                    $user->mail_notification === MailNotificationOption::OnlyMyWatches => $actualWatcherIds->contains($user->id),
                     default => $assignedAndOwnerTiersRequireWatcher ? $isWatcher : true,
                 };
 

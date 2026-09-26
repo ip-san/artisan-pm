@@ -117,6 +117,25 @@ test('editing a page\'s text does send a mail', function () {
     Notification::assertSentTo($bystander, WikiPageNotification::class, fn (WikiPageNotification $n) => $n->eventType === 'updated');
 });
 
+test('a member whose preference is only_my_watches is notified only when watching the page', function () {
+    enableWikiNotifications();
+    Notification::fake();
+
+    $project = Project::factory()->create();
+    $author = notifiableWikiMember($project, MailNotificationOption::All);
+    $watching = notifiableWikiMember($project, MailNotificationOption::OnlyMyWatches);
+    $notWatching = notifiableWikiMember($project, MailNotificationOption::OnlyMyWatches);
+
+    $page = app(WikiPageService::class)->create($project, ['title' => 'Home'], 'body', $author);
+    $page->watchers()->create(['user_id' => $watching->id]);
+
+    Notification::fake();
+    app(WikiPageService::class)->update($page, [], 'new body', $author);
+
+    Notification::assertSentTo($watching, WikiPageNotification::class);
+    Notification::assertNotSentTo($notWatching, WikiPageNotification::class);
+});
+
 test('the actor is not notified of their own edit unless their no_self_notified preference is disabled', function () {
     // Unlike IssueService, WikiPageService doesn't auto-watch the author
     // on creation (matches Redmine — WikiContent has no such callback) —

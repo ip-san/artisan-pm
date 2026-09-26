@@ -90,6 +90,30 @@ test('a member whose preference is only_my_events is notified only when watching
     Notification::assertSentTo($notWatching, IssueNotification::class);
 });
 
+test('a member whose preference is only_my_watches is notified only when watching', function () {
+    Notification::fake();
+
+    $project = Project::factory()->create();
+    $author = notifiableMember($project, MailNotificationOption::OnlyMyEvents);
+    $watching = notifiableMember($project, MailNotificationOption::OnlyMyWatches);
+    $notWatching = notifiableMember($project, MailNotificationOption::OnlyMyWatches);
+
+    $issue = app(IssueService::class)->create([...mailIssueDefaults(), 'project_id' => $project->id, 'subject' => 'New issue'], $author);
+
+    // Neither one is watching yet: only_my_watches grants nothing on its
+    // own, even though both are ordinary, unrestricted project members.
+    Notification::assertNotSentTo($watching, IssueNotification::class);
+    Notification::assertNotSentTo($notWatching, IssueNotification::class);
+
+    $issue->watchers()->create(['user_id' => $watching->id]);
+    Notification::fake();
+
+    app(IssueService::class)->update($issue, ['subject' => 'Renamed'], $author);
+
+    Notification::assertSentTo($watching, IssueNotification::class);
+    Notification::assertNotSentTo($notWatching, IssueNotification::class);
+});
+
 test('a member whose preference is only_assigned is notified only for their own assignment', function () {
     Notification::fake();
 

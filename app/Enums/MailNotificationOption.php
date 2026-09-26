@@ -17,6 +17,7 @@ enum MailNotificationOption: string
     case OnlyMyEvents = 'only_my_events';
     case OnlyAssigned = 'only_assigned';
     case OnlyOwner = 'only_owner';
+    case OnlyMyWatches = 'only_my_watches';
     case None = 'none';
 
     public function label(): string
@@ -27,6 +28,7 @@ enum MailNotificationOption: string
             self::OnlyMyEvents => __('自分の関与するイベントのみ通知(作成者・担当者・ウォッチャー)'),
             self::OnlyAssigned => __('自分が担当者のイベントのみ通知'),
             self::OnlyOwner => __('自分が作成者のイベントのみ通知'),
+            self::OnlyMyWatches => __('自分がウォッチしているイベントのみ通知'),
             self::None => __('通知しない'),
         };
     }

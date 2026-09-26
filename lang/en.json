@@ -1291,6 +1291,7 @@
     "編集可能にする(管理者は常に編集可能)": "Editable (administrators can always edit)",
     "縮小": "Zoom out",
     "自分": "me",
+    "自分がウォッチしているイベントのみ通知": "Only for things I watch",
     "自分がコメント・更新した課題": "Issues I contributed to",
     "自分が作成した課題": "Issues created by me",
     "自分が作成または担当する課題のみ": "Issues created by or assigned to the user",
