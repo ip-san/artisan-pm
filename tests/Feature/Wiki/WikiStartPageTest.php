@@ -8,7 +8,7 @@ use App\Models\Wiki;
 use App\Models\WikiPage;
 use Livewire\Livewire;
 
-function startPageMember(Project $project, array $permissions = ['view_wiki_pages', 'edit_wiki_pages', 'rename_wiki_pages']): User
+function startPageMember(Project $project, array $permissions = ['view_wiki_pages', 'edit_wiki_pages', 'rename_wiki_pages', 'manage_wiki']): User
 {
     $user = User::factory()->create();
     $role = Role::factory()->create(['permissions' => $permissions]);
@@ -59,9 +59,9 @@ test('visiting the bare wiki URL redirects to a prefilled creation form when the
         ->assertRedirect(route('wiki.create', $project).'?title=Wiki');
 });
 
-test('a member with rename_wiki_pages can set a page as the start page', function () {
+test('a member with manage_wiki can set a page as the start page', function () {
     $project = Project::factory()->create();
-    $user = startPageMember($project);
+    $user = startPageMember($project, ['view_wiki_pages', 'edit_wiki_pages', 'manage_wiki']);
     $page = WikiPage::factory()->for($project)->create(['title' => 'New Home']);
     $page->versions()->create(['author_id' => $user->id, 'text' => 'content', 'version' => 2]);
 
@@ -71,6 +71,21 @@ test('a member with rename_wiki_pages can set a page as the start page', functio
         ->call('save');
 
     expect($project->fresh()->wiki->start_page)->toBe('New Home');
+});
+
+test('a member with rename_wiki_pages but without manage_wiki cannot see or set the start-page checkbox', function () {
+    $project = Project::factory()->create();
+    $user = startPageMember($project, ['view_wiki_pages', 'edit_wiki_pages', 'rename_wiki_pages']);
+    $page = WikiPage::factory()->for($project)->create(['title' => 'New Home']);
+    $page->versions()->create(['author_id' => $user->id, 'text' => 'content', 'version' => 2]);
+
+    Livewire::actingAs($user)
+        ->test('wiki.form', ['project' => $project, 'wikiPage' => $page])
+        ->assertDontSee('wire:model="is_start_page"', escape: false)
+        ->set('is_start_page', true)
+        ->call('save');
+
+    expect($project->fresh()->wiki)->toBeNull();
 });
 
 test('setting a start page while renaming persists the new title, not the old one', function () {
@@ -88,7 +103,7 @@ test('setting a start page while renaming persists the new title, not the old on
     expect($project->fresh()->wiki->start_page)->toBe('New Title');
 });
 
-test('a member without rename_wiki_pages does not see the start-page checkbox', function () {
+test('a member without manage_wiki does not see the start-page checkbox', function () {
     $project = Project::factory()->create();
     $user = startPageMember($project, ['view_wiki_pages', 'edit_wiki_pages']);
     $page = WikiPage::factory()->for($project)->create();

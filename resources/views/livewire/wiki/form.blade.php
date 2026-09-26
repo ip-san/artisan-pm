@@ -136,6 +136,17 @@ new #[Layout('components.layouts.app')] class extends Component
         return app(AuthorizationService::class)->can(auth()->user(), 'protect_wiki_pages', $this->project);
     }
 
+    /**
+     * Redmine's WikiPage `safe_attributes 'is_start_page'` condition is
+     * `user.allowed_to?(:manage_wiki, page.project)` — a different
+     * permission from the rename form's `rename_wiki_pages` (canRename).
+     */
+    #[Computed]
+    public function canSetStartPage(): bool
+    {
+        return app(AuthorizationService::class)->can(auth()->user(), 'manage_wiki', $this->project);
+    }
+
     public function togglePreview(): void
     {
         $this->showPreview = ! $this->showPreview;
@@ -195,13 +206,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 Rule::exists('wiki_pages', 'id')->where('project_id', $this->project->id),
                 Rule::in($this->availableParents->pluck('id')->push(null)->all()),
             ];
-            // Same permission gate Redmine's own is_start_page checkbox
-            // uses (it lives on the rename form there too).
-            $rules['is_start_page'] = ['boolean'];
         }
 
         if ($this->canProtect) {
             $rules['is_protected'] = ['boolean'];
+        }
+
+        // Redmine gates is_start_page with manage_wiki, not rename_wiki_pages
+        // (it merely happens to live on the same edit form there too).
+        if ($this->canSetStartPage) {
+            $rules['is_start_page'] = ['boolean'];
         }
 
         $data = $this->validate($rules);
@@ -281,18 +295,18 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
                 @error('parent_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
-
-            @if ($wikiPage)
-                <label class="flex items-center gap-2 text-sm text-neutral-700">
-                    <input type="checkbox" wire:model="is_start_page" @disabled($is_start_page) class="rounded border-neutral-300">
-                    {{ __('このページを開始ページに設定する') }}
-                </label>
-                @if ($is_start_page)
-                    <p class="text-xs text-neutral-500">{{ __('既にこのプロジェクトの開始ページです。別のページを開始ページにするには、そのページの編集画面でこのチェックボックスを使ってください。') }}</p>
-                @endif
-            @endif
         @else
             <p class="text-sm text-neutral-500">{{ __('タイトル: :title', ['title' => $title]) }}</p>
+        @endif
+
+        @if ($wikiPage && $this->canSetStartPage)
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                <input type="checkbox" wire:model="is_start_page" @disabled($is_start_page) class="rounded border-neutral-300">
+                {{ __('このページを開始ページに設定する') }}
+            </label>
+            @if ($is_start_page)
+                <p class="text-xs text-neutral-500">{{ __('既にこのプロジェクトの開始ページです。別のページを開始ページにするには、そのページの編集画面でこのチェックボックスを使ってください。') }}</p>
+            @endif
         @endif
 
         <div>
