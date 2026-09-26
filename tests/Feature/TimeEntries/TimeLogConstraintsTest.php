@@ -175,6 +175,45 @@ test('the API answers 422 when a setting rejects the entry', function () {
     $this->postJson("/api/v1/projects/{$project->id}/time_entries", ['hours' => 0, 'activity_id' => $activity->id])->assertCreated();
 });
 
+test('reopening a closed issue while logging time in the same save is allowed', function () {
+    // Redmine's TimeEntry validation rejects only when the issue is closed
+    // BOTH before and after the save (issue.closed? && issue.was_closed?),
+    // so a save that reopens the issue in the same request is fine even
+    // though the issue was closed on load.
+    [$project, $user, $activity] = timeLogProject();
+    Setting::set('timelog_accept_closed_issues', false);
+    $issue = timeLogIssue($project, closed: true);
+    $open = IssueStatus::factory()->create(['is_closed' => false]);
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->set('status_id', $open->id)
+        ->set('logTimeHours', '2')
+        ->set('logTimeActivityId', $activity->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($issue->fresh()->status_id)->toBe($open->id)
+        ->and((float) TimeEntry::query()->where('issue_id', $issue->id)->sum('hours'))->toBe(2.0);
+});
+
+test('logging time on an issue that stays closed is still rejected', function () {
+    [$project, $user, $activity] = timeLogProject();
+    Setting::set('timelog_accept_closed_issues', false);
+    $issue = timeLogIssue($project, closed: true);
+    $admin = User::factory()->admin()->create();
+
+    $component = Livewire::actingAs($admin)
+        ->test('issues.form', ['project' => $project, 'issue' => $issue])
+        ->set('logTimeHours', '2')
+        ->set('logTimeActivityId', $activity->id)
+        ->call('save');
+
+    $component->assertHasErrors(['logTimeHours']);
+    expect(TimeEntry::query()->where('issue_id', $issue->id)->count())->toBe(0);
+});
+
 test('the issue form leaves the issue unchanged when the logged time is rejected', function () {
     [$project, $user, $activity] = timeLogProject();
     Setting::set('timelog_max_hours_per_day', 2);

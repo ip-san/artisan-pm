@@ -854,7 +854,13 @@ new #[Layout('components.layouts.app')] class extends Component
         unset($data['customFieldValues'], $data['newAttachments'], $data['logTimeHours'], $data['logTimeActivityId'], $data['logTimeComments']);
 
         // Checked before the issue is saved so a rejected entry (a `timelog_*`
-        // setting) leaves the issue untouched instead of half-applied.
+        // setting) leaves the issue untouched instead of half-applied. The
+        // issue's status is about to change in this same save (if at all),
+        // so its post-save closed state is passed explicitly — Redmine's
+        // TimeEntry validation rejects only when the issue is closed both
+        // before AND after the save (`issue.closed? && issue.was_closed?`),
+        // so reopening a closed issue while logging time in the same save
+        // is allowed.
         if (filled($logTimeHours) && $this->issue) {
             try {
                 TimeLogConstraints::assertSatisfied([
@@ -863,7 +869,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     'hours' => $logTimeHours,
                     'spent_on' => \App\Support\Format\DateTimes::today()->toDateString(),
                     'comments' => $logTimeComments,
-                ]);
+                ], issueClosedAfterSave: IssueStatus::query()->whereKey($data['status_id'])->where('is_closed', true)->exists());
             } catch (ValidationException $exception) {
                 foreach ($exception->errors() as $field => $messages) {
                     $this->addError($field === 'comments' ? 'logTimeComments' : 'logTimeHours', $messages[0]);

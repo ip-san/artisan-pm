@@ -85,10 +85,21 @@ final class TimeLogConstraints
      * save.
      *
      * @param  array<string, mixed>  $attributes
+     * @param  ?bool  $issueClosedAfterSave  Redmine's `issue.closed? &&
+     *                                       issue.was_closed?` rejects only when the issue is closed BOTH
+     *                                       before and after the save that carries this time entry — so
+     *                                       reopening a closed issue in the same save is allowed. This
+     *                                       method's own query below always reflects the issue's status as
+     *                                       currently stored (its "before" state, or its only state when
+     *                                       the issue itself isn't changing in this same request). Pass the
+     *                                       issue's pending new status's is_closed here when the caller is
+     *                                       about to change it in the same save (the issue form); leave it
+     *                                       null when the issue's status isn't part of this save, so the
+     *                                       "after" state trivially matches the queried "before" state.
      *
      * @throws ValidationException
      */
-    public static function assertSatisfied(array $attributes, ?TimeEntry $existing = null): void
+    public static function assertSatisfied(array $attributes, ?TimeEntry $existing = null, ?bool $issueClosedAfterSave = null): void
     {
         $value = fn (string $key) => array_key_exists($key, $attributes) ? $attributes[$key] : $existing?->{$key};
         $errors = [];
@@ -131,9 +142,12 @@ final class TimeLogConstraints
 
         $issueId = $value('issue_id');
 
-        if ($issueId !== null && ! self::acceptsClosedIssues()
-            && Issue::query()->whereKey($issueId)->whereHas('status', fn ($status) => $status->where('is_closed', true))->exists()) {
-            $errors['issue_id'][] = __('終了した課題には工数を記録できません。');
+        if ($issueId !== null && ! self::acceptsClosedIssues()) {
+            $issueClosedBeforeSave = Issue::query()->whereKey($issueId)->whereHas('status', fn ($status) => $status->where('is_closed', true))->exists();
+
+            if ($issueClosedBeforeSave && ($issueClosedAfterSave ?? $issueClosedBeforeSave)) {
+                $errors['issue_id'][] = __('終了した課題には工数を記録できません。');
+            }
         }
 
         if ($errors !== []) {
