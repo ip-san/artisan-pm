@@ -11,6 +11,7 @@ use App\Models\IssueStatus;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\WorkflowTransition;
+use App\Support\Permissions\PermissionRegistry;
 use Illuminate\Database\Seeder;
 
 /**
@@ -22,6 +23,38 @@ use Illuminate\Database\Seeder;
  */
 class DefaultConfigurationSeeder extends Seeder
 {
+    /**
+     * Redmine's default role permissions (lib/redmine/default_data/loader.rb), plus view_project,
+     * which Redmine grants implicitly but this app models as a permission.
+     */
+    private const DEVELOPER_PERMISSIONS = [
+        'view_project', 'manage_versions', 'manage_categories', 'view_issues', 'add_issues', 'edit_issues',
+        'view_private_notes', 'set_notes_private', 'manage_issue_relations', 'manage_subtasks', 'add_issue_notes',
+        'save_queries', 'view_gantt', 'view_calendar', 'log_time', 'view_time_entries', 'view_news', 'comment_news',
+        'view_documents', 'view_wiki_pages', 'view_wiki_edits', 'edit_wiki_pages', 'delete_wiki_pages',
+        'view_messages', 'add_messages', 'edit_own_messages', 'view_files', 'manage_files', 'browse_repository',
+        'view_changesets', 'commit_access', 'manage_related_issues',
+    ];
+
+    private const REPORTER_PERMISSIONS = [
+        'view_project', 'view_issues', 'add_issues', 'add_issue_notes', 'save_queries', 'view_gantt', 'view_calendar',
+        'log_time', 'view_time_entries', 'view_news', 'comment_news', 'view_documents', 'view_wiki_pages',
+        'view_wiki_edits', 'view_messages', 'add_messages', 'edit_own_messages', 'view_files', 'browse_repository',
+        'view_changesets',
+    ];
+
+    private const NON_MEMBER_PERMISSIONS = [
+        'view_project', 'view_issues', 'add_issues', 'add_issue_notes', 'save_queries', 'view_gantt', 'view_calendar',
+        'view_time_entries', 'view_news', 'comment_news', 'view_documents', 'view_wiki_pages', 'view_wiki_edits',
+        'view_messages', 'add_messages', 'view_files', 'browse_repository', 'view_changesets',
+    ];
+
+    private const ANONYMOUS_PERMISSIONS = [
+        'view_project', 'view_issues', 'view_gantt', 'view_calendar', 'view_time_entries', 'view_news',
+        'view_documents', 'view_wiki_pages', 'view_wiki_edits', 'view_messages', 'view_files', 'browse_repository',
+        'view_changesets',
+    ];
+
     /**
      * @var array<string, array<string, array<string, string>>>
      */
@@ -79,8 +112,8 @@ class DefaultConfigurationSeeder extends Seeder
     {
         $roles = $this->names('roles');
         $builtinRoles = [
-            RoleBuiltin::Anonymous->value => ['name' => $roles['anonymous'], 'permissions' => ['view_project'], 'position' => 1],
-            RoleBuiltin::NonMember->value => ['name' => $roles['non_member'], 'permissions' => ['view_project'], 'position' => 2],
+            RoleBuiltin::Anonymous->value => ['name' => $roles['anonymous'], 'permissions' => self::ANONYMOUS_PERMISSIONS, 'position' => 1],
+            RoleBuiltin::NonMember->value => ['name' => $roles['non_member'], 'permissions' => self::NON_MEMBER_PERMISSIONS, 'position' => 2],
         ];
 
         foreach ($builtinRoles as $builtin => $attributes) {
@@ -92,18 +125,10 @@ class DefaultConfigurationSeeder extends Seeder
     {
         $names = $this->names('roles');
         $roles = [
-            $names['manager'] => [
-                'view_project', 'edit_project', 'close_project', 'delete_project', 'select_project_modules',
-                'manage_members', 'add_subprojects', 'manage_versions', 'manage_categories',
-                'view_issues', 'add_issues', 'edit_issues', 'delete_issues', 'manage_issue_relations', 'add_issue_watchers',
-            ],
-            $names['developer'] => [
-                'view_project', 'manage_versions',
-                'view_issues', 'add_issues', 'edit_issues', 'add_issue_watchers',
-            ],
-            $names['reporter'] => [
-                'view_project', 'view_issues', 'add_issues', 'add_issue_watchers',
-            ],
+            // Redmine gives the manager every permission a role can hold (setable_permissions).
+            $names['manager'] => array_keys(app(PermissionRegistry::class)->assignableTo(false)),
+            $names['developer'] => self::DEVELOPER_PERMISSIONS,
+            $names['reporter'] => self::REPORTER_PERMISSIONS,
         ];
 
         $position = 3;

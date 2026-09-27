@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\WorkflowTransition;
+use App\Support\Permissions\PermissionRegistry;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DefaultConfigurationSeeder;
 use Livewire\Livewire;
@@ -86,4 +87,18 @@ test('the locale must be one we ship and only administrators may use the page', 
 
     Livewire::actingAs($admin)->test('admin.default-configuration')->set('locale', 'fr')->call('load')->assertHasErrors(['locale']);
     Livewire::actingAs(User::factory()->create())->test('admin.default-configuration')->assertForbidden();
+});
+
+test('the default roles carry Redmine\'s default permissions', function () {
+    (new DefaultConfigurationSeeder('en'))->run();
+    $permissions = fn (string $name) => Role::query()->where('name', $name)->firstOrFail()->permissions;
+
+    expect($permissions('Manager'))->toEqualCanonicalizing(array_keys(app(PermissionRegistry::class)->assignableTo(false)))
+        ->and($permissions('Developer'))->toContain('log_time', 'edit_wiki_pages', 'add_messages', 'add_issue_notes', 'manage_subtasks', 'save_queries')
+        ->and($permissions('Developer'))->not->toContain('manage_members', 'delete_project')
+        ->and($permissions('Reporter'))->toContain('add_issue_notes', 'log_time', 'add_messages')
+        ->and($permissions('Reporter'))->not->toContain('edit_issues', 'edit_wiki_pages')
+        ->and($permissions('Non member'))->toContain('view_issues', 'add_issues', 'view_wiki_pages')
+        ->and($permissions('Anonymous'))->toContain('view_issues', 'view_wiki_pages')
+        ->and($permissions('Anonymous'))->not->toContain('add_issues', 'add_messages');
 });
