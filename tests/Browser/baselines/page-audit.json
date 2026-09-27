@@ -224,9 +224,7 @@
         "en:issues.global-index": {
             "error": null,
             "js": [],
-            "axe": [
-                "aria-prohibited-attr"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 30,
             "lazy": []
@@ -236,7 +234,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 27,
+            "queries": 21,
             "lazy": []
         },
         "en:projects.index": {
@@ -286,7 +284,7 @@
             "layout": [
                 "height-mismatch: div \"ズーム − + 表示期間: 適用 関連課題の線 進捗率の表示 選択した列を表示\""
             ],
-            "queries": 105,
+            "queries": 104,
             "lazy": []
         },
         "gantt.index": {
@@ -296,7 +294,7 @@
             "layout": [
                 "height-mismatch: div \"ズーム − + 表示期間: 適用 関連課題の線 進捗率の表示 選択した列を表示\""
             ],
-            "queries": 44,
+            "queries": 43,
             "lazy": []
         },
         "groups.create": {
@@ -408,15 +406,13 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 51,
+            "queries": 43,
             "lazy": []
         },
         "issues.global-index": {
             "error": null,
             "js": [],
-            "axe": [
-                "aria-prohibited-attr"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 36,
             "lazy": []
@@ -442,7 +438,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 40,
+            "queries": 42,
             "lazy": []
         },
         "issues.show": {
@@ -450,7 +446,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 50,
+            "queries": 47,
             "lazy": []
         },
         "login": {
@@ -490,7 +486,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 35,
+            "queries": 29,
             "lazy": []
         },
         "my-webhooks.index": {
@@ -520,9 +516,7 @@
         "news.global-index": {
             "error": null,
             "js": [],
-            "axe": [
-                "aria-prohibited-attr"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 13,
             "lazy": []
@@ -797,9 +791,7 @@
         "time-entries.global-index": {
             "error": null,
             "js": [],
-            "axe": [
-                "aria-prohibited-attr"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 40,
             "lazy": []
@@ -823,9 +815,7 @@
         "time-entries.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "aria-prohibited-attr"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 26,
             "lazy": []
@@ -921,9 +911,7 @@
         "users.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "aria-prohibited-attr"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 20,
             "lazy": []

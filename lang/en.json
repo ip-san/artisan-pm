@@ -1560,5 +1560,8 @@
     "表示設定": "Display options",
     "すべての課題を見る": "View all issues",
     "すべてのお知らせ": "All news",
-    "選択": "Select"
+    "選択": "Select",
+    "次へ": "Next",
+    ":total件中 :from〜:to件目": "Showing :from to :to of :total results",
+    "ページ送り": "Pagination"
 }
