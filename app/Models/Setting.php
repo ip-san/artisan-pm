@@ -27,9 +27,13 @@ final class Setting extends Model
         return ['value' => 'array'];
     }
 
+    /**
+     * Memoized for the request on top of the cache: a page reads dozens of settings, and with the
+     * database cache store each read was otherwise its own query.
+     */
     public static function get(string $key, mixed $default = null): mixed
     {
-        return Cache::rememberForever(self::cacheKey($key), function () use ($key, $default) {
+        return Cache::memo()->rememberForever(self::cacheKey($key), function () use ($key, $default) {
             $setting = self::query()->find($key);
 
             return $setting === null ? $default : $setting->value;
@@ -40,7 +44,7 @@ final class Setting extends Model
     {
         self::query()->updateOrCreate(['key' => $key], ['value' => $value]);
 
-        Cache::forget(self::cacheKey($key));
+        Cache::memo()->forget(self::cacheKey($key));
     }
 
     private static function cacheKey(string $key): string
