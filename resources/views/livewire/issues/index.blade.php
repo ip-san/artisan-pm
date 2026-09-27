@@ -2274,61 +2274,75 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
             <h1 class="text-xl font-semibold text-neutral-900">{{ $project !== null ? __(':project — 課題', ['project' => $project->name]) : __('課題(全プロジェクト)') }}</h1>
-            <div class="mt-2 flex gap-3 text-sm">
-                <button wire:click="$set('statusFilter', 'open')" class="{{ $statusFilter === 'open' ? 'font-semibold text-brand-bold' : 'text-neutral-500' }}">{{ __('未対応') }}</button>
-                <button wire:click="$set('statusFilter', 'closed')" class="{{ $statusFilter === 'closed' ? 'font-semibold text-brand-bold' : 'text-neutral-500' }}">{{ __('完了') }}</button>
-                <button wire:click="$set('statusFilter', 'all')" class="{{ $statusFilter === 'all' ? 'font-semibold text-brand-bold' : 'text-neutral-500' }}">{{ __('すべて') }}</button>
+            <div class="mt-3 inline-flex rounded-lg bg-neutral-100 p-1 text-sm" role="group" aria-label="{{ __('ステータス') }}">
+                @foreach (['open' => __('未対応'), 'closed' => __('完了'), 'all' => __('すべて')] as $filterValue => $filterLabel)
+                    <button wire:click="$set('statusFilter', '{{ $filterValue }}')" aria-pressed="{{ $statusFilter === $filterValue ? 'true' : 'false' }}"
+                        @class([
+                            'rounded-md px-3 py-1',
+                            'bg-surface font-semibold text-brand-bolder shadow-xs' => $statusFilter === $filterValue,
+                            'text-neutral-600 hover:text-neutral-900' => $statusFilter !== $filterValue,
+                        ])>{{ $filterLabel }}</button>
+                @endforeach
             </div>
         </div>
-        <div class="flex flex-wrap items-center justify-end gap-2 whitespace-nowrap">
-            <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
-            <a href="{{ $this->changesAtomUrl }}" class="text-xs text-warning hover:underline">{{ __('変更履歴(Atom)') }}</a>
-            <select wire:model="csvEncoding" title="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
-                <option value="UTF-8">UTF-8</option>
-                <option value="SJIS-win">Shift_JIS</option>
-            </select>
-            <select wire:model="csvSeparator" title="{{ __('区切り文字') }}" class="rounded-md border-neutral-300 text-xs">
-                <option value=",">{{ __('カンマ') }}</option>
-                <option value=";">{{ __('セミコロン') }}</option>
-                <option value="{{ "\t" }}">{{ __('タブ') }}</option>
-            </select>
-            <div class="relative" x-data="{ csvOptionsOpen: false }">
-                <button type="button" x-on:click="csvOptionsOpen = !csvOptionsOpen" class="btn btn-secondary">
-                    {{ __('CSVエクスポート') }}
+        {{--
+            One prominent action (a new issue); reports, imports, exports and feeds wait behind "その他"
+            so the header no longer reads as a wall of equally loud buttons.
+        --}}
+        <div class="flex items-center gap-2 whitespace-nowrap">
+            <div class="relative" x-data="{ moreOpen: false }" x-on:keydown.escape="moreOpen = false">
+                <button type="button" x-on:click="moreOpen = ! moreOpen" :aria-expanded="moreOpen.toString()" class="btn btn-secondary" data-issue-list-more>
+                    {{ __('その他') }}
+                    <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5.5 7.5 10 12l4.5-4.5z"/></svg>
                 </button>
-                <div x-show="csvOptionsOpen" x-cloak x-on:click.outside="csvOptionsOpen = false" class="absolute right-0 z-20 mt-2 w-64 rounded-md border border-neutral-200 bg-surface p-3 text-sm shadow-lg" data-csv-export-options>
-                    <p class="mb-2 font-medium text-neutral-700">{{ __('エクスポートする列') }}</p>
-                    <label class="flex items-center gap-2 py-0.5"><input type="radio" wire:model="csvColumns" value="selected"> {{ __('選択した列') }}</label>
-                    <label class="flex items-center gap-2 py-0.5"><input type="radio" wire:model="csvColumns" value="all"> {{ __('すべての列') }}</label>
-                    <div class="mt-2 border-t border-neutral-100 pt-2">
+                <div x-show="moreOpen" x-cloak x-on:click.outside="moreOpen = false"
+                    class="absolute right-0 z-20 mt-2 w-72 rounded-lg border border-neutral-200 bg-surface py-2 text-sm shadow-lg">
+                    @if ($project !== null)
+                        <a href="{{ route('issues.report', $project) }}" class="block px-4 py-1.5 text-neutral-700 hover:bg-surface-hovered">{{ __('レポート') }}</a>
+                        @can('import', [\App\Models\Issue::class, $project])
+                            <a href="{{ route('issues.import', $project) }}" class="block px-4 py-1.5 text-neutral-700 hover:bg-surface-hovered">{{ __('CSVインポート') }}</a>
+                        @endcan
+                    @endif
+                    <button type="button" wire:click="exportPdf" x-on:click="moreOpen = false" class="block w-full px-4 py-1.5 text-left text-neutral-700 hover:bg-surface-hovered">{{ __('PDFエクスポート') }}</button>
+
+                    <div class="mt-2 border-t border-neutral-100 px-4 pt-3" data-csv-export-options>
+                        <p class="mb-2 font-medium text-neutral-900">{{ __('CSVエクスポート') }}</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="text-xs text-neutral-600">{{ __('文字コード') }}
+                                <select wire:model="csvEncoding" class="mt-1 block w-full rounded-md border-neutral-300 text-xs">
+                                    <option value="UTF-8">UTF-8</option>
+                                    <option value="SJIS-win">Shift_JIS</option>
+                                </select>
+                            </label>
+                            <label class="text-xs text-neutral-600">{{ __('区切り文字') }}
+                                <select wire:model="csvSeparator" class="mt-1 block w-full rounded-md border-neutral-300 text-xs">
+                                    <option value=",">{{ __('カンマ') }}</option>
+                                    <option value=";">{{ __('セミコロン') }}</option>
+                                    <option value="{{ "\t" }}">{{ __('タブ') }}</option>
+                                </select>
+                            </label>
+                        </div>
+                        <p class="mt-2 text-xs text-neutral-600">{{ __('エクスポートする列') }}</p>
+                        <label class="flex items-center gap-2 py-0.5"><input type="radio" wire:model="csvColumns" value="selected"> {{ __('選択した列') }}</label>
+                        <label class="flex items-center gap-2 py-0.5"><input type="radio" wire:model="csvColumns" value="all"> {{ __('すべての列') }}</label>
                         <label class="flex items-center gap-2 py-0.5"><input type="checkbox" wire:model="csvIncludeDescription"> {{ $this->availableColumns['description'] }}</label>
                         <label class="flex items-center gap-2 py-0.5"><input type="checkbox" wire:model="csvIncludeLastNotes"> {{ $this->availableColumns['last_notes'] }}</label>
+                        <button type="button" wire:click="exportCsv" x-on:click="moreOpen = false" class="btn btn-primary mt-3 w-full">{{ __('エクスポート') }}</button>
+                        @if ($this->issues->total() > ExportLimit::issues())
+                            <p class="mt-2 text-xs whitespace-normal text-warning-bolder" data-export-limit-warning>{{ __('エクスポートは先頭の:limit件までです', ['limit' => ExportLimit::issues()]) }}</p>
+                        @endif
                     </div>
-                    <button type="button" wire:click="exportCsv" x-on:click="csvOptionsOpen = false" class="mt-3 w-full rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-hovered">
-                        {{ __('エクスポート') }}
-                    </button>
+
+                    <div class="mt-3 flex gap-4 border-t border-neutral-100 px-4 pt-2 text-xs">
+                        <a href="{{ $this->atomUrl }}" class="text-neutral-600 hover:underline">Atom</a>
+                        <a href="{{ $this->changesAtomUrl }}" class="text-neutral-600 hover:underline">{{ __('変更履歴(Atom)') }}</a>
+                    </div>
                 </div>
             </div>
-            <button wire:click="exportPdf" class="btn btn-secondary">
-                {{ __('PDFエクスポート') }}
-            </button>
-            @if ($this->issues->total() > ExportLimit::issues())
-                <span class="text-xs text-warning-bold" data-export-limit-warning>{{ __('エクスポートは先頭の:limit件までです', ['limit' => ExportLimit::issues()]) }}</span>
-            @endif
             @if ($project !== null)
-                <a href="{{ route('issues.report', $project) }}" class="btn btn-secondary">
-                    {{ __('レポート') }}
-                </a>
-                @can('import', [\App\Models\Issue::class, $project])
-                    <a href="{{ route('issues.import', $project) }}"
-                        class="btn btn-secondary">
-                        {{ __('CSVインポート') }}
-                    </a>
-                @endcan
                 @can('create', [\App\Models\Issue::class, $project])
-                    <a href="{{ route('issues.create', $project) }}"
-                        class="btn btn-primary">
-                        {{ __('新規課題') }}
+                    <a href="{{ route('issues.create', $project) }}" class="btn btn-primary">
+                        <x-icon name="plus" class="size-4" />{{ __('新規課題') }}
                     </a>
                 @endcan
             @endif
@@ -2355,74 +2369,87 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="mb-4 rounded-md border border-neutral-200 bg-surface p-4">
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
-        <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="btn btn-primary">
-                {{ __('絞り込み適用') }}
-            </button>
+        {{--
+            Filters stay in view; how the results are laid out (grouping, totals, columns, sort) is
+            tucked under "表示設定". Its open state lives in Alpine so Livewire re-renders keep it.
+        --}}
+        <div class="mt-3" x-data="{ displayOpen: false }">
+            <div class="flex flex-wrap items-center gap-3">
+                <button wire:click="applyFilters" class="btn btn-primary">
+                    {{ __('絞り込み適用') }}
+                </button>
+                <button type="button" x-on:click="displayOpen = ! displayOpen" :aria-expanded="displayOpen.toString()" aria-controls="issue-display-settings"
+                    class="inline-flex items-center gap-1 text-sm text-neutral-700 hover:text-neutral-900" data-display-settings-toggle>
+                    <x-icon name="settings" class="size-4" />{{ __('表示設定') }}
+                    <svg class="size-4 transition-transform" :class="displayOpen && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5.5 7.5 10 12l4.5-4.5z"/></svg>
+                </button>
+                @if ($this->canSaveQueries)
+                    <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
+                @endif
+            </div>
 
-            <label class="flex items-center gap-2 text-sm text-neutral-700">
-                {{ __('グループ化:') }}
-                <select wire:model.live="groupBy" class="rounded-md border-neutral-300 text-sm">
-                    <option value="">{{ __('なし') }}</option>
-                    <option value="status_id">{{ __('ステータス') }}</option>
-                    <option value="tracker_id">{{ __('トラッカー') }}</option>
-                    @foreach (['priority_id', 'assigned_to_id', 'author_id', 'category_id', 'fixed_version_id', 'project_id', 'start_date', 'due_date', 'created_at', 'updated_at', 'closed_on', 'done_ratio', 'is_private'] as $groupKey)
-                        @if (array_key_exists($groupKey, $this->nativeColumns) && ($groupKey !== 'project_id' || $this->engine->field('project_id') !== null))
-                            <option value="{{ $groupKey }}" wire:key="group-by-{{ $groupKey }}">{{ $this->nativeColumns[$groupKey] }}</option>
-                        @endif
+            <div id="issue-display-settings" x-show="displayOpen" x-cloak class="mt-3 flex flex-col gap-3 border-t border-neutral-100 pt-3">
+                <label class="flex items-center gap-2 text-sm text-neutral-700">
+                    {{ __('グループ化:') }}
+                    <select wire:model.live="groupBy" class="rounded-md border-neutral-300 text-sm">
+                        <option value="">{{ __('なし') }}</option>
+                        <option value="status_id">{{ __('ステータス') }}</option>
+                        <option value="tracker_id">{{ __('トラッカー') }}</option>
+                        @foreach (['priority_id', 'assigned_to_id', 'author_id', 'category_id', 'fixed_version_id', 'project_id', 'start_date', 'due_date', 'created_at', 'updated_at', 'closed_on', 'done_ratio', 'is_private'] as $groupKey)
+                            @if (array_key_exists($groupKey, $this->nativeColumns) && ($groupKey !== 'project_id' || $this->engine->field('project_id') !== null))
+                                <option value="{{ $groupKey }}" wire:key="group-by-{{ $groupKey }}">{{ $this->nativeColumns[$groupKey] }}</option>
+                            @endif
+                        @endforeach
+                        @foreach ($this->projectIssueCustomFields as $field)
+                            @if (! $field->multiple)
+                                <option value="cf_{{ $field->id }}" wire:key="group-by-cf-{{ $field->id }}">{{ $field->name }}</option>
+                            @endif
+                        @endforeach
+                    </select>
+                </label>
+
+                <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700" data-total-choices>
+                    {{ __('合計する項目:') }}
+                    @foreach ($this->totalChoices as $totalKey => $totalLabel)
+                        <label class="flex items-center gap-1" wire:key="total-option-{{ $totalKey }}">
+                            <input type="checkbox" wire:click="toggleTotal('{{ $totalKey }}')" @checked(in_array($totalKey, $this->totalNames, true)) class="rounded border-neutral-300">
+                            {{ $totalLabel }}
+                        </label>
                     @endforeach
-                    @foreach ($this->projectIssueCustomFields as $field)
-                        @if (! $field->multiple)
-                            <option value="cf_{{ $field->id }}" wire:key="group-by-cf-{{ $field->id }}">{{ $field->name }}</option>
-                        @endif
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+                    {{ __('表示列:') }}
+                    @foreach ($this->availableColumns as $key => $label)
+                        <label class="flex items-center gap-1" wire:key="column-option-{{ $key }}">
+                            <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-neutral-300">
+                            {{ $label }}
+                        </label>
                     @endforeach
-                </select>
-            </label>
+                </div>
 
-            <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700" data-total-choices>
-                {{ __('合計する項目:') }}
-                @foreach ($this->totalChoices as $totalKey => $totalLabel)
-                    <label class="flex items-center gap-1" wire:key="total-option-{{ $totalKey }}">
-                        <input type="checkbox" wire:click="toggleTotal('{{ $totalKey }}')" @checked(in_array($totalKey, $this->totalNames, true)) class="rounded border-neutral-300">
-                        {{ $totalLabel }}
-                    </label>
-                @endforeach
+                <x-column-order :columns="$this->shownColumns" :labels="$this->availableColumns" />
+
+                <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+                    {{ __('並べ替え(最大3列。列見出しのクリックは1列目のみ変更):') }}
+                    @foreach ([[2, 'sortKey2', 'sortDirection2'], [3, 'sortKey3', 'sortDirection3']] as [$level, $keyProp, $dirProp])
+                        <span class="flex items-center gap-1">
+                            {{ __(':level列目:', ['level' => $level]) }}
+                            <select wire:model.live="{{ $keyProp }}" class="rounded-md border-neutral-300 text-sm">
+                                <option value="">{{ __('なし') }}</option>
+                                @foreach ($this->sortableColumns as $columnKey => $label)
+                                    <option value="{{ $columnKey }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <select wire:model.live="{{ $dirProp }}" class="rounded-md border-neutral-300 text-sm">
+                                <option value="asc">{{ __('昇順') }}</option>
+                                <option value="desc">{{ __('降順') }}</option>
+                            </select>
+                        </span>
+                    @endforeach
+                </div>
+
             </div>
-
-            <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-                {{ __('表示列:') }}
-                @foreach ($this->availableColumns as $key => $label)
-                    <label class="flex items-center gap-1" wire:key="column-option-{{ $key }}">
-                        <input type="checkbox" wire:model="columns" value="{{ $key }}" class="rounded border-neutral-300">
-                        {{ $label }}
-                    </label>
-                @endforeach
-            </div>
-
-            <x-column-order :columns="$this->shownColumns" :labels="$this->availableColumns" />
-
-            <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-                {{ __('並べ替え(最大3列。列見出しのクリックは1列目のみ変更):') }}
-                @foreach ([[2, 'sortKey2', 'sortDirection2'], [3, 'sortKey3', 'sortDirection3']] as [$level, $keyProp, $dirProp])
-                    <span class="flex items-center gap-1">
-                        {{ __(':level列目:', ['level' => $level]) }}
-                        <select wire:model.live="{{ $keyProp }}" class="rounded-md border-neutral-300 text-sm">
-                            <option value="">{{ __('なし') }}</option>
-                            @foreach ($this->sortableColumns as $columnKey => $label)
-                                <option value="{{ $columnKey }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <select wire:model.live="{{ $dirProp }}" class="rounded-md border-neutral-300 text-sm">
-                            <option value="asc">{{ __('昇順') }}</option>
-                            <option value="desc">{{ __('降順') }}</option>
-                        </select>
-                    </span>
-                @endforeach
-            </div>
-
-            @if ($this->canSaveQueries)
-                <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
-            @endif
         </div>
 
         @if ($showSaveForm)
