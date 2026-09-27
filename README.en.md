@@ -65,7 +65,7 @@ vendor/bin/sail npm install
 vendor/bin/sail npm run build
 ```
 
-> **Known issue**: as of this writing, `npm run build` fails in this environment with `Cannot find module './rolldown-binding.linux-arm64-gnu.node'` — Vite's `rolldown-vite` dependency ships prebuilt native bindings that aren't resolving correctly inside the Sail container on this architecture. This is a pre-existing environment gap (also noted against the Gantt chart's missing Tailwind colors in `docs/parity-checklist.md`), not something introduced by this app's code, and hasn't been root-caused yet. The backend and Livewire-driven pages work regardless; only Vite-built frontend assets (e.g. compiled Tailwind CSS) are affected.
+> **Note**: Tailwind CSS only emits the classes present in the templates at build time. Re-run `vendor/bin/sail npm run build` (or keep `vendor/bin/sail npm run dev` running) after changing views; a stale build leaves newly used classes unstyled.
 
 Open the app with `vendor/bin/sail open`, or visit `http://localhost`. Outgoing mail during local development is caught by [Mailpit](https://github.com/axllent/mailpit) at `http://localhost:8025`.
 
@@ -76,6 +76,25 @@ vendor/bin/sail artisan test --compact
 vendor/bin/sail bin phpstan analyse --no-progress
 vendor/bin/sail bin pint --format agent
 ```
+
+### Page audit (browser tests)
+
+`tests/Browser/PageAuditTest.php` opens every HTML page in Chromium as an administrator and checks it with axe (critical/serious) plus layout checks for overflowing elements, clipped text and content hidden behind a sideways scrollbar. New pages are picked up automatically. Existing findings are recorded in `tests/Browser/baselines/page-audit.json`; only new findings fail.
+
+Chromium has to be set up in the container once (and again after `sail build` rebuilds the image):
+
+```bash
+docker compose exec -u root laravel.test npx playwright install-deps chromium
+vendor/bin/sail npx playwright install chromium
+```
+
+```bash
+vendor/bin/sail artisan test --compact tests/Browser/PageAuditTest.php
+# after fixing pages, refresh the baseline
+vendor/bin/sail exec -e UPDATE_PAGE_AUDIT_BASELINE=1 laravel.test php artisan test --compact tests/Browser/PageAuditTest.php
+```
+
+Pages whose route parameters the audit cannot fill (repository contents, attachments, …) are listed under `unmapped` in the baseline. A new page landing there fails the test until you add a fixture in `PageAuditTest.php` or record it in the baseline.
 
 ### Repository storage
 

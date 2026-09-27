@@ -31,7 +31,7 @@ pest()->extend(TestCase::class)
         }
         $GLOBALS['__testGitRepoPaths'] = [];
     })
-    ->in('Feature');
+    ->in('Feature', 'Browser');
 
 pest()->extend(TestCase::class)
     ->in('Unit');

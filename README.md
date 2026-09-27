@@ -65,7 +65,7 @@ vendor/bin/sail npm install
 vendor/bin/sail npm run build
 ```
 
-> **既知の問題**: 執筆時点では、この環境で `npm run build` が `Cannot find module './rolldown-binding.linux-arm64-gnu.node'` というエラーで失敗します。Vite が依存する `rolldown-vite` のビルド済みネイティブバイナリが、このアーキテクチャの Sail コンテナ内で正しく解決されないためです。本アプリのコードが原因ではない、以前からある環境の問題で（`docs/parity-checklist.md` のガントチャートの Tailwind カラーが欠けている件にも記載）、根本原因はまだ特定できていません。バックエンドと Livewire で動くページは問題なく動作し、影響を受けるのは Vite でビルドするフロントエンドのアセット（コンパイル済みの Tailwind CSS など）だけです。
+> **注意**: Tailwind CSS は、ビルドした時点のテンプレートに含まれるクラスだけを出力します。ビューを変更したら `vendor/bin/sail npm run build`（開発中は `vendor/bin/sail npm run dev`）を実行し直してください。古いビルドのままだと、新しく使ったクラスにスタイルが当たりません。
 
 `vendor/bin/sail open` でアプリを開くか、`http://localhost` にアクセスしてください。ローカル開発中に送信したメールは [Mailpit](https://github.com/axllent/mailpit) が受け取り、`http://localhost:8025` で確認できます。
 
@@ -76,6 +76,25 @@ vendor/bin/sail artisan test --compact
 vendor/bin/sail bin phpstan analyse --no-progress
 vendor/bin/sail bin pint --format agent
 ```
+
+### 画面の検査（ブラウザテスト）
+
+`tests/Browser/PageAuditTest.php` は、管理者としてログインした状態で HTML を返すすべての画面を Chromium で開き、axe によるアクセシビリティ検査（critical/serious）と、要素のはみ出し・文字の途切れ・中身が隠れた横スクロールを見るレイアウト検査を行います。画面を追加すると自動で検査対象に加わります。既存の指摘は `tests/Browser/baselines/page-audit.json` に記録してあり、新しく増えた指摘だけが失敗になります。
+
+初回だけ、コンテナに Chromium を用意します（`sail build` でイメージを作り直した後も必要です）。
+
+```bash
+docker compose exec -u root laravel.test npx playwright install-deps chromium
+vendor/bin/sail npx playwright install chromium
+```
+
+```bash
+vendor/bin/sail artisan test --compact tests/Browser/PageAuditTest.php
+# 画面を直したら、基準ファイルを更新する
+vendor/bin/sail exec -e UPDATE_PAGE_AUDIT_BASELINE=1 laravel.test php artisan test --compact tests/Browser/PageAuditTest.php
+```
+
+パラメータを埋められない画面（リポジトリの中身、添付ファイルなど）は、基準ファイルの `unmapped` に記録しています。新しい画面がここに入るとテストが失敗するので、`PageAuditTest.php` のテストデータを追加するか、基準ファイルに記録してください。
 
 ### リポジトリの保存場所
 

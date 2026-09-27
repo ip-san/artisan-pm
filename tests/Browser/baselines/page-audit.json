@@ -1,0 +1,1309 @@
+{
+    "unmapped": [
+        "attachments.edit-all",
+        "attachments.inline",
+        "attachments.preview",
+        "attachments.show",
+        "attachments.thumb",
+        "issues.import-status",
+        "issues.journal-detail-diff",
+        "issues.report-details",
+        "password.reset",
+        "plugins.settings",
+        "repository.annotate",
+        "repository.annotate.repo",
+        "repository.browse.repo",
+        "repository.committers.repo",
+        "repository.compare.repo",
+        "repository.edit.repo",
+        "repository.entry",
+        "repository.entry.repo",
+        "repository.file-history",
+        "repository.file-history.repo",
+        "repository.index.repo",
+        "repository.show",
+        "repository.show.repo",
+        "repository.stats.repo",
+        "time-entries.import-status",
+        "users.import-status"
+    ],
+    "pages": {
+        "account.activate": {
+            "error": "Forbidden",
+            "js": [],
+            "axe": [],
+            "layout": []
+        },
+        "activity.global-index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "activity.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "admin.default-configuration": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "admin.info": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "admin.projects": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "auth-sources.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "auth-sources.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "auth-sources.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "boards.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "boards.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "boards.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "boards.show": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "calendar.global-index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "calendar.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "custom-fields.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "custom-fields.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "custom-fields.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "documents.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "documents.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "documents.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "documents.show": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "en:admin.info": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Jump to a project... My page \""
+            ]
+        },
+        "en:issues.global-index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "label",
+                "label-title-only",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Jump to a project... My page \"",
+                "overflow: div \"Columns: Tracker Status Priority Subject\"",
+                "overflow: input \"cf_1\"",
+                "overflow: input \"cf_2\"",
+                "overflow: input \"closed_on\"",
+                "overflow: input \"description\"",
+                "overflow: input \"estimated_hours\"",
+                "overflow: input \"estimated_remaining_hours\"",
+                "overflow: input \"is_private\"",
+                "overflow: input \"last_notes\"",
+                "overflow: input \"last_updated_by\"",
+                "overflow: input \"parent_id\"",
+                "overflow: input \"parent_subject\"",
+                "overflow: input \"project_id\"",
+                "overflow: input \"spent_hours\"",
+                "overflow: input \"total_estimated_hours\"",
+                "overflow: input \"total_spent_hours\"",
+                "overflow: input \"updated_at\"",
+                "overflow: label \"Affected browser\"",
+                "overflow: label \"Closed\"",
+                "overflow: label \"Description\"",
+                "overflow: label \"Estimated remaining time\"",
+                "overflow: label \"Estimated time\"",
+                "overflow: label \"Last notes\"",
+                "overflow: label \"Last updated by\"",
+                "overflow: label \"Parent task subject\"",
+                "overflow: label \"Parent task\"",
+                "overflow: label \"Private\"",
+                "overflow: label \"Project\"",
+                "overflow: label \"Severity\"",
+                "overflow: label \"Spent time\"",
+                "overflow: label \"Total estimated time\"",
+                "overflow: label \"Total spent time\"",
+                "overflow: label \"Updated\"",
+                "overflow: label \"Watchers\"",
+                "page: horizontal scroll"
+            ]
+        },
+        "en:my-page.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Jump to a project... My page \""
+            ]
+        },
+        "en:projects.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Jump to a project... My page \""
+            ]
+        },
+        "enumerations.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "enumerations.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "enumerations.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "files.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "gantt.global-index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "height-mismatch: div \"ズーム − + 表示期間: 適用 関連課題の線 進捗率の表示 選択した列を表示\"",
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "gantt.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "height-mismatch: div \"ズーム − + 表示期間: 適用 関連課題の線 進捗率の表示 選択した列を表示\"",
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "groups.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "groups.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "groups.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "guest:login": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "link-in-text-block"
+            ],
+            "layout": []
+        },
+        "guest:password.request": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": []
+        },
+        "guest:register": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "link-in-text-block"
+            ],
+            "layout": []
+        },
+        "issue-categories.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "issue-categories.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "issue-categories.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "issue-statuses.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "issue-statuses.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "issue-statuses.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "issues.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "issues.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "issues.global-index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "label",
+                "label-title-only",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \"",
+                "overflow: div \"表示列: トラッカー ステータス 優先度 題名 カテゴリ 担当者 作成者 対象バ\"",
+                "overflow: input \"cf_1\"",
+                "overflow: input \"cf_2\"",
+                "overflow: input \"last_notes\"",
+                "overflow: label \"Affected browser\"",
+                "overflow: label \"Severity\"",
+                "overflow: label \"最新のコメント\""
+            ]
+        },
+        "issues.import": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "issues.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "label",
+                "label-title-only",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \"",
+                "overflow: div \"表示列: トラッカー ステータス 優先度 題名 カテゴリ 担当者 作成者 対象バ\"",
+                "overflow: input \"cf_1\"",
+                "overflow: input \"cf_2\"",
+                "overflow: input \"last_notes\"",
+                "overflow: label \"Affected browser\"",
+                "overflow: label \"Severity\"",
+                "overflow: label \"最新のコメント\""
+            ]
+        },
+        "issues.report": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "issues.show": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "login": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "messages.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "messages.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "messages.show": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "my-page.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "my-webhooks.index": {
+            "error": "Forbidden",
+            "js": [],
+            "axe": [],
+            "layout": []
+        },
+        "news.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "news.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "news.global-index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "news.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "news.show": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "passkey.confirm-options": {
+            "error": "Server Error",
+            "js": [],
+            "axe": [],
+            "layout": []
+        },
+        "passkey.login-options": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "passkey.registration-options": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "password.confirm": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "password.request": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "plugins.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "profile.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "projects.activities": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "projects.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "projects.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "projects.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "projects.members": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "projects.show": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "register": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "repository.browse": {
+            "error": "Not Found",
+            "js": [],
+            "axe": [],
+            "layout": []
+        },
+        "repository.committers": {
+            "error": "Not Found",
+            "js": [],
+            "axe": [],
+            "layout": []
+        },
+        "repository.compare": {
+            "error": "Not Found",
+            "js": [],
+            "axe": [],
+            "layout": []
+        },
+        "repository.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "repository.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "repository.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "link-in-text-block"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "repository.stats": {
+            "error": "Not Found",
+            "js": [],
+            "axe": [],
+            "layout": []
+        },
+        "roles.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "scrollable-region-focusable",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "roles.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "roles.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "roles.report": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "search.global-index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "search.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "settings.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \"",
+                "select-cut: select \"なし 「新しい課題」リンクのみ 「+」ドロップダウン(課題・バージョン・お知らせ\"",
+                "select-cut: select \"ユーザーの言語の設定に従う(2026/09/27) 2026-09-27 (yy\""
+            ]
+        },
+        "time-entries.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "time-entries.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "time-entries.global-index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "label-title-only"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "time-entries.global-report": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "time-entries.import": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "time-entries.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "label",
+                "label-title-only"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "time-entries.report": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "trackers.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "trackers.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "trackers.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "two-factor.login": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "two-factor.qr-code": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "two-factor.recovery-codes": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "two-factor.secret-key": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "users.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "users.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "users.import": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "users.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast",
+                "label"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "users.show": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "versions.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "versions.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "versions.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "versions.roadmap": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "webhooks.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "webhooks.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "webhooks.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        },
+        "wiki.annotate": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "wiki.create": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "wiki.date-index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "wiki.diff": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "wiki.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "label",
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "wiki.history": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "wiki.index": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "wiki.pages": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "wiki.show": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "color-contrast"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "wiki.version": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM Demo Project マイページ プロジェクト 課題 \""
+            ]
+        },
+        "workflows.edit": {
+            "error": null,
+            "js": [],
+            "axe": [
+                "select-name"
+            ],
+            "layout": [
+                "hidden-scroll: div \"Artisan PM プロジェクトへ移動 マイページ プロジェクト 課題 工数 \""
+            ]
+        }
+    }
+}
