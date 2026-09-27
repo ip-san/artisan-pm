@@ -133,3 +133,5 @@ Xserver、さくらのレンタルサーバ、ConoHa WING などのレンタル�
 ## ライセンス
 
 本プロジェクトは [MIT ライセンス](https://opensource.org/licenses/MIT)のもとで公開しているオープンソースソフトウェアです。
+
+本プロジェクトは Redmine プロジェクトとは無関係の非公式な実装で、Redmine のソースコードは含んでいません。「Redmine」の名称は Redmine プロジェクトに帰属します。

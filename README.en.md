@@ -133,3 +133,5 @@ A few patterns recur across the codebase and are worth knowing before making cha
 ## License
 
 This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+Artisan PM is an unofficial, independent reimplementation. It is not affiliated with or endorsed by the Redmine project and contains no Redmine source code. The "Redmine" name belongs to the Redmine project.
