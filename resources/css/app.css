@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@plugin '@tailwindcss/forms';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -286,6 +287,33 @@
         --color-violet-50: oklch(30% 0.05 293);
         --color-fuchsia-50: oklch(30% 0.05 322);
         --color-rose-50: oklch(30% 0.05 16);
+    }
+}
+
+/*
+ * @tailwindcss/forms hardcodes a white background on form controls; follow the theme instead.
+ * In the components layer so it beats the plugin's base styles but not bg-* utilities.
+ */
+@layer components {
+    [type='text'],
+    input:where(:not([type])),
+    [type='email'],
+    [type='url'],
+    [type='password'],
+    [type='number'],
+    [type='date'],
+    [type='datetime-local'],
+    [type='month'],
+    [type='search'],
+    [type='tel'],
+    [type='time'],
+    [type='week'],
+    [type='checkbox']:not(:checked, :indeterminate),
+    [type='radio']:not(:checked),
+    [multiple],
+    textarea,
+    select {
+        background-color: var(--color-surface);
     }
 }
 
