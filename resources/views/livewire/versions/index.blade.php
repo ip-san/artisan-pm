@@ -63,7 +63,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 {{ __('完了したバージョンをクローズ') }}
             </button>
             <a href="{{ route('versions.create', $project) }}"
-                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('新規バージョン') }}
             </a>
         </div>

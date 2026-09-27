@@ -326,7 +326,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div class="flex gap-2">
-            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ $editingMemberId ? __('ロールを更新') : __('メンバーを追加') }}
             </button>
             @if ($editingMemberId)

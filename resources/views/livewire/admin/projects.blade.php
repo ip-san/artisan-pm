@@ -407,7 +407,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-neutral-900">{{ __('プロジェクト管理') }}</h1>
-        <a href="{{ route('projects.create') }}" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">{{ __('新規プロジェクト') }}</a>
+        <a href="{{ route('projects.create') }}" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">{{ __('新規プロジェクト') }}</a>
     </div>
 
     @if (session('error'))
@@ -459,7 +459,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">{{ __('絞り込み適用') }}</button>
+            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">{{ __('絞り込み適用') }}</button>
             <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
                 {{ __('表示列:') }}
                 @foreach ($this->availableColumns as $columnKey => $columnLabel)
@@ -479,7 +479,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <form wire:submit="saveQuery" class="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3">
                 <input type="text" wire:model="newQueryName" placeholder="{{ __('クエリ名') }}" class="rounded-md border-neutral-300 text-sm">
                 <span class="text-xs text-neutral-500">{{ __('(すべての管理者に表示されます)') }}</span>
-                <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
+                <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-hovered">{{ __('保存') }}</button>
                 @error('newQueryName') <span class="text-sm text-danger-bolder">{{ $message }}</span> @enderror
             </form>
         @endif

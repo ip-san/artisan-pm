@@ -195,7 +195,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="flex gap-2">
             <input type="text" wire:model="query" placeholder="{{ __('検索キーワード') }}"
                 class="block w-full max-w-md rounded-md border-neutral-300 shadow-sm sm:text-sm">
-            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('検索') }}
             </button>
         </div>

@@ -923,7 +923,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endcan
             @can('create', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.create', $project) }}"
-                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                     {{ __('工数を記録') }}
                 </a>
             @endcan
@@ -945,7 +945,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('絞り込み適用') }}
             </button>
 
@@ -1085,7 +1085,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div class="flex gap-2">
-                <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                     {{ __('一括更新') }}
                 </button>
                 <button type="button" wire:click="applyBulkDelete" wire:confirm="{{ __('選択した:count件の工数記録を削除します。この操作は取り消せません。よろしいですか?', ['count' => count($selected)]) }}"

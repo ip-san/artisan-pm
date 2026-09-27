@@ -524,7 +524,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </label>
             </div>
 
-            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('保存') }}
             </button>
         </form>
@@ -552,7 +552,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
 
-                <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
+                <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                     {{ __('変更') }}
                 </button>
             </form>
@@ -599,14 +599,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input type="text" wire:model="code" inputmode="numeric" class="mt-1 block w-40 rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('code') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
-                <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
+                <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                     {{ __('確認して有効化') }}
                 </button>
             </form>
         @else
             <p class="mb-4 text-sm text-neutral-600">{{ __('二要素認証は無効です。') }}</p>
 
-            <button wire:click="enableTwoFactor" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
+            <button wire:click="enableTwoFactor" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('有効にする') }}
             </button>
         @endif
@@ -720,7 +720,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @error('default_project_query') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
-            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">{{ __('保存') }}</button>
         </form>
     </section>
 

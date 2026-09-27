@@ -485,7 +485,9 @@
                 "label",
                 "select-name"
             ],
-            "layout": [],
+            "layout": [
+                "select-cut: select \"未割当 充 青山 修平 木村 アレクサンドラ・ミハイロヴナ・ヴァシリエヴァ 長谷\""
+            ],
             "queries": 46,
             "lazy": []
         },

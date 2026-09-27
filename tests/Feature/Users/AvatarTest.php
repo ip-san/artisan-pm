@@ -23,7 +23,29 @@ test('initials come from the first and last word or the first letters', function
 test('the colour is stable per name and differs between people', function () {
     expect(UserAvatar::color('Alice'))->toBe(UserAvatar::color(' alice '))
         ->and(UserAvatar::color('Alice'))->not->toBe(UserAvatar::color('Bob'))
-        ->and(UserAvatar::color('Alice'))->toMatch('/^hsl\(\d{1,3}, 45%, 42%\)$/');
+        ->and(UserAvatar::color('Alice'))->toMatch('/^hsl\(\d{1,3}, 45%, 32%\)$/');
+});
+
+test('white initials keep a 4.5:1 contrast on every hue', function () {
+    $luminance = function (int $hue): float {
+        // hsl(hue, 45%, 32%) to linear sRGB, then relative luminance.
+        [$s, $l] = [0.45, 0.32];
+        $c = (1 - abs(2 * $l - 1)) * $s;
+        $x = $c * (1 - abs(fmod($hue / 60, 2) - 1));
+        [$r, $g, $b] = match (intdiv($hue, 60)) {
+            0 => [$c, $x, 0], 1 => [$x, $c, 0], 2 => [0, $c, $x],
+            3 => [0, $x, $c], 4 => [$x, 0, $c], default => [$c, 0, $x],
+        };
+        $linear = fn (float $v) => ($v += $l - $c / 2) <= 0.03928 ? $v / 12.92 : (($v + 0.055) / 1.055) ** 2.4;
+
+        return 0.2126 * $linear($r) + 0.7152 * $linear($g) + 0.0722 * $linear($b);
+    };
+
+    expect(UserAvatar::color('Alice'))->toContain('45%, 32%');
+
+    foreach (range(0, 359) as $hue) {
+        expect(1.05 / ($luminance($hue) + 0.05))->toBeGreaterThanOrEqual(4.5, "hue {$hue}");
+    }
 });
 
 test('the Gravatar URL hashes the trimmed lowercase address and asks for double size', function () {

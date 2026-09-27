@@ -62,7 +62,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         @if ($import->status->isFinished())
-            <a href="{{ route('issues.index', $project) }}" class="mt-4 inline-block rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
+            <a href="{{ route('issues.index', $project) }}" class="mt-4 inline-block rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('課題一覧へ') }}
             </a>
         @endif

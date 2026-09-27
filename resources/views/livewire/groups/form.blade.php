@@ -210,7 +210,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
+            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('保存') }}
             </button>
             <a href="{{ route('groups.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
@@ -245,7 +245,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endif
                     @error('selectedUserId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
-                <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                     {{ __('追加') }}
                 </button>
             </form>

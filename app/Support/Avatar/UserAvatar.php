@@ -119,14 +119,15 @@ final class UserAvatar
     }
 
     /**
-     * A stable colour per user, derived from their name: hue only, so every
-     * circle reads well with white text.
+     * A stable colour per user, derived from their name: hue only, at a
+     * lightness dark enough that white initials meet WCAG AA (4.5:1) on every
+     * hue, yellow being the lightest.
      */
     public static function color(User|string $user): string
     {
         $name = $user instanceof User ? $user->name : $user;
         $hue = hexdec(substr(md5(mb_strtolower(trim($name))), 0, 4)) % 360;
 
-        return "hsl({$hue}, 45%, 42%)";
+        return "hsl({$hue}, 45%, 32%)";
     }
 }

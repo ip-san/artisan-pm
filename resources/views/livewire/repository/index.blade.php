@@ -163,7 +163,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                         {{ __('コミッター設定') }}
                     </a>
-                    <button wire:click="sync" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                    <button wire:click="sync" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                         {{ __('同期') }}
                     </button>
                 @endif

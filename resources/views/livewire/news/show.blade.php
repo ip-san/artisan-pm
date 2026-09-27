@@ -324,7 +324,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <textarea wire:model="commentContent" rows="3" placeholder="{{ __('コメントを追加') }}"
                 class="block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('commentContent') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
-            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('コメントを投稿') }}
             </button>
         </form>

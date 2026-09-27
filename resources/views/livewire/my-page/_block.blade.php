@@ -55,7 +55,7 @@
                 </div>
             @endforeach
             <div class="flex gap-3">
-                <button type="submit" class="rounded-md bg-brand-bold px-3 py-1 text-xs font-medium text-white hover:bg-brand">{{ __('保存') }}</button>
+                <button type="submit" class="rounded-md bg-brand-bold px-3 py-1 text-xs font-medium text-white hover:bg-brand-hovered">{{ __('保存') }}</button>
                 <button type="button" wire:click="closeSettings" class="text-xs text-neutral-600 hover:underline">{{ __('キャンセル') }}</button>
             </div>
         </form>

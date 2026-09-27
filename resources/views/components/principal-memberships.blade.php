@@ -58,7 +58,7 @@
             @error('membershipRoleIds') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
 
             <div class="flex gap-2">
-                <button type="button" wire:click="saveMembership" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">
+                <button type="button" wire:click="saveMembership" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-hovered">
                     {{ $editing === null ? __('追加') : __('更新') }}
                 </button>
                 @if ($editing !== null)

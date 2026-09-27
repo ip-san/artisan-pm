@@ -95,11 +95,11 @@ test('the issue page is shown in the language of the signed-in user', function (
     $route = route('issues.show', [$project, $issue]);
 
     $this->actingAs(User::factory()->admin()->create(['language' => 'en']))->get($route)
-        ->assertOk()->assertSee('My page')->assertSee('Watchers')->assertSee('Related issues')
-        ->assertDontSee('マイページ')->assertDontSee('関連課題');
+        ->assertOk()->assertSee('Sign out')->assertSee('Watchers')->assertSee('Related issues')
+        ->assertDontSee('ログアウト')->assertDontSee('関連課題');
 
     $this->actingAs(User::factory()->admin()->create(['language' => 'ja']))->get($route)
-        ->assertOk()->assertSee('マイページ')->assertSee('関連課題')->assertDontSee('Related issues');
+        ->assertOk()->assertSee('ログアウト')->assertSee('関連課題')->assertDontSee('Related issues');
 });
 
 test('the issue list is shown in English for an English user', function () {
@@ -107,7 +107,7 @@ test('the issue list is shown in English for an English user', function () {
 
     $this->actingAs(User::factory()->admin()->create(['language' => 'en']))
         ->get(route('issues.index', $project))
-        ->assertOk()->assertSee('My page')->assertDontSee('マイページ');
+        ->assertOk()->assertSee('Sign out')->assertDontSee('ログアウト');
 });
 
 test('the project overview and roadmap are shown in English for an English user', function () {
@@ -118,7 +118,7 @@ test('the project overview and roadmap are shown in English for an English user'
         ->assertOk()->assertSee('Close')->assertDontSee('クローズする');
 
     $this->actingAs($english)->get(route('versions.roadmap', $project))
-        ->assertOk()->assertDontSee('マイページ');
+        ->assertOk()->assertDontSee('ログアウト');
 });
 
 test('the sign-in page follows the visitor\'s browser language', function () {

@@ -489,7 +489,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <textarea wire:model="replyContent" rows="4" placeholder="{{ __('返信を入力') }}"
                 class="block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('replyContent') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
-            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('返信を投稿') }}
             </button>
         </form>

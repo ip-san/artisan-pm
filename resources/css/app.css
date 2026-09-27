@@ -104,6 +104,8 @@
     --color-brand: #669df1;
     --color-brand-bold: #0c66e4;
     --color-brand-bolder: #0055cc;
+    /* Hover for filled brand buttons: darker, so the white label keeps 4.5:1 (bg-brand did not). */
+    --color-brand-hovered: #0055cc;
 
     /*
      * Status colors — replaced every bg-/text-/border- red-* (→danger),
@@ -190,6 +192,7 @@
     --color-brand: #579dff;
     --color-brand-bold: #388bff;
     --color-brand-bolder: #85b8ff;
+    --color-brand-hovered: #0c66e4;
 
     --color-danger-subtlest: #42221f;
     --color-danger-subtler: #5d1f1a;
@@ -255,6 +258,7 @@
         --color-brand: #579dff;
         --color-brand-bold: #388bff;
         --color-brand-bolder: #85b8ff;
+        --color-brand-hovered: #0c66e4;
 
         --color-danger-subtlest: #42221f;
         --color-danger-subtler: #5d1f1a;

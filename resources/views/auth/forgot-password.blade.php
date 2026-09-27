@@ -27,7 +27,7 @@
             </div>
 
             <button type="submit"
-                class="w-full rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">
+                class="w-full rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('再設定リンクを送信') }}
             </button>
         </form>

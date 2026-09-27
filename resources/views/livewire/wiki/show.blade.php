@@ -340,7 +340,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endcan
             @can('update', $wikiPage)
                 <a href="{{ route('wiki.edit', [$project, $wikiPage]) }}"
-                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                     {{ __('編集') }}
                 </a>
             @endcan

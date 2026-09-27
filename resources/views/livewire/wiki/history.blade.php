@@ -139,7 +139,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="mt-4">
             @if ($diffFrom !== null && $diffTo !== null && $diffFrom !== $diffTo)
                 <a href="{{ route('wiki.diff', [$project, $wikiPage, 'from' => $diffFrom, 'to' => $diffTo]) }}"
-                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                     {{ __('選択したバージョンを比較') }}
                 </a>
             @else

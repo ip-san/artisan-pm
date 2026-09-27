@@ -2304,7 +2304,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         <label class="flex items-center gap-2 py-0.5"><input type="checkbox" wire:model="csvIncludeDescription"> {{ $this->availableColumns['description'] }}</label>
                         <label class="flex items-center gap-2 py-0.5"><input type="checkbox" wire:model="csvIncludeLastNotes"> {{ $this->availableColumns['last_notes'] }}</label>
                     </div>
-                    <button type="button" wire:click="exportCsv" x-on:click="csvOptionsOpen = false" class="mt-3 w-full rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">
+                    <button type="button" wire:click="exportCsv" x-on:click="csvOptionsOpen = false" class="mt-3 w-full rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-hovered">
                         {{ __('エクスポート') }}
                     </button>
                 </div>
@@ -2327,7 +2327,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endcan
                 @can('create', [\App\Models\Issue::class, $project])
                     <a href="{{ route('issues.create', $project) }}"
-                        class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                        class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                         {{ __('新規課題') }}
                     </a>
                 @endcan
@@ -2356,7 +2356,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('絞り込み適用') }}
             </button>
 
@@ -2570,7 +2570,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div class="flex gap-2">
-                <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                     {{ __('一括更新') }}
                 </button>
                 <button type="button" wire:click="$set('selected', [])" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-surface">

@@ -1548,5 +1548,10 @@
     "項目が多いため、先頭:count行だけを表示しています。": "There are many items; only the first :count rows are shown.",
     "題名": "Subject",
     "題名(必須)": "Subject (required)",
-    "題名が空です。": "Subject is empty."
+    "題名が空です。": "Subject is empty.",
+    "プロジェクトメニュー": "Project menu",
+    "メインメニュー": "Main menu",
+    "プロジェクトの設定": "Project settings",
+    "メニュー": "Menu",
+    "このプロジェクトを検索": "Search this project"
 }

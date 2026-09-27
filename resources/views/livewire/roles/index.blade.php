@@ -61,7 +61,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 {{ __('権限レポート') }}
             </a>
             <a href="{{ route('roles.create') }}"
-                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('新規ロール') }}
             </a>
         </div>

@@ -931,7 +931,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endcan
             @can('update', $issue)
                 <a href="{{ route('issues.edit', [$project, $issue]) }}"
-                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                     {{ __('編集') }}
                 </a>
             @endcan
@@ -1396,7 +1396,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ __('非公開メモにする') }}
                 </label>
             @endcan
-            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand">
+            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
                 {{ __('コメントを追加') }}
             </button>
         </form>

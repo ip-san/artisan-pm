@@ -45,7 +45,7 @@
         </label>
     @endif
 
-    <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand">{{ $editing ? __('更新') : __('保存') }}</button>
+    <button type="submit" class="rounded-md bg-brand-bold px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-hovered">{{ $editing ? __('更新') : __('保存') }}</button>
     @if ($editing)
         <button type="button" wire:click="cancelEditQuery" class="text-sm text-neutral-500 hover:underline">{{ __('キャンセル') }}</button>
     @endif

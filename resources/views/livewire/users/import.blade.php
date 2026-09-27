@@ -139,7 +139,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div class="flex gap-3">
-                <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand">{{ __('インポート開始') }}</button>
+                <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">{{ __('インポート開始') }}</button>
                 <a href="{{ route('users.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('キャンセル') }}</a>
             </div>
         @endif
