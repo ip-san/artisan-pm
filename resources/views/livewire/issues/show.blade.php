@@ -887,7 +887,7 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 }; ?>
 
-<div class="max-w-3xl">
+<div class="max-w-3xl" x-data="{ moveOpen: @js($errors->hasAny(['moveToProjectId', 'moveToTrackerId']) || filled($moveToProjectId)) }">
     <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
         <div>
             @if ($this->visibleParent)
@@ -906,47 +906,49 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endif
             </h1>
         </div>
-        <div class="flex flex-wrap justify-end gap-2 whitespace-nowrap">
+        {{-- Editing and watching stay in view; the rarer actions wait behind "その他". --}}
+        <div class="flex items-center gap-2 whitespace-nowrap">
             @can('watch', $issue)
                 <button wire:click="toggleWatch" class="btn btn-secondary">
                     {{ $issue->isWatchedBy(auth()->user()) ? __('ウォッチ解除') : __('ウォッチ') }}
                 </button>
             @endcan
-            @can('create', [\App\Models\TimeEntry::class, $project])
-                <a href="{{ route('time-entries.create', $project) }}?issue_id={{ $issue->id }}"
-                    class="btn btn-secondary">
-                    {{ __('工数を記録') }}
-                </a>
-            @endcan
-            <a href="{{ route('issues.pdf', [$project, $issue]) }}"
-                class="btn btn-secondary">
-                PDF
-            </a>
-            <a href="{{ route('issues.show-atom', [$project, $issue, 'key' => auth()->user()?->atomKey()]) }}" class="self-center text-xs text-warning hover:underline">Atom</a>
-            @can('create', [\App\Models\Issue::class, $project])
-                <a href="{{ route('issues.create', $project) }}?copy_from={{ $issue->id }}"
-                    class="btn btn-secondary">
-                    {{ __('コピー') }}
-                </a>
-            @endcan
+            <div class="relative" x-data="{ moreOpen: false }" x-on:keydown.escape="moreOpen = false">
+                <button type="button" x-on:click="moreOpen = ! moreOpen" :aria-expanded="moreOpen.toString()" class="btn btn-secondary" data-issue-more>
+                    {{ __('その他') }}
+                    <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5.5 7.5 10 12l4.5-4.5z"/></svg>
+                </button>
+                <div x-show="moreOpen" x-cloak x-on:click.outside="moreOpen = false"
+                    class="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-neutral-200 bg-surface py-1 text-sm shadow-lg">
+                    @can('create', [\App\Models\TimeEntry::class, $project])
+                        <a href="{{ route('time-entries.create', $project) }}?issue_id={{ $issue->id }}" class="block px-4 py-1.5 text-neutral-700 hover:bg-surface-hovered">{{ __('工数を記録') }}</a>
+                    @endcan
+                    @can('create', [\App\Models\Issue::class, $project])
+                        <a href="{{ route('issues.create', $project) }}?copy_from={{ $issue->id }}" class="block px-4 py-1.5 text-neutral-700 hover:bg-surface-hovered">{{ __('コピー') }}</a>
+                    @endcan
+                    @can('move', $issue)
+                        @if ($this->moveTargetProjects->isNotEmpty())
+                            <button type="button" x-on:click="moveOpen = true; moreOpen = false" class="block w-full px-4 py-1.5 text-left text-neutral-700 hover:bg-surface-hovered">{{ __('別のプロジェクトへ移動') }}</button>
+                        @endif
+                    @endcan
+                    <a href="{{ route('issues.pdf', [$project, $issue]) }}" class="block px-4 py-1.5 text-neutral-700 hover:bg-surface-hovered">PDF</a>
+                    <a href="{{ route('issues.show-atom', [$project, $issue, 'key' => auth()->user()?->atomKey()]) }}" class="block px-4 py-1.5 text-neutral-700 hover:bg-surface-hovered">Atom</a>
+                    @can('delete', $issue)
+                        <div class="mt-1 border-t border-neutral-100 pt-1">
+                            @if ($this->loggedHoursForDeletion > 0)
+                                <button type="button" wire:click="$set('confirmingDelete', true)" x-on:click="moreOpen = false" class="block w-full px-4 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">{{ __('削除') }}</button>
+                            @else
+                                <button type="button" wire:click="deleteIssue" wire:confirm="{{ __('この課題を削除しますか?この操作は取り消せません。') }}{{ $this->deletionDescendantCount > 0 ? ' '.__(':count件のサブタスクも削除されます。', ['count' => $this->deletionDescendantCount]) : '' }}"
+                                    class="block w-full px-4 py-1.5 text-left text-danger-bolder hover:bg-danger-subtlest">{{ __('削除') }}</button>
+                            @endif
+                        </div>
+                    @endcan
+                </div>
+            </div>
             @can('update', $issue)
-                <a href="{{ route('issues.edit', [$project, $issue]) }}"
-                    class="btn btn-primary">
+                <a href="{{ route('issues.edit', [$project, $issue]) }}" class="btn btn-primary">
                     {{ __('編集') }}
                 </a>
-            @endcan
-            @can('delete', $issue)
-                @if ($this->loggedHoursForDeletion > 0)
-                    <button wire:click="$set('confirmingDelete', true)"
-                        class="btn btn-danger-outline">
-                        {{ __('削除') }}
-                    </button>
-                @else
-                    <button wire:click="deleteIssue" wire:confirm="{{ __('この課題を削除しますか?この操作は取り消せません。') }}{{ $this->deletionDescendantCount > 0 ? ' '.__(':count件のサブタスクも削除されます。', ['count' => $this->deletionDescendantCount]) : '' }}"
-                        class="btn btn-danger-outline">
-                        {{ __('削除') }}
-                    </button>
-                @endif
             @endcan
         </div>
     </div>
@@ -998,7 +1000,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     @can('move', $issue)
         @if ($this->moveTargetProjects->isNotEmpty())
-            <form wire:submit="moveIssue" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4">
+            <form wire:submit="moveIssue" x-show="moveOpen" x-cloak class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4" data-issue-move-form>
                 <div>
                     <label class="block text-xs font-medium text-neutral-700">{{ __('別のプロジェクトへ移動') }}</label>
                     <select wire:model.live="moveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
@@ -1025,6 +1027,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         {{ __('移動') }}
                     </button>
                 @endif
+                <button type="button" x-on:click="moveOpen = false" class="btn btn-secondary">{{ __('キャンセル') }}</button>
             </form>
         @endif
     @endcan

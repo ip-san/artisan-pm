@@ -1,7 +1,13 @@
 <?php
 
+use App\Enums\UserStatus;
+use App\Models\Issue;
+use App\Models\IssueStatus;
+use App\Models\Member;
+use App\Models\News;
 use App\Models\Project;
 use App\Models\TimeEntry;
+use App\Models\Tracker;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Auth\RequiresPasswordConfirmation;
 use Illuminate\Support\Collection;
@@ -50,6 +56,63 @@ new #[Layout('components.layouts.app')] class extends Component
     public function visibleSubprojects(): Collection
     {
         return $this->project->children->filter(fn (Project $child) => Gate::allows('view', $child))->values();
+    }
+
+    /**
+     * Redmine's overview "Issue tracking" box: open and total issues per tracker, counting the
+     * subprojects' issues when display_subprojects_issues is on, and only those the viewer may see.
+     * Null when the viewer may not see this project's issues at all.
+     *
+     * @return Collection<int, array{tracker: Tracker, open: int, total: int}>|null
+     */
+    #[Computed]
+    public function issueCountsByTracker(): ?Collection
+    {
+        if (! Gate::allows('viewAny', [Issue::class, $this->project])) {
+            return null;
+        }
+
+        $projects = SubprojectScope::projectsForIssues($this->project, auth()->user());
+        $visible = fn () => Issue::query()->visibleToAcrossProjects(auth()->user(), $projects);
+        $totals = $visible()->toBase()->selectRaw('tracker_id, count(*) as aggregate')->groupBy('tracker_id')->pluck('aggregate', 'tracker_id');
+        $open = $visible()->whereIn('status_id', IssueStatus::query()->where('is_closed', false)->select('id'))
+            ->toBase()->selectRaw('tracker_id, count(*) as aggregate')->groupBy('tracker_id')->pluck('aggregate', 'tracker_id');
+
+        return $this->project->trackers()->orderBy('position')->get()
+            ->map(fn (Tracker $tracker) => ['tracker' => $tracker, 'open' => (int) ($open[$tracker->id] ?? 0), 'total' => (int) ($totals[$tracker->id] ?? 0)]);
+    }
+
+    /**
+     * Redmine's overview "Members" box: active members grouped by role, in role order.
+     *
+     * @return Collection<string, Collection<int, string>>
+     */
+    #[Computed]
+    public function membersByRole(): Collection
+    {
+        return $this->project->members()
+            ->with(['user', 'roles'])
+            ->get()
+            ->filter(fn (Member $member) => $member->user !== null && $member->user->status === UserStatus::Active)
+            ->flatMap(fn (Member $member) => $member->roles->map(fn ($role) => ['role' => $role, 'name' => $member->user->displayName()]))
+            ->sortBy(fn (array $entry) => $entry['role']->position)
+            ->groupBy(fn (array $entry) => $entry['role']->name)
+            ->map(fn (Collection $entries) => $entries->pluck('name')->unique()->sort()->values());
+    }
+
+    /**
+     * The three latest news items, as on Redmine's overview; empty when news is off or hidden.
+     *
+     * @return Collection<int, News>
+     */
+    #[Computed]
+    public function latestNews(): Collection
+    {
+        if (! Gate::allows('viewAny', [News::class, $this->project])) {
+            return collect();
+        }
+
+        return News::query()->where('project_id', $this->project->id)->with('author')->latest()->limit(3)->get();
     }
 
     public function toggleBookmark(): void
@@ -198,23 +261,79 @@ new #[Layout('components.layouts.app')] class extends Component
         <p class="text-sm text-neutral-700 mb-6">{{ $project->description }}</p>
     @endif
 
-    @can('viewAny', [\App\Models\TimeEntry::class, $project])
-        @if ($this->totalSpentHours > 0)
-            <div class="rounded-md border border-neutral-200 bg-surface p-4 mb-6">
-                <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('実績工数') }}</h2>
-                <p class="text-sm text-neutral-700">{{ __(':hours 時間', ['hours' => \App\Support\Format\Hours::format($this->totalSpentHours)]) }}</p>
-            </div>
-        @endif
-    @endcan
+    {{-- Redmine's overview boxes: issue tracking and spent time on the left, members and news on the right. --}}
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div class="space-y-6">
+            @if ($this->issueCountsByTracker !== null)
+                <section class="rounded-lg border border-neutral-200 bg-surface p-4" data-overview="issues">
+                    <h2 class="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-900"><x-icon name="issue" class="size-4 text-neutral-500" />{{ __('課題トラッキング') }}</h2>
+                    @if ($this->issueCountsByTracker->isNotEmpty())
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-neutral-200 text-left text-xs text-neutral-500">
+                                    <th class="py-1.5 font-medium"></th>
+                                    <th class="py-1.5 text-right font-medium">{{ __('未完了') }}</th>
+                                    <th class="py-1.5 text-right font-medium">{{ __('合計') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($this->issueCountsByTracker as $row)
+                                    <tr wire:key="tracker-count-{{ $row['tracker']->id }}" class="border-b border-neutral-100 last:border-b-0">
+                                        <td class="py-1.5 text-neutral-700">{{ $row['tracker']->name }}</td>
+                                        <td class="py-1.5 text-right font-semibold text-neutral-900 tabular-nums">{{ $row['open'] }}</td>
+                                        <td class="py-1.5 text-right text-neutral-600 tabular-nums">{{ $row['total'] }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    @endif
+                    <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                        <a href="{{ route('issues.index', $project) }}" class="text-brand-bold hover:underline">{{ __('すべての課題を見る') }}</a>
+                        <a href="{{ route('issues.report', $project) }}" class="text-brand-bold hover:underline">{{ __('レポート') }}</a>
+                    </div>
+                </section>
+            @endif
 
-    <div class="rounded-md border border-neutral-200 bg-surface p-4">
-        <h2 class="text-sm font-semibold text-neutral-900 mb-2">{{ __('有効なモジュール') }}</h2>
-        <div class="flex flex-wrap gap-2">
-            @forelse ($project->moduleAssignments as $assignment)
-                <span class="rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-700">{{ $assignment->module->value }}</span>
-            @empty
-                <span class="text-sm text-neutral-500">{{ __('有効なモジュールはありません。') }}</span>
-            @endforelse
+            @can('viewAny', [\App\Models\TimeEntry::class, $project])
+                @if ($this->totalSpentHours > 0)
+                    <section class="rounded-lg border border-neutral-200 bg-surface p-4" data-overview="time">
+                        <h2 class="mb-2 flex items-center gap-2 text-sm font-semibold text-neutral-900"><x-icon name="clock" class="size-4 text-neutral-500" />{{ __('実績工数') }}</h2>
+                        <p class="text-2xl font-semibold text-neutral-900 tabular-nums">{{ __(':hours 時間', ['hours' => \App\Support\Format\Hours::format($this->totalSpentHours)]) }}</p>
+                        <a href="{{ route('time-entries.index', $project) }}" class="mt-2 inline-block text-sm text-brand-bold hover:underline">{{ __('詳細') }}</a>
+                    </section>
+                @endif
+            @endcan
+        </div>
+
+        <div class="space-y-6">
+            @if ($this->membersByRole->isNotEmpty())
+                <section class="rounded-lg border border-neutral-200 bg-surface p-4" data-overview="members">
+                    <h2 class="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-900"><x-icon name="users" class="size-4 text-neutral-500" />{{ __('メンバー') }}</h2>
+                    <dl class="space-y-2 text-sm">
+                        @foreach ($this->membersByRole as $roleName => $names)
+                            <div wire:key="role-{{ $loop->index }}">
+                                <dt class="text-xs font-medium text-neutral-500">{{ $roleName }}</dt>
+                                <dd class="text-neutral-800">{{ $names->join(', ') }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                </section>
+            @endif
+
+            @if ($this->latestNews->isNotEmpty())
+                <section class="rounded-lg border border-neutral-200 bg-surface p-4" data-overview="news">
+                    <h2 class="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-900"><x-icon name="news" class="size-4 text-neutral-500" />{{ __('最新のお知らせ') }}</h2>
+                    <ul class="space-y-3 text-sm">
+                        @foreach ($this->latestNews as $news)
+                            <li wire:key="overview-news-{{ $news->id }}">
+                                <a href="{{ route('news.show', [$project, $news]) }}" class="font-medium text-brand-bold hover:underline">{{ $news->title }}</a>
+                                <p class="text-xs text-neutral-500">{{ $news->author?->displayName() }} · {{ \App\Support\Format\DateTimes::dateOf($news->created_at) }}</p>
+                            </li>
+                        @endforeach
+                    </ul>
+                    <a href="{{ route('news.index', $project) }}" class="mt-3 inline-block text-sm text-brand-bold hover:underline">{{ __('すべてのお知らせ') }}</a>
+                </section>
+            @endif
         </div>
     </div>
 
