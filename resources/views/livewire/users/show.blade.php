@@ -138,9 +138,8 @@ new #[Layout('components.layouts.app')] class extends Component
         $from = \Illuminate\Support\Carbon::instance(\App\Support\Format\DateTimes::today()->subDays(30)->utc());
         $to = now();
 
-        return $this->visibleProjects()
-            ->flatMap(fn (Project $project) => $providers
-                ->flatMap(fn ($provider) => $provider->entries($project, auth()->user(), $from, $to)))
+        // One query per provider across all projects, as the global activity feed does, not one per project.
+        return \App\Support\Activity\CrossProjectEntries::collect($providers, $this->visibleProjects(), auth()->user(), $from, $to)
             ->filter(fn ($entry) => $entry->authorId === $this->user->id)
             ->sortByDesc('occurredAt')
             ->take(10)

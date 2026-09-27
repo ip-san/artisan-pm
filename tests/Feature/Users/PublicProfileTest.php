@@ -8,6 +8,7 @@ use App\Models\News;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 test('the admin user list links each user\'s name to their public profile', function () {
@@ -222,4 +223,24 @@ test('recent activity older than the 30-day window is excluded', function () {
     $component = Livewire::actingAs($viewer)->test('users.show', ['user' => $target]);
 
     expect($component->get('recentActivity'))->toHaveCount(0);
+});
+
+test('the profile\'s recent activity does not run a query per visible project', function () {
+    $admin = User::factory()->admin()->create();
+    $target = User::factory()->create();
+    $queriesFor = function (int $projects) use ($admin, $target) {
+        Project::factory()->count($projects)->create();
+        $count = 0;
+        DB::listen(function () use (&$count) {
+            $count++;
+        });
+        $this->actingAs($admin)->get(route('users.show', $target))->assertOk();
+
+        return $count;
+    };
+
+    $few = $queriesFor(2);
+    $many = $queriesFor(10);
+
+    expect($many - $few)->toBeLessThan(10);
 });
