@@ -2271,7 +2271,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     @endif
 
-    <div class="flex items-center justify-between mb-6">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
             <h1 class="text-xl font-semibold text-neutral-900">{{ $project !== null ? __(':project — 課題', ['project' => $project->name]) : __('課題(全プロジェクト)') }}</h1>
             <div class="mt-2 flex gap-3 text-sm">
@@ -2280,7 +2280,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <button wire:click="$set('statusFilter', 'all')" class="{{ $statusFilter === 'all' ? 'font-semibold text-brand-bold' : 'text-neutral-500' }}">{{ __('すべて') }}</button>
             </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center justify-end gap-2 whitespace-nowrap">
             <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
             <a href="{{ $this->changesAtomUrl }}" class="text-xs text-warning hover:underline">{{ __('変更履歴(Atom)') }}</a>
             <select wire:model="csvEncoding" title="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
@@ -2389,7 +2389,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </div>
 
-            <div class="flex items-center gap-2 text-sm text-neutral-700">
+            <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
                 {{ __('表示列:') }}
                 @foreach ($this->availableColumns as $key => $label)
                     <label class="flex items-center gap-1" wire:key="column-option-{{ $key }}">

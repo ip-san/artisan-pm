@@ -962,7 +962,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </select>
             </label>
 
-            <div class="flex items-center gap-2 text-sm text-neutral-700">
+            <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
                 {{ __('表示列:') }}
                 @foreach ($this->availableColumns as $key => $label)
                     <label class="flex items-center gap-1">

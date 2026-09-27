@@ -129,7 +129,7 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <div class="flex items-start justify-between mb-6">
+    <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
             <h1 class="text-xl font-semibold text-neutral-900">
                 {{ $project->name }}
@@ -142,7 +142,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <p class="text-sm text-neutral-500">{{ $project->identifier }}</p>
             @error('archive') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap justify-end gap-2 whitespace-nowrap">
             @auth
                 <button wire:click="toggleBookmark" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     {{ $project->isBookmarkedBy(auth()->user()) ? __('★ ブックマーク解除') : __('☆ ブックマーク') }}

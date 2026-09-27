@@ -291,7 +291,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </a>
     </p>
 
-    <div class="flex items-start justify-between mb-4">
+    <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
         <h1 class="text-xl font-semibold text-neutral-900">
             @if ($topic->is_sticky)
                 <span class="mr-1 text-warning" title="{{ __('固定表示') }}">📌</span>
@@ -301,7 +301,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
             {{ $topic->subject }}
         </h1>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap justify-end gap-2 whitespace-nowrap">
             @can('watch', $topic)
                 <button wire:click="toggleWatch" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     {{ $topic->isWatchedBy(auth()->user()) ? __('ウォッチ解除') : __('ウォッチ') }}

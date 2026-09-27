@@ -888,7 +888,7 @@ new #[Layout('components.layouts.app')] class extends Component
 }; ?>
 
 <div class="max-w-3xl">
-    <div class="flex items-start justify-between mb-4">
+    <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
         <div>
             @if ($this->visibleParent)
                 <p class="text-xs text-neutral-500 mb-1">
@@ -906,7 +906,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endif
             </h1>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap justify-end gap-2 whitespace-nowrap">
             @can('watch', $issue)
                 <button wire:click="toggleWatch" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
                     {{ $issue->isWatchedBy(auth()->user()) ? __('ウォッチ解除') : __('ウォッチ') }}

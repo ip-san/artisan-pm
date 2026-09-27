@@ -1271,6 +1271,7 @@
     "空欄のときは APP_URL を使います。メールやキューで生成するリンクに使われます。": "APP_URL is used when blank. Used for links generated in emails and queued jobs.",
     "空欄の場合、期日は自動設定されません。": "When blank, the due date is not set automatically.",
     "等幅": "Monospaced",
+    "管理": "Administration",
     "管理可能ロール(メンバー管理画面で割当/削除できるロール)": "Manageable roles (roles that can be assigned or removed on the members screen)",
     "管理者": "Administrator",
     "管理者(1/yes/はい)": "Administrator (1/yes)",

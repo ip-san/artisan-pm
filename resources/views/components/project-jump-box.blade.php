@@ -15,7 +15,7 @@
 
 @if ($groups['all']->isNotEmpty() || $groups['bookmarked']->isNotEmpty())
     <details class="relative" data-project-jump-box x-data="{ q: '' }">
-        <summary class="cursor-pointer list-none rounded-md border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50">
+        <summary class="block max-w-48 cursor-pointer list-none truncate rounded-md border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" @if ($current instanceof \App\Models\Project) title="{{ $current->name }}" @endif>
             {{ $current instanceof \App\Models\Project ? $current->name : __('プロジェクトへ移動') }}
         </summary>
         <div class="absolute left-0 z-20 mt-1 w-64 rounded-md border border-neutral-200 bg-surface p-2 shadow-lg">

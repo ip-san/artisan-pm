@@ -50,7 +50,17 @@ async () => {
     out.js = [...new Set((window.__pestBrowser?.jsErrors ?? []).map((e) => String(e.message).slice(0, 120)))].sort();
 
     const axe = await window.axe.run(document, { resultTypes: ['violations'] });
-    out.axe = [...new Set(axe.violations.filter((v) => ['critical', 'serious'].includes(v.impact)).map((v) => v.id))].sort();
+    const violations = axe.violations.filter((v) => ['critical', 'serious'].includes(v.impact));
+    out.axe = [...new Set(violations.map((v) => v.id))].sort();
+    // Which elements failed, so a fix can be traced back to its template (see PAGE_AUDIT_DETAILS).
+    const describe = (target) => {
+        const el = document.querySelector(target);
+        if (!el) return target;
+        const key = [...el.attributes].find((a) => /^(wire:model|name|id|href)/.test(a.name));
+        const text = (el.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+        return `${el.tagName.toLowerCase()}${key ? `[${key.name}=${key.value.slice(0, 40)}]` : ''}${text ? ` "${text}"` : ''}`;
+    };
+    out.details = Object.fromEntries(violations.map((v) => [v.id, [...new Set(v.nodes.map((n) => describe(n.target[0])))]]));
 
     const viewport = document.documentElement.clientWidth;
     const label = (kind, el) => {
@@ -100,6 +110,25 @@ async () => {
             if ((clipsX(el) || s.textOverflow === 'ellipsis') && el.scrollWidth > el.clientWidth + 1) finding = 'clipped';
         }
         if (finding) label(finding, el);
+    }
+
+    // A dropdown (<details> panel) inside a box that clips overflow can never be seen when opened.
+    for (const el of document.body.querySelectorAll('details')) {
+        if (el.offsetParent === null) continue;
+        for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+            const s = style(a);
+            if (s.overflowX !== 'visible' || s.overflowY !== 'visible') { label('popover-clipped', el.querySelector('summary') ?? el); break; }
+        }
+    }
+
+    // A short button label squeezed onto two lines ("CSVエクスポー / ト").
+    for (const el of document.body.querySelectorAll('button, a')) {
+        const text = (el.innerText || '').trim();
+        if (el.offsetParent === null || !boxed(el) || text.length === 0 || text.length > 20 || text.includes('\n')) continue;
+        const s = style(el);
+        const lineHeight = parseFloat(s.lineHeight) || parseFloat(s.fontSize) * 1.5;
+        const content = el.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom);
+        if (content > lineHeight * 1.5) label('wrapped-label', el);
     }
 
     // A select's chosen text cut off under its arrow.
@@ -232,6 +261,12 @@ test('every page passes axe and the layout checks, apart from recorded findings'
 
     ksort($pages);
     sort($unmapped);
+
+    if ($detailsPath = getenv('PAGE_AUDIT_DETAILS')) {
+        file_put_contents($detailsPath, json_encode(array_map(fn (array $page) => $page['details'], $pages), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    }
+
+    $pages = array_map(fn (array $page) => array_diff_key($page, ['details' => true]), $pages);
     $current = ['unmapped' => $unmapped, 'pages' => $pages];
 
     if (getenv('UPDATE_PAGE_AUDIT_BASELINE')) {

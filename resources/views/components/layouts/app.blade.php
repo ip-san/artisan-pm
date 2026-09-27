@@ -13,17 +13,14 @@
     <div class="min-h-full">
         <nav class="bg-surface border-b border-neutral-200">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div class="flex h-14 items-center justify-between gap-4">
+                <div class="flex min-h-14 items-center justify-between gap-4 py-2">
                     {{--
-                        overflow-x-auto + whitespace-nowrap: an admin with every permission sees ~20 links here,
-                        which don't fit this row's width. Without whitespace-nowrap, a flex item can still shrink
-                        below its text's full width because the text is allowed to wrap — for these Japanese
-                        labels (no spaces to break on) that means wrapping one character per line, which is what
-                        was happening here before this fix. Forcing nowrap makes each link's minimum width its
-                        full text width instead, so once the row can't fit them all, it scrolls horizontally
-                        instead of squeezing labels into unreadable vertical columns.
+                        Admin screens live in the x-admin-menu dropdown so this row fits a desktop width.
+                        whitespace-nowrap keeps each Japanese label (no spaces to break on) on one line; on a
+                        narrow window the row wraps rather than scrolls, because a scrolling row would clip the
+                        project jump box's dropdown panel.
                     --}}
-                    <div class="flex items-center gap-6 overflow-x-auto whitespace-nowrap">
+                    <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 whitespace-nowrap">
                         <a href="{{ route('projects.index') }}" class="font-semibold text-neutral-900">{{ $appTitle }}</a>
                         @auth
                             <x-project-jump-box />
@@ -36,42 +33,6 @@
                             <a href="{{ route('gantt.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('ガントチャート') }}</a>
                             <a href="{{ route('activity.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('活動') }}</a>
                             <a href="{{ route('search.global-index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('検索') }}</a>
-                            @can('viewAny', \App\Models\Role::class)
-                                <a href="{{ route('roles.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('ロール管理') }}</a>
-                            @endcan
-                            @can('viewAny', \App\Models\Group::class)
-                                <a href="{{ route('groups.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('グループ管理') }}</a>
-                            @endcan
-                            @can('viewAny', \App\Models\CustomField::class)
-                                <a href="{{ route('custom-fields.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('カスタムフィールド管理') }}</a>
-                            @endcan
-                            @can('manage', \App\Models\Setting::class)
-                                <a href="{{ route('admin.projects') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('プロジェクト管理') }}</a>
-                                <a href="{{ route('settings.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('設定') }}</a>
-                                <a href="{{ route('plugins.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('プラグイン') }}</a>
-                                <a href="{{ route('admin.info') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('情報') }}</a>
-                            @endcan
-                            @can('viewAny', \App\Models\AuthSource::class)
-                                <a href="{{ route('auth-sources.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('LDAP認証') }}</a>
-                            @endcan
-                            @can('viewAny', \App\Models\Webhook::class)
-                                <a href="{{ route('webhooks.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">Webhook</a>
-                            @endcan
-                            @can('viewAny', \App\Models\User::class)
-                                <a href="{{ route('users.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('ユーザー管理') }}</a>
-                            @endcan
-                            @can('viewAny', \App\Models\Tracker::class)
-                                <a href="{{ route('trackers.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('トラッカー管理') }}</a>
-                            @endcan
-                            @can('viewAny', \App\Models\IssueStatus::class)
-                                <a href="{{ route('issue-statuses.index') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('ステータス管理') }}</a>
-                            @endcan
-                            @can('manage', \App\Models\WorkflowTransition::class)
-                                <a href="{{ route('workflows.edit') }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('ワークフロー管理') }}</a>
-                            @endcan
-                            @can('viewAny', \App\Models\Enumeration::class)
-                                <a href="{{ route('enumerations.index', \App\Enums\EnumerationType::IssuePriority->value) }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ __('値の一覧') }}</a>
-                            @endcan
                             @foreach (app(\App\Support\Plugins\PluginManager::class)->menuItems('nav') as $item)
                                 <a href="{{ $item->url }}" class="text-sm text-neutral-600 hover:text-neutral-900">{{ $item->label }}</a>
                             @endforeach
@@ -93,6 +54,7 @@
                             @if (($currentProject = request()->route('project')) instanceof \App\Models\Project)
                                 <x-new-item-menu :project="$currentProject" />
                             @endif
+                            <x-admin-menu />
                             <a href="{{ route('profile.index') }}" class="text-neutral-500 hover:text-neutral-900">{{ auth()->user()->name }}</a>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
