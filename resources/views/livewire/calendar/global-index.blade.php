@@ -240,7 +240,7 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     <div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface">
-        <table class="min-w-full table-fixed divide-y divide-neutral-200 text-sm">
+        <table class="w-full table-fixed divide-y divide-neutral-200 text-sm">
             <thead class="bg-neutral-50 text-xs uppercase text-neutral-500">
                 <tr>
                     @foreach ($this->weekdayLabels as $label)

@@ -14,7 +14,7 @@
     $today = \App\Support\Format\DateTimes::today();
 @endphp
 
-<div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface" data-gantt-zoom="{{ $zoom }}">
+<div class="overflow-x-auto rounded-md border border-neutral-200 bg-surface" data-gantt-zoom="{{ $zoom }}" data-scroll-x>
     <div class="flex">
         <div class="w-80 shrink-0 border-r border-neutral-200">
             <div class="border-b border-neutral-200 bg-neutral-50" style="height: {{ $headerRows * 32 }}px"></div>
@@ -23,11 +23,11 @@
                     class="flex h-8 items-center border-b border-neutral-100 px-2 text-sm"
                     style="padding-left: {{ 8 + $line['depth'] * 16 }}px">
                     @if ($line['kind'] === 'project')
-                        <a href="{{ route('projects.show', $line['project']) }}" class="truncate font-semibold text-neutral-900 hover:underline" data-gantt-project="{{ $line['project']->id }}">
+                        <a href="{{ route('projects.show', $line['project']) }}" class="truncate font-semibold text-neutral-900 hover:underline" data-gantt-project="{{ $line['project']->id }}" title="{{ $line['project']->name }}">
                             {{ $line['project']->name }}
                         </a>
                     @elseif ($line['kind'] === 'issue')
-                        <a href="{{ route('issues.show', [$line['project'], $line['row']->id]) }}" class="truncate text-brand-bold hover:underline">
+                        <a href="{{ route('issues.show', [$line['project'], $line['row']->id]) }}" class="truncate text-brand-bold hover:underline" title="{{ $line['row']->trackerName }} #{{ $line['row']->id }}: {{ $line['row']->subject }}">
                             {{ $line['row']->trackerName }} #{{ $line['row']->id }}: {{ $line['row']->subject }}
                         </a>
                         @if ($drawSelectedColumns && ($selectedColumnTexts[$line['row']->id] ?? '') !== '')
@@ -36,7 +36,7 @@
                             </span>
                         @endif
                     @else
-                        <span class="truncate text-neutral-700">◆ {{ $line['version']->name }}</span>
+                        <span class="truncate text-neutral-700" title="{{ $line['version']->name }}">◆ {{ $line['version']->name }}</span>
                     @endif
                 </div>
             @endforeach
@@ -46,7 +46,7 @@
             <div class="relative h-8 border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-500">
                 @foreach ($chart->monthBands() as $band)
                     <div class="absolute top-0 flex h-8 items-center overflow-hidden border-l border-neutral-200 pl-1"
-                        style="left: {{ $band['leftPercent'] }}%; width: {{ $band['widthPercent'] }}%">
+                        style="left: {{ $band['leftPercent'] }}%; width: {{ $band['widthPercent'] }}%" title="{{ $band['label'] }}">
                         {{ $band['label'] }}
                     </div>
                 @endforeach
@@ -55,7 +55,7 @@
                 <div class="relative h-8 border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-500" data-gantt-weeks>
                     @foreach ($chart->weekBands() as $band)
                         <div class="absolute top-0 flex h-8 items-center overflow-hidden border-l border-neutral-200 pl-1"
-                            style="left: {{ $band['leftPercent'] }}%; width: {{ $band['widthPercent'] }}%">
+                            style="left: {{ $band['leftPercent'] }}%; width: {{ $band['widthPercent'] }}%" title="{{ $band['label'] }}">
                             {{ $band['label'] }}
                         </div>
                     @endforeach
@@ -65,7 +65,7 @@
                 <div class="relative h-8 border-b border-neutral-200 bg-neutral-50 text-xs text-neutral-500" data-gantt-days>
                     @foreach ($chart->dayBands() as $band)
                         <div class="absolute top-0 flex h-8 flex-col items-center justify-center overflow-hidden border-l border-neutral-200 leading-tight {{ $band['nonWorking'] ? 'bg-neutral-100' : '' }}"
-                            style="left: {{ $band['leftPercent'] }}%; width: {{ $band['widthPercent'] }}%">
+                            style="left: {{ $band['leftPercent'] }}%; width: {{ $band['widthPercent'] }}%" title="{{ $band['label'] }}">
                             <span>{{ $band['label'] }}</span>
                             @if ($zoom >= 4)
                                 <span>{{ $band['weekday'] }}</span>

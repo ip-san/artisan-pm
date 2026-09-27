@@ -22,13 +22,17 @@ use App\Models\Webhook;
 use App\Models\Wiki;
 use App\Models\WikiPage;
 use App\Models\WikiPageVersion;
+use Database\Seeders\DemoDataSeeder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\Route as RoutingRoute;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 /**
- * Crawls every HTML GET page as an administrator and checks it with axe (critical/serious)
- * and three layout detectors. Findings recorded in baselines/page-audit.json are tolerated;
- * anything new fails. Refresh the baseline with UPDATE_PAGE_AUDIT_BASELINE=1 after fixing pages.
+ * Crawls every HTML GET page (as an administrator, a few in English, and the signed-out pages)
+ * on a slice of the demo data set, checking axe (critical/serious), JavaScript errors, layout
+ * detectors, N+1 lazy loads and query counts. Findings recorded in baselines/page-audit.json are
+ * tolerated; anything new fails. Refresh the baseline with UPDATE_PAGE_AUDIT_BASELINE=1.
  */
 const PAGE_AUDIT_BASELINE = __DIR__.'/baselines/page-audit.json';
 
@@ -79,11 +83,11 @@ async () => {
         out.layout.push('page: horizontal scroll');
     }
 
-    // Tables and code blocks may scroll sideways; anything else hiding content behind a scrollbar
+    // Tables, code blocks and [data-scroll-x] boxes (e.g. the Gantt chart) may scroll sideways; anything else hiding content behind a scrollbar
     // (e.g. a header menu whose scrollbar macOS hides) reads as cut off.
     for (const el of document.body.querySelectorAll('*')) {
         if (el.offsetParent === null || !scrollsX(el) || el.scrollWidth <= el.clientWidth + 1) continue;
-        if (el.querySelector('table, pre, code') || /^(TABLE|PRE|CODE|TEXTAREA)$/.test(el.tagName)) continue;
+        if (el.hasAttribute('data-scroll-x') || el.querySelector('table, pre, code') || /^(TABLE|PRE|CODE|TEXTAREA)$/.test(el.tagName)) continue;
         label('hidden-scroll', el);
     }
 
@@ -101,7 +105,7 @@ async () => {
             if (scrollsX(a)) { insideScroller = true; break; }
             const box = a.getBoundingClientRect();
             const escapes = rect.right > box.right + 1 || rect.left < box.left - 1;
-            if (clipsX(a)) { if (escapes) finding = 'clipped'; break; }
+            if (clipsX(a)) { if (escapes && !el.title && !a.title) finding = 'clipped'; break; } // a title shows the full text
             if (boxed(a)) { if (escapes) finding = 'overflow'; break; }
         }
         if (!finding && !insideScroller && rect.right > viewport + 1) finding = 'overflow';
@@ -190,10 +194,10 @@ function pageAuditParameters(RoutingRoute $route, array $fixtures): ?array
  */
 function pageAuditFixtures(User $admin): array
 {
-    $project = Project::query()->where('identifier', 'demo-project')->firstOrFail();
+    $project = Project::query()->where('identifier', 'ec-renewal')->firstOrFail();
     $board = Board::factory()->for($project)->create();
-    $wikiPage = WikiPage::factory()->create(['project_id' => $project->id, 'title' => 'Wiki']);
-    Wiki::factory()->create(['project_id' => $project->id, 'start_page' => 'Wiki']);
+    $wikiPage = WikiPage::query()->firstOrCreate(['project_id' => $project->id, 'title' => 'Wiki']);
+    Wiki::query()->firstOrCreate(['project_id' => $project->id], ['start_page' => 'Wiki']);
     WikiPageVersion::factory()->create(['wiki_page_id' => $wikiPage->id, 'author_id' => $admin->id, 'version' => $wikiPage->versions()->max('version') + 1]);
 
     return [
@@ -222,9 +226,41 @@ function pageAuditFixtures(User $admin): array
 
 test('every page passes axe and the layout checks, apart from recorded findings', function () {
     $this->seed();
+    // A slice of the lived-in data set, so lists have rows and N+1 queries show up.
+    putenv('DEMO_DATA_SCALE=0.1');
+    $this->seed(DemoDataSeeder::class);
+    putenv('DEMO_DATA_SCALE');
     $admin = User::query()->where('email', 'admin@example.com')->firstOrFail();
     $fixtures = pageAuditFixtures($admin);
     $this->actingAs($admin);
+
+    // The app serves the browser from this process, so its queries and lazy loads are observable here.
+    $queries = 0;
+    $lazyLoads = [];
+    DB::listen(function () use (&$queries) {
+        $queries++;
+    });
+    Model::preventLazyLoading();
+    Model::handleLazyLoadingViolationUsing(function (Model $model, string $relation) use (&$lazyLoads) {
+        $lazyLoads[] = $model::class.'::'.$relation;
+    });
+    $audit = function (string $url) use (&$queries, &$lazyLoads): ?array {
+        $queries = 0;
+        $lazyLoads = [];
+        $started = microtime(true);
+        $result = visit($url)->script(PAGE_AUDIT_SCRIPT);
+
+        if ($result === null) {
+            return null;
+        }
+
+        $result['queries'] = $queries;
+        $result['lazy'] = array_values(array_unique($lazyLoads));
+        sort($result['lazy']);
+        $result['details']['ms'] = (int) round((microtime(true) - $started) * 1000);
+
+        return $result;
+    };
 
     $pages = [];
     $unmapped = [];
@@ -242,7 +278,7 @@ test('every page passes axe and the layout checks, apart from recorded findings'
             continue;
         }
 
-        $pages[$route->getName()] = visit(route($route->getName(), $parameters, false))->script(PAGE_AUDIT_SCRIPT);
+        $pages[$route->getName()] = $audit(route($route->getName(), $parameters, false));
     }
 
     $pages = array_filter($pages); // JSON and other non-HTML endpoints come back as null
@@ -250,13 +286,13 @@ test('every page passes axe and the layout checks, apart from recorded findings'
     // English labels are longer, so re-check the shared chrome (header, filters) in English too.
     $admin->update(['language' => 'en']);
     foreach (['projects.index', 'issues.global-index', 'my-page.index', 'admin.info'] as $name) {
-        $pages["en:{$name}"] = visit(route($name, [], false))->script(PAGE_AUDIT_SCRIPT);
+        $pages["en:{$name}"] = $audit(route($name, [], false));
     }
 
     // Pages only a signed-out visitor sees.
     auth()->forgetGuards();
     foreach (['login', 'register', 'password.request'] as $name) {
-        $pages["guest:{$name}"] = visit(route($name, [], false))->script(PAGE_AUDIT_SCRIPT);
+        $pages["guest:{$name}"] = $audit(route($name, [], false));
     }
 
     ksort($pages);
@@ -282,7 +318,7 @@ test('every page passes axe and the layout checks, apart from recorded findings'
     }
 
     foreach ($pages as $name => $result) {
-        $known = ($baseline['pages'][$name] ?? []) + ['error' => null, 'js' => [], 'axe' => [], 'layout' => []];
+        $known = ($baseline['pages'][$name] ?? []) + ['error' => null, 'js' => [], 'axe' => [], 'layout' => [], 'lazy' => [], 'queries' => null];
 
         if ($result['error'] !== null && $known['error'] === null) {
             $regressions[] = "{$name}: error page \"{$result['error']}\"";
@@ -298,6 +334,15 @@ test('every page passes axe and the layout checks, apart from recorded findings'
 
         foreach (array_diff($result['layout'], $known['layout']) as $finding) {
             $regressions[] = "{$name}: {$finding}";
+        }
+
+        foreach (array_diff($result['lazy'], $known['lazy']) as $relation) {
+            $regressions[] = "{$name}: N+1 lazy load of {$relation} (eager-load it)";
+        }
+
+        // Query counts are deterministic but vary a little with the data, so only flag real growth.
+        if ($known['queries'] !== null && $result['queries'] > max($known['queries'] * 1.5, $known['queries'] + 15)) {
+            $regressions[] = "{$name}: {$result['queries']} queries (baseline {$known['queries']})";
         }
     }
 
