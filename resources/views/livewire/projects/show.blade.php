@@ -144,25 +144,25 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
         <div class="flex flex-wrap justify-end gap-2 whitespace-nowrap">
             @auth
-                <button wire:click="toggleBookmark" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button wire:click="toggleBookmark" class="btn btn-secondary">
                     {{ $project->isBookmarkedBy(auth()->user()) ? __('★ ブックマーク解除') : __('☆ ブックマーク') }}
                 </button>
             @endauth
             @can('createSubproject', $project)
                 <a href="{{ route('projects.create') }}?parent_id={{ $project->id }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('サブプロジェクトを追加') }}
                 </a>
             @endcan
             @can('close', $project)
                 @if ($project->status === \App\Enums\ProjectStatus::Active)
                     <button wire:click="closeProject" wire:confirm="{{ __('このプロジェクトをクローズしますか?') }}"
-                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                        class="btn btn-secondary">
                         {{ __('クローズする') }}
                     </button>
                 @elseif ($project->status === \App\Enums\ProjectStatus::Closed)
                     <button wire:click="reopenProject"
-                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                        class="btn btn-secondary">
                         {{ __('再オープン') }}
                     </button>
                 @endif
@@ -170,42 +170,18 @@ new #[Layout('components.layouts.app')] class extends Component
             @can('archive', $project)
                 @if ($project->status === \App\Enums\ProjectStatus::Archived)
                     <button wire:click="unarchiveProject"
-                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                        class="btn btn-secondary">
                         {{ __('アーカイブ解除') }}
                     </button>
                 @else
                     <button wire:click="archiveProject" wire:confirm="{{ __('このプロジェクトをアーカイブしますか?アーカイブ中は編集できなくなります。') }}"
-                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                        class="btn btn-secondary">
                         {{ __('アーカイブ') }}
                     </button>
                 @endif
             @endcan
         </div>
     </div>
-
-    @can('delete', $project)
-        <div id="project-delete" class="mb-6 rounded-md border border-danger-subtler bg-danger-subtlest p-4">
-            <h2 class="text-sm font-semibold text-danger-boldest">{{ __('プロジェクトの削除') }}</h2>
-            <p class="mt-1 text-xs text-danger-bolder">
-                @if ($project->isLeaf())
-                    {{ __('この操作は取り消せません。課題・Wiki・バージョン等、このプロジェクトに属するすべてのデータが完全に削除されます。確認のため識別子「:identifier」を入力してください。', ['identifier' => $project->identifier]) }}
-                @else
-                    {{ __('この操作は取り消せません。課題・Wiki・バージョン等、このプロジェクトに属するすべてのデータ(サブプロジェクトを含む)が完全に削除されます。確認のため識別子「:identifier」を入力してください。', ['identifier' => $project->identifier]) }}
-                @endif
-            </p>
-            <form wire:submit="deleteProject" class="mt-3 flex items-end gap-2">
-                <div>
-                    <input type="text" wire:model="deleteConfirmationInput" placeholder="{{ $project->identifier }}"
-                        class="block rounded-md border-neutral-300 shadow-sm text-sm">
-                    @error('deleteConfirmationInput') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
-                </div>
-                <button type="submit" wire:confirm="{{ __('本当にこのプロジェクトを削除しますか?この操作は取り消せません。') }}"
-                    class="rounded-md bg-danger-bolder px-3 py-2 text-sm font-medium text-white hover:bg-danger-subtle">
-                    {{ __('削除') }}
-                </button>
-            </form>
-        </div>
-    @endcan
 
     @if ($project->homepage !== null && $project->homepage !== '')
         <p class="text-sm text-neutral-700 mb-2">
@@ -254,4 +230,30 @@ new #[Layout('components.layouts.app')] class extends Component
             </ul>
         </div>
     @endif
+
+    @can('delete', $project)
+        {{-- Kept out of the way at the end, closed; the admin project list links here with #project-delete, which opens it. --}}
+        <details id="project-delete" class="mt-10 rounded-lg border border-danger-subtler bg-danger-subtlest p-4"
+            @if ($errors->has('deleteConfirmationInput')) open @endif x-data x-init="if (location.hash === '#project-delete') $el.open = true">
+            <summary class="cursor-pointer text-sm font-semibold text-danger-boldest">{{ __('プロジェクトの削除') }}</summary>
+            <p class="mt-1 text-xs text-danger-bolder">
+                @if ($project->isLeaf())
+                    {{ __('この操作は取り消せません。課題・Wiki・バージョン等、このプロジェクトに属するすべてのデータが完全に削除されます。確認のため識別子「:identifier」を入力してください。', ['identifier' => $project->identifier]) }}
+                @else
+                    {{ __('この操作は取り消せません。課題・Wiki・バージョン等、このプロジェクトに属するすべてのデータ(サブプロジェクトを含む)が完全に削除されます。確認のため識別子「:identifier」を入力してください。', ['identifier' => $project->identifier]) }}
+                @endif
+            </p>
+            <form wire:submit="deleteProject" class="mt-3 flex items-end gap-2">
+                <div>
+                    <input type="text" wire:model="deleteConfirmationInput" placeholder="{{ $project->identifier }}" aria-label="{{ __('確認のための識別子') }}"
+                        class="block rounded-md border-neutral-300 shadow-sm text-sm">
+                    @error('deleteConfirmationInput') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
+                </div>
+                <button type="submit" wire:confirm="{{ __('本当にこのプロジェクトを削除しますか?この操作は取り消せません。') }}"
+                    class="btn btn-danger">
+                    {{ __('削除') }}
+                </button>
+            </form>
+        </details>
+    @endcan
 </div>

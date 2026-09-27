@@ -326,11 +326,11 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div class="flex gap-2">
-            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            <button type="submit" class="btn btn-primary">
                 {{ $editingMemberId ? __('ロールを更新') : __('メンバーを追加') }}
             </button>
             @if ($editingMemberId)
-                <button type="button" wire:click="cancelEdit" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button type="button" wire:click="cancelEdit" class="btn btn-secondary">
                     {{ __('キャンセル') }}
                 </button>
             @endif

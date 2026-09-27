@@ -209,19 +209,19 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">{{ $news->title }}</h1>
         <div class="flex flex-wrap justify-end gap-2 whitespace-nowrap">
             @can('watch', $news)
-                <button wire:click="toggleWatch" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button wire:click="toggleWatch" class="btn btn-secondary">
                     {{ $news->isWatchedBy(auth()->user()) ? __('ウォッチ解除') : __('ウォッチ') }}
                 </button>
             @endcan
             @can('update', $news)
                 <a href="{{ route('news.edit', [$project, $news]) }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('編集') }}
                 </a>
             @endcan
             @can('delete', $news)
                 <button wire:click="delete" wire:confirm="{{ __('このお知らせを削除しますか?') }}"
-                    class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                    class="btn btn-danger-outline">
                     {{ __('削除') }}
                 </button>
             @endcan
@@ -324,7 +324,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <textarea wire:model="commentContent" rows="3" placeholder="{{ __('コメントを追加') }}"
                 class="block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('commentContent') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
-            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            <button type="submit" class="btn btn-primary">
                 {{ __('コメントを投稿') }}
             </button>
         </form>

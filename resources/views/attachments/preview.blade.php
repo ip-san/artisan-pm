@@ -10,7 +10,7 @@
                     @endif
                 </p>
             </div>
-            <a href="{{ route('attachments.show', $media) }}" class="shrink-0 rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('ダウンロード') }}</a>
+            <a href="{{ route('attachments.show', $media) }}" class="shrink-0 btn btn-secondary">{{ __('ダウンロード') }}</a>
         </div>
 
         @if ($total > 1 && $position !== null)

@@ -407,7 +407,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-neutral-900">{{ __('プロジェクト管理') }}</h1>
-        <a href="{{ route('projects.create') }}" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">{{ __('新規プロジェクト') }}</a>
+        <a href="{{ route('projects.create') }}" class="btn btn-primary">{{ __('新規プロジェクト') }}</a>
     </div>
 
     @if (session('error'))
@@ -438,8 +438,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input id="bulk-delete-confirmation" type="text" wire:model="bulkDeleteConfirmation" class="mt-1 block rounded-md border-neutral-300 text-sm">
                     @error('bulkDeleteConfirmation') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
-                <button type="submit" class="rounded-md bg-danger-bolder px-3 py-2 text-sm font-medium text-white hover:bg-danger-subtle">{{ __('削除') }}</button>
-                <button type="button" wire:click="cancelBulkDelete" class="rounded-md border border-neutral-300 bg-surface px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">{{ __('キャンセル') }}</button>
+                <button type="submit" class="btn btn-danger">{{ __('削除') }}</button>
+                <button type="button" wire:click="cancelBulkDelete" class="btn btn-secondary">{{ __('キャンセル') }}</button>
             </form>
         </div>
     @endif
@@ -459,7 +459,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">{{ __('絞り込み適用') }}</button>
+            <button wire:click="applyFilters" class="btn btn-primary">{{ __('絞り込み適用') }}</button>
             <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
                 {{ __('表示列:') }}
                 @foreach ($this->availableColumns as $columnKey => $columnLabel)

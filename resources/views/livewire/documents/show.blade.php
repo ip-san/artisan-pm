@@ -81,13 +81,13 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="flex gap-2">
             @can('update', $document)
                 <a href="{{ route('documents.edit', [$project, $document]) }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('編集') }}
                 </a>
             @endcan
             @can('delete', $document)
                 <button wire:click="delete" wire:confirm="{{ __('この文書を削除しますか?') }}"
-                    class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                    class="btn btn-danger-outline">
                     {{ __('削除') }}
                 </button>
             @endcan

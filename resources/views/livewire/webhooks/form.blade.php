@@ -161,10 +161,10 @@ new #[Layout('components.layouts.app')] class extends Component
         </label>
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            <button type="submit" class="btn btn-primary">
                 {{ __('保存') }}
             </button>
-            <a href="{{ route('webhooks.index') }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+            <a href="{{ route('webhooks.index') }}" class="btn btn-secondary">
                 {{ __('キャンセル') }}
             </a>
         </div>

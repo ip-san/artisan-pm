@@ -207,7 +207,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <option value=";">{{ __('セミコロン') }}</option>
                 <option value="{{ "\t" }}">{{ __('タブ') }}</option>
             </select>
-            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('CSVエクスポート') }}</button>
+            <button wire:click="exportCsv" class="btn btn-secondary">{{ __('CSVエクスポート') }}</button>
         </div>
     @endif
 </div>

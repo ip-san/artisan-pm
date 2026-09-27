@@ -908,22 +908,22 @@ new #[Layout('components.layouts.app')] class extends Component
                 <option value=";">{{ __('セミコロン') }}</option>
                 <option value="{{ "\t" }}">{{ __('タブ') }}</option>
             </select>
-            <button wire:click="exportCsv" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+            <button wire:click="exportCsv" class="btn btn-secondary">
                 {{ __('CSVエクスポート') }}
             </button>
-            <a href="{{ route('time-entries.report', $project) }}" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+            <a href="{{ route('time-entries.report', $project) }}" class="btn btn-secondary">
                 {{ __('レポート') }}
             </a>
             <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
             @can('import', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.import', $project) }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('CSVインポート') }}
                 </a>
             @endcan
             @can('create', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.create', $project) }}"
-                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                    class="btn btn-primary">
                     {{ __('工数を記録') }}
                 </a>
             @endcan
@@ -945,7 +945,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            <button wire:click="applyFilters" class="btn btn-primary">
                 {{ __('絞り込み適用') }}
             </button>
 
@@ -1085,14 +1085,14 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div class="flex gap-2">
-                <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                <button type="submit" class="btn btn-primary">
                     {{ __('一括更新') }}
                 </button>
                 <button type="button" wire:click="applyBulkDelete" wire:confirm="{{ __('選択した:count件の工数記録を削除します。この操作は取り消せません。よろしいですか?', ['count' => count($selected)]) }}"
-                    class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                    class="btn btn-danger-outline">
                     {{ __('選択した:count件を削除', ['count' => count($selected)]) }}
                 </button>
-                <button type="button" wire:click="$set('selected', [])" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-surface">
+                <button type="button" wire:click="$set('selected', [])" class="btn btn-secondary">
                     {{ __('選択解除') }}
                 </button>
             </div>

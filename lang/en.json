@@ -1553,5 +1553,7 @@
     "メインメニュー": "Main menu",
     "プロジェクトの設定": "Project settings",
     "メニュー": "Menu",
-    "このプロジェクトを検索": "Search this project"
+    "このプロジェクトを検索": "Search this project",
+    "絞り込みの条件を変えると見つかるかもしれません。": "Try changing the filters.",
+    "確認のための識別子": "Identifier, to confirm"
 }

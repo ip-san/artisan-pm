@@ -59,11 +59,11 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — バージョン', ['project' => $project->name]) }}</h1>
         <div class="flex gap-2">
             <button wire:click="closeCompleted" wire:confirm="{{ __('期日を過ぎ、未クローズの課題が残っていないオープン/ロック中のバージョンをすべてクローズします。よろしいですか?') }}"
-                class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                class="btn btn-secondary">
                 {{ __('完了したバージョンをクローズ') }}
             </button>
             <a href="{{ route('versions.create', $project) }}"
-                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                class="btn btn-primary">
                 {{ __('新規バージョン') }}
             </a>
         </div>

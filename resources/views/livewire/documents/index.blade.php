@@ -76,7 +76,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — {{ __('文書') }}</h1>
         @can('create', [Document::class, $project])
             <a href="{{ route('documents.create', $project) }}"
-                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                class="btn btn-primary">
                 {{ __('新規文書') }}
             </a>
         @endcan

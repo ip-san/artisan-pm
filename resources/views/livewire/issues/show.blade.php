@@ -908,42 +908,42 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
         <div class="flex flex-wrap justify-end gap-2 whitespace-nowrap">
             @can('watch', $issue)
-                <button wire:click="toggleWatch" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button wire:click="toggleWatch" class="btn btn-secondary">
                     {{ $issue->isWatchedBy(auth()->user()) ? __('ウォッチ解除') : __('ウォッチ') }}
                 </button>
             @endcan
             @can('create', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.create', $project) }}?issue_id={{ $issue->id }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('工数を記録') }}
                 </a>
             @endcan
             <a href="{{ route('issues.pdf', [$project, $issue]) }}"
-                class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                class="btn btn-secondary">
                 PDF
             </a>
             <a href="{{ route('issues.show-atom', [$project, $issue, 'key' => auth()->user()?->atomKey()]) }}" class="self-center text-xs text-warning hover:underline">Atom</a>
             @can('create', [\App\Models\Issue::class, $project])
                 <a href="{{ route('issues.create', $project) }}?copy_from={{ $issue->id }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('コピー') }}
                 </a>
             @endcan
             @can('update', $issue)
                 <a href="{{ route('issues.edit', [$project, $issue]) }}"
-                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                    class="btn btn-primary">
                     {{ __('編集') }}
                 </a>
             @endcan
             @can('delete', $issue)
                 @if ($this->loggedHoursForDeletion > 0)
                     <button wire:click="$set('confirmingDelete', true)"
-                        class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                        class="btn btn-danger-outline">
                         {{ __('削除') }}
                     </button>
                 @else
                     <button wire:click="deleteIssue" wire:confirm="{{ __('この課題を削除しますか?この操作は取り消せません。') }}{{ $this->deletionDescendantCount > 0 ? ' '.__(':count件のサブタスクも削除されます。', ['count' => $this->deletionDescendantCount]) : '' }}"
-                        class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                        class="btn btn-danger-outline">
                         {{ __('削除') }}
                     </button>
                 @endif
@@ -984,11 +984,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 @error('todo') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 @error('reassign_to_id') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <div class="flex gap-2">
-                    <button type="submit" class="rounded-md bg-danger-bolder px-3 py-2 text-sm font-medium text-white hover:bg-danger-subtle">
+                    <button type="submit" class="btn btn-danger">
                         {{ __('削除する') }}
                     </button>
                     <button type="button" wire:click="$set('confirmingDelete', false)"
-                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                        class="btn btn-secondary">
                         {{ __('キャンセル') }}
                     </button>
                 </div>
@@ -1021,7 +1021,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @error('moveToTrackerId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                     </div>
                     <button type="submit" wire:confirm="{{ __('移動するとカテゴリ・対象バージョン・親課題はリセットされます。よろしいですか?') }}"
-                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                        class="btn btn-secondary">
                         {{ __('移動') }}
                     </button>
                 @endif
@@ -1030,8 +1030,8 @@ new #[Layout('components.layouts.app')] class extends Component
     @endcan
 
     <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-md border border-neutral-200 bg-surface p-4 text-sm mb-6">
-        <div><span class="text-neutral-500">{{ __('ステータス:') }}</span> {{ $issue->status->name }}</div>
-        <div><span class="text-neutral-500">{{ __('優先度:') }}</span> {{ $issue->priority->name }}</div>
+        <div><span class="text-neutral-500">{{ __('ステータス:') }}</span> <x-status-badge :status="$issue->status" /></div>
+        <div><span class="text-neutral-500">{{ __('優先度:') }}</span> <x-priority-badge :priority="$issue->priority" /></div>
         <div><span class="text-neutral-500">{{ __('カテゴリ:') }}</span> {{ $issue->category?->name ?? __('なし') }}</div>
         <div><span class="text-neutral-500">{{ __('作成者:') }}</span> <x-avatar :user="$issue->author" :size="18" /> {{ $issue->author->displayName() }}</div>
         <div><span class="text-neutral-500">{{ __('担当者:') }}</span> <x-avatar :user="$issue->assignedTo" :size="18" /> {{ $issue->assigneeName() ?? __('未割当') }}</div>
@@ -1261,7 +1261,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             class="mt-1 block w-20 rounded-md border-neutral-300 shadow-sm text-sm">
                     </div>
                 @endif
-                <button type="submit" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button type="submit" class="btn btn-secondary">
                     {{ __('追加') }}
                 </button>
             </form>
@@ -1396,7 +1396,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ __('非公開メモにする') }}
                 </label>
             @endcan
-            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            <button type="submit" class="btn btn-primary">
                 {{ __('コメントを追加') }}
             </button>
         </form>

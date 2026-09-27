@@ -72,7 +72,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-neutral-900">{{ __('値の一覧管理') }}</h1>
         <a href="{{ route('enumerations.create', $type->value) }}"
-            class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            class="btn btn-primary">
             {{ __('新規作成') }}
         </a>
     </div>

@@ -234,7 +234,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </label>
             @endforeach
         </div>
-        <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+        <button wire:click="applyFilters" class="btn btn-primary">
             {{ __('適用') }}
         </button>
         <a href="{{ route('activity.global-atom', ['key' => auth()->user()?->atomKey(), 'userId' => $userId]) }}" class="text-xs text-warning hover:underline">Atom</a>

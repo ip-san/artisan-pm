@@ -1979,7 +1979,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </section>
 
-        <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+        <button type="submit" class="btn btn-primary">
             {{ __('保存') }}
         </button>
     </form>

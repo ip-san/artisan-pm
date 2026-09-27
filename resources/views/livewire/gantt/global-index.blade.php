@@ -467,10 +467,10 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">{{ __('ガントチャート(全プロジェクト)') }}</h1>
         @unless ($this->chart->isEmpty())
             <div class="flex gap-2">
-                <button wire:click="exportPdf" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button wire:click="exportPdf" class="btn btn-secondary">
                     PDF
                 </button>
-                <button wire:click="exportPng" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button wire:click="exportPng" class="btn btn-secondary">
                     PNG
                 </button>
             </div>
@@ -485,7 +485,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3">
-            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            <button wire:click="applyFilters" class="btn btn-primary">
                 {{ __('絞り込み適用') }}
             </button>
         </div>

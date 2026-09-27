@@ -2293,7 +2293,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <option value="{{ "\t" }}">{{ __('タブ') }}</option>
             </select>
             <div class="relative" x-data="{ csvOptionsOpen: false }">
-                <button type="button" x-on:click="csvOptionsOpen = !csvOptionsOpen" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button type="button" x-on:click="csvOptionsOpen = !csvOptionsOpen" class="btn btn-secondary">
                     {{ __('CSVエクスポート') }}
                 </button>
                 <div x-show="csvOptionsOpen" x-cloak x-on:click.outside="csvOptionsOpen = false" class="absolute right-0 z-20 mt-2 w-64 rounded-md border border-neutral-200 bg-surface p-3 text-sm shadow-lg" data-csv-export-options>
@@ -2309,25 +2309,25 @@ new #[Layout('components.layouts.app')] class extends Component
                     </button>
                 </div>
             </div>
-            <button wire:click="exportPdf" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+            <button wire:click="exportPdf" class="btn btn-secondary">
                 {{ __('PDFエクスポート') }}
             </button>
             @if ($this->issues->total() > ExportLimit::issues())
                 <span class="text-xs text-warning-bold" data-export-limit-warning>{{ __('エクスポートは先頭の:limit件までです', ['limit' => ExportLimit::issues()]) }}</span>
             @endif
             @if ($project !== null)
-                <a href="{{ route('issues.report', $project) }}" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <a href="{{ route('issues.report', $project) }}" class="btn btn-secondary">
                     {{ __('レポート') }}
                 </a>
                 @can('import', [\App\Models\Issue::class, $project])
                     <a href="{{ route('issues.import', $project) }}"
-                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                        class="btn btn-secondary">
                         {{ __('CSVインポート') }}
                     </a>
                 @endcan
                 @can('create', [\App\Models\Issue::class, $project])
                     <a href="{{ route('issues.create', $project) }}"
-                        class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                        class="btn btn-primary">
                         {{ __('新規課題') }}
                     </a>
                 @endcan
@@ -2356,7 +2356,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            <button wire:click="applyFilters" class="btn btn-primary">
                 {{ __('絞り込み適用') }}
             </button>
 
@@ -2570,10 +2570,10 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div class="flex gap-2">
-                <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                <button type="submit" class="btn btn-primary">
                     {{ __('一括更新') }}
                 </button>
-                <button type="button" wire:click="$set('selected', [])" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-surface">
+                <button type="button" wire:click="$set('selected', [])" class="btn btn-secondary">
                     {{ __('選択解除') }}
                 </button>
             </div>
@@ -2604,7 +2604,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('bulkMoveToTrackerId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <button type="submit" wire:confirm="{{ __('移動するとカテゴリ・対象バージョン・親課題はリセットされます。よろしいですか?') }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('移動') }}
                 </button>
             @endif
@@ -2655,7 +2655,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ __('子課題も複製') }}
                 </label>
                 <button type="submit"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('複製') }}
                 </button>
             @endif
@@ -2666,7 +2666,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="mb-4">
             @if ($this->bulkDeleteHours > 0)
                 <button type="button" wire:click="$set('confirmingBulkDelete', true)"
-                    class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                    class="btn btn-danger-outline">
                     {{ __('選択した:count件を削除', ['count' => count($selected)]) }}
                 </button>
 
@@ -2703,11 +2703,11 @@ new #[Layout('components.layouts.app')] class extends Component
                         @error('bulkTimeEntryTodo') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                         @error('bulkReassignToId') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
                         <div class="flex gap-2">
-                            <button type="submit" class="rounded-md bg-danger-bolder px-3 py-2 text-sm font-medium text-white hover:bg-danger-subtle">
+                            <button type="submit" class="btn btn-danger">
                                 {{ __('削除する') }}
                             </button>
                             <button type="button" wire:click="$set('confirmingBulkDelete', false)"
-                                class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                                class="btn btn-secondary">
                                 {{ __('キャンセル') }}
                             </button>
                         </div>
@@ -2716,7 +2716,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @else
                 <button type="button" wire:click="applyBulkDelete"
                     wire:confirm="{{ $this->bulkDeleteConfirmation() }}"
-                    class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                    class="btn btn-danger-outline">
                     {{ __('選択した:count件を削除', ['count' => count($selected)]) }}
                 </button>
             @endif
@@ -2806,6 +2806,10 @@ new #[Layout('components.layouts.app')] class extends Component
                                         <a href="{{ route('issues.show', [$issue->project, $issue]) }}" class="text-brand-bold hover:underline">
                                             {{ $issue->subject }}
                                         </a>
+                                    @elseif ($columnKey === 'status_id')
+                                        <x-status-badge :status="$issue->status" />
+                                    @elseif ($columnKey === 'priority_id')
+                                        <x-priority-badge :priority="$issue->priority" />
                                     @elseif (str_starts_with($columnKey, 'cf_'))
                                         @foreach ($this->customFieldCellValues($issue, $columnKey) as $cell)
                                             <x-custom-field-value :field="$cell['field']" :value="$cell['value']" />@if (! $loop->last), @endif
@@ -2828,7 +2832,13 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endforeach
                     @empty
                         <tr>
-                            <td colspan="{{ count($this->shownColumns) + 2 }}" class="px-4 py-6 text-center text-neutral-500">{{ __('課題がありません。') }}</td>
+                            <td colspan="{{ count($this->shownColumns) + 2 }}">
+                                <x-empty-state icon="issue" :title="__('課題がありません。')" :description="__('絞り込みの条件を変えると見つかるかもしれません。')">
+                                    @if ($this->project !== null && auth()->user()?->can('create', [\App\Models\Issue::class, $this->project]))
+                                        <a href="{{ route('issues.create', $this->project) }}" class="btn btn-primary"><x-icon name="plus" class="size-4" />{{ __('新しい課題') }}</a>
+                                    @endif
+                                </x-empty-state>
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>

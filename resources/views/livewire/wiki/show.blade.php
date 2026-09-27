@@ -312,41 +312,41 @@ new #[Layout('components.layouts.app')] class extends Component
         </h1>
         <div class="flex gap-2">
             @can('watch', $wikiPage)
-                <button wire:click="toggleWatch" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button wire:click="toggleWatch" class="btn btn-secondary">
                     {{ $wikiPage->isWatchedBy(auth()->user()) ? __('ウォッチ解除') : __('ウォッチ') }}
                 </button>
             @endcan
             @can('viewHistory', $wikiPage)
                 <a href="{{ route('wiki.history', [$project, $wikiPage]) }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('履歴') }}
                 </a>
             @endcan
             @can('export', $wikiPage)
-                <button wire:click="exportTxt" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button wire:click="exportTxt" class="btn btn-secondary">
                     TXT
                 </button>
-                <button wire:click="exportHtml" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button wire:click="exportHtml" class="btn btn-secondary">
                     HTML
                 </button>
-                <button wire:click="exportPdf" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button wire:click="exportPdf" class="btn btn-secondary">
                     PDF
                 </button>
             @endcan
             @can('protect', $wikiPage)
-                <button wire:click="toggleProtected" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button wire:click="toggleProtected" class="btn btn-secondary">
                     {{ $wikiPage->is_protected ? __('保護解除') : __('保護') }}
                 </button>
             @endcan
             @can('update', $wikiPage)
                 <a href="{{ route('wiki.edit', [$project, $wikiPage]) }}"
-                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                    class="btn btn-primary">
                     {{ __('編集') }}
                 </a>
             @endcan
             @can('delete', $wikiPage)
                 <button wire:click="delete" wire:confirm="{{ __('このページを削除しますか?子ページは最上位に移動します。') }}"
-                    class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                    class="btn btn-danger-outline">
                     {{ __('削除') }}
                 </button>
             @endcan
@@ -367,7 +367,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('moveToProjectId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <button type="submit" wire:confirm="{{ __('移動すると親ページ・子ページとの関係は解除されます。よろしいですか?') }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('移動') }}
                 </button>
             </form>

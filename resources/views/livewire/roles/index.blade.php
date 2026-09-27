@@ -57,11 +57,11 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">{{ __('ロール管理') }}</h1>
         <div class="flex gap-2">
             <a href="{{ route('roles.report') }}"
-                class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                class="btn btn-secondary">
                 {{ __('権限レポート') }}
             </a>
             <a href="{{ route('roles.create') }}"
-                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                class="btn btn-primary">
                 {{ __('新規ロール') }}
             </a>
         </div>

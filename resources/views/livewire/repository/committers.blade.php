@@ -112,7 +112,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </select>
             @error('userId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
-        <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+        <button type="submit" class="btn btn-primary">
             {{ __('追加') }}
         </button>
     </form>

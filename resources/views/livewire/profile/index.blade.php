@@ -478,7 +478,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
                 <div class="mt-2 flex items-center gap-2">
                     <input type="email" wire:model="newAdditionalEmail" placeholder="{{ __('追加するメールアドレス') }}" class="block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
-                    <button type="button" wire:click="addEmail" class="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">{{ __('追加') }}</button>
+                    <button type="button" wire:click="addEmail" class="btn btn-secondary">{{ __('追加') }}</button>
                 </div>
                 @error('newAdditionalEmail') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -524,7 +524,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </label>
             </div>
 
-            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            <button type="submit" class="btn btn-primary">
                 {{ __('保存') }}
             </button>
         </form>
@@ -552,7 +552,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
 
-                <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                <button type="submit" class="btn btn-primary">
                     {{ __('変更') }}
                 </button>
             </form>
@@ -583,7 +583,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <button wire:click="disableTwoFactor" wire:confirm="{{ __('二要素認証を無効にしますか?') }}"
-                class="rounded-md border border-danger-subtle px-4 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                class="btn btn-danger-outline">
                 {{ __('無効にする') }}
             </button>
         @elseif ($this->twoFactorPendingConfirmation)
@@ -599,14 +599,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     <input type="text" wire:model="code" inputmode="numeric" class="mt-1 block w-40 rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('code') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
-                <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                <button type="submit" class="btn btn-primary">
                     {{ __('確認して有効化') }}
                 </button>
             </form>
         @else
             <p class="mb-4 text-sm text-neutral-600">{{ __('二要素認証は無効です。') }}</p>
 
-            <button wire:click="enableTwoFactor" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            <button wire:click="enableTwoFactor" class="btn btn-primary">
                 {{ __('有効にする') }}
             </button>
         @endif
@@ -720,7 +720,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @error('default_project_query') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
-            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">{{ __('保存') }}</button>
+            <button type="submit" class="btn btn-primary">{{ __('保存') }}</button>
         </form>
     </section>
 
@@ -772,7 +772,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <button wire:click="deleteAccount"
                 wire:confirm="{{ __('本当にアカウントを削除しますか?この操作は元に戻せません。') }}"
-                class="rounded-md border border-danger-subtle bg-surface px-4 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                class="btn btn-danger-outline">
                 {{ __('アカウントを削除する') }}
             </button>
         </section>

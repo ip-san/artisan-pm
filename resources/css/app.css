@@ -321,6 +321,35 @@
     }
 }
 
+/*
+ * Buttons. One set of classes instead of the same utility string repeated on every page, so the
+ * look (and its contrast, focus ring and disabled state) is decided once. Layout utilities such as
+ * w-full or mt-4 still go next to them.
+ */
+@layer components {
+    .btn {
+        @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors;
+        @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-bold;
+        @apply disabled:cursor-not-allowed disabled:opacity-60;
+    }
+
+    .btn-primary {
+        @apply bg-brand-bold text-white shadow-xs hover:bg-brand-hovered;
+    }
+
+    .btn-secondary {
+        @apply border border-neutral-300 bg-surface text-neutral-700 shadow-xs hover:bg-surface-hovered;
+    }
+
+    .btn-danger {
+        @apply bg-danger-bolder text-white shadow-xs hover:bg-danger-boldest;
+    }
+
+    .btn-danger-outline {
+        @apply border border-danger-subtle bg-surface text-danger-bolder shadow-xs hover:bg-danger-subtlest;
+    }
+}
+
 [x-cloak] {
     display: none !important;
 }

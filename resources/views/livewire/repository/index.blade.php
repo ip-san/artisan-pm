@@ -143,32 +143,32 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
             @if ($repository && auth()->user()?->can('browse', [Repository::class, $project]))
                 <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters()) }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('ファイル一覧') }}
                 </a>
             @endif
             @if ($repository?->supports(ScmCapability::Log))
                 <a href="{{ route($repository->routeName('repository.stats'), $repository->routeParameters()) }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('統計') }}
                 </a>
             @endif
             @if ($this->canManage)
                 <a href="{{ $repository ? route($repository->routeName('repository.edit'), $repository->routeParameters()) : route('repository.edit', $project) }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('設定') }}
                 </a>
                 @if ($repository?->supports(ScmCapability::Log))
                     <a href="{{ route($repository->routeName('repository.committers'), $repository->routeParameters()) }}"
-                        class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                        class="btn btn-secondary">
                         {{ __('コミッター設定') }}
                     </a>
-                    <button wire:click="sync" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                    <button wire:click="sync" class="btn btn-primary">
                         {{ __('同期') }}
                     </button>
                 @endif
                 <a href="{{ route('repository.create', $project) }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('リポジトリを追加') }}
                 </a>
             @endif
@@ -287,7 +287,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->changesets->count() >= 2)
             <div class="mt-3">
                 <button wire:click="compareSelected"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('選択したリビジョンを比較') }}
                 </button>
             </div>

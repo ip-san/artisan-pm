@@ -40,7 +40,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <a href="{{ route('news.atom', [$project, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
             @can('create', [News::class, $project])
                 <a href="{{ route('news.create', $project) }}"
-                    class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                    class="btn btn-primary">
                     {{ __('新規お知らせ') }}
                 </a>
             @endcan

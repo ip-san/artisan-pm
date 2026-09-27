@@ -466,7 +466,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </table>
             </div>
 
-            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            <button type="submit" class="btn btn-primary">
                 {{ __('保存') }}
             </button>
         </form>
@@ -531,7 +531,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <button type="submit" wire:confirm="{{ __('コピー先の既存ワークフロー設定は上書きされます。よろしいですか?') }}"
-                class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                class="btn btn-secondary">
                 {{ __('コピー') }}
             </button>
         </form>

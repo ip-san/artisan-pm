@@ -33,7 +33,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-neutral-900">{{ __('Webhook') }}</h1>
         <a href="{{ route('webhooks.create') }}"
-            class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            class="btn btn-primary">
             {{ __('新規Webhook') }}
         </a>
     </div>

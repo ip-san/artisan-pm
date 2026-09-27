@@ -235,7 +235,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <input type="checkbox" wire:model="withSubprojects" class="rounded border-neutral-300">
             {{ __('サブプロジェクトを含む') }}
         </label>
-        <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+        <button wire:click="applyFilters" class="btn btn-primary">
             {{ __('適用') }}
         </button>
     </div>

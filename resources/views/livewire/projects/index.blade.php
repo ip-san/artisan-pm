@@ -665,7 +665,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <a href="{{ route('projects.atom', ['key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
         @can('create', \App\Models\Project::class)
             <a href="{{ route('projects.create') }}"
-                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                class="btn btn-primary">
                 {{ __('新規プロジェクト') }}
             </a>
         @endcan
@@ -716,7 +716,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <x-query-filter-builder :engine="$this->engine" :active-filter-keys="$activeFilterKeys" :filter-operators="$filterOperators" />
 
         <div class="mt-3 flex flex-wrap items-center gap-3">
-            <button wire:click="applyFilters" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">{{ __('絞り込み適用') }}</button>
+            <button wire:click="applyFilters" class="btn btn-primary">{{ __('絞り込み適用') }}</button>
             @if ($this->effectiveDisplayType === 'list')
                 <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
                     {{ __('表示列:') }}
@@ -734,7 +734,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($this->canSaveQueries)
                 <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
             @endif
-            <button wire:click="exportCsv" class="ml-auto rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('CSVエクスポート') }}</button>
+            <button wire:click="exportCsv" class="ml-auto btn btn-secondary">{{ __('CSVエクスポート') }}</button>
         </div>
 
         @if ($showSaveForm)
@@ -789,7 +789,11 @@ new #[Layout('components.layouts.app')] class extends Component
                     @endauth
                 </li>
             @empty
-                <li class="px-4 py-6 text-sm text-neutral-500">{{ __('プロジェクトがありません。') }}</li>
+                <li><x-empty-state icon="folder" :title="__('プロジェクトがありません。')">
+                    @can('create', \App\Models\Project::class)
+                        <a href="{{ route('projects.create') }}" class="btn btn-primary"><x-icon name="plus" class="size-4" />{{ __('新規プロジェクト') }}</a>
+                    @endcan
+                </x-empty-state></li>
             @endforelse
         </ul>
     @else
@@ -846,7 +850,11 @@ new #[Layout('components.layouts.app')] class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ count($this->visibleColumns) + 1 }}" class="px-4 py-6 text-sm text-neutral-500">{{ __('プロジェクトがありません。') }}</td>
+                            <td colspan="{{ count($this->visibleColumns) + 1 }}"><x-empty-state icon="folder" :title="__('プロジェクトがありません。')">
+                    @can('create', \App\Models\Project::class)
+                        <a href="{{ route('projects.create') }}" class="btn btn-primary"><x-icon name="plus" class="size-4" />{{ __('新規プロジェクト') }}</a>
+                    @endcan
+                </x-empty-state></td>
                         </tr>
                     @endforelse
                 </tbody>

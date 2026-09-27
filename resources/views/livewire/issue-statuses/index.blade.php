@@ -76,12 +76,12 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($this->usesStatusForDoneRatio)
                 <button wire:click="updateIssueDoneRatios"
                     wire:confirm="{{ __('既存の全課題の進捗率を、現在のステータスの既定値で上書きします。よろしいですか?') }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('既存課題の進捗率を一括更新') }}
                 </button>
             @endif
             <a href="{{ route('issue-statuses.create') }}"
-                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                class="btn btn-primary">
                 {{ __('新規ステータス') }}
             </a>
         </div>

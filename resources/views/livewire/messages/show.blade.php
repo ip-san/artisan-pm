@@ -303,19 +303,19 @@ new #[Layout('components.layouts.app')] class extends Component
         </h1>
         <div class="flex flex-wrap justify-end gap-2 whitespace-nowrap">
             @can('watch', $topic)
-                <button wire:click="toggleWatch" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button wire:click="toggleWatch" class="btn btn-secondary">
                     {{ $topic->isWatchedBy(auth()->user()) ? __('ウォッチ解除') : __('ウォッチ') }}
                 </button>
             @endcan
             @can('update', $topic)
                 <a href="{{ route('messages.edit', [$project, $board, $topic]) }}"
-                    class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                    class="btn btn-secondary">
                     {{ __('編集') }}
                 </a>
             @endcan
             @can('delete', $topic)
                 <button wire:click="deleteMessage({{ $topic->id }})" wire:confirm="{{ __('このトピックと返信をすべて削除しますか?') }}"
-                    class="rounded-md border border-danger-subtle px-3 py-2 text-sm font-medium text-danger-bolder hover:bg-danger-subtlest">
+                    class="btn btn-danger-outline">
                     {{ __('削除') }}
                 </button>
             @endcan
@@ -368,7 +368,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                     @error('moveToBoardId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
-                <button type="submit" class="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                <button type="submit" class="btn btn-secondary">
                     {{ __('移動') }}
                 </button>
             </form>
@@ -489,7 +489,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <textarea wire:model="replyContent" rows="4" placeholder="{{ __('返信を入力') }}"
                 class="block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('replyContent') <p class="text-sm text-danger-bolder">{{ $message }}</p> @enderror
-            <button type="submit" class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+            <button type="submit" class="btn btn-primary">
                 {{ __('返信を投稿') }}
             </button>
         </form>

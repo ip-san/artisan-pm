@@ -130,8 +130,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @endforeach
 
         <div class="flex gap-3">
-            <button type="submit" class="rounded-md bg-brand-bold px-4 py-2 text-sm font-medium text-white hover:bg-brand-hovered">{{ __('保存') }}</button>
-            <a href="{{ \App\Support\Attachments\AttachmentContainers::url($this->container()->loadMissing($this->relationsForUrl())) }}" class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">{{ __('キャンセル') }}</a>
+            <button type="submit" class="btn btn-primary">{{ __('保存') }}</button>
+            <a href="{{ \App\Support\Attachments\AttachmentContainers::url($this->container()->loadMissing($this->relationsForUrl())) }}" class="btn btn-secondary">{{ __('キャンセル') }}</a>
         </div>
     </form>
 </div>

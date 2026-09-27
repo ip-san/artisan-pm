@@ -38,7 +38,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — {{ __('フォーラム') }}</h1>
         @can('create', [Board::class, $project])
             <a href="{{ route('boards.create', $project) }}"
-                class="rounded-md bg-brand-bold px-3 py-2 text-sm font-medium text-white hover:bg-brand-hovered">
+                class="btn btn-primary">
                 {{ __('新規フォーラム') }}
             </a>
         @endcan
