@@ -232,7 +232,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ $page->title }}
                 </a>
                 @if ($page->is_protected)
-                    <span class="ml-1 text-xs text-neutral-400">{{ __('(保護)') }}</span>
+                    <span class="ml-1 text-xs text-neutral-500">{{ __('(保護)') }}</span>
                 @endif
 
                 @if ($page->children->isNotEmpty())
@@ -243,7 +243,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                     {{ $child->title }}
                                 </a>
                                 @if ($child->is_protected)
-                                    <span class="ml-1 text-xs text-neutral-400">{{ __('(保護)') }}</span>
+                                    <span class="ml-1 text-xs text-neutral-500">{{ __('(保護)') }}</span>
                                 @endif
                             </li>
                         @endforeach

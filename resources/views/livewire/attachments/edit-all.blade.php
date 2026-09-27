@@ -119,12 +119,12 @@ new #[Layout('components.layouts.app')] class extends Component
     <form wire:submit="save" class="space-y-4">
         @foreach ($this->attachments() as $media)
             <div class="rounded-md border border-neutral-200 bg-surface p-3" wire:key="edit-attachment-{{ $media->id }}">
-                <label class="block text-xs font-medium text-neutral-700">{{ __('ファイル名') }}</label>
-                <input type="text" wire:model="names.{{ $media->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
+                <label for="field-names-{{ $media->id }}" class="block text-xs font-medium text-neutral-700">{{ __('ファイル名') }}</label>
+                <input id="field-names-{{ $media->id }}" type="text" wire:model="names.{{ $media->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
                 @error("names.{$media->id}") <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
 
-                <label class="mt-2 block text-xs font-medium text-neutral-700">{{ __('説明') }}</label>
-                <input type="text" wire:model="descriptions.{{ $media->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
+                <label for="field-descriptions-{{ $media->id }}" class="mt-2 block text-xs font-medium text-neutral-700">{{ __('説明') }}</label>
+                <input id="field-descriptions-{{ $media->id }}" type="text" wire:model="descriptions.{{ $media->id }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
                 @error("descriptions.{$media->id}") <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         @endforeach

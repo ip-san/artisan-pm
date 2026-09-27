@@ -98,8 +98,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-name" class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
+            <input id="field-name" type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 

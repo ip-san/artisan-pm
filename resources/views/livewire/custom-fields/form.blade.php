@@ -379,14 +379,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-name" class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
+            <input id="field-name" type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('説明(任意)') }}</label>
-            <textarea wire:model="description" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
+            <label for="field-description" class="block text-sm font-medium text-neutral-700">{{ __('説明(任意)') }}</label>
+            <textarea id="field-description" wire:model="description" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             <p class="mt-1 text-xs text-neutral-500">{{ __('入力欄の下に補足として表示されます。') }}</p>
             @error('description') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
@@ -421,8 +421,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($field_format === \App\Enums\CustomFieldFormat::List->value)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('選択肢(1行に1つ)') }}</label>
-                <textarea wire:model="possibleValuesText" rows="4"
+                <label for="field-possibleValuesText" class="block text-sm font-medium text-neutral-700">{{ __('選択肢(1行に1つ)') }}</label>
+                <textarea id="field-possibleValuesText" wire:model="possibleValuesText" rows="4"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             </div>
         @endif
@@ -457,8 +457,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($field_format === \App\Enums\CustomFieldFormat::Attachment->value)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('許可する拡張子') }}</label>
-                <input type="text" wire:model="extensionsAllowed" placeholder="pdf, png, jpg" data-extensions-allowed
+                <label for="field-extensionsAllowed" class="block text-sm font-medium text-neutral-700">{{ __('許可する拡張子') }}</label>
+                <input id="field-extensionsAllowed" type="text" wire:model="extensionsAllowed" placeholder="pdf, png, jpg" data-extensions-allowed
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{{ __('空欄なら添付ファイルの設定だけで判定します。') }}</p>
                 @error('extensionsAllowed') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
@@ -519,8 +519,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($field_format === \App\Enums\CustomFieldFormat::Progressbar->value)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('選択肢の刻み') }}</label>
-                <select wire:model="ratio_interval" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-ratio_interval" class="block text-sm font-medium text-neutral-700">{{ __('選択肢の刻み') }}</label>
+                <select id="field-ratio_interval" wire:model="ratio_interval" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('既定(:interval %)', ['interval' => \App\Support\Issues\DoneRatioSteps::interval()]) }}</option>
                     @foreach (\App\Support\Issues\DoneRatioSteps::INTERVALS as $interval)
                         <option value="{{ $interval }}">{{ $interval }} %</option>
@@ -533,19 +533,19 @@ new #[Layout('components.layouts.app')] class extends Component
         @if (in_array($field_format, [\App\Enums\CustomFieldFormat::String->value, \App\Enums\CustomFieldFormat::Link->value], true))
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('最小文字数') }}</label>
-                    <input type="number" wire:model="min_length" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-min_length" class="block text-sm font-medium text-neutral-700">{{ __('最小文字数') }}</label>
+                    <input id="field-min_length" type="number" wire:model="min_length" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('最大文字数') }}</label>
-                    <input type="number" wire:model="max_length" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-max_length" class="block text-sm font-medium text-neutral-700">{{ __('最大文字数') }}</label>
+                    <input id="field-max_length" type="number" wire:model="max_length" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
             </div>
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('正規表現による検証(任意)') }}</label>
-            <input type="text" wire:model="regexp" placeholder="{{ __('例: ^[A-Z]{2}\\d{4}$') }}"
+            <label for="field-regexp" class="block text-sm font-medium text-neutral-700">{{ __('正規表現による検証(任意)') }}</label>
+            <input id="field-regexp" type="text" wire:model="regexp" placeholder="{{ __('例: ^[A-Z]{2}\\d{4}$') }}"
                 class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('regexp') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>

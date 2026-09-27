@@ -70,7 +70,7 @@
         </form>
 
         <p class="mt-4 text-sm text-neutral-600">
-            {{ __('すでにアカウントをお持ちの場合は') }} <a href="{{ route('login') }}" class="text-brand-bold hover:underline">{{ __('ログイン') }}</a>
+            {{ __('すでにアカウントをお持ちの場合は') }} <a href="{{ route('login') }}" class="text-brand-bold underline">{{ __('ログイン') }}</a>
         </p>
     </div>
 </x-layouts.app>

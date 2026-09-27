@@ -114,14 +114,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('タイトル') }}</label>
-            <input type="text" wire:model="title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-title" class="block text-sm font-medium text-neutral-700">{{ __('タイトル') }}</label>
+            <input id="field-title" type="text" wire:model="title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('title') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('カテゴリ') }}</label>
-            <select wire:model="category_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-category_id" class="block text-sm font-medium text-neutral-700">{{ __('カテゴリ') }}</label>
+            <select id="field-category_id" wire:model="category_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">{{ __('なし') }}</option>
                 @foreach ($this->categories as $category)
                     <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -131,8 +131,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('説明') }}</label>
-            <textarea wire:model="description" rows="6" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
+            <label for="field-description" class="block text-sm font-medium text-neutral-700">{{ __('説明') }}</label>
+            <textarea id="field-description" wire:model="description" rows="6" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('description') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
@@ -145,8 +145,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
-            <input type="file" wire:model="newAttachments" multiple class="mt-1 block w-full text-sm text-neutral-700">
+            <label for="field-newAttachments" class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
+            <input id="field-newAttachments" type="file" wire:model="newAttachments" multiple class="mt-1 block w-full text-sm text-neutral-700">
             @error('newAttachments.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
 
             @if ($document?->attachments()->isNotEmpty())

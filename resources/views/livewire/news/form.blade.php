@@ -88,26 +88,26 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('タイトル') }}</label>
-            <input type="text" wire:model="title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-title" class="block text-sm font-medium text-neutral-700">{{ __('タイトル') }}</label>
+            <input id="field-title" type="text" wire:model="title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('title') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('概要') }}</label>
-            <input type="text" wire:model="summary" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-summary" class="block text-sm font-medium text-neutral-700">{{ __('概要') }}</label>
+            <input id="field-summary" type="text" wire:model="summary" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('summary') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('本文') }}</label>
-            <textarea wire:model="description" rows="10" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
+            <label for="field-description" class="block text-sm font-medium text-neutral-700">{{ __('本文') }}</label>
+            <textarea id="field-description" wire:model="description" rows="10" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('description') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
-            <input type="file" wire:model="newAttachments" multiple class="mt-1 block w-full text-sm text-neutral-700">
+            <label for="field-newAttachments" class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
+            <input id="field-newAttachments" type="file" wire:model="newAttachments" multiple class="mt-1 block w-full text-sm text-neutral-700">
             @error('newAttachments.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
 
             @if ($news?->attachments()->isNotEmpty())

@@ -495,29 +495,29 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('識別子') }}</label>
-            <input type="text" wire:model="identifier"
+            <label for="field-identifier" class="block text-sm font-medium text-neutral-700">{{ __('識別子') }}</label>
+            <input id="field-identifier" type="text" wire:model="identifier"
                 class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('identifier') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('説明') }}</label>
-            <textarea wire:model="description" rows="3"
+            <label for="field-description" class="block text-sm font-medium text-neutral-700">{{ __('説明') }}</label>
+            <textarea id="field-description" wire:model="description" rows="3"
                 class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('ホームページ') }}</label>
-            <input type="text" wire:model="homepage"
+            <label for="field-homepage" class="block text-sm font-medium text-neutral-700">{{ __('ホームページ') }}</label>
+            <input id="field-homepage" type="text" wire:model="homepage"
                 class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('homepage') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         @if ($this->availableParents->isNotEmpty())
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('親プロジェクト') }}</label>
-                <select wire:model="parent_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-parent_id" class="block text-sm font-medium text-neutral-700">{{ __('親プロジェクト') }}</label>
+                <select id="field-parent_id" wire:model="parent_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('なし(最上位プロジェクト)') }}</option>
                     @foreach ($this->availableParents as $candidate)
                         <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
@@ -583,7 +583,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 @disabled($field->isForAll()) class="rounded border-neutral-300">
                             {{ $field->name }}
                             @if ($field->isForAll())
-                                <span class="text-xs text-neutral-400">{{ __('(全プロジェクト共通)') }}</span>
+                                <span class="text-xs text-neutral-500">{{ __('(全プロジェクト共通)') }}</span>
                             @endif
                         </label>
                     @endforeach
@@ -595,8 +595,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($project)
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('既定の対象バージョン') }}</label>
-                    <select wire:model="default_version_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-default_version_id" class="block text-sm font-medium text-neutral-700">{{ __('既定の対象バージョン') }}</label>
+                    <select id="field-default_version_id" wire:model="default_version_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">{{ __('なし') }}</option>
                         @foreach ($this->defaultVersionOptions as $version)
                             <option value="{{ $version->id }}">{{ $version->name }}</option>
@@ -605,8 +605,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('default_version_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('課題一覧の既定クエリ') }}</label>
-                    <select wire:model="default_issue_query_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-default_issue_query_id" class="block text-sm font-medium text-neutral-700">{{ __('課題一覧の既定クエリ') }}</label>
+                    <select id="field-default_issue_query_id" wire:model="default_issue_query_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">{{ __('指定しない') }}</option>
                         @foreach ($this->defaultQueryOptions as $query)
                             <option value="{{ $query->id }}">{{ $query->name }}</option>
@@ -615,8 +615,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('default_issue_query_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('既定の担当者') }}</label>
-                    <select wire:model="defaultAssigneeChoice" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-defaultAssigneeChoice" class="block text-sm font-medium text-neutral-700">{{ __('既定の担当者') }}</label>
+                    <select id="field-defaultAssigneeChoice" wire:model="defaultAssigneeChoice" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">{{ __('なし') }}</option>
                         <x-assignee-options :users="$this->defaultAssigneeOptions" :groups="$this->defaultAssigneeGroupOptions" />
                     </select>

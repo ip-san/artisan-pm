@@ -892,7 +892,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <div>
             @if ($this->visibleParent)
                 <p class="text-xs text-neutral-500 mb-1">
-                    <span class="text-neutral-400">{{ __('親課題:') }}</span>
+                    <span class="text-neutral-500">{{ __('親課題:') }}</span>
                     <a href="{{ route('issues.show', [$this->visibleParent->project, $this->visibleParent]) }}" class="text-brand-bold hover:underline">
                         {{ $this->visibleParent->tracker->name }} #{{ $this->visibleParent->id }} — {{ $this->visibleParent->subject }}
                     </a>
@@ -1002,8 +1002,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->moveTargetProjects->isNotEmpty())
             <form wire:submit="moveIssue" x-show="moveOpen" x-cloak class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4" data-issue-move-form>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('別のプロジェクトへ移動') }}</label>
-                    <select wire:model.live="moveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
+                    <label for="field-moveToProjectId" class="block text-xs font-medium text-neutral-700">{{ __('別のプロジェクトへ移動') }}</label>
+                    <select id="field-moveToProjectId" wire:model.live="moveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('選択してください') }}</option>
                         @foreach ($this->moveTargetProjects as $candidate)
                             <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
@@ -1013,8 +1013,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @if ($moveToProjectId)
                     <div>
-                        <label class="block text-xs font-medium text-neutral-700">{{ __('移動後のトラッカー') }}</label>
-                        <select wire:model="moveToTrackerId" class="mt-1 block rounded-md border-neutral-300 text-sm">
+                        <label for="field-moveToTrackerId" class="block text-xs font-medium text-neutral-700">{{ __('移動後のトラッカー') }}</label>
+                        <select id="field-moveToTrackerId" wire:model="moveToTrackerId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                             <option value="">{{ __('選択してください') }}</option>
                             @foreach ($this->moveTargetTrackers as $candidateTracker)
                                 <option value="{{ $candidateTracker->id }}">{{ $candidateTracker->name }}</option>
@@ -1046,7 +1046,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <span class="text-neutral-500">{{ __('予定工数:') }}</span>
             {{ $issue->estimated_hours !== null ? __(':hours 時間', ['hours' => \App\Support\Format\Hours::format((float) $issue->estimated_hours)]) : '-' }}
             @if (! $issue->isLeaf() && $issue->totalEstimatedHours() > 0)
-                <span class="text-neutral-400">{{ __('(合計: :hours 時間)', ['hours' => \App\Support\Format\Hours::format($issue->totalEstimatedHours())]) }}</span>
+                <span class="text-neutral-500">{{ __('(合計: :hours 時間)', ['hours' => \App\Support\Format\Hours::format($issue->totalEstimatedHours())]) }}</span>
             @endif
         </div>
         @if ($issue->estimated_hours !== null)
@@ -1085,7 +1085,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <li class="flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700">
                     {{ $watcher->user->displayName() }}
                     @can('deleteWatchers', $issue)
-                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
+                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-500 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
                     @endcan
                 </li>
             @endforeach
@@ -1100,7 +1100,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @foreach ($this->watcherCandidates as $candidate)
                             <li wire:key="watcher-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">
-                                    {{ $candidate->displayName() }} <span class="text-xs text-neutral-400">{{ $candidate->email }}</span>
+                                    {{ $candidate->displayName() }} <span class="text-xs text-neutral-500">{{ $candidate->email }}</span>
                                 </button>
                             </li>
                         @endforeach
@@ -1231,16 +1231,16 @@ new #[Layout('components.layouts.app')] class extends Component
         @can('manageRelations', $issue)
             <form wire:submit="addRelation" class="mb-6 flex items-end gap-2">
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('関連種別') }}</label>
-                    <select wire:model.live="relationType" class="mt-1 block rounded-md border-neutral-300 shadow-sm text-sm">
+                    <label for="field-relationType" class="block text-xs font-medium text-neutral-700">{{ __('関連種別') }}</label>
+                    <select id="field-relationType" wire:model.live="relationType" class="mt-1 block rounded-md border-neutral-300 shadow-sm text-sm">
                         @foreach ($this->relationTypeOptions() as $value => $label)
                             <option value="{{ $value }}">{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('課題ID') }}</label>
-                    <input type="text" wire:model="relatedIssueId" placeholder="{{ __('例: 123, 124') }}"
+                    <label for="field-relatedIssueId" class="block text-xs font-medium text-neutral-700">{{ __('課題ID') }}</label>
+                    <input id="field-relatedIssueId" type="text" wire:model="relatedIssueId" placeholder="{{ __('例: 123, 124') }}"
                         class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm text-sm">
                 </div>
                 <div data-related-search>
@@ -1259,8 +1259,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @if (in_array($relationType, ['precedes', 'follows'], true))
                     <div>
-                        <label class="block text-xs font-medium text-neutral-700">{{ __('遅延日数') }}</label>
-                        <input type="number" min="0" wire:model="relationDelay" placeholder="0"
+                        <label for="field-relationDelay" class="block text-xs font-medium text-neutral-700">{{ __('遅延日数') }}</label>
+                        <input id="field-relationDelay" type="number" min="0" wire:model="relationDelay" placeholder="0"
                             class="mt-1 block w-20 rounded-md border-neutral-300 shadow-sm text-sm">
                     </div>
                 @endif
@@ -1278,7 +1278,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <h2 class="text-sm font-semibold text-neutral-900 mb-2">
             {{ __('工数 (:hours 時間)', ['hours' => \App\Support\Format\Hours::format((float) $issue->timeEntries->sum('hours'))]) }}
             @if (! $issue->isLeaf())
-                <span class="font-normal text-neutral-400">{{ __('(合計: :hours 時間)', ['hours' => \App\Support\Format\Hours::format($issue->totalSpentHours())]) }}</span>
+                <span class="font-normal text-neutral-500">{{ __('(合計: :hours 時間)', ['hours' => \App\Support\Format\Hours::format($issue->totalSpentHours())]) }}</span>
             @endif
         </h2>
         <ul class="mb-6 space-y-1">

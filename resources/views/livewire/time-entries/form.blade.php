@@ -269,8 +269,8 @@ new #[Layout('components.layouts.app')] class extends Component
     <form wire:submit="save" class="space-y-4">
         @if ($timeEntry && $this->moveTargets->count() > 1)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('プロジェクト') }}</label>
-                <select wire:model.live="project_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-project_id" class="block text-sm font-medium text-neutral-700">{{ __('プロジェクト') }}</label>
+                <select id="field-project_id" wire:model.live="project_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach ($this->moveTargets as $candidate)
                         <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
                     @endforeach
@@ -280,8 +280,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('課題') }}</label>
-            <select wire:model="issue_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-issue_id" class="block text-sm font-medium text-neutral-700">{{ __('課題') }}</label>
+            <select id="field-issue_id" wire:model="issue_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">{{ __('なし(プロジェクト全体)') }}</option>
                 @if ($this->hiddenCurrentIssueId !== null)
                     <option value="{{ $this->hiddenCurrentIssueId }}">#{{ $this->hiddenCurrentIssueId }}</option>
@@ -295,8 +295,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($this->canManageOthers)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('ユーザー') }}</label>
-                <select wire:model="user_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-user_id" class="block text-sm font-medium text-neutral-700">{{ __('ユーザー') }}</label>
+                <select id="field-user_id" wire:model="user_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach ($this->projectMembers as $member)
                         <option value="{{ $member->id }}">{{ $member->displayName() }}</option>
                     @endforeach
@@ -307,8 +307,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('作業分類') }}</label>
-                <select wire:model="activity_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-activity_id" class="block text-sm font-medium text-neutral-700">{{ __('作業分類') }}</label>
+                <select id="field-activity_id" wire:model="activity_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach ($this->activities as $activity)
                         <option value="{{ $activity->id }}">{{ $activity->name }}</option>
                     @endforeach
@@ -317,23 +317,23 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('時間') }}</label>
-                <input type="text" inputmode="decimal" wire:model="hours" placeholder="1.5 / 1:30"
+                <label for="field-hours" class="block text-sm font-medium text-neutral-700">{{ __('時間') }}</label>
+                <input id="field-hours" type="text" inputmode="decimal" wire:model="hours" placeholder="1.5 / 1:30"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('hours') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('日付') }}</label>
-            <input type="date" wire:model="spent_on"
+            <label for="field-spent_on" class="block text-sm font-medium text-neutral-700">{{ __('日付') }}</label>
+            <input id="field-spent_on" type="date" wire:model="spent_on"
                 class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('spent_on') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('コメント') }}</label>
-            <textarea wire:model="comments" rows="3"
+            <label for="field-comments" class="block text-sm font-medium text-neutral-700">{{ __('コメント') }}</label>
+            <textarea id="field-comments" wire:model="comments" rows="3"
                 class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('comments') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>

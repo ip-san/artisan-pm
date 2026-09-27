@@ -249,7 +249,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @foreach ($this->recentActivity as $entry)
                         <li wire:key="activity-{{ $entry->type }}-{{ $entry->url }}-{{ $entry->occurredAt->timestamp }}" class="text-sm">
                             <a href="{{ $entry->url }}" class="text-brand-bold hover:underline">{{ $entry->title }}</a>
-                            <span class="text-neutral-400">({{ \App\Support\Format\DateTimes::dateOf($entry->occurredAt) }})</span>
+                            <span class="text-neutral-500">({{ \App\Support\Format\DateTimes::dateOf($entry->occurredAt) }})</span>
                         </li>
                     @endforeach
                 </ul>

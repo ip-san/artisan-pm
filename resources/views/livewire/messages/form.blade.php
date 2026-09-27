@@ -110,20 +110,20 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('題名') }}</label>
-            <input type="text" wire:model="subject" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-subject" class="block text-sm font-medium text-neutral-700">{{ __('題名') }}</label>
+            <input id="field-subject" type="text" wire:model="subject" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('subject') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('本文') }}</label>
-            <textarea wire:model="content" rows="10" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
+            <label for="field-content" class="block text-sm font-medium text-neutral-700">{{ __('本文') }}</label>
+            <textarea id="field-content" wire:model="content" rows="10" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
             @error('content') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
-            <input type="file" wire:model="newAttachments" multiple
+            <label for="field-newAttachments" class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
+            <input id="field-newAttachments" type="file" wire:model="newAttachments" multiple
                 class="mt-1 block w-full text-sm text-neutral-700">
             @error('newAttachments.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
 

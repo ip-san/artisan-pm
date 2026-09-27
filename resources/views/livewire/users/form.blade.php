@@ -248,24 +248,24 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">
+            <label for="field-login" class="block text-sm font-medium text-neutral-700">
                 {{ $auth_source_id ? __('ログインID(ディレクトリのuid)') : __('ログインID') }}
             </label>
-            <input type="text" wire:model="login" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <input id="field-login" type="text" wire:model="login" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('login') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <x-user-name-fields />
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('メールアドレス') }}</label>
-            <input type="email" wire:model="email" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-email" class="block text-sm font-medium text-neutral-700">{{ __('メールアドレス') }}</label>
+            <input id="field-email" type="email" wire:model="email" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('email') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
-            <select wire:model="status" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-status" class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
+            <select id="field-status" wire:model="status" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @foreach (\App\Enums\UserStatus::cases() as $case)
                     <option value="{{ $case->value }}">{{ $case->value }}</option>
                 @endforeach
@@ -275,8 +275,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('言語') }}</label>
-                <select wire:model="language" data-user-language class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-language" class="block text-sm font-medium text-neutral-700">{{ __('言語') }}</label>
+                <select id="field-language" wire:model="language" data-user-language class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('未設定(既定の言語)') }}</option>
                     @foreach (SupportedLocales::all() as $code => $languageName)
                         <option value="{{ $code }}">{{ $languageName }}</option>
@@ -285,8 +285,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 @error('language') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('タイムゾーン') }}</label>
-                <select wire:model="time_zone" data-user-time-zone class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-time_zone" class="block text-sm font-medium text-neutral-700">{{ __('タイムゾーン') }}</label>
+                <select id="field-time_zone" wire:model="time_zone" data-user-time-zone class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('未設定(既定: :zone)', ['zone' => \App\Support\Locale\TimeZones::default()]) }}</option>
                     @foreach (\App\Support\Locale\TimeZones::options() as $identifier => $label)
                         <option value="{{ $identifier }}">{{ $label }}</option>
@@ -302,8 +302,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </label>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('認証方式') }}</label>
-            <select wire:model.live="auth_source_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-auth_source_id" class="block text-sm font-medium text-neutral-700">{{ __('認証方式') }}</label>
+            <select id="field-auth_source_id" wire:model.live="auth_source_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">{{ __('ローカルパスワード') }}</option>
                 @foreach ($this->authSources as $source)
                     <option value="{{ $source->id }}">LDAP: {{ $source->name }}</option>
@@ -314,10 +314,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if (! $auth_source_id)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">
+                <label for="field-password" class="block text-sm font-medium text-neutral-700">
                     {{ $user ? __('パスワード(変更する場合のみ入力)') : __('パスワード') }}
                 </label>
-                <input type="password" wire:model="password" @disabled($generate_password) class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm disabled:bg-neutral-100">
+                <input id="field-password" type="password" wire:model="password" @disabled($generate_password) class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm disabled:bg-neutral-100">
                 @error('password') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <label class="mt-2 flex items-center gap-2 text-sm text-neutral-700">
                     <input type="checkbox" wire:model.live="generate_password" class="rounded border-neutral-300">
@@ -326,8 +326,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('パスワード(確認)') }}</label>
-                <input type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-password_confirmation" class="block text-sm font-medium text-neutral-700">{{ __('パスワード(確認)') }}</label>
+                <input id="field-password_confirmation" type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             </div>
 
             <label class="flex items-center gap-2 text-sm text-neutral-700">

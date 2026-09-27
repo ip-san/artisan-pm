@@ -202,21 +202,21 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">
             {{ $this->author !== null ? __(':project — :user の活動', ['project' => $project->name, 'user' => $this->author->displayName()]) : __(':project — 活動', ['project' => $project->name]) }}
         </h1>
-        <a href="{{ route('activity.atom', [$project, 'key' => auth()->user()?->atomKey(), 'userId' => $userId]) }}" class="text-xs text-warning hover:underline">Atom</a>
+        <a href="{{ route('activity.atom', [$project, 'key' => auth()->user()?->atomKey(), 'userId' => $userId]) }}" class="text-xs text-warning-bolder hover:underline">Atom</a>
     </div>
 
     <div class="mb-6 flex flex-wrap items-end gap-4 rounded-md border border-neutral-200 bg-surface p-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('開始日') }}</label>
-            <input type="date" wire:model="from" class="mt-1 block rounded-md border-neutral-300 text-sm">
+            <label for="field-from" class="block text-sm font-medium text-neutral-700">{{ __('開始日') }}</label>
+            <input id="field-from" type="date" wire:model="from" class="mt-1 block rounded-md border-neutral-300 text-sm">
         </div>
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('終了') }}</label>
-            <input type="date" wire:model="to" class="mt-1 block rounded-md border-neutral-300 text-sm">
+            <label for="field-to" class="block text-sm font-medium text-neutral-700">{{ __('終了') }}</label>
+            <input id="field-to" type="date" wire:model="to" class="mt-1 block rounded-md border-neutral-300 text-sm">
         </div>
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('ユーザー') }}</label>
-            <select wire:model="userId" class="mt-1 block rounded-md border-neutral-300 text-sm">
+            <label for="field-userId" class="block text-sm font-medium text-neutral-700">{{ __('ユーザー') }}</label>
+            <select id="field-userId" wire:model="userId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                 <option value="">{{ __('すべて') }}</option>
                 @foreach ($this->authorOptions as $id => $name)
                     <option value="{{ $id }}">{{ $name }}</option>

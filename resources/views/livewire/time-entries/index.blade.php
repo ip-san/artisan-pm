@@ -864,7 +864,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
             @if ($this->project->activities(includeInactive: false)->isNotEmpty())
                 <div class="group relative">
-                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('作業分類') }} <span class="text-neutral-400">›</span></span>
+                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('作業分類') }} <span class="text-neutral-500">›</span></span>
                     <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                         @foreach ($this->project->activities(includeInactive: false) as $activity)
                             <button type="button" wire:key="context-activity-{{ $activity->id }}" wire:click="contextUpdateActivity({{ $activity->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $activity->name }}</button>
@@ -874,7 +874,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
             @foreach ($this->contextMenuCustomFields as $menuEntry)
                 <div class="group relative" wire:key="context-menu-cf-{{ $menuEntry['field']->id }}" data-context-menu-custom-field="{{ $menuEntry['field']->id }}">
-                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuEntry['field']->name }} <span class="text-neutral-400">›</span></span>
+                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuEntry['field']->name }} <span class="text-neutral-500">›</span></span>
                     <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                         @foreach ($menuEntry['options'] as $menuValue => $menuText)
                             <button type="button" wire:click="contextUpdateCustomField({{ $menuEntry['field']->id }}, @js((string) $menuValue))" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $menuText }}</button>
@@ -899,11 +899,11 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
         </div>
         <div class="flex items-center gap-2">
-            <select wire:model="csvEncoding" title="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
+            <select wire:model="csvEncoding" title="{{ __('文字コード') }}" aria-label="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
                 <option value="SJIS-win">Shift_JIS</option>
             </select>
-            <select wire:model="csvSeparator" title="{{ __('区切り文字') }}" class="rounded-md border-neutral-300 text-xs">
+            <select wire:model="csvSeparator" title="{{ __('区切り文字') }}" aria-label="{{ __('区切り文字') }}" class="rounded-md border-neutral-300 text-xs">
                 <option value=",">{{ __('カンマ') }}</option>
                 <option value=";">{{ __('セミコロン') }}</option>
                 <option value="{{ "\t" }}">{{ __('タブ') }}</option>
@@ -914,7 +914,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <a href="{{ route('time-entries.report', $project) }}" class="btn btn-secondary">
                 {{ __('レポート') }}
             </a>
-            <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
+            <a href="{{ $this->atomUrl }}" class="text-xs text-warning-bolder hover:underline">Atom</a>
             @can('import', [\App\Models\TimeEntry::class, $project])
                 <a href="{{ route('time-entries.import', $project) }}"
                     class="btn btn-secondary">
@@ -936,7 +936,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @forelse ($this->savedQueries as $savedQuery)
             <x-saved-query-pill :query="$savedQuery" />
         @empty
-            <span class="text-neutral-400">{{ __('なし') }}</span>
+            <span class="text-neutral-500">{{ __('なし') }}</span>
         @endforelse
     </div>
 
@@ -995,8 +995,8 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 @if ($this->moveTargets->count() > 1)
                     <div>
-                        <label class="block text-xs font-medium text-neutral-700">{{ __('プロジェクト') }}</label>
-                        <select wire:model.live="bulkProjectId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                        <label for="field-bulkProjectId" class="block text-xs font-medium text-neutral-700">{{ __('プロジェクト') }}</label>
+                        <select id="field-bulkProjectId" wire:model.live="bulkProjectId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                             <option value="">{{ __('変更なし') }}</option>
                             @foreach ($this->moveTargets->reject(fn ($candidate) => $candidate->is($this->project)) as $candidate)
                                 <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
@@ -1015,8 +1015,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @if ($this->canLogForOthers)
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('ユーザー') }}</label>
-                    <select wire:model="bulkUserId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkUserId" class="block text-xs font-medium text-neutral-700">{{ __('ユーザー') }}</label>
+                    <select id="field-bulkUserId" wire:model="bulkUserId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
                         @foreach (\App\Models\User::sortByFormat($this->bulkTargetProject->loadMissing('users')->users) as $member)
                             <option value="{{ $member->id }}">{{ $member->displayName() }}</option>
@@ -1026,14 +1026,14 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @endif
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('時間') }}</label>
-                    <input type="text" inputmode="decimal" wire:model="bulkHours" placeholder="{{ __('変更なし') }}"
+                    <label for="field-bulkHours" class="block text-xs font-medium text-neutral-700">{{ __('時間') }}</label>
+                    <input id="field-bulkHours" type="text" inputmode="decimal" wire:model="bulkHours" placeholder="{{ __('変更なし') }}"
                         class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                     @error('bulkHours') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('作業分類') }}</label>
-                    <select wire:model="bulkActivityId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkActivityId" class="block text-xs font-medium text-neutral-700">{{ __('作業分類') }}</label>
+                    <select id="field-bulkActivityId" wire:model="bulkActivityId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
                         @foreach ($this->bulkTargetProject->activities(includeInactive: true) as $activity)
                             <option value="{{ $activity->id }}">{{ $activity->name }}</option>
@@ -1041,8 +1041,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('日付') }}</label>
-                    <input type="date" wire:model="bulkSpentOn" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkSpentOn" class="block text-xs font-medium text-neutral-700">{{ __('日付') }}</label>
+                    <input id="field-bulkSpentOn" type="date" wire:model="bulkSpentOn" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                 </div>
             </div>
 
@@ -1080,8 +1080,8 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
 
             <div>
-                <label class="block text-xs font-medium text-neutral-700">{{ __('コメント(変更する場合のみ入力)') }}</label>
-                <textarea wire:model="bulkComments" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 text-sm"></textarea>
+                <label for="field-bulkComments" class="block text-xs font-medium text-neutral-700">{{ __('コメント(変更する場合のみ入力)') }}</label>
+                <textarea id="field-bulkComments" wire:model="bulkComments" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 text-sm"></textarea>
             </div>
 
             <div class="flex gap-2">
@@ -1137,7 +1137,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 <td class="px-4 py-2">
                                     @if ($ownEntry)
                                         @can('update', $entry)
-                                            <input type="checkbox" wire:model="selected" value="{{ $entry->id }}" class="rounded border-neutral-300">
+                                            <input type="checkbox" wire:model="selected" value="{{ $entry->id }}" aria-label="{{ __('選択') }} #{{ $entry->id }}" class="rounded border-neutral-300">
                                         @endcan
                                     @endif
                                 </td>

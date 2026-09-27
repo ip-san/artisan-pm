@@ -139,7 +139,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">{{ __(':project — リポジトリ', ['project' => $project->name]) }}</h1>
         <div class="flex gap-2">
             @if ($repository && auth()->user()?->can('viewAny', [Repository::class, $project]))
-                <a href="{{ route($repository->routeName('repository.revisions-atom'), [...$repository->routeParameters(), 'key' => auth()->user()?->atomKey()]) }}" class="self-center text-xs text-warning hover:underline">Atom</a>
+                <a href="{{ route($repository->routeName('repository.revisions-atom'), [...$repository->routeParameters(), 'key' => auth()->user()?->atomKey()]) }}" class="self-center text-xs text-warning-bolder hover:underline">Atom</a>
             @endif
             @if ($repository && auth()->user()?->can('browse', [Repository::class, $project]))
                 <a href="{{ route($repository->routeName('repository.browse'), $repository->routeParameters()) }}"
@@ -229,7 +229,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <p class="text-sm text-neutral-500">
             {{ __('リポジトリが設定されていません。') }}
             @if ($this->canManage)
-                <a href="{{ route('repository.edit', $project) }}" class="text-brand-bold hover:underline">{{ __('設定する') }}</a>
+                <a href="{{ route('repository.edit', $project) }}" class="text-brand-bold underline">{{ __('設定する') }}</a>
             @endif
         </p>
     @else

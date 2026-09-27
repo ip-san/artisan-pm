@@ -157,8 +157,8 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($this->canManage)
         <form wire:submit="upload" class="mb-6 flex flex-wrap items-end gap-3 rounded-md border border-neutral-200 bg-surface p-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('バージョン') }}</label>
-                <select wire:model="version_id" class="mt-1 block rounded-md border-neutral-300 text-sm">
+                <label for="field-version_id" class="block text-sm font-medium text-neutral-700">{{ __('バージョン') }}</label>
+                <select id="field-version_id" wire:model="version_id" class="mt-1 block rounded-md border-neutral-300 text-sm">
                     <option value="">{{ __('プロジェクト全体(バージョンなし)') }}</option>
                     @foreach ($this->versions as $version)
                         <option value="{{ $version->id }}">{{ $version->name }}</option>
@@ -167,8 +167,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 @error('version_id') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('ファイル') }}</label>
-                <input type="file" wire:model="newFiles" multiple class="mt-1 block text-sm text-neutral-700">
+                <label for="field-newFiles" class="block text-sm font-medium text-neutral-700">{{ __('ファイル') }}</label>
+                <input id="field-newFiles" type="file" wire:model="newFiles" multiple class="mt-1 block text-sm text-neutral-700">
                 @error('newFiles.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 @error('newFiles') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>

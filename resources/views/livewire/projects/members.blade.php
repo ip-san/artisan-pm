@@ -268,8 +268,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($addType === 'group' && ! $editingMemberId)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('グループ') }}</label>
-                <select wire:model="groupId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-groupId" class="block text-sm font-medium text-neutral-700">{{ __('グループ') }}</label>
+                <select id="field-groupId" wire:model="groupId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('選択してください') }}</option>
                     @foreach ($this->availableGroups as $group)
                         <option value="{{ $group->id }}">{{ $group->name }}</option>

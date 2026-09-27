@@ -152,20 +152,20 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-name" class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
+            <input id="field-name" type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div class="grid grid-cols-3 gap-4">
             <div class="col-span-2">
-                <label class="block text-sm font-medium text-neutral-700">{{ __('ホスト') }}</label>
-                <input type="text" wire:model="host" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-host" class="block text-sm font-medium text-neutral-700">{{ __('ホスト') }}</label>
+                <input id="field-host" type="text" wire:model="host" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('host') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('ポート') }}</label>
-                <input type="number" wire:model="port" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-port" class="block text-sm font-medium text-neutral-700">{{ __('ポート') }}</label>
+                <input id="field-port" type="number" wire:model="port" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('port') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         </div>
@@ -176,8 +176,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </label>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('ベースDN') }}</label>
-            <input type="text" wire:model="base_dn" placeholder="dc=example,dc=com" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-base_dn" class="block text-sm font-medium text-neutral-700">{{ __('ベースDN') }}</label>
+            <input id="field-base_dn" type="text" wire:model="base_dn" placeholder="dc=example,dc=com" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('base_dn') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
@@ -187,53 +187,53 @@ new #[Layout('components.layouts.app')] class extends Component
             </p>
             <div class="space-y-3">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('検索用アカウントDN(任意)') }}</label>
-                    <input type="text" wire:model="account" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-account" class="block text-sm font-medium text-neutral-700">{{ __('検索用アカウントDN(任意)') }}</label>
+                    <input id="field-account" type="text" wire:model="account" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">
+                    <label for="field-account_password" class="block text-sm font-medium text-neutral-700">
                         {{ __('検索用アカウントのパスワード') }}{{ $authSource ? __('(変更する場合のみ入力)') : '' }}
                     </label>
-                    <input type="password" wire:model="account_password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <input id="field-account_password" type="password" wire:model="account_password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
             </div>
         </div>
 
         <div class="grid grid-cols-3 gap-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('ログイン属性') }}</label>
-                <input type="text" wire:model="attr_login" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-attr_login" class="block text-sm font-medium text-neutral-700">{{ __('ログイン属性') }}</label>
+                <input id="field-attr_login" type="text" wire:model="attr_login" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attr_login') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('氏名属性') }}</label>
-                <input type="text" wire:model="attr_name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-attr_name" class="block text-sm font-medium text-neutral-700">{{ __('氏名属性') }}</label>
+                <input id="field-attr_name" type="text" wire:model="attr_name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attr_name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('メール属性') }}</label>
-                <input type="text" wire:model="attr_mail" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-attr_mail" class="block text-sm font-medium text-neutral-700">{{ __('メール属性') }}</label>
+                <input id="field-attr_mail" type="text" wire:model="attr_mail" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attr_mail') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('姓の属性') }}</label>
-                <input type="text" wire:model="attr_lastname" placeholder="sn" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-attr_lastname" class="block text-sm font-medium text-neutral-700">{{ __('姓の属性') }}</label>
+                <input id="field-attr_lastname" type="text" wire:model="attr_lastname" placeholder="sn" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attr_lastname') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('名の属性') }}</label>
-                <input type="text" wire:model="attr_firstname" placeholder="givenName" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-attr_firstname" class="block text-sm font-medium text-neutral-700">{{ __('名の属性') }}</label>
+                <input id="field-attr_firstname" type="text" wire:model="attr_firstname" placeholder="givenName" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attr_firstname') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <p class="col-span-2 text-xs text-neutral-500">{{ __('姓と名の両方の属性に値があるユーザーは姓・名が設定され、名前は「名 姓」になります。無ければ氏名属性を使います。') }}</p>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('検索フィルタ(任意)') }}</label>
-            <input type="text" wire:model="filter" placeholder="(memberOf=cn=staff,dc=example,dc=com)" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm font-mono">
+            <label for="field-filter" class="block text-sm font-medium text-neutral-700">{{ __('検索フィルタ(任意)') }}</label>
+            <input id="field-filter" type="text" wire:model="filter" placeholder="(memberOf=cn=staff,dc=example,dc=com)" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm font-mono">
             @error('filter') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             <p class="mt-1 text-xs text-neutral-500">
                 {{ __('指定すると、ログイン時のディレクトリ検索にこのLDAPフィルタが常にAND条件として付加されます(例: 特定グループのメンバーのみログインを許可)。') }}
@@ -241,8 +241,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('タイムアウト(秒)') }}</label>
-            <input type="number" wire:model="timeout" class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-timeout" class="block text-sm font-medium text-neutral-700">{{ __('タイムアウト(秒)') }}</label>
+            <input id="field-timeout" type="number" wire:model="timeout" class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('timeout') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 

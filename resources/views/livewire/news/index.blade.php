@@ -37,7 +37,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-neutral-900">{{ $project->name }} — {{ __('お知らせ') }}</h1>
         <div class="flex items-center gap-3">
-            <a href="{{ route('news.atom', [$project, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
+            <a href="{{ route('news.atom', [$project, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning-bolder hover:underline">Atom</a>
             @can('create', [News::class, $project])
                 <a href="{{ route('news.create', $project) }}"
                     class="btn btn-primary">

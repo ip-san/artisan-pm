@@ -61,8 +61,8 @@ new #[Layout('components.layouts.app')] class extends Component
     @else
         <form wire:submit="load" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('言語') }}</label>
-                <select wire:model="locale" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-locale" class="block text-sm font-medium text-neutral-700">{{ __('言語') }}</label>
+                <select id="field-locale" wire:model="locale" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="ja">日本語</option>
                     <option value="en">English</option>
                 </select>

@@ -245,7 +245,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     @if ($result->excerpt)
                         <p class="mt-1 text-sm text-neutral-600">{{ $result->excerpt }}</p>
                     @endif
-                    <p class="mt-1 text-xs text-neutral-400">{{ \App\Support\Format\DateTimes::dateTime($result->updatedAt) }}</p>
+                    <p class="mt-1 text-xs text-neutral-500">{{ \App\Support\Format\DateTimes::dateTime($result->updatedAt) }}</p>
                 </li>
             @endforeach
         </ul>

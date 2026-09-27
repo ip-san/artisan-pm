@@ -455,7 +455,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
             @if ($this->groups->isNotEmpty())
                 <div class="group relative">
-                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('グループに追加') }} <span class="text-neutral-400">›</span></span>
+                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('グループに追加') }} <span class="text-neutral-500">›</span></span>
                     <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                         @foreach ($this->groups as $group)
                             <button type="button" wire:key="context-add-{{ $group->id }}" wire:click="addToGroup({{ $group->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $group->name }}</button>
@@ -464,7 +464,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @if ($commonGroupIds->isNotEmpty())
                     <div class="group relative">
-                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('グループから外す') }} <span class="text-neutral-400">›</span></span>
+                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('グループから外す') }} <span class="text-neutral-500">›</span></span>
                         <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                             @foreach ($this->groups->whereIn('id', $commonGroupIds->all()) as $group)
                                 <button type="button" wire:key="context-remove-{{ $group->id }}" wire:click="removeFromGroup({{ $group->id }})" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $group->name }}</button>
@@ -493,7 +493,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @forelse ($this->savedQueries as $savedQuery)
             <x-saved-query-pill :query="$savedQuery" />
         @empty
-            <span class="text-neutral-400">{{ __('なし') }}</span>
+            <span class="text-neutral-500">{{ __('なし') }}</span>
         @endforelse
     </div>
 
@@ -555,7 +555,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <tr wire:key="user-row-{{ $user->id }}" x-on:contextmenu.prevent="showMenu($event, {{ $user->id }})"
                         class="{{ in_array((string) $user->id, array_map('strval', $selected), true) ? 'bg-brand-subtlest' : '' }}">
                         <td class="px-4 py-2">
-                            <input type="checkbox" wire:model.live="selected" value="{{ $user->id }}" class="rounded border-neutral-300">
+                            <input type="checkbox" wire:model.live="selected" value="{{ $user->id }}" aria-label="{{ $user->login }}" class="rounded border-neutral-300">
                         </td>
                         @foreach ($this->visibleColumns as $columnKey)
                             <td wire:key="user-{{ $user->id }}-{{ $columnKey }}" class="px-4 py-2">

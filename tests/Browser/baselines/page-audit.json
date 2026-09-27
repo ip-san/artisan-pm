@@ -39,11 +39,7 @@
         "activity.global-index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 23,
             "lazy": []
@@ -51,11 +47,7 @@
         "activity.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 36,
             "lazy": []
@@ -80,7 +72,6 @@
             "error": null,
             "js": [],
             "axe": [
-                "color-contrast",
                 "select-name"
             ],
             "layout": [],
@@ -90,9 +81,7 @@
         "auth-sources.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 5,
             "lazy": []
@@ -100,9 +89,7 @@
         "auth-sources.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 6,
             "lazy": []
@@ -118,10 +105,7 @@
         "boards.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 8,
             "lazy": []
@@ -129,10 +113,7 @@
         "boards.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 9,
             "lazy": []
@@ -148,9 +129,7 @@
         "boards.show": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 10,
             "lazy": []
@@ -158,9 +137,7 @@
         "calendar.global-index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [
                 "overflow: a \"mobile-app #N 決済処理の文言を修正(本番環境でのみ再現、Safar\""
             ],
@@ -170,9 +147,7 @@
         "calendar.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 21,
             "lazy": []
@@ -209,10 +184,7 @@
         "documents.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 9,
             "lazy": []
@@ -220,10 +192,7 @@
         "documents.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 12,
             "lazy": []
@@ -256,11 +225,7 @@
             "error": null,
             "js": [],
             "axe": [
-                "aria-prohibited-attr",
-                "color-contrast",
-                "label",
-                "label-title-only",
-                "select-name"
+                "aria-prohibited-attr"
             ],
             "layout": [],
             "queries": 30,
@@ -269,9 +234,7 @@
         "en:my-page.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 27,
             "lazy": []
@@ -279,10 +242,7 @@
         "en:projects.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 13,
             "lazy": []
@@ -290,9 +250,7 @@
         "enumerations.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 6,
             "lazy": []
@@ -300,9 +258,7 @@
         "enumerations.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 8,
             "lazy": []
@@ -318,10 +274,7 @@
         "files.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 14,
             "lazy": []
@@ -329,21 +282,17 @@
         "gantt.global-index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [
                 "height-mismatch: div \"ズーム − + 表示期間: 適用 関連課題の線 進捗率の表示 選択した列を表示\""
             ],
-            "queries": 106,
+            "queries": 105,
             "lazy": []
         },
         "gantt.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [
                 "height-mismatch: div \"ズーム − + 表示期間: 適用 関連課題の線 進捗率の表示 選択した列を表示\""
             ],
@@ -353,9 +302,7 @@
         "groups.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 6,
             "lazy": []
@@ -363,10 +310,7 @@
         "groups.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 12,
             "lazy": []
@@ -382,9 +326,7 @@
         "guest:login": {
             "error": null,
             "js": [],
-            "axe": [
-                "link-in-text-block"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 0,
             "lazy": []
@@ -400,9 +342,7 @@
         "guest:register": {
             "error": null,
             "js": [],
-            "axe": [
-                "link-in-text-block"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 1,
             "lazy": []
@@ -410,10 +350,7 @@
         "issue-categories.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 8,
             "lazy": []
@@ -421,10 +358,7 @@
         "issue-categories.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 9,
             "lazy": []
@@ -440,10 +374,7 @@
         "issue-statuses.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 5,
             "lazy": []
@@ -451,10 +382,7 @@
         "issue-statuses.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 6,
             "lazy": []
@@ -470,10 +398,7 @@
         "issues.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 35,
             "lazy": []
@@ -481,25 +406,16 @@
         "issues.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
-            "layout": [
-                "select-cut: select \"未割当 充 青山 修平 木村 アレクサンドラ・ミハイロヴナ・ヴァシリエヴァ 長谷\""
-            ],
-            "queries": 46,
+            "axe": [],
+            "layout": [],
+            "queries": 51,
             "lazy": []
         },
         "issues.global-index": {
             "error": null,
             "js": [],
             "axe": [
-                "aria-prohibited-attr",
-                "color-contrast",
-                "label",
-                "label-title-only",
-                "select-name"
+                "aria-prohibited-attr"
             ],
             "layout": [],
             "queries": 36,
@@ -508,9 +424,7 @@
         "issues.import": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 7,
             "lazy": []
@@ -518,12 +432,7 @@
         "issues.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "label",
-                "label-title-only",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 35,
             "lazy": []
@@ -533,37 +442,29 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 41,
+            "queries": 40,
             "lazy": []
         },
         "issues.show": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
-            "queries": 65,
+            "queries": 50,
             "lazy": []
         },
         "login": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
-            "queries": 29,
+            "queries": 31,
             "lazy": []
         },
         "messages.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 8,
             "lazy": []
@@ -571,9 +472,7 @@
         "messages.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 10,
             "lazy": []
@@ -581,10 +480,7 @@
         "messages.show": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 19,
             "lazy": []
@@ -592,11 +488,9 @@
         "my-page.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [],
-            "queries": 33,
+            "queries": 35,
             "lazy": []
         },
         "my-webhooks.index": {
@@ -610,9 +504,7 @@
         "news.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 7,
             "lazy": []
@@ -620,9 +512,7 @@
         "news.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 9,
             "lazy": []
@@ -631,19 +521,16 @@
             "error": null,
             "js": [],
             "axe": [
-                "aria-prohibited-attr",
-                "color-contrast"
+                "aria-prohibited-attr"
             ],
             "layout": [],
-            "queries": 14,
+            "queries": 13,
             "lazy": []
         },
         "news.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 10,
             "lazy": []
@@ -651,9 +538,7 @@
         "news.show": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 15,
             "lazy": []
@@ -669,10 +554,7 @@
         "passkey.login-options": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 16,
             "lazy": []
@@ -696,10 +578,7 @@
         "password.request": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 17,
             "lazy": []
@@ -715,10 +594,7 @@
         "profile.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 12,
             "lazy": []
@@ -735,8 +611,7 @@
             "error": null,
             "js": [],
             "axe": [
-                "label",
-                "select-name"
+                "label"
             ],
             "layout": [],
             "queries": 14,
@@ -746,8 +621,7 @@
             "error": null,
             "js": [],
             "axe": [
-                "label",
-                "select-name"
+                "label"
             ],
             "layout": [],
             "queries": 21,
@@ -756,10 +630,7 @@
         "projects.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 14,
             "lazy": []
@@ -767,11 +638,9 @@
         "projects.members": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [],
-            "queries": 13,
+            "queries": 12,
             "lazy": []
         },
         "projects.show": {
@@ -779,16 +648,13 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 15,
+            "queries": 23,
             "lazy": []
         },
         "register": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 16,
             "lazy": []
@@ -820,9 +686,7 @@
         "repository.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 8,
             "lazy": []
@@ -830,9 +694,7 @@
         "repository.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 9,
             "lazy": []
@@ -840,9 +702,7 @@
         "repository.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "link-in-text-block"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 10,
             "lazy": []
@@ -859,9 +719,7 @@
             "error": null,
             "js": [],
             "axe": [
-                "label",
-                "scrollable-region-focusable",
-                "select-name"
+                "scrollable-region-focusable"
             ],
             "layout": [],
             "queries": 7,
@@ -870,10 +728,7 @@
         "roles.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 9,
             "lazy": []
@@ -889,9 +744,7 @@
         "roles.report": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 6,
             "lazy": []
@@ -916,23 +769,19 @@
             "error": null,
             "js": [],
             "axe": [
-                "label",
                 "select-name"
             ],
             "layout": [
                 "select-cut: select \"なし 「新しい課題」リンクのみ 「+」ドロップダウン(課題・バージョン・お知らせ\"",
                 "select-cut: select \"ユーザーの言語の設定に従う(2026/09/27) 2026-09-27 (yy\""
             ],
-            "queries": 96,
+            "queries": 100,
             "lazy": []
         },
         "time-entries.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 16,
             "lazy": []
@@ -940,10 +789,7 @@
         "time-entries.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 17,
             "lazy": []
@@ -952,9 +798,7 @@
             "error": null,
             "js": [],
             "axe": [
-                "aria-prohibited-attr",
-                "color-contrast",
-                "label-title-only"
+                "aria-prohibited-attr"
             ],
             "layout": [],
             "queries": 40,
@@ -963,9 +807,7 @@
         "time-entries.global-report": {
             "error": null,
             "js": [],
-            "axe": [
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 31,
             "lazy": []
@@ -973,9 +815,7 @@
         "time-entries.import": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 7,
             "lazy": []
@@ -984,10 +824,7 @@
             "error": null,
             "js": [],
             "axe": [
-                "aria-prohibited-attr",
-                "color-contrast",
-                "label",
-                "label-title-only"
+                "aria-prohibited-attr"
             ],
             "layout": [],
             "queries": 26,
@@ -996,9 +833,7 @@
         "time-entries.report": {
             "error": null,
             "js": [],
-            "axe": [
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 16,
             "lazy": []
@@ -1006,10 +841,7 @@
         "trackers.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 7,
             "lazy": []
@@ -1017,10 +849,7 @@
         "trackers.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 7,
             "lazy": []
@@ -1036,10 +865,7 @@
         "two-factor.login": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 16,
             "lazy": []
@@ -1071,10 +897,7 @@
         "users.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 7,
             "lazy": []
@@ -1082,10 +905,7 @@
         "users.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 12,
             "lazy": []
@@ -1093,9 +913,7 @@
         "users.import": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 5,
             "lazy": []
@@ -1104,9 +922,7 @@
             "error": null,
             "js": [],
             "axe": [
-                "aria-prohibited-attr",
-                "color-contrast",
-                "label"
+                "aria-prohibited-attr"
             ],
             "layout": [],
             "queries": 20,
@@ -1123,10 +939,7 @@
         "versions.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 9,
             "lazy": []
@@ -1134,10 +947,7 @@
         "versions.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 12,
             "lazy": []
@@ -1153,9 +963,7 @@
         "versions.roadmap": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 48,
             "lazy": []
@@ -1163,10 +971,7 @@
         "webhooks.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 7,
             "lazy": []
@@ -1174,10 +979,7 @@
         "webhooks.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 8,
             "lazy": []
@@ -1193,9 +995,7 @@
         "wiki.annotate": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 13,
             "lazy": []
@@ -1203,10 +1003,7 @@
         "wiki.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 8,
             "lazy": []
@@ -1230,10 +1027,7 @@
         "wiki.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 12,
             "lazy": []
@@ -1241,9 +1035,7 @@
         "wiki.history": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 10,
             "lazy": []
@@ -1251,10 +1043,7 @@
         "wiki.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 21,
             "lazy": []
@@ -1270,10 +1059,7 @@
         "wiki.show": {
             "error": null,
             "js": [],
-            "axe": [
-                "color-contrast",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 16,
             "lazy": []
@@ -1289,9 +1075,7 @@
         "workflows.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 7,
             "lazy": []

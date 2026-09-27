@@ -18,7 +18,7 @@
                                 @php $issue = $entry['issue']; @endphp
                                 <li class="truncate" wire:key="my-page-cal-{{ $day['date']->toDateString() }}-{{ $issue->id }}-{{ $entry['marker'] }}">
                                     @php [$markerLabel, $markerSymbol] = match ($entry['marker']) { 'start' => [__('開始日'), '▶'], 'due' => [__('期日'), '◀'], default => [__('開始日=期日'), '◆'] }; @endphp
-                                    <span class="text-neutral-400" title="{{ $markerLabel }}">{{ $markerSymbol }}</span>
+                                    <span class="text-neutral-500" title="{{ $markerLabel }}">{{ $markerSymbol }}</span>
                                     <a href="{{ route('issues.show', [$issue->project, $issue]) }}" class="text-brand-bold hover:underline"
                                         title="{{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}">
                                         #{{ $issue->id }}

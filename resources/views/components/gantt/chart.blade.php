@@ -31,7 +31,7 @@
                             {{ $line['row']->trackerName }} #{{ $line['row']->id }}: {{ $line['row']->subject }}
                         </a>
                         @if ($drawSelectedColumns && ($selectedColumnTexts[$line['row']->id] ?? '') !== '')
-                            <span class="ml-1 min-w-0 truncate text-xs text-neutral-400" data-gantt-selected-columns>
+                            <span class="ml-1 min-w-0 truncate text-xs text-neutral-500" data-gantt-selected-columns>
                                 {{ $selectedColumnTexts[$line['row']->id] }}
                             </span>
                         @endif

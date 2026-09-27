@@ -662,7 +662,7 @@ new #[Layout('components.layouts.app')] class extends Component
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-semibold text-neutral-900">{{ __('プロジェクト') }}</h1>
         <div class="flex items-center gap-2">
-        <a href="{{ route('projects.atom', ['key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
+        <a href="{{ route('projects.atom', ['key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning-bolder hover:underline">Atom</a>
         @can('create', \App\Models\Project::class)
             <a href="{{ route('projects.create') }}"
                 class="btn btn-primary">
@@ -679,8 +679,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 class="mt-1 block rounded-md border-neutral-300 text-sm">
         </div>
         <div>
-            <label class="block text-xs font-medium text-neutral-700">{{ __('ステータス') }}</label>
-            <select wire:model.live="statusFilter" class="mt-1 block rounded-md border-neutral-300 text-sm">
+            <label for="field-statusFilter" class="block text-xs font-medium text-neutral-700">{{ __('ステータス') }}</label>
+            <select id="field-statusFilter" wire:model.live="statusFilter" class="mt-1 block rounded-md border-neutral-300 text-sm">
                 <option value="all">{{ __('すべて') }}</option>
                 <option value="active">{{ __('アクティブ') }}</option>
                 <option value="closed">{{ __('クローズ') }}</option>
@@ -708,7 +708,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @forelse ($this->savedQueries as $savedQuery)
             <x-saved-query-pill :query="$savedQuery" />
         @empty
-            <span class="text-neutral-400">{{ __('なし') }}</span>
+            <span class="text-neutral-500">{{ __('なし') }}</span>
         @endforelse
     </div>
 

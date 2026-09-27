@@ -1,32 +1,13 @@
 {
-    "forum: new topic form": [
-        "axe label"
-    ],
+    "forum: new topic form": [],
     "forum: replied": [],
     "forum: topic created": [],
-    "issue: created": [
-        "axe color-contrast",
-        "axe select-name"
-    ],
-    "issue: edit form": [
-        "axe label",
-        "axe select-name"
-    ],
-    "issue: new form": [
-        "axe label",
-        "axe select-name"
-    ],
-    "issue: updated with comment and time": [
-        "axe color-contrast",
-        "axe select-name"
-    ],
+    "issue: created": [],
+    "issue: edit form": [],
+    "issue: new form": [],
+    "issue: updated with comment and time": [],
     "wiki: diff": [],
-    "wiki: history": [
-        "axe color-contrast"
-    ],
-    "wiki: new page form": [
-        "axe label",
-        "axe select-name"
-    ],
+    "wiki: history": [],
+    "wiki: new page form": [],
     "wiki: page created": []
 }

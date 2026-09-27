@@ -69,7 +69,7 @@
                     @elseif ($field->type() === \App\Enums\FilterFieldType::Date)
                         <input type="date" wire:model="filterValues.{{ $key }}.0" class="rounded-md border-neutral-300 text-sm">
                         @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)
-                            <span class="text-neutral-400">{{ __('〜') }}</span>
+                            <span class="text-neutral-500">{{ __('〜') }}</span>
                             <input type="date" wire:model="filterValues.{{ $key }}.1" class="rounded-md border-neutral-300 text-sm">
                         @endif
                     @elseif ($field->type() === \App\Enums\FilterFieldType::IdList && ! in_array($selectedOperator, [\App\Enums\FilterOperator::GreaterOrEqual, \App\Enums\FilterOperator::LessOrEqual, \App\Enums\FilterOperator::Between], true))
@@ -78,7 +78,7 @@
                     @elseif (in_array($field->type(), [\App\Enums\FilterFieldType::Integer, \App\Enums\FilterFieldType::IdList], true))
                         <input type="number" step="0.01" wire:model="filterValues.{{ $key }}.0" class="w-24 rounded-md border-neutral-300 text-sm">
                         @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)
-                            <span class="text-neutral-400">{{ __('〜') }}</span>
+                            <span class="text-neutral-500">{{ __('〜') }}</span>
                             <input type="number" step="0.01" wire:model="filterValues.{{ $key }}.1" class="w-24 rounded-md border-neutral-300 text-sm">
                         @endif
                     @else

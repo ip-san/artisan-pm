@@ -218,11 +218,11 @@ new #[Layout('components.layouts.app')] class extends Component
     </div>
 
     <div class="mb-3 flex items-center gap-2">
-        <select wire:model="csvEncoding" class="rounded-md border-neutral-300 text-xs">
+        <select wire:model="csvEncoding" aria-label="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
             <option value="UTF-8">UTF-8</option>
             <option value="SJIS-win">Shift_JIS</option>
         </select>
-        <select wire:model="csvSeparator" class="rounded-md border-neutral-300 text-xs">
+        <select wire:model="csvSeparator" aria-label="{{ __('区切り文字') }}" class="rounded-md border-neutral-300 text-xs">
             <option value=",">{{ __('カンマ') }}</option>
             <option value=";">{{ __('セミコロン') }}</option>
             <option value="{{ "\t" }}">{{ __('タブ') }}</option>

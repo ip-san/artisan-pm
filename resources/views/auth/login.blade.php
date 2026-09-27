@@ -49,7 +49,7 @@
         @endif
 
         <p class="mt-4 text-sm text-neutral-600">
-            {{ __('アカウントをお持ちでない場合は') }} <a href="{{ route('register') }}" class="text-brand-bold hover:underline">{{ __('新規登録') }}</a>
+            {{ __('アカウントをお持ちでない場合は') }} <a href="{{ route('register') }}" class="text-brand-bold underline">{{ __('新規登録') }}</a>
         </p>
     </div>
 </x-layouts.app>

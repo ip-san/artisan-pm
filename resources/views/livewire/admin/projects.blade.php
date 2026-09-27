@@ -451,7 +451,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 {{ $savedQuery->name }}
             </button>
         @empty
-            <span class="text-neutral-400">{{ __('なし') }}</span>
+            <span class="text-neutral-500">{{ __('なし') }}</span>
         @endforelse
     </div>
 

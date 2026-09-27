@@ -110,8 +110,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="startImport" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('CSVファイル') }}</label>
-            <input type="file" wire:model="csvFile" accept=".csv,text/csv" class="mt-1 block w-full text-sm text-neutral-700">
+            <label for="field-csvFile" class="block text-sm font-medium text-neutral-700">{{ __('CSVファイル') }}</label>
+            <input id="field-csvFile" type="file" wire:model="csvFile" accept=".csv,text/csv" class="mt-1 block w-full text-sm text-neutral-700">
             @error('csvFile') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             <p class="mt-1 text-xs text-neutral-500">{{ __('1行目はヘッダー行として扱われます。') }}</p>
         </div>
@@ -122,8 +122,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div class="space-y-3">
                     @foreach ($this->importableFieldLabels() as $field => $label)
                         <div class="grid grid-cols-2 items-center gap-3">
-                            <label class="text-sm text-neutral-700">{{ $label }}</label>
-                            <select wire:model="mapping.{{ $field }}" class="block w-full rounded-md border-neutral-300 text-sm">
+                            <label for="field-mapping-{{ $field }}" class="text-sm text-neutral-700">{{ $label }}</label>
+                            <select id="field-mapping-{{ $field }}" wire:model="mapping.{{ $field }}" class="block w-full rounded-md border-neutral-300 text-sm">
                                 <option value="">{{ __('(マッピングしない)') }}</option>
                                 @foreach ($headers as $header)
                                     <option value="{{ $header }}">{{ $header }}</option>

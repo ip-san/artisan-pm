@@ -322,7 +322,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </p>
                     </div>
                 @else
-                    <p class="mt-3 text-xs text-neutral-400">{{ __('このバージョンに割り当てられた課題はありません。') }}</p>
+                    <p class="mt-3 text-xs text-neutral-500">{{ __('このバージョンに割り当てられた課題はありません。') }}</p>
                 @endif
 
                 @php($versionIssues = $this->issuesByVersion->get($version->id, collect()))

@@ -12,7 +12,7 @@
             @foreach (\App\Enums\DashboardArea::cases() as $targetArea)
                 @if ($targetArea !== $block->area)
                     <button wire:click="moveToArea({{ $block->id }}, '{{ $targetArea->value }}')"
-                        class="text-xs text-neutral-400 hover:text-neutral-700" title="{{ __('この列へ移動:') }} {{ $this->areaLabel($targetArea) }}">
+                        class="text-xs text-neutral-500 hover:text-neutral-700" title="{{ __('この列へ移動:') }} {{ $this->areaLabel($targetArea) }}">
                         {{ $this->areaShortLabel($targetArea) }}
                     </button>
                 @endif

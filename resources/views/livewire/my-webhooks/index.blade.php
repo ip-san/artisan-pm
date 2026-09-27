@@ -158,21 +158,21 @@ new #[Layout('components.layouts.app')] class extends Component
     @if ($editing)
         <form wire:submit="save" class="space-y-4 rounded-md border border-neutral-200 bg-surface p-4" data-my-webhook-form>
             <div>
-                <label class="block text-sm font-medium text-neutral-700">URL</label>
-                <input type="text" wire:model="url" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-url" class="block text-sm font-medium text-neutral-700">URL</label>
+                <input id="field-url" type="text" wire:model="url" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('url') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">
+                <label for="field-secret" class="block text-sm font-medium text-neutral-700">
                     {{ $editingId ? __('シークレット(変更する場合のみ入力)') : __('シークレット(任意)') }}
                 </label>
-                <input type="password" wire:model="secret" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <input id="field-secret" type="password" wire:model="secret" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('対象プロジェクト') }}</label>
-                <select wire:model="project_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-project_id" class="block text-sm font-medium text-neutral-700">{{ __('対象プロジェクト') }}</label>
+                <select id="field-project_id" wire:model="project_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('Webhookを利用できるすべてのプロジェクト') }}</option>
                     @foreach ($this->projects as $project)
                         <option value="{{ $project->id }}">{{ $project->name }}</option>

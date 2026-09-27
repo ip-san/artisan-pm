@@ -297,7 +297,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <span class="mr-1 text-warning" title="{{ __('固定表示') }}">📌</span>
             @endif
             @if ($topic->is_locked)
-                <span class="mr-1 text-neutral-400" title="{{ __('ロック済み') }}">🔒</span>
+                <span class="mr-1 text-neutral-500" title="{{ __('ロック済み') }}">🔒</span>
             @endif
             {{ $topic->subject }}
         </h1>
@@ -329,7 +329,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <li class="flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700">
                     {{ $watcher->user->displayName() }}
                     @can('deleteWatchers', $topic)
-                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
+                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-500 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
                     @endcan
                 </li>
             @endforeach
@@ -344,7 +344,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @foreach ($this->watcherCandidates as $candidate)
                             <li wire:key="watcher-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">
-                                    {{ $candidate->displayName() }} <span class="text-xs text-neutral-400">{{ $candidate->email }}</span>
+                                    {{ $candidate->displayName() }} <span class="text-xs text-neutral-500">{{ $candidate->email }}</span>
                                 </button>
                             </li>
                         @endforeach
@@ -359,8 +359,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->otherBoards->isNotEmpty())
             <form wire:submit="moveTopic" class="mb-6 flex items-end gap-2">
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('別のフォーラムへ移動') }}</label>
-                    <select wire:model="moveToBoardId" class="mt-1 block rounded-md border-neutral-300 text-sm">
+                    <label for="field-moveToBoardId" class="block text-xs font-medium text-neutral-700">{{ __('別のフォーラムへ移動') }}</label>
+                    <select id="field-moveToBoardId" wire:model="moveToBoardId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('選択してください') }}</option>
                         @foreach ($this->otherBoards as $otherBoard)
                             <option value="{{ $otherBoard->id }}">{{ $otherBoard->name }}</option>

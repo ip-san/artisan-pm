@@ -2186,7 +2186,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ] as $menuField => [$menuLabel, $menuOptions, $menuNone])
                 @if ($menuOptions->isNotEmpty())
                     <div class="group relative" wire:key="context-menu-{{ $menuField }}">
-                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuLabel }} <span class="text-neutral-400">›</span></span>
+                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuLabel }} <span class="text-neutral-500">›</span></span>
                         <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                             @foreach ($menuOptions as $menuOption)
                                 <button type="button" wire:click="contextUpdate('{{ $menuField }}', '{{ $menuOption->id }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $menuOption->name }}</button>
@@ -2203,7 +2203,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ] as $menuField => [$menuLabel, $menuOptions, $menuNone])
                 @if ($menuOptions->isNotEmpty() || $menuField === 'assigned_to_id')
                     <div class="group relative" wire:key="context-menu-{{ $menuField }}">
-                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuLabel }} <span class="text-neutral-400">›</span></span>
+                        <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuLabel }} <span class="text-neutral-500">›</span></span>
                         <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                             @if ($menuField === 'assigned_to_id' && $this->projectMembers->contains('id', auth()->id()))
                                 <button type="button" wire:click="contextUpdate('assigned_to_id', 'me')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">&lt;&lt; {{ __('自分') }} &gt;&gt;</button>
@@ -2223,7 +2223,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @endforeach
 
             <div class="group relative" wire:key="context-menu-done_ratio">
-                <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('進捗率') }} <span class="text-neutral-400">›</span></span>
+                <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ __('進捗率') }} <span class="text-neutral-500">›</span></span>
                 <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                     @foreach (\App\Support\Issues\DoneRatioSteps::options() as $ratio)
                         <button type="button" wire:click="contextUpdate('done_ratio', '{{ $ratio }}')" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $ratio }}%</button>
@@ -2233,7 +2233,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             @foreach ($this->contextMenuCustomFields as $menuEntry)
                 <div class="group relative" wire:key="context-menu-cf-{{ $menuEntry['field']->id }}" data-context-menu-custom-field="{{ $menuEntry['field']->id }}">
-                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuEntry['field']->name }} <span class="text-neutral-400">›</span></span>
+                    <span class="flex cursor-default items-center justify-between px-3 py-1.5 text-neutral-700 group-hover:bg-neutral-100">{{ $menuEntry['field']->name }} <span class="text-neutral-500">›</span></span>
                     <div class="absolute left-full top-0 hidden max-h-72 w-44 overflow-y-auto rounded-md border border-neutral-200 bg-surface py-1 shadow-lg group-hover:block">
                         @foreach ($menuEntry['options'] as $menuValue => $menuText)
                             <button type="button" wire:click="contextUpdateCustomField({{ $menuEntry['field']->id }}, @js((string) $menuValue))" x-on:click="menu.open = false" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">{{ $menuText }}</button>
@@ -2356,12 +2356,12 @@ new #[Layout('components.layouts.app')] class extends Component
             <span wire:key="saved-query-{{ $savedQuery->id }}" class="inline-flex items-center gap-1 rounded-full border border-neutral-300 py-1 pl-3 pr-1 text-neutral-700">
                 <button wire:click="loadQuery({{ $savedQuery->id }})" class="hover:underline">{{ $savedQuery->name }}</button>
                 @if ($savedQuery->editableBy(auth()->user()))
-                    <button type="button" wire:click="editQuery({{ $savedQuery->id }})" class="rounded px-1 text-xs text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700" title="{{ __('編集') }}">{{ __('編集') }}</button>
-                    <button type="button" wire:click="deleteQuery({{ $savedQuery->id }})" wire:confirm="{{ __('このクエリを削除しますか?') }}" class="rounded px-1 text-xs text-neutral-400 hover:bg-danger-subtlest hover:text-danger-bolder" title="{{ __('削除') }}">{{ __('削除') }}</button>
+                    <button type="button" wire:click="editQuery({{ $savedQuery->id }})" class="rounded px-1 text-xs text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700" title="{{ __('編集') }}">{{ __('編集') }}</button>
+                    <button type="button" wire:click="deleteQuery({{ $savedQuery->id }})" wire:confirm="{{ __('このクエリを削除しますか?') }}" class="rounded px-1 text-xs text-neutral-500 hover:bg-danger-subtlest hover:text-danger-bolder" title="{{ __('削除') }}">{{ __('削除') }}</button>
                 @endif
             </span>
         @empty
-            <span class="text-neutral-400">{{ __('なし') }}</span>
+            <span class="text-neutral-500">{{ __('なし') }}</span>
         @endforelse
     </div>
 
@@ -2468,8 +2468,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('ステータス') }}</label>
-                    <select wire:model="bulkStatusId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm"
+                    <label for="field-bulkStatusId" class="block text-xs font-medium text-neutral-700">{{ __('ステータス') }}</label>
+                    <select id="field-bulkStatusId" wire:model="bulkStatusId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm"
                         @if ($this->bulkStatusOptions->isEmpty()) disabled @endif>
                         <option value="">{{ __('変更なし') }}</option>
                         @foreach ($this->bulkStatusOptions as $status)
@@ -2478,8 +2478,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('優先度') }}</label>
-                    <select wire:model="bulkPriorityId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkPriorityId" class="block text-xs font-medium text-neutral-700">{{ __('優先度') }}</label>
+                    <select id="field-bulkPriorityId" wire:model="bulkPriorityId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
                         @foreach ($this->priorities as $priority)
                             <option value="{{ $priority->id }}">{{ $priority->name }}</option>
@@ -2487,15 +2487,15 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('担当者') }}</label>
-                    <select wire:model="bulkAssigneeChoice" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkAssigneeChoice" class="block text-xs font-medium text-neutral-700">{{ __('担当者') }}</label>
+                    <select id="field-bulkAssigneeChoice" wire:model="bulkAssigneeChoice" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
                         <x-assignee-options :users="$this->projectMembers" :groups="$this->assignableGroups" />
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('対象バージョン') }}</label>
-                    <select wire:model="bulkFixedVersionId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkFixedVersionId" class="block text-xs font-medium text-neutral-700">{{ __('対象バージョン') }}</label>
+                    <select id="field-bulkFixedVersionId" wire:model="bulkFixedVersionId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
                         @foreach ($this->projectVersions as $version)
                             <option value="{{ $version->id }}">{{ $version->name }}</option>
@@ -2503,8 +2503,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('トラッカー') }}</label>
-                    <select wire:model="bulkTrackerId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkTrackerId" class="block text-xs font-medium text-neutral-700">{{ __('トラッカー') }}</label>
+                    <select id="field-bulkTrackerId" wire:model="bulkTrackerId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
                         @foreach ($this->bulkTrackers as $tracker)
                             <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
@@ -2513,8 +2513,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('bulkTrackerId') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('カテゴリ') }}</label>
-                    <select wire:model="bulkCategoryId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkCategoryId" class="block text-xs font-medium text-neutral-700">{{ __('カテゴリ') }}</label>
+                    <select id="field-bulkCategoryId" wire:model="bulkCategoryId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
                         @foreach ($this->bulkCategories as $category)
                             <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -2523,18 +2523,18 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('bulkCategoryId') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('開始日') }}</label>
-                    <input type="date" wire:model="bulkStartDate" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkStartDate" class="block text-xs font-medium text-neutral-700">{{ __('開始日') }}</label>
+                    <input id="field-bulkStartDate" type="date" wire:model="bulkStartDate" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                     @error('bulkStartDate') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('期日') }}</label>
-                    <input type="date" wire:model="bulkDueDate" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkDueDate" class="block text-xs font-medium text-neutral-700">{{ __('期日') }}</label>
+                    <input id="field-bulkDueDate" type="date" wire:model="bulkDueDate" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                     @error('bulkDueDate') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('非公開') }}</label>
-                    <select wire:model="bulkIsPrivate" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkIsPrivate" class="block text-xs font-medium text-neutral-700">{{ __('非公開') }}</label>
+                    <select id="field-bulkIsPrivate" wire:model="bulkIsPrivate" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
                         <option value="yes">{{ __('非公開にする') }}</option>
                         <option value="no">{{ __('公開にする') }}</option>
@@ -2542,14 +2542,14 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
                 @if ($this->bulkParentProject !== null && auth()->user()?->can('manageSubtasks', [\App\Models\Issue::class, $this->bulkParentProject]))
                     <div>
-                        <label class="block text-xs font-medium text-neutral-700">{{ __('親課題(番号)') }}</label>
-                        <input type="number" wire:model="bulkParentId" placeholder="{{ __('変更なし') }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                        <label for="field-bulkParentId" class="block text-xs font-medium text-neutral-700">{{ __('親課題(番号)') }}</label>
+                        <input id="field-bulkParentId" type="number" wire:model="bulkParentId" placeholder="{{ __('変更なし') }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         @error('bulkParentId') <p class="mt-1 text-xs text-danger-bolder">{{ $message }}</p> @enderror
                     </div>
                 @endif
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('進捗率') }}</label>
-                    <select wire:model="bulkDoneRatio" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkDoneRatio" class="block text-xs font-medium text-neutral-700">{{ __('進捗率') }}</label>
+                    <select id="field-bulkDoneRatio" wire:model="bulkDoneRatio" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('変更なし') }}</option>
                         @foreach (\App\Support\Issues\DoneRatioSteps::options() as $ratio)
                             <option value="{{ $ratio }}">{{ $ratio }}%</option>
@@ -2592,8 +2592,8 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
 
             <div>
-                <label class="block text-xs font-medium text-neutral-700">{{ __('コメント(任意)') }}</label>
-                <textarea wire:model="bulkComment" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 text-sm"></textarea>
+                <label for="field-bulkComment" class="block text-xs font-medium text-neutral-700">{{ __('コメント(任意)') }}</label>
+                <textarea id="field-bulkComment" wire:model="bulkComment" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 text-sm"></textarea>
             </div>
 
             <div class="flex gap-2">
@@ -2610,8 +2610,8 @@ new #[Layout('components.layouts.app')] class extends Component
     @if (count($selected) > 0 && $this->selectedIssues->isNotEmpty() && auth()->user()?->can('move', $this->selectedIssues->first()) && $this->bulkMoveTargetProjects->isNotEmpty())
         <form wire:submit="applyBulkMove" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4">
             <div>
-                <label class="block text-xs font-medium text-neutral-700">{{ __(':count件を別のプロジェクトへ移動', ['count' => count($selected)]) }}</label>
-                <select wire:model.live="bulkMoveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
+                <label for="field-bulkMoveToProjectId" class="block text-xs font-medium text-neutral-700">{{ __(':count件を別のプロジェクトへ移動', ['count' => count($selected)]) }}</label>
+                <select id="field-bulkMoveToProjectId" wire:model.live="bulkMoveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                     <option value="">{{ __('選択してください') }}</option>
                     @foreach ($this->bulkMoveTargetProjects as $candidate)
                         <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
@@ -2621,8 +2621,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
             @if ($bulkMoveToProjectId)
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('移動後のトラッカー') }}</label>
-                    <select wire:model="bulkMoveToTrackerId" class="mt-1 block rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkMoveToTrackerId" class="block text-xs font-medium text-neutral-700">{{ __('移動後のトラッカー') }}</label>
+                    <select id="field-bulkMoveToTrackerId" wire:model="bulkMoveToTrackerId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('選択してください') }}</option>
                         @foreach ($this->bulkMoveTargetTrackers as $candidateTracker)
                             <option value="{{ $candidateTracker->id }}">{{ $candidateTracker->name }}</option>
@@ -2641,8 +2641,8 @@ new #[Layout('components.layouts.app')] class extends Component
     @if (count($selected) > 0 && $this->canBulkCopy && $this->bulkCopyTargetProjects->isNotEmpty())
         <form id="bulk-copy-form" wire:submit="applyBulkCopy" class="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4">
             <div>
-                <label class="block text-xs font-medium text-neutral-700">{{ __(':count件をコピーして複製', ['count' => count($selected)]) }}</label>
-                <select wire:model.live="bulkCopyToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
+                <label for="field-bulkCopyToProjectId" class="block text-xs font-medium text-neutral-700">{{ __(':count件をコピーして複製', ['count' => count($selected)]) }}</label>
+                <select id="field-bulkCopyToProjectId" wire:model.live="bulkCopyToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                     <option value="">{{ __('選択してください') }}</option>
                     @foreach ($this->bulkCopyTargetProjects as $candidate)
                         <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
@@ -2652,8 +2652,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
             @if ($bulkCopyToProjectId)
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('複製先のトラッカー') }}</label>
-                    <select wire:model="bulkCopyToTrackerId" class="mt-1 block rounded-md border-neutral-300 text-sm">
+                    <label for="field-bulkCopyToTrackerId" class="block text-xs font-medium text-neutral-700">{{ __('複製先のトラッカー') }}</label>
+                    <select id="field-bulkCopyToTrackerId" wire:model="bulkCopyToTrackerId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('選択してください') }}</option>
                         @foreach ($this->bulkCopyTargetTrackers as $candidateTracker)
                             <option value="{{ $candidateTracker->id }}">{{ $candidateTracker->name }}</option>
@@ -2823,7 +2823,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         <tr wire:key="issue-row-{{ $issue->id }}" @if ($this->canBulkEdit) x-on:contextmenu.prevent="showMenu($event, {{ $issue->id }})" @endif class="{{ in_array((string) $issue->id, array_map('strval', $selected), true) ? 'bg-brand-subtlest' : '' }}">
                             @if ($this->canBulkEdit)
                                 <td class="px-4 py-2">
-                                    <input type="checkbox" wire:model="selected" value="{{ $issue->id }}" class="rounded border-neutral-300">
+                                    <input type="checkbox" wire:model="selected" value="{{ $issue->id }}" aria-label="#{{ $issue->id }} {{ $issue->subject }}" class="rounded border-neutral-300">
                                 </td>
                             @endif
                             <td class="px-4 py-2 text-neutral-500">{{ $issue->id }}</td>

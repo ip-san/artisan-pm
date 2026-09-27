@@ -307,7 +307,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <h1 class="text-xl font-semibold text-neutral-900">
             {{ $wikiPage->title }}
             @if ($wikiPage->is_protected)
-                <span class="ml-1 text-xs text-neutral-400">{{ __('(保護)') }}</span>
+                <span class="ml-1 text-xs text-neutral-500">{{ __('(保護)') }}</span>
             @endif
         </h1>
         <div class="flex gap-2">
@@ -357,8 +357,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->moveTargetProjects->isNotEmpty())
             <form wire:submit="moveToProject" class="mb-6 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4">
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('別のプロジェクトへ移動') }}</label>
-                    <select wire:model="moveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
+                    <label for="field-moveToProjectId" class="block text-xs font-medium text-neutral-700">{{ __('別のプロジェクトへ移動') }}</label>
+                    <select id="field-moveToProjectId" wire:model="moveToProjectId" class="mt-1 block rounded-md border-neutral-300 text-sm">
                         <option value="">{{ __('選択してください') }}</option>
                         @foreach ($this->moveTargetProjects as $candidate)
                             <option value="{{ $candidate->id }}">{{ $candidate->name }}</option>
@@ -385,7 +385,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <li class="flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700">
                     {{ $watcher->user->displayName() }}
                     @can('deleteWatchers', $wikiPage)
-                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
+                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-500 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
                     @endcan
                 </li>
             @endforeach
@@ -400,7 +400,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @foreach ($this->watcherCandidates as $candidate)
                             <li wire:key="watcher-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">
-                                    {{ $candidate->displayName() }} <span class="text-xs text-neutral-400">{{ $candidate->email }}</span>
+                                    {{ $candidate->displayName() }} <span class="text-xs text-neutral-500">{{ $candidate->email }}</span>
                                 </button>
                             </li>
                         @endforeach

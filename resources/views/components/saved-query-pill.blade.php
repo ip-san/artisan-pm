@@ -13,7 +13,7 @@
 <span wire:key="saved-query-{{ $query->id }}" class="inline-flex items-center gap-1 rounded-full border border-neutral-300 py-1 pl-3 pr-1 text-neutral-700">
     <button type="button" wire:click="loadQuery({{ $query->id }})" class="hover:underline">{{ $query->name }}</button>
     @if ($query->editableBy(auth()->user()))
-        <button type="button" wire:click="editQuery({{ $query->id }})" class="rounded px-1 text-xs text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700" title="{{ __('編集') }}">{{ __('編集') }}</button>
-        <button type="button" wire:click="deleteQuery({{ $query->id }})" wire:confirm="{{ __('このクエリを削除しますか?') }}" class="rounded px-1 text-xs text-neutral-400 hover:bg-danger-subtlest hover:text-danger-bolder" title="{{ __('削除') }}">{{ __('削除') }}</button>
+        <button type="button" wire:click="editQuery({{ $query->id }})" class="rounded px-1 text-xs text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700" title="{{ __('編集') }}">{{ __('編集') }}</button>
+        <button type="button" wire:click="deleteQuery({{ $query->id }})" wire:confirm="{{ __('このクエリを削除しますか?') }}" class="rounded px-1 text-xs text-neutral-500 hover:bg-danger-subtlest hover:text-danger-bolder" title="{{ __('削除') }}">{{ __('削除') }}</button>
     @endif
 </span>

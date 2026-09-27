@@ -513,7 +513,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @forelse ($this->savedQueries as $savedQuery)
             <x-saved-query-pill :query="$savedQuery" />
         @empty
-            <span class="text-neutral-400">{{ __('なし') }}</span>
+            <span class="text-neutral-500">{{ __('なし') }}</span>
         @endforelse
     </div>
 
@@ -554,18 +554,18 @@ new #[Layout('components.layouts.app')] class extends Component
                 <button wire:click="$toggle('showSaveForm')" class="text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
             @endif
 
-            <select wire:model="csvEncoding" title="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
+            <select wire:model="csvEncoding" title="{{ __('文字コード') }}" aria-label="{{ __('文字コード') }}" class="rounded-md border-neutral-300 text-xs">
                 <option value="UTF-8">UTF-8</option>
                 <option value="SJIS-win">Shift_JIS</option>
             </select>
-            <select wire:model="csvSeparator" title="{{ __('区切り文字') }}" class="rounded-md border-neutral-300 text-xs">
+            <select wire:model="csvSeparator" title="{{ __('区切り文字') }}" aria-label="{{ __('区切り文字') }}" class="rounded-md border-neutral-300 text-xs">
                 <option value=",">{{ __('カンマ') }}</option>
                 <option value=";">{{ __('セミコロン') }}</option>
                 <option value="{{ "\t" }}">{{ __('タブ') }}</option>
             </select>
             <button wire:click="exportCsv" class="btn btn-secondary">{{ __('CSVエクスポート') }}</button>
             <a href="{{ route('time-entries.global-report') }}" class="text-sm text-brand-bold hover:underline">{{ __('レポート') }}</a>
-            <a href="{{ $this->atomUrl }}" class="text-xs text-warning hover:underline">Atom</a>
+            <a href="{{ $this->atomUrl }}" class="text-xs text-warning-bolder hover:underline">Atom</a>
         </div>
 
         @if ($showSaveForm)

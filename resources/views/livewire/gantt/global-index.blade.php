@@ -496,7 +496,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @forelse ($this->savedQueries as $savedQuery)
             <x-saved-query-pill :query="$savedQuery" />
         @empty
-            <span class="text-neutral-400">{{ __('なし') }}</span>
+            <span class="text-neutral-500">{{ __('なし') }}</span>
         @endforelse
         @if ($this->canSaveQueries)
             <button wire:click="$toggle('showSaveForm')" class="ml-2 text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>

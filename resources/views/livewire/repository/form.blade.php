@@ -301,8 +301,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('種別') }}</label>
-            <select wire:model="type" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-type" class="block text-sm font-medium text-neutral-700">{{ __('種別') }}</label>
+            <select id="field-type" wire:model="type" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @foreach ($this->enabledTypes as $case)
                     <option value="{{ $case->value }}">{{ $case->value }}</option>
                 @endforeach
@@ -311,8 +311,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('パス') }}</label>
-            <input type="text" wire:model="path" placeholder="/path/to/repo.git"
+            <label for="field-path" class="block text-sm font-medium text-neutral-700">{{ __('パス') }}</label>
+            <input id="field-path" type="text" wire:model="path" placeholder="/path/to/repo.git"
                 class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('path') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
@@ -349,14 +349,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('コミットログのエンコーディング') }}</label>
-                <input type="text" wire:model="log_encoding" placeholder="{{ __('空欄で全体設定を使用(例: SJIS-win)') }}"
+                <label for="field-log_encoding" class="block text-sm font-medium text-neutral-700">{{ __('コミットログのエンコーディング') }}</label>
+                <input id="field-log_encoding" type="text" wire:model="log_encoding" placeholder="{{ __('空欄で全体設定を使用(例: SJIS-win)') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('log_encoding') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('パス名のエンコーディング') }}</label>
-                <input type="text" wire:model="path_encoding" placeholder="{{ __('空欄でUTF-8/全体設定') }}"
+                <label for="field-path_encoding" class="block text-sm font-medium text-neutral-700">{{ __('パス名のエンコーディング') }}</label>
+                <input id="field-path_encoding" type="text" wire:model="path_encoding" placeholder="{{ __('空欄でUTF-8/全体設定') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('path_encoding') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>

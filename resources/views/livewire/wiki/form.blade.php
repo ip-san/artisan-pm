@@ -273,8 +273,8 @@ new #[Layout('components.layouts.app')] class extends Component
     <form wire:submit="save" class="space-y-4" {!! \App\Support\Preferences\UserPreferences::unsavedWarningAttributes(auth()->user()) !!}>
         @if ($this->canRename)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('タイトル') }}</label>
-                <input type="text" wire:model="title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-title" class="block text-sm font-medium text-neutral-700">{{ __('タイトル') }}</label>
+                <input id="field-title" type="text" wire:model="title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('title') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
@@ -286,8 +286,8 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('親ページ') }}</label>
-                <select wire:model="parent_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-parent_id" class="block text-sm font-medium text-neutral-700">{{ __('親ページ') }}</label>
+                <select id="field-parent_id" wire:model="parent_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('なし') }}</option>
                     @foreach ($this->availableParents as $candidate)
                         <option value="{{ $candidate->id }}">{{ $candidate->title }}</option>
@@ -310,8 +310,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('本文(Markdown)') }}</label>
-            <textarea wire:model="text" rows="16" class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user(), 'font-mono') }} mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm"></textarea>
+            <label for="field-text" class="block text-sm font-medium text-neutral-700">{{ __('本文(Markdown)') }}</label>
+            <textarea id="field-text" wire:model="text" rows="16" class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user(), 'font-mono') }} mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm"></textarea>
             @error('text') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             <p class="mt-1 text-xs text-neutral-500">
                 {{ __('「#123」で課題にリンク、「[[ページ名]]」または「[[ページ名|表示名]]」で他のWikiページにリンクできます。') }}
@@ -324,7 +324,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($showPreview)
                 <div class="prose prose-sm mt-2 max-w-none rounded-md border border-neutral-200 bg-neutral-50 p-4">
                     @if (trim($text) === '')
-                        <p class="text-sm text-neutral-400">{{ __('(本文が空です)') }}</p>
+                        <p class="text-sm text-neutral-500">{{ __('(本文が空です)') }}</p>
                     @else
                         {!! $this->previewHtml !!}
                     @endif
@@ -334,8 +334,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($wikiPage)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('コメント(任意)') }}</label>
-                <input type="text" wire:model="comments" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-comments" class="block text-sm font-medium text-neutral-700">{{ __('コメント(任意)') }}</label>
+                <input id="field-comments" type="text" wire:model="comments" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             </div>
         @endif
 
@@ -347,8 +347,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
-            <input type="file" wire:model="newAttachments" multiple
+            <label for="field-newAttachments" class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
+            <input id="field-newAttachments" type="file" wire:model="newAttachments" multiple
                 class="mt-1 block w-full text-sm text-neutral-700">
             @error('newAttachments.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
 

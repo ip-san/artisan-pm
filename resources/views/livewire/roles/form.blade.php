@@ -253,16 +253,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-name" class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
+            <input id="field-name" type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         {{-- A visitor who isn't logged in only ever sees public issues (Redmine hides this for the Anonymous role). --}}
         @if ($role?->builtin !== \App\Enums\RoleBuiltin::Anonymous)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('課題の閲覧範囲') }}</label>
-                <select wire:model="issuesVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-issuesVisibility" class="block text-sm font-medium text-neutral-700">{{ __('課題の閲覧範囲') }}</label>
+                <select id="field-issuesVisibility" wire:model="issuesVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="all">{{ __('すべての課題') }}</option>
                     <option value="default">{{ __('デフォルト') }}</option>
                     <option value="own">{{ __('自分が作成または担当する課題のみ') }}</option>
@@ -272,8 +272,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('工数の閲覧範囲') }}</label>
-            <select wire:model="timeEntriesVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-timeEntriesVisibility" class="block text-sm font-medium text-neutral-700">{{ __('工数の閲覧範囲') }}</label>
+            <select id="field-timeEntriesVisibility" wire:model="timeEntriesVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="all">{{ __('すべての工数') }}</option>
                 <option value="default">{{ __('デフォルト') }}</option>
                 <option value="own">{{ __('自分の工数のみ') }}</option>
@@ -282,8 +282,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('ユーザーの閲覧範囲') }}</label>
-            <select wire:model="usersVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-usersVisibility" class="block text-sm font-medium text-neutral-700">{{ __('ユーザーの閲覧範囲') }}</label>
+            <select id="field-usersVisibility" wire:model="usersVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="all">{{ __('すべてのアクティブなユーザー') }}</option>
                 <option value="members_of_visible_projects">{{ __('閲覧可能なプロジェクトのメンバーのみ') }}</option>
             </select>
@@ -295,8 +295,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($role?->builtin !== \App\Enums\RoleBuiltin::Anonymous)
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('既定の作業分類') }}</label>
-                <select wire:model="defaultTimeEntryActivityId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-defaultTimeEntryActivityId" class="block text-sm font-medium text-neutral-700">{{ __('既定の作業分類') }}</label>
+                <select id="field-defaultTimeEntryActivityId" wire:model="defaultTimeEntryActivityId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('なし') }}</option>
                     @foreach ($this->sharedActivities as $activity)
                         <option value="{{ $activity->id }}">{{ $activity->name }}</option>

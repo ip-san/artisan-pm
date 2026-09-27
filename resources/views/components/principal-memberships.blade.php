@@ -34,8 +34,8 @@
         <div class="space-y-3 border-t border-neutral-100 pt-3">
             @if ($editing === null)
                 <div>
-                    <label class="block text-xs font-medium text-neutral-700">{{ __('プロジェクトを追加') }}</label>
-                    <select wire:model="membershipProjectId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
+                    <label for="field-membershipProjectId" class="block text-xs font-medium text-neutral-700">{{ __('プロジェクトを追加') }}</label>
+                    <select id="field-membershipProjectId" wire:model="membershipProjectId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
                         <option value="">{{ __('選択してください') }}</option>
                         @foreach ($projects as $project)
                             <option value="{{ $project->id }}">{{ $project->name }}</option>

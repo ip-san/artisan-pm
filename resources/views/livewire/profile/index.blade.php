@@ -460,8 +460,8 @@ new #[Layout('components.layouts.app')] class extends Component
             <x-user-name-fields />
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('メールアドレス') }}</label>
-                <input type="email" wire:model="email" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-email" class="block text-sm font-medium text-neutral-700">{{ __('メールアドレス') }}</label>
+                <input id="field-email" type="email" wire:model="email" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('email') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
@@ -484,8 +484,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('言語') }}</label>
-                <select wire:model="language" data-user-language class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-language" class="block text-sm font-medium text-neutral-700">{{ __('言語') }}</label>
+                <select id="field-language" wire:model="language" data-user-language class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('未設定(既定の言語)') }}</option>
                     @foreach (\App\Support\Locale\SupportedLocales::all() as $code => $languageName)
                         <option value="{{ $code }}">{{ $languageName }}</option>
@@ -495,8 +495,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('メール通知') }}</label>
-                <select wire:model="mail_notification" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-mail_notification" class="block text-sm font-medium text-neutral-700">{{ __('メール通知') }}</label>
+                <select id="field-mail_notification" wire:model="mail_notification" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach ($this->notificationOptions as $option)
                         <option value="{{ $option->value }}">{{ $option->label() }}</option>
                     @endforeach
@@ -536,20 +536,20 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <form wire:submit="updatePassword" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('現在のパスワード') }}</label>
-                    <input type="password" wire:model="current_password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-current_password" class="block text-sm font-medium text-neutral-700">{{ __('現在のパスワード') }}</label>
+                    <input id="field-current_password" type="password" wire:model="current_password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('current_password') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('新しいパスワード') }}</label>
-                    <input type="password" wire:model="password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-password" class="block text-sm font-medium text-neutral-700">{{ __('新しいパスワード') }}</label>
+                    <input id="field-password" type="password" wire:model="password" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('password') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('新しいパスワード(確認)') }}</label>
-                    <input type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-password_confirmation" class="block text-sm font-medium text-neutral-700">{{ __('新しいパスワード(確認)') }}</label>
+                    <input id="field-password_confirmation" type="password" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 </div>
 
                 <button type="submit" class="btn btn-primary">
@@ -595,8 +595,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <form wire:submit="confirmTwoFactor" class="flex items-end gap-3">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('認証コード') }}</label>
-                    <input type="text" wire:model="code" inputmode="numeric" class="mt-1 block w-40 rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-code" class="block text-sm font-medium text-neutral-700">{{ __('認証コード') }}</label>
+                    <input id="field-code" type="text" wire:model="code" inputmode="numeric" class="mt-1 block w-40 rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('code') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <button type="submit" class="btn btn-primary">
@@ -616,8 +616,8 @@ new #[Layout('components.layouts.app')] class extends Component
         <h2 class="mb-4 text-sm font-semibold text-neutral-900">{{ __('個人設定') }}</h2>
         <form wire:submit="savePreferences" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('タイムゾーン') }}</label>
-                <select wire:model="time_zone" data-user-time-zone class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-time_zone" class="block text-sm font-medium text-neutral-700">{{ __('タイムゾーン') }}</label>
+                <select id="field-time_zone" wire:model="time_zone" data-user-time-zone class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('未設定(既定: :zone)', ['zone' => \App\Support\Locale\TimeZones::default()]) }}</option>
                     @foreach (\App\Support\Locale\TimeZones::options() as $identifier => $label)
                         <option value="{{ $identifier }}">{{ $label }}</option>
@@ -627,8 +627,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('課題のコメントの並び順') }}</label>
-                <select wire:model="comments_sorting" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-comments_sorting" class="block text-sm font-medium text-neutral-700">{{ __('課題のコメントの並び順') }}</label>
+                <select id="field-comments_sorting" wire:model="comments_sorting" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Preferences\UserPreferences::commentsSortingLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
@@ -637,8 +637,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('課題の履歴の初期タブ') }}</label>
-                <select wire:model="history_default_tab" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-history_default_tab" class="block text-sm font-medium text-neutral-700">{{ __('課題の履歴の初期タブ') }}</label>
+                <select id="field-history_default_tab" wire:model="history_default_tab" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Preferences\UserPreferences::historyTabLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
@@ -646,8 +646,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('テーマ') }}</label>
-                <select wire:model="ui_theme" data-ui-theme class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-ui_theme" class="block text-sm font-medium text-neutral-700">{{ __('テーマ') }}</label>
+                <select id="field-ui_theme" wire:model="ui_theme" data-ui-theme class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('サイトの既定') }}</option>
                     @foreach (\App\Support\Preferences\UserPreferences::themeLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
@@ -657,8 +657,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('テキストエリアのフォント') }}</label>
-                <select wire:model="textarea_font" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-textarea_font" class="block text-sm font-medium text-neutral-700">{{ __('テキストエリアのフォント') }}</label>
+                <select id="field-textarea_font" wire:model="textarea_font" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Preferences\UserPreferences::textareaFontLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
@@ -681,8 +681,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('プロジェクト移動に表示する最近使ったプロジェクトの数') }}</label>
-                <input type="number" min="0" max="10" wire:model="recently_used_projects" class="mt-1 block w-24 rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-recently_used_projects" class="block text-sm font-medium text-neutral-700">{{ __('プロジェクト移動に表示する最近使ったプロジェクトの数') }}</label>
+                <input id="field-recently_used_projects" type="number" min="0" max="10" wire:model="recently_used_projects" class="mt-1 block w-24 rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('recently_used_projects') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
@@ -699,8 +699,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('既定の課題クエリ') }}</label>
-                <select wire:model="default_issue_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-default_issue_query" class="block text-sm font-medium text-neutral-700">{{ __('既定の課題クエリ') }}</label>
+                <select id="field-default_issue_query" wire:model="default_issue_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('指定しない') }}</option>
                     @foreach ($this->issueQueries as $query)
                         <option value="{{ $query->id }}">{{ $query->name }}</option>
@@ -710,8 +710,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('既定のプロジェクトクエリ') }}</label>
-                <select wire:model="default_project_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-default_project_query" class="block text-sm font-medium text-neutral-700">{{ __('既定のプロジェクトクエリ') }}</label>
+                <select id="field-default_project_query" wire:model="default_project_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('指定しない') }}</option>
                     @foreach ($this->projectQueries as $query)
                         <option value="{{ $query->id }}">{{ $query->name }}</option>

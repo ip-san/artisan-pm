@@ -245,7 +245,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <li class="flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700">
                     {{ $watcher->user->displayName() }}
                     @can('manageWatchers', $news)
-                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-400 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
+                        <button wire:click="removeWatcher({{ $watcher->user_id }})" class="text-neutral-500 hover:text-danger-bolder" title="{{ __('ウォッチャーから削除') }}">×</button>
                     @endcan
                 </li>
             @endforeach
@@ -260,7 +260,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @foreach ($this->watcherCandidates as $candidate)
                             <li wire:key="watcher-candidate-{{ $candidate->id }}">
                                 <button type="button" wire:click="pickWatcher({{ $candidate->id }})" class="block w-full px-3 py-1.5 text-left text-neutral-700 hover:bg-neutral-100">
-                                    {{ $candidate->displayName() }} <span class="text-xs text-neutral-400">{{ $candidate->email }}</span>
+                                    {{ $candidate->displayName() }} <span class="text-xs text-neutral-500">{{ $candidate->email }}</span>
                                 </button>
                             </li>
                         @endforeach

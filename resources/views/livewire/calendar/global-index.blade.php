@@ -213,7 +213,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @forelse ($this->savedQueries as $savedQuery)
             <x-saved-query-pill :query="$savedQuery" />
         @empty
-            <span class="text-neutral-400">{{ __('なし') }}</span>
+            <span class="text-neutral-500">{{ __('なし') }}</span>
         @endforelse
         @if ($this->canSaveQueries)
             <button wire:click="$toggle('showSaveForm')" class="ml-2 text-sm text-brand-bold hover:underline">{{ __('クエリを保存') }}</button>
@@ -253,7 +253,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <tr wire:key="week-{{ $week[0]['date']->toDateString() }}" class="align-top">
                         @foreach ($week as $day)
                             <td wire:key="day-{{ $day['date']->toDateString() }}"
-                                class="h-28 px-2 py-1 {{ $day['isCurrentMonth'] ? 'bg-surface' : 'bg-neutral-50 text-neutral-400' }}">
+                                class="h-28 px-2 py-1 {{ $day['isCurrentMonth'] ? 'bg-surface' : 'bg-neutral-50 text-neutral-500' }}">
                                 <div class="text-xs {{ $day['date']->toDateString() === \App\Support\Format\DateTimes::today()->toDateString() ? 'font-bold text-brand-bold' : 'text-neutral-500' }}">
                                     {{ $day['date']->day }}
                                 </div>
@@ -261,7 +261,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                     @foreach ($day['entries'] as $entry)
                                         @if ($entry['marker'] === 'version')
                                             <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-version-{{ $entry['version']->id }}">
-                                                <span class="text-xs text-neutral-400" title="{{ __('バージョンの期日') }}">📦</span>
+                                                <span class="text-xs text-neutral-500" title="{{ __('バージョンの期日') }}">📦</span>
                                                 <a href="{{ route('versions.roadmap', $entry['version']->project) }}#roadmap-version-{{ $entry['version']->id }}"
                                                     class="text-xs text-brand-bold hover:underline"
                                                     title="{{ __(':project — バージョン: :name', ['project' => $entry['version']->project->name, 'name' => $entry['version']->name]) }}">
@@ -273,7 +273,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                         @php $issue = $entry['issue']; @endphp
                                         <li class="truncate" wire:key="cal-{{ $day['date']->toDateString() }}-{{ $issue->id }}-{{ $entry['marker'] }}">
                                             @php [$markerLabel, $markerSymbol] = match ($entry['marker']) { 'start' => [__('開始日'), '▶'], 'due' => [__('期日'), '◀'], default => [__('開始日=期日'), '◆'] }; @endphp
-                                            <span class="text-xs text-neutral-400" title="{{ $markerLabel }}">{{ $markerSymbol }}</span>
+                                            <span class="text-xs text-neutral-500" title="{{ $markerLabel }}">{{ $markerSymbol }}</span>
                                             <a href="{{ route('issues.show', [$issue->project, $issue]) }}"
                                                 class="text-xs text-brand-bold hover:underline"
                                                 title="{{ $issue->project->name }} — {{ $issue->tracker->name }} #{{ $issue->id }}: {{ $issue->subject }}">

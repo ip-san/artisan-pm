@@ -103,7 +103,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             @foreach ($this->roles as $role)
                                 <td class="px-3 py-2 text-center">
                                     @if (array_key_exists($permissionKey, $this->matrix[$role->id]))
-                                        <input type="checkbox" wire:model="matrix.{{ $role->id }}.{{ $permissionKey }}" class="rounded border-neutral-300">
+                                        <input type="checkbox" wire:model="matrix.{{ $role->id }}.{{ $permissionKey }}" aria-label="{{ $role->name }}: {{ $permissionKey }}" class="rounded border-neutral-300">
                                     @endif
                                 </td>
                             @endforeach

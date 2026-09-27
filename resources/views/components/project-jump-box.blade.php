@@ -24,7 +24,7 @@
             <div class="max-h-72 overflow-y-auto text-sm">
                 @foreach ($sections as $label => $projects)
                     @if ($projects->isNotEmpty())
-                        <p class="mt-1 px-2 text-xs font-semibold text-neutral-400">{{ $label }}</p>
+                        <p class="mt-1 px-2 text-xs font-semibold text-neutral-500">{{ $label }}</p>
                         <ul>
                             @foreach ($projects as $project)
                                 <li x-show="{{ \Illuminate\Support\Js::from(mb_strtolower($project->name)) }}.includes(q.toLowerCase())">

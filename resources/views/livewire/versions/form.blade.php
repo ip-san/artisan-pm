@@ -144,19 +144,19 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="save" class="space-y-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-name" class="block text-sm font-medium text-neutral-700">{{ __('名前') }}</label>
+            <input id="field-name" type="text" wire:model="name" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('説明') }}</label>
-            <textarea wire:model="description" rows="3" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
+            <label for="field-description" class="block text-sm font-medium text-neutral-700">{{ __('説明') }}</label>
+            <textarea id="field-description" wire:model="description" rows="3" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
-            <select wire:model="status" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-status" class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
+            <select id="field-status" wire:model="status" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="open">{{ __('オープン') }}</option>
                 <option value="locked">{{ __('ロック中') }}</option>
                 <option value="closed">{{ __('クローズ') }}</option>
@@ -165,8 +165,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('共有') }}</label>
-            <select wire:model="sharing" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-sharing" class="block text-sm font-medium text-neutral-700">{{ __('共有') }}</label>
+            <select id="field-sharing" wire:model="sharing" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @foreach ($this->allowedSharings as $option)
                     <option value="{{ $option->value }}">{{ $option->label() }}</option>
                 @endforeach
@@ -176,8 +176,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('期日') }}</label>
-            <input type="date" wire:model="due_date" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-due_date" class="block text-sm font-medium text-neutral-700">{{ __('期日') }}</label>
+            <input id="field-due_date" type="date" wire:model="due_date" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('due_date') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
@@ -187,8 +187,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </label>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('関連Wikiページ') }}</label>
-            <select wire:model="wiki_page_title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-wiki_page_title" class="block text-sm font-medium text-neutral-700">{{ __('関連Wikiページ') }}</label>
+            <select id="field-wiki_page_title" wire:model="wiki_page_title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">{{ __('なし') }}</option>
                 @foreach ($this->wikiPages as $page)
                     <option value="{{ $page->title }}">{{ $page->title }}</option>

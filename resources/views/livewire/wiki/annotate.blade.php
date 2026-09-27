@@ -61,7 +61,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @php $previous = null; @endphp
                 @foreach ($this->lines as $index => $line)
                     <tr wire:key="annotate-line-{{ $index }}" class="align-top">
-                        <td class="w-10 select-none px-2 py-0.5 text-right text-xs text-neutral-400">{{ $index + 1 }}</td>
+                        <td class="w-10 select-none px-2 py-0.5 text-right text-xs text-neutral-500">{{ $index + 1 }}</td>
                         <td class="w-14 px-2 py-0.5 text-xs text-neutral-500">
                             @if ($previous === null || $previous['version'] !== $line['version'])
                                 <a href="{{ route('wiki.version', [$project, $wikiPage, $line['version']]) }}" class="text-brand-bold hover:underline">

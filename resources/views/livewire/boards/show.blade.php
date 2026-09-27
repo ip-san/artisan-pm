@@ -47,7 +47,7 @@ new #[Layout('components.layouts.app')] class extends Component
             @if ($board->description)
                 <p class="text-sm text-neutral-500">{{ $board->description }}</p>
             @endif
-            <a href="{{ route('boards.atom', [$project, $board, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning hover:underline">Atom</a>
+            <a href="{{ route('boards.atom', [$project, $board, 'key' => auth()->user()?->atomKey()]) }}" class="text-xs text-warning-bolder hover:underline">Atom</a>
         </div>
         @can('create', [Message::class, $board])
             <a href="{{ route('messages.create', [$project, $board]) }}"
@@ -75,7 +75,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 <span class="mr-1 text-warning" title="{{ __('固定表示') }}">📌</span>
                             @endif
                             @if ($topic->is_locked)
-                                <span class="mr-1 text-neutral-400" title="{{ __('ロック済み') }}">🔒</span>
+                                <span class="mr-1 text-neutral-500" title="{{ __('ロック済み') }}">🔒</span>
                             @endif
                             <a href="{{ route('messages.show', [$project, $board, $topic]) }}" class="text-brand-bold hover:underline">
                                 {{ $topic->subject }}

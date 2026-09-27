@@ -987,8 +987,8 @@ new #[Layout('components.layouts.app')] class extends Component
     <form wire:submit="save" class="space-y-4" {!! \App\Support\Preferences\UserPreferences::unsavedWarningAttributes(auth()->user()) !!}>
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('トラッカー') }}</label>
-                <select wire:model.live="tracker_id" @disabled($this->isReadOnly('tracker_id'))
+                <label for="field-tracker_id" class="block text-sm font-medium text-neutral-700">{{ __('トラッカー') }}</label>
+                <select id="field-tracker_id" wire:model.live="tracker_id" @disabled($this->isReadOnly('tracker_id'))
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach ($this->projectTrackers as $tracker)
                         <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
@@ -999,8 +999,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
             @if (! $issue && $this->initialStatuses->count() > 1)
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
-                    <select wire:model.live="status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm" data-initial-status>
+                    <label for="field-status_id" class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
+                    <select id="field-status_id" wire:model.live="status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm" data-initial-status>
                         @foreach ($this->initialStatuses as $status)
                             <option value="{{ $status->id }}">{{ $status->name }}</option>
                         @endforeach
@@ -1011,8 +1011,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
             @if ($issue)
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
-                    <select wire:model.live="status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-status_id" class="block text-sm font-medium text-neutral-700">{{ __('ステータス') }}</label>
+                    <select id="field-status_id" wire:model.live="status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         @foreach ($allowedStatuses as $status)
                             <option value="{{ $status->id }}">{{ $status->name }}</option>
                         @endforeach
@@ -1023,18 +1023,18 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">
+            <label for="field-subject" class="block text-sm font-medium text-neutral-700">
                 {{ __('題名') }} @if ($this->isRequired('subject'))<span class="text-danger-subtle">*</span>@endif
             </label>
-            <input type="text" wire:model="subject" @disabled($this->isReadOnly('subject'))
+            <input id="field-subject" type="text" wire:model="subject" @disabled($this->isReadOnly('subject'))
                 class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @error('subject') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
         @unless ($this->isCoreFieldDisabled('description'))
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('説明') }}</label>
-                <textarea wire:model="description" rows="4" @disabled($this->isReadOnly('description'))
+                <label for="field-description" class="block text-sm font-medium text-neutral-700">{{ __('説明') }}</label>
+                <textarea id="field-description" wire:model="description" rows="4" @disabled($this->isReadOnly('description'))
                     class="{{ \App\Support\Preferences\UserPreferences::textareaClass(auth()->user()) }} mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
                 <button type="button" wire:click="togglePreview"
                     class="mt-2 rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">
@@ -1044,7 +1044,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @if ($showPreview)
                     <div class="prose prose-sm mt-2 max-w-none rounded-md border border-neutral-200 bg-neutral-50 p-4">
                         @if (trim($description) === '')
-                            <p class="text-sm text-neutral-400">{{ __('(本文が空です)') }}</p>
+                            <p class="text-sm text-neutral-500">{{ __('(本文が空です)') }}</p>
                         @else
                             {!! $this->previewHtml !!}
                         @endif
@@ -1056,8 +1056,8 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="grid grid-cols-2 gap-4">
             @unless ($this->isCoreFieldDisabled('priority_id'))
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('優先度') }}</label>
-                    <select wire:model="priority_id" @disabled($this->isReadOnly('priority_id') || $this->priorityIsDerived)
+                    <label for="field-priority_id" class="block text-sm font-medium text-neutral-700">{{ __('優先度') }}</label>
+                    <select id="field-priority_id" wire:model="priority_id" @disabled($this->isReadOnly('priority_id') || $this->priorityIsDerived)
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         @foreach ($this->priorities as $priority)
                             <option value="{{ $priority->id }}">{{ $priority->name }}</option>
@@ -1071,7 +1071,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             @unless ($this->isCoreFieldDisabled('assigned_to_id'))
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">
+                    <label for="field-assigneeChoice" class="block text-sm font-medium text-neutral-700">
                         {{ __('担当者') }}
                         @if (! $this->isReadOnly('assigned_to_id') && $assigned_to_id !== auth()->id() && $this->projectMembers->contains('id', auth()->id()))
                             <button type="button" wire:click="$set('assigned_to_id', {{ auth()->id() }})"
@@ -1080,7 +1080,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             </button>
                         @endif
                     </label>
-                    <select wire:model="assigneeChoice" @disabled($this->isReadOnly('assigned_to_id'))
+                    <select id="field-assigneeChoice" wire:model="assigneeChoice" @disabled($this->isReadOnly('assigned_to_id'))
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">{{ __('未割当') }}</option>
                         <x-assignee-options :users="$this->projectMembers" :groups="$this->assignableGroups" :involved="$this->involvedPrincipals" />
@@ -1095,15 +1095,15 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="grid grid-cols-2 gap-4">
                 @unless ($this->isCoreFieldDisabled('start_date'))
                     <div>
-                        <label class="block text-sm font-medium text-neutral-700">{{ __('開始日') }}</label>
-                        <input type="date" wire:model="start_date" @disabled($this->isReadOnly('start_date') || $this->datesAreDerived)
+                        <label for="field-start_date" class="block text-sm font-medium text-neutral-700">{{ __('開始日') }}</label>
+                        <input id="field-start_date" type="date" wire:model="start_date" @disabled($this->isReadOnly('start_date') || $this->datesAreDerived)
                             class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     </div>
                 @endunless
                 @unless ($this->isCoreFieldDisabled('due_date'))
                     <div>
-                        <label class="block text-sm font-medium text-neutral-700">{{ __('期日') }}</label>
-                        <input type="date" wire:model="due_date" @disabled($this->isReadOnly('due_date') || $this->datesAreDerived)
+                        <label for="field-due_date" class="block text-sm font-medium text-neutral-700">{{ __('期日') }}</label>
+                        <input id="field-due_date" type="date" wire:model="due_date" @disabled($this->isReadOnly('due_date') || $this->datesAreDerived)
                             class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     </div>
                 @endunless
@@ -1115,8 +1115,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @unless ($this->isCoreFieldDisabled('estimated_hours'))
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('予定工数(時間)') }}</label>
-                <input type="text" inputmode="decimal" wire:model="estimated_hours"
+                <label for="field-estimated_hours" class="block text-sm font-medium text-neutral-700">{{ __('予定工数(時間)') }}</label>
+                <input id="field-estimated_hours" type="text" inputmode="decimal" wire:model="estimated_hours"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('estimated_hours') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -1126,8 +1126,8 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="grid grid-cols-2 gap-4">
                 @unless ($this->isCoreFieldDisabled('category_id'))
                     <div>
-                        <label class="block text-sm font-medium text-neutral-700">{{ __('カテゴリ') }}</label>
-                        <select wire:model.live="category_id" @disabled($this->isReadOnly('category_id'))
+                        <label for="field-category_id" class="block text-sm font-medium text-neutral-700">{{ __('カテゴリ') }}</label>
+                        <select id="field-category_id" wire:model.live="category_id" @disabled($this->isReadOnly('category_id'))
                             class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                             <option value="">{{ __('なし') }}</option>
                             @foreach ($this->projectCategories as $category)
@@ -1140,8 +1140,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
                 @unless ($this->isCoreFieldDisabled('fixed_version_id'))
                     <div>
-                        <label class="block text-sm font-medium text-neutral-700">{{ __('対象バージョン') }}</label>
-                        <select wire:model="fixed_version_id" @disabled($this->isReadOnly('fixed_version_id'))
+                        <label for="field-fixed_version_id" class="block text-sm font-medium text-neutral-700">{{ __('対象バージョン') }}</label>
+                        <select id="field-fixed_version_id" wire:model="fixed_version_id" @disabled($this->isReadOnly('fixed_version_id'))
                             class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                             <option value="">{{ __('なし') }}</option>
                             @foreach ($this->projectVersions as $version)
@@ -1155,8 +1155,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($this->canManageSubtasks() && ! $this->isCoreFieldDisabled('parent_id'))
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('親課題ID') }}</label>
-                <input type="number" wire:model="parent_id" placeholder="{{ __('例: 123') }}"
+                <label for="field-parent_id" class="block text-sm font-medium text-neutral-700">{{ __('親課題ID') }}</label>
+                <input id="field-parent_id" type="number" wire:model="parent_id" placeholder="{{ __('例: 123') }}"
                     class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <div data-parent-search>
                     <input type="text" wire:model.live.debounce.250ms="parentSearch" placeholder="{{ __('#番号または件名で検索...') }}"
@@ -1237,8 +1237,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @endif
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
-            <input type="file" wire:model="newAttachments" multiple
+            <label for="field-newAttachments" class="block text-sm font-medium text-neutral-700">{{ __('添付ファイル') }}</label>
+            <input id="field-newAttachments" type="file" wire:model="newAttachments" multiple
                 class="mt-1 block w-full text-sm text-neutral-700">
             @error('newAttachments.*') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
 
@@ -1255,8 +1255,8 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($issue)
             @unless ($this->isCoreFieldDisabled('done_ratio'))
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('進捗率') }}</label>
-                    <select wire:model="done_ratio" class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm sm:text-sm"
+                    <label for="field-done_ratio" class="block text-sm font-medium text-neutral-700">{{ __('進捗率') }}</label>
+                    <select id="field-done_ratio" wire:model="done_ratio" class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm sm:text-sm"
                         @disabled($this->doneRatioIsStatusDerived || $this->doneRatioIsParentDerived)>
                         @foreach (\App\Support\Issues\DoneRatioSteps::options(current: $done_ratio) as $ratio)
                             <option value="{{ $ratio }}">{{ $ratio }} %</option>
@@ -1271,8 +1271,8 @@ new #[Layout('components.layouts.app')] class extends Component
             @endunless
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('コメント') }}</label>
-                <textarea wire:model="comment" rows="3"
+                <label for="field-comment" class="block text-sm font-medium text-neutral-700">{{ __('コメント') }}</label>
+                <textarea id="field-comment" wire:model="comment" rows="3"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"
                     placeholder="{{ __('変更内容についてのコメント(任意)') }}"></textarea>
                 @can('setNotesPrivate', $issue)
@@ -1288,14 +1288,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     <legend class="px-1 text-sm font-medium text-neutral-700">{{ __('工数を記録') }}</legend>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-medium text-neutral-700">{{ __('時間') }}</label>
-                            <input type="number" step="0.01" wire:model="logTimeHours"
+                            <label for="field-logTimeHours" class="block text-xs font-medium text-neutral-700">{{ __('時間') }}</label>
+                            <input id="field-logTimeHours" type="number" step="0.01" wire:model="logTimeHours"
                                 class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                             @error('logTimeHours') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-neutral-700">{{ __('作業分類') }}</label>
-                            <select wire:model="logTimeActivityId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
+                            <label for="field-logTimeActivityId" class="block text-xs font-medium text-neutral-700">{{ __('作業分類') }}</label>
+                            <select id="field-logTimeActivityId" wire:model="logTimeActivityId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                                 <option value="">{{ __('選択してください') }}</option>
                                 @foreach ($this->timeEntryActivities as $activity)
                                     <option value="{{ $activity->id }}">{{ $activity->name }}</option>
@@ -1305,8 +1305,8 @@ new #[Layout('components.layouts.app')] class extends Component
                         </div>
                     </div>
                     <div class="mt-4">
-                        <label class="block text-xs font-medium text-neutral-700">{{ __('工数のコメント') }}</label>
-                        <input type="text" wire:model="logTimeComments"
+                        <label for="field-logTimeComments" class="block text-xs font-medium text-neutral-700">{{ __('工数のコメント') }}</label>
+                        <input id="field-logTimeComments" type="text" wire:model="logTimeComments"
                             class="mt-1 block w-full rounded-md border-neutral-300 text-sm">
                         @error('logTimeComments') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                     </div>

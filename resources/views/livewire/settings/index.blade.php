@@ -839,14 +839,14 @@ new #[Layout('components.layouts.app')] class extends Component
     <form wire:submit="save" class="space-y-8">
         <section class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('アプリケーション名') }}</label>
-                <input type="text" wire:model="app_title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-app_title" class="block text-sm font-medium text-neutral-700">{{ __('アプリケーション名') }}</label>
+                <input id="field-app_title" type="text" wire:model="app_title" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('app_title') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('既定の言語') }}</label>
-                <select wire:model="default_language" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-default_language" class="block text-sm font-medium text-neutral-700">{{ __('既定の言語') }}</label>
+                <select id="field-default_language" wire:model="default_language" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Locale\SupportedLocales::all() as $code => $languageName)
                         <option value="{{ $code }}">{{ $languageName }}</option>
                     @endforeach
@@ -863,30 +863,30 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('ウェルカムメッセージ') }}</label>
-                <textarea wire:model="welcome_text" rows="5"
+                <label for="field-welcome_text" class="block text-sm font-medium text-neutral-700">{{ __('ウェルカムメッセージ') }}</label>
+                <textarea id="field-welcome_text" wire:model="welcome_text" rows="5"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
                 <p class="mt-1 text-xs text-neutral-500">{{ __('プロジェクト一覧(ホーム)画面の先頭に表示されます。Markdown記法が使えます。空欄の場合は何も表示されません。') }}</p>
                 @error('welcome_text') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('課題一覧の1ページあたりの件数') }}</label>
-                <input type="number" wire:model="default_issues_per_page" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-default_issues_per_page" class="block text-sm font-medium text-neutral-700">{{ __('課題一覧の1ページあたりの件数') }}</label>
+                <input id="field-default_issues_per_page" type="number" wire:model="default_issues_per_page" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('default_issues_per_page') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('ホスト名(メール内リンク用)') }}</label>
-                    <input type="text" wire:model="host_name" placeholder="{{ __('例: pm.example.com または pm.example.com/redmine') }}"
+                    <label for="field-host_name" class="block text-sm font-medium text-neutral-700">{{ __('ホスト名(メール内リンク用)') }}</label>
+                    <input id="field-host_name" type="text" wire:model="host_name" placeholder="{{ __('例: pm.example.com または pm.example.com/redmine') }}"
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <p class="mt-1 text-xs text-neutral-500">{{ __('空欄のときは APP_URL を使います。メールやキューで生成するリンクに使われます。') }}</p>
                     @error('host_name') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('プロトコル') }}</label>
-                    <select wire:model="protocol" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-protocol" class="block text-sm font-medium text-neutral-700">{{ __('プロトコル') }}</label>
+                    <select id="field-protocol" wire:model="protocol" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="http">HTTP</option>
                         <option value="https">HTTPS</option>
                     </select>
@@ -895,27 +895,27 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('活動画面の既定の表示期間(日数)') }}</label>
-                <input type="number" min="1" max="365" wire:model="activity_days_default" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-activity_days_default" class="block text-sm font-medium text-neutral-700">{{ __('活動画面の既定の表示期間(日数)') }}</label>
+                <input id="field-activity_days_default" type="number" min="1" max="365" wire:model="activity_days_default" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('activity_days_default') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('一覧の表示件数の選択肢') }}</label>
-                <input type="text" wire:model="per_page_options" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-per_page_options" class="block text-sm font-medium text-neutral-700">{{ __('一覧の表示件数の選択肢') }}</label>
+                <input id="field-per_page_options" type="text" wire:model="per_page_options" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{{ __('カンマまたは空白区切り(例: 25,50,100)。課題・プロジェクト・お知らせ一覧の「表示件数」に出る選択肢です。') }}</p>
                 @error('per_page_options') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('検索結果の1ページあたりの件数') }}</label>
-                <input type="number" min="1" max="200" wire:model="search_results_per_page" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-search_results_per_page" class="block text-sm font-medium text-neutral-700">{{ __('検索結果の1ページあたりの件数') }}</label>
+                <input id="field-search_results_per_page" type="number" min="1" max="200" wire:model="search_results_per_page" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('search_results_per_page') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('Atomフィードの最大エントリ数') }}</label>
-                <input type="number" min="1" max="500" wire:model="feeds_limit" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-feeds_limit" class="block text-sm font-medium text-neutral-700">{{ __('Atomフィードの最大エントリ数') }}</label>
+                <input id="field-feeds_limit" type="number" min="1" max="500" wire:model="feeds_limit" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{{ __('活動・課題・お知らせ・フォーラムの各Atomフィードに共通で適用されます。') }}</p>
                 @error('feeds_limit') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -926,8 +926,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('課題一覧のエクスポート件数の上限') }}</label>
-                <input type="number" min="1" max="{{ ExportLimit::MAXIMUM }}" wire:model="issues_export_limit" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-issues_export_limit" class="block text-sm font-medium text-neutral-700">{{ __('課題一覧のエクスポート件数の上限') }}</label>
+                <input id="field-issues_export_limit" type="number" min="1" max="{{ ExportLimit::MAXIMUM }}" wire:model="issues_export_limit" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{{ __('課題一覧のCSV・PDFエクスポートに含める最大件数です(上限:max)。', ['max' => ExportLimit::MAXIMUM]) }}</p>
                 @error('issues_export_limit') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -946,8 +946,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('ユーザー名の表示形式') }}</label>
-                <select wire:model="user_format" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-user_format" class="block text-sm font-medium text-neutral-700">{{ __('ユーザー名の表示形式') }}</label>
+                <select id="field-user_format" wire:model="user_format" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Models\User::userFormatLabels() as $format => $label)
                         <option value="{{ $format }}">{{ $label }}</option>
                     @endforeach
@@ -958,8 +958,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('課題の進捗率') }}</label>
-                <select wire:model="issue_done_ratio" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-issue_done_ratio" class="block text-sm font-medium text-neutral-700">{{ __('課題の進捗率') }}</label>
+                <select id="field-issue_done_ratio" wire:model="issue_done_ratio" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="issue_field">{{ __('課題ごとに手動入力') }}</option>
                     <option value="issue_status">{{ __('ステータスから算出') }}</option>
                 </select>
@@ -967,8 +967,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('進捗率の選択肢の刻み') }}</label>
-                <select wire:model="issue_done_ratio_interval" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-issue_done_ratio_interval" class="block text-sm font-medium text-neutral-700">{{ __('進捗率の選択肢の刻み') }}</label>
+                <select id="field-issue_done_ratio_interval" wire:model="issue_done_ratio_interval" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (DoneRatioSteps::INTERVALS as $interval)
                         <option value="{{ $interval }}">{{ $interval }} %</option>
                     @endforeach
@@ -1034,8 +1034,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('課題をコピーしたとき、コピー元との関連(コピー元)を作る') }}</label>
-                    <select wire:model="link_copied_issue" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-link_copied_issue" class="block text-sm font-medium text-neutral-700">{{ __('課題をコピーしたとき、コピー元との関連(コピー元)を作る') }}</label>
+                    <select id="field-link_copied_issue" wire:model="link_copied_issue" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="ask">{{ __('コピーするときに選ぶ') }}</option>
                         <option value="yes">{{ __('常に作る') }}</option>
                         <option value="no">{{ __('作らない') }}</option>
@@ -1043,8 +1043,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('link_copied_issue') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('課題をコピーしたとき、添付ファイルをコピーする') }}</label>
-                    <select wire:model="copy_attachments_on_issue_copy" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-copy_attachments_on_issue_copy" class="block text-sm font-medium text-neutral-700">{{ __('課題をコピーしたとき、添付ファイルをコピーする') }}</label>
+                    <select id="field-copy_attachments_on_issue_copy" wire:model="copy_attachments_on_issue_copy" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="ask">{{ __('コピーするときに選ぶ') }}</option>
                         <option value="yes">{{ __('常にコピーする') }}</option>
                         <option value="no">{{ __('コピーしない') }}</option>
@@ -1072,8 +1072,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('新規課題の期日の既定値(作成日からの日数)') }}</label>
-                <input type="number" min="0" wire:model="default_issue_due_date_offset"
+                <label for="field-default_issue_due_date_offset" class="block text-sm font-medium text-neutral-700">{{ __('新規課題の期日の既定値(作成日からの日数)') }}</label>
+                <input id="field-default_issue_due_date_offset" type="number" min="0" wire:model="default_issue_due_date_offset"
                     placeholder="{{ __('未設定(既定値なし)') }}"
                     class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{{ __('空欄の場合、期日は自動設定されません。') }}</p>
@@ -1119,8 +1119,8 @@ new #[Layout('components.layouts.app')] class extends Component
             <h2 class="text-sm font-semibold text-neutral-900">{{ __('表示') }}</h2>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('テーマ') }}</label>
-                <select wire:model="ui_theme" data-ui-theme class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-ui_theme" class="block text-sm font-medium text-neutral-700">{{ __('テーマ') }}</label>
+                <select id="field-ui_theme" wire:model="ui_theme" data-ui-theme class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Preferences\UserPreferences::themeLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
@@ -1130,8 +1130,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('週の始まり') }}</label>
-                <select wire:model="start_of_week" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-start_of_week" class="block text-sm font-medium text-neutral-700">{{ __('週の始まり') }}</label>
+                <select id="field-start_of_week" wire:model="start_of_week" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="0">{{ __('日曜日') }}</option>
                     <option value="1">{{ __('月曜日') }}</option>
                     <option value="6">{{ __('土曜日') }}</option>
@@ -1141,8 +1141,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('新規作成メニュー(プロジェクト内)') }}</label>
-                <select wire:model="new_item_menu_tab" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-new_item_menu_tab" class="block text-sm font-medium text-neutral-700">{{ __('新規作成メニュー(プロジェクト内)') }}</label>
+                <select id="field-new_item_menu_tab" wire:model="new_item_menu_tab" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="0">{{ __('なし') }}</option>
                     <option value="1">{{ __('「新しい課題」リンクのみ') }}</option>
                     <option value="2">{{ __('「+」ドロップダウン(課題・バージョン・お知らせなど)') }}</option>
@@ -1156,8 +1156,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('課題一覧の既定クエリ(全体)') }}</label>
-                <select wire:model="default_issue_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-default_issue_query" class="block text-sm font-medium text-neutral-700">{{ __('課題一覧の既定クエリ(全体)') }}</label>
+                <select id="field-default_issue_query" wire:model="default_issue_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('指定しない') }}</option>
                     @foreach (\App\Models\Query::query()->where('type', \App\Enums\QueryType::Issue->value)->where('visibility', \App\Enums\QueryVisibility::Public->value)->whereNull('project_id')->orderBy('name')->get() as $query)
                         <option value="{{ $query->id }}">{{ $query->name }}</option>
@@ -1181,8 +1181,8 @@ new #[Layout('components.layouts.app')] class extends Component
                         </label>
                     @endforeach
                 </div>
-                <label class="mt-2 block text-sm text-neutral-700">{{ __('タイムゾーン') }}</label>
-                <select wire:model="default_users_time_zone" data-default-users-time-zone class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-default_users_time_zone" class="mt-2 block text-sm text-neutral-700">{{ __('タイムゾーン') }}</label>
+                <select id="field-default_users_time_zone" wire:model="default_users_time_zone" data-default-users-time-zone class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('サーバーの設定(:zone)', ['zone' => config('app.timezone')]) }}</option>
                     @foreach (\App\Support\Locale\TimeZones::options() as $identifier => $label)
                         <option value="{{ $identifier }}">{{ $label }}</option>
@@ -1193,8 +1193,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('時間の表示形式') }}</label>
-                <select wire:model="timespan_format" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-timespan_format" class="block text-sm font-medium text-neutral-700">{{ __('時間の表示形式') }}</label>
+                <select id="field-timespan_format" wire:model="timespan_format" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Format\Hours::formatLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
@@ -1203,8 +1203,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('日付の形式') }}</label>
-                <select wire:model="date_format" data-date-format class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-date_format" class="block text-sm font-medium text-neutral-700">{{ __('日付の形式') }}</label>
+                <select id="field-date_format" wire:model="date_format" data-date-format class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Format\DateTimes::dateFormatOptions() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
@@ -1213,8 +1213,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('時刻の形式') }}</label>
-                <select wire:model="time_format" data-time-format class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-time_format" class="block text-sm font-medium text-neutral-700">{{ __('時刻の形式') }}</label>
+                <select id="field-time_format" wire:model="time_format" data-time-format class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Format\DateTimes::timeFormatOptions() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
@@ -1269,13 +1269,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('ガントチャートの最大表示課題数(0で無制限)') }}</label>
-                    <input type="number" min="0" max="100000" wire:model="gantt_items_limit" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-gantt_items_limit" class="block text-sm font-medium text-neutral-700">{{ __('ガントチャートの最大表示課題数(0で無制限)') }}</label>
+                    <input id="field-gantt_items_limit" type="number" min="0" max="100000" wire:model="gantt_items_limit" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('gantt_items_limit') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('ガントチャートの最大表示月数(0で無制限)') }}</label>
-                    <input type="number" min="0" max="1200" wire:model="gantt_months_limit" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-gantt_months_limit" class="block text-sm font-medium text-neutral-700">{{ __('ガントチャートの最大表示月数(0で無制限)') }}</label>
+                    <input id="field-gantt_months_limit" type="number" min="0" max="1200" wire:model="gantt_months_limit" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('gantt_months_limit') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
             </div>
@@ -1364,8 +1364,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('プロジェクト一覧の既定クエリ') }}</label>
-                <select wire:model="default_project_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-default_project_query" class="block text-sm font-medium text-neutral-700">{{ __('プロジェクト一覧の既定クエリ') }}</label>
+                <select id="field-default_project_query" wire:model="default_project_query" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('指定しない') }}</option>
                     @foreach (\App\Models\Query::query()->where('type', \App\Enums\QueryType::Project->value)->where('visibility', \App\Enums\QueryVisibility::Public->value)->whereNull('project_id')->orderBy('name')->get() as $query)
                         <option value="{{ $query->id }}">{{ $query->name }}</option>
@@ -1380,8 +1380,8 @@ new #[Layout('components.layouts.app')] class extends Component
             <h2 class="text-sm font-semibold text-neutral-900">{{ __('認証') }}</h2>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('アカウント登録') }}</label>
-                <select wire:model="self_registration" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-self_registration" class="block text-sm font-medium text-neutral-700">{{ __('アカウント登録') }}</label>
+                <select id="field-self_registration" wire:model="self_registration" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="disabled">{{ __('無効(登録ページを表示しない)') }}</option>
                     <option value="manual">{{ __('管理者の承認が必要') }}</option>
                     <option value="email">{{ __('メールでの確認が必要') }}</option>
@@ -1403,15 +1403,15 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('登録を許可するメールドメイン(カンマ区切り、空欄は制限なし)') }}</label>
-                <input type="text" wire:model="email_domains_allowed" placeholder="{{ __('例: example.com, .example.org') }}"
+                <label for="field-email_domains_allowed" class="block text-sm font-medium text-neutral-700">{{ __('登録を許可するメールドメイン(カンマ区切り、空欄は制限なし)') }}</label>
+                <input id="field-email_domains_allowed" type="text" wire:model="email_domains_allowed" placeholder="{{ __('例: example.com, .example.org') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('email_domains_allowed') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('登録を拒否するメールドメイン(カンマ区切り、許可リストより優先)') }}</label>
-                <input type="text" wire:model="email_domains_denied" placeholder="{{ __('例: example.com, .example.org') }}"
+                <label for="field-email_domains_denied" class="block text-sm font-medium text-neutral-700">{{ __('登録を拒否するメールドメイン(カンマ区切り、許可リストより優先)') }}</label>
+                <input id="field-email_domains_denied" type="text" wire:model="email_domains_denied" placeholder="{{ __('例: example.com, .example.org') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('email_domains_denied') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-neutral-500">
@@ -1420,15 +1420,15 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('追加メールアドレスの上限数(1人あたり)') }}</label>
-                <input type="number" min="0" max="50" wire:model="max_additional_emails" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-max_additional_emails" class="block text-sm font-medium text-neutral-700">{{ __('追加メールアドレスの上限数(1人あたり)') }}</label>
+                <input id="field-max_additional_emails" type="number" min="0" max="50" wire:model="max_additional_emails" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{{ __('プロフィールで追加できるメールアドレスの数です。0にすると追加できません。追加したアドレスにも通知メールが届きます。') }}</p>
                 @error('max_additional_emails') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('セッションタイムアウト') }}</label>
-                <select wire:model="session_timeout" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-session_timeout" class="block text-sm font-medium text-neutral-700">{{ __('セッションタイムアウト') }}</label>
+                <select id="field-session_timeout" wire:model="session_timeout" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="0">{{ __('無効') }}</option>
                     <option value="60">{{ __('1時間') }}</option>
                     <option value="120">{{ __('2時間') }}</option>
@@ -1443,8 +1443,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('セッションの最大有効期間') }}</label>
-                <select wire:model="session_lifetime" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-session_lifetime" class="block text-sm font-medium text-neutral-700">{{ __('セッションの最大有効期間') }}</label>
+                <select id="field-session_lifetime" wire:model="session_lifetime" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="0">{{ __('無効') }}</option>
                     <option value="240">{{ __('4時間') }}</option>
                     <option value="480">{{ __('8時間') }}</option>
@@ -1460,8 +1460,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('パスワードの最小文字数') }}</label>
-                <input type="number" wire:model="password_min_length" min="1" max="255"
+                <label for="field-password_min_length" class="block text-sm font-medium text-neutral-700">{{ __('パスワードの最小文字数') }}</label>
+                <input id="field-password_min_length" type="number" wire:model="password_min_length" min="1" max="255"
                     class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('password_min_length') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-neutral-500">
@@ -1470,8 +1470,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('パスワードの有効期限') }}</label>
-                <select wire:model="password_max_age" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-password_max_age" class="block text-sm font-medium text-neutral-700">{{ __('パスワードの有効期限') }}</label>
+                <select id="field-password_max_age" wire:model="password_max_age" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="0">{{ __('無効') }}</option>
                     @foreach ([7, 30, 60, 90, 180, 365] as $days)
                         <option value="{{ $days }}">{{ __(':days日', ['days' => $days]) }}</option>
@@ -1504,8 +1504,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('ログイン状態の保持') }}</label>
-                <select wire:model="autologin" data-testid="autologin" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-autologin" class="block text-sm font-medium text-neutral-700">{{ __('ログイン状態の保持') }}</label>
+                <select id="field-autologin" wire:model="autologin" data-testid="autologin" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="0">{{ __('無効') }}</option>
                     <option value="1">{{ __(':days日', ['days' => 1]) }}</option>
                     <option value="7">{{ __(':days日', ['days' => 7]) }}</option>
@@ -1543,8 +1543,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('二要素認証') }}</label>
-                <select wire:model="twofa" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-twofa" class="block text-sm font-medium text-neutral-700">{{ __('二要素認証') }}</label>
+                <select id="field-twofa" wire:model="twofa" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="0">{{ __('無効') }}</option>
                     <option value="1">{{ __('任意(ユーザーが選択可能)') }}</option>
                     <option value="2">{{ __('全ユーザーに必須') }}</option>
@@ -1577,8 +1577,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('送信元メールアドレス(空欄で環境設定の既定値を使用)') }}</label>
-                <input type="email" wire:model="mail_from" placeholder="{{ config('mail.from.address') }}"
+                <label for="field-mail_from" class="block text-sm font-medium text-neutral-700">{{ __('送信元メールアドレス(空欄で環境設定の既定値を使用)') }}</label>
+                <input id="field-mail_from" type="email" wire:model="mail_from" placeholder="{{ config('mail.from.address') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('mail_from') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -1601,8 +1601,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('新規ユーザーの既定のメール通知') }}</label>
-                <select wire:model="default_notification_option" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-default_notification_option" class="block text-sm font-medium text-neutral-700">{{ __('新規ユーザーの既定のメール通知') }}</label>
+                <select id="field-default_notification_option" wire:model="default_notification_option" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (MailNotificationOption::cases() as $option)
                         <option value="{{ $option->value }}">{{ $option->label() }}</option>
                     @endforeach
@@ -1619,14 +1619,14 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('通知メールのヘッダ') }}</label>
-                <textarea wire:model="emails_header" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
+                <label for="field-emails_header" class="block text-sm font-medium text-neutral-700">{{ __('通知メールのヘッダ') }}</label>
+                <textarea id="field-emails_header" wire:model="emails_header" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
                 @error('emails_header') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('通知メールの署名') }}</label>
-                <textarea wire:model="emails_footer" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
+                <label for="field-emails_footer" class="block text-sm font-medium text-neutral-700">{{ __('通知メールの署名') }}</label>
+                <textarea id="field-emails_footer" wire:model="emails_footer" rows="2" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
                 @error('emails_footer') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
         </section>
@@ -1648,8 +1648,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('1日あたりの最大工数(時間、0で無制限)') }}</label>
-                <input type="number" step="0.01" min="0" max="1000" wire:model="timelog_max_hours_per_day" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-timelog_max_hours_per_day" class="block text-sm font-medium text-neutral-700">{{ __('1日あたりの最大工数(時間、0で無制限)') }}</label>
+                <input id="field-timelog_max_hours_per_day" type="number" step="0.01" min="0" max="1000" wire:model="timelog_max_hours_per_day" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{{ __('同じユーザーが同じ日に記録できる工数の合計の上限です。') }}</p>
                 @error('timelog_max_hours_per_day') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -1672,27 +1672,27 @@ new #[Layout('components.layouts.app')] class extends Component
             <h2 class="text-sm font-semibold text-neutral-900">{{ __('添付ファイル') }}</h2>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('最大アップロードサイズ(KB)') }}</label>
-                <input type="number" wire:model="attachment_max_size" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-attachment_max_size" class="block text-sm font-medium text-neutral-700">{{ __('最大アップロードサイズ(KB)') }}</label>
+                <input id="field-attachment_max_size" type="number" wire:model="attachment_max_size" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attachment_max_size') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('まとめてダウンロードできる合計サイズ(KB、0で無制限)') }}</label>
-                <input type="number" min="0" wire:model="bulk_download_max_size" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-bulk_download_max_size" class="block text-sm font-medium text-neutral-700">{{ __('まとめてダウンロードできる合計サイズ(KB、0で無制限)') }}</label>
+                <input id="field-bulk_download_max_size" type="number" min="0" wire:model="bulk_download_max_size" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('bulk_download_max_size') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('許可する拡張子(カンマ区切り、空欄は制限なし)') }}</label>
-                <input type="text" wire:model="attachment_extensions_allowed" placeholder="{{ __('例: png, jpg, pdf') }}"
+                <label for="field-attachment_extensions_allowed" class="block text-sm font-medium text-neutral-700">{{ __('許可する拡張子(カンマ区切り、空欄は制限なし)') }}</label>
+                <input id="field-attachment_extensions_allowed" type="text" wire:model="attachment_extensions_allowed" placeholder="{{ __('例: png, jpg, pdf') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attachment_extensions_allowed') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('禁止する拡張子(カンマ区切り、許可リストが設定されている場合は無視)') }}</label>
-                <input type="text" wire:model="attachment_extensions_denied" placeholder="{{ __('例: exe, sh') }}"
+                <label for="field-attachment_extensions_denied" class="block text-sm font-medium text-neutral-700">{{ __('禁止する拡張子(カンマ区切り、許可リストが設定されている場合は無視)') }}</label>
+                <input id="field-attachment_extensions_denied" type="text" wire:model="attachment_extensions_denied" placeholder="{{ __('例: exe, sh') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('attachment_extensions_denied') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -1710,10 +1710,10 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">
+                <label for="field-incoming_mail_default_project_id" class="block text-sm font-medium text-neutral-700">
                     {!! __('既定のプロジェクト(件名が :identifier で始まらない場合に使用)', ['identifier' => '<code>['.e(__('識別子')).']</code>']) !!}
                 </label>
-                <select wire:model="incoming_mail_default_project_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <select id="field-incoming_mail_default_project_id" wire:model="incoming_mail_default_project_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('選択してください') }}</option>
                     @foreach ($this->projects as $project)
                         <option value="{{ $project->id }}">{{ $project->name }}</option>
@@ -1723,8 +1723,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('既定のトラッカー') }}</label>
-                <select wire:model="incoming_mail_default_tracker_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-incoming_mail_default_tracker_id" class="block text-sm font-medium text-neutral-700">{{ __('既定のトラッカー') }}</label>
+                <select id="field-incoming_mail_default_tracker_id" wire:model="incoming_mail_default_tracker_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('選択してください') }}</option>
                     @foreach ($this->trackers as $tracker)
                         <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
@@ -1734,8 +1734,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('既定のステータス') }}</label>
-                <select wire:model="incoming_mail_default_status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-incoming_mail_default_status_id" class="block text-sm font-medium text-neutral-700">{{ __('既定のステータス') }}</label>
+                <select id="field-incoming_mail_default_status_id" wire:model="incoming_mail_default_status_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('選択してください') }}</option>
                     @foreach ($this->statuses as $status)
                         <option value="{{ $status->id }}">{{ $status->name }}</option>
@@ -1745,8 +1745,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('本文の取得優先形式') }}</label>
-                <select wire:model="mail_handler_preferred_body_part" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-mail_handler_preferred_body_part" class="block text-sm font-medium text-neutral-700">{{ __('本文の取得優先形式') }}</label>
+                <select id="field-mail_handler_preferred_body_part" wire:model="mail_handler_preferred_body_part" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="plain">{{ __('プレーンテキスト優先') }}</option>
                     <option value="html">{{ __('HTML優先(プレーンテキスト化して使用)') }}</option>
                 </select>
@@ -1754,8 +1754,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('本文の切り捨て行(1行に1つ、この行に完全一致した箇所以降を切り捨て)') }}</label>
-                <textarea wire:model="mail_handler_body_delimiters" rows="2" placeholder="{{ __('例: -----Original Message-----') }}"
+                <label for="field-mail_handler_body_delimiters" class="block text-sm font-medium text-neutral-700">{{ __('本文の切り捨て行(1行に1つ、この行に完全一致した箇所以降を切り捨て)') }}</label>
+                <textarea id="field-mail_handler_body_delimiters" wire:model="mail_handler_body_delimiters" rows="2" placeholder="{{ __('例: -----Original Message-----') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm"></textarea>
                 @error('mail_handler_body_delimiters') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -1785,8 +1785,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('除外する添付ファイル名(カンマ区切り、ワイルドカード可)') }}</label>
-                <input type="text" wire:model="mail_handler_excluded_filenames" placeholder="{{ __('例: *.ics, winmail.dat') }}"
+                <label for="field-mail_handler_excluded_filenames" class="block text-sm font-medium text-neutral-700">{{ __('除外する添付ファイル名(カンマ区切り、ワイルドカード可)') }}</label>
+                <input id="field-mail_handler_excluded_filenames" type="text" wire:model="mail_handler_excluded_filenames" placeholder="{{ __('例: *.ics, winmail.dat') }}"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('mail_handler_excluded_filenames') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -1797,16 +1797,16 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('本文のキーワードで上書きを許す項目(カンマ区切り)') }}</label>
-                <input type="text" wire:model="mail_handler_allow_override" placeholder="all"
+                <label for="field-mail_handler_allow_override" class="block text-sm font-medium text-neutral-700">{{ __('本文のキーワードで上書きを許す項目(カンマ区切り)') }}</label>
+                <input id="field-mail_handler_allow_override" type="text" wire:model="mail_handler_allow_override" placeholder="all"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{!! __(':all はすべて許可。例: :example(項目: status, priority, assigned_to, done_ratio, tracker, category, fixed_version, start_date, due_date, estimated_hours, private, parent_issue)。カスタムフィールドは名前で指定します(小文字、空白は _)。', ['all' => '<code>all</code>', 'example' => '<code>status, priority, assigned_to</code>']) !!}</p>
                 @error('mail_handler_allow_override') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('サブアドレスからプロジェクトを決める(受信アドレス)') }}</label>
-                <input type="text" wire:model="mail_handler_project_from_subaddress" placeholder="redmine@example.net"
+                <label for="field-mail_handler_project_from_subaddress" class="block text-sm font-medium text-neutral-700">{{ __('サブアドレスからプロジェクトを決める(受信アドレス)') }}</label>
+                <input id="field-mail_handler_project_from_subaddress" type="text" wire:model="mail_handler_project_from_subaddress" placeholder="redmine@example.net"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{!! __('設定すると :address 宛のメールがその識別子のプロジェクトの課題になります(件名の :subject より優先)。', ['address' => '<code>redmine+'.e(__('識別子')).'@example.net</code>', 'subject' => '<code>['.e(__('識別子')).']</code>']) !!}</p>
                 @error('mail_handler_project_from_subaddress') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
@@ -1827,8 +1827,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('自動記録に使う作業分類(未選択の場合は既定の作業分類)') }}</label>
-                <select wire:model="commit_logtime_activity_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-commit_logtime_activity_id" class="block text-sm font-medium text-neutral-700">{{ __('自動記録に使う作業分類(未選択の場合は既定の作業分類)') }}</label>
+                <select id="field-commit_logtime_activity_id" wire:model="commit_logtime_activity_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('選択してください') }}</option>
                     @foreach ($this->activities as $activity)
                         <option value="{{ $activity->id }}">{{ $activity->name }}</option>
@@ -1866,20 +1866,20 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('履歴に表示するリビジョン数') }}</label>
-                <input type="number" min="1" max="1000" wire:model="repository_log_display_limit" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-repository_log_display_limit" class="block text-sm font-medium text-neutral-700">{{ __('履歴に表示するリビジョン数') }}</label>
+                <input id="field-repository_log_display_limit" type="number" min="1" max="1000" wire:model="repository_log_display_limit" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('repository_log_display_limit') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('差分の最大表示行数(0で無制限)') }}</label>
-                    <input type="number" min="0" max="100000" wire:model="diff_max_lines_displayed" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-diff_max_lines_displayed" class="block text-sm font-medium text-neutral-700">{{ __('差分の最大表示行数(0で無制限)') }}</label>
+                    <input id="field-diff_max_lines_displayed" type="number" min="0" max="100000" wire:model="diff_max_lines_displayed" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('diff_max_lines_displayed') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('ファイルの最大表示サイズ(KB、0で無制限)') }}</label>
-                    <input type="number" min="0" max="102400" wire:model="file_max_size_displayed" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-file_max_size_displayed" class="block text-sm font-medium text-neutral-700">{{ __('ファイルの最大表示サイズ(KB、0で無制限)') }}</label>
+                    <input id="field-file_max_size_displayed" type="number" min="0" max="102400" wire:model="file_max_size_displayed" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @error('file_max_size_displayed') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
             </div>
@@ -1893,23 +1893,23 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('サムネイルの大きさ(px)') }}</label>
-                <input type="number" min="16" max="2000" wire:model="thumbnails_size" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-thumbnails_size" class="block text-sm font-medium text-neutral-700">{{ __('サムネイルの大きさ(px)') }}</label>
+                <input id="field-thumbnails_size" type="number" min="16" max="2000" wire:model="thumbnails_size" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{{ __('この後にアップロードされる画像から適用されます。') }}</p>
                 @error('thumbnails_size') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('ファイル内容のエンコーディング候補(カンマ区切り)') }}</label>
-                <input type="text" wire:model="repositories_encodings" placeholder="{{ __('例: SJIS-win, EUC-JP') }}"
+                <label for="field-repositories_encodings" class="block text-sm font-medium text-neutral-700">{{ __('ファイル内容のエンコーディング候補(カンマ区切り)') }}</label>
+                <input id="field-repositories_encodings" type="text" wire:model="repositories_encodings" placeholder="{{ __('例: SJIS-win, EUC-JP') }}"
                     class="mt-1 block w-full max-w-md rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{{ __('UTF-8でないファイルやログを、ここに並べた順に試してUTF-8へ変換して表示します。') }}</p>
                 @error('repositories_encodings') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('コミットログのエンコーディング') }}</label>
-                <input type="text" wire:model="commit_logs_encoding" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <label for="field-commit_logs_encoding" class="block text-sm font-medium text-neutral-700">{{ __('コミットログのエンコーディング') }}</label>
+                <input id="field-commit_logs_encoding" type="text" wire:model="commit_logs_encoding" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('commit_logs_encoding') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
 
@@ -1919,8 +1919,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('課題を参照するキーワード(カンマ区切り)') }}</label>
-                <input type="text" wire:model="commit_ref_keywords" placeholder="*"
+                <label for="field-commit_ref_keywords" class="block text-sm font-medium text-neutral-700">{{ __('課題を参照するキーワード(カンマ区切り)') }}</label>
+                <input id="field-commit_ref_keywords" type="text" wire:model="commit_ref_keywords" placeholder="*"
                     class="mt-1 block w-full max-w-md rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <p class="mt-1 text-xs text-neutral-500">{!! __(':wildcardを含めると、キーワードなしの:issueもコミットに関連付けられます(Redmineの既定は refs,references,IssueID)。', ['wildcard' => '<code>*</code>', 'issue' => '<code>#123</code>']) !!}</p>
                 @error('commit_ref_keywords') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror

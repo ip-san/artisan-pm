@@ -362,8 +362,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <div class="mb-6 grid grid-cols-3 gap-4 rounded-md border border-neutral-200 bg-surface p-4">
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('トラッカー') }}</label>
-            <select wire:model.live="tracker_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-tracker_id" class="block text-sm font-medium text-neutral-700">{{ __('トラッカー') }}</label>
+            <select id="field-tracker_id" wire:model.live="tracker_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">{{ __('選択してください') }}</option>
                 @foreach ($this->trackers as $tracker)
                     <option value="{{ $tracker->id }}">{{ $tracker->name }}</option>
@@ -372,8 +372,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('ロール') }}</label>
-            <select wire:model.live="role_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-role_id" class="block text-sm font-medium text-neutral-700">{{ __('ロール') }}</label>
+            <select id="field-role_id" wire:model.live="role_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="">{{ __('選択してください') }}</option>
                 @foreach ($this->roles as $role)
                     <option value="{{ $role->id }}">{{ $role->name }}</option>
@@ -382,8 +382,8 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('適用対象') }}</label>
-            <select wire:model.live="context" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            <label for="field-context" class="block text-sm font-medium text-neutral-700">{{ __('適用対象') }}</label>
+            <select id="field-context" wire:model.live="context" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <option value="general">{{ __('通常') }}</option>
                 <option value="author">{{ __('作成者の場合に追加') }}</option>
                 <option value="assignee">{{ __('担当者の場合に追加') }}</option>
@@ -480,8 +480,8 @@ new #[Layout('components.layouts.app')] class extends Component
         <form wire:submit="copyWorkflow" class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('コピー元トラッカー') }}</label>
-                    <select wire:model="copySourceTrackerId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-copySourceTrackerId" class="block text-sm font-medium text-neutral-700">{{ __('コピー元トラッカー') }}</label>
+                    <select id="field-copySourceTrackerId" wire:model="copySourceTrackerId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">{{ __('選択してください') }}</option>
                         <option value="any">{{ __('--- コピー先と同じ ---') }}</option>
                         @foreach ($this->trackers as $tracker)
@@ -491,8 +491,8 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('copySourceTrackerId') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-neutral-700">{{ __('コピー元ロール') }}</label>
-                    <select wire:model="copySourceRoleId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <label for="field-copySourceRoleId" class="block text-sm font-medium text-neutral-700">{{ __('コピー元ロール') }}</label>
+                    <select id="field-copySourceRoleId" wire:model="copySourceRoleId" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                         <option value="">{{ __('選択してください') }}</option>
                         <option value="any">{{ __('--- コピー先と同じ ---') }}</option>
                         @foreach ($this->roles as $role)

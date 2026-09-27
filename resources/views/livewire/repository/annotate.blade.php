@@ -86,7 +86,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         @php $block = $this->blocks[$index]; @endphp
                         <tr id="L{{ $index + 1 }}" wire:key="blame-line-{{ $index }}"
                             class="{{ $this::BLOCK_COLORS[$block['colorIndex']] }} {{ $block['isChange'] ? 'border-t border-neutral-300' : '' }}">
-                            <td class="whitespace-nowrap px-2 py-0.5 text-right text-neutral-400 select-none">{{ $index + 1 }}</td>
+                            <td class="whitespace-nowrap px-2 py-0.5 text-right text-neutral-500 select-none">{{ $index + 1 }}</td>
                             <td class="whitespace-nowrap px-2 py-0.5 font-mono text-neutral-500">{{ $block['showMeta'] ? substr($line->revision, 0, 8) : '' }}</td>
                             <td class="whitespace-nowrap px-2 py-0.5 text-neutral-600">{{ $block['showMeta'] ? $line->author : '' }}</td>
                             <td class="px-2 py-0.5 font-mono text-neutral-900"><pre class="whitespace-pre-wrap">{{ $line->content }}</pre></td>

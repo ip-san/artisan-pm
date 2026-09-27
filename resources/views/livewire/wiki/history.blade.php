@@ -100,7 +100,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <li wire:key="wiki-version-{{ $version->id }}" class="flex items-center justify-between px-4 py-2 text-sm">
                 <div class="flex items-center gap-3">
                     @if ($versionCount > 1)
-                        <span class="flex items-center gap-1 text-xs text-neutral-400">
+                        <span class="flex items-center gap-1 text-xs text-neutral-500">
                             <label class="flex items-center gap-0.5">
                                 {{ __('旧') }}
                                 <input type="radio" wire:model="diffFrom" value="{{ $version->version }}" class="border-neutral-300">
@@ -115,12 +115,12 @@ new #[Layout('components.layouts.app')] class extends Component
                         <a href="{{ route('wiki.version', [$project, $wikiPage, $version->version]) }}" class="text-brand-bold hover:underline">
                             v{{ $version->version }}
                         </a>
-                        <a href="{{ route('wiki.annotate', [$project, $wikiPage, $version->version]) }}" class="text-xs text-brand hover:underline">
+                        <a href="{{ route('wiki.annotate', [$project, $wikiPage, $version->version]) }}" class="text-xs text-brand-bold hover:underline">
                             {{ __('(注釈)') }}
                         </a>
                         <span class="text-neutral-500">— {{ $version->author->displayName() }} — {{ \App\Support\Format\DateTimes::dateTime($version->created_at) }}</span>
                         @if ($version->comments)
-                            <span class="text-neutral-400">({{ $version->comments }})</span>
+                            <span class="text-neutral-500">({{ $version->comments }})</span>
                         @endif
                     </div>
                 </div>
@@ -143,7 +143,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ __('選択したバージョンを比較') }}
                 </a>
             @else
-                <span class="text-xs text-neutral-400">{{ __('比較する2つのバージョンを選択してください(旧/新)。') }}</span>
+                <span class="text-xs text-neutral-500">{{ __('比較する2つのバージョンを選択してください(旧/新)。') }}</span>
             @endif
         </div>
     @endif

@@ -97,14 +97,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <form wire:submit="addMapping" class="mb-6 flex items-end gap-2 rounded-md border border-neutral-200 bg-surface p-4">
         <div class="flex-1">
-            <label class="block text-sm font-medium text-neutral-700">{{ __('コミッター文字列') }}</label>
-            <input type="text" wire:model="committer" placeholder="{{ __('例: :committer', ['committer' => 'Jane Doe <jane@old-corp.com>']) }}"
+            <label for="field-committer" class="block text-sm font-medium text-neutral-700">{{ __('コミッター文字列') }}</label>
+            <input id="field-committer" type="text" wire:model="committer" placeholder="{{ __('例: :committer', ['committer' => 'Jane Doe <jane@old-corp.com>']) }}"
                 class="mt-1 block w-full rounded-md border-neutral-300 font-mono text-sm shadow-sm">
             @error('committer') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
         <div class="flex-1">
-            <label class="block text-sm font-medium text-neutral-700">{{ __('ユーザー') }}</label>
-            <select wire:model="userId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
+            <label for="field-userId" class="block text-sm font-medium text-neutral-700">{{ __('ユーザー') }}</label>
+            <select id="field-userId" wire:model="userId" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm">
                 <option value="">{{ __('選択してください') }}</option>
                 @foreach ($this->projectMembers as $member)
                     <option value="{{ $member->id }}">{{ $member->displayName() }}</option>

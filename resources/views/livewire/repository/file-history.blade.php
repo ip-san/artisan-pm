@@ -95,7 +95,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </a>
                         <span class="text-xs text-neutral-500">{{ $changeset->committer }} — {{ \App\Support\Format\DateTimes::dateTime($changeset->committed_on) }}</span>
                         @if ($match['path'] !== $this->path)
-                            <span class="text-xs text-neutral-400 font-mono">({{ $match['path'] }})</span>
+                            <span class="text-xs text-neutral-500 font-mono">({{ $match['path'] }})</span>
                         @endif
                     </div>
                     <div class="prose prose-sm mt-1 max-w-none text-neutral-800">{{ $changeset->commentsHtml() }}</div>
