@@ -1,0 +1,32 @@
+{
+    "forum: new topic form": [
+        "axe label"
+    ],
+    "forum: replied": [],
+    "forum: topic created": [],
+    "issue: created": [
+        "axe color-contrast",
+        "axe select-name"
+    ],
+    "issue: edit form": [
+        "axe label",
+        "axe select-name"
+    ],
+    "issue: new form": [
+        "axe label",
+        "axe select-name"
+    ],
+    "issue: updated with comment and time": [
+        "axe color-contrast",
+        "axe select-name"
+    ],
+    "wiki: diff": [],
+    "wiki: history": [
+        "axe color-contrast"
+    ],
+    "wiki: new page form": [
+        "axe label",
+        "axe select-name"
+    ],
+    "wiki: page created": []
+}

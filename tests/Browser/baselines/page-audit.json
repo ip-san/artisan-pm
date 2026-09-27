@@ -162,7 +162,7 @@
                 "color-contrast"
             ],
             "layout": [
-                "overflow: a \"mobile-app #35 決済処理の文言を修正(本番環境でのみ再現、Safa\""
+                "overflow: a \"mobile-app #N 決済処理の文言を修正(本番環境でのみ再現、Safar\""
             ],
             "queries": 50,
             "lazy": []
@@ -273,7 +273,7 @@
                 "color-contrast"
             ],
             "layout": [],
-            "queries": 26,
+            "queries": 27,
             "lazy": []
         },
         "en:projects.index": {
@@ -486,7 +486,7 @@
                 "select-name"
             ],
             "layout": [],
-            "queries": 42,
+            "queries": 46,
             "lazy": []
         },
         "issues.global-index": {
@@ -542,7 +542,7 @@
                 "select-name"
             ],
             "layout": [],
-            "queries": 50,
+            "queries": 65,
             "lazy": []
         },
         "login": {
@@ -594,7 +594,7 @@
                 "color-contrast"
             ],
             "layout": [],
-            "queries": 32,
+            "queries": 33,
             "lazy": []
         },
         "my-webhooks.index": {
@@ -921,7 +921,7 @@
                 "select-cut: select \"なし 「新しい課題」リンクのみ 「+」ドロップダウン(課題・バージョン・お知らせ\"",
                 "select-cut: select \"ユーザーの言語の設定に従う(2026/09/27) 2026-09-27 (yy\""
             ],
-            "queries": 99,
+            "queries": 96,
             "lazy": []
         },
         "time-entries.create": {
@@ -1155,7 +1155,7 @@
                 "color-contrast"
             ],
             "layout": [],
-            "queries": 49,
+            "queries": 48,
             "lazy": []
         },
         "webhooks.create": {

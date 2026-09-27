@@ -10,6 +10,8 @@ use LdapRecord\Laravel\Testing\DirectoryEmulator;
 use LdapRecord\Laravel\Testing\EmulatedConnectionFake;
 use Tests\TestCase;
 
+require_once __DIR__.'/Browser/Support/page-audit.php';
+
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     // Redmine's own rest_api_enabled default is off (config/settings.yml),
