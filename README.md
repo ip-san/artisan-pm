@@ -1,39 +1,41 @@
 # Artisan PM
 
-Artisan PM is a feature-parity reimplementation of [Redmine](https://www.redmine.org/) — the open-source project management tool — built on Laravel 13, Livewire 4 (via [Volt](https://livewire.laravel.com/docs/volt) single-file components), and PostgreSQL. The goal is to reproduce Redmine's actual behavior (down to specific business rules, not just the visible feature list) rather than to build a Redmine-inspired app from scratch.
+日本語 | [English](README.en.md)
 
-Progress against Redmine's feature set is tracked in [`docs/parity-checklist.md`](docs/parity-checklist.md), which cross-references this codebase against a reference Redmine checkout, module by module, with notes on intentional deviations and scope decisions.
+Artisan PM は、オープンソースのプロジェクト管理ツール [Redmine](https://www.redmine.org/) を、Laravel 13・Livewire 4（[Volt](https://livewire.laravel.com/docs/volt) による単一ファイルコンポーネント）・PostgreSQL で作り直したものです。目指しているのは Redmine に着想を得た別のアプリではなく、Redmine の実際の挙動を、画面上の機能一覧だけでなく個々の業務ルールまで再現することです。
 
-## What's implemented
+Redmine との機能の差は [`docs/parity-checklist.md`](docs/parity-checklist.md) で管理しています。このチェックリストでは、Redmine 本体のソースと本リポジトリのコードをモジュールごとに突き合わせ、意図的に変えた点や対象外とした機能についても理由を記録しています。
 
-Issue tracking (trackers, statuses, workflows, custom fields, relations, watchers), Gantt charts and calendars, wikis (with version history, redirects, a project-configurable start page, and macros), forums, news, time tracking, multiple SCM repositories (Git/SVN) with browsing/diff/annotate, saved queries, project hierarchies, role-based permissions, LDAP authentication, two-factor authentication, email notifications (including `@mention`), reactions (a single 👍 toggle on issues/comments/news/forum posts), a REST API, PDF export (issues/wiki/Gantt, with CJK font support), optional guest access to public projects (`login_required`), and a scheduled sweep that unwatches things a user has lost access to — see the checklist for the authoritative, per-feature status.
+## 実装済みの機能
 
-## Tech stack
+課題管理（トラッカー、ステータス、ワークフロー、カスタムフィールド、関連する課題、ウォッチャー）、ガントチャートとカレンダー、Wiki（版の履歴、リダイレクト、プロジェクトごとに設定できる開始ページ、マクロ）、フォーラム、ニュース、工数管理、複数の SCM リポジトリ（Git/SVN）の閲覧・差分・アノテート、保存済みクエリ、プロジェクトの階層化、ロールによる権限管理、LDAP 認証、2要素認証、メール通知（`@mention` を含む）、リアクション（課題・コメント・ニュース・フォーラム投稿への 👍 の付け外し）、REST API、PDF エクスポート（課題・Wiki・ガントチャート。日本語などの CJK フォントに対応）、公開プロジェクトへのゲストアクセス（`login_required` で切り替え）、アクセス権を失った対象のウォッチを定期的に外すバッチ処理。機能ごとの正確な状況はチェックリストを参照してください。
 
-| Layer | Choice |
+## 技術スタック
+
+| レイヤー | 採用技術 |
 |---|---|
-| Backend | PHP 8.3 or later (developed on 8.5; `composer.lock` is resolved for 8.3), Laravel 13 |
-| UI | Livewire 4 + Volt (single-file components), Tailwind CSS |
-| Auth | Laravel Fortify (password, 2FA/TOTP), LDAP via `directorytree/ldaprecord-laravel` |
-| Database | PostgreSQL (development); MySQL 8.0+ / MariaDB 10.3+ and SQLite are also supported |
-| Search | Laravel Scout (database driver) |
-| Attachments | `spatie/laravel-medialibrary` |
-| Nested sets (project tree only — issues use a plain `parent_id` adjacency list, see `docs/design/domain-model.md`) | `kalnoy/nestedset` |
-| PDF export | `barryvdh/laravel-dompdf` (bundled IPAGothic font for CJK text — see `resources/fonts/`) |
-| Testing | Pest 4 |
-| Static analysis | Larastan (PHPStan) |
-| Local environment | Laravel Sail (Docker) |
+| バックエンド | PHP 8.3 以上（開発は 8.5。`composer.lock` は 8.3 向けに解決済み）、Laravel 13 |
+| UI | Livewire 4 + Volt（単一ファイルコンポーネント）、Tailwind CSS |
+| 認証 | Laravel Fortify（パスワード、2要素認証/TOTP）、`directorytree/ldaprecord-laravel` による LDAP |
+| データベース | PostgreSQL（開発時）。MySQL 8.0 以上 / MariaDB 10.3 以上、SQLite にも対応 |
+| 検索 | Laravel Scout（database ドライバー） |
+| 添付ファイル | `spatie/laravel-medialibrary` |
+| 入れ子集合（プロジェクトの階層のみ。課題は単純な `parent_id` による隣接リストを使用。`docs/design/domain-model.md` 参照） | `kalnoy/nestedset` |
+| PDF エクスポート | `barryvdh/laravel-dompdf`（CJK 用に IPAゴシックフォントを同梱。`resources/fonts/` 参照） |
+| テスト | Pest 4 |
+| 静的解析 | Larastan（PHPStan） |
+| ローカル環境 | Laravel Sail（Docker） |
 
-## Getting started
+## セットアップ
 
-This project runs entirely inside [Laravel Sail](https://laravel.com/docs/sail)'s Docker containers — every command below is prefixed with `vendor/bin/sail`.
+本プロジェクトは、すべて [Laravel Sail](https://laravel.com/docs/sail) の Docker コンテナ内で動かします。以下のコマンドはすべて `vendor/bin/sail` 経由で実行します。
 
 ```bash
-# 1. Install PHP dependencies. `vendor/bin/sail` doesn't exist until
-#    `vendor/` is populated, so on a fresh clone this first install has to
-#    run through a throwaway Composer container — see Laravel's own
-#    "Installing Sail Into Existing Applications" docs if the exact image
-#    tag below is out of date for your PHP version:
+# 1. PHP の依存パッケージをインストールする。`vendor/` ができるまでは
+#    `vendor/bin/sail` が存在しないため、クローン直後の初回だけは
+#    使い捨ての Composer コンテナで実行する。下のイメージタグが
+#    お使いの PHP バージョンに合わない場合は、Laravel 公式ドキュメントの
+#    "Installing Sail Into Existing Applications" を参照:
 #    https://laravel.com/docs/sail#installing-sail-into-existing-applications
 docker run --rm \
     -u "$(id -u):$(id -g)" \
@@ -42,32 +44,32 @@ docker run --rm \
     laravelsail/php84-composer:latest \
     composer install --ignore-platform-reqs
 
-# 2. Copy the environment file — .env.example already points at Sail's
-#    Postgres service (DB_HOST=pgsql, DB_PASSWORD=password), matching
-#    compose.yaml's own POSTGRES_PASSWORD fallback, so no manual editing
-#    is needed here for the default local setup.
+# 2. 環境ファイルをコピーする。.env.example は最初から Sail の PostgreSQL
+#    サービス（DB_HOST=pgsql、DB_PASSWORD=password）を指しており、
+#    compose.yaml の POSTGRES_PASSWORD の既定値とも一致しているので、
+#    標準のローカル環境なら手で編集する必要はない。
 cp .env.example .env
 
-# 3. Start the stack (app, PostgreSQL, Redis, Mailpit)
+# 3. コンテナを起動する（アプリ、PostgreSQL、Redis、Mailpit）
 vendor/bin/sail up -d
 
-# 4. Generate the app key, run migrations, and seed base data —
-#    DatabaseSeeder creates the built-in Anonymous/Non-member roles Redmine
-#    itself ships with, a demo project, and an admin user you can log in
-#    with immediately: admin@example.com / password
+# 4. アプリケーションキーを生成し、マイグレーションと初期データの投入を行う。
+#    DatabaseSeeder は、Redmine 本体にも組み込まれている Anonymous/Non-member
+#    ロール、デモ用のプロジェクト、すぐにログインできる管理者ユーザー
+#    （admin@example.com / password）を作成する。
 vendor/bin/sail artisan key:generate
 vendor/bin/sail artisan migrate --seed
 
-# 5. Install JS dependencies and build frontend assets
+# 5. JS の依存パッケージをインストールし、フロントエンドをビルドする
 vendor/bin/sail npm install
 vendor/bin/sail npm run build
 ```
 
-> **Known issue**: as of this writing, `npm run build` fails in this environment with `Cannot find module './rolldown-binding.linux-arm64-gnu.node'` — Vite's `rolldown-vite` dependency ships prebuilt native bindings that aren't resolving correctly inside the Sail container on this architecture. This is a pre-existing environment gap (also noted against the Gantt chart's missing Tailwind colors in `docs/parity-checklist.md`), not something introduced by this app's code, and hasn't been root-caused yet. The backend and Livewire-driven pages work regardless; only Vite-built frontend assets (e.g. compiled Tailwind CSS) are affected.
+> **既知の問題**: 執筆時点では、この環境で `npm run build` が `Cannot find module './rolldown-binding.linux-arm64-gnu.node'` というエラーで失敗します。Vite が依存する `rolldown-vite` のビルド済みネイティブバイナリが、このアーキテクチャの Sail コンテナ内で正しく解決されないためです。本アプリのコードが原因ではない、以前からある環境の問題で（`docs/parity-checklist.md` のガントチャートの Tailwind カラーが欠けている件にも記載）、根本原因はまだ特定できていません。バックエンドと Livewire で動くページは問題なく動作し、影響を受けるのは Vite でビルドするフロントエンドのアセット（コンパイル済みの Tailwind CSS など）だけです。
 
-Open the app with `vendor/bin/sail open`, or visit `http://localhost`. Outgoing mail during local development is caught by [Mailpit](https://github.com/axllent/mailpit) at `http://localhost:8025`.
+`vendor/bin/sail open` でアプリを開くか、`http://localhost` にアクセスしてください。ローカル開発中に送信したメールは [Mailpit](https://github.com/axllent/mailpit) が受け取り、`http://localhost:8025` で確認できます。
 
-### Running tests
+### テストの実行
 
 ```bash
 vendor/bin/sail artisan test --compact
@@ -75,59 +77,59 @@ vendor/bin/sail bin phpstan analyse --no-progress
 vendor/bin/sail bin pint --format agent
 ```
 
-### Repository storage
+### リポジトリの保存場所
 
-SCM repositories the app browses/syncs must live under the directory configured by `SCM_REPOSITORIES_ROOT` (see `config/scm.php`) — the app shells out to `git`/`svn` binaries against paths under that root; it does not manage repository creation itself.
+アプリが閲覧・同期する SCM リポジトリは、`SCM_REPOSITORIES_ROOT`（`config/scm.php` 参照）で設定したディレクトリの下に置く必要があります。アプリはそのディレクトリ配下のパスに対して `git`/`svn` コマンドを実行するだけで、リポジトリの作成は行いません。
 
-## Deploying to shared hosting
+## レンタルサーバーへのデプロイ
 
-The app runs on rental hosting such as Xserver, さくらのレンタルサーバ or ConoHa WING (PHP-FPM, MySQL 8.0+ / MariaDB 10.3+, cron, no resident processes). The settings each step refers to are explained in [`.env.example`](.env.example).
+Xserver、さくらのレンタルサーバ、ConoHa WING などのレンタルサーバー（PHP-FPM、MySQL 8.0 以上 / MariaDB 10.3 以上、cron が使えて常駐プロセスは不可）で動作します。各手順に出てくる設定項目の説明は [`.env.example`](.env.example) にあります。
 
-1. **Build locally.** Hosts rarely have Node.js, and `public/build` is not committed: run `npm ci && npm run build`, and `composer install --no-dev --optimize-autoloader` with PHP 8.3 or later (the lock file is resolved for 8.3, so it installs on any 8.3+ host) (add `--ignore-platform-req=ext-ldap` if the host has no ldap extension and you don't use LDAP).
-2. **Upload** the whole app, including `vendor/` and `public/build/`, to a directory **outside** the web root, e.g. `~/artisan-pm` (not into `public_html`).
-3. **Point the web root at `public/`.** The web root must be the app's `public/` directory, never the app directory itself (that would serve `.env`). Hosts fix the document root to `public_html` (or `~/<domain>/public_html`), so either
-   - replace it with a symlink (preferred): `mv public_html public_html.orig && ln -s ~/artisan-pm/public public_html`, or
-   - if symlinks aren't allowed, put the app inside `public_html` and add a `public_html/.htaccess` that hands every request to `public/` (the rewrite also means `.env` and the rest of the app are never served directly):
+1. **ローカルでビルドする。** レンタルサーバーには Node.js がないことが多く、`public/build` はリポジトリに含めていません。`npm ci && npm run build` を実行し、PHP 8.3 以上で `composer install --no-dev --optimize-autoloader` を実行します（lock ファイルは 8.3 向けに解決済みなので、8.3 以上のサーバーならインストールできます）。サーバーに ldap 拡張がなく、LDAP も使わない場合は `--ignore-platform-req=ext-ldap` を付けてください。
+2. **アップロードする。** `vendor/` と `public/build/` を含むアプリ全体を、Web ルートの**外側**のディレクトリ（例: `~/artisan-pm`）に置きます。`public_html` の中には置きません。
+3. **Web ルートを `public/` に向ける。** Web ルートは必ずアプリの `public/` ディレクトリにしてください。アプリのディレクトリそのものを Web ルートにすると `.env` が公開されてしまいます。レンタルサーバーではドキュメントルートが `public_html`（または `~/<ドメイン>/public_html`）に固定されているので、次のどちらかで対応します。
+   - シンボリックリンクに置き換える（推奨）: `mv public_html public_html.orig && ln -s ~/artisan-pm/public public_html`
+   - シンボリックリンクが使えない場合は、アプリを `public_html` の中に置き、すべてのリクエストを `public/` に渡す `public_html/.htaccess` を追加します。このリライトにより、`.env` などアプリ本体のファイルが直接公開されることもありません。
      ```apache
      <IfModule mod_rewrite.c>
          RewriteEngine On
          RewriteRule ^(.*)$ public/$1 [L]
      </IfModule>
      ```
-4. **Configure `.env`** (copy `.env.example`): `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://…`, the database (`DB_CONNECTION=mysql` or `mariadb`, `DB_COLLATION` — choose it before migrating), `QUEUE_CONNECTION=database`, `TRUSTED_PROXIES=*` when the host terminates HTTPS in front of PHP, the mail settings, and `SCHEDULE_TIMEZONE=Asia/Tokyo` if the daily jobs should run at Japanese midnight.
-5. **Initialise** over SSH (use the host's full path to PHP 8.3 or later, e.g. `/usr/bin/php8.3`):
+4. **`.env` を設定する**（`.env.example` をコピー）: `APP_ENV=production`、`APP_DEBUG=false`、`APP_URL=https://…`、データベース（`DB_CONNECTION=mysql` または `mariadb`。`DB_COLLATION` はマイグレーションの前に決めておく）、`QUEUE_CONNECTION=database`、サーバーの手前で HTTPS を終端する場合は `TRUSTED_PROXIES=*`、メールの設定、日次ジョブを日本時間の深夜に実行したい場合は `SCHEDULE_TIMEZONE=Asia/Tokyo`。
+5. **初期化する。** SSH で実行します。PHP はサーバー上の PHP 8.3 以上をフルパスで指定してください（例: `/usr/bin/php8.3`）。
    ```bash
    php artisan key:generate
    php artisan migrate --force
-   php artisan passport:keys          # keys for the REST API's OAuth tokens
-   php artisan db:seed --force        # default roles/trackers/statuses, a demo project and admin@example.com / password
+   php artisan passport:keys          # REST API の OAuth トークン用の鍵
+   php artisan db:seed --force        # 既定のロール・トラッカー・ステータス、デモ用プロジェクト、admin@example.com / password
    php artisan config:cache && php artisan route:cache && php artisan view:cache
    ```
-   Sign in as `admin@example.com` right away, change its e-mail and password, and delete the demo project if you don't want it. Run `php artisan config:cache` again after every `.env` change.
-6. **Permissions:** `storage/` and `bootstrap/cache/` must be writable by PHP (`chmod -R u+rwX storage bootstrap/cache`; hosts run PHP as your own user, so 755/644 is enough). Attachments, logs, the dompdf font cache and Git/SVN repositories (`SCM_REPOSITORIES_ROOT`) live under `storage/`.
-7. **Cron:** one entry, every minute if the control panel allows it (otherwise `*/5`, starting at :00 — see `.env.example` on why):
+   すぐに `admin@example.com` でログインしてメールアドレスとパスワードを変更し、デモ用プロジェクトが不要なら削除してください。`.env` を変更したら、そのたびに `php artisan config:cache` を実行し直します。
+6. **パーミッションを確認する。** `storage/` と `bootstrap/cache/` は PHP から書き込める必要があります（`chmod -R u+rwX storage bootstrap/cache`。レンタルサーバーでは PHP が自分のユーザー権限で動くので、755/644 で十分です）。添付ファイル、ログ、dompdf のフォントキャッシュ、Git/SVN リポジトリ（`SCM_REPOSITORIES_ROOT`）はすべて `storage/` の下に置かれます。
+7. **cron を登録する。** コントロールパネルで設定できるなら、毎分実行のエントリを1つ登録します。毎分が選べない場合は `*/5` にし、00分から始まるようにします（理由は `.env.example` 参照）。
    ```
    * * * * * cd /home/you/artisan-pm && /usr/bin/php8.3 artisan schedule:run >> /dev/null 2>&1
    ```
-   It runs the scheduled jobs (incoming mail, repository autofetch, housekeeping) and, with `QUEUE_CONNECTION=database`, also works off the queued notification mail, webhooks and CSV imports — no second entry or resident worker is needed.
-8. **Check** 管理 → 情報 (admin information): it lists the PHP extensions, writable directories and the git/svn commands the app found.
+   これで定期ジョブ（受信メールの取り込み、リポジトリの自動取得、後片付け）が実行されます。`QUEUE_CONNECTION=database` にしていれば、キューに入った通知メール、Webhook、CSV インポートもこのエントリで処理されるので、2つ目のエントリや常駐ワーカーは要りません。
+8. **動作を確認する。** 管理 → 情報 の画面で、アプリが検出した PHP 拡張、書き込み可能なディレクトリ、git/svn コマンドを確認できます。
 
-## Architecture
+## アーキテクチャ
 
-The layered overview, full domain model, authorization model, request lifecycle, issue workflow, and notification/job pipeline are documented in detail — with Mermaid diagrams — in [`docs/design/`](docs/design/README.md). Start there for a whole-system view; this README stays focused on getting the app running and the handful of design decisions below.
+レイヤー構成の概要、ドメインモデルの全体像、認可モデル、リクエストのライフサイクル、課題のワークフロー、通知とジョブの処理の流れは、[`docs/design/`](docs/design/README.md) に Mermaid の図付きで詳しくまとめています。システム全体を把握したいときは、まずそちらを読んでください。この README では、アプリを動かすまでの手順と、以下の主な設計判断に絞って説明します。
 
-## Notable design decisions
+## 主な設計判断
 
-A few patterns recur across the codebase and are worth knowing before making changes:
+コードベースのあちこちで繰り返し出てくるパターンです。変更を加える前に知っておくと役に立ちます。
 
-- **Single point of truth for model invariants.** Behavior Redmine enforces at the model layer (e.g. "a project's first repository is automatically its default", "a repository's identifier, once set, can never change") is implemented via Eloquent model hooks (`saving`/`created`/`updated`) rather than scattered across every write path that touches the attribute.
-- **Authorization is centralized.** `App\Support\Authorization\AuthorizationService` mirrors Redmine's per-project, per-role permission resolution (including the built-in `Anonymous`/`Non-member` roles); Policies call into it rather than re-implementing role logic.
-- **Notification recipients merge tiers, then filter once.** When a feature (issue mail, wiki mail, `@mention`) needs to notify several independent pools of users (project members by role, watchers, explicitly mentioned users), the pools are unioned and deduplicated first, then a single visibility filter is applied — avoiding both double-filtering and double-sending.
-- **Multi-repository routing uses named route pairs, not optional segments.** Laravel route parameters are only genuinely optional as the last URL segment; a repository identifier needed mid-path, so each repository action registers both an identifier-less route and a `.repo`-suffixed sibling pointing at the same component.
-- **Redmine parity over Redmine literalism.** Where Redmine's implementation is Ruby/ActiveRecord-specific (e.g. certain validation quirks) and reproducing it exactly would add little value, the deviation is documented in `docs/parity-checklist.md` rather than silently diverging.
-- **A route name's URL can outlive its original meaning.** The wiki module's `wiki.index` route kept its name and URL (`/projects/{project}/wiki`) when its behavior changed from "show the page list" to "redirect to the wiki's start page" (matching Redmine's own URL scheme) — the page list moved to a new `wiki.pages` route instead. A Volt component can redirect from `mount()` on the initial page load just like from an action, which is what makes this kind of behavior swap possible without a plain Controller.
-- **Verify against Redmine's source before adding a feature, not just its checklist description.** Several items the checklist once listed as "not yet built" turned out, on rereading Redmine's actual code, to be features Redmine itself doesn't have (a subtask reorder UI, Gantt drag-and-drop rescheduling, `@mention` on news/forum posts) — building them would have been *scope creep*, not parity. `docs/parity-checklist.md` documents each retraction alongside the original (wrong) claim, so the reasoning survives for the next person who reads that entry.
+- **モデルの不変条件は1か所で守る。** Redmine がモデル層で保証している挙動（例:「プロジェクトの最初のリポジトリは自動的に既定のリポジトリになる」「リポジトリの識別子は一度設定したら変更できない」）は、その属性を書き換えるすべての経路に散らばらせず、Eloquent のモデルフック（`saving`/`created`/`updated`）で実装しています。
+- **認可は一元化する。** `App\Support\Authorization\AuthorizationService` が、Redmine のプロジェクト単位・ロール単位の権限解決（組み込みの `Anonymous`/`Non-member` ロールを含む）を再現しています。ポリシーはロールの判定を自前で実装せず、このサービスを呼び出します。
+- **通知の宛先は、先にまとめてから1回だけ絞り込む。** 課題のメール、Wiki のメール、`@mention` など、独立した複数の宛先グループ（ロールごとのプロジェクトメンバー、ウォッチャー、明示的にメンションされたユーザー）に通知する機能では、まず各グループを合わせて重複を除き、そのあとで閲覧権限による絞り込みを1回だけかけます。二重の絞り込みや二重送信を防ぐためです。
+- **複数リポジトリのルーティングは、省略可能なセグメントではなく名前付きルートの組で実現する。** Laravel のルートパラメーターが本当に省略可能になるのは、URL の最後のセグメントだけです。リポジトリの識別子はパスの途中に必要なので、リポジトリの各アクションで識別子なしのルートと `.repo` 付きのルートを両方登録し、同じコンポーネントに向けています。
+- **Redmine を字義どおりに写すより、挙動の同等性を優先する。** Redmine の実装が Ruby/ActiveRecord 固有の事情によるもの（一部のバリデーションの癖など）で、そのまま再現しても得るものが少ない場合は、黙って挙動を変えるのではなく、その違いを `docs/parity-checklist.md` に記録します。
+- **ルート名の URL は、元の意味より長く残ることがある。** Wiki の `wiki.index` ルートは、挙動を「ページ一覧を表示する」から「Wiki の開始ページへリダイレクトする」に変えたあとも（Redmine 自体の URL 体系に合わせるため）、名前と URL（`/projects/{project}/wiki`）をそのまま残しました。ページ一覧は新しい `wiki.pages` ルートに移しています。Volt コンポーネントは、アクションからと同じように、初回表示時の `mount()` からもリダイレクトできます。通常のコントローラーを使わずにこうした挙動の入れ替えができるのは、そのためです。
+- **機能を追加する前に、チェックリストの説明だけでなく Redmine のソースで確かめる。** チェックリストで一度「未実装」とされていた項目のいくつかは、Redmine の実際のコードを読み直すと、Redmine 自体にない機能でした（子課題の並べ替え UI、ガントチャートのドラッグ&ドロップによる日程変更、ニュースやフォーラム投稿での `@mention` など）。それらを作っていたら、パリティではなく*スコープクリープ*になっていたところです。`docs/parity-checklist.md` には、こうした取り下げを元の（誤った）記述と並べて記録しており、次にその項目を読む人にも理由が伝わるようにしています。
 
-## License
+## ライセンス
 
-This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+本プロジェクトは [MIT ライセンス](https://opensource.org/licenses/MIT)のもとで公開しているオープンソースソフトウェアです。
