@@ -96,7 +96,12 @@ test('a block without settings keeps showing the status', function () {
 
     $component = Livewire::actingAs($user)->test('my-page.index')->call('addBlock', $key);
 
-    expect($component->instance()->blockRows($key)->first()->meta)->toBe('Testing');
+    $row = $component->instance()->blockRows($key)->first();
+
+    // Shown as a badge now, not repeated in the meta text.
+    expect($row->statusBadge)->toBeTrue()
+        ->and($row->issue->status->name)->toBe('Testing')
+        ->and($row->meta)->toBeNull();
 });
 
 test('unknown columns and sorts are dropped from the saved settings', function () {
@@ -165,5 +170,29 @@ test('the fixed issue blocks take columns and a sort order like a query block', 
 
     expect($settings)->toBe(['columns' => ['status'], 'sort' => 'due_date:desc'])
         ->and(str($rows->first()->title)->afterLast(': ')->value())->toBe('Due late')
-        ->and($rows->first()->meta)->toBe('Doing');
+        ->and($rows->first()->statusBadge)->toBeTrue()
+        ->and($rows->first()->priorityBadge)->toBeFalse()
+        ->and($rows->first()->issue->status->name)->toBe('Doing')
+        ->and($rows->first()->meta)->toBeNull();
+});
+
+test('a fixed issue block with no column choice shows status and priority badges next to its date', function () {
+    $project = Project::factory()->create();
+    $user = User::factory()->create();
+    Member::factory()->for($project)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+    Issue::factory()->for($project)->create([
+        'tracker_id' => Tracker::factory()->create()->id,
+        'status_id' => IssueStatus::factory()->create(['name' => 'Doing'])->id,
+        'priority_id' => Enumeration::factory()->create()->id,
+        'assigned_to_id' => $user->id,
+        'due_date' => '2026-10-01',
+    ]);
+
+    $component = Livewire::actingAs($user)->test('my-page.index')->call('addBlock', 'assigned_issues');
+    $row = $component->instance()->blockRows('assigned_issues')->first();
+
+    expect($row->statusBadge)->toBeTrue()
+        ->and($row->priorityBadge)->toBeTrue()
+        ->and($row->meta)->toContain('2026');
+    $component->assertSeeHtml('data-status-badge');
 });

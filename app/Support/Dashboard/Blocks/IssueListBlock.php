@@ -7,7 +7,6 @@ namespace App\Support\Dashboard\Blocks;
 use App\Models\Issue;
 use App\Models\User;
 use App\Support\Dashboard\ConfigurableDashboardBlock;
-use App\Support\Dashboard\DashboardBlockRow;
 use App\Support\Dashboard\SavedIssueQueryBlock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -71,10 +70,6 @@ abstract class IssueListBlock implements ConfigurableDashboardBlock
         return $query
             ->limit(self::MAX_ROWS)
             ->get()
-            ->map(fn (Issue $issue) => new DashboardBlockRow(
-                title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
-                url: route('issues.show', [$issue->project, $issue]),
-                meta: isset($settings['columns']) ? SavedIssueQueryBlock::metaFor($issue, $settings['columns']) : $this->defaultMeta($issue, $user),
-            ));
+            ->map(fn (Issue $issue) => SavedIssueQueryBlock::issueRow($issue, $settings['columns'] ?? null, $this->defaultMeta($issue, $user)));
     }
 }

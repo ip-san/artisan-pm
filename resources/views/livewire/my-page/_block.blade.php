@@ -69,8 +69,18 @@
             @forelse ($this->blockRows($block->block_key, $block->settings ?? []) as $row)
                 <li class="px-4 py-2 text-sm">
                     <a href="{{ $row->url }}" class="text-brand-bold hover:underline">{{ $row->title }}</a>
-                    @if ($row->meta)
-                        <span class="text-neutral-400">— {{ $row->meta }}</span>
+                    @if ($row->statusBadge || $row->priorityBadge || $row->meta)
+                        <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-600">
+                            @if ($row->statusBadge)
+                                <x-status-badge :status="$row->issue->status" />
+                            @endif
+                            @if ($row->priorityBadge && \App\Support\Ui\IssueBadges::priorityTone($row->issue->priority) !== \App\Support\Ui\IssueBadges::Neutral)
+                                <x-priority-badge :priority="$row->issue->priority" />
+                            @endif
+                            @if ($row->meta)
+                                <span>{{ $row->meta }}</span>
+                            @endif
+                        </div>
                     @endif
                 </li>
             @empty

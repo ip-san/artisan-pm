@@ -159,11 +159,26 @@ final class SavedIssueQueryBlock
         return $builder
             ->limit(self::MAX_ROWS)
             ->get()
-            ->map(fn (Issue $issue) => new DashboardBlockRow(
-                title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
-                url: route('issues.show', [$issue->project, $issue]),
-                meta: self::metaFor($issue, $columns),
-            ));
+            ->map(fn (Issue $issue) => self::issueRow($issue, $columns));
+    }
+
+    /**
+     * A block row for an issue. Status and priority, when among $columns (or always, with no
+     * column choice), show as badges rather than in the meta text; $defaultMeta is the text used
+     * when the block has no column choice.
+     *
+     * @param  array<int, string>|null  $columns
+     */
+    public static function issueRow(Issue $issue, ?array $columns, ?string $defaultMeta = null): DashboardBlockRow
+    {
+        return new DashboardBlockRow(
+            title: "{$issue->tracker->name} #{$issue->id}: {$issue->subject}",
+            url: route('issues.show', [$issue->project, $issue]),
+            meta: $columns === null ? $defaultMeta : self::metaFor($issue, array_diff($columns, ['status', 'priority'])),
+            issue: $issue,
+            statusBadge: $columns === null || in_array('status', $columns, true),
+            priorityBadge: $columns === null || in_array('priority', $columns, true),
+        );
     }
 
     /**
