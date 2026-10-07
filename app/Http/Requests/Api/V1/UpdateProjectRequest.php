@@ -65,6 +65,16 @@ final class UpdateProjectRequest extends FormRequest
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
+    /**
+     * Redmine's API names the modules enabled_module_names; `modules` is this API's own name.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('enabled_module_names') && ! $this->has('modules')) {
+            $this->merge(['modules' => $this->input('enabled_module_names')]);
+        }
+    }
+
     public function rules(): array
     {
         /** @var Project $project */
@@ -73,7 +83,8 @@ final class UpdateProjectRequest extends FormRequest
 
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'identifier' => ['sometimes', 'required', 'string', 'max:100', 'alpha_dash', Rule::unique('projects', 'identifier')->ignore($project->id)],
+            // No identifier: Redmine freezes it once the project exists (identifier_frozen?), and
+            // silently ignores a new value, since URLs and repository references depend on it.
             'description' => ['nullable', 'string'],
             'homepage' => ['nullable', 'string', 'max:255'],
             'is_public' => ['boolean'],

@@ -992,6 +992,37 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * Whether the user may choose the enabled modules — Redmine's safe_attributes for
+     * enabled_module_names: select_project_modules on the project, or, for a new project, on the
+     * role its creator will be given. Otherwise the modules stay as they are (or the defaults).
+     */
+    public static function mayChooseModules(User $user, ?self $project): bool
+    {
+        if ($user->is_admin) {
+            return true;
+        }
+
+        if ($project !== null) {
+            return app(AuthorizationService::class)->can($user, 'select_project_modules', $project);
+        }
+
+        return self::defaultMemberRole()?->hasPermission('select_project_modules') ?? false;
+    }
+
+    /**
+     * The trackers a new project starts with when none are chosen — Redmine's
+     * default_projects_tracker_ids, or every tracker when that is empty.
+     *
+     * @return array<int, int>
+     */
+    public static function defaultTrackerIds(): array
+    {
+        $configured = Setting::get('default_projects_tracker_ids', []);
+
+        return $configured !== [] ? array_map('intval', $configured) : Tracker::query()->pluck('id')->all();
+    }
+
+    /**
      * Whether the user may set inherit_members on a project under this
      * parent — Redmine's safe_attributes: only someone who can see the
      * parent whose members would be copied.

@@ -736,3 +736,46 @@ test('issue_custom_field_ids rejects a project-type custom field id', function (
     // it only ever writes to the Issue-scoped issueCustomFields() relation.
     expect($project->issueCustomFields()->pluck('custom_fields.id')->all())->toBe([]);
 });
+
+test('a project\'s identifier is frozen: the api ignores a new one (A17-16)', function () {
+    $admin = User::factory()->admin()->create();
+    $project = Project::factory()->create(['identifier' => 'keep-me']);
+
+    Passport::actingAs($admin);
+
+    $this->putJson("/api/v1/projects/{$project->id}", ['name' => 'Renamed', 'identifier' => 'changed'])
+        ->assertOk()
+        ->assertJsonPath('data.identifier', 'keep-me');
+
+    expect($project->fresh()->identifier)->toBe('keep-me')->and($project->fresh()->name)->toBe('Renamed');
+});
+
+test('creating a project without tracker_ids uses default_projects_tracker_ids, else every tracker (A17-18)', function () {
+    $admin = User::factory()->admin()->create();
+    [$first, $second] = [Tracker::factory()->create(), Tracker::factory()->create()];
+    Passport::actingAs($admin);
+
+    $this->postJson('/api/v1/projects', ['name' => 'All trackers', 'identifier' => 'all-trackers'])->assertCreated();
+    expect(Project::where('identifier', 'all-trackers')->firstOrFail()->trackers->pluck('id')->sort()->values()->all())->toBe([$first->id, $second->id]);
+
+    Setting::set('default_projects_tracker_ids', [$second->id]);
+    $this->postJson('/api/v1/projects', ['name' => 'Configured', 'identifier' => 'configured'])->assertCreated();
+    expect(Project::where('identifier', 'configured')->firstOrFail()->trackers->pluck('id')->all())->toBe([$second->id]);
+});
+
+test('modules change only with select_project_modules, and Redmine\'s enabled_module_names is accepted (A17-17)', function () {
+    $project = Project::factory()->create();
+    $project->syncModules([ProjectModuleKey::IssueTracking]);
+    $editor = User::factory()->create();
+    Member::factory()->for($project)->for($editor)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_project', 'edit_project']]));
+    $manager = User::factory()->create();
+    Member::factory()->for($project)->for($manager)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_project', 'edit_project', 'select_project_modules']]));
+
+    Passport::actingAs($editor);
+    $this->putJson("/api/v1/projects/{$project->id}", ['modules' => ['wiki']])->assertOk();
+    expect($project->fresh()->moduleAssignments->pluck('module.value')->all())->toBe(['issue_tracking']);
+
+    Passport::actingAs($manager);
+    $this->putJson("/api/v1/projects/{$project->id}", ['enabled_module_names' => ['wiki']])->assertOk();
+    expect($project->fresh()->moduleAssignments->pluck('module.value')->all())->toBe(['wiki']);
+});

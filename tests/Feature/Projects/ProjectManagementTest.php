@@ -243,3 +243,35 @@ test('leaving the identifier blank without sequential_project_identifiers enable
         ->call('save')
         ->assertHasErrors(['identifier']);
 });
+
+test('the web form shows the identifier read-only and ignores a changed one (A17-16)', function () {
+    $project = Project::factory()->create(['identifier' => 'keep-me']);
+    $project->trackers()->attach(Tracker::factory()->create());
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)->test('projects.form', ['project' => $project])
+        ->assertSeeHtml('value="keep-me" disabled')
+        ->set('identifier', 'changed')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($project->fresh()->identifier)->toBe('keep-me');
+});
+
+test('the module checkboxes need select_project_modules, and a save without it leaves the modules alone (A17-17)', function () {
+    $project = Project::factory()->create();
+    $project->trackers()->attach(Tracker::factory()->create());
+    $project->syncModules([ProjectModuleKey::IssueTracking]);
+    $editor = User::factory()->create();
+    Member::factory()->for($project)->for($editor)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_project', 'edit_project']]));
+    $manager = User::factory()->create();
+    Member::factory()->for($project)->for($manager)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_project', 'edit_project', 'select_project_modules']]));
+
+    $component = Livewire::actingAs($editor)->test('projects.form', ['project' => $project])->assertDontSee('有効なモジュール');
+    $component->set('modules', ['issue_tracking', 'wiki'])->call('save');
+    expect($project->fresh()->moduleAssignments->pluck('module.value')->all())->toBe(['issue_tracking']);
+
+    Livewire::actingAs($manager)->test('projects.form', ['project' => $project])->assertSee('有効なモジュール')
+        ->set('modules', ['issue_tracking', 'wiki'])->call('save');
+    expect($project->fresh()->moduleAssignments->pluck('module.value')->sort()->values()->all())->toBe(['issue_tracking', 'wiki']);
+});

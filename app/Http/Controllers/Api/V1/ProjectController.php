@@ -77,9 +77,11 @@ final class ProjectController extends Controller
     public function store(StoreProjectRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $trackerIds = $data['tracker_ids'];
+        $trackerIds = $data['tracker_ids'] ?? Project::defaultTrackerIds();
         $issueCustomFieldIds = $data['issue_custom_field_ids'] ?? [];
-        $modules = $data['modules'] ?? Setting::get(
+        // Chosen modules only count with select_project_modules (Redmine's safe_attributes).
+        $chosenModules = Project::mayChooseModules($request->user(), null) ? ($data['modules'] ?? null) : null;
+        $modules = $chosenModules ?? Setting::get(
             'default_projects_modules',
             array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults())
         );
@@ -162,7 +164,7 @@ final class ProjectController extends Controller
         $project->update($data);
         $project->setCustomFieldValues($customFieldData);
 
-        if ($modules !== null) {
+        if ($modules !== null && Project::mayChooseModules($request->user(), $project)) {
             $project->syncModules(array_map(fn (string $m) => ProjectModuleKey::from($m), $modules));
         }
 

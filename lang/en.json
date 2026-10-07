@@ -1584,5 +1584,6 @@
     "最終利用": "Last used",
     "未使用": "Never used",
     "このブラウザはパスキーに対応していません。": "This browser does not support passkeys.",
-    "メール通知を送る": "Send email notifications"
+    "メール通知を送る": "Send email notifications",
+    "識別子は作成後には変更できません。": "The identifier cannot be changed once the project exists."
 }

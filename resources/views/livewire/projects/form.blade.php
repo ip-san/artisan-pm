@@ -124,10 +124,7 @@ new #[Layout('components.layouts.app')] class extends Component
             // Empty setting (never configured, or explicitly cleared) falls
             // back to every tracker, matching Redmine's own
             // default_projects_tracker_ids behavior.
-            $defaultTrackerIds = Setting::get('default_projects_tracker_ids', []);
-            $this->trackerIds = $defaultTrackerIds !== []
-                ? $defaultTrackerIds
-                : Tracker::query()->pluck('id')->all();
+            $this->trackerIds = Project::defaultTrackerIds();
 
             // A brand-new project has no pivot rows of its own yet, so the
             // only fields that already apply to it are the ones that apply
@@ -330,8 +327,22 @@ new #[Layout('components.layouts.app')] class extends Component
         }
     }
 
+    /**
+     * Redmine's safe_attributes for enabled_module_names (see Project::mayChooseModules()).
+     */
+    #[Computed]
+    public function mayChooseModules(): bool
+    {
+        return Project::mayChooseModules(auth()->user(), $this->project);
+    }
+
     public function save(): void
     {
+        // The identifier is frozen once the project exists; whatever the request carries is ignored.
+        if ($this->project !== null) {
+            $this->identifier = $this->project->identifier;
+        }
+
         // Re-authorize against whatever parent_id is actually about to be
         // submitted — mount() only checked the query-string parent at load
         // time, and parent_id is a public property a client could still
@@ -468,9 +479,18 @@ new #[Layout('components.layouts.app')] class extends Component
             }
         }
 
-        $this->project->syncModules(
-            collect($this->modules)->map(fn (string $m) => ProjectModuleKey::from($m))->all()
-        );
+        // Redmine's safe_attributes: modules change only with select_project_modules; a new
+        // project without it gets the default modules.
+        if ($this->mayChooseModules) {
+            $this->project->syncModules(
+                collect($this->modules)->map(fn (string $m) => ProjectModuleKey::from($m))->all()
+            );
+        } elseif ($this->project->wasRecentlyCreated) {
+            $this->project->syncModules(
+                collect(Setting::get('default_projects_modules', array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults())))
+                    ->map(fn (string $m) => ProjectModuleKey::from($m))->all()
+            );
+        }
 
         $this->project->trackers()->sync($trackerIds);
         $this->project->syncIssueCustomFieldIds($issueCustomFieldIds);
@@ -496,8 +516,15 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div>
             <label for="field-identifier" class="block text-sm font-medium text-neutral-700">{{ __('識別子') }}</label>
-            <input id="field-identifier" type="text" wire:model="identifier"
-                class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @if ($project)
+                {{-- Frozen once the project exists, as in Redmine: URLs and repository references depend on it. --}}
+                <input id="field-identifier" type="text" value="{{ $project->identifier }}" disabled
+                    class="mt-1 block w-full rounded-md border-neutral-300 bg-neutral-100 text-neutral-600 shadow-sm sm:text-sm">
+                <p class="mt-1 text-xs text-neutral-600">{{ __('識別子は作成後には変更できません。') }}</p>
+            @else
+                <input id="field-identifier" type="text" wire:model="identifier"
+                    class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+            @endif
             @error('identifier') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
 
@@ -543,6 +570,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
         @endif
 
+        @if ($this->mayChooseModules)
         <div>
             <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('有効なモジュール') }}</span>
             <div class="grid grid-cols-2 gap-2">
@@ -554,6 +582,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </div>
         </div>
+        @endif
 
         <div>
             <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('使用するトラッカー') }}</span>

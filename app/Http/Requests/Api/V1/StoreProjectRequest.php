@@ -35,6 +35,16 @@ final class StoreProjectRequest extends FormRequest
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
+    /**
+     * Redmine's API names the modules enabled_module_names; `modules` is this API's own name.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('enabled_module_names') && ! $this->has('modules')) {
+            $this->merge(['modules' => $this->input('enabled_module_names')]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -45,7 +55,8 @@ final class StoreProjectRequest extends FormRequest
             'is_public' => ['boolean'],
             'inherit_members' => ['boolean'],
             'parent_id' => ['nullable', 'exists:projects,id'],
-            'tracker_ids' => ['required', 'array', 'min:1'],
+            // Optional: Redmine falls back to default_projects_tracker_ids, then every tracker.
+            'tracker_ids' => ['sometimes', 'array', 'min:1'],
             'tracker_ids.*' => ['exists:trackers,id'],
             'modules' => ['sometimes', 'array'],
             'modules.*' => [Rule::in(array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::cases()))],
