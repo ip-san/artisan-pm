@@ -278,11 +278,43 @@ final class Version extends Model implements HasMedia
      */
     public function completedPercent(?Collection $trackerIds = null): float
     {
-        $issues = $this->fixedIssues()
+        return self::percentOf($this->fixedIssues()
             ->when($trackerIds !== null, fn ($query) => $query->whereIn('tracker_id', $trackerIds))
             ->get(['estimated_hours', 'done_ratio', 'status_id'])
-            ->load('status');
+            ->load('status'));
+    }
 
+    /**
+     * completedPercent() for many versions as seen by $viewer, with one issue query and one
+     * status query for all of them: the Gantt draws a milestone per version and ran both per
+     * version. Versions with no visible issues get 0.0, as completedPercent() returns.
+     *
+     * @param  Collection<int, Version>  $versions
+     * @return array<int, float> keyed by version id
+     */
+    public static function completedPercents(Collection $versions, ?User $viewer): array
+    {
+        if ($versions->isEmpty()) {
+            return [];
+        }
+
+        $issuesByVersion = Issue::query()
+            ->visible($viewer)
+            ->whereIn('fixed_version_id', $versions->pluck('id')->all())
+            ->get(['id', 'fixed_version_id', 'estimated_hours', 'done_ratio', 'status_id'])
+            ->load('status')
+            ->groupBy('fixed_version_id');
+
+        return $versions->mapWithKeys(fn (Version $version) => [
+            $version->id => self::percentOf($issuesByVersion->get($version->id, Issue::query()->getModel()->newCollection())),
+        ])->all();
+    }
+
+    /**
+     * @param  Collection<int, Issue>  $issues  with status loaded
+     */
+    private static function percentOf(Collection $issues): float
+    {
         if ($issues->isEmpty()) {
             return 0.0;
         }

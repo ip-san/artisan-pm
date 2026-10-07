@@ -5,7 +5,7 @@
     — and each bar's late part in red (Redmine's task_late), under the done
     part. Rows are 32px (h-8); relation lines are drawn below the headers.
 --}}
-@props(['chart', 'lines', 'relationLines' => [], 'zoom' => 2, 'drawProgress' => false, 'drawSelectedColumns' => false, 'selectedColumnTexts' => []])
+@props(['chart', 'lines', 'relationLines' => [], 'zoom' => 2, 'drawProgress' => false, 'drawSelectedColumns' => false, 'selectedColumnTexts' => [], 'versionPercents' => []])
 @php
     $zoom = max(1, min(4, (int) $zoom));
     $headerRows = 1 + ($zoom >= 2 ? 1 : 0) + ($zoom >= 3 ? 1 : 0);
@@ -91,7 +91,7 @@
                             @endif
                         </div>
                     @elseif ($line['kind'] === 'version')
-                        @php $version = $line['version']; $percent = round($version->asSeenBy(auth()->user())->completedPercent()); @endphp
+                        @php $version = $line['version']; $percent = round($versionPercents[$version->id] ?? $version->asSeenBy(auth()->user())->completedPercent()); @endphp
                         <div class="absolute top-1 flex h-6 -translate-x-1/2 items-center gap-1 text-warning"
                             style="left: {{ $chart->versionMarkerLeftPercent($version) }}%"
                             title="{{ $version->name }} ({{ \App\Support\Format\DateTimes::date($version->due_date) }}, {{ $percent }}%)">

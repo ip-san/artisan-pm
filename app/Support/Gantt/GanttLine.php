@@ -38,14 +38,17 @@ final readonly class GanttLine
         return new self(self::ISSUE, $depth, "{$row->trackerName} #{$row->id}: {$row->subject}", row: $row);
     }
 
-    public static function version(Version $version, int $depth): self
+    /**
+     * @param  float|null  $percent  precomputed via Version::completedPercents(); computed here if omitted
+     */
+    public static function version(Version $version, int $depth, ?float $percent = null): self
     {
         return new self(
             self::VERSION,
             $depth,
             $version->name,
             version: $version,
-            versionPercent: (int) round($version->asSeenBy(auth()->user())->completedPercent()),
+            versionPercent: (int) round($percent ?? $version->asSeenBy(auth()->user())->completedPercent()),
         );
     }
 }

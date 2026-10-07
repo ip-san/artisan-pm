@@ -21,6 +21,7 @@ use App\Support\Authorization\AuthorizationService;
 use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\SubprojectScope;
 use Closure;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 
 /**
@@ -115,7 +116,12 @@ final class IssueFilterFieldRegistry
         $textOperators = self::textOperators();
         $integerOperators = self::integerOperators();
 
-        $projects->each->loadMissing(['trackers', 'issueCategories', 'users', 'versions']);
+        // On the collection, not each model: one query per relation for all the projects together.
+        if ($projects instanceof EloquentCollection) {
+            $projects->loadMissing(['trackers', 'issueCategories', 'users', 'versions']);
+        } else {
+            $projects->each->loadMissing(['trackers', 'issueCategories', 'users', 'versions']);
+        }
 
         $trackers = $projects->flatMap(fn (Project $project) => $project->trackers)->unique('id');
         $categories = $projects->flatMap(fn (Project $project) => $project->issueCategories)->unique('id');

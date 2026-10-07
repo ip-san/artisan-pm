@@ -137,7 +137,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 49,
+            "queries": 21,
             "lazy": []
         },
         "calendar.index": {
@@ -273,7 +273,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 103,
+            "queries": 26,
             "lazy": []
         },
         "gantt.index": {
@@ -281,7 +281,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 44,
+            "queries": 22,
             "lazy": []
         },
         "groups.create": {
@@ -393,7 +393,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 38,
+            "queries": 40,
             "lazy": []
         },
         "issues.global-index": {
@@ -425,7 +425,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 39,
+            "queries": 40,
             "lazy": []
         },
         "issues.show": {
@@ -433,7 +433,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 39,
+            "queries": 60,
             "lazy": []
         },
         "login": {

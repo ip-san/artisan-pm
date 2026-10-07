@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Pest\Browser\Playwright\Playwright;
 
 /**
  * Crawls every HTML GET page (as an administrator, a few in English, and the signed-out pages)
@@ -127,6 +128,9 @@ test('every page passes axe and the layout checks, apart from recorded findings'
         $lazyLoads = [];
         $started = microtime(true);
         $result = visit($url)->script(PAGE_AUDIT_SCRIPT);
+        // Each visit() opens a browser context the plugin only closes when the test ends; over the
+        // ~200 pages here that piled up renderer processes until Chromium, then Docker, stalled.
+        Playwright::browser(Playwright::defaultBrowserType())->launch()->reset();
 
         if ($result === null) {
             return null;

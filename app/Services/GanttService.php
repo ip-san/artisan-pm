@@ -212,6 +212,41 @@ final class GanttService
     }
 
     /**
+     * milestones() for every project at once: one query for all the projects' versions and the
+     * shared versions their rows target, then each project gets the same set milestones() would
+     * have returned for it alone. The global chart has one project per heading, and a query per
+     * heading was most of what it cost.
+     *
+     * @param  Collection<int, Collection<int, GanttRow>>  $treesByProject  keyed by project id
+     * @return Collection<int, \Illuminate\Database\Eloquent\Collection<int, Version>> keyed by project id, in due-date order
+     */
+    public function milestonesByProject(Collection $treesByProject): Collection
+    {
+        $treesByProject = $treesByProject->filter(fn (Collection $tree) => $tree->isNotEmpty());
+
+        if ($treesByProject->isEmpty()) {
+            return collect();
+        }
+
+        $targetedByProject = $treesByProject->map(fn (Collection $tree) => $tree->pluck('fixedVersionId')->filter()->unique()->values());
+        $versions = Version::query()
+            ->whereNotNull('due_date')
+            ->where(fn (Builder $query) => $query
+                ->whereIn('project_id', $treesByProject->keys()->all())
+                ->orWhere(fn (Builder $shared) => $shared
+                    ->whereIn('id', $targetedByProject->flatten()->unique()->all())
+                    ->where('sharing', '!=', VersionSharing::None->value)))
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->get();
+
+        return $treesByProject->map(fn (Collection $tree, int $projectId) => $versions
+            ->filter(fn (Version $version) => $version->project_id === $projectId
+                || ($targetedByProject[$projectId]->contains($version->id) && $version->sharing !== VersionSharing::None))
+            ->values());
+    }
+
+    /**
      * precedes/blocks relations where both ends are currently visible on
      * the chart — matches Redmine's Gantt#relations (lib/redmine/helpers/
      * gantt.rb), which only draws these two relation types (Redmine's own

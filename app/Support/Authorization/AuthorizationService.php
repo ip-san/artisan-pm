@@ -369,6 +369,22 @@ final class AuthorizationService
     }
 
     /**
+     * Loads the user's roles in all of $projects with one query, so the per-project can() and
+     * rolesFor() calls that follow (a list filtered project by project, for instance) read the
+     * memo instead of each running their own membership query.
+     *
+     * @param  Collection<int, Project>  $projects
+     */
+    public function prefetchRoles(?User $user, Collection $projects): void
+    {
+        if ($user === null || $user->is_admin) {
+            return;
+        }
+
+        $this->prefetchMemberRoles($user, $projects);
+    }
+
+    /**
      * @return Collection<int, Role>
      */
     private function builtinRoles(RoleBuiltin $builtin): Collection

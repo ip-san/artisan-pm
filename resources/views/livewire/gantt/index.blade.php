@@ -243,6 +243,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $trees = $service->issueTreesByProject($visibleIssues, $matchedIds)->filter(fn (Collection $tree) => $tree->isNotEmpty());
+        $milestones = $service->milestonesByProject($trees);
         $lines = collect();
 
         foreach ($this->headedProjects($trees->keys()) as [$project, $depth]) {
@@ -253,10 +254,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 $lines->push(['kind' => 'issue', 'depth' => $depth + 1 + $row->depth, 'project' => $project, 'row' => $row]);
             }
 
-            if ($tree->isNotEmpty()) {
-                foreach ($service->milestones($project, $tree) as $version) {
-                    $lines->push(['kind' => 'version', 'depth' => $depth + 1, 'project' => $project, 'version' => $version]);
-                }
+            foreach ($milestones->get($project->id, collect()) as $version) {
+                $lines->push(['kind' => 'version', 'depth' => $depth + 1, 'project' => $project, 'version' => $version]);
             }
         }
 
@@ -421,6 +420,17 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->lines->where('kind', 'version')->pluck('version')->values();
     }
 
+    /**
+     * Each drawn milestone's completion, computed for all of them at once.
+     *
+     * @return array<int, float>  keyed by version id
+     */
+    #[Computed]
+    public function versionPercents(): array
+    {
+        return Version::completedPercents($this->lines->where('kind', 'version')->pluck('version'), auth()->user());
+    }
+
     #[Computed]
     public function chart(): GanttChart
     {
@@ -538,7 +548,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->lines->map(fn (array $line) => match ($line['kind']) {
             'project' => GanttLine::project($line['project'], $line['depth']),
             'issue' => GanttLine::issue($line['row'], $line['depth']),
-            'version' => GanttLine::version($line['version'], $line['depth']),
+            'version' => GanttLine::version($line['version'], $line['depth'], $this->versionPercents[$line['version']->id] ?? null),
         })->all();
     }
 
@@ -700,7 +710,7 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($this->monthsTruncated)
             <p class="mb-2 text-sm text-warning-bold">{{ __('期間が長いため、開始から:monthsか月分だけを表示しています。', ['months' => self::monthsLimit()]) }}</p>
         @endif
-        <x-gantt.chart :chart="$this->chart" :lines="$this->lines" :relation-lines="$this->relationLines" :zoom="$zoom" :draw-progress="$drawProgress"
+        <x-gantt.chart :chart="$this->chart" :lines="$this->lines" :relation-lines="$this->relationLines" :zoom="$zoom" :draw-progress="$drawProgress" :version-percents="$this->versionPercents"
             :draw-selected-columns="$drawSelectedColumns" :selected-column-texts="$this->selectedColumnTexts" />
     @endif
 </div>
