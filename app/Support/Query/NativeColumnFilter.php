@@ -26,6 +26,7 @@ final class NativeColumnFilter implements FilterableField
         private readonly ?Closure $optionsResolver = null,
         private readonly bool $sortable = true,
         private readonly bool $storesTime = false,
+        private readonly bool $resolvesMe = false,
     ) {}
 
     public function key(): string
@@ -55,6 +56,11 @@ final class NativeColumnFilter implements FilterableField
 
     public function apply(Builder $query, FilterOperator $operator, array $values): Builder
     {
+        // Redmine's "<< me >>" value: the signed-in user, which matches no one for a visitor.
+        if ($this->resolvesMe) {
+            $values = array_map(fn ($value) => $value === 'me' ? (string) (auth()->id() ?? 0) : $value, $values);
+        }
+
         return $this->storesTime
             ? FilterOperatorApplier::applyToTimes($query, $this->column, $operator, $values)
             : FilterOperatorApplier::apply($query, $this->column, $operator, $values);

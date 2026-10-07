@@ -82,15 +82,28 @@ final class CustomFieldFilter implements FilterableField
             $values = array_map(fn ($value) => $value === 'me' ? (string) auth()->id() : $value, $values);
         }
 
-        return $query->where(fn (Builder $scoped) => $this->restrictToVisibleProjects($scoped)->whereHas(
-            'customFieldValues',
-            fn (Builder $valueQuery) => FilterOperatorApplier::apply(
-                $valueQuery->where('custom_field_id', $fieldId),
-                $column,
-                $operator,
-                $values,
-            )
-        ));
+        // Redmine's sql_for_custom_field: each issue is joined (LEFT OUTER) to its values for this
+        // field, so an issue with no value row takes part as a NULL value. "is not" is NOT EXISTS
+        // over "is", so a multi-value [A, B] is not "not A", and an issue with no value is. The
+        // project visibility stays outside every branch, so a field the viewer may not see cannot
+        // be probed by elimination with "is not".
+        $textual = in_array($column, ['value_string', 'value_text'], true);
+        $ofField = fn (Builder $valueQuery) => $valueQuery->where('custom_field_id', $fieldId);
+        $blank = fn (Builder $valueQuery) => $valueQuery->where(fn (Builder $b) => $textual ? $b->whereNull($column)->orWhere($column, '') : $b->whereNull($column));
+
+        return $query->where(fn (Builder $scoped) => $this->restrictToVisibleProjects($scoped)->where(fn (Builder $issue) => match ($operator) {
+            FilterOperator::NotIn => $issue->whereDoesntHave('customFieldValues', fn (Builder $valueQuery) => FilterOperatorApplier::apply($ofField($valueQuery), $column, FilterOperator::In, $values)),
+            FilterOperator::IsEmpty => $issue->whereDoesntHave('customFieldValues', $ofField)
+                ->orWhereHas('customFieldValues', fn (Builder $valueQuery) => $blank($ofField($valueQuery))),
+            FilterOperator::IsNotEmpty => $issue->whereHas('customFieldValues', fn (Builder $valueQuery) => $textual
+                ? $ofField($valueQuery)->whereNotNull($column)->where($column, '<>', '')
+                : $ofField($valueQuery)->whereNotNull($column)),
+            FilterOperator::NotContains => $issue->whereDoesntHave('customFieldValues', $ofField)
+                ->orWhereHas('customFieldValues', fn (Builder $valueQuery) => $ofField($valueQuery)->where(
+                    fn (Builder $b) => FilterOperatorApplier::apply($b, $column, FilterOperator::NotContains, $values)->orWhereNull($column),
+                )),
+            default => $issue->whereHas('customFieldValues', fn (Builder $valueQuery) => FilterOperatorApplier::apply($ofField($valueQuery), $column, $operator, $values)),
+        }));
     }
 
     /**

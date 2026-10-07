@@ -38,9 +38,11 @@ final class FilterOperatorApplier
 
         return match ($operator) {
             FilterOperator::Equals => $query->where($column, $values[0] ?? null),
-            FilterOperator::NotEquals => $query->where($column, '!=', $values[0] ?? null),
+            // Redmine's "!" (query.rb sql_for_field): `col IS NULL OR col NOT IN (...)`, so a row with
+            // nothing set (no category, no target version) counts as "not A" rather than vanishing.
+            FilterOperator::NotEquals => $query->where(fn ($q) => $q->whereNull($column)->orWhere($column, '!=', $values[0] ?? null)),
             FilterOperator::In => $query->whereIn($column, $values),
-            FilterOperator::NotIn => $query->whereNotIn($column, $values),
+            FilterOperator::NotIn => $query->where(fn ($q) => $q->whereNull($column)->orWhereNotIn($column, $values)),
             FilterOperator::Contains, FilterOperator::NotContains, FilterOperator::ContainsAny,
             FilterOperator::StartsWith, FilterOperator::EndsWith => tap($query, fn () => TextMatch::apply($query, $column, $operator, (string) ($values[0] ?? ''))),
             FilterOperator::IsEmpty => $query->whereNull($column),

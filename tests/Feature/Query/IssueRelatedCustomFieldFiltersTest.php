@@ -280,3 +280,20 @@ test('the REST issue list honours project_cf and respects the same role visibili
     expect($ids($insider))->toBe([$matching->id])
         ->and($ids($viewer))->toBe(collect([$matching->id, $otherIssue->id])->sort()->values()->all());
 });
+
+test('"none" on the assignee\'s custom field matches an assignee without a value, not an issue without an assignee (A17-07)', function () {
+    ['project' => $project, 'tracker' => $tracker, 'admin' => $admin] = relCfFixture();
+    $field = CustomField::factory()->list(['blue', 'green'])->create(['customized_type' => CustomizableType::User, 'name' => 'Team', 'is_filter' => true]);
+    $withValue = User::factory()->create();
+    Member::factory()->for($project)->for($withValue)->create();
+    relCfSet($withValue, [$field->id => 'blue']);
+    $withoutValue = User::factory()->create();
+    Member::factory()->for($project)->for($withoutValue)->create();
+
+    $blue = relCfIssue($project, $tracker, ['assigned_to_id' => $withValue->id]);
+    $blank = relCfIssue($project, $tracker, ['assigned_to_id' => $withoutValue->id]);
+    $unassigned = relCfIssue($project, $tracker);
+
+    expect(relCfFilter($project, $admin, "assigned_to_cf_{$field->id}", 'empty'))->toBe([$blank->id])
+        ->and(relCfFilter($project, $admin, "assigned_to_cf_{$field->id}", '!in', ['blue']))->toBe([$blank->id, $unassigned->id]);
+});

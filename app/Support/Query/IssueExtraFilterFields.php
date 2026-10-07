@@ -1004,7 +1004,9 @@ final class IssueExtraFilterFields
                     return $query;
                 }
 
-                [$positive, $negated] = self::positiveOf($operator);
+                // Redmine keeps "none" an EXISTS over the related record (A17-07): an issue with no
+                // assignee/version/author has no record whose value could be blank, so it does not match.
+                [$positive, $negated] = $operator === FilterOperator::IsEmpty ? [FilterOperator::IsEmpty, false] : self::positiveOf($operator);
                 $matching = $condition->apply(Project::query()->select('projects.id')->whereIn('projects.id', $visibleProjectIds), $positive, $values);
                 $column = $query->qualifyColumn('project_id');
 
@@ -1038,7 +1040,9 @@ final class IssueExtraFilterFields
                     return $query;
                 }
 
-                [$positive, $negated] = self::positiveOf($operator);
+                // Redmine keeps "none" an EXISTS over the related record (A17-07): an issue with no
+                // assignee/version/author has no record whose value could be blank, so it does not match.
+                [$positive, $negated] = $operator === FilterOperator::IsEmpty ? [FilterOperator::IsEmpty, false] : self::positiveOf($operator);
                 $matching = $condition->apply(Version::query()->select('versions.id')->whereIn('versions.project_id', $visibleProjectIds), $positive, $values);
                 $column = $query->qualifyColumn('fixed_version_id');
 
@@ -1068,7 +1072,9 @@ final class IssueExtraFilterFields
                     return $query;
                 }
 
-                [$positive, $negated] = self::positiveOf($operator);
+                // Redmine keeps "none" an EXISTS over the related record (A17-07): an issue with no
+                // assignee/version/author has no record whose value could be blank, so it does not match.
+                [$positive, $negated] = $operator === FilterOperator::IsEmpty ? [FilterOperator::IsEmpty, false] : self::positiveOf($operator);
                 $matching = $condition->apply(User::query()->select('users.id'), $positive, $values);
                 $column = $query->qualifyColumn('author_id');
 
@@ -1099,7 +1105,9 @@ final class IssueExtraFilterFields
                     return $query;
                 }
 
-                [$positive, $negated] = self::positiveOf($operator);
+                // Redmine keeps "none" an EXISTS over the related record (A17-07): an issue with no
+                // assignee/version/author has no record whose value could be blank, so it does not match.
+                [$positive, $negated] = $operator === FilterOperator::IsEmpty ? [FilterOperator::IsEmpty, false] : self::positiveOf($operator);
                 $matching = $condition->apply(User::query()->select('users.id'), $positive, $values);
                 $column = $query->qualifyColumn('assigned_to_id');
 
