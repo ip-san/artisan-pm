@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Models\WorkflowFieldRule;
 use App\Models\WorkflowTransition;
 use App\Services\IncomingMailService;
+use App\Support\Issues\IssueFieldRules;
 use App\Support\Mail\ParsedIncomingMail;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -356,4 +357,38 @@ test('incoming mail ignores read-only keywords and rejects a mail missing a requ
 
     expect($reply)->not->toBeNull()
         ->and($issue->fresh()->due_date)->toBeNull();
+});
+
+test('a read-only project_id is dropped for an existing issue but a new issue can always set its project (A17-14)', function () {
+    $setup = fieldRulesSetup(['edit_issues', 'add_issues'], ['project_id' => 'read_only']);
+    $other = Project::factory()->create();
+    $issue = fieldRulesIssue($setup);
+
+    [$kept] = IssueFieldRules::filterInput($issue, ['project_id' => $other->id, 'subject' => 'Moved?'], [], $setup['user']);
+
+    expect($kept)->not->toHaveKey('project_id')->and($kept)->toHaveKey('subject');
+
+    $new = new Issue(['tracker_id' => $setup['tracker']->id, 'status_id' => $setup['status']->id, 'project_id' => $setup['project']->id]);
+    [$keptForNew] = IssueFieldRules::filterInput($new, ['project_id' => $setup['project']->id], [], $setup['user']);
+
+    expect($keptForNew)->toHaveKey('project_id');
+});
+
+test('assignee-only transitions follow the assignee before the change, not the one being set (A17-21)', function () {
+    $setup = fieldRulesSetup(['edit_issues']);
+    $resolved = IssueStatus::factory()->create(['position' => 2]);
+    WorkflowTransition::create(['tracker_id' => $setup['tracker']->id, 'role_id' => $setup['role']->id, 'old_status_id' => $setup['status']->id, 'new_status_id' => $resolved->id, 'assignee' => true]);
+    $colleague = User::factory()->create();
+    Member::factory()->for($setup['project'])->for($colleague)->create()->roles()->attach($setup['role']);
+
+    // The current assignee may reassign and move the status in one request ...
+    $mine = fieldRulesIssue($setup, ['assigned_to_id' => $setup['user']->id]);
+    Passport::actingAs($setup['user']);
+    $this->putJson("/api/v1/issues/{$mine->id}", ['status_id' => $resolved->id, 'assigned_to_id' => $colleague->id])->assertOk();
+    expect($mine->fresh()->status_id)->toBe($resolved->id);
+
+    // ... but taking an issue over does not grant the assignee's transition in the same request.
+    $theirs = fieldRulesIssue($setup, ['assigned_to_id' => $colleague->id]);
+    $this->putJson("/api/v1/issues/{$theirs->id}", ['status_id' => $resolved->id, 'assigned_to_id' => $setup['user']->id])->assertForbidden();
+    expect($theirs->fresh()->status_id)->toBe($setup['status']->id);
 });

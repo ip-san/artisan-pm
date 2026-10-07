@@ -248,3 +248,18 @@ test('a multiple user field renders a multi-select and saves every chosen member
         ->set('customFieldValues', [$field->id => [(string) User::factory()->create()->id]])
         ->call('save')->assertHasErrors();
 });
+
+test('the visible-roles choice is offered only where Redmine has it: issue, time entry, project, version (A17-13)', function (string $type, bool $offered) {
+    $admin = User::factory()->admin()->create();
+
+    $component = Livewire::actingAs($admin)->test('custom-fields.form')->set('customized_type', $type);
+
+    $offered ? $component->assertSee('閲覧可能ロール') : $component->assertDontSee('閲覧可能ロール');
+})->with([
+    'issue' => ['issue', true],
+    'time entry' => ['time_entry', true],
+    'project' => ['project', true],
+    'version' => ['version', true],
+    'user' => ['user', false],
+    'group' => ['group', false],
+]);

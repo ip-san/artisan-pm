@@ -100,13 +100,22 @@ final class CustomFieldPayload
     public static function extract(Request $request, Collection $fields, ?User $user, bool $requireAll = false, ?Project $project = null): array
     {
         $items = $request->input('custom_fields');
+        $hash = $request->input('custom_field_values');
 
-        if (! is_array($items)) {
+        // Redmine also takes the values as a hash keyed by field id (`custom_field_values`), the
+        // form its own web forms send; it is read after the array form, so it wins on a clash.
+        if (! is_array($items) && ! is_array($hash)) {
             if ($requireAll) {
                 $items = [];
             } else {
                 return [];
             }
+        }
+
+        $items = is_array($items) ? $items : [];
+
+        foreach (is_array($hash) ? $hash : [] as $id => $value) {
+            $items[] = ['id' => $id, 'value' => $value];
         }
 
         $byId = $fields->keyBy('id');

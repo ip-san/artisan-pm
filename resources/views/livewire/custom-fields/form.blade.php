@@ -625,6 +625,9 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
         @endif
 
+        {{-- Redmine offers visibility by role for issue, time entry, project and version fields only;
+             a user or group field has no role concept, so the choice would do nothing. --}}
+        @if (in_array($this->customized_type, [\App\Enums\CustomizableType::Issue->value, \App\Enums\CustomizableType::TimeEntry->value, \App\Enums\CustomizableType::Project->value, \App\Enums\CustomizableType::Version->value], true))
         <div>
             <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('閲覧可能ロール(未選択=全ロールに表示)') }}</span>
             <div class="flex flex-wrap gap-3">
@@ -636,6 +639,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 @endforeach
             </div>
         </div>
+        @endif
 
         <div class="flex gap-3">
             <button type="submit" class="btn btn-primary">

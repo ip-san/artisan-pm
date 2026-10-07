@@ -13,7 +13,7 @@ use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
-use App\Models\Version;
+use Illuminate\Http\UploadedFile;
 use Laravel\Passport\Passport;
 
 /**
@@ -193,4 +193,29 @@ test('a request without custom_fields leaves values alone on update', function (
     $this->putJson("/api/v1/issues/{$issue->id}", ['subject' => 'Only the subject'])->assertOk();
 
     expect($issue->fresh()->customValue($field))->toBe('stay');
+});
+
+test('values may also be sent as a custom_field_values hash keyed by field id (A17-15)', function () {
+    ['project' => $project, 'user' => $user, 'tracker' => $tracker] = cfApiSetup();
+    $field = cfApiIssueField($tracker, ['name' => 'Ref']);
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => IssueStatus::factory()->create()->id, 'priority_id' => Enumeration::factory()->create()->id]);
+
+    Passport::actingAs($user);
+    $this->putJson("/api/v1/issues/{$issue->id}", ['custom_field_values' => [(string) $field->id => 'from the hash']])->assertOk();
+
+    expect($issue->fresh()->customValue($field))->toBe('from the hash');
+});
+
+test('deleted_attachment_ids removes the issue\'s attachments and journals each removal (A17-15)', function () {
+    ['project' => $project, 'user' => $user, 'tracker' => $tracker] = cfApiSetup();
+    $issue = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => IssueStatus::factory()->create()->id, 'priority_id' => Enumeration::factory()->create()->id]);
+    $gone = $issue->addMedia(UploadedFile::fake()->create('old.txt', 10))->toMediaCollection('attachments');
+    $kept = $issue->addMedia(UploadedFile::fake()->create('keep.txt', 10))->toMediaCollection('attachments');
+
+    Passport::actingAs($user);
+    $this->putJson("/api/v1/issues/{$issue->id}", ['deleted_attachment_ids' => [$gone->id]])->assertOk();
+
+    $remaining = $issue->fresh()->attachments()->pluck('id')->all();
+    expect($remaining)->toBe([$kept->id])
+        ->and($issue->journals()->with('details')->get()->flatMap->details->where('property', 'attachment')->pluck('old_value')->all())->toBe(['old.txt']);
 });

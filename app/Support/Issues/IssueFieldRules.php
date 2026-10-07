@@ -72,8 +72,16 @@ final class IssueFieldRules
      */
     public static function filterInput(Issue $issue, array $attributes, array $customFieldData, User $user): array
     {
-        if ($issue->exists && array_key_exists('tracker_id', $attributes) && self::for($issue, $user)->isReadOnly('tracker_id')) {
-            unset($attributes['tracker_id']);
+        // Redmine's safe_attribute_names drops read-only fields, project_id among them, for an
+        // existing issue (a new one can always set its project).
+        if ($issue->exists) {
+            $current = self::for($issue, $user);
+
+            foreach (['tracker_id', 'project_id'] as $structural) {
+                if (array_key_exists($structural, $attributes) && $current->isReadOnly($structural)) {
+                    unset($attributes[$structural]);
+                }
+            }
         }
 
         $target = self::targetState($issue, $attributes);

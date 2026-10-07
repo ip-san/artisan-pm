@@ -535,6 +535,13 @@ final class IssueController extends Controller
             // notes-only update is a comment, as on the issue page.
             $issue = app(IssueService::class)->update($issue, $data, $user, $notes, $customFieldData, $expectedLockVersion, $notesArePrivate, applyFieldRules: $canEdit,
                 attachFiles: fn (Issue $saved) => $this->attachUploads($saved, $uploads));
+
+            // Redmine's deleted_attachment_ids: only for someone who may edit the issue.
+            if ($canEdit && is_array($request->input('deleted_attachment_ids'))) {
+                $removed = $issue->attachments()->whereIn('id', array_map('intval', $request->input('deleted_attachment_ids')))->values();
+                $removed->each->delete();
+                app(IssueService::class)->journalizeAttachments($issue, $removed, added: false, actor: $user);
+            }
         } catch (StaleIssueUpdateException $exception) {
             return response()->json([
                 'message' => __('課題が他のユーザーによって更新されています。最新の内容を取得して、もう一度やり直してください。'),
