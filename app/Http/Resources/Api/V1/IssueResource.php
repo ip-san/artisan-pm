@@ -86,8 +86,8 @@ final class IssueResource extends JsonResource
             'estimated_remaining_hours' => $issue->estimated_hours !== null ? $issue->estimatedRemainingHours() : null,
             // Logged time is only shown to those who may see time entries,
             // as in Redmine's issues/show.api.rsb.
-            'spent_hours' => $this->mayViewTime($request, $issue) ? $issue->spentHours() : null,
-            'total_spent_hours' => $this->mayViewTime($request, $issue) ? $issue->totalSpentHours() : null,
+            'spent_hours' => $this->mayViewTime($request, $issue) ? $issue->visibleSpentHours($request->user()) : null,
+            'total_spent_hours' => $this->mayViewTime($request, $issue) ? $issue->visibleSpentHours($request->user(), withDescendants: true) : null,
             'custom_fields' => CustomFieldPayload::read($issue),
             'lock_version' => $issue->lock_version,
             'created_at' => $issue->created_at->toIso8601String(),

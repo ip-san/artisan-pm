@@ -358,6 +358,25 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
+     * The listed projects the viewer may see time entries in: the spent-hours columns and totals
+     * are offered only when there is one, and sum only the entries visible there (Redmine's
+     * IssueQuery#available_totalable_columns / #total_for_spent_hours with visible_condition).
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function timeEntryProjects(): Collection
+    {
+        return $this->scopeProjects->filter(fn (Project $project) => Gate::allows('viewAny', [TimeEntry::class, $project]))->values();
+    }
+
+    #[Computed]
+    public function canViewTimeEntries(): bool
+    {
+        return $this->timeEntryProjects->isNotEmpty();
+    }
+
+    /**
      * @return Builder<Issue>
      */
     private function filteredIssuesQuery(): Builder
@@ -386,7 +405,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->when(in_array('last_updated_by', $this->columns, true), fn (Builder $q) => $q->with('lastJournal.user'))
             ->when(in_array('last_notes', $this->columns, true), fn (Builder $q) => $q->with('lastNotesJournal'))
             ->when(array_intersect(['spent_hours', 'total_spent_hours', 'total_estimated_hours'], $this->columns) !== [], fn (Builder $q) => $q->withCount('children'))
-            ->when(array_intersect(['spent_hours', 'total_spent_hours'], $this->columns) !== [], fn (Builder $q) => $q->withSum('timeEntries', 'hours'));
+            ->when(array_intersect(['spent_hours', 'total_spent_hours'], $this->columns) !== [], fn (Builder $q) => $q->withSum(['timeEntries' => fn ($entries) => $entries->visibleToAcrossProjects(auth()->user(), $this->timeEntryProjects)], 'hours'));
 
         if ($this->statusFilter !== 'all') {
             $isClosed = $this->statusFilter === 'closed';
@@ -619,6 +638,7 @@ new #[Layout('components.layouts.app')] class extends Component
         };
 
         $spentByGroup = TimeEntry::query()
+            ->visibleToAcrossProjects(auth()->user(), $this->timeEntryProjects)
             ->join('issues', 'time_entries.issue_id', '=', 'issues.id')
             ->whereIn('issues.id', $this->filteredIssuesQuery()->reorder()->select('issues.id'))
             ->selectRaw($keyExpression('issues.').' as group_key, SUM(time_entries.hours) as spent')
@@ -680,6 +700,7 @@ new #[Layout('components.layouts.app')] class extends Component
         };
 
         $spentByGroup = TimeEntry::query()
+            ->visibleToAcrossProjects(auth()->user(), $this->timeEntryProjects)
             ->join('issues', 'time_entries.issue_id', '=', 'issues.id')
             ->leftJoin('custom_field_values', $joinValueForField)
             ->whereIn('issues.id', $this->filteredIssuesQuery()->reorder()->select('issues.id'))
@@ -779,7 +800,13 @@ new #[Layout('components.layouts.app')] class extends Component
             ->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => $field->name])
             ->all();
 
-        return [...array_intersect_key(ListDefaults::issueTotalLabels(), ListDefaults::ISSUE_TOTALS), ...$numeric];
+        $choices = [...array_intersect_key(ListDefaults::issueTotalLabels(), ListDefaults::ISSUE_TOTALS), ...$numeric];
+
+        if (! $this->canViewTimeEntries) {
+            unset($choices['spent_hours']);
+        }
+
+        return $choices;
     }
 
     public function toggleTotal(string $key): void
@@ -831,6 +858,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $estimated = (float) $this->filteredIssuesQuery()->reorder()->sum('estimated_hours');
 
         $spent = (float) TimeEntry::query()
+            ->visibleToAcrossProjects(auth()->user(), $this->timeEntryProjects)
             ->whereIn('issue_id', $this->filteredIssuesQuery()->reorder()->select('issues.id'))
             ->sum('hours');
 
@@ -1112,7 +1140,13 @@ new #[Layout('components.layouts.app')] class extends Component
             ->mapWithKeys(fn (CustomField $field) => ["cf_{$field->id}" => $field->name])
             ->all();
 
-        return [...$this->nativeColumns, ...$customFieldLabels];
+        $columns = [...$this->nativeColumns, ...$customFieldLabels];
+
+        if (! $this->canViewTimeEntries) {
+            unset($columns['spent_hours'], $columns['total_spent_hours']);
+        }
+
+        return $columns;
     }
 
     /**
@@ -1285,7 +1319,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'total_estimated_hours' => $issue->estimated_hours !== null || ! $issue->isLeaf() ? \App\Support\Format\Hours::format($issue->totalEstimatedHours(), false) : '',
             'estimated_remaining_hours' => $issue->estimated_hours !== null ? \App\Support\Format\Hours::format($issue->estimatedRemainingHours(), false) : '',
             'spent_hours' => \App\Support\Format\Hours::format($issue->spentHours(), false),
-            'total_spent_hours' => \App\Support\Format\Hours::format($issue->totalSpentHours(), false),
+            'total_spent_hours' => \App\Support\Format\Hours::format($issue->visibleSpentHours(auth()->user(), withDescendants: true), false),
             default => '',
         };
     }

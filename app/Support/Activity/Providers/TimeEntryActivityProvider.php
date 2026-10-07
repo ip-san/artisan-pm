@@ -52,8 +52,9 @@ final class TimeEntryActivityProvider implements LastActivityProvider, MultiProj
         // so grouping by the viewer's day keeps it on its own date.
         $zone = DateTimes::timeZone($viewer);
 
+        // Redmine's acts_as_activity_provider without :permission uses scope.visible(user).
         $entries = TimeEntry::query()
-            ->whereIn('project_id', $projects->keys())
+            ->visibleToAcrossProjects($viewer, $projects->values())
             ->whereBetween('spent_on', [$from->copy()->setTimezone($zone)->toDateString(), $to->copy()->setTimezone($zone)->toDateString()])
             ->with(['activity', 'issue.project', 'user'])
             ->get();
@@ -83,7 +84,7 @@ final class TimeEntryActivityProvider implements LastActivityProvider, MultiProj
 
         // Redmine's TimeEntry activity timestamp is created_on.
         return ProjectLastActivity::maxByProject(
-            TimeEntry::query()->whereIn('time_entries.project_id', $projects->pluck('id')),
+            TimeEntry::query()->visibleToAcrossProjects($viewer, $projects),
             'time_entries.project_id',
             'time_entries.created_at',
         );

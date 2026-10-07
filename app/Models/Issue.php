@@ -539,6 +539,23 @@ final class Issue extends Model implements HasMedia
     }
 
     /**
+     * spentHours() / totalSpentHours() limited to the entries $user may see (Redmine's
+     * load_visible_spent_hours): a role that sees only its own entries gets its own hours, and a
+     * project the user may not view time in contributes nothing.
+     */
+    public function visibleSpentHours(?User $user, bool $withDescendants = false): float
+    {
+        $ids = $withDescendants && ! $this->isLeaf() ? $this->descendantIds()->push($this->id) : collect([$this->id]);
+        $authorization = app(AuthorizationService::class);
+        $projects = Project::query()
+            ->whereIn('id', self::query()->whereIn('id', $ids)->select('project_id'))
+            ->get()
+            ->filter(fn (Project $project) => $authorization->can($user, 'view_time_entries', $project));
+
+        return (float) TimeEntry::query()->whereIn('issue_id', $ids)->visibleToAcrossProjects($user, $projects)->sum('hours');
+    }
+
+    /**
      * The estimated_hours of this issue and all of its descendants summed
      * together — matches Redmine's Issue#total_estimated_hours.
      */

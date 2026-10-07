@@ -133,7 +133,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->project = $project;
         $this->timeEntryTodo = IssueTimeEntryDisposition::defaultForIssueDeletion()->value;
-        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'assignedToGroup', 'fixedVersion', ...self::JOURNAL_RELATIONS, 'reactions', 'customFieldValues', 'timeEntries.user', 'timeEntries.activity', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user', 'changesets.repository.project']);
+        $this->issue = $issue->load(['tracker', 'status', 'priority', 'category', 'author', 'assignedTo', 'assignedToGroup', 'fixedVersion', ...self::JOURNAL_RELATIONS, 'reactions', 'customFieldValues', 'relationsFrom.to.tracker', 'relationsFrom.to.project', 'relationsTo.from.tracker', 'relationsTo.from.project', 'parent.tracker', 'parent.status', 'children.tracker', 'children.status', 'watchers.user', 'changesets.repository.project']);
 
         foreach ($this->issue->attachments() as $media) {
             $this->attachmentDescriptions[$media->id] = (string) $media->getCustomProperty('description', '');
@@ -885,6 +885,33 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->redirect(route('issues.show', [$targetProject, $issue]), navigate: true);
     }
+
+    /**
+     * The issue's time entries the viewer may see, or null without view_time_entries.
+     *
+     * @return Collection<int, TimeEntry>|null
+     */
+    #[Computed]
+    public function visibleTimeEntries(): ?Collection
+    {
+        if (! auth()->user()?->can('viewAny', [TimeEntry::class, $this->issue->project])) {
+            return null;
+        }
+
+        return TimeEntry::query()
+            ->where('issue_id', $this->issue->id)
+            ->visibleToAcrossProjects(auth()->user(), collect([$this->issue->project]))
+            ->with(['user', 'activity'])
+            ->orderBy('spent_on')
+            ->orderBy('id')
+            ->get();
+    }
+
+    #[Computed]
+    public function visibleTotalSpentHours(): float
+    {
+        return $this->issue->visibleSpentHours(auth()->user(), withDescendants: true);
+    }
 }; ?>
 
 <div class="max-w-3xl" x-data="{ moveOpen: @js($errors->hasAny(['moveToProjectId', 'moveToTrackerId']) || filled($moveToProjectId)) }">
@@ -1274,15 +1301,16 @@ new #[Layout('components.layouts.app')] class extends Component
         @endcan
     @endif
 
-    @if ($issue->timeEntries->isNotEmpty() || (! $issue->isLeaf() && $issue->totalSpentHours() > 0))
+    {{-- Redmine's issues#show: logged time only with view_time_entries, and only the entries the viewer may see. --}}
+    @if ($this->visibleTimeEntries !== null && ($this->visibleTimeEntries->isNotEmpty() || (! $issue->isLeaf() && $this->visibleTotalSpentHours > 0)))
         <h2 class="text-sm font-semibold text-neutral-900 mb-2">
-            {{ __('工数 (:hours 時間)', ['hours' => \App\Support\Format\Hours::format((float) $issue->timeEntries->sum('hours'))]) }}
+            {{ __('工数 (:hours 時間)', ['hours' => \App\Support\Format\Hours::format((float) $this->visibleTimeEntries->sum('hours'))]) }}
             @if (! $issue->isLeaf())
-                <span class="font-normal text-neutral-500">{{ __('(合計: :hours 時間)', ['hours' => \App\Support\Format\Hours::format($issue->totalSpentHours())]) }}</span>
+                <span class="font-normal text-neutral-500">{{ __('(合計: :hours 時間)', ['hours' => \App\Support\Format\Hours::format($this->visibleTotalSpentHours)]) }}</span>
             @endif
         </h2>
         <ul class="mb-6 space-y-1">
-            @foreach ($issue->timeEntries as $entry)
+            @foreach ($this->visibleTimeEntries as $entry)
                 <li class="flex items-center justify-between text-sm">
                     <span>{{ \App\Support\Format\DateTimes::date($entry->spent_on) }} — {{ $entry->user->displayName() }} — {{ $entry->activity->name }}</span>
                     <span class="text-neutral-500">{{ __(':hours 時間', ['hours' => $entry->hours]) }}</span>

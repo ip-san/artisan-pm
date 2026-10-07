@@ -271,6 +271,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         @endif
 
+        @if ($role?->builtin !== \App\Enums\RoleBuiltin::Anonymous)
         <div>
             <label for="field-timeEntriesVisibility" class="block text-sm font-medium text-neutral-700">{{ __('工数の閲覧範囲') }}</label>
             <select id="field-timeEntriesVisibility" wire:model="timeEntriesVisibility" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
@@ -280,6 +281,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </select>
             @error('timeEntriesVisibility') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
         </div>
+        @endif
 
         <div>
             <label for="field-usersVisibility" class="block text-sm font-medium text-neutral-700">{{ __('ユーザーの閲覧範囲') }}</label>

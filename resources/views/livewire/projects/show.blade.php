@@ -42,7 +42,18 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $projects = SubprojectScope::projectsForTimeEntries($this->project, auth()->user());
 
-        return (float) TimeEntry::query()->whereIn('project_id', $projects->pluck('id'))->sum('hours');
+        return (float) TimeEntry::query()->visibleToAcrossProjects(auth()->user(), $projects)->sum('hours');
+    }
+
+    /**
+     * Redmine's projects#show shows the total only to a viewer allowed to see every entry
+     * (User#allowed_to_view_all_time_entries?), not to one who sees their own.
+     */
+    #[Computed]
+    public function canViewAllTimeEntries(): bool
+    {
+        return Gate::allows('viewAny', [TimeEntry::class, $this->project])
+            && app(\App\Support\Authorization\AuthorizationService::class)->timeEntryVisibilityFor(auth()->user(), $this->project) === \App\Enums\TimeEntryVisibility::All;
     }
 
     /**
@@ -294,7 +305,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </section>
             @endif
 
-            @can('viewAny', [\App\Models\TimeEntry::class, $project])
+            @if ($this->canViewAllTimeEntries)
                 @if ($this->totalSpentHours > 0)
                     <section class="rounded-lg border border-neutral-200 bg-surface p-4" data-overview="time">
                         <h2 class="mb-2 flex items-center gap-2 text-sm font-semibold text-neutral-900"><x-icon name="clock" class="size-4 text-neutral-500" />{{ __('実績工数') }}</h2>
@@ -302,7 +313,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         <a href="{{ route('time-entries.index', $project) }}" class="mt-2 inline-block text-sm text-brand-bold hover:underline">{{ __('詳細') }}</a>
                     </section>
                 @endif
-            @endcan
+            @endif
         </div>
 
         <div class="space-y-6">

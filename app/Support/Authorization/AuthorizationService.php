@@ -402,13 +402,22 @@ final class AuthorizationService
             return TimeEntryVisibility::All;
         }
 
-        $memberRoles = $user === null ? collect() : $this->memberRolesFor($user, $project);
-
-        if ($memberRoles->isEmpty()) {
+        // Redmine's User#allowed_to_view_all_time_entries? / Project.allowed_to_condition: only the
+        // roles that hold view_time_entries decide, and a non-member's roles are the builtin ones
+        // (so the Non member role's own setting applies on a public project). A visitor cannot own
+        // entries, and Redmine offers the Anonymous role no setting, so they see everything the
+        // permission allows.
+        if ($user === null) {
             return TimeEntryVisibility::All;
         }
 
-        $broadest = $memberRoles->first(fn (Role $role) => $role->time_entries_visibility !== TimeEntryVisibility::Own);
+        $viewingRoles = $this->rolesFor($user, $project)->filter(fn (Role $role) => $role->hasPermission('view_time_entries'));
+
+        if ($viewingRoles->isEmpty()) {
+            return TimeEntryVisibility::Own;
+        }
+
+        $broadest = $viewingRoles->first(fn (Role $role) => $role->time_entries_visibility !== TimeEntryVisibility::Own);
 
         return $broadest !== null ? TimeEntryVisibility::All : TimeEntryVisibility::Own;
     }
