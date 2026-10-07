@@ -33,7 +33,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 2,
+            "queries": 1,
             "lazy": []
         },
         "activity.global-index": {
@@ -41,7 +41,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 23,
+            "queries": 21,
             "lazy": []
         },
         "activity.index": {
@@ -49,7 +49,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 36,
+            "queries": 35,
             "lazy": []
         },
         "admin.default-configuration": {
@@ -57,7 +57,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "admin.info": {
@@ -65,7 +65,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 8,
+            "queries": 7,
             "lazy": []
         },
         "admin.projects": {
@@ -73,7 +73,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 13,
+            "queries": 12,
             "lazy": []
         },
         "auth-sources.create": {
@@ -81,7 +81,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 4,
             "lazy": []
         },
         "auth-sources.edit": {
@@ -89,7 +89,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "auth-sources.index": {
@@ -97,7 +97,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "boards.create": {
@@ -105,7 +105,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 8,
+            "queries": 7,
             "lazy": []
         },
         "boards.edit": {
@@ -113,7 +113,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 9,
+            "queries": 8,
             "lazy": []
         },
         "boards.index": {
@@ -121,7 +121,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 9,
+            "queries": 8,
             "lazy": []
         },
         "boards.show": {
@@ -129,7 +129,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 10,
+            "queries": 9,
             "lazy": []
         },
         "calendar.global-index": {
@@ -137,7 +137,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 51,
+            "queries": 49,
             "lazy": []
         },
         "calendar.index": {
@@ -145,7 +145,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 19,
+            "queries": 18,
             "lazy": []
         },
         "custom-fields.create": {
@@ -153,7 +153,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 8,
+            "queries": 7,
             "lazy": []
         },
         "custom-fields.edit": {
@@ -161,7 +161,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 13,
+            "queries": 12,
             "lazy": []
         },
         "custom-fields.index": {
@@ -169,7 +169,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 7,
+            "queries": 6,
             "lazy": []
         },
         "documents.create": {
@@ -177,7 +177,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 9,
+            "queries": 8,
             "lazy": []
         },
         "documents.edit": {
@@ -185,7 +185,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 12,
+            "queries": 11,
             "lazy": []
         },
         "documents.index": {
@@ -193,7 +193,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 9,
+            "queries": 8,
             "lazy": []
         },
         "documents.show": {
@@ -201,7 +201,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 10,
+            "queries": 9,
             "lazy": []
         },
         "en:admin.info": {
@@ -217,7 +217,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 30,
+            "queries": 29,
             "lazy": []
         },
         "en:my-page.index": {
@@ -233,7 +233,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 13,
+            "queries": 12,
             "lazy": []
         },
         "enumerations.create": {
@@ -241,7 +241,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "enumerations.edit": {
@@ -249,7 +249,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 8,
+            "queries": 7,
             "lazy": []
         },
         "enumerations.index": {
@@ -257,7 +257,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "files.index": {
@@ -265,7 +265,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 14,
+            "queries": 13,
             "lazy": []
         },
         "gantt.global-index": {
@@ -273,7 +273,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 107,
+            "queries": 103,
             "lazy": []
         },
         "gantt.index": {
@@ -289,7 +289,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "groups.edit": {
@@ -297,7 +297,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 12,
+            "queries": 11,
             "lazy": []
         },
         "groups.index": {
@@ -305,7 +305,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "guest:login": {
@@ -337,7 +337,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 8,
+            "queries": 7,
             "lazy": []
         },
         "issue-categories.edit": {
@@ -345,7 +345,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 9,
+            "queries": 8,
             "lazy": []
         },
         "issue-categories.index": {
@@ -353,7 +353,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 8,
+            "queries": 7,
             "lazy": []
         },
         "issue-statuses.create": {
@@ -361,7 +361,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 4,
             "lazy": []
         },
         "issue-statuses.edit": {
@@ -369,7 +369,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "issue-statuses.index": {
@@ -377,7 +377,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "issues.create": {
@@ -385,7 +385,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 35,
+            "queries": 32,
             "lazy": []
         },
         "issues.edit": {
@@ -393,7 +393,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 53,
+            "queries": 38,
             "lazy": []
         },
         "issues.global-index": {
@@ -401,7 +401,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 36,
+            "queries": 29,
             "lazy": []
         },
         "issues.import": {
@@ -409,7 +409,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 7,
+            "queries": 6,
             "lazy": []
         },
         "issues.index": {
@@ -417,7 +417,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 35,
+            "queries": 33,
             "lazy": []
         },
         "issues.report": {
@@ -425,7 +425,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 42,
+            "queries": 39,
             "lazy": []
         },
         "issues.show": {
@@ -433,7 +433,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 58,
+            "queries": 39,
             "lazy": []
         },
         "login": {
@@ -441,7 +441,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 31,
+            "queries": 13,
             "lazy": []
         },
         "messages.create": {
@@ -449,7 +449,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 8,
+            "queries": 7,
             "lazy": []
         },
         "messages.edit": {
@@ -457,7 +457,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 10,
+            "queries": 9,
             "lazy": []
         },
         "messages.show": {
@@ -465,7 +465,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 19,
+            "queries": 18,
             "lazy": []
         },
         "my-page.index": {
@@ -473,15 +473,15 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 35,
+            "queries": 32,
             "lazy": []
         },
         "my-webhooks.index": {
-            "error": "Forbidden",
+            "error": null,
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 2,
+            "queries": 5,
             "lazy": []
         },
         "news.create": {
@@ -489,7 +489,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 7,
+            "queries": 6,
             "lazy": []
         },
         "news.edit": {
@@ -497,7 +497,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 9,
+            "queries": 8,
             "lazy": []
         },
         "news.global-index": {
@@ -505,7 +505,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 13,
+            "queries": 10,
             "lazy": []
         },
         "news.index": {
@@ -513,7 +513,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 10,
+            "queries": 9,
             "lazy": []
         },
         "news.show": {
@@ -521,7 +521,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 15,
+            "queries": 14,
             "lazy": []
         },
         "passkey.confirm-options": {
@@ -529,7 +529,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 1,
+            "queries": 0,
             "lazy": []
         },
         "passkey.login-options": {
@@ -537,7 +537,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 16,
+            "queries": 12,
             "lazy": []
         },
         "passkey.registration-options": {
@@ -545,7 +545,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 3,
             "lazy": []
         },
         "password.confirm": {
@@ -553,7 +553,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 4,
+            "queries": 3,
             "lazy": []
         },
         "password.request": {
@@ -561,7 +561,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 17,
+            "queries": 12,
             "lazy": []
         },
         "plugins.index": {
@@ -569,7 +569,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 4,
             "lazy": []
         },
         "profile.index": {
@@ -577,7 +577,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 12,
+            "queries": 9,
             "lazy": []
         },
         "projects.activities": {
@@ -585,7 +585,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 9,
+            "queries": 8,
             "lazy": []
         },
         "projects.create": {
@@ -593,7 +593,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 14,
+            "queries": 10,
             "lazy": []
         },
         "projects.edit": {
@@ -601,7 +601,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 21,
+            "queries": 19,
             "lazy": []
         },
         "projects.index": {
@@ -609,7 +609,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 14,
+            "queries": 12,
             "lazy": []
         },
         "projects.members": {
@@ -617,7 +617,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 12,
+            "queries": 11,
             "lazy": []
         },
         "projects.show": {
@@ -625,7 +625,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 23,
+            "queries": 20,
             "lazy": []
         },
         "register": {
@@ -633,7 +633,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 16,
+            "queries": 12,
             "lazy": []
         },
         "repository.browse": {
@@ -641,7 +641,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 4,
             "lazy": []
         },
         "repository.committers": {
@@ -649,7 +649,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 4,
             "lazy": []
         },
         "repository.compare": {
@@ -657,7 +657,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 4,
             "lazy": []
         },
         "repository.create": {
@@ -665,7 +665,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 8,
+            "queries": 6,
             "lazy": []
         },
         "repository.edit": {
@@ -673,7 +673,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 9,
+            "queries": 8,
             "lazy": []
         },
         "repository.index": {
@@ -681,7 +681,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 10,
+            "queries": 9,
             "lazy": []
         },
         "repository.stats": {
@@ -689,7 +689,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 4,
             "lazy": []
         },
         "roles.create": {
@@ -697,7 +697,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 7,
+            "queries": 6,
             "lazy": []
         },
         "roles.edit": {
@@ -705,7 +705,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 9,
+            "queries": 8,
             "lazy": []
         },
         "roles.index": {
@@ -713,7 +713,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "roles.report": {
@@ -721,7 +721,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "search.global-index": {
@@ -729,7 +729,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 4,
             "lazy": []
         },
         "search.index": {
@@ -737,7 +737,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 7,
+            "queries": 6,
             "lazy": []
         },
         "settings.index": {
@@ -745,7 +745,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 99,
+            "queries": 19,
             "lazy": []
         },
         "time-entries.create": {
@@ -753,7 +753,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 16,
+            "queries": 15,
             "lazy": []
         },
         "time-entries.edit": {
@@ -761,7 +761,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 17,
+            "queries": 16,
             "lazy": []
         },
         "time-entries.global-index": {
@@ -769,7 +769,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 40,
+            "queries": 38,
             "lazy": []
         },
         "time-entries.global-report": {
@@ -777,7 +777,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 31,
+            "queries": 30,
             "lazy": []
         },
         "time-entries.import": {
@@ -785,7 +785,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 7,
+            "queries": 6,
             "lazy": []
         },
         "time-entries.index": {
@@ -793,7 +793,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 26,
+            "queries": 24,
             "lazy": []
         },
         "time-entries.report": {
@@ -801,7 +801,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 16,
+            "queries": 15,
             "lazy": []
         },
         "trackers.create": {
@@ -809,7 +809,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 7,
+            "queries": 6,
             "lazy": []
         },
         "trackers.edit": {
@@ -817,7 +817,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 7,
+            "queries": 6,
             "lazy": []
         },
         "trackers.index": {
@@ -825,7 +825,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "two-factor.login": {
@@ -833,7 +833,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 16,
+            "queries": 12,
             "lazy": []
         },
         "two-factor.qr-code": {
@@ -841,7 +841,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 3,
             "lazy": []
         },
         "two-factor.recovery-codes": {
@@ -849,7 +849,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 3,
             "lazy": []
         },
         "two-factor.secret-key": {
@@ -857,7 +857,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 3,
             "lazy": []
         },
         "users.create": {
@@ -865,7 +865,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 7,
+            "queries": 6,
             "lazy": []
         },
         "users.edit": {
@@ -873,7 +873,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 12,
+            "queries": 11,
             "lazy": []
         },
         "users.import": {
@@ -881,7 +881,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 5,
+            "queries": 4,
             "lazy": []
         },
         "users.index": {
@@ -889,7 +889,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 20,
+            "queries": 19,
             "lazy": []
         },
         "users.show": {
@@ -897,7 +897,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 43,
+            "queries": 42,
             "lazy": []
         },
         "versions.create": {
@@ -905,7 +905,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 9,
+            "queries": 8,
             "lazy": []
         },
         "versions.edit": {
@@ -913,7 +913,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 12,
+            "queries": 11,
             "lazy": []
         },
         "versions.index": {
@@ -921,7 +921,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 28,
+            "queries": 27,
             "lazy": []
         },
         "versions.roadmap": {
@@ -929,7 +929,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 49,
+            "queries": 48,
             "lazy": []
         },
         "webhooks.create": {
@@ -937,7 +937,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 7,
+            "queries": 6,
             "lazy": []
         },
         "webhooks.edit": {
@@ -945,7 +945,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 8,
+            "queries": 7,
             "lazy": []
         },
         "webhooks.index": {
@@ -953,7 +953,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 6,
+            "queries": 5,
             "lazy": []
         },
         "wiki.annotate": {
@@ -961,7 +961,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 13,
+            "queries": 12,
             "lazy": []
         },
         "wiki.create": {
@@ -969,7 +969,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 8,
+            "queries": 7,
             "lazy": []
         },
         "wiki.date-index": {
@@ -977,7 +977,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 10,
+            "queries": 9,
             "lazy": []
         },
         "wiki.diff": {
@@ -985,7 +985,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 12,
+            "queries": 11,
             "lazy": []
         },
         "wiki.edit": {
@@ -993,7 +993,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 12,
+            "queries": 11,
             "lazy": []
         },
         "wiki.history": {
@@ -1001,7 +1001,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 10,
+            "queries": 9,
             "lazy": []
         },
         "wiki.index": {
@@ -1009,7 +1009,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 21,
+            "queries": 19,
             "lazy": []
         },
         "wiki.pages": {
@@ -1017,7 +1017,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 10,
+            "queries": 9,
             "lazy": []
         },
         "wiki.show": {
@@ -1025,7 +1025,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 16,
+            "queries": 15,
             "lazy": []
         },
         "wiki.version": {
@@ -1033,7 +1033,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 11,
+            "queries": 10,
             "lazy": []
         },
         "workflows.edit": {
@@ -1041,7 +1041,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 7,
+            "queries": 6,
             "lazy": []
         }
     }

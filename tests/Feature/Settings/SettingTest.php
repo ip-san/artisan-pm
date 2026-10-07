@@ -39,3 +39,22 @@ test('a cached read reflects a subsequent write', function () {
 
     expect(Setting::get('default_issues_per_page', 25))->toBe(50);
 });
+
+test('reading many different settings costs one query, not one per key', function () {
+    foreach (range(1, 20) as $i) {
+        Setting::set("key_{$i}", $i);
+    }
+
+    $settingsQueries = 0;
+    DB::listen(function ($query) use (&$settingsQueries) {
+        if (str_contains($query->sql, '"settings"')) {
+            $settingsQueries++;
+        }
+    });
+
+    foreach (range(1, 20) as $i) {
+        expect(Setting::get("key_{$i}"))->toBe($i);
+    }
+    expect(Setting::get('never_set', 'fallback'))->toBe('fallback')
+        ->and($settingsQueries)->toBe(1);
+});

@@ -96,6 +96,14 @@ vendor/bin/sail exec -e UPDATE_PAGE_AUDIT_BASELINE=1 laravel.test php artisan te
 
 パラメータを埋められない画面（リポジトリの中身、添付ファイルなど）は、基準ファイルの `unmapped` に記録しています。新しい画面がここに入るとテストが失敗するので、`PageAuditTest.php` のテストデータを追加するか、基準ファイルに記録してください。
 
+ブラウザテストを途中で止めると（Ctrl+C やタイムアウト）、コンテナ内に Playwright のサーバーと Chromium が残ります。残ったまま次の実行を始めると、同じ `testing` データベースに2つのテストが同時に触れて止まったり、Docker 全体が重くなったりします。止まったときは、次を実行してから再開してください。
+
+```bash
+docker compose exec -T laravel.test pkill -9 -f "pest/bin/pest|run-server|chrome-headless-shell"
+```
+
+マシンの負荷が高いときは、`--testsuite=Feature` と `--testsuite=Browser` に分けて実行すると、ピークの負荷を抑えられます。テストは同時に1つだけ実行してください。
+
 ### リポジトリの保存場所
 
 アプリが閲覧・同期する SCM リポジトリは、`SCM_REPOSITORIES_ROOT`（`config/scm.php` 参照）で設定したディレクトリの下に置く必要があります。アプリはそのディレクトリ配下のパスに対して `git`/`svn` コマンドを実行するだけで、リポジトリの作成は行いません。

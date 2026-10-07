@@ -18,6 +18,8 @@ final class Setting extends Model
 {
     protected $primaryKey = 'key';
 
+    private const string CACHE_KEY = 'settings:all';
+
     protected $keyType = 'string';
 
     public $incrementing = false;
@@ -28,27 +30,31 @@ final class Setting extends Model
     }
 
     /**
-     * Memoized for the request on top of the cache: a page reads dozens of settings, and with the
-     * database cache store each read was otherwise its own query.
+     * The whole table is read once and memoized for the request (and kept in the cache store),
+     * because a page reads dozens of settings: the settings form alone read ~100 keys, and with
+     * one lookup per key each was its own query. Writes drop the memo so the next read is fresh.
      */
     public static function get(string $key, mixed $default = null): mixed
     {
-        return Cache::memo()->rememberForever(self::cacheKey($key), function () use ($key, $default) {
-            $setting = self::query()->find($key);
+        $values = Cache::memo()->rememberForever(self::CACHE_KEY, fn () => self::query()->get()
+            ->mapWithKeys(fn (self $setting) => [$setting->key => $setting->value])
+            ->all());
 
-            return $setting === null ? $default : $setting->value;
-        });
+        return array_key_exists($key, $values) ? $values[$key] : $default;
     }
 
     public static function set(string $key, mixed $value): void
     {
         self::query()->updateOrCreate(['key' => $key], ['value' => $value]);
 
-        Cache::memo()->forget(self::cacheKey($key));
+        self::forget();
     }
 
-    private static function cacheKey(string $key): string
+    /**
+     * Drops the memoized table, for code that writes settings rows without going through set().
+     */
+    public static function forget(): void
     {
-        return "setting:{$key}";
+        Cache::memo()->forget(self::CACHE_KEY);
     }
 }

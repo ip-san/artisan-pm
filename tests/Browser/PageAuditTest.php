@@ -14,6 +14,7 @@ use App\Models\Message;
 use App\Models\News;
 use App\Models\Project;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
@@ -105,6 +106,8 @@ test('every page passes axe and the layout checks, apart from recorded findings'
     putenv('DEMO_DATA_SCALE=0.1');
     $this->seed(DemoDataSeeder::class);
     putenv('DEMO_DATA_SCALE');
+    // Off by default, which left my-webhooks.index answering 403 instead of being audited.
+    Setting::set('webhooks_enabled', true);
     $admin = User::query()->where('email', 'admin@example.com')->firstOrFail();
     $fixtures = pageAuditFixtures($admin);
     $this->actingAs($admin);
