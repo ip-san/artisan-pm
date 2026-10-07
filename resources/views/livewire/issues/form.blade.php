@@ -1115,8 +1115,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @unless ($this->isCoreFieldDisabled('estimated_hours'))
             <div>
-                <label for="field-estimated_hours" class="block text-sm font-medium text-neutral-700">{{ __('予定工数(時間)') }}</label>
-                <input id="field-estimated_hours" type="text" inputmode="decimal" wire:model="estimated_hours"
+                <label for="field-estimated_hours" class="block text-sm font-medium text-neutral-700">{{ __('予定工数(時間)') }} @if ($this->isRequired('estimated_hours'))<span class="text-danger-subtle">*</span>@endif</label>
+                <input id="field-estimated_hours" type="text" inputmode="decimal" wire:model="estimated_hours" @disabled($this->isReadOnly('estimated_hours'))
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @error('estimated_hours') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
             </div>
@@ -1155,11 +1155,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($this->canManageSubtasks() && ! $this->isCoreFieldDisabled('parent_id'))
             <div>
-                <label for="field-parent_id" class="block text-sm font-medium text-neutral-700">{{ __('親課題ID') }}</label>
-                <input id="field-parent_id" type="number" wire:model="parent_id" placeholder="{{ __('例: 123') }}"
+                <label for="field-parent_id" class="block text-sm font-medium text-neutral-700">{{ __('親課題ID') }} @if ($this->isRequired('parent_id'))<span class="text-danger-subtle">*</span>@endif</label>
+                <input id="field-parent_id" type="number" wire:model="parent_id" placeholder="{{ __('例: 123') }}" @disabled($this->isReadOnly('parent_id'))
                     class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 <div data-parent-search>
-                    <input type="text" wire:model.live.debounce.250ms="parentSearch" placeholder="{{ __('#番号または件名で検索...') }}"
+                    <input type="text" wire:model.live.debounce.250ms="parentSearch" placeholder="{{ __('#番号または件名で検索...') }}" @disabled($this->isReadOnly('parent_id'))
                         class="mt-2 block w-72 rounded-md border-neutral-300 shadow-sm text-sm">
                     @if ($this->parentSuggestions->isNotEmpty())
                         <ul class="mt-1 max-h-48 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-surface text-sm shadow-sm">
@@ -1177,7 +1177,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         @if ($this->canSetPrivate())
             <label class="flex items-center gap-2 text-sm text-neutral-700">
-                <input type="checkbox" wire:model="is_private" class="rounded border-neutral-300">
+                <input type="checkbox" wire:model="is_private" class="rounded border-neutral-300" @disabled($this->isReadOnly('is_private'))>
                 {{ __('非公開課題にする(作成者・担当者と、閲覧範囲が「すべて」のロールのみ閲覧可能)') }}
             </label>
         @endif
@@ -1255,9 +1255,9 @@ new #[Layout('components.layouts.app')] class extends Component
         @if ($issue)
             @unless ($this->isCoreFieldDisabled('done_ratio'))
                 <div>
-                    <label for="field-done_ratio" class="block text-sm font-medium text-neutral-700">{{ __('進捗率') }}</label>
+                    <label for="field-done_ratio" class="block text-sm font-medium text-neutral-700">{{ __('進捗率') }} @if ($this->isRequired('done_ratio'))<span class="text-danger-subtle">*</span>@endif</label>
                     <select id="field-done_ratio" wire:model="done_ratio" class="mt-1 block w-32 rounded-md border-neutral-300 shadow-sm sm:text-sm"
-                        @disabled($this->doneRatioIsStatusDerived || $this->doneRatioIsParentDerived)>
+                        @disabled($this->doneRatioIsStatusDerived || $this->doneRatioIsParentDerived || $this->isReadOnly('done_ratio'))>
                         @foreach (\App\Support\Issues\DoneRatioSteps::options(current: $done_ratio) as $ratio)
                             <option value="{{ $ratio }}">{{ $ratio }} %</option>
                         @endforeach

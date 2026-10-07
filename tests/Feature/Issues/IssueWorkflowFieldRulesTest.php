@@ -392,3 +392,14 @@ test('assignee-only transitions follow the assignee before the change, not the o
     $this->putJson("/api/v1/issues/{$theirs->id}", ['status_id' => $resolved->id, 'assigned_to_id' => $setup['user']->id])->assertForbidden();
     expect($theirs->fresh()->status_id)->toBe($setup['status']->id);
 });
+
+test('the issue form locks the fields a workflow makes read-only, including the newly listed ones (A17-19)', function () {
+    $setup = fieldRulesSetup(['edit_issues', 'add_issues', 'manage_subtasks'], ['estimated_hours' => 'read_only', 'done_ratio' => 'read_only', 'is_private' => 'read_only', 'parent_issue_id' => 'read_only']);
+    $issue = fieldRulesIssue($setup);
+
+    $html = Livewire::actingAs($setup['user'])->test('issues.form', ['project' => $setup['project'], 'issue' => $issue])->html();
+
+    expect($html)->toMatch('/id="field-estimated_hours"[^>]*disabled/')
+        ->and($html)->toMatch('/id="field-done_ratio"[^>]*disabled/')
+        ->and($html)->toMatch('/id="field-parent_id"[^>]*disabled/');
+});

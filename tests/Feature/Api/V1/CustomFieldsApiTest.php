@@ -219,3 +219,25 @@ test('deleted_attachment_ids removes the issue\'s attachments and journals each 
     expect($remaining)->toBe([$kept->id])
         ->and($issue->journals()->with('details')->get()->flatMap->details->where('property', 'attachment')->pluck('old_value')->all())->toBe(['old.txt']);
 });
+
+test('deleted_attachment_ids needs edit rights and reaches only this issue\'s attachments (A17-15)', function () {
+    ['project' => $project, 'user' => $editor, 'tracker' => $tracker] = cfApiSetup();
+    $defaults = fn () => ['tracker_id' => $tracker->id, 'status_id' => IssueStatus::factory()->create()->id, 'priority_id' => Enumeration::factory()->create()->id];
+    $issue = Issue::factory()->for($project)->create($defaults());
+    $other = Issue::factory()->for($project)->create($defaults());
+    $mine = $issue->addMedia(UploadedFile::fake()->create('mine.txt', 10))->toMediaCollection('attachments');
+    $theirs = $other->addMedia(UploadedFile::fake()->create('theirs.txt', 10))->toMediaCollection('attachments');
+
+    // Someone who may only comment cannot delete files.
+    $commenter = User::factory()->create();
+    Member::factory()->for($project)->for($commenter)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues', 'add_issue_notes']]));
+    Passport::actingAs($commenter);
+    $this->putJson("/api/v1/issues/{$issue->id}", ['notes' => 'hello', 'deleted_attachment_ids' => [$mine->id]])->assertOk();
+    expect($issue->fresh()->attachments()->count())->toBe(1);
+
+    // An editor can delete this issue's file, not another issue's, and junk ids are ignored.
+    Passport::actingAs($editor);
+    $this->putJson("/api/v1/issues/{$issue->id}", ['deleted_attachment_ids' => [$theirs->id, [1], 'x', $mine->id]])->assertOk();
+    expect($issue->fresh()->attachments()->count())->toBe(0)
+        ->and($other->fresh()->attachments()->count())->toBe(1);
+});

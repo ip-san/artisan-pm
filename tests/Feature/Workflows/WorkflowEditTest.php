@@ -436,3 +436,14 @@ test('an unknown source id and an empty selection are rejected', function () {
         ->call('copyWorkflow')
         ->assertHasErrors(['copySourceTrackerId', 'copySourceRoleId', 'copyTargetTrackerIds', 'copyTargetRoleIds']);
 });
+
+test('the field permissions list Redmine\'s whole core set, minus what the tracker disables (A17-19)', function () {
+    $admin = User::factory()->admin()->create();
+    $tracker = Tracker::factory()->create(['disabled_core_fields' => ['estimated_hours', 'parent_id']]);
+
+    $keys = Livewire::actingAs($admin)->test('workflows.edit')->set('tracker_id', $tracker->id)->instance()->fields->keys()->all();
+
+    expect($keys)->toContain('project_id', 'is_private', 'done_ratio', 'subject', 'priority_id')
+        ->and($keys)->not->toContain('estimated_hours')
+        ->and($keys)->not->toContain('parent_issue_id');
+});

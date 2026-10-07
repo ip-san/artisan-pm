@@ -111,16 +111,22 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     private function coreFields(): array
     {
+        // Redmine's Tracker::CORE_FIELDS_ALL, in its order (parent_issue_id is parent_id on the issue).
         return [
+            'project_id' => __('プロジェクト'),
             'tracker_id' => __('トラッカー'),
             'subject' => __('題名'),
-            'description' => __('説明'),
-            'priority_id' => __('優先度'),
-            'category_id' => __('カテゴリ'),
+            'is_private' => __('非公開'),
             'assigned_to_id' => __('担当者'),
+            'category_id' => __('カテゴリ'),
+            'fixed_version_id' => __('対象バージョン'),
+            'parent_issue_id' => __('親課題'),
             'start_date' => __('開始日'),
             'due_date' => __('期日'),
-            'fixed_version_id' => __('対象バージョン'),
+            'estimated_hours' => __('予定工数'),
+            'done_ratio' => __('進捗率'),
+            'description' => __('説明'),
+            'priority_id' => __('優先度'),
         ];
     }
 
@@ -135,6 +141,11 @@ new #[Layout('components.layouts.app')] class extends Component
         if ($this->tracker_id === null) {
             return $fields;
         }
+
+        // A field the tracker disables cannot be required or locked (Redmine's permissions screen
+        // lists CORE_FIELDS_ALL minus the tracker's disabled_core_fields).
+        $tracker = Tracker::query()->find($this->tracker_id);
+        $fields = $fields->reject(fn (string $label, string $key) => $tracker?->isCoreFieldDisabled($key === 'parent_issue_id' ? 'parent_id' : $key) ?? false);
 
         $customFields = CustomField::query()
             ->where('customized_type', CustomizableType::Issue)

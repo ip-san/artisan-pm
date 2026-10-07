@@ -538,7 +538,9 @@ final class IssueController extends Controller
 
             // Redmine's deleted_attachment_ids: only for someone who may edit the issue.
             if ($canEdit && is_array($request->input('deleted_attachment_ids'))) {
-                $removed = $issue->attachments()->whereIn('id', array_map('intval', $request->input('deleted_attachment_ids')))->values();
+                $ids = collect($request->input('deleted_attachment_ids'))->filter(fn (mixed $id) => is_int($id) || (is_string($id) && ctype_digit($id)))->map(fn (mixed $id) => (int) $id);
+                // Only this issue's own attachments: an id from anywhere else matches nothing.
+                $removed = $issue->attachments()->whereIn('id', $ids->all())->values();
                 $removed->each->delete();
                 app(IssueService::class)->journalizeAttachments($issue, $removed, added: false, actor: $user);
             }
