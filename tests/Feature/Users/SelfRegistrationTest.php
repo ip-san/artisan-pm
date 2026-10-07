@@ -4,10 +4,28 @@ use App\Enums\UserStatus;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\ConfirmAccountRegistration;
+use App\Support\Auth\SelfRegistration;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 
-test('automatic (the default) registers and activates a user immediately', function () {
+test('with nothing saved, a new account waits for an administrator, as Redmine\'s default', function () {
+    expect(SelfRegistration::mode())->toBe('manual');
+
+    $this->post(route('register'), [
+        'name' => 'New User',
+        'login' => 'new-user',
+        'email' => 'new-user@example.com',
+        'password' => 'correct-horse-battery-staple',
+        'password_confirmation' => 'correct-horse-battery-staple',
+    ])->assertRedirect();
+
+    expect(User::where('email', 'new-user@example.com')->firstOrFail()->status)->toBe(UserStatus::Registered)
+        ->and(auth()->check())->toBeFalse();
+});
+
+test('automatic mode registers and activates a user immediately', function () {
+    Setting::set('self_registration', 'automatic');
+
     $this->post(route('register'), [
         'name' => 'New User',
         'login' => 'new-user',

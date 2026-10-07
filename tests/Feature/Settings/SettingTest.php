@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Setting;
+use App\Support\Attachments\AttachmentValidationRules;
 use Illuminate\Support\Facades\DB;
 
 test('an unset key returns the given default', function () {
@@ -57,4 +58,18 @@ test('reading many different settings costs one query, not one per key', functio
     }
     expect(Setting::get('never_set', 'fallback'))->toBe('fallback')
         ->and($settingsQueries)->toBe(1);
+});
+
+test('each caller gets its own default for an unset key, whoever asked first (A17-10)', function () {
+    expect(Setting::get('incoming_mail_default_tracker_id', 0))->toBe(0)
+        ->and(Setting::get('incoming_mail_default_tracker_id'))->toBeNull()
+        ->and(Setting::get('incoming_mail_default_tracker_id', 7))->toBe(7);
+});
+
+test('attachments default to Redmine\'s 5120 KB, never above the upload ceiling (A17-11)', function () {
+    expect(AttachmentValidationRules::maxSizeInKb())->toBe(5120);
+
+    Setting::set('attachment_max_size', 999999);
+
+    expect(AttachmentValidationRules::maxSizeInKb())->toBe(intdiv((int) config('media-library.max_file_size'), 1024));
 });

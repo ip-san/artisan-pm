@@ -18,18 +18,34 @@ use Illuminate\Http\UploadedFile;
 final class AttachmentValidationRules
 {
     /**
+     * Redmine's attachment_max_size default (config/settings.yml), in KB.
+     */
+    public const int DEFAULT_MAX_SIZE_KB = 5120;
+
+    /**
+     * The configured limit in KB: Redmine's default unless an admin set one, and never above
+     * the upload ceiling (media-library.max_file_size).
+     */
+    public static function maxSizeInKb(): int
+    {
+        $ceilingKb = intdiv((int) config('media-library.max_file_size'), 1024);
+
+        return min((int) Setting::get('attachment_max_size', self::DEFAULT_MAX_SIZE_KB), $ceilingKb);
+    }
+
+    /**
      * @return array<int, mixed>
      */
     public static function rules(): array
     {
-        $maxKb = (int) Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024));
+        $maxKb = self::maxSizeInKb();
 
         return ['file', "max:{$maxKb}", self::extensionRule()];
     }
 
     public static function maxSizeInBytes(): int
     {
-        return (int) Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024)) * 1024;
+        return self::maxSizeInKb() * 1024;
     }
 
     /**

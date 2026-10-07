@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Notifications\ConfirmAccountRegistration;
 use App\Rules\AllowedEmailDomain;
 use App\Rules\UniqueUserValueIgnoringCase;
+use App\Support\Auth\SelfRegistration;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
@@ -62,7 +63,7 @@ final class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
-        $mode = Setting::get('self_registration', 'automatic');
+        $mode = SelfRegistration::mode();
 
         if ($mode === 'disabled') {
             throw ValidationException::withMessages([

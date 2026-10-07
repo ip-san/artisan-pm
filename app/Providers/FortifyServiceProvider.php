@@ -11,6 +11,7 @@ use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
 use App\Http\Responses\RegisterResponse;
 use App\Models\Setting;
+use App\Support\Auth\SelfRegistration;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -33,7 +34,7 @@ final class FortifyServiceProvider extends ServiceProvider
         // Matches Redmine's account#register redirecting home when
         // Setting.self_registration is disabled, rather than showing the
         // form at all.
-        Fortify::registerView(fn () => Setting::get('self_registration', 'automatic') === 'disabled'
+        Fortify::registerView(fn () => SelfRegistration::mode() === 'disabled'
             ? redirect()->route('login')
             : view('auth.register'));
         Fortify::requestPasswordResetLinkView(fn () => view('auth.forgot-password'));

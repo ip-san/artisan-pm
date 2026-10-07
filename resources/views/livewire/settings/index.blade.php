@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Attachments\AttachmentValidationRules;
 use App\Enums\EnumerationType;
 use App\Enums\MailNotificationOption;
 use App\Enums\ProjectModuleKey;
@@ -300,7 +301,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $timelog_accept_closed_issues = true;
 
-    public int $attachment_max_size = 10240;
+    public int $attachment_max_size = AttachmentValidationRules::DEFAULT_MAX_SIZE_KB;
 
     public int $bulk_download_max_size = 102400;
 
@@ -426,7 +427,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('manage', Setting::class);
 
-        $this->self_registration = Setting::get('self_registration', 'automatic');
+        $this->self_registration = \App\Support\Auth\SelfRegistration::mode();
         $this->user_format = (string) Setting::get('user_format', 'firstname_lastname');
         $this->show_custom_fields_on_registration = (bool) Setting::get('show_custom_fields_on_registration', true);
         $this->unsubscribe = Setting::get('unsubscribe', true);
@@ -539,7 +540,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->timelog_accept_future_dates = TimeLogConstraints::acceptsFutureDates();
         $this->timelog_accept_closed_issues = TimeLogConstraints::acceptsClosedIssues();
         $this->bulk_download_max_size = AttachmentArchive::maxSizeKb();
-        $this->attachment_max_size = Setting::get('attachment_max_size', intdiv((int) config('media-library.max_file_size'), 1024));
+        $this->attachment_max_size = AttachmentValidationRules::maxSizeInKb();
         $this->attachment_extensions_allowed = Setting::get('attachment_extensions_allowed', '');
         $this->attachment_extensions_denied = Setting::get('attachment_extensions_denied', '');
         $this->default_projects_public = Setting::get('default_projects_public', true);

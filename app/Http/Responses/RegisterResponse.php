@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Responses;
 
-use App\Models\Setting;
 use App\Models\User;
+use App\Support\Auth\SelfRegistration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -41,7 +41,7 @@ final class RegisterResponse implements RegisterResponseContract
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            $message = Setting::get('self_registration', 'automatic') === 'email'
+            $message = SelfRegistration::mode() === 'email'
                 ? __('確認メールを送信しました。メール内のリンクからアカウントを有効化してください。')
                 : __('登録を受け付けました。管理者の承認をお待ちください。');
 
