@@ -30,6 +30,7 @@ use App\Models\User;
 use App\Models\Watcher;
 use App\Rules\IssueRelationTarget;
 use App\Support\Calendar\WorkingDays;
+use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\IssueFieldRules;
 use App\Support\Mail\MentionParser;
 use App\Support\Plugins\BeforeSaveContext;
@@ -968,15 +969,7 @@ final class IssueService
      */
     public function copy(Issue $source, Project $targetProject, int $trackerId, User $actor, bool $copyAttachments = true, bool $copyWatchers = true, bool $copySubtasks = false, bool $linkCopy = true): Issue
     {
-        $assignedToId = $source->assigned_to_id;
-
-        if ($assignedToId !== null && ! $targetProject->users()->whereKey($assignedToId)->exists()) {
-            $assignedToId = null;
-        }
-
-        $assignedToGroupId = $source->assigned_to_group_id !== null && $this->isMemberGroup($targetProject, $source->assigned_to_group_id)
-            ? $source->assigned_to_group_id
-            : null;
+        [$assignedToId, $assignedToGroupId] = $this->copiedAssignee($source, $targetProject, $actor);
 
         $customFieldData = $source->relevantCustomFields()
             ->mapWithKeys(fn (CustomField $field) => [$field->id => $this->normalizedCustomFieldValue($source, $field)])
@@ -1078,15 +1071,7 @@ final class IssueService
                     continue;
                 }
 
-                $assignedToId = $child->assigned_to_id;
-
-                if ($assignedToId !== null && ! $targetProject->users()->whereKey($assignedToId)->where('users.status', UserStatus::Active->value)->exists()) {
-                    $assignedToId = null;
-                }
-
-                $assignedToGroupId = $child->assigned_to_group_id !== null && $this->isMemberGroup($targetProject, $child->assigned_to_group_id)
-                    ? $child->assigned_to_group_id
-                    : null;
+                [$assignedToId, $assignedToGroupId] = $this->copiedAssignee($child, $targetProject, $actor);
 
                 $carried = $this->carriedVersionAndCategory($child, $targetProject, $reachableVersionIds);
 
@@ -1357,9 +1342,30 @@ final class IssueService
      * Whether the group is a member of the project — a moved or copied
      * group assignee is kept only then, as a user assignee is.
      */
-    private function isMemberGroup(Project $project, int $groupId): bool
+    /**
+     * The assignee a copy of $source keeps in $targetProject — Redmine's Issue#project= for a new
+     * record: kept only if the copy's assignable_users include them (members holding an
+     * assignable role, active, groups only while issue_group_assignment is on, and the copy's
+     * author, who is always assignable), otherwise cleared.
+     *
+     * @return array{0: int|null, 1: int|null} user id, group id
+     */
+    private function copiedAssignee(Issue $source, Project $targetProject, User $author): array
     {
-        return $project->members()->where('group_id', $groupId)->exists();
+        $userId = $source->assigned_to_id;
+
+        if ($userId !== null) {
+            $assignable = $targetProject->assignableUsers()->where('status', UserStatus::Active)->contains('id', $userId)
+                || ($userId === $author->id && $author->status === UserStatus::Active);
+
+            $userId = $assignable ? $userId : null;
+        }
+
+        $groupId = $source->assigned_to_group_id !== null && AssigneeChoice::allowsGroup($targetProject, $source->assigned_to_group_id)
+            ? $source->assigned_to_group_id
+            : null;
+
+        return [$userId, $groupId];
     }
 
     /**

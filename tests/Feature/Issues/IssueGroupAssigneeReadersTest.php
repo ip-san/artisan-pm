@@ -204,7 +204,8 @@ test('assignee-only workflow transitions apply to members of the assigned group'
         ->and($workflow->allowedTransitions($s->issue, $s->other)->pluck('id'))->not->toContain($next->id);
 });
 
-test('a copy keeps a group assignee only where the group is a member, a move always keeps it', function () {
+test('a copy keeps a group assignee only where the group is assignable, a move always keeps it', function () {
+    Setting::set('issue_group_assignment', true);
     $s = groupReaderScenario();
     $withGroup = Project::factory()->create();
     $withGroup->trackers()->attach($s->tracker);
@@ -217,6 +218,29 @@ test('a copy keeps a group assignee only where the group is a member, a move alw
     expect($service->copy($s->issue, $withGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBe($s->group->id)
         ->and($service->copy($s->issue, $withoutGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBeNull()
         ->and($service->moveToProject($s->issue, $withoutGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBe($s->group->id);
+
+    // Redmine's assignable_users: a group is offered only while issue_group_assignment is on, and
+    // only through a role that can be assigned (A17-09).
+    Setting::set('issue_group_assignment', false);
+    expect($service->copy($s->issue, $withGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBeNull();
+
+    Setting::set('issue_group_assignment', true);
+    $locked = Project::factory()->create();
+    $locked->trackers()->attach($s->tracker);
+    Member::factory()->for($locked)->create(['user_id' => null, 'group_id' => $s->group->id])->roles()->attach(Role::factory()->create(['permissions' => ['view_issues'], 'assignable' => false]));
+    expect($service->copy($s->issue, $locked, $s->tracker->id, $admin)->assigned_to_group_id)->toBeNull();
+});
+
+test('a copy keeps its new author as assignee even where they are not a member (A17-09)', function () {
+    $s = groupReaderScenario();
+    $author = User::factory()->create();
+    $elsewhere = Project::factory()->create();
+    $elsewhere->trackers()->attach($s->tracker);
+    $s->issue->forceFill(['assigned_to_id' => $author->id, 'assigned_to_group_id' => null])->save();
+
+    $copy = app(IssueService::class)->copy($s->issue->fresh(), $elsewhere, $s->tracker->id, $author);
+
+    expect($copy->assigned_to_id)->toBe($author->id);
 });
 
 test('an incoming mail and a csv import may name an assignable group', function () {

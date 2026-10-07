@@ -93,7 +93,8 @@ test('a subtask keeps its version only when it is open and reachable, and its as
     $root = subtaskCopyIssue($source, $tracker);
     $ownVersion = Version::factory()->for($source)->create(['status' => VersionStatus::Open]);
     $member = User::factory()->create();
-    Member::factory()->for($target)->for($member)->create();
+    // A copy keeps an assignee only if they can be assigned in the target: an assignable role (A17-09).
+    Member::factory()->for($target)->for($member)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues'], 'assignable' => true]));
     $stranger = User::factory()->create();
     $locked = User::factory()->create(['status' => UserStatus::Locked]);
     Member::factory()->for($target)->for($locked)->create();
