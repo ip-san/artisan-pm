@@ -99,6 +99,9 @@ final class NotificationRecipients
             ->merge(self::forMentionedUsers($mentionedLogins, $actor))
             ->unique('id')
             ->filter(fn (User $user) => $user->can('view', $issue))
+            // Redmine's Journal#notified_users/notified_watchers/notified_mentions: a private note
+            // is mailed only to those who may read it; everyone else gets nothing, not a redacted copy.
+            ->when($journal?->private_notes, fn (Collection $users) => $users->filter(fn (User $user) => $user->can('viewPrivateNotes', $issue)))
             ->values();
     }
 
