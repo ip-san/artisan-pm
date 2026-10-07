@@ -1142,7 +1142,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div>
                 <label for="field-new_item_menu_tab" class="block text-sm font-medium text-neutral-700">{{ __('新規作成メニュー(プロジェクト内)') }}</label>
-                <select id="field-new_item_menu_tab" wire:model="new_item_menu_tab" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <select id="field-new_item_menu_tab" wire:model="new_item_menu_tab" class="mt-1 block w-full max-w-md rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="0">{{ __('なし') }}</option>
                     <option value="1">{{ __('「新しい課題」リンクのみ') }}</option>
                     <option value="2">{{ __('「+」ドロップダウン(課題・バージョン・お知らせなど)') }}</option>
@@ -1204,7 +1204,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             <div>
                 <label for="field-date_format" class="block text-sm font-medium text-neutral-700">{{ __('日付の形式') }}</label>
-                <select id="field-date_format" wire:model="date_format" data-date-format class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <select id="field-date_format" wire:model="date_format" data-date-format class="mt-1 block w-full max-w-md rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Format\DateTimes::dateFormatOptions() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
@@ -1259,7 +1259,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     {{ __('Gravatarを使う') }}
                 </label>
                 <p class="mt-1 text-xs text-neutral-500">{{ __('有効にすると、ユーザーのメールアドレスのハッシュが gravatar.com に送られ、閲覧者のブラウザが画像を直接取得します。無効のときはイニシャルのアイコンを表示します。') }}</p>
-                <select wire:model="gravatar_default" class="mt-2 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <select wire:model="gravatar_default" aria-label="{{ __('Gravatarの既定の画像') }}" class="mt-2 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Support\Avatar\UserAvatar::defaultStyleLabels() as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
                     @endforeach
@@ -1322,9 +1322,9 @@ new #[Layout('components.layouts.app')] class extends Component
             </label>
 
             <div>
-                <label class="block text-sm font-medium text-neutral-700">{{ __('新規プロジェクトの既定ロール') }}</label>
+                <label for="field-new_project_user_role_id" class="block text-sm font-medium text-neutral-700">{{ __('新規プロジェクトの既定ロール') }}</label>
                 <p class="text-xs text-neutral-500">{{ __('管理者以外がプロジェクト(サブプロジェクト)を作成した際に、作成者へ自動的に付与されるロールです。') }}</p>
-                <select wire:model="new_project_user_role_id" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <select id="field-new_project_user_role_id" wire:model="new_project_user_role_id" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">---</option>
                     @foreach ($this->roles as $role)
                         <option value="{{ $role->id }}">{{ $role->name }}</option>

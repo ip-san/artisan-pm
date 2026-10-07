@@ -352,7 +352,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <p class="mb-2 text-xs text-neutral-500">
                     {{ __('課題の権限ごとに、対象とするトラッカーを限定できます。') }}
                 </p>
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto" tabindex="0" role="region" aria-label="{{ __('トラッカーごとの権限') }}">
                     <table class="min-w-full text-sm" data-testid="role-tracker-permissions">
                         <thead>
                             <tr class="border-b border-neutral-200">

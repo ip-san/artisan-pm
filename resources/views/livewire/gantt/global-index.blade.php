@@ -514,14 +514,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
     <div class="mb-2 flex flex-wrap items-center gap-2 text-sm text-neutral-700" data-gantt-zoom-controls>
         <span>{{ __('ズーム') }}</span>
-        <button type="button" wire:click="zoomOut" @disabled($zoom <= 1) class="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50 disabled:opacity-40" title="{{ __('縮小') }}">−</button>
-        <button type="button" wire:click="zoomIn" @disabled($zoom >= 4) class="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50 disabled:opacity-40" title="{{ __('拡大') }}">+</button>
+        <button type="button" wire:click="zoomOut" @disabled($zoom <= 1) class="btn btn-secondary px-2.5" title="{{ __('縮小') }}">−</button>
+        <button type="button" wire:click="zoomIn" @disabled($zoom >= 4) class="btn btn-secondary px-2.5" title="{{ __('拡大') }}">+</button>
 
         <span class="ml-4">{{ __('表示期間:') }}</span>
         <input type="number" wire:model="yearFrom" placeholder="{{ __('年') }}" class="w-20 rounded-md border-neutral-300 text-sm" data-gantt-year-from>
         <input type="number" min="1" max="12" wire:model="monthFrom" placeholder="{{ __('月') }}" class="w-16 rounded-md border-neutral-300 text-sm" data-gantt-month-from>
         <input type="number" min="1" max="{{ \App\Support\Gantt\GanttSettings::monthsLimit() > 0 ? \App\Support\Gantt\GanttSettings::monthsLimit() : 24 }}" wire:model="months" placeholder="{{ __('か月数') }}" class="w-20 rounded-md border-neutral-300 text-sm" data-gantt-months>
-        <button type="button" wire:click="applyFilters" class="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50">{{ __('適用') }}</button>
+        <button type="button" wire:click="applyFilters" class="btn btn-secondary px-2.5">{{ __('適用') }}</button>
 
         <label class="ml-4 flex items-center gap-1">
             <input type="checkbox" wire:model.live="drawRelations" class="rounded border-neutral-300" data-gantt-draw-relations>

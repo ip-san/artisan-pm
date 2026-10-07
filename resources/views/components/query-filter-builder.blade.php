@@ -36,7 +36,7 @@
             @continue(! $field)
             <div wire:key="filter-row-{{ $key }}" class="flex flex-wrap items-center gap-2">
                 <span class="w-28 text-sm text-neutral-700">{{ $field->label() }}</span>
-                <select wire:model="filterOperators.{{ $key }}" class="rounded-md border-neutral-300 text-sm">
+                <select wire:model="filterOperators.{{ $key }}" aria-label="{{ __(':field の条件', ['field' => $field->label()]) }}" class="rounded-md border-neutral-300 text-sm">
                     @foreach ($field->operators() as $operator)
                         <option value="{{ $operator->value }}">{{ $operator->label() }}</option>
                     @endforeach
@@ -45,7 +45,7 @@
                 @php $selectedOperator = \App\Enums\FilterOperator::tryFrom($filterOperators[$key] ?? ''); @endphp
                 @if ($selectedOperator?->requiresValue() ?? true)
                     @if ($selectedOperator?->takesProject())
-                        <select wire:model="filterValues.{{ $key }}.0" class="rounded-md border-neutral-300 text-sm">
+                        <select wire:model="filterValues.{{ $key }}.0" aria-label="{{ $field->label() }}" class="rounded-md border-neutral-300 text-sm">
                             <option value="">{{ __('選択してください') }}</option>
                             @foreach ($field->options() as $value => $label)
                                 <option value="{{ $value }}">{{ $label }}</option>
@@ -53,13 +53,13 @@
                         </select>
                     @elseif ($field->type() === \App\Enums\FilterFieldType::Select && $field->options() !== [])
                         @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::In->value || ($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::NotIn->value)
-                            <select wire:model="filterValues.{{ $key }}" multiple class="min-w-[10rem] rounded-md border-neutral-300 text-sm">
+                            <select wire:model="filterValues.{{ $key }}" aria-label="{{ $field->label() }}" multiple class="min-w-[10rem] rounded-md border-neutral-300 text-sm">
                                 @foreach ($field->options() as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
                                 @endforeach
                             </select>
                         @else
-                            <select wire:model="filterValues.{{ $key }}.0" class="rounded-md border-neutral-300 text-sm">
+                            <select wire:model="filterValues.{{ $key }}.0" aria-label="{{ $field->label() }}" class="rounded-md border-neutral-300 text-sm">
                                 <option value="">{{ __('選択してください') }}</option>
                                 @foreach ($field->options() as $value => $label)
                                     <option value="{{ $value }}">{{ $label }}</option>
@@ -67,22 +67,22 @@
                             </select>
                         @endif
                     @elseif ($field->type() === \App\Enums\FilterFieldType::Date)
-                        <input type="date" wire:model="filterValues.{{ $key }}.0" class="rounded-md border-neutral-300 text-sm">
+                        <input type="date" wire:model="filterValues.{{ $key }}.0" aria-label="{{ $field->label() }}" class="rounded-md border-neutral-300 text-sm">
                         @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)
                             <span class="text-neutral-500">{{ __('〜') }}</span>
-                            <input type="date" wire:model="filterValues.{{ $key }}.1" class="rounded-md border-neutral-300 text-sm">
+                            <input type="date" wire:model="filterValues.{{ $key }}.1" aria-label="{{ __(':field(終わり)', ['field' => $field->label()]) }}" class="rounded-md border-neutral-300 text-sm">
                         @endif
                     @elseif ($field->type() === \App\Enums\FilterFieldType::IdList && ! in_array($selectedOperator, [\App\Enums\FilterOperator::GreaterOrEqual, \App\Enums\FilterOperator::LessOrEqual, \App\Enums\FilterOperator::Between], true))
                         {{-- As in Redmine, several issue ids may be given separated by commas. --}}
-                        <input type="text" inputmode="numeric" placeholder="1, 2, 3" wire:model="filterValues.{{ $key }}.0" class="w-40 rounded-md border-neutral-300 text-sm">
+                        <input type="text" inputmode="numeric" placeholder="1, 2, 3" wire:model="filterValues.{{ $key }}.0" aria-label="{{ $field->label() }}" class="w-40 rounded-md border-neutral-300 text-sm">
                     @elseif (in_array($field->type(), [\App\Enums\FilterFieldType::Integer, \App\Enums\FilterFieldType::IdList], true))
-                        <input type="number" step="0.01" wire:model="filterValues.{{ $key }}.0" class="w-24 rounded-md border-neutral-300 text-sm">
+                        <input type="number" step="0.01" wire:model="filterValues.{{ $key }}.0" aria-label="{{ $field->label() }}" class="w-24 rounded-md border-neutral-300 text-sm">
                         @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)
                             <span class="text-neutral-500">{{ __('〜') }}</span>
-                            <input type="number" step="0.01" wire:model="filterValues.{{ $key }}.1" class="w-24 rounded-md border-neutral-300 text-sm">
+                            <input type="number" step="0.01" wire:model="filterValues.{{ $key }}.1" aria-label="{{ __(':field(終わり)', ['field' => $field->label()]) }}" class="w-24 rounded-md border-neutral-300 text-sm">
                         @endif
                     @else
-                        <input type="text" wire:model="filterValues.{{ $key }}.0" class="rounded-md border-neutral-300 text-sm">
+                        <input type="text" wire:model="filterValues.{{ $key }}.0" aria-label="{{ $field->label() }}" class="rounded-md border-neutral-300 text-sm">
                     @endif
                 @endif
 

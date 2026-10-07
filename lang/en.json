@@ -1563,5 +1563,10 @@
     "選択": "Select",
     "次へ": "Next",
     ":total件中 :from〜:to件目": "Showing :from to :to of :total results",
-    "ページ送り": "Pagination"
+    "ページ送り": "Pagination",
+    ":field の条件": ":field operator",
+    ":field(終わり)": ":field (to)",
+    "既定値の決め方": "How the default is set",
+    "Gravatarの既定の画像": "Default Gravatar image",
+    "トラッカーごとの権限": "Permissions by tracker"
 }

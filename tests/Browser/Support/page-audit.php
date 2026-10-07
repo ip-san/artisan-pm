@@ -71,14 +71,15 @@ async () => {
 
         let finding = null;
         let insideScroller = false;
+        let clippedByAncestor = false; // text cut off inside a clipping box cannot widen the page
         for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
             if (scrollsX(a)) { insideScroller = true; break; }
             const box = a.getBoundingClientRect();
             const escapes = rect.right > box.right + 1 || rect.left < box.left - 1;
-            if (clipsX(a)) { if (escapes && !el.title && !a.title) finding = 'clipped'; break; } // a title shows the full text
+            if (clipsX(a)) { clippedByAncestor = true; if (escapes && !el.title && !a.title) finding = 'clipped'; break; } // a title shows the full text
             if (boxed(a)) { if (escapes) finding = 'overflow'; break; }
         }
-        if (!finding && !insideScroller && rect.right > viewport + 1) finding = 'overflow';
+        if (!finding && !insideScroller && !clippedByAncestor && rect.right > viewport + 1) finding = 'overflow';
         if (!finding && ownText && !el.title && !el.getAttribute('aria-label')) {
             const s = style(el);
             if ((clipsX(el) || s.textOverflow === 'ellipsis') && el.scrollWidth > el.clientWidth + 1) finding = 'clipped';

@@ -392,11 +392,11 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('対象') }}</label>
+            <label for="field-customized_type" class="block text-sm font-medium text-neutral-700">{{ __('対象') }}</label>
             @if ($customField)
                 <p class="mt-1 text-sm text-neutral-900">{{ $customized_type }}{{ __('(作成後は変更できません)') }}</p>
             @else
-                <select wire:model.live="customized_type" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <select id="field-customized_type" wire:model.live="customized_type" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Enums\CustomizableType::cases() as $type)
                         <option value="{{ $type->value }}">{{ $type->value }}</option>
                     @endforeach
@@ -405,11 +405,11 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('形式') }}</label>
+            <label for="field-field_format" class="block text-sm font-medium text-neutral-700">{{ __('形式') }}</label>
             @if ($customField)
                 <p class="mt-1 text-sm text-neutral-900">{{ $field_format }}{{ __('(作成後は変更できません)') }}</p>
             @else
-                <select wire:model.live="field_format" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <select id="field-field_format" wire:model.live="field_format" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <option value="">{{ __('選択してください') }}</option>
                     @foreach (\App\Enums\CustomFieldFormat::cases() as $format)
                         <option value="{{ $format->value }}">{{ app(\App\CustomFields\FormatRegistry::class)->get($format)->label() }}</option>
@@ -551,24 +551,24 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-neutral-700">{{ __('既定値(任意、新規課題作成時に自動入力)') }}</label>
+            <label for="field-default_value" class="block text-sm font-medium text-neutral-700">{{ __('既定値(任意、新規課題作成時に自動入力)') }}</label>
 
             @if ($field_format === \App\Enums\CustomFieldFormat::Date->value)
-                <select wire:model.live="default_value_mode" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <select wire:model.live="default_value_mode" aria-label="{{ __('既定値の決め方') }}" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     @foreach (\App\Enums\CustomFieldDefaultValueMode::cases() as $mode)
                         <option value="{{ $mode->value }}">{{ $mode->label() }}</option>
                     @endforeach
                 </select>
 
                 @if ($default_value_mode === \App\Enums\CustomFieldDefaultValueMode::DateOffset->value)
-                    <input type="number" wire:model="default_value" placeholder="{{ __('例: 7(7日後)、-3(3日前)') }}"
+                    <input type="number" id="field-default_value" wire:model="default_value" placeholder="{{ __('例: 7(7日後)、-3(3日前)') }}"
                         class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                     <p class="mt-1 text-xs text-neutral-500">{{ __('課題作成日を基準にした日数(負数で過去の日付)。') }}</p>
                 @else
-                    <input type="date" wire:model="default_value" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                    <input type="date" id="field-default_value" wire:model="default_value" class="mt-1 block w-full max-w-xs rounded-md border-neutral-300 shadow-sm sm:text-sm">
                 @endif
             @else
-                <input type="text" wire:model="default_value" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                <input type="text" id="field-default_value" wire:model="default_value" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm sm:text-sm">
             @endif
 
             @error('default_value') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror

@@ -1,6 +1,12 @@
 <?php
 
 use App\Support\Markdown\WikiMarkdownRenderer;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+// The renderer reads Setting::get('wiki_tablesort_enabled'), so it needs the settings table; the
+// Unit suite does not migrate by default, and relying on a previous Feature run having left the
+// tables behind made this file fail whenever the testing database was empty.
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->renderer = app(WikiMarkdownRenderer::class);

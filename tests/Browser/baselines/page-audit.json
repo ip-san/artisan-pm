@@ -71,9 +71,7 @@
         "admin.projects": {
             "error": null,
             "js": [],
-            "axe": [
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 13,
             "lazy": []
@@ -138,10 +136,8 @@
             "error": null,
             "js": [],
             "axe": [],
-            "layout": [
-                "overflow: a \"mobile-app #N 決済処理の文言を修正(本番環境でのみ再現、Safar\""
-            ],
-            "queries": 50,
+            "layout": [],
+            "queries": 51,
             "lazy": []
         },
         "calendar.index": {
@@ -149,16 +145,13 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 21,
+            "queries": 19,
             "lazy": []
         },
         "custom-fields.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label",
-                "select-name"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 8,
             "lazy": []
@@ -166,9 +159,7 @@
         "custom-fields.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 13,
             "lazy": []
@@ -234,7 +225,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 21,
+            "queries": 27,
             "lazy": []
         },
         "en:projects.index": {
@@ -281,20 +272,16 @@
             "error": null,
             "js": [],
             "axe": [],
-            "layout": [
-                "height-mismatch: div \"ズーム − + 表示期間: 適用 関連課題の線 進捗率の表示 選択した列を表示\""
-            ],
-            "queries": 104,
+            "layout": [],
+            "queries": 107,
             "lazy": []
         },
         "gantt.index": {
             "error": null,
             "js": [],
             "axe": [],
-            "layout": [
-                "height-mismatch: div \"ズーム − + 表示期間: 適用 関連課題の線 進捗率の表示 選択した列を表示\""
-            ],
-            "queries": 43,
+            "layout": [],
+            "queries": 44,
             "lazy": []
         },
         "groups.create": {
@@ -406,7 +393,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 43,
+            "queries": 53,
             "lazy": []
         },
         "issues.global-index": {
@@ -446,7 +433,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 47,
+            "queries": 58,
             "lazy": []
         },
         "login": {
@@ -486,7 +473,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 29,
+            "queries": 35,
             "lazy": []
         },
         "my-webhooks.index": {
@@ -604,9 +591,7 @@
         "projects.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 14,
             "lazy": []
@@ -614,9 +599,7 @@
         "projects.edit": {
             "error": null,
             "js": [],
-            "axe": [
-                "label"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 21,
             "lazy": []
@@ -712,9 +695,7 @@
         "roles.create": {
             "error": null,
             "js": [],
-            "axe": [
-                "scrollable-region-focusable"
-            ],
+            "axe": [],
             "layout": [],
             "queries": 7,
             "lazy": []
@@ -762,14 +743,9 @@
         "settings.index": {
             "error": null,
             "js": [],
-            "axe": [
-                "select-name"
-            ],
-            "layout": [
-                "select-cut: select \"なし 「新しい課題」リンクのみ 「+」ドロップダウン(課題・バージョン・お知らせ\"",
-                "select-cut: select \"ユーザーの言語の設定に従う(2026/09/27) 2026-09-27 (yy\""
-            ],
-            "queries": 100,
+            "axe": [],
+            "layout": [],
+            "queries": 99,
             "lazy": []
         },
         "time-entries.create": {
@@ -953,7 +929,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 48,
+            "queries": 49,
             "lazy": []
         },
         "webhooks.create": {

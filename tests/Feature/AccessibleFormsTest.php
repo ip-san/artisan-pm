@@ -24,4 +24,4 @@ test('form labels point at their fields', function (string $routeName) {
     $html = $this->actingAs($admin)->get(route($routeName, str_starts_with($routeName, 'issues.') ? $project : []))->assertOk()->getContent();
 
     assertLabelsPointAtFields($html);
-})->with(['issues.create', 'settings.index', 'profile.index', 'projects.create']);
+})->with(['issues.create', 'settings.index', 'profile.index', 'projects.create', 'custom-fields.create', 'roles.create']);
