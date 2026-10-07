@@ -42,6 +42,15 @@
             </button>
         </form>
 
+        {{-- Passkey sign-in, only where the browser supports WebAuthn; the server answers with where to go next. --}}
+        <div x-data="{ error: '' }" x-show="window.ArtisanPasskeys?.supported()" x-cloak class="mt-4" data-passkey-login>
+            <button type="button" class="w-full btn btn-secondary"
+                x-on:click="error = ''; window.ArtisanPasskeys.login({ options: @js(route('passkey.login-options')), login: @js(route('passkey.login')) }).catch((e) => { if (e.name !== 'NotAllowedError') error = e.message; })">
+                {{ __('パスキーでログイン') }}
+            </button>
+            <p x-show="error" x-text="error" class="mt-2 text-sm text-danger-bolder"></p>
+        </div>
+
         @if (\App\Models\Setting::get('lost_password', true))
             <p class="mt-4 text-sm text-neutral-600">
                 <a href="{{ route('password.request') }}" class="text-brand-bold hover:underline">{{ __('パスワードをお忘れの場合') }}</a>

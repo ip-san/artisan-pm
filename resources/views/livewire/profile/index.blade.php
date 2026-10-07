@@ -14,6 +14,8 @@ use Laravel\Fortify\Actions\ConfirmTwoFactorAuthentication;
 use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
 use Laravel\Fortify\Actions\EnableTwoFactorAuthentication;
 use Laravel\Fortify\Actions\GenerateNewRecoveryCodes;
+use Laravel\Passkeys\Actions\DeletePasskey;
+use Laravel\Passkeys\Passkey;
 use App\Enums\QueryType;
 use App\Models\EmailAddress;
 use App\Models\Project;
@@ -43,6 +45,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public string $password = '';
 
     public string $password_confirmation = '';
+
+    public string $passkeyName = '';
 
     public string $code = '';
 
@@ -330,6 +334,41 @@ new #[Layout('components.layouts.app')] class extends Component
         session()->flash('status', __('二要素認証を無効にしました。'));
     }
 
+    /**
+     * The WebAuthn ceremony itself runs in the browser (resources/js/passkeys.js, which listens
+     * for this event); the password is confirmed here first, as for the other security settings.
+     */
+    public function startPasskeyRegistration(): void
+    {
+        $this->validate(['passkeyName' => ['required', 'string', 'max:255']]);
+
+        if (! $this->requirePasswordConfirmation()) {
+            return;
+        }
+
+        $this->dispatch('passkey-register', name: $this->passkeyName);
+    }
+
+    public function passkeyRegistered(): void
+    {
+        $this->reset('passkeyName');
+        unset($this->passkeys);
+        session()->flash('status', __('パスキーを登録しました。'));
+    }
+
+    public function deletePasskey(int $passkeyId): void
+    {
+        if (! $this->requirePasswordConfirmation()) {
+            return;
+        }
+
+        $passkey = auth()->user()->passkeys()->findOrFail($passkeyId);
+        app(DeletePasskey::class)(auth()->user(), $passkey);
+
+        unset($this->passkeys);
+        session()->flash('status', __('パスキーを削除しました。'));
+    }
+
     public function regenerateRecoveryCodes(): void
     {
         if (! $this->requirePasswordConfirmation()) {
@@ -420,6 +459,15 @@ new #[Layout('components.layouts.app')] class extends Component
     public function recoveryCodes(): array
     {
         return $this->twoFactorEnabled ? auth()->user()->recoveryCodes() : [];
+    }
+
+    /**
+     * @return Collection<int, Passkey>
+     */
+    #[Computed]
+    public function passkeys(): Collection
+    {
+        return auth()->user()->passkeys()->orderBy('created_at')->get();
     }
 
     /**
@@ -610,6 +658,46 @@ new #[Layout('components.layouts.app')] class extends Component
                 {{ __('有効にする') }}
             </button>
         @endif
+    </section>
+
+    <section class="rounded-md border border-neutral-200 bg-surface p-4" data-passkeys x-data="{ error: '' }"
+        x-on:passkey-register.window="error = ''; window.ArtisanPasskeys.register($event.detail.name, { options: @js(route('passkey.registration-options')), store: @js(route('passkey.store')) })
+            .then(() => $wire.passkeyRegistered())
+            .catch((e) => { if (e.message === 'password-confirmation') { window.location.href = @js(route('password.confirm')); } else if (e.name !== 'NotAllowedError') { error = e.message; } })">
+        <h2 class="mb-2 text-sm font-semibold text-neutral-900">{{ __('パスキー') }}</h2>
+        <p class="mb-4 text-sm text-neutral-600">{{ __('パスキーを使うと、パスワードの代わりに端末の生体認証やPINでログインできます。') }}</p>
+
+        @if ($this->passkeys->isEmpty())
+            <p class="mb-4 text-sm text-neutral-600">{{ __('パスキーはまだ登録されていません。') }}</p>
+        @else
+            <ul class="mb-4 divide-y divide-neutral-100 rounded-md border border-neutral-200">
+                @foreach ($this->passkeys as $passkey)
+                    <li wire:key="passkey-{{ $passkey->id }}" class="flex items-center justify-between gap-4 px-3 py-2 text-sm">
+                        <div>
+                            <span class="font-medium text-neutral-900">{{ $passkey->name }}</span>
+                            <p class="text-xs text-neutral-600">
+                                {{ __('登録日') }}: {{ \App\Support\Format\DateTimes::dateOf($passkey->created_at) }}
+                                · {{ __('最終利用') }}: {{ $passkey->last_used_at ? \App\Support\Format\DateTimes::dateTime($passkey->last_used_at) : __('未使用') }}
+                            </p>
+                        </div>
+                        <button wire:click="deletePasskey({{ $passkey->id }})" wire:confirm="{{ __('このパスキーを削除しますか?') }}" class="text-sm text-danger-bolder hover:underline">
+                            {{ __('削除') }}
+                        </button>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+
+        <form wire:submit="startPasskeyRegistration" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label for="field-passkeyName" class="block text-sm font-medium text-neutral-700">{{ __('パスキーの名前') }}</label>
+                <input id="field-passkeyName" type="text" wire:model="passkeyName" placeholder="{{ __('例: 仕事用のMacBook') }}" class="mt-1 block w-56 rounded-md border-neutral-300 shadow-sm sm:text-sm">
+                @error('passkeyName') <p class="mt-1 text-sm text-danger-bolder">{{ $message }}</p> @enderror
+            </div>
+            <button type="submit" class="btn btn-primary">{{ __('パスキーを登録') }}</button>
+        </form>
+        <p x-show="error" x-text="error" x-cloak class="mt-2 text-sm text-danger-bolder"></p>
+        <p x-show="!window.ArtisanPasskeys?.supported()" x-cloak class="mt-2 text-xs text-neutral-600">{{ __('このブラウザはパスキーに対応していません。') }}</p>
     </section>
 
     <section class="rounded-md border border-neutral-200 bg-surface p-4" data-preferences>

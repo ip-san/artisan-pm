@@ -25,6 +25,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
+use Laravel\Fortify\Contracts\PasskeyUser;
+use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
@@ -43,10 +45,10 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  */
 #[Fillable(['name', 'firstname', 'lastname', 'email', 'password', 'language', 'time_zone', 'auth_source_id', 'login', 'status', 'mail_notification', 'no_self_notified'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'api_key', 'atom_key'])]
-final class User extends Authenticatable implements HasLocalePreference, HasMedia, OAuthenticatable
+final class User extends Authenticatable implements HasLocalePreference, HasMedia, OAuthenticatable, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasCustomFields, HasFactory, InteractsWithMedia, Notifiable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasCustomFields, HasFactory, InteractsWithMedia, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
      * Matches Redmine's User::LOGIN_LENGTH_LIMIT and login format

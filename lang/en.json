@@ -1570,5 +1570,18 @@
     "Gravatarの既定の画像": "Default Gravatar image",
     "トラッカーごとの権限": "Permissions by tracker",
     "比較元": "Compare from",
-    "比較先": "Compare to"
+    "比較先": "Compare to",
+    "パスキーでログイン": "Sign in with a passkey",
+    "パスキー": "Passkeys",
+    "パスキーを使うと、パスワードの代わりに端末の生体認証やPINでログインできます。": "With a passkey you sign in with your device's biometrics or PIN instead of a password.",
+    "パスキーはまだ登録されていません。": "No passkeys registered yet.",
+    "このパスキーを削除しますか?": "Delete this passkey?",
+    "パスキーを削除しました。": "Passkey deleted.",
+    "パスキーを登録しました。": "Passkey registered.",
+    "パスキーの名前": "Passkey name",
+    "例: 仕事用のMacBook": "e.g. Work MacBook",
+    "パスキーを登録": "Register a passkey",
+    "最終利用": "Last used",
+    "未使用": "Never used",
+    "このブラウザはパスキーに対応していません。": "This browser does not support passkeys."
 }

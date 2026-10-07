@@ -1,3 +1,5 @@
+import './passkeys';
+
 // Click-to-sort headings for the wiki tables the server marks with
 // data-tablesort (see WikiMarkdownRenderer::markSortableTables). Numbers sort
 // as numbers, everything else as text; a second click reverses the order.

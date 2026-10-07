@@ -379,7 +379,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 47,
+            "queries": 40,
             "lazy": []
         },
         "issues.global-index": {
@@ -411,7 +411,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 41,
+            "queries": 40,
             "lazy": []
         },
         "issues.show": {
@@ -419,7 +419,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 57,
+            "queries": 56,
             "lazy": []
         },
         "login": {
@@ -510,14 +510,6 @@
             "queries": 14,
             "lazy": []
         },
-        "passkey.confirm-options": {
-            "error": "Server Error",
-            "js": [],
-            "axe": [],
-            "layout": [],
-            "queries": 0,
-            "lazy": []
-        },
         "passkey.login-options": {
             "error": null,
             "js": [],
@@ -563,7 +555,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 9,
+            "queries": 10,
             "lazy": []
         },
         "projects.activities": {
@@ -1027,7 +1019,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 48,
+            "queries": 47,
             "lazy": []
         },
         "webhooks.create": {
