@@ -484,6 +484,7 @@ final class IssueService
 
         $hasDetails = $changes !== [] || $customFieldChanges !== [] || $attachedMedia !== [];
         $detailsJournal = null;
+        $splitPrivateJournal = null;
 
         if (! $attachmentsOnly && ($hasDetails || filled($comment))) {
             $this->autoWatch($issue, $actor->id, 'issue_contributed_to');
@@ -531,7 +532,7 @@ final class IssueService
             }
 
             if ($splitPrivateNotes) {
-                Journal::create([
+                $splitPrivateJournal = Journal::create([
                     'issue_id' => $issue->id,
                     'user_id' => $actor->id,
                     'notes' => $comment,
@@ -553,6 +554,12 @@ final class IssueService
             ]);
 
             IssueUpdated::dispatch($issue, $actor, $detailsJournal, $mentionedLogins);
+        }
+
+        // The private half of a split save is a journal of its own; Redmine mails it too (to those
+        // who may read private notes), so it gets the mail-only event rather than no mail at all.
+        if ($splitPrivateJournal !== null) {
+            IssueJournalRecorded::dispatch($issue, $actor, $splitPrivateJournal->load('details'));
         }
 
         if ($this->isClosingTransition($original, $issue)) {

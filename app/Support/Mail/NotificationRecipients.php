@@ -95,13 +95,43 @@ final class NotificationRecipients
             };
         }, involvedIds: $assigneeIds);
 
-        return $tiered->merge(self::forHighPriorityIssue($issue, $actor))
+        return $tiered->merge(self::involvedInIssue($issue, $actor, $assigneeIds))
+            ->merge(self::forHighPriorityIssue($issue, $actor))
             ->merge(self::forMentionedUsers($mentionedLogins, $actor))
             ->unique('id')
             ->filter(fn (User $user) => $user->can('view', $issue))
             // Redmine's Journal#notified_users/notified_watchers/notified_mentions: a private note
             // is mailed only to those who may read it; everyone else gets nothing, not a redacted copy.
             ->when($journal?->private_notes, fn (Collection $users) => $users->filter(fn (User $user) => $user->can('viewPrivateNotes', $issue)))
+            ->values();
+    }
+
+    /**
+     * Redmine's Issue#notified_users and #notified_watchers beyond the project's own notified
+     * users: the author and the (previous) assignees by their own User#notify_about?, whether or
+     * not they are members, and every watcher whose setting is not "none", whatever its tier
+     * (a watcher on only_assigned still hears about what they watch).
+     *
+     * @param  Collection<int, int>  $assigneeIds
+     * @return Collection<int, User>
+     */
+    private static function involvedInIssue(Issue $issue, User $actor, Collection $assigneeIds): Collection
+    {
+        $watcherIds = $issue->watchers()->pluck('user_id');
+        $candidateIds = $watcherIds->merge($assigneeIds)->push($issue->author_id)->filter()->unique();
+
+        return User::query()
+            ->whereIn('id', $candidateIds)
+            ->where('status', UserStatus::Active)
+            ->get()
+            ->reject(fn (User $user) => $user->mail_notification === MailNotificationOption::None)
+            ->reject(fn (User $user) => $user->id === $actor->id && $actor->no_self_notified)
+            ->filter(fn (User $user) => $watcherIds->contains($user->id) || match ($user->mail_notification) {
+                MailNotificationOption::OnlyAssigned => $assigneeIds->contains($user->id),
+                MailNotificationOption::OnlyOwner => $issue->author_id === $user->id,
+                MailNotificationOption::OnlyMyWatches => false,
+                default => true,
+            })
             ->values();
     }
 

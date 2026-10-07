@@ -2,6 +2,7 @@
 
 use App\Enums\MailNotificationOption;
 use App\Models\Enumeration;
+use App\Models\Group;
 use App\Models\IssueStatus;
 use App\Models\Member;
 use App\Models\Project;
@@ -82,6 +83,24 @@ test('an assignee change is mailed once issue_assigned_to_updated is enabled', f
     Notification::fake();
 
     app(IssueService::class)->update($issue, ['assigned_to_id' => $assignee->id], $author);
+
+    Notification::assertSentTo($member, IssueNotification::class);
+});
+
+test('assigning a group is an assignee change for issue_assigned_to_updated (A17-04)', function () {
+    $project = Project::factory()->create();
+    $member = granularNotifiableMember($project);
+    $author = granularNotifiableMember($project);
+    $group = Group::factory()->create();
+    Member::factory()->for($project)->create(['user_id' => null, 'group_id' => $group->id])->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+    Setting::set('issue_group_assignment', true);
+
+    $issue = app(IssueService::class)->create([...granularIssueDefaults(), 'project_id' => $project->id, 'subject' => 'Issue'], $author);
+
+    Setting::set('notified_events', ['issue_assigned_to_updated']);
+    Notification::fake();
+
+    app(IssueService::class)->update($issue, ['assigned_to_group_id' => $group->id], $author);
 
     Notification::assertSentTo($member, IssueNotification::class);
 });

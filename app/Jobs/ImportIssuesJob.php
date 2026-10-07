@@ -19,6 +19,7 @@ use App\Models\Version;
 use App\Services\IssueService;
 use App\Support\Format\Hours;
 use App\Support\Import\CsvReader;
+use App\Support\Mail\MailSuppression;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -276,12 +277,15 @@ final class ImportIssuesJob implements ShouldQueue
             // the importing user: the workflow's read-only fields and those
             // the tracker disables are ignored, a required one left blank
             // fails the row.
-            $issue = $this->issueService->create(
+            // Redmine's import "notifications" setting (issue.notify): off unless chosen, so a
+            // large import does not mail everyone involved once per row.
+            $create = fn () => $this->issueService->create(
                 $attributes,
                 $this->import->user,
                 $this->customFieldData($record, $this->mapping, $attributes['tracker_id']),
                 applyFieldRules: true,
             );
+            $issue = ($this->import->column_mapping['notifications'] ?? false) ? $create() : MailSuppression::during($create);
 
             $this->issueIdByIndex[$index] = $issue->id;
         } catch (Throwable $e) {

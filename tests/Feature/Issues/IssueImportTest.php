@@ -2,6 +2,7 @@
 
 use App\Enums\CustomFieldFormat;
 use App\Enums\ImportStatus;
+use App\Enums\MailNotificationOption;
 use App\Jobs\ImportIssuesJob;
 use App\Models\CustomField;
 use App\Models\Enumeration;
@@ -17,7 +18,9 @@ use App\Models\Setting;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
+use App\Notifications\IssueNotification;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -714,3 +717,29 @@ test('assigned_to still resolves by email as before', function () {
 
     expect(Issue::where('subject', 'ByEmail')->value('assigned_to_id'))->toBe($byEmail->id);
 });
+
+test('an import mails nothing unless "send email notifications" is chosen, as in Redmine (A17-02)', function (bool $notify) {
+    Storage::fake('local');
+    Notification::fake();
+
+    $project = Project::factory()->create();
+    $tracker = Tracker::factory()->create();
+    $project->trackers()->attach($tracker);
+    IssueStatus::factory()->create();
+    Enumeration::factory()->create(['is_default' => true]);
+    $user = importMember($project);
+    $watcher = User::factory()->create(['mail_notification' => MailNotificationOption::All]);
+    Member::factory()->for($project)->for($watcher)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+
+    Livewire::actingAs($user)
+        ->test('issues.import', ['project' => $project])
+        ->set('csvFile', csvFile('issues.csv', "件名\n一件目\n二件目\n"))
+        ->set('mapping.subject', '件名')
+        ->set('notifications', $notify)
+        ->call('startImport');
+
+    expect(Issue::query()->count())->toBe(2);
+    $notify
+        ? Notification::assertSentTo($watcher, IssueNotification::class)
+        : Notification::assertNothingSentTo($watcher);
+})->with(['off by default' => false, 'chosen' => true]);

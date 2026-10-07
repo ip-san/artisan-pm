@@ -1583,5 +1583,6 @@
     "パスキーを登録": "Register a passkey",
     "最終利用": "Last used",
     "未使用": "Never used",
-    "このブラウザはパスキーに対応していません。": "This browser does not support passkeys."
+    "このブラウザはパスキーに対応していません。": "This browser does not support passkeys.",
+    "メール通知を送る": "Send email notifications"
 }

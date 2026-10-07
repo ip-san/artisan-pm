@@ -72,7 +72,9 @@ final class SendIssueMailNotifications
             $keys[] = 'issue_status_updated';
         }
 
-        if ($details->contains(fn (JournalDetail $d) => $d->property === 'attr' && $d->prop_key === 'assigned_to_id')) {
+        // A group assignee is the same assignee change in Redmine (one assigned_to_id column); here it
+        // is recorded under its own key.
+        if ($details->contains(fn (JournalDetail $d) => $d->property === 'attr' && in_array($d->prop_key, ['assigned_to_id', 'assigned_to_group_id'], true))) {
             $keys[] = 'issue_assigned_to_updated';
         }
 

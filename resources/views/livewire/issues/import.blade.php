@@ -101,6 +101,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public bool $createVersions = false;
 
+    /** Redmine's import setting "notifications", off by default (import.rb). */
+    public bool $notifications = false;
+
     public function mount(Project $project): void
     {
         $this->authorize('import', [Issue::class, $project]);
@@ -185,6 +188,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 ...array_filter($this->mapping),
                 'create_categories' => $this->canManageCategories && $this->createCategories,
                 'create_versions' => $this->canManageVersions && $this->createVersions,
+                'notifications' => $this->notifications,
             ],
         ]);
 
@@ -248,6 +252,11 @@ new #[Layout('components.layouts.app')] class extends Component
                         {{ __('存在しない対象バージョン名は自動的に作成する') }}
                     </label>
                 @endif
+
+                <label class="mt-3 flex items-center gap-2 text-sm text-neutral-700" data-import-notifications>
+                    <input type="checkbox" wire:model="notifications" class="rounded border-neutral-300">
+                    {{ __('メール通知を送る') }}
+                </label>
             </div>
 
             <div class="flex gap-3">
