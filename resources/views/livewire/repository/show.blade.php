@@ -187,7 +187,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <form wire:submit="addRelatedIssue" class="mb-4 flex items-center gap-2">
                 <input type="text" wire:model="newIssueReference" placeholder="#123"
                     class="w-28 rounded-md border-neutral-300 text-sm shadow-sm">
-                <button type="submit" class="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">
+                <button type="submit" class="btn btn-secondary">
                     {{ __('課題を関連付け') }}
                 </button>
                 @error('newIssueReference') <span class="text-sm text-danger-bolder">{{ $message }}</span> @enderror

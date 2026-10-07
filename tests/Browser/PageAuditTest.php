@@ -13,6 +13,7 @@ use App\Models\IssueStatus;
 use App\Models\Message;
 use App\Models\News;
 use App\Models\Project;
+use App\Models\Repository;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\TimeEntry;
@@ -23,6 +24,7 @@ use App\Models\Webhook;
 use App\Models\Wiki;
 use App\Models\WikiPage;
 use App\Models\WikiPageVersion;
+use App\Services\RepositorySyncService;
 use Database\Seeders\DemoDataSeeder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\Route as RoutingRoute;
@@ -49,18 +51,27 @@ function pageAuditParameters(RoutingRoute $route, array $fixtures): ?array
 {
     $parameters = [];
 
+    $routeName = (string) $route->getName();
+
     foreach ($route->parameterNames() as $name) {
-        $wikiRevision = str_starts_with((string) $route->getName(), 'wiki.')
+        $wikiRevision = str_starts_with($routeName, 'wiki.')
             ? ['version' => 1, 'from' => 1, 'to' => 2]
             : [];
 
         if (array_key_exists($name, $wikiRevision)) {
             $parameters[$name] = $wikiRevision[$name];
+        } elseif ($name === 'path' && str_starts_with($routeName, 'repository.browse')) {
+            continue; // browse lists a directory; the root, since the fixture path is a file
         } elseif (array_key_exists($name, $fixtures)) {
             $parameters[$name] = $fixtures[$name];
         } elseif (! str_ends_with($route->uri(), '{'.$name.'?}')) {
             return null;
         }
+    }
+
+    // The compare page answers 404 without two different revisions (query parameters, not route ones).
+    if (str_starts_with($routeName, 'repository.compare')) {
+        [$parameters['from'], $parameters['to']] = $fixtures['compareRevisions'][str_ends_with($routeName, '.repo') ? 'docs' : 'default'];
     }
 
     return $parameters;
@@ -76,9 +87,21 @@ function pageAuditFixtures(User $admin): array
     $wikiPage = WikiPage::query()->firstOrCreate(['project_id' => $project->id, 'title' => 'Wiki']);
     Wiki::query()->firstOrCreate(['project_id' => $project->id], ['start_page' => 'Wiki']);
     WikiPageVersion::factory()->create(['wiki_page_id' => $wikiPage->id, 'author_id' => $admin->id, 'version' => $wikiPage->versions()->max('version') + 1]);
+    // A default and a secondary ("docs") git repository, so both the plain and the {repositoryParam} routes open.
+    $repository = Repository::factory()->for($project)->create(['path' => createTestGitRepo(['Initial import', 'Fix the checkout total']), 'is_default' => true]);
+    $secondary = Repository::factory()->for($project)->create(['path' => createTestGitRepo(['Add the docs', 'Revise the docs']), 'identifier' => 'docs']);
+    app(RepositorySyncService::class)->sync($repository);
+    app(RepositorySyncService::class)->sync($secondary);
 
     return [
         'project' => $project,
+        'changeset' => $repository->changesets()->firstOrFail(),
+        'compareRevisions' => [
+            'default' => $repository->changesets()->orderBy('committed_on')->pluck('revision')->take(2)->all(),
+            'docs' => $secondary->changesets()->orderBy('committed_on')->pluck('revision')->take(2)->all(),
+        ],
+        'repositoryParam' => 'docs',
+        'path' => 'file0.txt',
         'issue' => Issue::query()->where('project_id', $project->id)->firstOrFail(),
         'board' => $board,
         'message' => Message::factory()->for($board)->create(['author_id' => $admin->id]),

@@ -48,7 +48,7 @@ final class ChangesetActivityProvider implements LastActivityProvider, MultiProj
         return Changeset::query()
             ->whereHas('repository', fn ($query) => $query->whereIn('project_id', $projects->keys()))
             ->whereBetween('committed_on', [$from, $to])
-            ->with('repository')
+            ->with('repository.project')
             ->get()
             ->map(fn (Changeset $changeset) => new ActivityEntry(
                 type: $this->type(),

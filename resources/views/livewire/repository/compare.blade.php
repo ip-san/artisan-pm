@@ -90,8 +90,8 @@ new #[Layout('components.layouts.app')] class extends Component
         {{ $fromChangeset->shortRevision() }} 〜 {{ $toChangeset->shortRevision() }}
     </h1>
     @php
-        $fromLink = '<a href="'.e(route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $fromChangeset]))).'" class="text-brand-bold hover:underline">'.e($fromChangeset->shortRevision()).'</a>';
-        $toLink = '<a href="'.e(route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $toChangeset]))).'" class="text-brand-bold hover:underline">'.e($toChangeset->shortRevision()).'</a>';
+        $fromLink = '<a href="'.e(route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $fromChangeset]))).'" class="text-brand-bold underline">'.e($fromChangeset->shortRevision()).'</a>';
+        $toLink = '<a href="'.e(route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $toChangeset]))).'" class="text-brand-bold underline">'.e($toChangeset->shortRevision()).'</a>';
     @endphp
     <p class="mb-4 text-sm text-neutral-500">
         {!! __(':from (:from_date) から :to (:to_date) までの差分', [

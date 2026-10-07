@@ -209,8 +209,8 @@ new #[Layout('components.layouts.app')] class extends Component
                                     <span class="ml-1 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{{ __('既定') }}</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-2 text-neutral-500">{{ $candidate->type->value }}</td>
-                            <td class="px-4 py-2 text-neutral-500">{{ $candidate->location() }}</td>
+                            <td class="px-4 py-2 text-neutral-600">{{ $candidate->type->value }}</td>
+                            <td class="px-4 py-2 text-neutral-600">{{ $candidate->location() }}</td>
                             <td class="px-4 py-2 text-right">
                                 @if ($this->canManage && ! $candidate->is_default)
                                     <button wire:click="setDefault({{ $candidate->id }})" class="text-xs text-brand-bold hover:underline">
@@ -261,10 +261,10 @@ new #[Layout('components.layouts.app')] class extends Component
                     @forelse ($this->changesets as $changeset)
                         <tr wire:key="changeset-{{ $changeset->id }}">
                             <td class="px-2 py-2">
-                                <input type="radio" wire:model="compareFrom" value="{{ $changeset->revision }}" class="border-neutral-300">
+                                <input type="radio" wire:model="compareFrom" value="{{ $changeset->revision }}" aria-label="{{ __('比較元') }} {{ $changeset->shortRevision() }}" class="border-neutral-300">
                             </td>
                             <td class="px-2 py-2">
-                                <input type="radio" wire:model="compareTo" value="{{ $changeset->revision }}" class="border-neutral-300">
+                                <input type="radio" wire:model="compareTo" value="{{ $changeset->revision }}" aria-label="{{ __('比較先') }} {{ $changeset->shortRevision() }}" class="border-neutral-300">
                             </td>
                             <td class="px-4 py-2 font-mono text-xs">
                                 <a href="{{ route($repository->routeName('repository.show'), $repository->routeParameters(['changeset' => $changeset])) }}" class="text-brand-bold hover:underline">

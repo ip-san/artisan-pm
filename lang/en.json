@@ -1568,5 +1568,7 @@
     ":field(終わり)": ":field (to)",
     "既定値の決め方": "How the default is set",
     "Gravatarの既定の画像": "Default Gravatar image",
-    "トラッカーごとの権限": "Permissions by tracker"
+    "トラッカーごとの権限": "Permissions by tracker",
+    "比較元": "Compare from",
+    "比較先": "Compare to"
 }

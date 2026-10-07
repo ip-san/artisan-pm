@@ -10,20 +10,6 @@
         "issues.report-details",
         "password.reset",
         "plugins.settings",
-        "repository.annotate",
-        "repository.annotate.repo",
-        "repository.browse.repo",
-        "repository.committers.repo",
-        "repository.compare.repo",
-        "repository.edit.repo",
-        "repository.entry",
-        "repository.entry.repo",
-        "repository.file-history",
-        "repository.file-history.repo",
-        "repository.index.repo",
-        "repository.show",
-        "repository.show.repo",
-        "repository.stats.repo",
         "time-entries.import-status",
         "users.import-status"
     ],
@@ -41,7 +27,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 21,
+            "queries": 23,
             "lazy": []
         },
         "activity.index": {
@@ -49,7 +35,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 35,
+            "queries": 37,
             "lazy": []
         },
         "admin.default-configuration": {
@@ -393,7 +379,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 40,
+            "queries": 47,
             "lazy": []
         },
         "issues.global-index": {
@@ -425,7 +411,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 40,
+            "queries": 41,
             "lazy": []
         },
         "issues.show": {
@@ -433,7 +419,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 60,
+            "queries": 57,
             "lazy": []
         },
         "login": {
@@ -636,28 +622,68 @@
             "queries": 12,
             "lazy": []
         },
-        "repository.browse": {
-            "error": "Not Found",
+        "repository.annotate": {
+            "error": null,
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 4,
+            "queries": 8,
+            "lazy": []
+        },
+        "repository.annotate.repo": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 8,
+            "lazy": []
+        },
+        "repository.browse": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 8,
+            "lazy": []
+        },
+        "repository.browse.repo": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 8,
             "lazy": []
         },
         "repository.committers": {
-            "error": "Not Found",
+            "error": null,
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 4,
+            "queries": 10,
+            "lazy": []
+        },
+        "repository.committers.repo": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 10,
             "lazy": []
         },
         "repository.compare": {
-            "error": "Not Found",
+            "error": null,
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 4,
+            "queries": 10,
+            "lazy": []
+        },
+        "repository.compare.repo": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 10,
             "lazy": []
         },
         "repository.create": {
@@ -676,7 +702,79 @@
             "queries": 8,
             "lazy": []
         },
+        "repository.edit.repo": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 8,
+            "lazy": []
+        },
+        "repository.entry": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 8,
+            "lazy": []
+        },
+        "repository.entry.repo": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 8,
+            "lazy": []
+        },
+        "repository.file-history": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 12,
+            "lazy": []
+        },
+        "repository.file-history.repo": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 12,
+            "lazy": []
+        },
         "repository.index": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 12,
+            "lazy": []
+        },
+        "repository.index.repo": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 12,
+            "lazy": []
+        },
+        "repository.show": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 12,
+            "lazy": []
+        },
+        "repository.show.repo": {
+            "error": null,
+            "js": [],
+            "axe": [],
+            "layout": [],
+            "queries": 12,
+            "lazy": []
+        },
+        "repository.stats": {
             "error": null,
             "js": [],
             "axe": [],
@@ -684,12 +782,12 @@
             "queries": 9,
             "lazy": []
         },
-        "repository.stats": {
-            "error": "Not Found",
+        "repository.stats.repo": {
+            "error": null,
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 4,
+            "queries": 9,
             "lazy": []
         },
         "roles.create": {
@@ -897,7 +995,7 @@
             "js": [],
             "axe": [],
             "layout": [],
-            "queries": 42,
+            "queries": 44,
             "lazy": []
         },
         "versions.create": {
