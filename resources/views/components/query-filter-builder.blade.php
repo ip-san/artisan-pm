@@ -66,6 +66,9 @@
                                 @endforeach
                             </select>
                         @endif
+                    @elseif ($field->type() === \App\Enums\FilterFieldType::Date && $selectedOperator?->takesDays())
+                        <input type="number" min="0" step="1" wire:model="filterValues.{{ $key }}.0" aria-label="{{ __(':field(日数)', ['field' => $field->label()]) }}" class="w-20 rounded-md border-neutral-300 text-sm">
+                        <span class="text-neutral-600">{{ __('日間') }}</span>
                     @elseif ($field->type() === \App\Enums\FilterFieldType::Date)
                         <input type="date" wire:model="filterValues.{{ $key }}.0" aria-label="{{ $field->label() }}" class="rounded-md border-neutral-300 text-sm">
                         @if (($filterOperators[$key] ?? null) === \App\Enums\FilterOperator::Between->value)

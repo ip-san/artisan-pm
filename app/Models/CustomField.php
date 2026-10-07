@@ -25,7 +25,7 @@ use Spatie\EloquentSortable\SortableTrait;
 
 #[Fillable([
     'name', 'description', 'field_format', 'customized_type', 'is_required', 'multiple',
-    'searchable', 'is_filter', 'editable', 'default_value', 'default_value_mode', 'min_length', 'max_length', 'regexp', 'ratio_interval',
+    'searchable', 'is_filter', 'editable', 'restricted_to_roles', 'default_value', 'default_value_mode', 'min_length', 'max_length', 'regexp', 'ratio_interval',
     'possible_values', 'format_options', 'position',
 ])]
 final class CustomField extends Model implements Sortable
@@ -114,6 +114,7 @@ final class CustomField extends Model implements Sortable
             'multiple' => 'boolean',
             'searchable' => 'boolean',
             'is_filter' => 'boolean',
+            'restricted_to_roles' => 'boolean',
             'editable' => 'boolean',
             'possible_values' => 'array',
             'format_options' => 'array',
@@ -329,13 +330,21 @@ final class CustomField extends Model implements Sortable
     }
 
     /**
-     * Empty pivot means "visible regardless of role", matching Redmine.
-     *
+     * Whether every role (and a visitor) may see the field: no roles chosen and not marked as
+     * restricted. Redmine's `visible = true`; `visible = false` with no roles is administrators
+     * only (A17-12), which an empty role list alone could not say.
+     */
+    public function isVisibleToAllRoles(): bool
+    {
+        return ! $this->restricted_to_roles && $this->roles->isEmpty();
+    }
+
+    /**
      * @param  Collection<int, Role>  $userRoles
      */
     public function visibleToRoles(Collection $userRoles): bool
     {
-        return $this->roles->isEmpty() || $this->roles->pluck('id')->intersect($userRoles->pluck('id'))->isNotEmpty();
+        return $this->isVisibleToAllRoles() || $this->roles->pluck('id')->intersect($userRoles->pluck('id'))->isNotEmpty();
     }
 
     /**

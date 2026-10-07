@@ -64,6 +64,7 @@ test('an admin can restrict a custom field to specific roles', function () {
         ->set('name', 'Restricted field')
         ->set('field_format', CustomFieldFormat::String->value)
         ->set('trackerIds', [$tracker->id])
+        ->set('visibleTo', 'roles')
         ->set('roleIds', [$role->id])
         ->call('save');
 

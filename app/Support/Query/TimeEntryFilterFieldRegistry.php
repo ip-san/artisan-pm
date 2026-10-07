@@ -101,7 +101,7 @@ final class TimeEntryFilterFieldRegistry
      */
     private static function dateOperators(): array
     {
-        return [FilterOperator::Equals, FilterOperator::GreaterOrEqual, FilterOperator::LessOrEqual, FilterOperator::Between, FilterOperator::InTheLastDays];
+        return FilterOperator::dateChoices(withEmptiness: false);
     }
 
     /**

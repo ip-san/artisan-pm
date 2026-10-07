@@ -44,7 +44,7 @@ final class ProjectFilterFieldRegistry
     {
         $choice = [FilterOperator::Equals, FilterOperator::NotEquals, FilterOperator::In, FilterOperator::NotIn];
         $text = [FilterOperator::Contains, FilterOperator::ContainsAny, FilterOperator::NotContains, FilterOperator::StartsWith, FilterOperator::EndsWith, FilterOperator::Equals, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty];
-        $date = [FilterOperator::Equals, FilterOperator::GreaterOrEqual, FilterOperator::LessOrEqual, FilterOperator::Between, FilterOperator::InTheLastDays];
+        $date = FilterOperator::dateChoices(withEmptiness: false);
 
         /** @var array<int, FilterableField> $nativeFields */
         $nativeFields = [
@@ -252,7 +252,7 @@ final class ProjectFilterFieldRegistry
             ->with('roles')
             ->orderBy('position')
             ->get()
-            ->filter(fn (CustomField $field) => $viewer?->is_admin || $field->roles->isEmpty())
+            ->filter(fn (CustomField $field) => $viewer?->is_admin || $field->isVisibleToAllRoles())
             ->values();
     }
 

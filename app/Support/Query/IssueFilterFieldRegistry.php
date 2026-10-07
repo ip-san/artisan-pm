@@ -302,7 +302,7 @@ final class IssueFilterFieldRegistry
      */
     private static function dateOperators(): array
     {
-        return [FilterOperator::Equals, FilterOperator::GreaterOrEqual, FilterOperator::LessOrEqual, FilterOperator::Between, FilterOperator::InTheLastDays, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty];
+        return FilterOperator::dateChoices();
     }
 
     /**

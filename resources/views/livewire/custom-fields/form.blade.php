@@ -70,7 +70,13 @@ new #[Layout('components.layouts.app')] class extends Component
     public array $projectIds = [];
 
     /** @var array<int> */
+    /** Redmine offers visibility by role for these field types only. */
+    private const array ROLE_VISIBILITY_TYPES = ['issue', 'time_entry', 'project', 'version'];
+
     public array $roleIds = [];
+
+    /** 'all' roles, or 'roles': only the chosen ones, and with none chosen, administrators only. */
+    public string $visibleTo = 'all';
 
     public function mount(?CustomField $customField = null): void
     {
@@ -108,6 +114,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->trackerIds = $customField->trackers->pluck('id')->all();
             $this->projectIds = $customField->projects->pluck('id')->all();
             $this->roleIds = $customField->roles->pluck('id')->all();
+            $this->visibleTo = $customField->isVisibleToAllRoles() ? 'all' : 'roles';
         } else {
             $this->authorize('create', CustomField::class);
 
@@ -306,6 +313,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'userRoleIds.*' => ['exists:roles,id'],
             'versionStatuses' => ['array'],
             'versionStatuses.*' => [Rule::enum(\App\Enums\VersionStatus::class)],
+            'visibleTo' => ['required', 'in:all,roles'],
             'roleIds' => ['array'],
             'roleIds.*' => ['exists:roles,id'],
             'enumerationOptions.*.name' => ['nullable', 'string', 'max:60'],
@@ -366,7 +374,10 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->customField->projects()->sync([]);
         }
 
-        $this->customField->roles()->sync($data['roleIds']);
+        // Choosing "all roles" drops the list; "only these roles" with none chosen is administrators only.
+        $restricted = $data['visibleTo'] === 'roles' && in_array($this->customized_type, self::ROLE_VISIBILITY_TYPES, true);
+        $this->customField->roles()->sync($restricted ? $data['roleIds'] : []);
+        $this->customField->update(['restricted_to_roles' => $restricted]);
 
         $this->redirect(route('custom-fields.index'), navigate: true);
     }
@@ -629,15 +640,23 @@ new #[Layout('components.layouts.app')] class extends Component
              a user or group field has no role concept, so the choice would do nothing. --}}
         @if (in_array($this->customized_type, [\App\Enums\CustomizableType::Issue->value, \App\Enums\CustomizableType::TimeEntry->value, \App\Enums\CustomizableType::Project->value, \App\Enums\CustomizableType::Version->value], true))
         <div>
-            <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('閲覧可能ロール(未選択=全ロールに表示)') }}</span>
-            <div class="flex flex-wrap gap-3">
-                @foreach ($this->roles as $role)
-                    <label class="flex items-center gap-2 text-sm text-neutral-700">
-                        <input type="checkbox" wire:model="roleIds" value="{{ $role->id }}" class="rounded border-neutral-300">
-                        {{ $role->name }}
-                    </label>
-                @endforeach
-            </div>
+            <span class="block text-sm font-medium text-neutral-700 mb-2">{{ __('閲覧可能ロール') }}</span>
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                <input type="radio" wire:model.live="visibleTo" value="all"> {{ __('すべてのロール') }}
+            </label>
+            <label class="flex items-center gap-2 text-sm text-neutral-700">
+                <input type="radio" wire:model.live="visibleTo" value="roles"> {{ __('選択したロールのみ(未選択=管理者のみ)') }}
+            </label>
+            @if ($visibleTo === 'roles')
+                <div class="mt-2 flex flex-wrap gap-3" data-visible-roles>
+                    @foreach ($this->roles as $role)
+                        <label class="flex items-center gap-2 text-sm text-neutral-700">
+                            <input type="checkbox" wire:model="roleIds" value="{{ $role->id }}" class="rounded border-neutral-300">
+                            {{ $role->name }}
+                        </label>
+                    @endforeach
+                </div>
+            @endif
         </div>
         @endif
 

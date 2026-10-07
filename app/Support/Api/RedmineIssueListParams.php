@@ -8,7 +8,6 @@ use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
 use App\Models\IssueStatus;
 use App\Models\User;
-use App\Support\Format\DateTimes;
 use App\Support\Query\FilterableField;
 use App\Support\Query\FilterSelectOptions;
 use App\Support\Query\QueryFilterEngine;
@@ -45,7 +44,7 @@ final class RedmineIssueListParams
      * @var array<int, string>
      */
     private const array SHORT_FILTER_OPERATORS = [
-        '=p', '=!p', '!p', '*o', '!o', '!*', '!~', '*~', '>=', '<=', '><', '>t-', '<t-', 't-', 'l2w', 'ld', 'lw', 'lm', '!', '*', '~', '^', '$', 'o', 'c', 't', 'w', 'm', 'y',
+        '=p', '=!p', '!p', '*o', '!o', '!*', '!~', '*~', '>=', '<=', '><', '>t-', '<t-', 't-', '>t+', '<t+', 't+', 'l2w', 'ld', 'nd', 'lw', 'nw', 'lm', 'nm', '!', '*', '~', '^', '$', 'o', 'c', 't', 'w', 'm', 'y',
     ];
 
     /**
@@ -53,7 +52,7 @@ final class RedmineIssueListParams
      *
      * @var array<int, string>
      */
-    private const array DATE_OPERATORS = ['>t-', '<t-', 't-', 't', 'ld', 'w', 'lw', 'l2w', 'm', 'lm', 'y'];
+    private const array DATE_OPERATORS = ['>t-', '<t-', 't-', '>t+', '<t+', 't+', 't', 'ld', 'nd', 'w', 'lw', 'l2w', 'nw', 'm', 'lm', 'nm', 'y'];
 
     /**
      * @param  array<string, mixed>  $input  the request's query parameters
@@ -186,7 +185,6 @@ final class RedmineIssueListParams
             $values = array_map(fn ($value) => $value === 'me' ? (string) $user->id : $value, $values);
         }
 
-        $today = DateTimes::today($user);
         $days = (int) ($values[0] ?? 0);
 
         [$operator, $values] = match ($redmineOperator) {
@@ -198,16 +196,6 @@ final class RedmineIssueListParams
             '=' => [count($values) > 1 && in_array(FilterOperator::In, $field->operators(), true) ? FilterOperator::In : FilterOperator::Equals, $values],
             '!' => [count($values) > 1 && in_array(FilterOperator::NotIn, $field->operators(), true) ? FilterOperator::NotIn : FilterOperator::NotEquals, $values],
             '>t-' => [FilterOperator::InTheLastDays, [$days]],
-            '<t-' => [FilterOperator::LessOrEqual, [$today->subDays($days)->toDateString()]],
-            't-' => [FilterOperator::Between, [$today->subDays($days)->toDateString(), $today->subDays($days)->toDateString()]],
-            't' => [FilterOperator::Between, [$today->toDateString(), $today->toDateString()]],
-            'ld' => [FilterOperator::Between, [$today->subDay()->toDateString(), $today->subDay()->toDateString()]],
-            'w' => [FilterOperator::Between, [$today->startOfWeek()->toDateString(), $today->endOfWeek()->toDateString()]],
-            'lw' => [FilterOperator::Between, [$today->subWeek()->startOfWeek()->toDateString(), $today->subWeek()->endOfWeek()->toDateString()]],
-            'l2w' => [FilterOperator::Between, [$today->subWeek()->startOfWeek()->toDateString(), $today->endOfWeek()->toDateString()]],
-            'm' => [FilterOperator::Between, [$today->startOfMonth()->toDateString(), $today->endOfMonth()->toDateString()]],
-            'lm' => [FilterOperator::Between, [$today->subMonthNoOverflow()->startOfMonth()->toDateString(), $today->subMonthNoOverflow()->endOfMonth()->toDateString()]],
-            'y' => [FilterOperator::Between, [$today->startOfYear()->toDateString(), $today->endOfYear()->toDateString()]],
             default => [FilterOperator::tryFrom($redmineOperator), $values],
         };
 
@@ -264,7 +252,7 @@ final class RedmineIssueListParams
             $field->type() === FilterFieldType::IdList => fn (mixed $value): bool => preg_match('/^\s*\d+(\s*,\s*\d+)*\s*$/', (string) $value) === 1,
             // A choice list with nothing to offer (a project without
             // trackers, say) can still only be keyed by ids.
-            $field->type() === FilterFieldType::Select, $field->type() === FilterFieldType::Integer, $operator === FilterOperator::InTheLastDays => $isNumber,
+            $field->type() === FilterFieldType::Select, $field->type() === FilterFieldType::Integer, $operator->takesDays() => $isNumber,
             $field->type() === FilterFieldType::Date => fn (mixed $value): bool => preg_match('/^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?(Z|[+-]\d{2}:?\d{2})?)?$/', (string) $value) === 1,
             $field->type() === FilterFieldType::Boolean => fn (mixed $value): bool => in_array((string) $value, ['0', '1'], true),
             default => fn (mixed $value): bool => true,

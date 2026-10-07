@@ -88,6 +88,6 @@ final class CustomFieldVisibility
 
     private function isVisibleEverywhere(CustomField $field): bool
     {
-        return (bool) $this->viewer?->is_admin || $field->roles->isEmpty();
+        return (bool) $this->viewer?->is_admin || $field->isVisibleToAllRoles();
     }
 }

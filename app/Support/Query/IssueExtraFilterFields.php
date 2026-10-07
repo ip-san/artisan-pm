@@ -727,7 +727,7 @@ final class IssueExtraFilterFields
             'fixed_version_due_date',
             __('対象バージョンの期日'),
             FilterFieldType::Date,
-            [FilterOperator::Equals, FilterOperator::GreaterOrEqual, FilterOperator::LessOrEqual, FilterOperator::Between, FilterOperator::InTheLastDays, FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
+            FilterOperator::dateChoices(),
             function (Builder $query, FilterOperator $operator, array $values): Builder {
                 if ($operator->requiresValue() && $values === []) {
                     return $query;

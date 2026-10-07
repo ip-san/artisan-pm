@@ -36,6 +36,10 @@ final class FilterOperatorApplier
             return $query;
         }
 
+        if ($range = RelativeDateRange::for($operator, $values)) {
+            return self::withinDays($query, $column, $range);
+        }
+
         return match ($operator) {
             FilterOperator::Equals => $query->where($column, $values[0] ?? null),
             // Redmine's "!" (query.rb sql_for_field): `col IS NULL OR col NOT IN (...)`, so a row with
@@ -50,9 +54,6 @@ final class FilterOperatorApplier
             FilterOperator::GreaterOrEqual => $query->where($column, '>=', $values[0] ?? null),
             FilterOperator::LessOrEqual => $query->where($column, '<=', $values[0] ?? null),
             FilterOperator::Between => $query->whereBetween($column, [$values[0] ?? null, $values[1] ?? null]),
-            FilterOperator::InTheLastDays => $query->where(
-                $column, '>=', DateTimes::today()->subDays((int) ($values[0] ?? 0))->toDateString()
-            ),
             // The relation operators mean nothing for a plain column; no
             // column field offers them.
             FilterOperator::AnyOpenIssues, FilterOperator::NoOpenIssues,
@@ -77,16 +78,40 @@ final class FilterOperatorApplier
 
         $day = fn (int $index): array => DateTimes::dayBounds((string) $values[$index]);
 
+        if ($range = RelativeDateRange::for($operator, $values)) {
+            return self::withinDays($query, $column, $range, asTimes: true);
+        }
+
         return match ($operator) {
             FilterOperator::Equals => $query->whereBetween($column, $day(0)),
             FilterOperator::NotEquals => $query->whereNotBetween($column, $day(0)),
             FilterOperator::GreaterOrEqual => $query->where($column, '>=', $day(0)[0]),
             FilterOperator::LessOrEqual => $query->where($column, '<=', $day(0)[1]),
             FilterOperator::Between => $query->whereBetween($column, [$day(0)[0], $day(1)[1]]),
-            FilterOperator::InTheLastDays => $query->where(
-                $column, '>=', DateTimes::dayBounds(DateTimes::today()->subDays((int) ($values[0] ?? 0))->toDateString())[0]
-            ),
             default => self::apply($query, $column, $operator, $values),
         };
+    }
+
+    /**
+     * Whole days from the range's first to its last day, either end optionally open; on a timestamp
+     * column the days are the viewer's, so each end is that day's start or end in UTC.
+     *
+     * @param  Builder<*>  $query
+     * @param  array{0: string|null, 1: string|null}  $range
+     * @return Builder<*>
+     */
+    private static function withinDays(Builder $query, string $column, array $range, bool $asTimes = false): Builder
+    {
+        [$first, $last] = $range;
+
+        if ($first !== null) {
+            $query->where($column, '>=', $asTimes ? DateTimes::dayBounds($first)[0] : $first);
+        }
+
+        if ($last !== null) {
+            $query->where($column, '<=', $asTimes ? DateTimes::dayBounds($last)[1] : $last);
+        }
+
+        return $query;
     }
 }

@@ -49,7 +49,7 @@ final class CustomFieldResource extends JsonResource
             'searchable' => $field->searchable,
             'is_filter' => $field->is_filter,
             'multiple' => $field->multiple,
-            'visible' => $field->roles->isEmpty(),
+            'visible' => $field->isVisibleToAllRoles(),
             'editable' => $field->editable,
             'default_value' => $field->default_value,
             'default_value_mode' => $field->default_value_mode?->value,

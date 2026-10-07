@@ -263,3 +263,35 @@ test('the visible-roles choice is offered only where Redmine has it: issue, time
     'user' => ['user', false],
     'group' => ['group', false],
 ]);
+
+test('a field restricted to roles with none chosen is for administrators only, as Redmine\'s visible=false (A17-12)', function () {
+    $everyone = CustomField::factory()->create(['customized_type' => 'project']);
+    $adminOnly = CustomField::factory()->create(['customized_type' => 'project', 'restricted_to_roles' => true]);
+    $role = Role::factory()->create();
+    $limited = CustomField::factory()->create(['customized_type' => 'project']);
+    $limited->roles()->attach($role);
+
+    $viewerRoles = collect([$role]);
+
+    expect($everyone->load('roles')->visibleToRoles($viewerRoles))->toBeTrue()
+        ->and($adminOnly->load('roles')->visibleToRoles($viewerRoles))->toBeFalse()
+        ->and($adminOnly->isVisibleToAllRoles())->toBeFalse()
+        ->and($limited->load('roles')->visibleToRoles($viewerRoles))->toBeTrue()
+        ->and($limited->visibleToRoles(collect()))->toBeFalse();
+});
+
+test('the form saves "only these roles" with none chosen as administrators only, and "all roles" clears the list (A17-12)', function () {
+    $admin = User::factory()->admin()->create();
+    $role = Role::factory()->create();
+    $field = CustomField::factory()->create(['customized_type' => 'project']);
+    $field->roles()->attach($role);
+
+    $edit = fn () => Livewire::actingAs($admin)->test('custom-fields.form', ['customField' => $field->fresh()]);
+
+    $edit()->assertSet('visibleTo', 'roles')->set('roleIds', [])->call('save')->assertHasNoErrors();
+    $saved = $field->fresh()->load('roles');
+    expect($saved->restricted_to_roles)->toBeTrue()->and($saved->roles)->toHaveCount(0)->and($saved->isVisibleToAllRoles())->toBeFalse();
+
+    $edit()->assertSet('visibleTo', 'roles')->set('visibleTo', 'all')->call('save')->assertHasNoErrors();
+    expect($field->fresh()->load('roles')->isVisibleToAllRoles())->toBeTrue();
+});
