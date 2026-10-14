@@ -1,31 +1,23 @@
 <?php
 
+use App\Concerns\DrawsGanttChart;
 use App\Concerns\InteractsWithQueryFilters;
 use App\Concerns\UsesSavedIssueQueriesForFiltering;
 use App\Models\Issue;
 use App\Models\Project;
-use App\Models\Setting;
 use App\Models\Version;
 use App\Services\GanttService;
 use App\Support\Authorization\AuthorizationService;
-use App\Support\Format\DateTimes;
-use App\Support\Gantt\GanttChart;
-use App\Support\Gantt\GanttImageRenderer;
-use App\Support\Gantt\GanttLine;
+use App\Support\Gantt\GanttProjectTree;
 use App\Support\Gantt\GanttRow;
 use App\Support\Gantt\GanttSettings;
-use App\Support\Issues\RelatedIssueColumns;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
-use Symfony\Component\HttpFoundation\StreamedResponse;
-use Illuminate\Support\Facades\Gate;
 
 /**
  * Redmine's top-level IssuesController#gantt (/issues/gantt, no project):
@@ -45,52 +37,10 @@ use Illuminate\Support\Facades\Gate;
  */
 new #[Layout('components.layouts.app')] class extends Component
 {
-    use InteractsWithQueryFilters;
-    use UsesSavedIssueQueriesForFiltering {
-        loadQuery as private loadIssueQuery;
+    use DrawsGanttChart, InteractsWithQueryFilters, UsesSavedIssueQueriesForFiltering {
+        DrawsGanttChart::loadQuery insteadof UsesSavedIssueQueriesForFiltering;
+        UsesSavedIssueQueriesForFiltering::loadQuery as private loadIssueQuery;
     }
-
-    /**
-     * Redmine's gantt zoom (1-4, default 2): months, then week numbers, days
-     * and weekdays in the header, each level drawing the days wider.
-     */
-    #[Url]
-    public int $zoom = 2;
-
-    /**
-     * Redmine's Helpers::Gantt month_from/year_from/months — see
-     * gantt/index.blade.php's own copy of this for the full explanation.
-     */
-    #[Url]
-    public ?int $yearFrom = null;
-
-    #[Url]
-    public ?int $monthFrom = null;
-
-    #[Url]
-    public ?int $months = null;
-
-    #[Url]
-    public bool $drawRelations = true;
-
-    #[Url]
-    public bool $drawProgress = false;
-
-    /**
-     * Redmine's IssueQuery#draw_selected_columns (A15-11b) — see
-     * gantt/index.blade.php's own copy of this for the full explanation.
-     */
-    #[Url]
-    public bool $drawSelectedColumns = false;
-
-    /**
-     * See gantt/index.blade.php's own copy of this for the full
-     * explanation. Not #[Url]-bound, so it's client-settable;
-     * selectedColumnTexts() re-filters it before use.
-     *
-     * @var array<int, string>
-     */
-    public array $columns = [];
 
     protected function queryScopeProject(): ?Project
     {
@@ -98,78 +48,24 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * @return array<int, string>
+     * Each project's own view_gantt already narrowed what is drawn.
      */
-    private static function issueListDefaultColumns(): array
+    protected function authorizeGanttExport(): void {}
+
+    protected function exportBaseName(): string
     {
-        return Setting::get('issue_list_default_columns', ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']);
+        return 'gantt';
     }
 
-    /**
-     * @param  array<mixed>  $keys
-     * @return array<int, string>
-     */
-    private function selectableColumns(array $keys): array
+    protected function exportHeadingSubject(): string
     {
-        return array_values(array_intersect(array_filter($keys, 'is_string'), array_keys(RelatedIssueColumns::available())));
-    }
-
-    public function loadQuery(int $queryId): void
-    {
-        $this->loadIssueQuery($queryId);
-
-        $query = $this->savedQueries->firstWhere('id', $queryId);
-        $columnNames = $query !== null && ($query->column_names ?? []) !== [] ? $query->column_names : self::issueListDefaultColumns();
-        $this->columns = $this->selectableColumns($columnNames);
-    }
-
-    /**
-     * @return array{0: Carbon, 1: Carbon}|array{0: null, 1: null}
-     */
-    private function explicitPeriod(): array
-    {
-        if ($this->yearFrom === null) {
-            return [null, null];
-        }
-
-        $month = ($this->monthFrom !== null && $this->monthFrom >= 1 && $this->monthFrom <= 12) ? $this->monthFrom : 1;
-        $ceiling = GanttSettings::monthsLimit() > 0 ? GanttSettings::monthsLimit() : 24;
-        $months = ($this->months !== null && $this->months >= 1 && $this->months <= $ceiling) ? $this->months : 6;
-
-        $start = Carbon::create($this->yearFrom, $month, 1);
-
-        return [$start, $start->copy()->addMonthsNoOverflow($months)->subDay()];
+        return __('全プロジェクト');
     }
 
     public function mount(): void
     {
-        $this->columns = $this->selectableColumns(self::issueListDefaultColumns());
-
-        // Redmine's gantt?query_id=: opens on a saved issue query.
-        if (request()->filled('query_id')) {
-            $this->loadQuery(request()->integer('query_id'));
-        }
+        $this->mountGanttChart();
     }
-
-    public function zoomIn(): void
-    {
-        $this->zoom = min(4, max(1, $this->zoom) + 1);
-    }
-
-    public function zoomOut(): void
-    {
-        $this->zoom = max(1, min(4, $this->zoom) - 1);
-    }
-
-    /**
-     * Every issue row is a fixed 32px tall (Tailwind's h-8).
-     */
-    private const int ROW_HEIGHT_PX = 32;
-
-    /**
-     * The PDF export's row height (resources/views/pdf/gantt.blade.php).
-     */
-    private const int PDF_ROW_HEIGHT_PX = 16;
 
     /**
      * The projects whose issues are drawn: those the viewer can view_gantt in.
@@ -260,176 +156,9 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->lines->where('kind', 'issue')->pluck('row')->values();
     }
 
-    /**
-     * The milestones drawn.
-     *
-     * @return Collection<int, Version>
-     */
-    #[Computed]
-    public function versions(): Collection
-    {
-        return $this->lines->where('kind', 'version')->pluck('version')->values();
-    }
-
-    /**
-     * Each drawn milestone's completion, computed for all of them at once.
-     *
-     * @return array<int, float>  keyed by version id
-     */
-    #[Computed]
-    public function versionPercents(): array
-    {
-        return Version::completedPercents($this->lines->where('kind', 'version')->pluck('version'), auth()->user());
-    }
-
-    #[Computed]
-    public function chart(): GanttChart
-    {
-        [$periodStart, $periodEnd] = $this->explicitPeriod();
-
-        return new GanttChart($this->rows, $this->versions, GanttSettings::monthsLimit(), $periodStart, $periodEnd);
-    }
-
-    /**
-     * @return array<int, array{x1: float, y1: float, x2: float, y2: float, color: string, type: string}>
-     */
-    #[Computed]
-    public function relationLines(): array
-    {
-        return $this->drawRelations ? $this->relationLinesFor(self::ROW_HEIGHT_PX) : [];
-    }
-
-    /**
-     * A15-11b: draw_selected_columns' text per drawn issue row — see
-     * gantt/index.blade.php's own copy of this for the full explanation.
-     *
-     * @return array<int, string> issue id => joined column text
-     */
-    #[Computed]
-    public function selectedColumnTexts(): array
-    {
-        $columns = $this->selectableColumns($this->columns);
-
-        if (! $this->drawSelectedColumns || $columns === []) {
-            return [];
-        }
-
-        $issueIds = $this->rows->pluck('id');
-
-        if ($issueIds->isEmpty()) {
-            return [];
-        }
-
-        $issues = Issue::query()
-            ->whereIn('id', $issueIds)
-            ->with(['project', ...RelatedIssueColumns::relationsFor($columns)])
-            ->get();
-
-        $visibleCustomFieldIds = RelatedIssueColumns::visibleCustomFieldIds($issues, auth()->user());
-
-        return $issues->mapWithKeys(fn (Issue $issue) => [
-            $issue->id => collect($columns)
-                ->map(fn (string $key) => RelatedIssueColumns::value($issue, $key, $visibleCustomFieldIds[$issue->id] ?? []))
-                ->filter(fn (string $text) => $text !== '')
-                ->join(' / '),
-        ])->all();
-    }
-
     public function applyFilters(): void
     {
         unset($this->allLines, $this->lines, $this->rows, $this->versions, $this->chart, $this->relationLines, $this->selectedColumnTexts);
-    }
-
-    /**
-     * @return array<int, array{x1: float, y1: float, x2: float, y2: float, color: string, type: string}>
-     */
-    private function relationLinesFor(int $rowHeight): array
-    {
-        $indexById = [];
-
-        foreach ($this->lines as $index => $line) {
-            if ($line['kind'] === 'issue') {
-                $indexById[$line['row']->id] = $index;
-            }
-        }
-
-        return $this->chart->relationLines(
-            app(GanttService::class)->relationsWithin($this->rows->pluck('id')),
-            $this->rows,
-            $indexById,
-            $rowHeight,
-        );
-    }
-
-    /**
-     * The chart's rows for the PDF/PNG exports.
-     *
-     * @return array<int, GanttLine>
-     */
-    public function exportLines(): array
-    {
-        return $this->lines->map(fn (array $line) => match ($line['kind']) {
-            'project' => GanttLine::project($line['project'], $line['depth']),
-            'issue' => GanttLine::issue($line['row'], $line['depth']),
-            'version' => GanttLine::version($line['version'], $line['depth'], $this->versionPercents[$line['version']->id] ?? null),
-        })->all();
-    }
-
-    /**
-     * The HTML the PDF export hands to dompdf.
-     */
-    public function pdfHtml(): string
-    {
-        return view('pdf.gantt', [
-            'documentTitle' => 'gantt',
-            'heading' => __(':project - ガントチャート (:date時点)', ['project' => __('全プロジェクト'), 'date' => DateTimes::date(DateTimes::today())]),
-            'chart' => $this->chart,
-            'zoom' => $this->zoom,
-            'lines' => $this->exportLines(),
-            'relationSegments' => $this->drawRelations ? GanttChart::relationSegments($this->relationLinesFor(self::PDF_ROW_HEIGHT_PX)) : [],
-            'drawProgress' => $this->drawProgress,
-        ])->render();
-    }
-
-    /**
-     * Redmine's /issues/gantt.pdf — the same view as the project chart's PDF.
-     */
-    public function exportPdf(): StreamedResponse
-    {
-        if ($this->chart->isEmpty()) {
-            abort(404);
-        }
-
-        $html = $this->pdfHtml();
-
-        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape')->output();
-
-        return response()->streamDownload(fn () => print ($pdf), 'gantt.pdf', ['Content-Type' => 'application/pdf']);
-    }
-
-    /**
-     * Redmine's /issues/gantt.png (see GanttImageRenderer).
-     */
-    public function exportPng(): ?StreamedResponse
-    {
-        if ($this->chart->isEmpty()) {
-            abort(404);
-        }
-
-        $lines = $this->exportLines();
-
-        if (! GanttImageRenderer::fits($this->chart->totalDays(), count($lines), $this->zoom)) {
-            $this->addError('png', __('ガントチャートが大きすぎるため画像にできません(:rows 行 × :months か月)。期間を短くするか、絞り込みで課題を減らしてください。', [
-                'rows' => count($lines),
-                'months' => count($this->chart->monthBands()),
-            ]));
-
-            return null;
-        }
-
-        $png = app(GanttImageRenderer::class)->render($this->chart, $lines, $this->zoom);
-
-        return response()->streamDownload(fn () => print ($png), 'gantt.png', ['Content-Type' => 'image/png']);
     }
 
     /**
@@ -447,7 +176,8 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $withIssues = Project::query()->whereIn('id', $projectIds)->get(['id', '_lft', '_rgt']);
-        $listed = Project::query()
+
+        return GanttProjectTree::withDepths(Project::query()
             ->with('moduleAssignments')
             ->where(function ($query) use ($withIssues): void {
                 foreach ($withIssues as $project) {
@@ -458,21 +188,7 @@ new #[Layout('components.layouts.app')] class extends Component
             })
             ->orderBy('_lft')
             ->get()
-            ->filter(fn (Project $project) => $projectIds->contains($project->id) || Gate::allows('view', $project));
-
-        $tree = [];
-        $openRights = [];
-
-        foreach ($listed as $project) {
-            while ($openRights !== [] && end($openRights) < $project->_lft) {
-                array_pop($openRights);
-            }
-
-            $tree[] = [$project, count($openRights)];
-            $openRights[] = $project->_rgt;
-        }
-
-        return $tree;
+            ->filter(fn (Project $project) => $projectIds->contains($project->id) || Gate::allows('view', $project)));
     }
 }; ?>
 
@@ -534,7 +250,7 @@ new #[Layout('components.layouts.app')] class extends Component
         <span class="ml-4">{{ __('表示期間:') }}</span>
         <input type="number" wire:model="yearFrom" placeholder="{{ __('年') }}" class="w-20 rounded-md border-neutral-300 text-sm" data-gantt-year-from>
         <input type="number" min="1" max="12" wire:model="monthFrom" placeholder="{{ __('月') }}" class="w-16 rounded-md border-neutral-300 text-sm" data-gantt-month-from>
-        <input type="number" min="1" max="{{ \App\Support\Gantt\GanttSettings::monthsLimit() > 0 ? \App\Support\Gantt\GanttSettings::monthsLimit() : 24 }}" wire:model="months" placeholder="{{ __('か月数') }}" class="w-20 rounded-md border-neutral-300 text-sm" data-gantt-months>
+        <input type="number" min="1" max="{{ GanttSettings::periodMonthsCeiling() }}" wire:model="months" placeholder="{{ __('か月数') }}" class="w-20 rounded-md border-neutral-300 text-sm" data-gantt-months>
         <button type="button" wire:click="applyFilters" class="btn btn-secondary px-2.5">{{ __('適用') }}</button>
 
         <label class="ml-4 flex items-center gap-1">

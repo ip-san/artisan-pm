@@ -28,4 +28,14 @@ final class GanttSettings
     {
         return max(0, (int) Setting::get('gantt_months_limit', 24));
     }
+
+    /**
+     * The most months an explicit period may span (Redmine's
+     * Helpers::Gantt months, clamped to gantt_months_limit — or to 24 when
+     * there is no limit, as Redmine further clamps a limit-less value).
+     */
+    public static function periodMonthsCeiling(): int
+    {
+        return self::monthsLimit() > 0 ? self::monthsLimit() : 24;
+    }
 }
