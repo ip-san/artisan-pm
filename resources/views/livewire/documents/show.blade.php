@@ -3,6 +3,7 @@
 use App\Models\CustomField;
 use App\Models\Document;
 use App\Models\Project;
+use App\Services\AttachmentService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -64,9 +65,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $media = $this->document->attachments()->firstWhere('id', $mediaId);
         abort_if($media === null, 404);
 
-        $description = trim((string) ($this->attachmentDescriptions[$mediaId] ?? ''));
-        $media->setCustomProperty('description', $description !== '' ? $description : null);
-        $media->save();
+        app(AttachmentService::class)->describe($media, $this->attachmentDescriptions[$mediaId] ?? null);
     }
 }; ?>
 

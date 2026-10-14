@@ -4,7 +4,10 @@ use App\Models\Board;
 use App\Models\Message;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\AttachmentService;
+use App\Services\MessageService;
 use App\Services\ReactionService;
+use App\Services\WatcherService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\Rule;
@@ -97,32 +100,17 @@ new #[Layout('components.layouts.app')] class extends Component
             'replyContent' => ['required', 'string'],
         ]);
 
-        $reply = Message::create([
-            'board_id' => $this->board->id,
-            'parent_id' => $this->topic->id,
-            'author_id' => auth()->id(),
-            'subject' => "RE: {$this->topic->subject}",
-            'content' => $data['replyContent'],
-        ]);
-
-        \App\Events\MessagePosted::dispatch($reply);
+        app(MessageService::class)->reply($this->board, $this->topic, auth()->user(), $data['replyContent']);
 
         $this->reset('replyContent');
         unset($this->replies);
-        $this->topic->touch();
     }
 
     public function toggleWatch(): void
     {
         $this->authorize('watch', $this->topic);
 
-        $existing = $this->topic->watchers()->where('user_id', auth()->id())->first();
-
-        if ($existing) {
-            $existing->delete();
-        } else {
-            $this->topic->watchers()->create(['user_id' => auth()->id()]);
-        }
+        app(WatcherService::class)->toggle($this->topic, auth()->user());
 
         $this->topic->unsetRelation('watchers');
     }
@@ -133,16 +121,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function watcherCandidates(): Collection
     {
-        $watchingIds = $this->topic->watchers->pluck('user_id');
-        $search = mb_strtolower(trim($this->watcherSearch));
-
-        // A name/email search over the members not yet watching, ten at a
-        // time (the picker is an autocomplete, not a full list).
-        return $this->project->users
-            ->reject(fn (User $user) => $watchingIds->contains($user->id))
-            ->filter(fn (User $user) => $search === '' || str_contains(mb_strtolower($user->name.' '.$user->email), $search))
-            ->take(10)
-            ->values();
+        return app(WatcherService::class)->candidates($this->project->users, $this->topic->watchers->pluck('user_id'), $this->watcherSearch);
     }
 
     public function pickWatcher(int $userId): void
@@ -159,7 +138,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'newWatcherId' => ['required', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
         ]);
 
-        $this->topic->watchers()->firstOrCreate(['user_id' => $data['newWatcherId']]);
+        app(WatcherService::class)->add($this->topic, (int) $data['newWatcherId']);
 
         $this->reset('newWatcherId');
         $this->topic->unsetRelation('watchers');
@@ -170,7 +149,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('deleteWatchers', $this->topic);
 
-        $this->topic->watchers()->where('user_id', $userId)->delete();
+        app(WatcherService::class)->remove($this->topic, $userId);
 
         $this->topic->unsetRelation('watchers');
         unset($this->watcherCandidates);
@@ -199,11 +178,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $newBoard = Board::findOrFail($data['moveToBoardId']);
 
-        // Replies carry their own board_id rather than inheriting it from
-        // the topic, so both need updating to keep them together.
-        Message::query()
-            ->where(fn ($q) => $q->whereKey($this->topic->id)->orWhere('parent_id', $this->topic->id))
-            ->update(['board_id' => $newBoard->id]);
+        app(MessageService::class)->moveTopic($this->topic, $newBoard);
 
         $this->redirect(route('messages.show', [$this->project, $newBoard, $this->topic]), navigate: true);
     }
@@ -251,9 +226,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $media = $message->attachments()->firstWhere('id', $mediaId);
         abort_if($media === null, 404);
 
-        $description = trim((string) ($this->attachmentDescriptions[$mediaId] ?? ''));
-        $media->setCustomProperty('description', $description !== '' ? $description : null);
-        $media->save();
+        app(AttachmentService::class)->describe($media, $this->attachmentDescriptions[$mediaId] ?? null);
     }
 
     public function deleteMessage(int $messageId): void
