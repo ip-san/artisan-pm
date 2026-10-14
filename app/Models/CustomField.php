@@ -302,11 +302,6 @@ final class CustomField extends Model implements Sortable
         return collect($values)->only($editableIds)->all();
     }
 
-    public function appliesToTracker(Tracker $tracker): bool
-    {
-        return $this->trackers->contains('id', $tracker->id);
-    }
-
     /**
      * Empty pivot means "applies to every project", matching Redmine.
      */

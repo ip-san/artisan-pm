@@ -116,10 +116,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $this->is_public = Setting::get('default_projects_public', true);
 
-            $this->modules = Setting::get(
-                'default_projects_modules',
-                array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults())
-            );
+            $this->modules = Project::defaultModuleNames();
 
             // Empty setting (never configured, or explicitly cleared) falls
             // back to every tracker, matching Redmine's own
@@ -437,19 +434,12 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if ($this->project) {
-            $removedTrackerIds = $this->project->trackers->pluck('id')->diff($trackerIds);
+            $blockedTrackerNames = $this->project->trackerNamesInUseOutside($trackerIds);
 
-            if ($removedTrackerIds->isNotEmpty()) {
-                $blockedTrackerNames = Tracker::query()
-                    ->whereIn('id', $removedTrackerIds)
-                    ->whereHas('issues', fn ($query) => $query->where('project_id', $this->project->id))
-                    ->pluck('name');
+            if ($blockedTrackerNames->isNotEmpty()) {
+                $this->addError('trackerIds', __('このプロジェクトの課題で使用中のため外せません: :trackers', ['trackers' => $blockedTrackerNames->join(', ')]));
 
-                if ($blockedTrackerNames->isNotEmpty()) {
-                    $this->addError('trackerIds', __('このプロジェクトの課題で使用中のため外せません: :trackers', ['trackers' => $blockedTrackerNames->join(', ')]));
-
-                    return;
-                }
+                return;
             }
 
             // Unchecking a field that is only explicitly linked to this
@@ -487,8 +477,7 @@ new #[Layout('components.layouts.app')] class extends Component
             );
         } elseif ($this->project->wasRecentlyCreated) {
             $this->project->syncModules(
-                collect(Setting::get('default_projects_modules', array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults())))
-                    ->map(fn (string $m) => ProjectModuleKey::from($m))->all()
+                collect(Project::defaultModuleNames())->map(fn (string $m) => ProjectModuleKey::from($m))->all()
             );
         }
 

@@ -39,14 +39,6 @@ final class TimeEntryPolicy
         return $this->authorization->can($user, 'log_time', $project);
     }
 
-    /**
-     * Whether $user may log time on somebody else's behalf in $project.
-     */
-    public function logForOthers(User $user, Project $project): bool
-    {
-        return $this->authorization->can($user, 'log_time_for_other_users', $project);
-    }
-
     public function import(User $user, Project $project): bool
     {
         return $this->create($user, $project) && $this->authorization->can($user, 'import_time_entries', $project);

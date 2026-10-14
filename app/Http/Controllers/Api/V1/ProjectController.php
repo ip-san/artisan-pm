@@ -13,7 +13,6 @@ use App\Http\Resources\Api\V1\ProjectResource;
 use App\Models\CustomField;
 use App\Models\Project;
 use App\Models\Setting;
-use App\Models\Tracker;
 use App\Support\Api\CustomFieldPayload;
 use App\Support\Api\RedmineIssueListParams;
 use App\Support\Authorization\AuthorizationService;
@@ -81,10 +80,7 @@ final class ProjectController extends Controller
         $issueCustomFieldIds = $data['issue_custom_field_ids'] ?? [];
         // Chosen modules only count with select_project_modules (Redmine's safe_attributes).
         $chosenModules = Project::mayChooseModules($request->user(), null) ? ($data['modules'] ?? null) : null;
-        $modules = $chosenModules ?? Setting::get(
-            'default_projects_modules',
-            array_map(fn (ProjectModuleKey $m) => $m->value, ProjectModuleKey::defaults())
-        );
+        $modules = $chosenModules ?? Project::defaultModuleNames();
         unset($data['tracker_ids'], $data['modules'], $data['issue_custom_field_ids']);
 
         // Matches projects/form.blade.php's mount(): is_public isn't
@@ -180,23 +176,14 @@ final class ProjectController extends Controller
     }
 
     /**
-     * Matches projects/form.blade.php's save(): a tracker can't be
-     * detached from a project while issues on that project still use it.
+     * Matches projects/form.blade.php's save(): see
+     * Project::trackerNamesInUseOutside().
      *
      * @param  array<int, int>  $trackerIds
      */
     private function guardTrackersInUse(Project $project, array $trackerIds): void
     {
-        $removedTrackerIds = $project->trackers->pluck('id')->diff($trackerIds);
-
-        if ($removedTrackerIds->isEmpty()) {
-            return;
-        }
-
-        $blockedTrackerNames = Tracker::query()
-            ->whereIn('id', $removedTrackerIds)
-            ->whereHas('issues', fn ($query) => $query->where('project_id', $project->id))
-            ->pluck('name');
+        $blockedTrackerNames = $project->trackerNamesInUseOutside($trackerIds);
 
         if ($blockedTrackerNames->isNotEmpty()) {
             throw ValidationException::withMessages([

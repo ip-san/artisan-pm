@@ -316,6 +316,28 @@ final class Project extends Model implements HasMedia
     }
 
     /**
+     * The names of this project's trackers outside $keptTrackerIds that its
+     * issues still use: a tracker can't be detached from a project while
+     * issues there use it (the project settings form and REST alike).
+     *
+     * @param  array<int, int|string>  $keptTrackerIds
+     * @return Collection<int, string>
+     */
+    public function trackerNamesInUseOutside(array $keptTrackerIds): Collection
+    {
+        $removedTrackerIds = $this->trackers->pluck('id')->diff($keptTrackerIds);
+
+        if ($removedTrackerIds->isEmpty()) {
+            return collect();
+        }
+
+        return Tracker::query()
+            ->whereIn('id', $removedTrackerIds)
+            ->whereHas('issues', fn ($query) => $query->where('project_id', $this->id))
+            ->pluck('name');
+    }
+
+    /**
      * @return HasMany<Issue, $this>
      */
     public function issues(): HasMany
@@ -985,7 +1007,7 @@ final class Project extends Model implements HasMedia
         }
 
         if ($project !== null) {
-            return app(AuthorizationService::class)->can($user, 'select_project_publicity', $project);
+            return $user->can('selectPublicity', $project);
         }
 
         return self::defaultMemberRole()?->hasPermission('select_project_publicity') ?? false;
@@ -1003,7 +1025,7 @@ final class Project extends Model implements HasMedia
         }
 
         if ($project !== null) {
-            return app(AuthorizationService::class)->can($user, 'select_project_modules', $project);
+            return $user->can('selectModules', $project);
         }
 
         return self::defaultMemberRole()?->hasPermission('select_project_modules') ?? false;
@@ -1020,6 +1042,17 @@ final class Project extends Model implements HasMedia
         $configured = Setting::get('default_projects_tracker_ids', []);
 
         return $configured !== [] ? array_map('intval', $configured) : Tracker::query()->pluck('id')->all();
+    }
+
+    /**
+     * The modules a new project starts with when the creator does not
+     * choose them — Redmine's default_projects_modules.
+     *
+     * @return array<int, string> ProjectModuleKey values
+     */
+    public static function defaultModuleNames(): array
+    {
+        return Setting::get('default_projects_modules', array_map(fn (ProjectModuleKey $module) => $module->value, ProjectModuleKey::defaults()));
     }
 
     /**

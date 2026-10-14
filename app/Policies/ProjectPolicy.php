@@ -85,6 +85,10 @@ final class ProjectPolicy
         return $this->authorization->can($user, 'manage_project_activities', $project);
     }
 
+    /**
+     * Redmine's select_project_modules: choosing which modules the project
+     * uses, split off edit_project.
+     */
     public function selectModules(User $user, Project $project): bool
     {
         return $this->authorization->can($user, 'select_project_modules', $project);
