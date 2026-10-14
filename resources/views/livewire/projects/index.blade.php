@@ -17,6 +17,7 @@ use App\Support\Markdown\WikiMarkdownRenderer;
 use App\Support\Query\DefaultProjectQuery;
 use App\Support\Query\ProjectFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
+use App\Support\Query\TextMatch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -250,8 +251,8 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if ($this->search !== '') {
-            $like = '%'.addcslashes($this->search, '%_\\').'%';
-            $operator = $query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $like = '%'.TextMatch::escape($this->search).'%';
+            $operator = TextMatch::likeOperator($query);
             $query->where(fn ($q) => $q->where('name', $operator, $like)->orWhere('identifier', $operator, $like));
         }
 

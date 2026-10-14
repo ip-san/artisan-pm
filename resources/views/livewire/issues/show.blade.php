@@ -587,9 +587,6 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * @return Collection<int, Journal>
-     */
-    /**
      * The tabs offered for this issue and viewer, in order: every issue has
      * the three journal views, related revisions appear when there are any
      * and the viewer may see changesets.
@@ -627,6 +624,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->historyTab = array_key_exists($tab, $this->historyTabs) ? $tab : '';
     }
 
+    /**
+     * @return Collection<int, Journal>
+     */
     #[Computed]
     public function visibleJournals(): Collection
     {

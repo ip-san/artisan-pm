@@ -202,7 +202,7 @@ final class CustomField extends Model implements Sortable
      * choices everywhere. With no project (a record that has none, such as a
      * user or a group) the choices are all the candidates.
      *
-     * @return array<string, string>
+     * @return array<int|string, string>
      */
     public function optionsFor(?Project $project): array
     {

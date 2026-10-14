@@ -26,7 +26,7 @@ final class ContextMenuCustomFields
     /**
      * @param  Collection<int, CustomField>  $fields  the bulk-editable fields
      * @param  Collection<int, Project>  $projects  the selected records' projects
-     * @return Collection<int, array{field: CustomField, options: array<string, string>}>
+     * @return Collection<int, array{field: CustomField, options: array<int|string, string>}>
      */
     public static function optionsFor(Collection $fields, Collection $projects): Collection
     {
@@ -38,7 +38,8 @@ final class ContextMenuCustomFields
     }
 
     /**
-     * @return array<string, string> value => label
+     * @param  Collection<int, Project>  $projects
+     * @return array<int|string, string> value => label
      */
     private static function options(CustomField $field, Collection $projects): array
     {
@@ -48,9 +49,7 @@ final class ContextMenuCustomFields
 
         return match ($field->field_format) {
             CustomFieldFormat::Bool => ['1' => __('はい'), '0' => __('いいえ')],
-            CustomFieldFormat::List, CustomFieldFormat::Enumeration => collect($field->format()->options($field))
-                ->mapWithKeys(fn (string $label, int|string $value) => [(string) $value => $label])
-                ->all(),
+            CustomFieldFormat::List, CustomFieldFormat::Enumeration => $field->format()->options($field),
             default => [],
         };
     }
@@ -61,7 +60,7 @@ final class ContextMenuCustomFields
      * `possible_values_options(projects)`, the intersection).
      *
      * @param  Collection<int, Project>  $projects
-     * @return array<string, string> value => label
+     * @return array<int|string, string> value => label
      */
     public static function commonScopedOptions(CustomField $field, Collection $projects): array
     {
@@ -74,7 +73,7 @@ final class ContextMenuCustomFields
         $common = null;
 
         foreach ($projects as $project) {
-            $options = collect($format->optionsFor($field, $project))->mapWithKeys(fn (string $label, int|string $value) => [(string) $value => $label])->all();
+            $options = $format->optionsFor($field, $project);
             $common = $common === null ? $options : array_intersect_key($common, $options);
         }
 

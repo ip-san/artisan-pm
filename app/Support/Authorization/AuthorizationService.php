@@ -209,12 +209,6 @@ final class AuthorizationService
     }
 
     /**
-     * Forgets the memoized issue visibility. Called on every write query
-     * and rolled-back transaction (PermissionServiceProvider): anything
-     * from a new member or role to a module switch can change the rules,
-     * and several of those writes (pivot attaches) fire no model event.
-     */
-    /**
      * The ids of the groups the user belongs to, memoized with the rest of
      * this request's authorization state.
      *
@@ -225,6 +219,12 @@ final class AuthorizationService
         return $this->groupIdsCache[$user->id] ??= $user->groups()->pluck('groups.id')->map(fn ($id) => (int) $id);
     }
 
+    /**
+     * Forgets the memoized issue visibility. Called on every write query
+     * and rolled-back transaction (PermissionServiceProvider): anything
+     * from a new member or role to a module switch can change the rules,
+     * and several of those writes (pivot attaches) fire no model event.
+     */
     public function flushCache(): void
     {
         $this->issueVisibilityRulesCache = [];

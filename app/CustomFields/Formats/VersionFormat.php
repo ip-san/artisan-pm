@@ -82,7 +82,7 @@ final class VersionFormat implements ProjectScopedFormat
         return $versions
             ->when($statuses !== [], fn ($all) => $all->filter(fn (Version $version) => in_array($version->status->value, $statuses, true)))
             ->sortBy(fn (Version $version) => mb_strtolower($version->name))
-            ->mapWithKeys(fn (Version $version) => [(string) $version->id => $project !== null && $version->project_id !== $project->id ? "{$version->project->name} - {$version->name}" : $version->name])
+            ->mapWithKeys(fn (Version $version) => [$version->id => $project !== null && $version->project_id !== $project->id ? "{$version->project->name} - {$version->name}" : $version->name])
             ->all();
     }
 }

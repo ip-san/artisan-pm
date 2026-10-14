@@ -49,4 +49,14 @@ final class SqlDialect
 
         return $connection instanceof Connection && in_array($connection->getDriverName(), ['mysql', 'mariadb'], true);
     }
+
+    /**
+     * @param  Builder<*>|QueryBuilder|Connection  $source
+     */
+    public static function isPostgres(Builder|QueryBuilder|Connection $source): bool
+    {
+        $connection = $source instanceof Connection ? $source : $source->getConnection();
+
+        return $connection instanceof Connection && $connection->getDriverName() === 'pgsql';
+    }
 }

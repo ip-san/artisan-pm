@@ -173,13 +173,6 @@ final class IssueService
     }
 
     /**
-     * Dispatched before the row is actually removed, so listeners (e.g.
-     * the webhook payload builder, which serializes the issue's own
-     * attributes) see a fully intact model — deleting first would still
-     * leave those attributes readable in PHP, but there's no reason to
-     * rely on that.
-     */
-    /**
      * Deletes the issue together with all its subtasks — deleteMany() for
      * a single issue.
      *
@@ -1338,10 +1331,6 @@ final class IssueService
         $updates['done_ratio'] = (int) floor($weightedSum / ($averageEstimate * $children->count()));
     }
 
-    /**
-     * Whether the group is a member of the project — a moved or copied
-     * group assignee is kept only then, as a user assignee is.
-     */
     /**
      * The assignee a copy of $source keeps in $targetProject — Redmine's Issue#project= for a new
      * record: kept only if the copy's assignable_users include them (members holding an

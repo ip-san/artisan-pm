@@ -148,7 +148,9 @@ final class ListDefaults
     }
 
     /**
-     * @return array{column_names?: array<int, string>, totalable_names?: array<int, string>}
+     * The stored setting as saved — its entries are checked by the callers.
+     *
+     * @return array<string, mixed>
      */
     private static function timeEntryDefaults(): array
     {

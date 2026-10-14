@@ -17,7 +17,7 @@ use App\Models\Project;
 interface ProjectScopedFormat extends FormatContract
 {
     /**
-     * @return array<string, string> id => label
+     * @return array<int, string> id => label
      */
     public function optionsFor(CustomField $field, ?Project $project): array;
 

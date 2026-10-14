@@ -31,7 +31,9 @@ final class JournalController extends Controller
             unset($attributes['private_notes']);
         }
 
-        $journal->update([...$attributes, 'updated_by_id' => $request->user()->id]);
+        $journal->fill($attributes);
+        $journal->updated_by_id = $request->user()->id;
+        $journal->save();
 
         return new JournalResource($journal);
     }

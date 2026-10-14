@@ -91,7 +91,7 @@ final class TextMatch
      */
     public static function likeOperator(Builder|QueryBuilder $query): string
     {
-        return $query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+        return SqlDialect::isPostgres($query) ? 'ilike' : 'like';
     }
 
     /**

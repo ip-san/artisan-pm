@@ -276,17 +276,6 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Prefills a new issue's fields from ?copy_from=<id>. The status resets
-     * to the normal new-issue default; on save, the copy form's checkboxes
-     * (and the link_copied_issue / copy_attachments_on_issue_copy settings)
-     * decide whether the source is linked and its attachments, subtasks and
-     * watchers are carried over — see IssueService::finishCopy().
-     */
-    /**
-     * Whether the form offers the watcher checkboxes: only when creating, and
-     * only to someone holding add_issue_watchers in the project.
-     */
-    /**
      * Issues of this project that could be the parent, found by id or subject.
      *
      * @return \Illuminate\Database\Eloquent\Collection<int, Issue>
@@ -304,6 +293,10 @@ new #[Layout('components.layouts.app')] class extends Component
         unset($this->parentSuggestions);
     }
 
+    /**
+     * Whether the form offers the watcher checkboxes: only when creating, and
+     * only to someone holding add_issue_watchers in the project.
+     */
     #[Computed]
     public function canAddWatchers(): bool
     {
@@ -348,6 +341,13 @@ new #[Layout('components.layouts.app')] class extends Component
             && $source->watchers()->exists();
     }
 
+    /**
+     * Prefills a new issue's fields from ?copy_from=<id>. The status resets
+     * to the normal new-issue default; on save, the copy form's checkboxes
+     * (and the link_copied_issue / copy_attachments_on_issue_copy settings)
+     * decide whether the source is linked and its attachments, subtasks and
+     * watchers are carried over — see IssueService::finishCopy().
+     */
     private function prefillFromCopySource(Project $project): void
     {
         $sourceId = request()->integer('copy_from');
@@ -671,11 +671,6 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Matches Redmine's Tracker#disabled_core_fields: a tracker can hide
-     * a core field from the issue form entirely, distinct from the
-     * per-workflow read_only/required rules above.
-     */
-    /**
      * Whether the private flag may be set: on a new issue either
      * set_issues_private or set_own_issues_private, on an existing one the
      * per-issue rule (own issues only for the latter).
@@ -697,6 +692,11 @@ new #[Layout('components.layouts.app')] class extends Component
         return auth()->user()->can('manageSubtasks', [Issue::class, $this->project]);
     }
 
+    /**
+     * Matches Redmine's Tracker#disabled_core_fields: a tracker can hide
+     * a core field from the issue form entirely, distinct from the
+     * per-workflow read_only/required rules above.
+     */
     public function isCoreFieldDisabled(string $field): bool
     {
         return $this->currentTracker?->isCoreFieldDisabled($field) ?? false;

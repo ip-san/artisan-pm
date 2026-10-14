@@ -152,12 +152,7 @@ final class Enumeration extends Model implements HasMedia, Sortable
             EnumerationType::TimeEntryActivity => CustomizableType::TimeEntryActivity,
             EnumerationType::DocumentCategory => CustomizableType::DocumentCategory,
             EnumerationType::IssuePriority => CustomizableType::IssuePriority,
-            default => null,
         };
-
-        if ($customizableType === null) {
-            return collect();
-        }
 
         return CustomField::query()
             ->where('customized_type', $customizableType)

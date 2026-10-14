@@ -112,7 +112,7 @@ final class ProjectFilterFieldRegistry
 
                 return $options + Project::query()
                     ->whereIn('id', $visibleProjectIds)
-                    ->defaultOrder()
+                    ->orderBy('_lft')
                     ->pluck('name', 'id')
                     ->all();
             },

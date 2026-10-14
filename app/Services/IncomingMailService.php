@@ -73,6 +73,8 @@ use Webklex\PHPIMAP\Message;
  * intentionally not translated — a custom field's name is free text set
  * by an administrator, not a translated label, so Redmine itself matches
  * it verbatim regardless of language.
+ *
+ * @phpstan-type HandlerOptions array{allow_override?: string, issue?: array<string, string>}
  */
 final class IncomingMailService
 {
@@ -187,7 +189,7 @@ final class IncomingMailService
      * (Redmine's MailHandlerController#index permitted params, minus the
      * ones this app doesn't support — see MailHandlerController).
      *
-     * @param  array{allow_override?: string, issue?: array<string, string>}  $options
+     * @param  HandlerOptions  $options
      */
     public function processRawMessage(string $raw, array $options = []): Issue|ForumMessage|NewsComment|null
     {
@@ -291,6 +293,8 @@ final class IncomingMailService
     /**
      * Handles one parsed mail: a new issue, or a reply to an issue, a forum
      * topic or a news item. Null when nothing was recorded.
+     *
+     * @param  HandlerOptions  $options
      */
     public function createIssueFromMail(ParsedIncomingMail $mail, array $options = []): Issue|ForumMessage|NewsComment|null
     {
@@ -301,6 +305,9 @@ final class IncomingMailService
             : $this->handleMail($mail, $options);
     }
 
+    /**
+     * @param  HandlerOptions  $options
+     */
     private function handleMail(ParsedIncomingMail $mail, array $options = []): Issue|ForumMessage|NewsComment|null
     {
         // The sender may write from the primary address or an additional one.
@@ -429,6 +436,8 @@ final class IncomingMailService
      * Redmine: the sender must see the issue and hold add_issue_notes on
      * its tracker (edit_issues on it still works too, as before); keyword
      * attribute changes need the edit permission.
+     *
+     * @param  HandlerOptions  $options
      */
     private function receiveIssueReply(int $issueId, ParsedIncomingMail $mail, User $author, array $options = []): ?Issue
     {
@@ -653,6 +662,7 @@ final class IncomingMailService
      * is left as plain text in the body rather than silently vanishing,
      * so the sender can see what didn't take effect.
      *
+     * @param  HandlerOptions  $options
      * @return array{attributes: array<string, int|string|float|bool>, body: string}
      */
     private function extractKeywordAttributes(string $body, Project $project, User $author, ?Issue $issue = null, array $options = []): array
@@ -774,6 +784,7 @@ final class IncomingMailService
      * roles, and editable. A value the field would not accept (not one of a
      * list's options, not a number, ...) leaves its line in the body.
      *
+     * @param  HandlerOptions  $options
      * @return array{values: array<int, mixed>, body: string}
      */
     private function extractCustomFieldKeywords(string $body, Project $project, int $trackerId, User $author, array $options = []): array
@@ -885,7 +896,7 @@ final class IncomingMailService
      * instead of the site setting (A15-14) — matching Redmine for the one
      * path that actually has a per-request value to offer.
      *
-     * @param  array{allow_override?: string}  $options
+     * @param  HandlerOptions  $options
      * @return array<int, string>
      */
     private function overridableKeywords(array $options = []): array

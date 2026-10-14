@@ -417,7 +417,7 @@ final readonly class CvsAdapter implements ScmAdapter
             foreach ($chunks as $chunk) {
                 $lines = explode("\n", rtrim($chunk, "\n"));
 
-                if (preg_match('/^revision ([\d.]+)/', $lines[0] ?? '', $revisionMatch) !== 1
+                if (preg_match('/^revision ([\d.]+)/', $lines[0], $revisionMatch) !== 1
                     || preg_match('/^date: ([^;]+);\s+author: ([^;]+);\s+state: ([^;]+);(?:.*commitid: ([^;]+);)?/', $lines[1] ?? '', $dateMatch) !== 1) {
                     continue;
                 }
