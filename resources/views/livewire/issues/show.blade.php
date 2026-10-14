@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CustomFieldFormat;
+use App\Enums\IssueRelationType;
 use App\Enums\IssueTimeEntryDisposition;
 use App\Models\CustomField;
 use App\Models\Issue;
@@ -31,50 +32,6 @@ use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
-    /**
-     * How each relation type reads from the "from" side vs. the "to" side
-     * of the row — e.g. issue A "blocks" issue B, but viewed from B the
-     * same row should read "blocked by". `relates` has no directional
-     * language, and `precedes`/`follows` are already distinct storable
-     * types (picked directly by the user), so only blocks/duplicates/
-     * copied_to need a computed reverse label. copied_to is the only
-     * direction ever stored (see IssueRelationType) — viewed from the
-     * source issue it reads "コピー先" (copy destination), viewed from
-     * the copy it reads "コピー元" (copy source).
-     *
-     * @return array<string, array{from: string, to: string}>
-     */
-    private function relationLabels(): array
-    {
-        return [
-            'relates' => ['from' => __('関連'), 'to' => __('関連')],
-            'blocks' => ['from' => __('ブロックする'), 'to' => __('ブロックされている')],
-            'duplicates' => ['from' => __('重複する'), 'to' => __('重複されている')],
-            'precedes' => ['from' => __('先行'), 'to' => __('後続')],
-            'follows' => ['from' => __('後続'), 'to' => __('先行')],
-            'copied_to' => ['from' => __('コピー先'), 'to' => __('コピー元')],
-        ];
-    }
-
-    /**
-     * Maps a relation journal's prop_key (including the reversed names
-     * Redmine writes on the receiving end, e.g. "blocked") back to the
-     * [type, side] pair used to index relationLabels() above.
-     *
-     * @var array<string, array{0: string, 1: string}>
-     */
-    private const array RELATION_JOURNAL_KEYS = [
-        'relates' => ['relates', 'from'],
-        'blocks' => ['blocks', 'from'],
-        'blocked' => ['blocks', 'to'],
-        'duplicates' => ['duplicates', 'from'],
-        'duplicated' => ['duplicates', 'to'],
-        'precedes' => ['precedes', 'from'],
-        'follows' => ['follows', 'from'],
-        'copied_to' => ['copied_to', 'from'],
-        'copied_from' => ['copied_to', 'to'],
-    ];
-
     /**
      * Everything a rendered Journal row needs: its author and detail rows,
      * plus the reaction data <x-reaction-button> reads — the count itself
@@ -170,8 +127,6 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->issue->relationsFrom->pluck('to')->concat($this->issue->relationsTo->pluck('from'))->all()
         ))->loadMissing($with);
 
-        $labels = $this->relationLabels();
-
         // Redmine keeps only relations whose other issue the viewer may see.
         $visibleIds = Issue::filterVisible(
             $this->issue->relationsFrom->pluck('to')->concat($this->issue->relationsTo->pluck('from'))->filter()->unique('id')->values(),
@@ -181,13 +136,13 @@ new #[Layout('components.layouts.app')] class extends Component
         $from = $this->issue->relationsFrom->filter(fn (IssueRelation $relation) => $visibleIds->has($relation->issue_to_id))->map(fn (IssueRelation $relation) => [
             'relation' => $relation,
             'other' => $relation->to,
-            'label' => $labels[$relation->relation_type->value]['from'],
+            'label' => $relation->relation_type->label(),
         ]);
 
         $to = $this->issue->relationsTo->filter(fn (IssueRelation $relation) => $visibleIds->has($relation->issue_from_id))->map(fn (IssueRelation $relation) => [
             'relation' => $relation,
             'other' => $relation->from,
-            'label' => $labels[$relation->relation_type->value]['to'],
+            'label' => $relation->relation_type->label(fromSide: false),
         ]);
 
         return $from->concat($to)->sortBy(fn (array $entry) => $entry['relation']->id);
@@ -469,9 +424,7 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function relationJournalLabel(string $propKey): string
     {
-        [$type, $side] = self::RELATION_JOURNAL_KEYS[$propKey] ?? [null, null];
-
-        return $type !== null ? $this->relationLabels()[$type][$side] : $propKey;
+        return IssueRelationType::journalLabels()[$propKey] ?? $propKey;
     }
 
     /**

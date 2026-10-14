@@ -246,20 +246,9 @@ final class IssueJournalizer
      */
     public function journalizeRelation(IssueRelation $relation, bool $added, User $actor): void
     {
-        $type = $relation->relation_type->value;
-
-        $reversedType = match ($type) {
-            'blocks' => 'blocked',
-            'duplicates' => 'duplicated',
-            'precedes' => 'follows',
-            'follows' => 'precedes',
-            'copied_to' => 'copied_from',
-            default => $type,
-        };
-
         $sides = [
-            [$relation->from, $type, $relation->issue_to_id],
-            [$relation->to, $reversedType, $relation->issue_from_id],
+            [$relation->from, $relation->relation_type->journalKey(), $relation->issue_to_id],
+            [$relation->to, $relation->relation_type->journalKey(false), $relation->issue_from_id],
         ];
 
         foreach ($sides as [$issue, $propKey, $otherIssueId]) {
