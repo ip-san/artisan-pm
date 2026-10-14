@@ -25,6 +25,7 @@ use App\Services\IssueCopier;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Export\CsvWriter;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\ListQueryString;
 use App\Support\Export\ExportLimit;
@@ -1349,39 +1350,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $columns = array_values(array_unique($columns));
         $issues = $this->exportedIssues();
-        // Re-validated against the allowlist here rather than trusted from
-        // the live property, since these drive raw file-writing behavior.
-        $encoding = in_array($this->csvEncoding, ['UTF-8', 'SJIS-win'], true) ? $this->csvEncoding : 'UTF-8';
-        $separator = in_array($this->csvSeparator, [',', ';', "\t"], true) ? $this->csvSeparator : ',';
 
-        return response()->streamDownload(function () use ($columns, $issues, $encoding, $separator) {
-            $handle = fopen('php://output', 'w');
-
-            // A UTF-8 BOM lets Excel auto-detect the encoding instead of
-            // mis-rendering non-ASCII text as mojibake — matches Redmine's
-            // Redmine::Export::CSV, which does the same for UTF-8 exports.
-            if ($encoding === 'UTF-8') {
-                fwrite($handle, "\xEF\xBB\xBF");
-            }
-
-            $writeRow = function (array $row) use ($handle, $separator, $encoding): void {
-                $row = \App\Support\Export\CsvCell::row($row);
-
-                if ($encoding !== 'UTF-8') {
-                    $row = array_map(fn (string $value) => mb_convert_encoding($value, $encoding, 'UTF-8'), $row);
-                }
-
-                fputcsv($handle, $row, $separator);
-            };
-
-            $writeRow(array_map(fn ($key) => $this->availableColumns[$key] ?? $key, $columns));
+        return CsvWriter::download($this->project !== null ? "{$this->project->identifier}-issues.csv" : 'issues.csv', function (CsvWriter $csv) use ($columns, $issues): void {
+            $csv->row(array_map(fn ($key) => $this->availableColumns[$key] ?? $key, $columns));
 
             foreach ($issues as $issue) {
-                $writeRow(array_map(fn ($key) => $this->columnValue($issue, $key), $columns));
+                $csv->row(array_map(fn ($key) => $this->columnValue($issue, $key), $columns));
             }
-
-            fclose($handle);
-        }, $this->project !== null ? "{$this->project->identifier}-issues.csv" : 'issues.csv');
+        }, $this->csvEncoding, $this->csvSeparator);
     }
 
     /**

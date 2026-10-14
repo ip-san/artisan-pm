@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Services\TimeEntryService;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Export\CsvWriter;
 use App\Support\Query\ListDefaults;
 use App\Support\Query\ListQueryString;
 use App\Support\Query\TimeEntryColumns;
@@ -813,41 +814,16 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $query = $this->filteredTimeEntriesQuery();
         $columns = $this->columns;
-        // Re-validated against the allowlist here rather than trusted from
-        // the live property, since these drive raw file-writing behavior.
-        $encoding = in_array($this->csvEncoding, ['UTF-8', 'SJIS-win'], true) ? $this->csvEncoding : 'UTF-8';
-        $separator = in_array($this->csvSeparator, [',', ';', "\t"], true) ? $this->csvSeparator : ',';
 
-        return response()->streamDownload(function () use ($query, $columns, $encoding, $separator) {
-            $handle = fopen('php://output', 'w');
+        return CsvWriter::download("{$this->project->identifier}-time_entries.csv", function (CsvWriter $csv) use ($query, $columns): void {
+            $csv->row(array_map(fn (string $key) => $this->availableColumns[$key] ?? $key, $columns));
 
-            // A UTF-8 BOM lets Excel auto-detect the encoding instead of
-            // mis-rendering non-ASCII text as mojibake — matches Redmine's
-            // Redmine::Export::CSV, which does the same for UTF-8 exports.
-            if ($encoding === 'UTF-8') {
-                fwrite($handle, "\xEF\xBB\xBF");
-            }
-
-            $writeRow = function (array $row) use ($handle, $separator, $encoding): void {
-                $row = \App\Support\Export\CsvCell::row($row);
-
-                if ($encoding !== 'UTF-8') {
-                    $row = array_map(fn (string $value) => mb_convert_encoding($value, $encoding, 'UTF-8'), $row);
-                }
-
-                fputcsv($handle, $row, $separator);
-            };
-
-            $writeRow(array_map(fn (string $key) => $this->availableColumns[$key] ?? $key, $columns));
-
-            $query->chunk(200, function ($chunk) use ($writeRow, $columns) {
+            $query->chunk(200, function ($chunk) use ($csv, $columns) {
                 foreach ($chunk as $entry) {
-                    $writeRow(array_map(fn (string $key) => $this->columnValue($entry, $key), $columns));
+                    $csv->row(array_map(fn (string $key) => $this->columnValue($entry, $key), $columns));
                 }
             });
-
-            fclose($handle);
-        }, "{$this->project->identifier}-time_entries.csv");
+        }, $this->csvEncoding, $this->csvSeparator);
     }
 }; ?>
 

@@ -3,6 +3,7 @@
 use App\Concerns\InteractsWithQueryFilters;
 use App\Models\Project;
 use App\Models\TimeEntry;
+use App\Support\Export\CsvWriter;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
@@ -147,8 +148,6 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         abort_if($this->project !== null && auth()->user()?->cannot('viewAny', [TimeEntry::class, $this->project]), 403);
 
-        $encoding = in_array($this->csvEncoding, ['UTF-8', 'SJIS-win'], true) ? $this->csvEncoding : 'UTF-8';
-        $separator = in_array($this->csvSeparator, [',', ';', "\t"], true) ? $this->csvSeparator : ',';
         $report = $this->report;
         $criteria = $this->selectedCriteria;
 
@@ -162,19 +161,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $totals = array_map(fn (array $period) => number_format($report->columnTotals[$period['key']] ?? 0, 2, '.', ''), $report->periods);
         $lines[] = array_merge([__('合計')], array_fill(0, max(0, count($criteria) - 1), ''), $totals, [number_format($report->grandTotal, 2, '.', '')]);
 
-        return response()->streamDownload(function () use ($lines, $encoding, $separator): void {
-            $handle = fopen('php://output', 'w');
-
-            if ($encoding === 'UTF-8') {
-                fwrite($handle, "\xEF\xBB\xBF");
-            }
-
+        return CsvWriter::download('timelog.csv', function (CsvWriter $csv) use ($lines): void {
             foreach ($lines as $line) {
-                fputcsv($handle, array_map(fn ($value) => $encoding === 'UTF-8' ? (string) $value : mb_convert_encoding((string) $value, $encoding, 'UTF-8'), \App\Support\Export\CsvCell::row($line)), $separator);
+                $csv->row($line);
             }
-
-            fclose($handle);
-        }, 'timelog.csv');
+        }, $this->csvEncoding, $this->csvSeparator);
     }
 }; ?>
 

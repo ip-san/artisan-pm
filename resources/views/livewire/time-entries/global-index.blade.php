@@ -9,6 +9,7 @@ use App\Models\Query as SavedQuery;
 use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Services\TimeEntryService;
+use App\Support\Export\CsvWriter;
 use App\Support\Query\ListQueryString;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\TimeEntryColumns;
@@ -264,30 +265,16 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function exportCsv(): StreamedResponse
     {
-        $encoding = in_array($this->csvEncoding, ['UTF-8', 'SJIS-win'], true) ? $this->csvEncoding : 'UTF-8';
-        $separator = in_array($this->csvSeparator, [',', ';', "\t"], true) ? $this->csvSeparator : ',';
         $columns = $this->columns;
         $entries = $this->filteredTimeEntriesQuery()->get();
 
-        return response()->streamDownload(function () use ($columns, $entries, $encoding, $separator): void {
-            $handle = fopen('php://output', 'w');
-
-            if ($encoding === 'UTF-8') {
-                fwrite($handle, "\xEF\xBB\xBF");
-            }
-
-            $write = function (array $row) use ($handle, $encoding, $separator): void {
-                fputcsv($handle, array_map(fn ($value) => $encoding === 'UTF-8' ? (string) $value : mb_convert_encoding((string) $value, $encoding, 'UTF-8'), \App\Support\Export\CsvCell::row($row)), $separator);
-            };
-
-            $write(array_map(fn (string $key) => $this->availableColumns[$key] ?? $key, $columns));
+        return CsvWriter::download('timelog.csv', function (CsvWriter $csv) use ($columns, $entries): void {
+            $csv->row(array_map(fn (string $key) => $this->availableColumns[$key] ?? $key, $columns));
 
             foreach ($entries as $entry) {
-                $write(array_map(fn (string $key) => $this->columnValue($entry, $key), $columns));
+                $csv->row(array_map(fn (string $key) => $this->columnValue($entry, $key), $columns));
             }
-
-            fclose($handle);
-        }, 'timelog.csv');
+        }, $this->csvEncoding, $this->csvSeparator);
     }
 
     /**

@@ -10,7 +10,7 @@ use App\Models\Group;
 use App\Models\Query as SavedQuery;
 use App\Models\User;
 use App\Services\AccountDeletionService;
-use App\Support\Export\CsvCell;
+use App\Support\Export\CsvWriter;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Query\UserFilterFieldRegistry;
 use App\Support\Query\CustomFieldFilter;
@@ -259,17 +259,13 @@ new #[Layout('components.layouts.app')] class extends Component
         $columns = $this->visibleColumns;
         $users = $this->filteredUsersQuery()->get();
 
-        return response()->streamDownload(function () use ($columns, $users): void {
-            $handle = fopen('php://output', 'w');
-            fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, CsvCell::row(array_map(fn ($key) => UserFilterFieldRegistry::columns()[$key], $columns)));
+        return CsvWriter::download('users.csv', function (CsvWriter $csv) use ($columns, $users): void {
+            $csv->row(array_map(fn ($key) => UserFilterFieldRegistry::columns()[$key], $columns));
 
             foreach ($users as $user) {
-                fputcsv($handle, CsvCell::row(array_map(fn ($key) => $this->columnValue($user, $key), $columns)));
+                $csv->row(array_map(fn ($key) => $this->columnValue($user, $key), $columns));
             }
-
-            fclose($handle);
-        }, 'users.csv');
+        });
     }
 
     /**

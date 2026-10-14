@@ -12,7 +12,7 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Support\Activity\ProjectLastActivity;
 use App\Support\Authorization\AuthorizationService;
-use App\Support\Export\CsvCell;
+use App\Support\Export\CsvWriter;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use App\Support\Query\DefaultProjectQuery;
 use App\Support\Query\ProjectFilterFieldRegistry;
@@ -296,17 +296,13 @@ new #[Layout('components.layouts.app')] class extends Component
             ? app(ProjectLastActivity::class)->forProjects($projects, auth()->user())
             : collect();
 
-        return response()->streamDownload(function () use ($columns, $projects, $lastActivityDates): void {
-            $handle = fopen('php://output', 'w');
-            fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, CsvCell::row(array_map(fn (string $key) => $this->availableColumns[$key], $columns)));
+        return CsvWriter::download('projects.csv', function (CsvWriter $csv) use ($columns, $projects, $lastActivityDates): void {
+            $csv->row(array_map(fn (string $key) => $this->availableColumns[$key], $columns));
 
             foreach ($projects as $project) {
-                fputcsv($handle, CsvCell::row(array_map(fn (string $key) => $this->columnValue($project, $key, $lastActivityDates), $columns)));
+                $csv->row(array_map(fn (string $key) => $this->columnValue($project, $key, $lastActivityDates), $columns));
             }
-
-            fclose($handle);
-        }, 'projects.csv');
+        });
     }
 
     /**
