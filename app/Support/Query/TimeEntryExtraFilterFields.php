@@ -9,7 +9,6 @@ use App\Enums\CustomFieldFormat;
 use App\Enums\CustomizableType;
 use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
-use App\Enums\ProjectStatus;
 use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\IssueStatus;
@@ -80,9 +79,9 @@ final class TimeEntryExtraFilterFields
                 function (Builder $issues, FilterOperator $operator, array $values): void {
                     self::applyText($issues, 'issues.subject', $operator, $values);
                 }),
-            $this->userGroup($optionalListOperators),
+            $this->groupMembershipFilter('user_group', __('ユーザーのグループ'), $optionalListOperators, 'user_id'),
             $this->userRole($optionalListOperators),
-            $this->projectStatus(),
+            $this->projectStatusFilter(),
             new CallbackFilter(
                 'comments',
                 __('コメント'),
@@ -183,27 +182,13 @@ final class TimeEntryExtraFilterFields
      */
     private function projectCustomField(CustomField $field, array $visibleProjectIds): FilterableField
     {
-        $condition = new CustomFieldFilter($field);
-
-        return new CallbackFilter(
+        return self::relatedCustomFieldFilter(
+            $field,
             "project_cf_{$field->id}",
             __('プロジェクトの:name', ['name' => $field->name]),
-            $condition->type(),
-            $condition->operators(),
-            function (Builder $query, FilterOperator $operator, array $values) use ($condition, $visibleProjectIds): Builder {
-                if ($operator->requiresValue() && $values === []) {
-                    return $query;
-                }
-
-                [$positive, $negated] = self::positiveOf($operator);
-                $matching = $condition->apply(Project::query()->select('projects.id')->whereIn('projects.id', $visibleProjectIds), $positive, $values);
-                $column = $query->qualifyColumn('project_id');
-
-                return $negated
-                    ? $query->whereIn($column, $visibleProjectIds)->whereNotIn($column, $matching)
-                    : $query->whereIn($column, $matching);
-            },
-            fn () => $condition->options(),
+            'project_id',
+            fn () => Project::query()->select('projects.id')->whereIn('projects.id', $visibleProjectIds),
+            fn (Builder $query, string $column, Builder $matching) => $query->whereIn($column, $visibleProjectIds)->whereNotIn($column, $matching),
         );
     }
 
@@ -212,25 +197,13 @@ final class TimeEntryExtraFilterFields
      */
     private function userCustomField(CustomField $field): FilterableField
     {
-        $condition = new CustomFieldFilter($field);
-
-        return new CallbackFilter(
+        return self::relatedCustomFieldFilter(
+            $field,
             "user_cf_{$field->id}",
             __('ユーザーの:name', ['name' => $field->name]),
-            $condition->type(),
-            $condition->operators(),
-            function (Builder $query, FilterOperator $operator, array $values) use ($condition): Builder {
-                if ($operator->requiresValue() && $values === []) {
-                    return $query;
-                }
-
-                [$positive, $negated] = self::positiveOf($operator);
-                $matching = $condition->apply(User::query()->select('users.id'), $positive, $values);
-                $column = $query->qualifyColumn('user_id');
-
-                return $negated ? $query->whereNotIn($column, $matching) : $query->whereIn($column, $matching);
-            },
-            fn () => $condition->options(),
+            'user_id',
+            fn () => User::query()->select('users.id'),
+            fn (Builder $query, string $column, Builder $matching) => $query->whereNotIn($column, $matching),
         );
     }
 
@@ -309,35 +282,6 @@ final class TimeEntryExtraFilterFields
     }
 
     /**
-     * Redmine's user.group (keyed user_group): the entry's user belongs to
-     * one of the groups (none/any: to no group / to some group). Only groups
-     * the viewer can see are offered or honoured.
-     *
-     * @param  array<int, FilterOperator>  $operators
-     */
-    private function userGroup(array $operators): FilterableField
-    {
-        return new CallbackFilter(
-            'user_group',
-            __('ユーザーのグループ'),
-            FilterFieldType::Select,
-            $operators,
-            function (Builder $query, FilterOperator $operator, array $values): Builder {
-                if ($operator->requiresValue() && $values === []) {
-                    return $query;
-                }
-
-                $groupIds = in_array($operator, [FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], true)
-                    ? null
-                    : array_values(array_intersect(self::idList($values), array_keys($this->visibleGroupOptions())));
-
-                return self::whereUserInGroups($query, $query->qualifyColumn('user_id'), $groupIds, in_array($operator, [FilterOperator::NotEquals, FilterOperator::NotIn, FilterOperator::IsEmpty], true));
-            },
-            fn () => $this->visibleGroupOptions(),
-        );
-    }
-
-    /**
      * Redmine's user.role (keyed user_role): the entry's user holds one of
      * the roles in the entry's project (none/any: is not / is a member of
      * it at all).
@@ -353,39 +297,6 @@ final class TimeEntryExtraFilterFields
             $operators,
             fn (Builder $query, FilterOperator $operator, array $values) => $this->applyRole($query, 'user_id', $operator, $values),
             fn () => self::roleOptions(),
-        );
-    }
-
-    /**
-     * Redmine's project.status (keyed project_status), offered on the
-     * cross-project list and on a project that has subprojects.
-     */
-    private function projectStatus(): ?FilterableField
-    {
-        if ($this->listProject !== null && $this->listProject->_rgt - $this->listProject->_lft <= 1) {
-            return null;
-        }
-
-        return new CallbackFilter(
-            'project_status',
-            __('プロジェクトのステータス'),
-            FilterFieldType::Select,
-            self::userOperators(),
-            function (Builder $query, FilterOperator $operator, array $values): Builder {
-                if ($values === []) {
-                    return $query;
-                }
-
-                $statuses = fn (Builder $projects) => $projects->whereIn('projects.status', array_map('strval', $values));
-
-                return self::isNegative($operator)
-                    ? $query->whereDoesntHave('project', $statuses)
-                    : $query->whereHas('project', $statuses);
-            },
-            fn () => [
-                ProjectStatus::Active->value => __('アクティブ'),
-                ProjectStatus::Closed->value => __('クローズ'),
-            ],
         );
     }
 
@@ -445,13 +356,5 @@ final class TimeEntryExtraFilterFields
             ->values();
 
         return Issue::query()->visibleToAcrossProjects($this->viewer, $issueProjects);
-    }
-
-    /**
-     * @return Collection<int, Project>
-     */
-    private function scopeProjects(): Collection
-    {
-        return $this->resolvedScopeProjects ??= ($this->scopeProjects)();
     }
 }

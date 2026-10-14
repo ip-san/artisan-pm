@@ -10,7 +10,6 @@ use App\Enums\CustomizableType;
 use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
 use App\Enums\IssueRelationType;
-use App\Enums\ProjectStatus;
 use App\Enums\VersionStatus;
 use App\Models\CustomField;
 use App\Models\Group;
@@ -81,15 +80,15 @@ final class IssueExtraFilterFields
             $this->watcherId(),
             $this->updatedBy(),
             $this->lastUpdatedBy(),
-            $this->memberOfGroup(),
+            $this->groupMembershipFilter('member_of_group', __('担当者のグループ'), [...self::userOperators(), FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], 'assigned_to_id', 'assigned_to_group_id'),
             $this->assignedToRole(),
-            $this->authorGroup(),
+            $this->groupMembershipFilter('author_group', __('作成者のグループ'), self::userOperators(), 'author_id'),
             $this->authorRole(),
             $this->attachment(),
             $this->attachmentDescription(),
             $this->fixedVersionDueDate(),
             $this->fixedVersionStatus(),
-            $this->projectStatus(),
+            $this->projectStatusFilter(),
             $this->spentTime(),
             $this->anySearchable(),
             ...$this->relatedCustomFieldFilters(),
@@ -569,35 +568,6 @@ final class IssueExtraFilterFields
     }
 
     /**
-     * Redmine's sql_for_member_of_group_field: the assignee belongs to
-     * one of the groups (none/any: to no group / to some group). Only
-     * groups the viewer can see are offered or honoured.
-     */
-    private function memberOfGroup(): FilterableField
-    {
-        return new CallbackFilter(
-            'member_of_group',
-            __('担当者のグループ'),
-            FilterFieldType::Select,
-            [...self::userOperators(), FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
-            function (Builder $query, FilterOperator $operator, array $values): Builder {
-                $column = $query->qualifyColumn('assigned_to_id');
-
-                if ($operator->requiresValue() && $values === []) {
-                    return $query;
-                }
-
-                $groupIds = in_array($operator, [FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], true)
-                    ? null
-                    : array_values(array_intersect(self::idList($values), array_keys($this->visibleGroupOptions())));
-
-                return self::whereUserInGroups($query, $column, $groupIds, in_array($operator, [FilterOperator::NotEquals, FilterOperator::NotIn, FilterOperator::IsEmpty], true), $query->qualifyColumn('assigned_to_group_id'));
-            },
-            fn () => $this->visibleGroupOptions(),
-        );
-    }
-
-    /**
      * Redmine's sql_for_assigned_to_role_field: the assignee holds one of
      * the roles in the issue's project (none/any: is not / is a member of
      * it at all). A group membership counts for its users.
@@ -611,30 +581,6 @@ final class IssueExtraFilterFields
             [...self::userOperators(), FilterOperator::IsEmpty, FilterOperator::IsNotEmpty],
             fn (Builder $query, FilterOperator $operator, array $values) => $this->applyRole($query, 'assigned_to_id', $operator, $values, 'assigned_to_group_id'),
             fn () => self::roleOptions(),
-        );
-    }
-
-    /**
-     * Redmine's author.group filter (keyed author_group here: a dot would
-     * split the key in the list's URL state).
-     */
-    private function authorGroup(): FilterableField
-    {
-        return new CallbackFilter(
-            'author_group',
-            __('作成者のグループ'),
-            FilterFieldType::Select,
-            self::userOperators(),
-            function (Builder $query, FilterOperator $operator, array $values): Builder {
-                if ($values === []) {
-                    return $query;
-                }
-
-                $groupIds = array_values(array_intersect(self::idList($values), array_keys($this->visibleGroupOptions())));
-
-                return self::whereUserInGroups($query, $query->qualifyColumn('author_id'), $groupIds, self::isNegative($operator));
-            },
-            fn () => $this->visibleGroupOptions(),
         );
     }
 
@@ -768,39 +714,6 @@ final class IssueExtraFilterFields
                 VersionStatus::Open->value => __('オープン'),
                 VersionStatus::Locked->value => __('ロック中'),
                 VersionStatus::Closed->value => __('クローズ'),
-            ],
-        );
-    }
-
-    /**
-     * Redmine's project.status (keyed project_status), offered on the
-     * cross-project list and on a project that has subprojects.
-     */
-    private function projectStatus(): ?FilterableField
-    {
-        if ($this->listProject !== null && $this->listProject->_rgt - $this->listProject->_lft <= 1) {
-            return null;
-        }
-
-        return new CallbackFilter(
-            'project_status',
-            __('プロジェクトのステータス'),
-            FilterFieldType::Select,
-            self::userOperators(),
-            function (Builder $query, FilterOperator $operator, array $values): Builder {
-                if ($values === []) {
-                    return $query;
-                }
-
-                $statuses = fn (Builder $projects) => $projects->whereIn('projects.status', array_map('strval', $values));
-
-                return self::isNegative($operator)
-                    ? $query->whereDoesntHave('project', $statuses)
-                    : $query->whereHas('project', $statuses);
-            },
-            fn () => [
-                ProjectStatus::Active->value => __('アクティブ'),
-                ProjectStatus::Closed->value => __('クローズ'),
             ],
         );
     }
@@ -992,29 +905,14 @@ final class IssueExtraFilterFields
      */
     private function projectCustomField(CustomField $field, array $visibleProjectIds): FilterableField
     {
-        $condition = new CustomFieldFilter($field);
-
-        return new CallbackFilter(
+        return self::relatedCustomFieldFilter(
+            $field,
             "project_cf_{$field->id}",
             __('プロジェクトの:name', ['name' => $field->name]),
-            $condition->type(),
-            $condition->operators(),
-            function (Builder $query, FilterOperator $operator, array $values) use ($condition, $visibleProjectIds): Builder {
-                if ($operator->requiresValue() && $values === []) {
-                    return $query;
-                }
-
-                // Redmine keeps "none" an EXISTS over the related record (A17-07): an issue with no
-                // assignee/version/author has no record whose value could be blank, so it does not match.
-                [$positive, $negated] = $operator === FilterOperator::IsEmpty ? [FilterOperator::IsEmpty, false] : self::positiveOf($operator);
-                $matching = $condition->apply(Project::query()->select('projects.id')->whereIn('projects.id', $visibleProjectIds), $positive, $values);
-                $column = $query->qualifyColumn('project_id');
-
-                return $negated
-                    ? $query->whereIn($column, $visibleProjectIds)->whereNotIn($column, $matching)
-                    : $query->whereIn($column, $matching);
-            },
-            fn () => $condition->options(),
+            'project_id',
+            fn () => Project::query()->select('projects.id')->whereIn('projects.id', $visibleProjectIds),
+            fn (Builder $query, string $column, Builder $matching) => $query->whereIn($column, $visibleProjectIds)->whereNotIn($column, $matching),
+            noneNeedsRecord: true,
         );
     }
 
@@ -1028,29 +926,14 @@ final class IssueExtraFilterFields
      */
     private function fixedVersionCustomField(CustomField $field, array $visibleProjectIds): FilterableField
     {
-        $condition = new CustomFieldFilter($field);
-
-        return new CallbackFilter(
+        return self::relatedCustomFieldFilter(
+            $field,
             "fixed_version_cf_{$field->id}",
             __('対象バージョンの:name', ['name' => $field->name]),
-            $condition->type(),
-            $condition->operators(),
-            function (Builder $query, FilterOperator $operator, array $values) use ($condition, $visibleProjectIds): Builder {
-                if ($operator->requiresValue() && $values === []) {
-                    return $query;
-                }
-
-                // Redmine keeps "none" an EXISTS over the related record (A17-07): an issue with no
-                // assignee/version/author has no record whose value could be blank, so it does not match.
-                [$positive, $negated] = $operator === FilterOperator::IsEmpty ? [FilterOperator::IsEmpty, false] : self::positiveOf($operator);
-                $matching = $condition->apply(Version::query()->select('versions.id')->whereIn('versions.project_id', $visibleProjectIds), $positive, $values);
-                $column = $query->qualifyColumn('fixed_version_id');
-
-                return $negated
-                    ? $query->where(fn (Builder $other) => $other->whereNull($column)->orWhereNotIn($column, $matching))
-                    : $query->whereIn($column, $matching);
-            },
-            fn () => $condition->options(),
+            'fixed_version_id',
+            fn () => Version::query()->select('versions.id')->whereIn('versions.project_id', $visibleProjectIds),
+            self::nullOrNotIn(...),
+            noneNeedsRecord: true,
         );
     }
 
@@ -1060,27 +943,14 @@ final class IssueExtraFilterFields
      */
     private function authorCustomField(CustomField $field): FilterableField
     {
-        $condition = new CustomFieldFilter($field);
-
-        return new CallbackFilter(
+        return self::relatedCustomFieldFilter(
+            $field,
             "author_cf_{$field->id}",
             __('作成者の:name', ['name' => $field->name]),
-            $condition->type(),
-            $condition->operators(),
-            function (Builder $query, FilterOperator $operator, array $values) use ($condition): Builder {
-                if ($operator->requiresValue() && $values === []) {
-                    return $query;
-                }
-
-                // Redmine keeps "none" an EXISTS over the related record (A17-07): an issue with no
-                // assignee/version/author has no record whose value could be blank, so it does not match.
-                [$positive, $negated] = $operator === FilterOperator::IsEmpty ? [FilterOperator::IsEmpty, false] : self::positiveOf($operator);
-                $matching = $condition->apply(User::query()->select('users.id'), $positive, $values);
-                $column = $query->qualifyColumn('author_id');
-
-                return $negated ? $query->whereNotIn($column, $matching) : $query->whereIn($column, $matching);
-            },
-            fn () => $condition->options(),
+            'author_id',
+            fn () => User::query()->select('users.id'),
+            fn (Builder $query, string $column, Builder $matching) => $query->whereNotIn($column, $matching),
+            noneNeedsRecord: true,
         );
     }
 
@@ -1093,30 +963,28 @@ final class IssueExtraFilterFields
      */
     private function assignedToCustomField(CustomField $field): FilterableField
     {
-        $condition = new CustomFieldFilter($field);
-
-        return new CallbackFilter(
+        return self::relatedCustomFieldFilter(
+            $field,
             "assigned_to_cf_{$field->id}",
             __('担当者の:name', ['name' => $field->name]),
-            $condition->type(),
-            $condition->operators(),
-            function (Builder $query, FilterOperator $operator, array $values) use ($condition): Builder {
-                if ($operator->requiresValue() && $values === []) {
-                    return $query;
-                }
-
-                // Redmine keeps "none" an EXISTS over the related record (A17-07): an issue with no
-                // assignee/version/author has no record whose value could be blank, so it does not match.
-                [$positive, $negated] = $operator === FilterOperator::IsEmpty ? [FilterOperator::IsEmpty, false] : self::positiveOf($operator);
-                $matching = $condition->apply(User::query()->select('users.id'), $positive, $values);
-                $column = $query->qualifyColumn('assigned_to_id');
-
-                return $negated
-                    ? $query->where(fn (Builder $other) => $other->whereNull($column)->orWhereNotIn($column, $matching))
-                    : $query->whereIn($column, $matching);
-            },
-            fn () => $condition->options(),
+            'assigned_to_id',
+            fn () => User::query()->select('users.id'),
+            self::nullOrNotIn(...),
+            noneNeedsRecord: true,
         );
+    }
+
+    /**
+     * The negated form of a filter on an optional reference: no record at
+     * all, or one that is not among $matching.
+     *
+     * @param  Builder<*>  $query
+     * @param  Builder<*>  $matching
+     * @return Builder<*>
+     */
+    private static function nullOrNotIn(Builder $query, string $column, Builder $matching): Builder
+    {
+        return $query->where(fn (Builder $other) => $other->whereNull($column)->orWhereNotIn($column, $matching));
     }
 
     /**
@@ -1186,13 +1054,5 @@ final class IssueExtraFilterFields
             ->filter(fn (Project $project) => $this->authorization->can($this->viewer, $permission, $project))
             ->pluck('id')
             ->values();
-    }
-
-    /**
-     * @return Collection<int, Project>
-     */
-    private function scopeProjects(): Collection
-    {
-        return $this->resolvedScopeProjects ??= ($this->scopeProjects)();
     }
 }
