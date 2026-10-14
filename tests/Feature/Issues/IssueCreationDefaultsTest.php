@@ -16,7 +16,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
 use App\Services\IncomingMailService;
-use App\Services\IssueService;
+use App\Services\IssueCopier;
 use App\Support\Mail\ParsedIncomingMail;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -241,7 +241,7 @@ test('a bulk copy does not pick up the project default version', function () {
     $project->update(['default_version_id' => $version->id]);
     $source = Issue::factory()->for($project)->create(['tracker_id' => $tracker->id, 'status_id' => $status->id, 'fixed_version_id' => null]);
 
-    $copy = app(IssueService::class)->copy($source, $project, $tracker->id, creationDefaultsMember($project, ['view_issues', 'add_issues']));
+    $copy = app(IssueCopier::class)->copy($source, $project, $tracker->id, creationDefaultsMember($project, ['view_issues', 'add_issues']));
 
     expect($copy->fixed_version_id)->toBeNull();
 });

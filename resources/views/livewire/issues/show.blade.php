@@ -14,6 +14,7 @@ use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Rules\IssueRelationTarget;
+use App\Services\IssueJournalizer;
 use App\Services\IssueService;
 use App\Services\ReactionService;
 use App\Support\Issues\RelatedIssueColumns;
@@ -373,7 +374,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'delay' => $type === 'precedes' ? $this->relationDelay : null,
         ]);
 
-        app(IssueService::class)->journalizeRelation($relation, added: true, actor: auth()->user());
+        app(IssueJournalizer::class)->journalizeRelation($relation, added: true, actor: auth()->user());
         app(IssueService::class)->rescheduleFromRelation($relation, auth()->user());
 
         return null;
@@ -388,7 +389,7 @@ new #[Layout('components.layouts.app')] class extends Component
             ->findOrFail($relationId);
 
         $relation->delete();
-        app(IssueService::class)->journalizeRelation($relation, added: false, actor: auth()->user());
+        app(IssueJournalizer::class)->journalizeRelation($relation, added: false, actor: auth()->user());
 
         $this->reloadRelations();
         $this->reloadJournals();
@@ -749,7 +750,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         $media->delete();
-        app(IssueService::class)->journalizeAttachment($this->issue, $media, added: false, actor: auth()->user());
+        app(IssueJournalizer::class)->journalizeAttachment($this->issue, $media, added: false, actor: auth()->user());
         $this->reloadJournals();
     }
 

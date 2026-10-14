@@ -15,6 +15,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
 use App\Rules\IssueParentTarget;
+use App\Services\IssueCopier;
 use App\Services\IssueService;
 use App\Services\TimeEntryService;
 use App\Support\TimeLog\TimeLogConstraints;
@@ -346,7 +347,7 @@ new #[Layout('components.layouts.app')] class extends Component
      * to the normal new-issue default; on save, the copy form's checkboxes
      * (and the link_copied_issue / copy_attachments_on_issue_copy settings)
      * decide whether the source is linked and its attachments, subtasks and
-     * watchers are carried over — see IssueService::finishCopy().
+     * watchers are carried over — see IssueCopier::finishCopy().
      */
     private function prefillFromCopySource(Project $project): void
     {
@@ -939,7 +940,7 @@ new #[Layout('components.layouts.app')] class extends Component
             }
 
             if ($this->copySource !== null) {
-                app(IssueService::class)->finishCopy(
+                app(IssueCopier::class)->finishCopy(
                     $this->copySource,
                     $issue,
                     $this->project,

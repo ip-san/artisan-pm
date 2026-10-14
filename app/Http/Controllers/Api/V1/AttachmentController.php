@@ -10,7 +10,7 @@ use App\Http\Resources\Api\V1\AttachmentResource;
 use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Version;
-use App\Services\IssueService;
+use App\Services\IssueJournalizer;
 use App\Support\Attachments\AttachmentFieldValue;
 use App\Support\Attachments\AttachmentValidationRules;
 use Illuminate\Http\JsonResponse;
@@ -91,7 +91,7 @@ final class AttachmentController extends Controller
         // Redmine journals an issue's attachment removal; the other
         // containers have no history to record it in.
         if ($owner instanceof Issue) {
-            app(IssueService::class)->journalizeAttachment($owner, $media, added: false, actor: $request->user());
+            app(IssueJournalizer::class)->journalizeAttachment($owner, $media, added: false, actor: $request->user());
         }
 
         return response()->json(status: 204);

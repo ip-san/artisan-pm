@@ -21,6 +21,7 @@ use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\Watcher;
+use App\Services\IssueCopier;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
@@ -2179,7 +2180,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         foreach ($issues as $issue) {
-            app(IssueService::class)->copy(
+            app(IssueCopier::class)->copy(
                 $issue,
                 $targetProject,
                 $data['bulkCopyToTrackerId'],

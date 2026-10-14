@@ -12,6 +12,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Services\IssueCopier;
 use App\Services\IssueService;
 use Illuminate\Http\UploadedFile;
 use Laravel\Passport\Passport;
@@ -195,7 +196,7 @@ test('copying an issue does not copy the file', function () {
     ['field' => $field, 'issue' => $issue, 'project' => $project, 'tracker' => $tracker] = attachmentFieldSetup();
     attachFieldFile($issue, $field);
 
-    $copy = app(IssueService::class)->copy($issue->fresh(), $project, $tracker->id, User::factory()->admin()->create());
+    $copy = app(IssueCopier::class)->copy($issue->fresh(), $project, $tracker->id, User::factory()->admin()->create());
 
     expect($copy->fresh()->load('customFieldValues')->customValue($field))->toBeNull()
         ->and($copy->fresh()->getMedia(AttachmentFormat::COLLECTION))->toHaveCount(0);

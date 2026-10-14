@@ -32,7 +32,7 @@ final class IssueNotificationMail extends Mailable
     use FormatsDatesForRecipient, Queueable, SerializesModels;
 
     /**
-     * Attribute keys from IssueService::JOURNALED_ATTRIBUTES that a
+     * Attribute keys from IssueJournalizer::JOURNALED_ATTRIBUTES that a
      * Journal detail's `attr` property can carry, mapped to their label —
      * the fields in Tracker::DISABLABLE_CORE_FIELDS plus the always-on
      * fields it excludes.

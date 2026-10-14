@@ -8,15 +8,11 @@ use App\CustomFields\Formats\AttachmentFormat;
 use App\Enums\EnumerationType;
 use App\Enums\IssueRelationType;
 use App\Enums\IssueTimeEntryDisposition;
-use App\Enums\UserStatus;
-use App\Enums\VersionStatus;
 use App\Events\IssueCreated;
 use App\Events\IssueDeleted;
 use App\Events\IssueJournalRecorded;
 use App\Events\IssueUpdated;
 use App\Exceptions\StaleIssueUpdateException;
-use App\Models\CustomField;
-use App\Models\CustomFieldValue;
 use App\Models\Enumeration;
 use App\Models\Issue;
 use App\Models\IssueCategory;
@@ -30,7 +26,6 @@ use App\Models\User;
 use App\Models\Watcher;
 use App\Rules\IssueRelationTarget;
 use App\Support\Calendar\WorkingDays;
-use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\IssueFieldRules;
 use App\Support\Mail\MentionParser;
 use App\Support\Plugins\BeforeSaveContext;
@@ -53,16 +48,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 final class IssueService
 {
-    /**
-     * Attributes tracked in the journal when they change.
-     *
-     * @var array<string>
-     */
-    private const JOURNALED_ATTRIBUTES = [
-        'project_id', 'tracker_id', 'status_id', 'priority_id', 'category_id', 'subject',
-        'description', 'assigned_to_id', 'assigned_to_group_id', 'fixed_version_id', 'parent_id',
-        'start_date', 'due_date', 'done_ratio', 'estimated_hours', 'is_private',
-    ];
+    public function __construct(private readonly IssueJournalizer $journalizer) {}
 
     /**
      * Bounds the precedes/follows reschedule cascade — see the
@@ -276,95 +262,6 @@ final class IssueService
     }
 
     /**
-     * Records an attachment being added to or removed from an existing
-     * issue as its own journal — Redmine's Journal#journalize_attachment
-     * (property 'attachment', prop_key = attachment id, filename in the
-     * value on add / the old value on removal). Files uploaded while
-     * creating an issue are deliberately not journaled: matching
-     * Redmine, where creation produces no journal at all.
-     */
-    public function journalizeAttachment(Issue $issue, Media $media, bool $added, User $actor): void
-    {
-        $this->journalizeAttachments($issue, [$media], $added, $actor);
-    }
-
-    /**
-     * Several attachments in one journal — and so one notification — like
-     * the single journal Redmine writes for an edit that adds files. Mailed
-     * through IssueJournalRecorded (mail only, no webhook). Files uploaded
-     * together with an edit go through update()'s $attachFiles instead, so
-     * they share the edit's journal and mail.
-     *
-     * @param  iterable<int, Media>  $medias
-     */
-    public function journalizeAttachments(Issue $issue, iterable $medias, bool $added, User $actor): void
-    {
-        $journal = null;
-
-        foreach ($medias as $media) {
-            $journal ??= Journal::create([
-                'issue_id' => $issue->id,
-                'user_id' => $actor->id,
-                'notes' => null,
-            ]);
-
-            $journal->details()->create([
-                'property' => 'attachment',
-                'prop_key' => (string) $media->id,
-                'old_value' => $added ? null : $media->file_name,
-                'new_value' => $added ? $media->file_name : null,
-            ]);
-        }
-
-        if ($journal !== null) {
-            IssueJournalRecorded::dispatch($issue, $actor, $journal->load('details'));
-        }
-    }
-
-    /**
-     * Records a relation change on BOTH issues — matching Redmine's
-     * journalize_relation, each end gets its own journal whose prop_key
-     * is the relation type as seen from that issue (the reversed name
-     * on the receiving end: blocks→blocked, precedes→follows, ...) and
-     * whose value is the other issue's id.
-     */
-    public function journalizeRelation(IssueRelation $relation, bool $added, User $actor): void
-    {
-        $type = $relation->relation_type->value;
-
-        $reversedType = match ($type) {
-            'blocks' => 'blocked',
-            'duplicates' => 'duplicated',
-            'precedes' => 'follows',
-            'follows' => 'precedes',
-            'copied_to' => 'copied_from',
-            default => $type,
-        };
-
-        $sides = [
-            [$relation->from, $type, $relation->issue_to_id],
-            [$relation->to, $reversedType, $relation->issue_from_id],
-        ];
-
-        foreach ($sides as [$issue, $propKey, $otherIssueId]) {
-            $journal = Journal::create([
-                'issue_id' => $issue->id,
-                'user_id' => $actor->id,
-                'notes' => null,
-            ]);
-
-            $journal->details()->create([
-                'property' => 'relation',
-                'prop_key' => $propKey,
-                'old_value' => $added ? null : (string) $otherIssueId,
-                'new_value' => $added ? (string) $otherIssueId : null,
-            ]);
-
-            IssueJournalRecorded::dispatch($issue, $actor, $journal->load('details'));
-        }
-    }
-
-    /**
      * @param  array<string, mixed>  $attributes
      * @param  array<int, mixed>  $customFieldData  custom_field_id => raw input
      * @param  array<int, int>  $rescheduledIssueIds  internal — issue ids already rescheduled in this
@@ -420,8 +317,8 @@ final class IssueService
             $customFieldData + $issue->customFieldFormValues($fieldRules->customFields()),
         );
 
-        $original = $issue->only(self::JOURNALED_ATTRIBUTES);
-        $originalCustomValues = $this->customFieldSnapshot($issue, $actor);
+        $original = $this->journalizer->attributeSnapshot($issue);
+        $originalCustomValues = $this->journalizer->customFieldSnapshot($issue, $actor);
 
         $issue->fill($attributes);
         $issue->lock_version++;
@@ -464,16 +361,16 @@ final class IssueService
             $this->autoWatch($issue, $issue->assigned_to_id, 'issue_assigned_to_me');
         }
 
-        $changes = $this->diff($original, $issue->only(self::JOURNALED_ATTRIBUTES));
-        $customFieldChanges = $this->diffCustomFieldSnapshots($originalCustomValues, $this->customFieldSnapshot($issue, $actor));
+        $changes = $this->journalizer->attributeChanges($original, $this->journalizer->attributeSnapshot($issue));
+        $customFieldChanges = $this->journalizer->customFieldChanges($originalCustomValues, $this->journalizer->customFieldSnapshot($issue, $actor));
         $attachedMedia = $attachFiles === null ? [] : [...$attachFiles($issue)];
 
         // Files alone keep their own mail-only journal (no issue.updated
-        // webhook), as journalizeAttachments() records them.
+        // webhook), as IssueJournalizer::journalizeAttachments() records them.
         $attachmentsOnly = $changes === [] && $customFieldChanges === [] && ! filled($comment) && $attachedMedia !== [];
 
         if ($attachmentsOnly) {
-            $this->journalizeAttachments($issue, $attachedMedia, added: true, actor: $actor);
+            $this->journalizer->journalizeAttachments($issue, $attachedMedia, added: true, actor: $actor);
         }
 
         $hasDetails = $changes !== [] || $customFieldChanges !== [] || $attachedMedia !== [];
@@ -482,57 +379,7 @@ final class IssueService
 
         if (! $attachmentsOnly && ($hasDetails || filled($comment))) {
             $this->autoWatch($issue, $actor->id, 'issue_contributed_to');
-
-            // Matches Redmine's Journal#split_private_notes: a private note
-            // combined with attribute changes in the same save is split into
-            // two journals, so the public attribute-change record isn't
-            // hidden behind view_private_notes just because it happened to
-            // ride along with a private comment. Notes-only or details-only
-            // saves never need splitting.
-            $splitPrivateNotes = $commentIsPrivate && filled($comment) && $hasDetails;
-
-            $detailsJournal = Journal::create([
-                'issue_id' => $issue->id,
-                'user_id' => $actor->id,
-                'notes' => $splitPrivateNotes ? null : $comment,
-                'private_notes' => $splitPrivateNotes ? false : $commentIsPrivate && filled($comment),
-            ]);
-
-            foreach ($changes as $field => [$old, $new]) {
-                $detailsJournal->details()->create([
-                    'property' => 'attr',
-                    'prop_key' => $field,
-                    'old_value' => $old,
-                    'new_value' => $new,
-                ]);
-            }
-
-            foreach ($customFieldChanges as $fieldId => [$old, $new]) {
-                $detailsJournal->details()->create([
-                    'property' => 'cf',
-                    'prop_key' => (string) $fieldId,
-                    'old_value' => $old,
-                    'new_value' => $new,
-                ]);
-            }
-
-            foreach ($attachedMedia as $media) {
-                $detailsJournal->details()->create([
-                    'property' => 'attachment',
-                    'prop_key' => (string) $media->id,
-                    'old_value' => null,
-                    'new_value' => $media->file_name,
-                ]);
-            }
-
-            if ($splitPrivateNotes) {
-                $splitPrivateJournal = Journal::create([
-                    'issue_id' => $issue->id,
-                    'user_id' => $actor->id,
-                    'notes' => $comment,
-                    'private_notes' => true,
-                ]);
-            }
+            [$detailsJournal, $splitPrivateJournal] = $this->journalizer->recordEdit($issue, $actor, $comment, $commentIsPrivate, $changes, $customFieldChanges, $attachedMedia);
         }
 
         // Matches the journal-creation condition above: a comment-only
@@ -616,7 +463,7 @@ final class IssueService
             'delay' => in_array($relationType, ['precedes', 'follows'], true) ? $delay : null,
         ]);
 
-        $this->journalizeRelation($relation, added: true, actor: $actor);
+        $this->journalizer->journalizeRelation($relation, added: true, actor: $actor);
         $this->rescheduleFromRelation($relation, $actor);
 
         return $relation;
@@ -946,211 +793,11 @@ final class IssueService
     }
 
     /**
-     * Creates a new issue with the same core attributes and custom field
-     * values as $source, in $targetProject. Matches a deliberately scoped
-     * subset of Redmine's Issue#copy: the version and category follow
-     * Redmine's Issue#project= (see carriedVersionAndCategory()), and the
-     * assignee is dropped if they aren't a member of the target project. Attachments and watchers are duplicated when the
-     * corresponding flag is true (both default true, matching Redmine's
-     * bulk-copy form, whose checkboxes are checked by default). Subtasks
-     * are duplicated only when $copySubtasks is true (see copySubtasks()).
-     * A copied_to relation is created back to $source unless $linkCopy is
-     * false, matching Redmine's Issue#after_create_from_copy. Unlike
-     * Redmine, this isn't gated by cross_project_issue_relations, since
-     * the relation records provenance rather than being a user-authored
-     * cross-project link.
-     */
-    public function copy(Issue $source, Project $targetProject, int $trackerId, User $actor, bool $copyAttachments = true, bool $copyWatchers = true, bool $copySubtasks = false, bool $linkCopy = true): Issue
-    {
-        [$assignedToId, $assignedToGroupId] = $this->copiedAssignee($source, $targetProject, $actor);
-
-        $customFieldData = $source->relevantCustomFields()
-            ->mapWithKeys(fn (CustomField $field) => [$field->id => $this->normalizedCustomFieldValue($source, $field)])
-            ->filter(fn (?string $value) => $value !== null)
-            ->all();
-
-        $copy = $this->create([
-            ...$this->carriedVersionAndCategory($source, $targetProject, $targetProject->sharedVersions()->pluck('id')),
-            'project_id' => $targetProject->id,
-            'tracker_id' => $trackerId,
-            'status_id' => $source->status_id,
-            'priority_id' => $source->priority_id,
-            'subject' => $source->subject,
-            'description' => $source->description,
-            'assigned_to_id' => $assignedToId,
-            'assigned_to_group_id' => $assignedToGroupId,
-            'start_date' => $source->start_date,
-            'due_date' => $source->due_date,
-            'done_ratio' => $source->done_ratio,
-        ], $actor, $customFieldData);
-
-        $this->finishCopy($source, $copy, $targetProject, $actor, $linkCopy, $copyAttachments, $copyWatchers, $copySubtasks);
-
-        return $copy;
-    }
-
-    /**
-     * What follows saving a copy: the copied_to relation back to the
-     * source (when $linkCopy), attachments, watchers and subtasks. Also the
-     * tail of the single-issue copy form, whose new issue is created by the
-     * form itself.
-     */
-    public function finishCopy(Issue $source, Issue $copy, Project $targetProject, User $actor, bool $linkCopy, bool $copyAttachments, bool $copyWatchers, bool $copySubtasks): void
-    {
-        if ($linkCopy) {
-            IssueRelation::create([
-                'issue_from_id' => $source->id,
-                'issue_to_id' => $copy->id,
-                'relation_type' => IssueRelationType::CopiedTo->value,
-            ]);
-        }
-
-        if ($copyAttachments) {
-            foreach ($source->getMedia('attachments') as $media) {
-                $media->copy($copy, 'attachments');
-            }
-        }
-
-        if ($copyWatchers) {
-            // firstOrCreate() rather than a bare insert since create()
-            // already auto-watched the copy's author/assignee — matches
-            // Redmine's own watcher_user_ids= (a set, so no duplicate rows).
-            $source->watchers()
-                ->whereHas('user', fn ($query) => $query->where('status', UserStatus::Active))
-                ->get()
-                ->each(fn (Watcher $watcher) => $copy->watchers()->firstOrCreate(['user_id' => $watcher->user_id]));
-        }
-
-        if ($copySubtasks) {
-            $this->copySubtasks($source, $copy, $targetProject, $actor, $copyAttachments, $copyWatchers);
-        }
-    }
-
-    /**
-     * Redmine's after_create_from_copy subtask pass: walks the source's
-     * descendants top-down and copies each one under the copy of its
-     * parent (a skipped subtask takes its whole subtree with it, since its
-     * children have no copied parent to hang from). Each subtask keeps its
-     * own tracker, so one the target project doesn't use, or the actor may
-     * not create issues with, is skipped; an open version is carried over
-     * as for the copied issue itself (carriedVersionAndCategory()), any
-     * other is cleared, the category is kept or matched by name, and the assignee
-     * only while active and a member of the target project. Subtasks the
-     * actor may not see are never copied (no disclosure of private
-     * issues). No copied_to relation is created for subtasks, like Redmine.
-     */
-    private function copySubtasks(Issue $source, Issue $copy, Project $targetProject, User $actor, bool $copyAttachments, bool $copyWatchers): void
-    {
-        $source->loadMissing('project');
-        $reachableVersionIds = $targetProject->sharedVersions()->pluck('id');
-        // Redmine's validate_permissions on a copy: only trackers the actor
-        // may create issues with (allowed_target_trackers).
-        $trackerIds = Issue::allowedTargetTrackers($targetProject, $actor)->pluck('id');
-        $copiedIds = [$source->id => $copy];
-        $queue = [$source->id];
-
-        while ($queue !== []) {
-            $parentId = array_shift($queue);
-
-            $children = Issue::query()
-                ->visibleTo($actor, $source->project)
-                ->where('parent_id', $parentId)
-                ->orderBy('id')
-                ->with(['fixedVersion', 'category'])
-                ->get();
-
-            foreach ($children as $child) {
-                if (! $trackerIds->contains($child->tracker_id)) {
-                    continue;
-                }
-
-                [$assignedToId, $assignedToGroupId] = $this->copiedAssignee($child, $targetProject, $actor);
-
-                $carried = $this->carriedVersionAndCategory($child, $targetProject, $reachableVersionIds);
-
-                // Redmine's after_create_from_copy clears the version of a
-                // subtask whose own version isn't open, default included.
-                if ($child->fixedVersion?->status !== VersionStatus::Open) {
-                    $carried['fixed_version_id'] = null;
-                }
-
-                $customFieldData = $child->relevantCustomFields()
-                    ->mapWithKeys(fn (CustomField $field) => [$field->id => $this->normalizedCustomFieldValue($child, $field)])
-                    ->filter(fn (?string $value) => $value !== null)
-                    ->all();
-
-                $subtaskCopy = $this->create([
-                    'project_id' => $targetProject->id,
-                    'tracker_id' => $child->tracker_id,
-                    'status_id' => $child->status_id,
-                    'priority_id' => $child->priority_id,
-                    'subject' => $child->subject,
-                    'description' => $child->description,
-                    'assigned_to_id' => $assignedToId,
-                    'assigned_to_group_id' => $assignedToGroupId,
-                    ...$carried,
-                    'start_date' => $child->start_date,
-                    'due_date' => $child->due_date,
-                    'done_ratio' => $child->done_ratio,
-                    'is_private' => $child->is_private,
-                    'parent_id' => $copiedIds[$parentId]->id,
-                ], $actor, $customFieldData);
-
-                if ($copyAttachments) {
-                    foreach ($child->getMedia('attachments') as $media) {
-                        $media->copy($subtaskCopy, 'attachments');
-                    }
-                }
-
-                if ($copyWatchers) {
-                    $child->watchers()
-                        ->whereHas('user', fn ($query) => $query->where('status', UserStatus::Active))
-                        ->get()
-                        ->each(fn (Watcher $watcher) => $subtaskCopy->watchers()->firstOrCreate(['user_id' => $watcher->user_id]));
-                }
-
-                $copiedIds[$child->id] = $subtaskCopy;
-                $queue[] = $child->id;
-            }
-        }
-    }
-
-    /**
-     * The version and category a copy of $issue takes into $targetProject,
-     * as Redmine's Issue#project= decides them: the version stays while it
-     * is open and shared with the target ($reachableVersionIds); otherwise
-     * the key is left out so create() fills in the target's default version
-     * — except for a copy within the same project of an issue without one,
-     * which Redmine leaves empty. The category stays within the same
-     * project and is matched by name in another one.
-     *
-     * @param  Collection<int, int>  $reachableVersionIds
-     * @return array{fixed_version_id?: ?int, category_id: ?int}
-     */
-    private function carriedVersionAndCategory(Issue $issue, Project $targetProject, Collection $reachableVersionIds): array
-    {
-        $issue->loadMissing(['fixedVersion', 'category']);
-        $sameProject = $issue->project_id === $targetProject->id;
-        $version = $issue->fixedVersion;
-        $attributes = [];
-
-        if ($version !== null && $version->status === VersionStatus::Open && $reachableVersionIds->contains($version->id)) {
-            $attributes['fixed_version_id'] = $version->id;
-        } elseif ($sameProject && $version === null) {
-            $attributes['fixed_version_id'] = null;
-        }
-
-        $attributes['category_id'] = $this->carriedCategoryId($issue, $targetProject);
-
-        return $attributes;
-    }
-
-    /**
      * The category $issue takes into $targetProject (Redmine's
      * Issue#project=): its own within the same project, the target's
      * category of the same name in another one, else none.
      */
-    private function carriedCategoryId(Issue $issue, Project $targetProject): ?int
+    public function carriedCategoryId(Issue $issue, Project $targetProject): ?int
     {
         $category = $issue->loadMissing('category')->category;
 
@@ -1332,32 +979,6 @@ final class IssueService
     }
 
     /**
-     * The assignee a copy of $source keeps in $targetProject — Redmine's Issue#project= for a new
-     * record: kept only if the copy's assignable_users include them (members holding an
-     * assignable role, active, groups only while issue_group_assignment is on, and the copy's
-     * author, who is always assignable), otherwise cleared.
-     *
-     * @return array{0: int|null, 1: int|null} user id, group id
-     */
-    private function copiedAssignee(Issue $source, Project $targetProject, User $author): array
-    {
-        $userId = $source->assigned_to_id;
-
-        if ($userId !== null) {
-            $assignable = $targetProject->assignableUsers()->where('status', UserStatus::Active)->contains('id', $userId)
-                || ($userId === $author->id && $author->status === UserStatus::Active);
-
-            $userId = $assignable ? $userId : null;
-        }
-
-        $groupId = $source->assigned_to_group_id !== null && AssigneeChoice::allowsGroup($targetProject, $source->assigned_to_group_id)
-            ? $source->assigned_to_group_id
-            : null;
-
-        return [$userId, $groupId];
-    }
-
-    /**
      * Redmine's auto_watch_on: the user starts watching the issue when the
      * event named by `$event` happens and their personal options list it —
      * `issue_created` (their own new issue), `issue_assigned_to_me`,
@@ -1382,82 +1003,5 @@ final class IssueService
         }
 
         $issue->watchers()->firstOrCreate(['user_id' => $userId]);
-    }
-
-    /**
-     * @param  array<string, mixed>  $original
-     * @param  array<string, mixed>  $updated
-     * @return array<string, array{0: mixed, 1: mixed}>
-     */
-    private function diff(array $original, array $updated): array
-    {
-        $changes = [];
-
-        foreach (self::JOURNALED_ATTRIBUTES as $field) {
-            if ((string) ($original[$field] ?? '') !== (string) ($updated[$field] ?? '')) {
-                $changes[$field] = [$original[$field] ?? null, $updated[$field] ?? null];
-            }
-        }
-
-        return $changes;
-    }
-
-    /**
-     * A comparable snapshot of this issue's current custom field values,
-     * keyed by field id — captured both before and after the update so
-     * changes (including from a tracker switch, which can change which
-     * fields are relevant) can be diffed into the same journal as core
-     * attribute changes.
-     *
-     * @return array<int, string|null>
-     */
-    private function customFieldSnapshot(Issue $issue, User $actor): array
-    {
-        // setCustomFieldValues() drops the loaded relation; reload it
-        // explicitly rather than lazily (lazy loading is disabled).
-        $issue->loadMissing('customFieldValues');
-
-        return $issue->relevantCustomFields($actor)
-            ->mapWithKeys(fn (CustomField $field) => [$field->id => $this->normalizedCustomFieldValue($issue, $field)])
-            ->all();
-    }
-
-    private function normalizedCustomFieldValue(Issue $issue, CustomField $field): ?string
-    {
-        if ($field->multiple) {
-            $values = $issue->customFieldValues
-                ->where('custom_field_id', $field->id)
-                ->map(fn (CustomFieldValue $value) => (string) $value->value())
-                ->sort()
-                ->values()
-                ->all();
-
-            return $values === [] ? null : implode(',', $values);
-        }
-
-        $value = $issue->customValue($field);
-
-        return $value === null || $value === '' ? null : (string) $value;
-    }
-
-    /**
-     * @param  array<int, string|null>  $before
-     * @param  array<int, string|null>  $after
-     * @return array<int, array{0: ?string, 1: ?string}>
-     */
-    private function diffCustomFieldSnapshots(array $before, array $after): array
-    {
-        $changes = [];
-
-        foreach (array_unique([...array_keys($before), ...array_keys($after)]) as $fieldId) {
-            $old = $before[$fieldId] ?? null;
-            $new = $after[$fieldId] ?? null;
-
-            if ($old !== $new) {
-                $changes[$fieldId] = [$old, $new];
-            }
-        }
-
-        return $changes;
     }
 }

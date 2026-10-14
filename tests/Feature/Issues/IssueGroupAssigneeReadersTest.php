@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\Watcher;
 use App\Models\WorkflowTransition;
 use App\Services\IncomingMailService;
+use App\Services\IssueCopier;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Dashboard\Blocks\AssignedIssuesBlock;
@@ -214,21 +215,22 @@ test('a copy keeps a group assignee only where the group is assignable, a move a
     $withoutGroup->trackers()->attach($s->tracker);
     $admin = User::factory()->create(['is_admin' => true]);
     $service = app(IssueService::class);
+    $copier = app(IssueCopier::class);
 
-    expect($service->copy($s->issue, $withGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBe($s->group->id)
-        ->and($service->copy($s->issue, $withoutGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBeNull()
+    expect($copier->copy($s->issue, $withGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBe($s->group->id)
+        ->and($copier->copy($s->issue, $withoutGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBeNull()
         ->and($service->moveToProject($s->issue, $withoutGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBe($s->group->id);
 
     // Redmine's assignable_users: a group is offered only while issue_group_assignment is on, and
     // only through a role that can be assigned (A17-09).
     Setting::set('issue_group_assignment', false);
-    expect($service->copy($s->issue, $withGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBeNull();
+    expect($copier->copy($s->issue, $withGroup, $s->tracker->id, $admin)->assigned_to_group_id)->toBeNull();
 
     Setting::set('issue_group_assignment', true);
     $locked = Project::factory()->create();
     $locked->trackers()->attach($s->tracker);
     Member::factory()->for($locked)->create(['user_id' => null, 'group_id' => $s->group->id])->roles()->attach(Role::factory()->create(['permissions' => ['view_issues'], 'assignable' => false]));
-    expect($service->copy($s->issue, $locked, $s->tracker->id, $admin)->assigned_to_group_id)->toBeNull();
+    expect($copier->copy($s->issue, $locked, $s->tracker->id, $admin)->assigned_to_group_id)->toBeNull();
 });
 
 test('a copy keeps its new author as assignee even where they are not a member (A17-09)', function () {
@@ -238,7 +240,7 @@ test('a copy keeps its new author as assignee even where they are not a member (
     $elsewhere->trackers()->attach($s->tracker);
     $s->issue->forceFill(['assigned_to_id' => $author->id, 'assigned_to_group_id' => null])->save();
 
-    $copy = app(IssueService::class)->copy($s->issue->fresh(), $elsewhere, $s->tracker->id, $author);
+    $copy = app(IssueCopier::class)->copy($s->issue->fresh(), $elsewhere, $s->tracker->id, $author);
 
     expect($copy->assigned_to_id)->toBe($author->id);
 });
