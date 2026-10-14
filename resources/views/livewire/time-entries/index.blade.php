@@ -1,27 +1,24 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
+use App\Concerns\ListsTimeEntries;
+use App\Concerns\ManagesSavedQueries;
 use App\Concerns\SelectsPageSize;
 use App\Concerns\ReordersColumns;
 use App\Enums\QueryType;
-use App\Enums\QueryVisibility;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
-use App\Models\Role;
 use App\Models\TimeEntry;
 use App\Services\TimeEntryService;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Export\CsvWriter;
 use App\Support\Query\ListDefaults;
 use App\Support\Query\ListQueryString;
-use App\Support\Query\TimeEntryColumns;
 use App\Support\Query\QueryFilterEngine;
 use App\Support\Issues\ContextMenuCustomFields;
 use App\Support\Issues\SubprojectScope;
 use App\Support\Query\TimeEntryFilterFieldRegistry;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
@@ -35,6 +32,8 @@ use Livewire\WithPagination;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
+    use ListsTimeEntries;
+    use ManagesSavedQueries;
     use SelectsPageSize;
     use WithPagination;
     use ReordersColumns;
@@ -60,27 +59,6 @@ new #[Layout('components.layouts.app')] class extends Component
         'comments' => 'コメント',
         'hours' => '時間',
     ];
-
-    /**
-     * Translated header labels for DISPLAY_COLUMNS (constants can't call __()).
-     *
-     * @return array<string, string>
-     */
-    public function displayColumnLabels(): array
-    {
-        return [
-            'project_id' => __('プロジェクト'),
-            'spent_on' => __('日付'),
-            'created_at' => __('作成日'),
-            'tweek' => __('週'),
-            'author_id' => __('作成者'),
-            'user_id' => __('ユーザー'),
-            'activity_id' => __('作業分類'),
-            'issue_id' => __('課題'),
-            'comments' => __('コメント'),
-            'hours' => __('時間'),
-        ];
-    }
 
     public Project $project;
 
@@ -129,23 +107,6 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public array $bulkClearCustomFields = [];
 
-    public string $newQueryName = '';
-
-    public string $newQueryVisibility = 'private';
-
-    /** @var array<int, int> */
-    public array $newQueryRoleIds = [];
-
-    public bool $showSaveForm = false;
-
-    /**
-     * Set by editQuery() while the save form is prefilled with an
-     * existing query's settings, for saveQuery() to update in place
-     * instead of creating a new one (A15-07b, mirroring the issue
-     * list's own editQuery()).
-     */
-    public ?int $editingQueryId = null;
-
     public function mount(Project $project): void
     {
         $this->authorize('viewAny', [TimeEntry::class, $project]);
@@ -181,81 +142,21 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * @return Builder<TimeEntry>
+     * @return Collection<int, Project>
      */
-    private function filteredTimeEntriesQuery(): Builder
+    protected function timeEntryListProjects(): Collection
     {
-        $query = TimeEntry::query()
-            ->visibleToAcrossProjects(auth()->user(), $this->scopeProjects)
-            ->with(['project', 'user', 'author', 'activity', 'issue.project', 'customFieldValues', ...TimeEntryColumns::relations([...$this->columns, ...($this->groupBy !== null ? [$this->groupBy] : [])])]);
-
-        $query = $this->engine->applyFilters($query, $this->builtFilters());
-
-        // The issue and custom field columns sort through TimeEntryColumns,
-        // which sees only what the viewer may see; the rest through the engine.
-        if ($this->sortKey !== null) {
-            $sortedByExtraColumn = TimeEntryColumns::handles($this->sortKey)
-                && array_key_exists($this->sortKey, $this->availableColumns)
-                && $this->extraColumns->applySort($query, $this->sortKey, $this->sortDirection);
-
-            if (! $sortedByExtraColumn) {
-                $query = $this->engine->applySort($query, [[$this->sortKey, $this->sortDirection]]);
-            }
-        } else {
-            $query->orderByDesc('spent_on');
-        }
-
-        return $query;
+        return $this->scopeProjects;
     }
 
-    /**
-     * One page of the filtered entries; the totals and the group subtotals
-     * below still cover every matching entry.
-     *
-     * @return LengthAwarePaginator<int, TimeEntry>
-     */
-    #[Computed]
-    public function timeEntries(): LengthAwarePaginator
+    protected function timeEntryIssueRelation(): string
     {
-        return $this->filteredTimeEntriesQuery()->paginate($this->pageSize());
+        return 'issue.project';
     }
 
-    /**
-     * @return Collection<string, EloquentCollection<int, TimeEntry>>
-     */
-    #[Computed]
-    public function groupedTimeEntries(): Collection
+    protected function hoursCell(TimeEntry $entry): string
     {
-        $entries = $this->timeEntries->getCollection();
-
-        if ($this->groupBy === null) {
-            return collect(['' => $entries]);
-        }
-
-        return $entries->groupBy(fn (TimeEntry $entry) => $this->columnValue($entry, $this->groupBy));
-    }
-
-    /**
-     * Entry count and hours of every group across all pages (Redmine's group
-     * totals), keyed like groupedTimeEntries. Only computed while grouping,
-     * which reads every matching entry.
-     *
-     * @return array<string, array{count: int, hours: string}>
-     */
-    #[Computed]
-    public function groupSubtotals(): array
-    {
-        if ($this->groupBy === null) {
-            return [];
-        }
-
-        return $this->filteredTimeEntriesQuery()->get()
-            ->groupBy(fn (TimeEntry $entry) => $this->columnValue($entry, $this->groupBy))
-            ->map(fn (EloquentCollection $entries) => [
-                'count' => $entries->count(),
-                'hours' => \App\Support\Format\Hours::format((float) $entries->sum('hours')),
-            ])
-            ->all();
+        return \App\Support\Format\Hours::format($entry->hours, false);
     }
 
     public function applyFilters(): void
@@ -264,134 +165,9 @@ new #[Layout('components.layouts.app')] class extends Component
         unset($this->timeEntries, $this->groupedTimeEntries, $this->groupSubtotals, $this->scopeProjects, $this->engine);
     }
 
-    public function sortBy(string $key): void
+    protected function queryScopeProject(): ?Project
     {
-        if ($this->sortKey === $key) {
-            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->sortKey = $key;
-            $this->sortDirection = 'asc';
-        }
-    }
-
-    #[Computed]
-    public function canManagePublicQueries(): bool
-    {
-        return app(AuthorizationService::class)->can(auth()->user(), 'manage_public_queries', $this->project);
-    }
-
-    #[Computed]
-    public function availableRoles(): Collection
-    {
-        return Role::query()->givable()->get();
-    }
-
-    /**
-     * Whether the viewer may save queries (Redmine's save_queries).
-     */
-    #[Computed]
-    public function canSaveQueries(): bool
-    {
-        return app(\App\Support\Authorization\AuthorizationService::class)->can(auth()->user(), 'save_queries', $this->project);
-    }
-
-    /**
-     * project_id on a create is always $this->project->id — but on an
-     * edit it stays whatever the query already had (possibly a global,
-     * project-less query, or in principle another project's, since
-     * editableBy() doesn't require it be this project's own): this
-     * screen has no query_is_for_all-style toggle to let the viewer
-     * choose otherwise, so editing a query from this project's time
-     * entry list must never silently move it into this project just
-     * because of where the edit happened to be opened from.
-     */
-    public function saveQuery(): void
-    {
-        abort_unless($this->canSaveQueries, 403);
-
-        $editing = $this->editingQueryId !== null ? SavedQuery::where('type', QueryType::TimeEntry->value)->findOrFail($this->editingQueryId) : null;
-
-        if ($editing !== null) {
-            $this->authorize('update', $editing);
-        }
-
-        $data = $this->validate([
-            'newQueryName' => ['required', 'string', 'max:255'],
-            'newQueryVisibility' => ['required', Rule::enum(QueryVisibility::class)],
-            'newQueryRoleIds' => $this->newQueryVisibility === QueryVisibility::Roles->value ? ['required', 'array', 'min:1'] : ['array'],
-            'newQueryRoleIds.*' => ['exists:roles,id'],
-        ]);
-
-        $project = $editing !== null
-            ? ($editing->project_id !== null ? Project::find($editing->project_id) : null)
-            : $this->project;
-        $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], $project);
-
-        $attributes = [
-            'name' => $data['newQueryName'],
-            'project_id' => $project?->id,
-            'visibility' => $visibility,
-            'filters' => $this->builtFilters(),
-            'column_names' => $this->columns,
-            'sort_criteria' => $this->sortKey ? [[$this->sortKey, $this->sortDirection]] : [],
-            'group_by' => $this->groupBy,
-        ];
-
-        if ($editing !== null) {
-            $editing->update($attributes);
-            $query = $editing;
-        } else {
-            $query = SavedQuery::create([...$attributes, 'type' => QueryType::TimeEntry->value, 'user_id' => auth()->id()]);
-        }
-
-        $query->roles()->sync($visibility === QueryVisibility::Roles->value ? $data['newQueryRoleIds'] : []);
-
-        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'editingQueryId', 'showSaveForm']);
-        unset($this->savedQueries);
-        session()->flash('status', $editing !== null ? __('クエリを更新しました。') : __('クエリを保存しました。'));
-    }
-
-    /**
-     * Opens the save form prefilled with an existing saved query's
-     * settings, for saveQuery() to update in place — Redmine's
-     * QueriesController#edit, mirrored from the issue list's own
-     * editQuery() (A15-07b).
-     */
-    public function editQuery(int $queryId): void
-    {
-        abort_unless($this->canSaveQueries, 403);
-
-        $query = SavedQuery::where('type', QueryType::TimeEntry->value)->findOrFail($queryId);
-        $this->authorize('update', $query);
-
-        $this->loadQuery($queryId);
-        $this->editingQueryId = $query->id;
-        $this->newQueryName = $query->name;
-        $this->newQueryVisibility = $query->visibility->value;
-        $this->newQueryRoleIds = $query->roles->pluck('id')->all();
-        $this->showSaveForm = true;
-    }
-
-    public function cancelEditQuery(): void
-    {
-        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'editingQueryId', 'showSaveForm']);
-    }
-
-    public function deleteQuery(int $queryId): void
-    {
-        abort_unless($this->canSaveQueries, 403);
-
-        $query = SavedQuery::where('type', QueryType::TimeEntry->value)->findOrFail($queryId);
-        $this->authorize('delete', $query);
-
-        $query->delete();
-
-        if ($this->editingQueryId === $queryId) {
-            $this->cancelEditQuery();
-        }
-
-        unset($this->savedQueries);
-        session()->flash('status', __('クエリを削除しました。'));
+        return $this->project;
     }
 
     public function loadQuery(int $queryId): void
@@ -403,14 +179,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         abort_unless($query->visibleTo(auth()->user()), 403);
 
-        $this->activeFilterKeys = array_keys($query->filters);
-        $this->filterOperators = [];
-        $this->filterValues = [];
-
-        foreach ($query->filters as $key => $filter) {
-            $this->filterOperators[$key] = $filter['operator'];
-            $this->filterValues[$key] = $filter['values'] ?? [];
-        }
+        $this->applySavedQueryFilters($query);
 
         $this->columns = $query->column_names !== [] ? $query->column_names : ListDefaults::DEFAULT_TIME_ENTRY_COLUMNS;
         $this->groupBy = $query->group_by;
@@ -423,77 +192,6 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         unset($this->timeEntries, $this->groupedTimeEntries);
-    }
-
-    #[Computed]
-    public function savedQueries(): Collection
-    {
-        return SavedQuery::visibleIn($this->project, QueryType::TimeEntry, auth()->user());
-    }
-
-    /**
-     * The selectable columns: the fixed ones plus the issue's attributes and
-     * the custom field columns the viewer may see in a project the list
-     * covers (TimeEntryColumns).
-     *
-     * @return array<string, string>
-     */
-    #[Computed]
-    public function availableColumns(): array
-    {
-        return [...$this->displayColumnLabels(), ...$this->extraColumns->labels()];
-    }
-
-    #[Computed]
-    public function extraColumns(): TimeEntryColumns
-    {
-        return new TimeEntryColumns(auth()->user(), $this->scopeProjects);
-    }
-
-    /** @var array<int, bool> issue id => whether the viewer may see it */
-    private array $issueVisibility = [];
-
-    /**
-     * Whether the viewer may see the entry's issue: an entry logged on an
-     * issue the viewer cannot see shows only its number, as in Redmine
-     * (format_object links an issue only when it is visible).
-     */
-    public function issueIsVisible(TimeEntry $entry): bool
-    {
-        if ($entry->issue === null) {
-            return false;
-        }
-
-        return $this->issueVisibility[$entry->issue->id] ??= \Illuminate\Support\Facades\Gate::allows('view', $entry->issue);
-    }
-
-    public function columnValue(TimeEntry $entry, string $key): string
-    {
-        if (TimeEntryColumns::handles($key)) {
-            // Only a column the viewer is offered: a URL or saved query
-            // naming a role-restricted field shows nothing.
-            return array_key_exists($key, $this->availableColumns) ? $this->extraColumns->value($entry, $key) : '';
-        }
-
-        return match ($key) {
-            'project_id' => $entry->project->name,
-            'user_id' => $entry->user->displayName(),
-            'activity_id' => $entry->activity->name,
-            'spent_on' => \App\Support\Format\DateTimes::date($entry->spent_on),
-            'created_at' => \App\Support\Format\DateTimes::dateTime($entry->created_at) ?? '',
-            'tweek' => (string) $entry->spent_on->isoWeek(),
-            'author_id' => $entry->author?->displayName() ?? '',
-            'hours' => \App\Support\Format\Hours::format($entry->hours, false),
-            'issue_id' => $entry->issue ? ($this->issueIsVisible($entry) ? "#{$entry->issue->id} {$entry->issue->subject}" : "#{$entry->issue->id}") : '',
-            'comments' => (string) $entry->comments,
-            default => '',
-        };
-    }
-
-    #[Computed]
-    public function totalHours(): string
-    {
-        return \App\Support\Format\Hours::format((float) $this->filteredTimeEntriesQuery()->reorder()->sum('time_entries.hours'));
     }
 
     #[Computed]

@@ -174,14 +174,7 @@ new #[Layout('components.layouts.app')] class extends Component
         abort_if($query === null, 404);
         abort_unless($query->visibleTo(auth()->user()), 403);
 
-        $this->activeFilterKeys = array_keys($query->filters ?? []);
-        $this->filterOperators = [];
-        $this->filterValues = [];
-
-        foreach ($query->filters ?? [] as $key => $filter) {
-            $this->filterOperators[$key] = $filter['operator'];
-            $this->filterValues[$key] = $filter['values'] ?? [];
-        }
+        $this->applySavedQueryFilters($query);
 
         $this->columns = $query->column_names ?? [];
         $this->sortKey = null;

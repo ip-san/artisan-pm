@@ -5,15 +5,7 @@ declare(strict_types=1);
 namespace App\Concerns;
 
 use App\Enums\QueryType;
-use App\Enums\QueryVisibility;
-use App\Models\Project;
-use App\Models\Query as SavedQuery;
-use App\Models\Role;
 use App\Models\Setting;
-use App\Support\Authorization\AuthorizationService;
-use Illuminate\Support\Collection;
-use Illuminate\Validation\Rule;
-use Livewire\Attributes\Computed;
 
 /**
  * Redmine draws both the Gantt chart and the calendar from an IssueQuery:
@@ -27,65 +19,42 @@ use Livewire\Attributes\Computed;
  */
 trait UsesSavedIssueQueriesForFiltering
 {
-    public string $newQueryName = '';
+    use ManagesSavedQueries;
 
-    public string $newQueryVisibility = 'private';
-
-    /** @var array<int, int|string> */
-    public array $newQueryRoleIds = [];
-
-    public bool $showSaveForm = false;
-
-    /**
-     * Set by editQuery() while the save form is prefilled with an
-     * existing query's settings, for saveQuery() to update in place
-     * instead of creating a new one — Redmine's QueriesController#edit
-     * (A15-07b, the issue list's own edit/delete UI wired in here too).
-     */
-    public ?int $editingQueryId = null;
-
-    abstract protected function queryScopeProject(): ?Project;
-
-    /**
-     * @return Collection<int, SavedQuery>
-     */
-    #[Computed]
-    public function savedQueries(): Collection
+    protected function savedQueryType(): QueryType
     {
-        $project = $this->queryScopeProject();
-
-        return $project === null
-            ? SavedQuery::visibleGlobally(QueryType::Issue, auth()->user())
-            : SavedQuery::visibleIn($project, QueryType::Issue, auth()->user());
-    }
-
-    #[Computed]
-    public function canSaveQueries(): bool
-    {
-        $project = $this->queryScopeProject();
-
-        return $project === null
-            ? app(AuthorizationService::class)->canGlobally(auth()->user(), 'save_queries')
-            : app(AuthorizationService::class)->can(auth()->user(), 'save_queries', $project);
-    }
-
-    #[Computed]
-    public function canManagePublicQueries(): bool
-    {
-        $project = $this->queryScopeProject();
-
-        return $project === null
-            ? auth()->user()?->is_admin === true
-            : app(AuthorizationService::class)->can(auth()->user(), 'manage_public_queries', $project);
+        return QueryType::Issue;
     }
 
     /**
-     * @return Collection<int, Role>
+     * Nothing besides the filters: an edit leaves column_names/
+     * sort_criteria/group_by exactly as they already are on the query,
+     * since neither the Gantt nor the Calendar ever reads or offers to
+     * change them — always overwriting them with the create-time defaults
+     * would silently blow away whatever the issue list had set on a query
+     * simply because it was renamed from here. (The project scope is kept
+     * on an edit too, see savedQueryTargetProject().)
+     *
+     * @return array<string, mixed>
      */
-    #[Computed]
-    public function availableRoles(): Collection
+    protected function savedQueryAttributes(): array
     {
-        return Role::query()->givable()->get();
+        return [];
+    }
+
+    /**
+     * A new query gets the site's default list columns, as Redmine's Gantt
+     * "Save" does.
+     *
+     * @return array<string, mixed>
+     */
+    protected function savedQueryCreateAttributes(): array
+    {
+        return [
+            'column_names' => Setting::get('issue_list_default_columns', ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']),
+            'sort_criteria' => [],
+            'group_by' => null,
+        ];
     }
 
     /**
@@ -98,130 +67,7 @@ trait UsesSavedIssueQueriesForFiltering
 
         abort_if($query === null, 404);
 
-        $this->activeFilterKeys = array_keys($query->filters ?? []);
-        $this->filterOperators = [];
-        $this->filterValues = [];
-
-        foreach ($query->filters ?? [] as $key => $filter) {
-            $this->filterOperators[$key] = $filter['operator'];
-            $this->filterValues[$key] = $filter['values'] ?? [];
-        }
-
+        $this->applySavedQueryFilters($query);
         $this->applyFilters();
-    }
-
-    /**
-     * Saves the chart's filters as an issue query (with the site's default
-     * list columns), as Redmine's Gantt "Save" does — or, with
-     * editingQueryId set (editQuery()), updates that query in place
-     * instead of creating a new one.
-     *
-     * Two things editing deliberately does *not* touch, both because this
-     * trait has no query_is_for_all-style toggle (unlike the issue list's
-     * own saveQuery()) to let the viewer choose otherwise:
-     *
-     * - project scope: kept at the query's *existing* project_id rather
-     *   than recomputed from queryScopeProject(), so editing a global
-     *   query from inside one project's Gantt/Calendar (or vice versa)
-     *   never silently moves it between scopes just because of where the
-     *   edit happened to be opened from;
-     * - column_names/sort_criteria/group_by: left exactly as they already
-     *   are on the query being edited, since neither the Gantt nor the
-     *   Calendar ever reads or offers to change them (only filters do) —
-     *   always overwriting them with the create-time defaults would
-     *   silently blow away whatever the issue list had set on a query
-     *   simply because it was renamed from here.
-     */
-    public function saveQuery(): void
-    {
-        abort_unless($this->canSaveQueries, 403);
-
-        $editing = $this->editingQueryId !== null ? SavedQuery::where('type', QueryType::Issue->value)->findOrFail($this->editingQueryId) : null;
-
-        if ($editing !== null) {
-            $this->authorize('update', $editing);
-        }
-
-        $data = $this->validate([
-            'newQueryName' => ['required', 'string', 'max:255'],
-            'newQueryVisibility' => ['required', Rule::enum(QueryVisibility::class)],
-            'newQueryRoleIds' => $this->newQueryVisibility === QueryVisibility::Roles->value ? ['required', 'array', 'min:1'] : ['array'],
-            'newQueryRoleIds.*' => ['exists:roles,id'],
-        ]);
-
-        $project = $editing !== null
-            ? ($editing->project_id !== null ? Project::find($editing->project_id) : null)
-            : $this->queryScopeProject();
-        $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], $project);
-
-        $attributes = [
-            'name' => $data['newQueryName'],
-            'project_id' => $project?->id,
-            'visibility' => $visibility,
-            'filters' => $this->builtFilters(),
-        ];
-
-        if ($editing !== null) {
-            $editing->update($attributes);
-            $query = $editing;
-        } else {
-            $query = SavedQuery::create([
-                ...$attributes,
-                'type' => QueryType::Issue->value,
-                'user_id' => auth()->id(),
-                'column_names' => Setting::get('issue_list_default_columns', ['tracker_id', 'status_id', 'priority_id', 'subject', 'assigned_to_id']),
-                'sort_criteria' => [],
-                'group_by' => null,
-            ]);
-        }
-
-        $query->roles()->sync($visibility === QueryVisibility::Roles->value ? $data['newQueryRoleIds'] : []);
-
-        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'editingQueryId', 'showSaveForm']);
-        unset($this->savedQueries);
-        session()->flash('status', $editing !== null ? __('クエリを更新しました。') : __('クエリを保存しました。'));
-    }
-
-    /**
-     * Opens the save form prefilled with an existing saved query's
-     * settings, for saveQuery() to update in place — Redmine's
-     * QueriesController#edit, mirrored from the issue list's own
-     * editQuery().
-     */
-    public function editQuery(int $queryId): void
-    {
-        abort_unless($this->canSaveQueries, 403);
-
-        $query = SavedQuery::where('type', QueryType::Issue->value)->findOrFail($queryId);
-        $this->authorize('update', $query);
-
-        $this->loadQuery($queryId);
-        $this->editingQueryId = $query->id;
-        $this->newQueryName = $query->name;
-        $this->newQueryVisibility = $query->visibility->value;
-        $this->newQueryRoleIds = $query->roles->pluck('id')->all();
-        $this->showSaveForm = true;
-    }
-
-    public function cancelEditQuery(): void
-    {
-        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'editingQueryId', 'showSaveForm']);
-    }
-
-    public function deleteQuery(int $queryId): void
-    {
-        abort_unless($this->canSaveQueries, 403);
-
-        $query = SavedQuery::where('type', QueryType::Issue->value)->findOrFail($queryId);
-        $this->authorize('delete', $query);
-
-        $query->delete();
-
-        if ($this->editingQueryId === $queryId) {
-            $this->cancelEditQuery();
-        }
-
-        unset($this->savedQueries);
-        session()->flash('status', __('クエリを削除しました。'));
     }
 }
