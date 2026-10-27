@@ -336,6 +336,19 @@ test('an admin can configure the issue list default columns', function () {
     expect(Setting::get('issue_list_default_columns'))->toBe(['status_id', 'subject', 'due_date']);
 });
 
+test('the parent task subject can be an issue list default column', function () {
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('settings.index')
+        ->assertSee('親課題の題名')
+        ->set('issue_list_default_columns', ['subject', 'parent_subject'])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Setting::get('issue_list_default_columns'))->toBe(['subject', 'parent_subject']);
+});
+
 test('issue_list_default_columns rejects an unknown column key', function () {
     $admin = User::factory()->admin()->create();
 
