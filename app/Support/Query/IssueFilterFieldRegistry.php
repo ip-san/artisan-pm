@@ -54,10 +54,6 @@ final class IssueFilterFieldRegistry
             fn () => $project->versions,
             collect([$project->id]),
             $viewer,
-            [
-                new NativeColumnFilter('updated_at', __('更新日'), 'updated_at', FilterFieldType::Date, self::dateOperators(), storesTime: true),
-                new NativeColumnFilter('closed_on', __('終了日'), 'closed_on', FilterFieldType::Date, self::dateOperators(), storesTime: true),
-            ],
         );
 
         $resolveScopeProjects = function () use (&$scopeProjects, $project, $viewer): Collection {
@@ -143,10 +139,9 @@ final class IssueFilterFieldRegistry
      * @param  Closure(): Collection<int, User>  $users
      * @param  Closure(): Collection<int, Version>  $versions
      * @param  Collection<int, int>  $projectIds  the projects whose assignable groups the assignee filter offers
-     * @param  array<int, FilterableField>  $laterDateFields  date filters offered after the creation date
      * @return array<int, FilterableField>
      */
-    private static function nativeFields(?FilterableField $projectFilter, Closure $trackers, Closure $categories, Closure $users, Closure $versions, Collection $projectIds, ?User $viewer, array $laterDateFields = []): array
+    private static function nativeFields(?FilterableField $projectFilter, Closure $trackers, Closure $categories, Closure $users, Closure $versions, Collection $projectIds, ?User $viewer): array
     {
         $selectOperators = self::selectOperators();
         $dateOperators = self::dateOperators();
@@ -164,7 +159,8 @@ final class IssueFilterFieldRegistry
             new NativeColumnFilter('start_date', __('開始日'), 'start_date', FilterFieldType::Date, $dateOperators),
             new NativeColumnFilter('due_date', __('期日'), 'due_date', FilterFieldType::Date, $dateOperators),
             new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
-            ...$laterDateFields,
+            new NativeColumnFilter('updated_at', __('更新日'), 'updated_at', FilterFieldType::Date, $dateOperators, storesTime: true),
+            new NativeColumnFilter('closed_on', __('終了日'), 'closed_on', FilterFieldType::Date, $dateOperators, storesTime: true),
             new NativeColumnFilter('done_ratio', __('進捗率'), 'done_ratio', FilterFieldType::Integer, self::integerOperators()),
         ]));
     }
