@@ -149,6 +149,8 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function exportCsv(): StreamedResponse
     {
+        $this->authorize('viewAnyGlobally', TimeEntry::class);
+
         $columns = $this->columns;
         $entries = $this->filteredTimeEntriesQuery()->get();
 
@@ -159,6 +161,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 $csv->row(array_map(fn (string $key) => $this->columnValue($entry, $key), $columns));
             }
         }, $this->csvEncoding, $this->csvSeparator);
+    }
+
+    public function mount(): void
+    {
+        $this->authorize('viewAnyGlobally', TimeEntry::class);
     }
 
     protected function queryScopeProject(): ?Project

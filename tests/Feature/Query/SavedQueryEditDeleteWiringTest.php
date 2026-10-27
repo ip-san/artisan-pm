@@ -125,7 +125,7 @@ test('an issue query cannot be loaded, edited or deleted through the time entry 
 
 test('the global time entry list can edit and delete a saved query in place, owner only', function () {
     $owner = User::factory()->admin()->create();
-    $outsider = User::factory()->create();
+    $outsider = wiringMember(Project::factory()->create(), ['view_time_entries', 'save_queries']);
     $query = SavedQuery::create([
         'name' => 'Global mine', 'type' => 'time_entry', 'user_id' => $owner->id,
         'project_id' => null, 'visibility' => 'private',

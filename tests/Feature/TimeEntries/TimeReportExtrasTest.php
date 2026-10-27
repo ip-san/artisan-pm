@@ -131,7 +131,14 @@ test('the cross-project report respects own-only visibility per project', functi
 });
 
 test('the cross-project report opens over HTTP', function () {
-    $user = User::factory()->create();
+    $user = reportExtrasMember(Project::factory()->create());
 
     $this->actingAs($user)->get(route('time-entries.global-report'))->assertOk();
+});
+
+test('the cross-project report needs view_time_entries on some project', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get(route('time-entries.global-report'))->assertForbidden();
+    Livewire::actingAs($user)->test('time-entries.report')->assertForbidden();
 });
