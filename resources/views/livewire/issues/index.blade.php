@@ -125,25 +125,6 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public const array COMPUTED_HOUR_COLUMNS = ['total_estimated_hours', 'estimated_remaining_hours', 'spent_hours', 'total_spent_hours', 'parent_id', 'parent_subject', 'last_updated_by', 'is_private', 'description', 'last_notes'];
 
-    /**
-     * The relation labels of the relations column. Not yet
-     * IssueRelationType::label(): its reverse labels for precedes/follows
-     * differ from this list's (後続/先行 there, 先行/後続 here).
-     *
-     * @return array<string, array{from: string, to: string}>
-     */
-    private static function relationLabels(): array
-    {
-        return [
-            'relates' => ['from' => __('関連'), 'to' => __('関連')],
-            'blocks' => ['from' => __('ブロックする'), 'to' => __('ブロックされている')],
-            'duplicates' => ['from' => __('重複する'), 'to' => __('重複されている')],
-            'precedes' => ['from' => __('先行'), 'to' => __('先行')],
-            'follows' => ['from' => __('後続'), 'to' => __('後続')],
-            'copied_to' => ['from' => __('コピー先'), 'to' => __('コピー元')],
-        ];
-    }
-
     /** The project whose issues are listed; null on the cross-project list. */
     public ?Project $project = null;
 
@@ -1204,9 +1185,9 @@ new #[Layout('components.layouts.app')] class extends Component
             // than unified, so a diff against a real Redmine export
             // looks the same.
             'relations' => $issue->relationsFrom
-                ->map(fn (IssueRelation $relation) => self::relationLabels()[$relation->relation_type->value]['from']." #{$relation->issue_to_id}")
+                ->map(fn (IssueRelation $relation) => $relation->relation_type->label()." #{$relation->issue_to_id}")
                 ->concat($issue->relationsTo->map(
-                    fn (IssueRelation $relation) => self::relationLabels()[$relation->relation_type->value]['to']." #{$relation->issue_from_id}"
+                    fn (IssueRelation $relation) => $relation->relation_type->label(fromSide: false)." #{$relation->issue_from_id}"
                 ))
                 ->join(', '),
             'attachments' => $issue->attachments()->map(fn ($media) => $media->file_name)->join("\n"),
