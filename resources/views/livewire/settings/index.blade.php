@@ -35,7 +35,6 @@ use App\Support\Issues\RelatedIssueColumns;
 use App\Models\Tracker;
 use App\Models\IssueStatus;
 use App\Support\Mail\NotificationRecipients;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -50,14 +49,13 @@ new #[Layout('components.layouts.app')] class extends Component
      * issue list's own columns (IssueColumns) and every issue custom field
      * as `cf_<id>` — Redmine's issue_list_default_columns allows both. A
      * custom field that does not apply to a project, or that the viewer may
-     * not see, is left out of that list when it is shown. The parent's
-     * subject is not offered here, as it never has been.
+     * not see, is left out of that list when it is shown.
      *
      * @return array<string, string>
      */
     public static function issueListColumns(): array
     {
-        $native = Arr::except(IssueColumns::native(), ['parent_subject']);
+        $native = IssueColumns::native();
 
         $customFields = CustomField::query()
             ->where('customized_type', \App\Enums\CustomizableType::Issue)

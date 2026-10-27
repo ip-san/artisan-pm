@@ -21,6 +21,16 @@ final class TimeEntryPolicy
         return $this->authorization->can($user, 'view_time_entries', $project);
     }
 
+    /**
+     * The cross-project time entry list and report (/time_entries): Redmine's
+     * find_optional_project runs authorize_global, so they need
+     * view_time_entries on at least one project.
+     */
+    public function viewAnyGlobally(?User $user): bool
+    {
+        return $this->authorization->canGlobally($user, 'view_time_entries');
+    }
+
     public function view(?User $user, TimeEntry $timeEntry): bool
     {
         if (! $this->authorization->can($user, 'view_time_entries', $timeEntry->project)) {

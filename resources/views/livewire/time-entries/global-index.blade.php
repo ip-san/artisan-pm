@@ -149,6 +149,8 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function exportCsv(): StreamedResponse
     {
+        $this->authorize('viewAnyGlobally', TimeEntry::class);
+
         $columns = $this->columns;
         $entries = $this->filteredTimeEntriesQuery()->get();
 
@@ -161,16 +163,12 @@ new #[Layout('components.layouts.app')] class extends Component
         }, $this->csvEncoding, $this->csvSeparator);
     }
 
-    protected function queryScopeProject(): ?Project
+    public function mount(): void
     {
-        return null;
+        $this->authorize('viewAnyGlobally', TimeEntry::class);
     }
 
-    /**
-     * Always global, an edited query included: this list saves only
-     * project-less queries.
-     */
-    protected function savedQueryTargetProject(?SavedQuery $editing): ?Project
+    protected function queryScopeProject(): ?Project
     {
         return null;
     }

@@ -30,6 +30,19 @@ function globalListTimeEntryMember(Project $project, string $visibility = 'all')
     return $user;
 }
 
+test('the global time entry list and its CSV need view_time_entries on some project', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get(route('time-entries.global-index'))->assertForbidden();
+
+    $member = globalListTimeEntryMember(Project::factory()->create());
+    $component = Livewire::actingAs($member)->test('time-entries.global-index')->assertOk();
+
+    Member::query()->where('user_id', $member->id)->delete();
+
+    $component->call('exportCsv')->assertForbidden();
+});
+
 test('the global time entry list only shows entries from projects the user can view_time_entries in', function () {
     $visibleProject = Project::factory()->create();
     $hiddenProject = Project::factory()->create();

@@ -111,6 +111,29 @@ test('the relations column lists each relation with its label and the related is
         );
 });
 
+test('the relations column labels the reverse side of a precedes relation as follows', function () {
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $user = csvExportMember($project);
+    Member::factory()->for($otherProject)->for($user)->create()->roles()->attach(Role::factory()->create(['permissions' => ['view_issues']]));
+    $issue = Issue::factory()->for($project)->create(['subject' => 'Main issue']);
+    $following = Issue::factory()->for($otherProject)->create();
+    $preceding = Issue::factory()->for($otherProject)->create();
+    IssueRelation::create(['issue_from_id' => $issue->id, 'issue_to_id' => $following->id, 'relation_type' => 'precedes']);
+    IssueRelation::create(['issue_from_id' => $preceding->id, 'issue_to_id' => $issue->id, 'relation_type' => 'precedes']);
+
+    Livewire::actingAs($user)
+        ->test('issues.index', ['project' => $project])
+        ->set('statusFilter', 'all')
+        ->set('columns', ['subject', 'relations'])
+        ->call('exportCsv')
+        ->assertFileDownloaded(
+            "{$project->identifier}-issues.csv",
+            "\xEF\xBB\xBF".csvRow(['題名', '関連するチケット'])
+                .csvRow(['Main issue', "先行 #{$following->id}, 後続 #{$preceding->id}"])
+        );
+});
+
 test('the relations column leaves out relations to issues the user cannot see', function () {
     $project = Project::factory()->create();
     $otherProject = Project::factory()->create(['is_public' => false]);

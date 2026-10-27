@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\Query\IssueFilterFieldRegistry;
 use Livewire\Livewire;
 
 function crossProjectQueryMember(Project $project, array $permissions = ['view_issues', 'save_queries']): User
@@ -164,4 +165,14 @@ test('a project-scoped query is not visible from the global issue list', functio
 
     $globalComponent = Livewire::actingAs($user)->test('issues.index');
     expect($globalComponent->get('savedQueries')->pluck('name'))->not->toContain('Project-scoped query');
+});
+
+test('the global issue list offers the updated and closed date filters like a project list does', function () {
+    $project = Project::factory()->create();
+    $viewer = crossProjectQueryMember($project);
+
+    expect(IssueFilterFieldRegistry::forProjects(collect([$project]), $viewer)->keys())
+        ->toContain('updated_at', 'closed_on')
+        ->and(IssueFilterFieldRegistry::forProject($project, $viewer)->keys())
+        ->toContain('updated_at', 'closed_on');
 });

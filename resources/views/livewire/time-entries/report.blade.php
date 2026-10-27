@@ -44,6 +44,8 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         if ($project !== null) {
             $this->authorize('viewAny', [TimeEntry::class, $project]);
+        } else {
+            $this->authorize('viewAnyGlobally', TimeEntry::class);
         }
 
         $this->project = $project;
@@ -146,7 +148,11 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     public function exportCsv(): StreamedResponse
     {
-        abort_if($this->project !== null && auth()->user()?->cannot('viewAny', [TimeEntry::class, $this->project]), 403);
+        if ($this->project !== null) {
+            $this->authorize('viewAny', [TimeEntry::class, $this->project]);
+        } else {
+            $this->authorize('viewAnyGlobally', TimeEntry::class);
+        }
 
         $report = $this->report;
         $criteria = $this->selectedCriteria;

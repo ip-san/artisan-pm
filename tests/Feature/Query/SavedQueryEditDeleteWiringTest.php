@@ -125,7 +125,7 @@ test('an issue query cannot be loaded, edited or deleted through the time entry 
 
 test('the global time entry list can edit and delete a saved query in place, owner only', function () {
     $owner = User::factory()->admin()->create();
-    $outsider = User::factory()->create();
+    $outsider = wiringMember(Project::factory()->create(), ['view_time_entries', 'save_queries']);
     $query = SavedQuery::create([
         'name' => 'Global mine', 'type' => 'time_entry', 'user_id' => $owner->id,
         'project_id' => null, 'visibility' => 'private',
@@ -146,6 +146,52 @@ test('the global time entry list can edit and delete a saved query in place, own
         ->test('time-entries.global-index')
         ->call('deleteQuery', $query->id)
         ->assertForbidden();
+
+    expect(SavedQuery::count())->toBe(1);
+});
+
+// editQuery() on this list loads only project-less queries, so a project
+// query reaches saveQuery() only through a hand-set editingQueryId; the
+// shared default must still keep it under its project.
+test('saving an edit from the global time entry list keeps a project query under its project', function () {
+    $project = Project::factory()->create();
+    $owner = User::factory()->admin()->create();
+    $projectQuery = SavedQuery::create([
+        'name' => 'Project time entry query', 'type' => 'time_entry', 'user_id' => $owner->id,
+        'project_id' => $project->id, 'visibility' => 'private',
+        'filters' => [], 'column_names' => ['hours'], 'sort_criteria' => [], 'group_by' => null,
+    ]);
+
+    Livewire::actingAs($owner)
+        ->test('time-entries.global-index')
+        ->set('editingQueryId', $projectQuery->id)
+        ->set('newQueryName', 'Renamed project query')
+        ->call('saveQuery')
+        ->assertHasNoErrors();
+
+    expect($projectQuery->fresh())
+        ->project_id->toBe($project->id)
+        ->name->toBe('Renamed project query');
+});
+
+test('a time entry query cannot be edited or deleted through the issue list', function () {
+    $project = Project::factory()->create();
+    $owner = wiringMember($project, ['view_time_entries', 'view_issues', 'save_queries']);
+    $timeEntryQuery = SavedQuery::create([
+        'name' => 'Time entry query', 'type' => 'time_entry', 'user_id' => $owner->id,
+        'project_id' => $project->id, 'visibility' => 'private',
+        'filters' => [], 'column_names' => ['hours'], 'sort_criteria' => [], 'group_by' => null,
+    ]);
+
+    Livewire::actingAs($owner)
+        ->test('issues.index', ['project' => $project])
+        ->call('editQuery', $timeEntryQuery->id)
+        ->assertNotFound();
+
+    Livewire::actingAs($owner)
+        ->test('issues.index', ['project' => $project])
+        ->call('deleteQuery', $timeEntryQuery->id)
+        ->assertNotFound();
 
     expect(SavedQuery::count())->toBe(1);
 });
