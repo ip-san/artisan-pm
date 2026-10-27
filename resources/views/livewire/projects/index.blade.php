@@ -1,28 +1,27 @@
 <?php
 
 use App\Concerns\InteractsWithQueryFilters;
+use App\Concerns\ManagesSavedQueries;
 use App\Concerns\ReordersColumns;
 use App\Concerns\SelectsPageSize;
 use App\Enums\QueryType;
-use App\Enums\QueryVisibility;
 use App\Models\CustomField;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
-use App\Models\Role;
 use App\Models\Setting;
 use App\Support\Activity\ProjectLastActivity;
 use App\Support\Authorization\AuthorizationService;
-use App\Support\Export\CsvCell;
+use App\Support\Export\CsvWriter;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use App\Support\Query\DefaultProjectQuery;
 use App\Support\Query\ProjectFilterFieldRegistry;
 use App\Support\Query\QueryFilterEngine;
+use App\Support\Query\TextMatch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -43,6 +42,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
+    use ManagesSavedQueries;
     use ReordersColumns;
     use SelectsPageSize;
     use WithPagination;
@@ -71,23 +71,6 @@ new #[Layout('components.layouts.app')] class extends Component
      */
     #[Url(as: 'display_type')]
     public ?string $displayType = null;
-
-    public string $newQueryName = '';
-
-    public string $newQueryVisibility = 'private';
-
-    /** @var array<int, int> */
-    public array $newQueryRoleIds = [];
-
-    public bool $showSaveForm = false;
-
-    /**
-     * Set by editQuery() while the save form is prefilled with an
-     * existing query's settings, for saveQuery() to update in place
-     * instead of creating a new one (A15-07b, mirroring the issue
-     * list's own editQuery()).
-     */
-    public ?int $editingQueryId = null;
 
     public function mount(): void
     {
@@ -250,8 +233,8 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         if ($this->search !== '') {
-            $like = '%'.addcslashes($this->search, '%_\\').'%';
-            $operator = $query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $like = '%'.TextMatch::escape($this->search).'%';
+            $operator = TextMatch::likeOperator($query);
             $query->where(fn ($q) => $q->where('name', $operator, $like)->orWhere('identifier', $operator, $like));
         }
 
@@ -295,17 +278,13 @@ new #[Layout('components.layouts.app')] class extends Component
             ? app(ProjectLastActivity::class)->forProjects($projects, auth()->user())
             : collect();
 
-        return response()->streamDownload(function () use ($columns, $projects, $lastActivityDates): void {
-            $handle = fopen('php://output', 'w');
-            fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, CsvCell::row(array_map(fn (string $key) => $this->availableColumns[$key], $columns)));
+        return CsvWriter::download('projects.csv', function (CsvWriter $csv) use ($columns, $projects, $lastActivityDates): void {
+            $csv->row(array_map(fn (string $key) => $this->availableColumns[$key], $columns));
 
             foreach ($projects as $project) {
-                fputcsv($handle, CsvCell::row(array_map(fn (string $key) => $this->columnValue($project, $key, $lastActivityDates), $columns)));
+                $csv->row(array_map(fn (string $key) => $this->columnValue($project, $key, $lastActivityDates), $columns));
             }
-
-            fclose($handle);
-        }, 'projects.csv');
+        });
     }
 
     /**
@@ -424,128 +403,39 @@ new #[Layout('components.layouts.app')] class extends Component
         }
     }
 
-    /**
-     * @return Collection<int, SavedQuery>
-     */
-    #[Computed]
-    public function savedQueries(): Collection
+    protected function savedQueryType(): QueryType
     {
-        return SavedQuery::visibleGlobally(QueryType::Project, auth()->user());
-    }
-
-    /**
-     * Whether the viewer may save queries (Redmine's save_queries).
-     */
-    #[Computed]
-    public function canSaveQueries(): bool
-    {
-        return app(AuthorizationService::class)->canGlobally(auth()->user(), 'save_queries');
+        return QueryType::Project;
     }
 
     /**
      * Project queries are global, so only administrators may share one
      * (Query::resolveVisibility() with no project).
      */
-    #[Computed]
-    public function canManagePublicQueries(): bool
+    protected function queryScopeProject(): ?Project
     {
-        return (bool) auth()->user()?->is_admin;
+        return null;
     }
 
     /**
-     * @return Collection<int, Role>
+     * @return array<string, mixed>
      */
-    #[Computed]
-    public function availableRoles(): Collection
+    protected function savedQueryAttributes(): array
     {
-        return Role::query()->givable()->get();
-    }
-
-    public function saveQuery(): void
-    {
-        abort_unless($this->canSaveQueries, 403);
-
-        $editing = $this->editingQueryId !== null ? SavedQuery::where('type', QueryType::Project->value)->findOrFail($this->editingQueryId) : null;
-
-        if ($editing !== null) {
-            $this->authorize('update', $editing);
-        }
-
-        $data = $this->validate([
-            'newQueryName' => ['required', 'string', 'max:255'],
-            'newQueryVisibility' => ['required', Rule::enum(QueryVisibility::class)],
-            'newQueryRoleIds' => $this->newQueryVisibility === QueryVisibility::Roles->value ? ['required', 'array', 'min:1'] : ['array'],
-            'newQueryRoleIds.*' => ['exists:roles,id'],
-        ]);
-
-        $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], null);
-
-        $attributes = [
-            'name' => $data['newQueryName'],
-            'project_id' => null,
-            'visibility' => $visibility,
-            'filters' => $this->builtFilters(),
+        return [
             'column_names' => $this->visibleColumns,
             'sort_criteria' => $this->sortKey !== null ? [[$this->sortKey, $this->sortDirection]] : [],
             'group_by' => null,
             'options' => ['display_type' => $this->effectiveDisplayType],
         ];
-
-        if ($editing !== null) {
-            $editing->update($attributes);
-            $query = $editing;
-        } else {
-            $query = SavedQuery::create([...$attributes, 'type' => QueryType::Project->value, 'user_id' => auth()->id()]);
-        }
-
-        $query->roles()->sync($visibility === QueryVisibility::Roles->value ? $data['newQueryRoleIds'] : []);
-
-        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'editingQueryId', 'showSaveForm']);
-        unset($this->savedQueries);
-        session()->flash('status', $editing !== null ? __('クエリを更新しました。') : __('クエリを保存しました。'));
     }
 
     /**
-     * Opens the save form prefilled with an existing saved query's
-     * settings, for saveQuery() to update in place — Redmine's
-     * QueriesController#edit, mirrored from the issue list's own
-     * editQuery() (A15-07b).
+     * Always global, an edited query included.
      */
-    public function editQuery(int $queryId): void
+    protected function savedQueryTargetProject(?SavedQuery $editing): ?Project
     {
-        abort_unless($this->canSaveQueries, 403);
-
-        $query = SavedQuery::where('type', QueryType::Project->value)->findOrFail($queryId);
-        $this->authorize('update', $query);
-
-        $this->loadQuery($queryId);
-        $this->editingQueryId = $query->id;
-        $this->newQueryName = $query->name;
-        $this->newQueryVisibility = $query->visibility->value;
-        $this->newQueryRoleIds = $query->roles->pluck('id')->all();
-        $this->showSaveForm = true;
-    }
-
-    public function cancelEditQuery(): void
-    {
-        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'editingQueryId', 'showSaveForm']);
-    }
-
-    public function deleteQuery(int $queryId): void
-    {
-        abort_unless($this->canSaveQueries, 403);
-
-        $query = SavedQuery::where('type', QueryType::Project->value)->findOrFail($queryId);
-        $this->authorize('delete', $query);
-
-        $query->delete();
-
-        if ($this->editingQueryId === $queryId) {
-            $this->cancelEditQuery();
-        }
-
-        unset($this->savedQueries);
-        session()->flash('status', __('クエリを削除しました。'));
+        return null;
     }
 
     public function loadQuery(int $queryId): void
@@ -558,14 +448,7 @@ new #[Layout('components.layouts.app')] class extends Component
         abort_if($query === null, 404);
         abort_unless($query->visibleTo(auth()->user()), 403);
 
-        $this->activeFilterKeys = array_keys($query->filters ?? []);
-        $this->filterOperators = [];
-        $this->filterValues = [];
-
-        foreach ($query->filters ?? [] as $key => $filter) {
-            $this->filterOperators[$key] = $filter['operator'];
-            $this->filterValues[$key] = $filter['values'] ?? [];
-        }
+        $this->applySavedQueryFilters($query);
 
         $this->columns = $query->column_names ?? [];
         $this->search = '';

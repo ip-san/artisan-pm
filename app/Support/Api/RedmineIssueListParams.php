@@ -55,7 +55,7 @@ final class RedmineIssueListParams
     private const array DATE_OPERATORS = ['>t-', '<t-', 't-', '>t+', '<t+', 't+', 't', 'ld', 'nd', 'w', 'lw', 'l2w', 'nw', 'm', 'lm', 'nm', 'y'];
 
     /**
-     * @param  array<string, mixed>  $input  the request's query parameters
+     * @param  array<array-key, mixed>  $input  the request's query parameters (a numeric name is an int key)
      * @param  array<int, string>  $ignoredShortKeys  parameters the caller already handles itself
      * @return array<string, array{operator: string, values: array<int, mixed>}>
      */

@@ -2,12 +2,12 @@
 
 use App\Concerns\SelectsPageSize;
 use App\Concerns\InteractsWithQueryFilters;
+use App\Concerns\ManagesSavedQueries;
 use App\Concerns\ReordersColumns;
 use App\Enums\EnumerationType;
 use App\Enums\FilterOperator;
 use App\Enums\IssueTimeEntryDisposition;
 use App\Enums\QueryType;
-use App\Enums\QueryVisibility;
 use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Issue;
@@ -16,14 +16,15 @@ use App\Models\IssueCategory;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
-use App\Models\Role;
 use App\Models\Setting;
 use App\Models\TimeEntry;
 use App\Models\Tracker;
 use App\Models\Watcher;
+use App\Services\IssueCopier;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Authorization\AuthorizationService;
+use App\Support\Export\CsvWriter;
 use App\Support\Query\IssueFilterFieldRegistry;
 use App\Support\Query\ListQueryString;
 use App\Support\Export\ExportLimit;
@@ -60,6 +61,7 @@ use Livewire\WithPagination;
 new #[Layout('components.layouts.app')] class extends Component
 {
     use InteractsWithQueryFilters;
+    use ManagesSavedQueries;
     use ReordersColumns;
     use SelectsPageSize;
     use WithPagination;
@@ -124,10 +126,9 @@ new #[Layout('components.layouts.app')] class extends Component
     public const array COMPUTED_HOUR_COLUMNS = ['total_estimated_hours', 'estimated_remaining_hours', 'spent_hours', 'total_spent_hours', 'parent_id', 'parent_subject', 'last_updated_by', 'is_private', 'description', 'last_notes'];
 
     /**
-     * Matches issues/show.blade.php's RELATION_LABELS wording exactly —
-     * duplicated rather than extracted, since that copy also needs the
-     * reversed-journal-key mapping this one doesn't (a different use
-     * case: rendering journal history vs. a flat CSV/column cell).
+     * The relation labels of the relations column. Not yet
+     * IssueRelationType::label(): its reverse labels for precedes/follows
+     * differ from this list's (後続/先行 there, 先行/後続 here).
      *
      * @return array<string, array{from: string, to: string}>
      */
@@ -211,27 +212,12 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Url]
     public ?string $groupBy = null;
 
-    public string $newQueryName = '';
-
-    public string $newQueryVisibility = 'private';
-
-    /** @var array<int, int> */
-    public array $newQueryRoleIds = [];
-
     /**
      * Redmine's query_is_for_all: saves the query with no project (visible
      * on every project's list, plus the global one), even when starting
      * from a project's issue list.
      */
     public bool $newQueryIsForAll = false;
-
-    /**
-     * Set while editing an existing saved query (Redmine's
-     * QueriesController#edit/#update) rather than creating a new one.
-     */
-    public ?int $editingQueryId = null;
-
-    public bool $showSaveForm = false;
 
     /** @var array<int, int> */
     public array $selected = [];
@@ -934,125 +920,61 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->resetPage();
     }
 
-    #[Computed]
-    public function canManagePublicQueries(): bool
+    protected function savedQueryType(): QueryType
     {
-        return $this->project === null
-            ? auth()->user()?->is_admin === true
-            : app(AuthorizationService::class)->can(auth()->user(), 'manage_public_queries', $this->project);
+        return QueryType::Issue;
     }
 
-    #[Computed]
-    public function availableRoles(): Collection
+    protected function queryScopeProject(): ?Project
     {
-        return Role::query()->givable()->get();
+        return $this->project;
     }
 
     /**
-     * Whether the viewer may save queries (Redmine's save_queries).
+     * @return array<string, mixed>
      */
-    #[Computed]
-    public function canSaveQueries(): bool
+    protected function savedQueryAttributes(): array
     {
-        return $this->project === null
-            ? app(AuthorizationService::class)->canGlobally(auth()->user(), 'save_queries')
-            : app(AuthorizationService::class)->can(auth()->user(), 'save_queries', $this->project);
-    }
-
-    public function saveQuery(): void
-    {
-        // Redmine's save_queries permission gates new/create/edit/update/
-        // destroy together (lib/redmine/preparation.rb); editable_by?
-        // (via the update policy) narrows further to this particular query.
-        abort_unless($this->canSaveQueries, 403);
-
-        $editing = $this->editingQueryId !== null ? SavedQuery::findOrFail($this->editingQueryId) : null;
-
-        if ($editing !== null) {
-            $this->authorize('update', $editing);
-        }
-
-        $data = $this->validate([
-            'newQueryName' => ['required', 'string', 'max:255'],
-            'newQueryVisibility' => ['required', Rule::enum(QueryVisibility::class)],
-            'newQueryRoleIds' => $this->newQueryVisibility === QueryVisibility::Roles->value ? ['required', 'array', 'min:1'] : ['array'],
-            'newQueryRoleIds.*' => ['exists:roles,id'],
-        ]);
-
-        // Redmine's query_is_for_all forces the query's project to nil —
-        // resolveVisibility() already restricts a project-less (global)
-        // query's public/roles visibility to admins only, the same as a
-        // query saved directly from the global issue list.
-        $targetProject = $this->newQueryIsForAll ? null : $this->project;
-        $visibility = SavedQuery::resolveVisibility(auth()->user(), $data['newQueryVisibility'], $targetProject);
-
-        $attributes = [
-            'name' => $data['newQueryName'],
-            'project_id' => $targetProject?->id,
-            'visibility' => $visibility,
-            'filters' => $this->builtFilters(),
+        return [
             'column_names' => $this->columns,
             'sort_criteria' => $this->sortCriteria(),
             'group_by' => $this->groupBy,
             // Redmine's totalable_names.
             'options' => ['totalable_names' => $this->totalNames],
         ];
-
-        if ($editing !== null) {
-            $editing->update($attributes);
-            $query = $editing;
-        } else {
-            $query = SavedQuery::create([...$attributes, 'type' => QueryType::Issue->value, 'user_id' => auth()->id()]);
-        }
-
-        $query->roles()->sync($visibility === QueryVisibility::Roles->value ? $data['newQueryRoleIds'] : []);
-
-        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'newQueryIsForAll', 'editingQueryId', 'showSaveForm']);
-        unset($this->savedQueries);
-        session()->flash('status', $editing !== null ? __('クエリを更新しました。') : __('クエリを保存しました。'));
     }
 
     /**
-     * Opens the save form pre-filled with an existing saved query's
-     * settings, for saveQuery() to update in place — Redmine's
-     * QueriesController#edit.
+     * Redmine's query_is_for_all forces the query's project to nil —
+     * resolveVisibility() already restricts a project-less (global)
+     * query's public/roles visibility to admins only, the same as a
+     * query saved directly from the global issue list.
      */
-    public function editQuery(int $queryId): void
+    protected function savedQueryTargetProject(?SavedQuery $editing): ?Project
     {
-        abort_unless($this->canSaveQueries, 403);
+        return $this->newQueryIsForAll ? null : $this->project;
+    }
 
-        $query = SavedQuery::findOrFail($queryId);
-        $this->authorize('update', $query);
+    /**
+     * Unlike the other lists, the issue list looks the query up by id
+     * alone, whatever its type.
+     */
+    protected function findEditableQuery(int $queryId): SavedQuery
+    {
+        return SavedQuery::findOrFail($queryId);
+    }
 
-        $this->loadQuery($queryId);
-        $this->editingQueryId = $query->id;
-        $this->newQueryName = $query->name;
-        $this->newQueryVisibility = $query->visibility->value;
-        $this->newQueryRoleIds = $query->roles->pluck('id')->all();
+    /**
+     * @return array<int, string>
+     */
+    protected function savedQueryFormFields(): array
+    {
+        return ['newQueryIsForAll'];
+    }
+
+    protected function prefillSavedQueryForm(SavedQuery $query): void
+    {
         $this->newQueryIsForAll = $query->project_id === null;
-        $this->showSaveForm = true;
-    }
-
-    public function cancelEditQuery(): void
-    {
-        $this->reset(['newQueryName', 'newQueryVisibility', 'newQueryRoleIds', 'newQueryIsForAll', 'editingQueryId', 'showSaveForm']);
-    }
-
-    public function deleteQuery(int $queryId): void
-    {
-        abort_unless($this->canSaveQueries, 403);
-
-        $query = SavedQuery::findOrFail($queryId);
-        $this->authorize('delete', $query);
-
-        $query->delete();
-
-        if ($this->editingQueryId === $queryId) {
-            $this->cancelEditQuery();
-        }
-
-        unset($this->savedQueries);
-        session()->flash('status', __('クエリを削除しました。'));
     }
 
     /**
@@ -1082,14 +1004,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         abort_unless($query->visibleTo(auth()->user()), 403);
 
-        $this->activeFilterKeys = array_keys($query->filters);
-        $this->filterOperators = [];
-        $this->filterValues = [];
-
-        foreach ($query->filters as $key => $filter) {
-            $this->filterOperators[$key] = $filter['operator'];
-            $this->filterValues[$key] = $filter['values'] ?? [];
-        }
+        $this->applySavedQueryFilters($query);
 
         $this->columns = $query->column_names;
         $this->groupBy = $query->group_by;
@@ -1116,14 +1031,6 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $this->resetPage();
         unset($this->issues, $this->groupedIssues, $this->groupTotals, $this->scopeProjects, $this->engine, $this->nativeColumns, $this->availableColumns, $this->sortableColumns, $this->shownColumns, $this->projectIssueCustomFields);
-    }
-
-    #[Computed]
-    public function savedQueries(): Collection
-    {
-        return $this->project === null
-            ? SavedQuery::visibleGlobally(QueryType::Issue, auth()->user())
-            : SavedQuery::visibleIn($this->project, QueryType::Issue, auth()->user());
     }
 
     /**
@@ -1348,39 +1255,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $columns = array_values(array_unique($columns));
         $issues = $this->exportedIssues();
-        // Re-validated against the allowlist here rather than trusted from
-        // the live property, since these drive raw file-writing behavior.
-        $encoding = in_array($this->csvEncoding, ['UTF-8', 'SJIS-win'], true) ? $this->csvEncoding : 'UTF-8';
-        $separator = in_array($this->csvSeparator, [',', ';', "\t"], true) ? $this->csvSeparator : ',';
 
-        return response()->streamDownload(function () use ($columns, $issues, $encoding, $separator) {
-            $handle = fopen('php://output', 'w');
-
-            // A UTF-8 BOM lets Excel auto-detect the encoding instead of
-            // mis-rendering non-ASCII text as mojibake — matches Redmine's
-            // Redmine::Export::CSV, which does the same for UTF-8 exports.
-            if ($encoding === 'UTF-8') {
-                fwrite($handle, "\xEF\xBB\xBF");
-            }
-
-            $writeRow = function (array $row) use ($handle, $separator, $encoding): void {
-                $row = \App\Support\Export\CsvCell::row($row);
-
-                if ($encoding !== 'UTF-8') {
-                    $row = array_map(fn (string $value) => mb_convert_encoding($value, $encoding, 'UTF-8'), $row);
-                }
-
-                fputcsv($handle, $row, $separator);
-            };
-
-            $writeRow(array_map(fn ($key) => $this->availableColumns[$key] ?? $key, $columns));
+        return CsvWriter::download($this->project !== null ? "{$this->project->identifier}-issues.csv" : 'issues.csv', function (CsvWriter $csv) use ($columns, $issues): void {
+            $csv->row(array_map(fn ($key) => $this->availableColumns[$key] ?? $key, $columns));
 
             foreach ($issues as $issue) {
-                $writeRow(array_map(fn ($key) => $this->columnValue($issue, $key), $columns));
+                $csv->row(array_map(fn ($key) => $this->columnValue($issue, $key), $columns));
             }
-
-            fclose($handle);
-        }, $this->project !== null ? "{$this->project->identifier}-issues.csv" : 'issues.csv');
+        }, $this->csvEncoding, $this->csvSeparator);
     }
 
     /**
@@ -2179,7 +2061,7 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         foreach ($issues as $issue) {
-            app(IssueService::class)->copy(
+            app(IssueCopier::class)->copy(
                 $issue,
                 $targetProject,
                 $data['bulkCopyToTrackerId'],

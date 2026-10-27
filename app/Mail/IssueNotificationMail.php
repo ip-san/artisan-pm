@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Mail;
 
 use App\Concerns\FormatsDatesForRecipient;
+use App\Enums\IssueRelationType;
 use App\Models\CustomField;
 use App\Models\Issue;
 use App\Models\Journal;
@@ -32,7 +33,7 @@ final class IssueNotificationMail extends Mailable
     use FormatsDatesForRecipient, Queueable, SerializesModels;
 
     /**
-     * Attribute keys from IssueService::JOURNALED_ATTRIBUTES that a
+     * Attribute keys from IssueJournalizer::JOURNALED_ATTRIBUTES that a
      * Journal detail's `attr` property can carry, mapped to their label —
      * the fields in Tracker::DISABLABLE_CORE_FIELDS plus the always-on
      * fields it excludes.
@@ -61,17 +62,7 @@ final class IssueNotificationMail extends Mailable
      */
     public static function relationLabels(): array
     {
-        return [
-            'relates' => __('関連'),
-            'blocks' => __('ブロックする'),
-            'blocked' => __('ブロックされている'),
-            'duplicates' => __('重複する'),
-            'duplicated' => __('重複されている'),
-            'precedes' => __('先行'),
-            'follows' => __('後続'),
-            'copied_to' => __('コピー先'),
-            'copied_from' => __('コピー元'),
-        ];
+        return IssueRelationType::journalLabels();
     }
 
     public function __construct(

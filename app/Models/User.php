@@ -645,10 +645,6 @@ final class User extends Authenticatable implements HasLocalePreference, HasMedi
     }
 
     /**
-     * The key that authenticates this user's Atom feeds (`?key=`), created on
-     * first use like Redmine's rss_key token.
-     */
-    /**
      * One personal option (Redmine's UserPreference), falling back to its
      * default — see UserPreferences for the keys.
      */
@@ -657,6 +653,10 @@ final class User extends Authenticatable implements HasLocalePreference, HasMedi
         return UserPreferences::get($this, $key);
     }
 
+    /**
+     * The key that authenticates this user's Atom feeds (`?key=`), created on
+     * first use like Redmine's rss_key token.
+     */
     public function atomKey(): string
     {
         if ($this->atom_key === null) {

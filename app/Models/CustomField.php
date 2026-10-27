@@ -202,7 +202,7 @@ final class CustomField extends Model implements Sortable
      * choices everywhere. With no project (a record that has none, such as a
      * user or a group) the choices are all the candidates.
      *
-     * @return array<string, string>
+     * @return array<int|string, string>
      */
     public function optionsFor(?Project $project): array
     {
@@ -300,11 +300,6 @@ final class CustomField extends Model implements Sortable
         $editableIds = $fields->filter(fn (CustomField $field) => $field->editableBy($user))->pluck('id');
 
         return collect($values)->only($editableIds)->all();
-    }
-
-    public function appliesToTracker(Tracker $tracker): bool
-    {
-        return $this->trackers->contains('id', $tracker->id);
     }
 
     /**

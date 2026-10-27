@@ -44,9 +44,6 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * @return array<int, ScmTreeEntry>
-     */
-    /**
      * B'-03: a Filesystem repository has no per-file history to link to.
      */
     #[Computed]
@@ -55,6 +52,9 @@ new #[Layout('components.layouts.app')] class extends Component
         return $this->repository->supports(ScmCapability::Log);
     }
 
+    /**
+     * @return array<int, ScmTreeEntry>
+     */
     #[Computed]
     public function entries(): array
     {

@@ -47,6 +47,12 @@ final class NotificationRecipients
     }
 
     /**
+     * @param  array<int, string>|string  $eventKey  one or more candidate event
+     *                                               keys this journal matches (Redmine's Journal#send_notification
+     *                                               ORs several conditions together — e.g. an update that only
+     *                                               changed the status matches both 'issue_updated' and
+     *                                               'issue_status_updated'; either being enabled is enough).
+     *                                               A bare string is accepted for the simple 'issue_added' case.
      * @param  array<int, string>  $mentionedLogins  logins newly mentioned
      *                                               (`@login`) in this save — see MentionParser. Unlike the
      *                                               watcher/member candidate pool resolve() builds, a mentioned
@@ -61,14 +67,6 @@ final class NotificationRecipients
      *                             recorded on it makes the previous assignee
      *                             involved too (Redmine's previous_assignee)
      * @return Collection<int, User>
-     */
-    /**
-     * @param  array<int, string>|string  $eventKey  one or more candidate event
-     *                                               keys this journal matches (Redmine's Journal#send_notification
-     *                                               ORs several conditions together — e.g. an update that only
-     *                                               changed the status matches both 'issue_updated' and
-     *                                               'issue_status_updated'; either being enabled is enough).
-     *                                               A bare string is accepted for the simple 'issue_added' case.
      */
     public static function forIssue(Issue $issue, array|string $eventKey, User $actor, array $mentionedLogins = [], ?Journal $journal = null): Collection
     {

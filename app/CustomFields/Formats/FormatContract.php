@@ -54,9 +54,10 @@ interface FormatContract
      * formats whose input is a choice among a fixed set (list,
      * enumeration). Free-input formats return an empty array. Single
      * source of truth for the option list — the form input component and
-     * the query-filter engine both read from here.
+     * the query-filter engine both read from here. A numeric stored value
+     * is an int key, as PHP casts it.
      *
-     * @return array<string, string>
+     * @return array<int|string, string>
      */
     public function options(CustomField $field): array;
 }

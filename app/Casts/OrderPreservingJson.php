@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Model;
  * stored as a JSON string holding the encoded array — strings are kept
  * verbatim — and a row written before this cast (a plain JSON object or
  * array) is still read as it is.
+ *
+ * @implements CastsAttributes<array<array-key, mixed>|null, mixed>
  */
 final class OrderPreservingJson implements CastsAttributes
 {

@@ -3,6 +3,8 @@
 use App\Models\Project;
 use App\Models\User;
 use App\Models\WikiPage;
+use App\Services\AttachmentService;
+use App\Services\WatcherService;
 use App\Services\WikiPageService;
 use App\Support\Markdown\WikiMarkdownRenderer;
 use App\Support\Markdown\WikiSectionEditLinkInjector;
@@ -167,13 +169,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('watch', $this->wikiPage);
 
-        $existing = $this->wikiPage->watchers()->where('user_id', auth()->id())->first();
-
-        if ($existing) {
-            $existing->delete();
-        } else {
-            $this->wikiPage->watchers()->create(['user_id' => auth()->id()]);
-        }
+        app(WatcherService::class)->toggle($this->wikiPage, auth()->user());
 
         $this->wikiPage->unsetRelation('watchers');
     }
@@ -184,16 +180,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function watcherCandidates(): Collection
     {
-        $watchingIds = $this->wikiPage->watchers->pluck('user_id');
-        $search = mb_strtolower(trim($this->watcherSearch));
-
-        // A name/email search over the members not yet watching, ten at a
-        // time (the picker is an autocomplete, not a full list).
-        return $this->project->users
-            ->reject(fn (User $user) => $watchingIds->contains($user->id))
-            ->filter(fn (User $user) => $search === '' || str_contains(mb_strtolower($user->name.' '.$user->email), $search))
-            ->take(10)
-            ->values();
+        return app(WatcherService::class)->candidates($this->project->users, $this->wikiPage->watchers->pluck('user_id'), $this->watcherSearch);
     }
 
     public function pickWatcher(int $userId): void
@@ -210,7 +197,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'newWatcherId' => ['required', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
         ]);
 
-        $this->wikiPage->watchers()->firstOrCreate(['user_id' => $data['newWatcherId']]);
+        app(WatcherService::class)->add($this->wikiPage, (int) $data['newWatcherId']);
 
         $this->reset('newWatcherId');
         $this->wikiPage->unsetRelation('watchers');
@@ -221,7 +208,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('deleteWatchers', $this->wikiPage);
 
-        $this->wikiPage->watchers()->where('user_id', $userId)->delete();
+        app(WatcherService::class)->remove($this->wikiPage, $userId);
 
         $this->wikiPage->unsetRelation('watchers');
         unset($this->watcherCandidates);
@@ -287,9 +274,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $media = $this->wikiPage->attachments()->firstWhere('id', $mediaId);
         abort_if($media === null, 404);
 
-        $description = trim((string) ($this->attachmentDescriptions[$mediaId] ?? ''));
-        $media->setCustomProperty('description', $description !== '' ? $description : null);
-        $media->save();
+        app(AttachmentService::class)->describe($media, $this->attachmentDescriptions[$mediaId] ?? null);
     }
 }; ?>
 

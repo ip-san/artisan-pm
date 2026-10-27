@@ -8,6 +8,7 @@ use App\Models\Issue;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\Query\TextMatch;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -37,8 +38,8 @@ final class IssueSuggestions
             : collect([$project])->filter(fn (Project $candidate) => $viewer->can('viewAny', [Issue::class, $candidate]));
 
         $idTerm = ltrim($term, '#');
-        $like = '%'.addcslashes($term, '%_\\').'%';
-        $operator = Issue::query()->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+        $like = '%'.TextMatch::escape($term).'%';
+        $operator = TextMatch::likeOperator(Issue::query());
 
         return Issue::query()
             ->visibleToAcrossProjects($viewer, $projects)

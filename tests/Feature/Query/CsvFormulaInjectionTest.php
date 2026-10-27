@@ -134,10 +134,13 @@ test('every CSV writer in the application goes through CsvCell', function () {
         expect(substr_count($source, 'CsvCell::row('))
             ->toBeGreaterThanOrEqual(1, "{$file->getRelativePathname()} writes CSV without CsvCell");
 
-        preg_match_all('/fputcsv\(\$handle, (.*)$/m', $source, $calls);
+        preg_match_all('/fputcsv\((?:\$handle|\$this->handle), (.*)$/m', $source, $calls);
+
+        expect($calls[1])->not->toBeEmpty("{$file->getRelativePathname()}: fputcsv() on an unexpected handle");
 
         foreach ($calls[1] as $arguments) {
-            expect(str_contains($arguments, 'CsvCell::row(') || str_starts_with($arguments, '$row,'))
+            // CsvWriter::row() passes the cells it has just run through CsvCell::row().
+            expect(str_contains($arguments, 'CsvCell::row(') || str_starts_with($arguments, '$row,') || str_starts_with($arguments, '$cells,'))
                 ->toBeTrue("{$file->getRelativePathname()}: fputcsv(\$handle, {$arguments}");
         }
     }

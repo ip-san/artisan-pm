@@ -18,6 +18,7 @@ use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Query as SavedQuery;
 use App\Models\Tracker;
+use App\Services\IssueJournalizer;
 use App\Services\IssueService;
 use App\Services\WorkflowService;
 use App\Support\Api\CustomFieldPayload;
@@ -542,7 +543,7 @@ final class IssueController extends Controller
                 // Only this issue's own attachments: an id from anywhere else matches nothing.
                 $removed = $issue->attachments()->whereIn('id', $ids->all())->values();
                 $removed->each->delete();
-                app(IssueService::class)->journalizeAttachments($issue, $removed, added: false, actor: $user);
+                app(IssueJournalizer::class)->journalizeAttachments($issue, $removed, added: false, actor: $user);
             }
         } catch (StaleIssueUpdateException $exception) {
             return response()->json([

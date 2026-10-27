@@ -26,3 +26,15 @@ parameters:
             # by Volt single-file components under resources/views.
             message: '#^Trait App\\Support\\Auth\\RequiresPasswordConfirmation is used zero times#'
             path: app/Support/Auth/RequiresPasswordConfirmation.php
+        -
+            # Same reasoning as InteractsWithQueryFilters above — these
+            # traits are only used by Volt single-file components.
+            identifier: trait.unused
+            paths:
+                - app/Concerns/DrawsGanttChart.php
+                - app/Concerns/ListsTimeEntries.php
+                - app/Concerns/ManagesPrincipalMemberships.php
+                - app/Concerns/ManagesSavedQueries.php
+                - app/Concerns/ReordersColumns.php
+                - app/Concerns/SelectsPageSize.php
+                - app/Concerns/UsesSavedIssueQueriesForFiltering.php

@@ -11,7 +11,7 @@ use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
-use App\Services\IssueService;
+use App\Services\IssueCopier;
 use Livewire\Livewire;
 
 /**
@@ -49,7 +49,7 @@ test('copying with subtasks duplicates the whole tree under the copied parent', 
     subtaskCopyIssue($source, $tracker, ['subject' => 'grandchild', 'parent_id' => $child->id]);
     subtaskCopyIssue($source, $tracker, ['subject' => 'sibling', 'parent_id' => $root->id]);
 
-    $copy = app(IssueService::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
+    $copy = app(IssueCopier::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
 
     $copies = Issue::query()->where('project_id', $target->id)->get()->keyBy('subject');
     expect($copies)->toHaveCount(4)
@@ -66,10 +66,10 @@ test('subtasks are not copied unless asked, and never get a copied_to relation',
     $root = subtaskCopyIssue($source, $tracker);
     subtaskCopyIssue($source, $tracker, ['parent_id' => $root->id]);
 
-    app(IssueService::class)->copy($root, $target, $tracker->id, $actor);
+    app(IssueCopier::class)->copy($root, $target, $tracker->id, $actor);
     expect(Issue::query()->where('project_id', $target->id)->count())->toBe(1);
 
-    app(IssueService::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
+    app(IssueCopier::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
     expect(Issue::query()->where('project_id', $target->id)->count())->toBe(3)
         ->and($root->relationsFrom()->count())->toBe(2);
 });
@@ -83,7 +83,7 @@ test('a subtask whose tracker the target project does not use is skipped with it
     subtaskCopyIssue($source, $tracker, ['parent_id' => $skipped->id, 'subject' => 'orphaned']);
     subtaskCopyIssue($source, $tracker, ['parent_id' => $root->id, 'subject' => 'kept']);
 
-    app(IssueService::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
+    app(IssueCopier::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
 
     expect(Issue::query()->where('project_id', $target->id)->pluck('subject')->sort()->values()->all())->toBe(collect([$root->subject, 'kept'])->sort()->values()->all());
 });
@@ -103,7 +103,7 @@ test('a subtask keeps its version only when it is open and reachable, and its as
     subtaskCopyIssue($source, $tracker, ['parent_id' => $root->id, 'subject' => 'b', 'assigned_to_id' => $stranger->id]);
     subtaskCopyIssue($source, $tracker, ['parent_id' => $root->id, 'subject' => 'c', 'assigned_to_id' => $locked->id]);
 
-    app(IssueService::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
+    app(IssueCopier::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
     $copies = Issue::query()->where('project_id', $target->id)->get()->keyBy('subject');
 
     expect($copies['a']->assigned_to_id)->toBe($member->id)
@@ -114,7 +114,7 @@ test('a subtask keeps its version only when it is open and reachable, and its as
     // A version shared system-wide and open survives.
     $shared = Version::factory()->for($source)->create(['status' => VersionStatus::Open, 'sharing' => 'system']);
     $a->update(['fixed_version_id' => $shared->id]);
-    app(IssueService::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
+    app(IssueCopier::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
     expect(Issue::query()->where('project_id', $target->id)->where('subject', 'a')->latest('id')->first()->fixed_version_id)->toBe($shared->id);
 });
 
@@ -127,7 +127,7 @@ test('a subtask the actor cannot see is not copied', function () {
     subtaskCopyIssue($source, $tracker, ['parent_id' => $root->id, 'subject' => 'public']);
     subtaskCopyIssue($source, $tracker, ['parent_id' => $root->id, 'subject' => 'secret', 'is_private' => true, 'author_id' => User::factory()->create()->id]);
 
-    app(IssueService::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
+    app(IssueCopier::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
 
     expect(Issue::query()->where('project_id', $target->id)->pluck('subject')->all())->toContain('public')->not->toContain('secret');
 });

@@ -57,6 +57,9 @@ final class JournalFeedEntries
             && ($journal->user_id === $user->id || $this->authorization->can($user, 'view_private_notes', $journal->issue->project));
     }
 
+    /**
+     * @param  Collection<int, CustomField>  $customFields  keyed by id
+     */
     public function isHiddenCustomField(JournalDetail $detail, Journal $journal, Collection $customFields, CustomFieldVisibility $visibility): bool
     {
         if ($detail->property !== 'cf') {

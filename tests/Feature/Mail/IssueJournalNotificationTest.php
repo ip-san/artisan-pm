@@ -17,7 +17,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Webhook;
 use App\Notifications\IssueNotification;
-use App\Services\IssueService;
+use App\Services\IssueJournalizer;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -52,7 +52,7 @@ test('adding a relation mails watchers of both issues with the relation row', fu
     $b = journalMailIssue($project);
     $relation = IssueRelation::create(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => IssueRelationType::Blocks]);
 
-    app(IssueService::class)->journalizeRelation($relation, added: true, actor: $actor);
+    app(IssueJournalizer::class)->journalizeRelation($relation, added: true, actor: $actor);
 
     Notification::assertSentTo($watcherA, IssueNotification::class, fn (IssueNotification $n) => $n->issue->is($a));
     Notification::assertSentTo($watcherA, IssueNotification::class, fn (IssueNotification $n) => $n->issue->is($b));
@@ -73,7 +73,7 @@ test('removing a relation is mailed too', function () {
     $b = journalMailIssue($project);
     $relation = IssueRelation::create(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => IssueRelationType::Relates]);
 
-    app(IssueService::class)->journalizeRelation($relation, added: false, actor: $actor);
+    app(IssueJournalizer::class)->journalizeRelation($relation, added: false, actor: $actor);
 
     expect(Notification::sent($watcher, IssueNotification::class))->toHaveCount(2);
 });
@@ -87,7 +87,7 @@ test('attachments added in one save produce a single mail listing every file', f
     $one = $issue->addMediaFromString('a')->usingFileName('one.txt')->toMediaCollection('attachments');
     $two = $issue->addMediaFromString('b')->usingFileName('two.txt')->toMediaCollection('attachments');
 
-    app(IssueService::class)->journalizeAttachments($issue, [$one, $two], added: true, actor: $actor);
+    app(IssueJournalizer::class)->journalizeAttachments($issue, [$one, $two], added: true, actor: $actor);
 
     $sent = Notification::sent($watcher, IssueNotification::class);
     expect($sent)->toHaveCount(1);
@@ -102,7 +102,7 @@ test('journalizing no attachments records and sends nothing', function () {
     $actor = journalMailMember($project, MailNotificationOption::OnlyMyEvents);
     $issue = journalMailIssue($project);
 
-    app(IssueService::class)->journalizeAttachments($issue, [], added: true, actor: $actor);
+    app(IssueJournalizer::class)->journalizeAttachments($issue, [], added: true, actor: $actor);
 
     Notification::assertNothingSent();
     expect(Journal::query()->where('issue_id', $issue->id)->count())->toBe(0);
@@ -189,8 +189,8 @@ test('the notifications for attachments and relations never fire the issue.updat
     $media = $a->addMediaFromString('x')->usingFileName('x.txt')->toMediaCollection('attachments');
     $relation = IssueRelation::create(['issue_from_id' => $a->id, 'issue_to_id' => $b->id, 'relation_type' => IssueRelationType::Relates]);
 
-    app(IssueService::class)->journalizeAttachments($a, [$media], added: true, actor: $actor);
-    app(IssueService::class)->journalizeRelation($relation, added: true, actor: $actor);
+    app(IssueJournalizer::class)->journalizeAttachments($a, [$media], added: true, actor: $actor);
+    app(IssueJournalizer::class)->journalizeRelation($relation, added: true, actor: $actor);
 
     Queue::assertNotPushed(DeliverWebhookJob::class);
 });
@@ -204,7 +204,7 @@ test('the users who cannot view the issue or opted out get no attachment or rela
     $issue = journalMailIssue($project);
     $media = $issue->addMediaFromString('x')->usingFileName('x.txt')->toMediaCollection('attachments');
 
-    app(IssueService::class)->journalizeAttachments($issue, [$media], added: true, actor: $actor);
+    app(IssueJournalizer::class)->journalizeAttachments($issue, [$media], added: true, actor: $actor);
 
     Notification::assertNotSentTo($silent, IssueNotification::class);
     Notification::assertNotSentTo($blind, IssueNotification::class);

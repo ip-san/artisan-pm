@@ -12,6 +12,7 @@ use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
 use App\Notifications\IssueNotification;
+use App\Services\IssueJournalizer;
 use App\Services\IssueService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
@@ -150,7 +151,7 @@ test('an added attachment is mailed once issue_attachment_added is enabled', fun
     Setting::set('notified_events', ['issue_attachment_added']);
     Notification::fake();
 
-    app(IssueService::class)->journalizeAttachment($issue, $media, added: true, actor: $author);
+    app(IssueJournalizer::class)->journalizeAttachment($issue, $media, added: true, actor: $author);
 
     Notification::assertSentTo($member, IssueNotification::class);
 });
@@ -168,7 +169,7 @@ test('removing an attachment does not notify under issue_attachment_added', func
     Setting::set('notified_events', ['issue_attachment_added']);
     Notification::fake();
 
-    app(IssueService::class)->journalizeAttachment($issue, $media, added: false, actor: $author);
+    app(IssueJournalizer::class)->journalizeAttachment($issue, $media, added: false, actor: $author);
 
     Notification::assertNotSentTo($member, IssueNotification::class);
 });

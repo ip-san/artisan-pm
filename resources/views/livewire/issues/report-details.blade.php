@@ -3,6 +3,7 @@
 use App\Models\Issue;
 use App\Models\IssueStatus;
 use App\Models\Project;
+use App\Support\Export\CsvWriter;
 use App\Support\Reports\IssueReport;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -117,8 +118,6 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('viewAny', [Issue::class, $this->project]);
 
-        $encoding = in_array($this->csvEncoding, ['UTF-8', 'SJIS-win'], true) ? $this->csvEncoding : 'UTF-8';
-        $separator = in_array($this->csvSeparator, [',', ';', "\t"], true) ? $this->csvSeparator : ',';
 
         $lines = [array_merge([''], $this->statuses->pluck('name')->all(), [__('未完了'), __('完了'), __('合計')])];
 
@@ -130,19 +129,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $totals = $this->totalFigures();
         $lines[] = array_merge([__('合計')], array_values($totals['statuses']), [$totals['open'], $totals['closed'], $totals['total']]);
 
-        return response()->streamDownload(function () use ($lines, $encoding, $separator): void {
-            $handle = fopen('php://output', 'w');
-
-            if ($encoding === 'UTF-8') {
-                fwrite($handle, "\xEF\xBB\xBF");
-            }
-
+        return CsvWriter::download("report-{$this->detail}.csv", function (CsvWriter $csv) use ($lines): void {
             foreach ($lines as $line) {
-                fputcsv($handle, array_map(fn ($value) => $encoding === 'UTF-8' ? (string) $value : mb_convert_encoding((string) $value, $encoding, 'UTF-8'), \App\Support\Export\CsvCell::row($line)), $separator);
+                $csv->row($line);
             }
-
-            fclose($handle);
-        }, "report-{$this->detail}.csv");
+        }, $this->csvEncoding, $this->csvSeparator);
     }
 }; ?>
 

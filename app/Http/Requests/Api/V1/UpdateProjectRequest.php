@@ -63,9 +63,6 @@ final class UpdateProjectRequest extends FormRequest
     }
 
     /**
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
-    /**
      * Redmine's API names the modules enabled_module_names; `modules` is this API's own name.
      */
     protected function prepareForValidation(): void
@@ -75,6 +72,9 @@ final class UpdateProjectRequest extends FormRequest
         }
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         /** @var Project $project */

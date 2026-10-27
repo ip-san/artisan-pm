@@ -4,20 +4,31 @@ declare(strict_types=1);
 
 namespace App\Concerns;
 
+use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
+use App\Enums\ProjectStatus;
+use App\Models\CustomField;
 use App\Models\Group;
 use App\Models\Member;
+use App\Models\Project;
 use App\Models\Role;
+use App\Support\Query\CallbackFilter;
+use App\Support\Query\CustomFieldFilter;
+use App\Support\Query\FilterableField;
 use App\Support\Query\TextMatch;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Collection;
 
 /**
  * SQL building blocks shared by the filter sets that go beyond plain
  * columns (IssueExtraFilterFields, TimeEntryExtraFilterFields): Redmine's
  * text, tree, group and role conditions and the "which groups may the
- * viewer see" rule. The using class provides $viewer (?User) and
- * $authorization (AuthorizationService).
+ * viewer see" rule, and the filters both sets offer in the same form.
+ * The using class provides $viewer (?User), $authorization
+ * (AuthorizationService), $listProject (?Project), $scopeProjects
+ * (Closure(): Collection<int, Project>) and $resolvedScopeProjects.
  */
 trait BuildsQueryFilterConditions
 {
@@ -98,6 +109,122 @@ trait BuildsQueryFilterConditions
             ->when($groupColumn !== null, fn (Builder $q) => $groupIds === null
                 ? $q->orWhereNotNull($groupColumn)
                 : $q->orWhereIn($groupColumn, $groupIds)));
+    }
+
+    /**
+     * Redmine's group filters (sql_for_member_of_group_field, author.group,
+     * user.group): the person in $userColumn belongs to one of the groups
+     * (none/any: to no group / to some group). Only groups the viewer can
+     * see are offered or honoured. With $groupColumn (a group assignee),
+     * the group itself counts as being in the group.
+     *
+     * @param  array<int, FilterOperator>  $operators
+     */
+    private function groupMembershipFilter(string $key, string $label, array $operators, string $userColumn, ?string $groupColumn = null): FilterableField
+    {
+        return new CallbackFilter(
+            $key,
+            $label,
+            FilterFieldType::Select,
+            $operators,
+            function (Builder $query, FilterOperator $operator, array $values) use ($userColumn, $groupColumn): Builder {
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                $groupIds = in_array($operator, [FilterOperator::IsEmpty, FilterOperator::IsNotEmpty], true)
+                    ? null
+                    : array_values(array_intersect(self::idList($values), array_keys($this->visibleGroupOptions())));
+
+                return self::whereUserInGroups(
+                    $query,
+                    $query->qualifyColumn($userColumn),
+                    $groupIds,
+                    in_array($operator, [FilterOperator::NotEquals, FilterOperator::NotIn, FilterOperator::IsEmpty], true),
+                    $groupColumn === null ? null : $query->qualifyColumn($groupColumn),
+                );
+            },
+            fn () => $this->visibleGroupOptions(),
+        );
+    }
+
+    /**
+     * Redmine's project.status (keyed project_status), offered on the
+     * cross-project list and on a project that has subprojects.
+     */
+    private function projectStatusFilter(): ?FilterableField
+    {
+        if ($this->listProject !== null && $this->listProject->_rgt - $this->listProject->_lft <= 1) {
+            return null;
+        }
+
+        return new CallbackFilter(
+            'project_status',
+            __('プロジェクトのステータス'),
+            FilterFieldType::Select,
+            self::userOperators(),
+            function (Builder $query, FilterOperator $operator, array $values): Builder {
+                if ($values === []) {
+                    return $query;
+                }
+
+                $statuses = fn (Builder $projects) => $projects->whereIn('projects.status', array_map('strval', $values));
+
+                return self::isNegative($operator)
+                    ? $query->whereDoesntHave('project', $statuses)
+                    : $query->whereHas('project', $statuses);
+            },
+            fn () => [
+                ProjectStatus::Active->value => __('アクティブ'),
+                ProjectStatus::Closed->value => __('クローズ'),
+            ],
+        );
+    }
+
+    /**
+     * A one-hop "association.cf_N" filter (Redmine's project.cf_N,
+     * author.cf_N, ...): the record $column points at is among the
+     * $candidates whose $field matches. The negated operators become "is
+     * not among those that match" (see positiveOf()), whose SQL each
+     * filter gives as $negated — whether a row without such a record
+     * matches differs between them.
+     *
+     * @param  Closure(): Builder<*>  $candidates  the records that may match, selecting only their id
+     * @param  Closure(Builder<*>, string, Builder<*>): Builder<*>  $negated  ($query, qualified $column, matching ids) => the negated condition
+     * @param  bool  $noneNeedsRecord  Redmine keeps "none" an EXISTS over the related record (A17-07): a row with no record has no value that could be blank, so it does not match
+     */
+    private static function relatedCustomFieldFilter(CustomField $field, string $key, string $label, string $column, Closure $candidates, Closure $negated, bool $noneNeedsRecord = false): FilterableField
+    {
+        $condition = new CustomFieldFilter($field);
+
+        return new CallbackFilter(
+            $key,
+            $label,
+            $condition->type(),
+            $condition->operators(),
+            function (Builder $query, FilterOperator $operator, array $values) use ($condition, $column, $candidates, $negated, $noneNeedsRecord): Builder {
+                if ($operator->requiresValue() && $values === []) {
+                    return $query;
+                }
+
+                [$positive, $isNegated] = $noneNeedsRecord && $operator === FilterOperator::IsEmpty
+                    ? [FilterOperator::IsEmpty, false]
+                    : self::positiveOf($operator);
+                $matching = $condition->apply($candidates(), $positive, $values);
+                $qualified = $query->qualifyColumn($column);
+
+                return $isNegated ? $negated($query, $qualified, $matching) : $query->whereIn($qualified, $matching);
+            },
+            fn () => $condition->options(),
+        );
+    }
+
+    /**
+     * @return Collection<int, Project>
+     */
+    private function scopeProjects(): Collection
+    {
+        return $this->resolvedScopeProjects ??= ($this->scopeProjects)();
     }
 
     /**

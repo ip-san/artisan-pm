@@ -6,11 +6,13 @@ namespace App\Support\Query;
 
 use App\Enums\FilterFieldType;
 use App\Enums\FilterOperator;
+use App\Models\Enumeration;
 use App\Models\Member;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Issues\SubprojectScope;
+use Closure;
 use Illuminate\Support\Collection;
 
 /**
@@ -33,20 +35,12 @@ final class TimeEntryFilterFieldRegistry
         $users = fn () => $scopeProjects->count() > 1
             ? User::query()->whereIn('id', Member::query()->select('user_id')->whereIn('project_id', $scopeProjects->pluck('id')))->get()
             : $project->users;
-        $selectOperators = self::selectOperators();
-        $dateOperators = self::dateOperators();
-        $integerOperators = self::integerOperators();
 
-        /** @var array<int, FilterableField> $fields */
-        $fields = array_values(array_filter([
+        $fields = self::nativeFields(
             SubprojectScope::filter($project, $viewer, forTimeEntries: true),
-            new NativeColumnFilter('user_id', __('ユーザー'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users())),
-            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users())),
-            new NativeColumnFilter('activity_id', __('作業分類'), 'activity_id', FilterFieldType::Select, $selectOperators, fn () => $project->activities(includeInactive: true)->pluck('name', 'id')->all()),
-            new NativeColumnFilter('spent_on', __('日付'), 'spent_on', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
-            new NativeColumnFilter('hours', __('時間'), 'hours', FilterFieldType::Integer, $integerOperators),
-        ]));
+            $users,
+            fn () => $project->activities(includeInactive: true),
+        );
 
         $extraFields = (new TimeEntryExtraFilterFields(fn () => $scopeProjects, $viewer, app(AuthorizationService::class), $project))->fields();
 
@@ -65,27 +59,42 @@ final class TimeEntryFilterFieldRegistry
     public static function forProjects(Collection $projects, ?User $viewer = null): Collection
     {
         $viewer ??= auth()->user();
-        $selectOperators = self::selectOperators();
-        $dateOperators = self::dateOperators();
-        $integerOperators = self::integerOperators();
 
-        $users = $projects->flatMap(fn (Project $project) => $project->users)->unique('id');
-        $activities = $projects->flatMap(fn (Project $project) => $project->activities(includeInactive: true))->unique('id');
-
-        /** @var array<int, FilterableField> $fields */
-        $fields = [
-            new NativeColumnFilter('project_id', __('プロジェクト'), 'project_id', FilterFieldType::Select, $selectOperators, fn () => $projects->pluck('name', 'id')->all()),
-            new NativeColumnFilter('user_id', __('ユーザー'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users)),
-            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users)),
-            new NativeColumnFilter('activity_id', __('作業分類'), 'activity_id', FilterFieldType::Select, $selectOperators, fn () => $activities->pluck('name', 'id')->all()),
-            new NativeColumnFilter('spent_on', __('日付'), 'spent_on', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
-            new NativeColumnFilter('hours', __('時間'), 'hours', FilterFieldType::Integer, $integerOperators),
-        ];
+        $fields = self::nativeFields(
+            new NativeColumnFilter('project_id', __('プロジェクト'), 'project_id', FilterFieldType::Select, self::selectOperators(), fn () => $projects->pluck('name', 'id')->all()),
+            fn () => $projects->flatMap(fn (Project $project) => $project->users)->unique('id'),
+            fn () => $projects->flatMap(fn (Project $project) => $project->activities(includeInactive: true))->unique('id'),
+        );
 
         $extraFields = (new TimeEntryExtraFilterFields(fn () => $projects, $viewer, app(AuthorizationService::class)))->fields();
 
         return collect($fields)->concat($extraFields)->keyBy(fn (FilterableField $field) => $field->key());
+    }
+
+    /**
+     * The entry's own columns, after the list's project filter
+     * ($projectFilter — subprojects on a project's list, the project itself
+     * on the cross-project one), with the select options drawn from the
+     * given people and activities.
+     *
+     * @param  Closure(): Collection<int, User>  $users
+     * @param  Closure(): Collection<int, Enumeration>  $activities
+     * @return array<int, FilterableField>
+     */
+    private static function nativeFields(?FilterableField $projectFilter, Closure $users, Closure $activities): array
+    {
+        $selectOperators = self::selectOperators();
+        $dateOperators = self::dateOperators();
+
+        return array_values(array_filter([
+            $projectFilter,
+            new NativeColumnFilter('user_id', __('ユーザー'), 'user_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users())),
+            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => User::nameOptions($users())),
+            new NativeColumnFilter('activity_id', __('作業分類'), 'activity_id', FilterFieldType::Select, $selectOperators, fn () => $activities()->pluck('name', 'id')->all()),
+            new NativeColumnFilter('spent_on', __('日付'), 'spent_on', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
+            new NativeColumnFilter('hours', __('時間'), 'hours', FilterFieldType::Integer, self::integerOperators()),
+        ]));
     }
 
     /**

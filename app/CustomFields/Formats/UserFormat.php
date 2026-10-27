@@ -79,7 +79,7 @@ final class UserFormat implements ProjectScopedFormat
             $query->whereIn('id', $this->memberIds($field, $project));
         }
 
-        return $query->get()->mapWithKeys(fn (User $user) => [(string) $user->id => $user->displayName()])->all();
+        return $query->get()->mapWithKeys(fn (User $user) => [$user->id => $user->displayName()])->all();
     }
 
     /**

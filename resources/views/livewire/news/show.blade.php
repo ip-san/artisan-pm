@@ -1,12 +1,13 @@
 <?php
 
-use App\Events\NewsCommentCreated;
-use App\Events\NewsDeleted;
 use App\Models\News;
 use App\Models\NewsComment;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\AttachmentService;
+use App\Services\NewsService;
 use App\Services\ReactionService;
+use App\Services\WatcherService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -60,13 +61,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'commentContent' => ['required', 'string'],
         ]);
 
-        $comment = NewsComment::create([
-            'news_id' => $this->news->id,
-            'author_id' => auth()->id(),
-            'content' => $data['commentContent'],
-        ]);
-
-        NewsCommentCreated::dispatch($comment);
+        app(NewsService::class)->comment($this->news, auth()->user(), $data['commentContent']);
 
         $this->reset('commentContent');
         unset($this->comments);
@@ -86,9 +81,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('delete', $this->news);
 
-        NewsDeleted::dispatch($this->news);
-
-        $this->news->delete();
+        app(NewsService::class)->delete($this->news);
 
         $this->redirect(route('news.index', $this->project), navigate: true);
     }
@@ -109,13 +102,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('watch', $this->news);
 
-        $existing = $this->news->watchers()->where('user_id', auth()->id())->first();
-
-        if ($existing) {
-            $existing->delete();
-        } else {
-            $this->news->watchers()->create(['user_id' => auth()->id()]);
-        }
+        app(WatcherService::class)->toggle($this->news, auth()->user());
 
         $this->news->load('watchers.user');
     }
@@ -126,16 +113,7 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function watcherCandidates(): Collection
     {
-        $watchingIds = $this->news->watchers->pluck('user_id');
-        $search = mb_strtolower(trim($this->watcherSearch));
-
-        // A name/email search over the members not yet watching, ten at a
-        // time (the picker is an autocomplete, not a full list).
-        return $this->project->users
-            ->reject(fn (User $user) => $watchingIds->contains($user->id))
-            ->filter(fn (User $user) => $search === '' || str_contains(mb_strtolower($user->name.' '.$user->email), $search))
-            ->take(10)
-            ->values();
+        return app(WatcherService::class)->candidates($this->project->users, $this->news->watchers->pluck('user_id'), $this->watcherSearch);
     }
 
     public function pickWatcher(int $userId): void
@@ -152,7 +130,7 @@ new #[Layout('components.layouts.app')] class extends Component
             'newWatcherId' => ['required', Rule::exists('members', 'user_id')->where('project_id', $this->project->id)],
         ]);
 
-        $this->news->watchers()->firstOrCreate(['user_id' => $data['newWatcherId']]);
+        app(WatcherService::class)->add($this->news, (int) $data['newWatcherId']);
 
         $this->reset('newWatcherId');
         $this->news->load('watchers.user');
@@ -163,7 +141,7 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $this->authorize('manageWatchers', $this->news);
 
-        $this->news->watchers()->where('user_id', $userId)->delete();
+        app(WatcherService::class)->remove($this->news, $userId);
 
         $this->news->load('watchers.user');
         unset($this->watcherCandidates);
@@ -198,9 +176,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $media = $this->news->attachments()->firstWhere('id', $mediaId);
         abort_if($media === null, 404);
 
-        $description = trim((string) ($this->attachmentDescriptions[$mediaId] ?? ''));
-        $media->setCustomProperty('description', $description !== '' ? $description : null);
-        $media->save();
+        app(AttachmentService::class)->describe($media, $this->attachmentDescriptions[$mediaId] ?? null);
     }
 }; ?>
 

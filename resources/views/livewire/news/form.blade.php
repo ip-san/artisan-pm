@@ -1,9 +1,8 @@
 <?php
 
-use App\Events\NewsCreated;
-use App\Events\NewsUpdated;
 use App\Models\News;
 use App\Models\Project;
+use App\Services\NewsService;
 use App\Support\Attachments\AttachmentValidationRules;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -52,24 +51,9 @@ new #[Layout('components.layouts.app')] class extends Component
         ]);
         unset($data['newAttachments']);
 
-        if ($this->news) {
-            $this->news->update($data);
-            $news = $this->news;
-
-            NewsUpdated::dispatch($news);
-        } else {
-            $data['project_id'] = $this->project->id;
-            $data['author_id'] = auth()->id();
-            $news = News::create($data);
-            $news->watchers()->create(['user_id' => auth()->id()]);
-
-            // Redmine has no equivalent notification for a News *edit* —
-            // only after_create (news_added) and a comment being posted
-            // are ever mailed, matching News#after_create_commit having
-            // no after_update counterpart — so this only fires here, in
-            // the create branch.
-            NewsCreated::dispatch($news);
-        }
+        $news = $this->news
+            ? app(NewsService::class)->update($this->news, $data)
+            : app(NewsService::class)->create($this->project, auth()->user(), $data);
 
         foreach ($this->newAttachments as $file) {
             $news->addMedia($file->getRealPath())

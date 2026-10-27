@@ -10,6 +10,7 @@ use App\Http\Resources\Api\V1\IssueRelationResource;
 use App\Http\Resources\Api\V1\IssueResource;
 use App\Models\Issue;
 use App\Models\IssueRelation;
+use App\Services\IssueJournalizer;
 use App\Services\IssueService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,7 +68,7 @@ final class IssueRelationController extends Controller
                 'delay' => $type === 'precedes' ? ($data['delay'] ?? null) : null,
             ]);
 
-            app(IssueService::class)->journalizeRelation($relation, added: true, actor: $request->user());
+            app(IssueJournalizer::class)->journalizeRelation($relation, added: true, actor: $request->user());
             app(IssueService::class)->rescheduleFromRelation($relation, $request->user());
         }
 
@@ -92,7 +93,7 @@ final class IssueRelationController extends Controller
         abort_unless($canManage, 403);
 
         $relation->delete();
-        app(IssueService::class)->journalizeRelation($relation, added: false, actor: $user);
+        app(IssueJournalizer::class)->journalizeRelation($relation, added: false, actor: $user);
 
         return response()->json(status: 204);
     }

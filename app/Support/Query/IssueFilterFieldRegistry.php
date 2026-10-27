@@ -13,10 +13,12 @@ use App\Models\CustomField;
 use App\Models\Enumeration;
 use App\Models\Group;
 use App\Models\Issue;
+use App\Models\IssueCategory;
 use App\Models\IssueStatus;
 use App\Models\Project;
 use App\Models\Tracker;
 use App\Models\User;
+use App\Models\Version;
 use App\Support\Authorization\AuthorizationService;
 use App\Support\Issues\AssigneeChoice;
 use App\Support\Issues\SubprojectScope;
@@ -44,44 +46,26 @@ final class IssueFilterFieldRegistry
     {
         $viewer ??= auth()->user();
 
-        $selectOperators = self::selectOperators();
-        $dateOperators = self::dateOperators();
-        $textOperators = self::textOperators();
-        $integerOperators = self::integerOperators();
-
-        /** @var array<int, FilterableField> $nativeFields */
-        $nativeFields = array_values(array_filter([
+        $nativeFields = self::nativeFields(
             SubprojectScope::filter($project, $viewer),
-            new NativeColumnFilter('status_id', __('ステータス'), 'status_id', FilterFieldType::Select, $selectOperators, fn () => IssueStatus::query()->orderBy('position')->pluck('name', 'id')->all()),
-            new NativeColumnFilter('tracker_id', __('トラッカー'), 'tracker_id', FilterFieldType::Select, $selectOperators, fn () => $project->trackers->pluck('name', 'id')->all()),
-            new NativeColumnFilter('priority_id', __('優先度'), 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
-            new NativeColumnFilter('category_id', __('カテゴリ'), 'category_id', FilterFieldType::Select, $selectOperators, fn () => $project->issueCategories->pluck('name', 'id')->all()),
-            self::assigneeFilter($selectOperators, fn () => $project->users, collect([$project->id]), $viewer),
-            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => ($viewer !== null ? ['me' => __('<< 自分 >>')] : []) + User::nameOptions($project->users), resolvesMe: true),
-            new NativeColumnFilter('fixed_version_id', __('対象バージョン'), 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $project->versions->pluck('name', 'id')->all()),
-            new NativeColumnFilter('subject', __('題名'), 'subject', FilterFieldType::Text, $textOperators),
-            new NativeColumnFilter('start_date', __('開始日'), 'start_date', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('due_date', __('期日'), 'due_date', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
-            new NativeColumnFilter('updated_at', __('更新日'), 'updated_at', FilterFieldType::Date, $dateOperators, storesTime: true),
-            new NativeColumnFilter('closed_on', __('終了日'), 'closed_on', FilterFieldType::Date, $dateOperators, storesTime: true),
-            new NativeColumnFilter('done_ratio', __('進捗率'), 'done_ratio', FilterFieldType::Integer, $integerOperators),
-        ]));
+            fn () => $project->trackers,
+            fn () => $project->issueCategories,
+            fn () => $project->users,
+            fn () => $project->versions,
+            collect([$project->id]),
+            $viewer,
+            [
+                new NativeColumnFilter('updated_at', __('更新日'), 'updated_at', FilterFieldType::Date, self::dateOperators(), storesTime: true),
+                new NativeColumnFilter('closed_on', __('終了日'), 'closed_on', FilterFieldType::Date, self::dateOperators(), storesTime: true),
+            ],
+        );
 
         $resolveScopeProjects = function () use (&$scopeProjects, $project, $viewer): Collection {
             return $scopeProjects ??= SubprojectScope::projectsForIssues($project, $viewer);
         };
 
         $customFields = self::customFieldFilters(
-            CustomField::query()
-                ->where('customized_type', CustomizableType::Issue)
-                ->where('is_filter', true)
-                ->where('field_format', '!=', CustomFieldFormat::Attachment)
-                ->whereHas('trackers', fn ($query) => $query->whereIn('trackers.id', $project->trackers->pluck('id')))
-                ->with(['trackers', 'projects', 'roles'])
-                ->orderBy('position')
-                ->get()
-                ->filter(fn (CustomField $field) => $field->appliesToProject($project)),
+            self::filterableCustomFields($project->trackers)->filter(fn (CustomField $field) => $field->appliesToProject($project)),
             fn () => collect([$project])->concat($resolveScopeProjects())->unique('id')->values(),
             $viewer,
         );
@@ -111,11 +95,6 @@ final class IssueFilterFieldRegistry
     {
         $viewer ??= auth()->user();
 
-        $selectOperators = self::selectOperators();
-        $dateOperators = self::dateOperators();
-        $textOperators = self::textOperators();
-        $integerOperators = self::integerOperators();
-
         // On the collection, not each model: one query per relation for all the projects together.
         if ($projects instanceof EloquentCollection) {
             $projects->loadMissing(['trackers', 'issueCategories', 'users', 'versions']);
@@ -128,33 +107,18 @@ final class IssueFilterFieldRegistry
         $users = $projects->flatMap(fn (Project $project) => $project->users)->unique('id');
         $versions = $projects->flatMap(fn (Project $project) => $project->versions)->unique('id');
 
-        /** @var array<int, FilterableField> $nativeFields */
-        $nativeFields = [
-            new NativeColumnFilter('project_id', __('プロジェクト'), 'project_id', FilterFieldType::Select, $selectOperators, fn () => $projects->pluck('name', 'id')->all()),
-            new NativeColumnFilter('status_id', __('ステータス'), 'status_id', FilterFieldType::Select, $selectOperators, fn () => IssueStatus::query()->orderBy('position')->pluck('name', 'id')->all()),
-            new NativeColumnFilter('tracker_id', __('トラッカー'), 'tracker_id', FilterFieldType::Select, $selectOperators, fn () => $trackers->pluck('name', 'id')->all()),
-            new NativeColumnFilter('priority_id', __('優先度'), 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
-            new NativeColumnFilter('category_id', __('カテゴリ'), 'category_id', FilterFieldType::Select, $selectOperators, fn () => $categories->pluck('name', 'id')->all()),
-            self::assigneeFilter($selectOperators, fn () => $users, $projects->pluck('id'), $viewer),
-            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => ($viewer !== null ? ['me' => __('<< 自分 >>')] : []) + User::nameOptions($users), resolvesMe: true),
-            new NativeColumnFilter('fixed_version_id', __('対象バージョン'), 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $versions->pluck('name', 'id')->all()),
-            new NativeColumnFilter('subject', __('題名'), 'subject', FilterFieldType::Text, $textOperators),
-            new NativeColumnFilter('start_date', __('開始日'), 'start_date', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('due_date', __('期日'), 'due_date', FilterFieldType::Date, $dateOperators),
-            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
-            new NativeColumnFilter('done_ratio', __('進捗率'), 'done_ratio', FilterFieldType::Integer, $integerOperators),
-        ];
+        $nativeFields = self::nativeFields(
+            new NativeColumnFilter('project_id', __('プロジェクト'), 'project_id', FilterFieldType::Select, self::selectOperators(), fn () => $projects->pluck('name', 'id')->all()),
+            fn () => $trackers,
+            fn () => $categories,
+            fn () => $users,
+            fn () => $versions,
+            $projects->pluck('id'),
+            $viewer,
+        );
 
         $customFields = self::customFieldFilters(
-            CustomField::query()
-                ->where('customized_type', CustomizableType::Issue)
-                ->where('is_filter', true)
-                ->where('field_format', '!=', CustomFieldFormat::Attachment)
-                ->whereHas('trackers', fn ($query) => $query->whereIn('trackers.id', $trackers->pluck('id')))
-                ->with(['trackers', 'projects', 'roles'])
-                ->orderBy('position')
-                ->get()
-                ->filter(fn (CustomField $field) => $projects->contains(fn (Project $project) => $field->appliesToProject($project))),
+            self::filterableCustomFields($trackers)->filter(fn (CustomField $field) => $projects->contains(fn (Project $project) => $field->appliesToProject($project))),
             fn () => $projects,
             $viewer,
         );
@@ -165,6 +129,64 @@ final class IssueFilterFieldRegistry
             collect($nativeFields)->concat($extraFields)->concat($customFields)->keyBy(fn (FilterableField $field) => $field->key()),
             $trackers,
         );
+    }
+
+    /**
+     * The native column filters both lists offer, in Redmine's order: the
+     * list's own project filter first ($projectFilter — subprojects on a
+     * project's list, the project itself on the cross-project one), then
+     * the issue's own columns with each select's options drawn from the
+     * given relations.
+     *
+     * @param  Closure(): Collection<int, Tracker>  $trackers
+     * @param  Closure(): Collection<int, IssueCategory>  $categories
+     * @param  Closure(): Collection<int, User>  $users
+     * @param  Closure(): Collection<int, Version>  $versions
+     * @param  Collection<int, int>  $projectIds  the projects whose assignable groups the assignee filter offers
+     * @param  array<int, FilterableField>  $laterDateFields  date filters offered after the creation date
+     * @return array<int, FilterableField>
+     */
+    private static function nativeFields(?FilterableField $projectFilter, Closure $trackers, Closure $categories, Closure $users, Closure $versions, Collection $projectIds, ?User $viewer, array $laterDateFields = []): array
+    {
+        $selectOperators = self::selectOperators();
+        $dateOperators = self::dateOperators();
+
+        return array_values(array_filter([
+            $projectFilter,
+            new NativeColumnFilter('status_id', __('ステータス'), 'status_id', FilterFieldType::Select, $selectOperators, fn () => IssueStatus::query()->orderBy('position')->pluck('name', 'id')->all()),
+            new NativeColumnFilter('tracker_id', __('トラッカー'), 'tracker_id', FilterFieldType::Select, $selectOperators, fn () => $trackers()->pluck('name', 'id')->all()),
+            new NativeColumnFilter('priority_id', __('優先度'), 'priority_id', FilterFieldType::Select, $selectOperators, fn () => Enumeration::query()->ofType(EnumerationType::IssuePriority)->orderBy('position')->pluck('name', 'id')->all()),
+            new NativeColumnFilter('category_id', __('カテゴリ'), 'category_id', FilterFieldType::Select, $selectOperators, fn () => $categories()->pluck('name', 'id')->all()),
+            self::assigneeFilter($selectOperators, $users, $projectIds, $viewer),
+            new NativeColumnFilter('author_id', __('作成者'), 'author_id', FilterFieldType::Select, $selectOperators, fn () => ($viewer !== null ? ['me' => __('<< 自分 >>')] : []) + User::nameOptions($users()), resolvesMe: true),
+            new NativeColumnFilter('fixed_version_id', __('対象バージョン'), 'fixed_version_id', FilterFieldType::Select, $selectOperators, fn () => $versions()->pluck('name', 'id')->all()),
+            new NativeColumnFilter('subject', __('題名'), 'subject', FilterFieldType::Text, self::textOperators()),
+            new NativeColumnFilter('start_date', __('開始日'), 'start_date', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('due_date', __('期日'), 'due_date', FilterFieldType::Date, $dateOperators),
+            new NativeColumnFilter('created_at', __('作成日'), 'created_at', FilterFieldType::Date, $dateOperators, storesTime: true),
+            ...$laterDateFields,
+            new NativeColumnFilter('done_ratio', __('進捗率'), 'done_ratio', FilterFieldType::Integer, self::integerOperators()),
+        ]));
+    }
+
+    /**
+     * The issue custom fields marked as filters on any of $trackers
+     * (attachments cannot be filtered on); the caller narrows them to the
+     * list's projects.
+     *
+     * @param  Collection<int, Tracker>  $trackers
+     * @return EloquentCollection<int, CustomField>
+     */
+    private static function filterableCustomFields(Collection $trackers): EloquentCollection
+    {
+        return CustomField::query()
+            ->where('customized_type', CustomizableType::Issue)
+            ->where('is_filter', true)
+            ->where('field_format', '!=', CustomFieldFormat::Attachment)
+            ->whereHas('trackers', fn ($query) => $query->whereIn('trackers.id', $trackers->pluck('id')))
+            ->with(['trackers', 'projects', 'roles'])
+            ->orderBy('position')
+            ->get();
     }
 
     /**

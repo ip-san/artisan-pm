@@ -15,7 +15,7 @@ use App\Models\Role;
 use App\Models\Tracker;
 use App\Models\User;
 use App\Models\Version;
-use App\Services\IssueService;
+use App\Services\IssueCopier;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -75,7 +75,7 @@ test('copying an issue creates a copied_to relation back to the source', functio
     $author = User::factory()->create();
     $source = bulkCopyIssue($project, $tracker);
 
-    $copy = app(IssueService::class)->copy($source, $project, $tracker->id, $author);
+    $copy = app(IssueCopier::class)->copy($source, $project, $tracker->id, $author);
 
     $relation = IssueRelation::query()
         ->where('issue_from_id', $source->id)
@@ -157,7 +157,7 @@ test('copying an issue duplicates its attachments by default', function () {
     $source = bulkCopyIssue($project, $tracker);
     $source->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
 
-    $copy = app(IssueService::class)->copy($source, $project, $tracker->id, $author);
+    $copy = app(IssueCopier::class)->copy($source, $project, $tracker->id, $author);
 
     expect($source->fresh()->getMedia('attachments'))->toHaveCount(1)
         ->and($copy->fresh()->getMedia('attachments'))->toHaveCount(1)
@@ -173,7 +173,7 @@ test('copying an issue skips attachments when copyAttachments is false', functio
     $source = bulkCopyIssue($project, $tracker);
     $source->addMedia(UploadedFile::fake()->create('notes.txt', 10))->toMediaCollection('attachments');
 
-    $copy = app(IssueService::class)->copy($source, $project, $tracker->id, $author, copyAttachments: false);
+    $copy = app(IssueCopier::class)->copy($source, $project, $tracker->id, $author, copyAttachments: false);
 
     expect($copy->fresh()->getMedia('attachments'))->toBeEmpty();
 });
@@ -188,7 +188,7 @@ test('copying an issue duplicates its watchers by default, but only active ones'
     $source->watchers()->create(['user_id' => $activeWatcher->id]);
     $source->watchers()->create(['user_id' => $lockedWatcher->id]);
 
-    $copy = app(IssueService::class)->copy($source, $project, $tracker->id, $author);
+    $copy = app(IssueCopier::class)->copy($source, $project, $tracker->id, $author);
 
     $copyWatcherIds = $copy->fresh()->watchers->pluck('user_id');
 
@@ -204,7 +204,7 @@ test('copying an issue skips watchers when copyWatchers is false', function () {
     $watcher = User::factory()->create(['status' => UserStatus::Active]);
     $source->watchers()->create(['user_id' => $watcher->id]);
 
-    $copy = app(IssueService::class)->copy($source, $project, $tracker->id, $author, copyWatchers: false);
+    $copy = app(IssueCopier::class)->copy($source, $project, $tracker->id, $author, copyWatchers: false);
 
     expect($copy->fresh()->watchers->pluck('user_id'))->not->toContain($watcher->id);
 });
@@ -253,7 +253,7 @@ test('a copy keeps a version that is still open and shared with the target proje
     $issue = bulkCopyIssue($source, $tracker);
     $issue->update(['fixed_version_id' => $shared->id]);
 
-    $copy = app(IssueService::class)->copy($issue, $target, $tracker->id, $actor);
+    $copy = app(IssueCopier::class)->copy($issue, $target, $tracker->id, $actor);
 
     expect($copy->fixed_version_id)->toBe($shared->id);
 });
@@ -271,7 +271,7 @@ test('a copy takes the target default version when its own is not usable there (
     $closed->update(['fixed_version_id' => $closedShared->id]);
 
     foreach ([$unversioned, $notShared, $closed] as $issue) {
-        expect(app(IssueService::class)->copy($issue, $target, $tracker->id, $actor)->fixed_version_id)->toBe($default->id);
+        expect(app(IssueCopier::class)->copy($issue, $target, $tracker->id, $actor)->fixed_version_id)->toBe($default->id);
     }
 });
 
@@ -284,8 +284,8 @@ test('a copy within the project keeps its version, and one without a version sta
     $versioned->update(['fixed_version_id' => $version->id]);
     $unversioned = bulkCopyIssue($source, $tracker);
 
-    expect(app(IssueService::class)->copy($versioned, $source, $tracker->id, $actor)->fixed_version_id)->toBe($version->id)
-        ->and(app(IssueService::class)->copy($unversioned, $source, $tracker->id, $actor)->fixed_version_id)->toBeNull();
+    expect(app(IssueCopier::class)->copy($versioned, $source, $tracker->id, $actor)->fixed_version_id)->toBe($version->id)
+        ->and(app(IssueCopier::class)->copy($unversioned, $source, $tracker->id, $actor)->fixed_version_id)->toBeNull();
 });
 
 test('a copy keeps its category within the project and takes the same-named one in another project (A1-47)', function () {
@@ -298,9 +298,9 @@ test('a copy keeps its category within the project and takes the same-named one 
     $withFrontend = bulkCopyIssue($source, $tracker);
     $withFrontend->update(['category_id' => $frontend->id]);
 
-    expect(app(IssueService::class)->copy($withBackend, $source, $tracker->id, $actor)->category_id)->toBe($backend->id)
-        ->and(app(IssueService::class)->copy($withBackend, $target, $tracker->id, $actor)->category_id)->toBe($targetBackend->id)
-        ->and(app(IssueService::class)->copy($withFrontend, $target, $tracker->id, $actor)->category_id)->toBeNull();
+    expect(app(IssueCopier::class)->copy($withBackend, $source, $tracker->id, $actor)->category_id)->toBe($backend->id)
+        ->and(app(IssueCopier::class)->copy($withBackend, $target, $tracker->id, $actor)->category_id)->toBe($targetBackend->id)
+        ->and(app(IssueCopier::class)->copy($withFrontend, $target, $tracker->id, $actor)->category_id)->toBeNull();
 });
 
 test('copied subtasks take the target default only in place of an open version, and match categories by name (A1-47)', function () {
@@ -319,7 +319,7 @@ test('copied subtasks take the target default only in place of an open version, 
         ]);
     }
 
-    app(IssueService::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
+    app(IssueCopier::class)->copy($root, $target, $tracker->id, $actor, copySubtasks: true);
     $copies = Issue::query()->where('project_id', $target->id)->whereNotNull('parent_id')->get()->keyBy('subject');
 
     expect($copies['open']->fixed_version_id)->toBe($default->id)

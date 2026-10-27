@@ -18,13 +18,6 @@ use Livewire\Volt\Component;
 new #[Layout('components.layouts.app')] class extends Component
 {
     /**
-     * The starter set a first-time visitor sees — everyone can still
-     * remove/rearrange/add from here, this is just what avoids an empty
-     * page for a brand new account.
-     *
-     * @var array<int, string>
-     */
-    /**
      * Redmine's Redmine::MyPage.default_layout: left => issuesassignedtome,
      * right => issuesreportedbyme. This app's own extra starter block
      * (latest_news) goes to 'top', matching where a newly added block

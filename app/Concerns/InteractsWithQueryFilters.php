@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Concerns;
 
+use App\Models\Query as SavedQuery;
 use App\Support\Query\ListQueryString;
 use Livewire\Attributes\Url;
 
@@ -46,6 +47,21 @@ trait InteractsWithQueryFilters
     private function builtFilters(): array
     {
         return ListQueryString::filters($this->activeFilterKeys, $this->filterOperators, $this->filterValues);
+    }
+
+    /**
+     * Replaces the active filters with a saved query's.
+     */
+    private function applySavedQueryFilters(SavedQuery $query): void
+    {
+        $this->activeFilterKeys = array_keys($query->filters ?? []);
+        $this->filterOperators = [];
+        $this->filterValues = [];
+
+        foreach ($query->filters ?? [] as $key => $filter) {
+            $this->filterOperators[$key] = $filter['operator'];
+            $this->filterValues[$key] = $filter['values'] ?? [];
+        }
     }
 
     public function addFilter(string $key): void
