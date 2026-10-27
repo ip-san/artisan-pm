@@ -166,15 +166,6 @@ new #[Layout('components.layouts.app')] class extends Component
         return null;
     }
 
-    /**
-     * Always global, an edited query included: this list saves only
-     * project-less queries.
-     */
-    protected function savedQueryTargetProject(?SavedQuery $editing): ?Project
-    {
-        return null;
-    }
-
     public function loadQuery(int $queryId): void
     {
         $query = SavedQuery::query()->where('type', QueryType::TimeEntry->value)->whereNull('project_id')->findOrFail($queryId);

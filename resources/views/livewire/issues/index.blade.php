@@ -937,15 +937,6 @@ new #[Layout('components.layouts.app')] class extends Component
     }
 
     /**
-     * Unlike the other lists, the issue list looks the query up by id
-     * alone, whatever its type.
-     */
-    protected function findEditableQuery(int $queryId): SavedQuery
-    {
-        return SavedQuery::findOrFail($queryId);
-    }
-
-    /**
      * @return array<int, string>
      */
     protected function savedQueryFormFields(): array
